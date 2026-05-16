@@ -1,5 +1,5 @@
 import type { Element, ElementId } from "@ke/domain";
-import type { ElementsRepo } from "./ElementsRepo.js";
+import type { ElementsRepo, ElementVersion } from "./ElementsRepo.js";
 
 /**
  * In-memory write-through cache for an ElementsRepo.
@@ -37,6 +37,20 @@ export class CachedElementsRepo implements ElementsRepo {
     await this.inner.put(el);
     const c = await this.ensureLoaded();
     c.set(el.id, el);
+  }
+
+  // History is not cached (rarely read, and tail-heavy):
+  async listVersions(id: ElementId): Promise<ElementVersion[]> {
+    return this.inner.listVersions(id);
+  }
+
+  async revertTo(id: ElementId, timestamp: string): Promise<Element> {
+    const restored = await this.inner.revertTo(id, timestamp);
+    // Inner already called put() which we'd normally wire through, but since
+    // we bypassed our own put() we need to update the cache manually.
+    const c = await this.ensureLoaded();
+    c.set(restored.id, restored);
+    return restored;
   }
 
   /** Test-only / admin: drop the cache so the next read re-loads from disk. */
