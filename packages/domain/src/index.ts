@@ -5,3 +5,4 @@ export * from "./elementTypes/concept.js";
 export * from "./elementTypes/topic.js";
 export * from "./elementTypes/step.js";
 export * from "./elementTypes/practice.js";
+export * from "./logic/tree.js";
