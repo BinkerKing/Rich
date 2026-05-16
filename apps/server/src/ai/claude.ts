@@ -1,22 +1,29 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { execSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import type { AIAdapter, GenerateArgs, StreamEvent } from "./adapter.js";
+
+const execFileP = promisify(execFile);
 
 export class ClaudeAdapter implements AIAdapter {
   readonly name = "claude-code" as const;
+  private availabilityCache: boolean | undefined;
 
   async available(): Promise<boolean> {
+    if (this.availabilityCache !== undefined) return this.availabilityCache;
     try {
-      execSync("claude --version", { stdio: "ignore" });
-      return true;
+      await execFileP("claude", ["--version"]);
+      this.availabilityCache = true;
     } catch {
-      return false;
+      this.availabilityCache = false;
     }
+    return this.availabilityCache;
   }
 
   async *stream(args: GenerateArgs): AsyncIterable<StreamEvent> {
     let fullText = "";
     let sessionId: string | undefined;
+    let assistantMsgError: string | undefined;
     const ac = new AbortController();
     const onAbort = () => ac.abort();
     args.signal?.addEventListener("abort", onAbort);
@@ -26,6 +33,7 @@ export class ClaudeAdapter implements AIAdapter {
         options: { resume: args.sessionId, abortController: ac },
       })) {
         if (msg.type === "assistant") {
+          if (msg.error) assistantMsgError = msg.error;
           for (const block of msg.message.content) {
             if (block.type === "text" && typeof block.text === "string") {
               fullText += block.text;
@@ -39,7 +47,14 @@ export class ClaudeAdapter implements AIAdapter {
             yield { type: "done", fullText: finalText, sessionId };
             return;
           }
-          yield { type: "error", message: `Claude result subtype: ${msg.subtype}` };
+          // SDKResultError: errors[] carries the actual messages. Surface them.
+          const errorList = Array.isArray(msg.errors) && msg.errors.length > 0
+            ? msg.errors.join(" | ")
+            : (assistantMsgError ?? "no details");
+          yield {
+            type: "error",
+            message: `Claude ${msg.subtype} (turns=${msg.num_turns}, stop_reason=${msg.stop_reason ?? "?"}): ${errorList}`,
+          };
           return;
         }
       }

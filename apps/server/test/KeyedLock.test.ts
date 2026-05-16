@@ -52,4 +52,25 @@ describe("KeyedLock", () => {
     expect(await a).toBe("caught");
     expect(await b).toBe("b ok");
   });
+
+  it("releases chain entry after draining (no memory leak)", async () => {
+    const lock = new KeyedLock();
+    await lock.run("k1", async () => 1);
+    await lock.run("k2", async () => 2);
+    await lock.run("k3", async () => 3);
+    expect(lock.size()).toBe(0);
+  });
+
+  it("retains chain entry while operation is in flight", async () => {
+    const lock = new KeyedLock();
+    let release: () => void;
+    const blocker = new Promise<void>((r) => { release = r; });
+    const inFlight = lock.run("k", async () => { await blocker; });
+    // Allow the microtask to register the slot.
+    await new Promise(r => setTimeout(r, 0));
+    expect(lock.size()).toBe(1);
+    release!();
+    await inFlight;
+    expect(lock.size()).toBe(0);
+  });
 });

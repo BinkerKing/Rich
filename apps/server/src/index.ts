@@ -16,6 +16,7 @@ import { ClaudeAdapter } from "./ai/claude.js";
 import { CodexAdapter } from "./ai/codex.js";
 import type { AIAdapter } from "./ai/adapter.js";
 import { createLogger, noopLogger, type Logger } from "./lib/logger.js";
+import { installShutdownHandlers, childRegistry } from "./lib/childRegistry.js";
 
 export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger) {
   const elements = new CachedElementsRepo(new JsonElementsRepo(root));
@@ -44,4 +45,7 @@ if (fileURLToPath(import.meta.url) === realpathSync(process.argv[1])) {
   const app = buildApp(dataDir(), undefined, log);
   serve({ fetch: app.fetch, port });
   log.info("server.started", { port, url: `http://localhost:${port}` });
+  installShutdownHandlers({
+    onShutdown: () => log.info("server.shutdown", { childProcesses: childRegistry.size() }),
+  });
 }
