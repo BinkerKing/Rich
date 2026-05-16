@@ -6,3 +6,6 @@ export * from "./elementTypes/topic.js";
 export * from "./elementTypes/step.js";
 export * from "./elementTypes/practice.js";
 export * from "./logic/tree.js";
+export * from "./schemas/element.js";
+export * from "./schemas/relation.js";
+export * from "./schemas/path.js";

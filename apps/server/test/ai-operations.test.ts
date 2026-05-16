@@ -119,6 +119,24 @@ describe("AI operation routes", () => {
     expect(Array.isArray(body)).toBe(true);
   });
 
+  it("POST /api/ai/expand emits error event on schema-invalid AI output", async () => {
+    // AI returned elements with empty id (rejected by ElementSchema.id.min(1))
+    const bad = {
+      elements: [{ id: "", type: "concept", title: "x", content: {}, metadata: { createdAt: "", updatedAt: "", generatedBy: "ai", richness: 2 } }],
+      relations: [],
+    };
+    const app = buildApp(dir, [new ScriptedAdapter(bad)]);
+    const res = await app.request("/api/ai/expand", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ elementId: TEST_EL_ID }),
+    });
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("event: error");
+    expect(text).toContain("schema validation failed");
+  });
+
   it("GET /api/paths returns empty array of centers when none stored", async () => {
     const app = buildApp(dir, [new ScriptedAdapter({})]);
     const res = await app.request("/api/paths");
