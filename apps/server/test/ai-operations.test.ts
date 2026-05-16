@@ -1,8 +1,8 @@
-import { describe, it, expect, afterEach } from "vitest";
-import { rmSync, existsSync } from "node:fs";
+import { describe, it, expect, beforeEach } from "vitest";
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { buildApp } from "../src/index.js";
-import { dataDir } from "../src/lib/paths.js";
 import type { AIAdapter, StreamEvent, GenerateArgs } from "../src/ai/adapter.js";
 
 class ScriptedAdapter implements AIAdapter {
@@ -16,17 +16,28 @@ class ScriptedAdapter implements AIAdapter {
   }
 }
 
-const TEST_EL_ID = "cog-psy.attention";
+const TEST_EL_ID = "test.attention";
+
+let dir: string;
+
+beforeEach(() => {
+  dir = mkdtempSync(join(tmpdir(), "ke-ops-"));
+  mkdirSync(join(dir, "elements"), { recursive: true });
+  writeFileSync(
+    join(dir, "elements", `${TEST_EL_ID}.json`),
+    JSON.stringify({
+      id: TEST_EL_ID,
+      type: "concept",
+      title: "注意力",
+      content: { oneSentence: "原始定义", coreExplain: "...", whyMatters: "..." },
+      metadata: { createdAt: "", updatedAt: "", generatedBy: "ai", richness: 2 },
+    }),
+  );
+});
 
 describe("AI operation routes", () => {
-  afterEach(() => {
-    // Clean up any test artifacts written outside the original seed
-    const paths = join(dataDir(), "paths", `${TEST_EL_ID}.json`);
-    if (existsSync(paths)) rmSync(paths);
-  });
-
   it("POST /api/ai/refine returns 404 for unknown element", async () => {
-    const app = buildApp(dataDir(), [new ScriptedAdapter({ content: {} })]);
+    const app = buildApp(dir, [new ScriptedAdapter({ content: {} })]);
     const res = await app.request("/api/ai/refine", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -36,8 +47,8 @@ describe("AI operation routes", () => {
   });
 
   it("POST /api/ai/refine streams done with content payload", async () => {
-    const payload = { content: { oneSentence: "新的更深定义", coreExplain: "...", whyMatters: "..." } };
-    const app = buildApp(dataDir(), [new ScriptedAdapter(payload)]);
+    const payload = { content: { oneSentence: "更深定义", coreExplain: "...", whyMatters: "..." } };
+    const app = buildApp(dir, [new ScriptedAdapter(payload)]);
     const res = await app.request("/api/ai/refine", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -46,19 +57,20 @@ describe("AI operation routes", () => {
     expect(res.status).toBe(200);
     const text = await res.text();
     expect(text).toContain("event: done");
-    expect(text).toContain("新的更深定义");
+    expect(text).toContain("更深定义");
   });
 
   it("POST /api/ai/expand streams done with elements + relations", async () => {
+    const childId = `${TEST_EL_ID}.test1`;
     const payload = {
       elements: [{
-        id: "cog-psy.attention.test1", type: "concept", title: "Test1",
+        id: childId, type: "concept", title: "Test1",
         content: { oneSentence: "t", coreExplain: "t", whyMatters: "t" },
         metadata: { createdAt: "", updatedAt: "", generatedBy: "ai", richness: 2 },
       }],
-      relations: [{ id: "r1", from: TEST_EL_ID, to: "cog-psy.attention.test1", kind: "child", createdAt: "" }],
+      relations: [{ id: "r1", from: TEST_EL_ID, to: childId, kind: "child", createdAt: "" }],
     };
-    const app = buildApp(dataDir(), [new ScriptedAdapter(payload)]);
+    const app = buildApp(dir, [new ScriptedAdapter(payload)]);
     const res = await app.request("/api/ai/expand", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -67,14 +79,11 @@ describe("AI operation routes", () => {
     expect(res.status).toBe(200);
     const text = await res.text();
     expect(text).toContain("event: done");
-    expect(text).toContain("cog-psy.attention.test1");
-    // Cleanup artifact written by repo.put
-    const p = join(dataDir(), "elements", "cog-psy.attention.test1.json");
-    if (existsSync(p)) rmSync(p);
+    expect(text).toContain(childId);
   });
 
   it("POST /api/ai/extend returns 400 on missing direction", async () => {
-    const app = buildApp(dataDir(), [new ScriptedAdapter({ elements: [], relations: [] })]);
+    const app = buildApp(dir, [new ScriptedAdapter({ elements: [], relations: [] })]);
     const res = await app.request("/api/ai/extend", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -90,7 +99,7 @@ describe("AI operation routes", () => {
         color: "gold", steps: [TEST_EL_ID], generatedBy: "ai", createdAt: "",
       }],
     };
-    const app = buildApp(dataDir(), [new ScriptedAdapter(payload)]);
+    const app = buildApp(dir, [new ScriptedAdapter(payload)]);
     const res = await app.request("/api/ai/path", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -103,15 +112,15 @@ describe("AI operation routes", () => {
   });
 
   it("GET /api/relations returns array", async () => {
-    const app = buildApp(dataDir(), [new ScriptedAdapter({})]);
+    const app = buildApp(dir, [new ScriptedAdapter({})]);
     const res = await app.request("/api/relations");
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(Array.isArray(body)).toBe(true);
   });
 
-  it("GET /api/paths returns array of center ids when no center query", async () => {
-    const app = buildApp(dataDir(), [new ScriptedAdapter({})]);
+  it("GET /api/paths returns empty array of centers when none stored", async () => {
+    const app = buildApp(dir, [new ScriptedAdapter({})]);
     const res = await app.request("/api/paths");
     expect(res.status).toBe(200);
     const body = await res.json();
