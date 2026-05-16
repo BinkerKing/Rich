@@ -7,7 +7,8 @@ export type SignalType =
   | "op.failed"           // AI op emitted error
   | "user.reverted"       // user reverted an element to a prior version
   | "user.repeated_op"    // same op was invoked on same element within window
-  | "user.frustrated";    // composite signal (≥ 3 repeated ops on same element in <30 min)
+  | "user.frustrated"     // composite signal (≥ 3 repeated ops on same element in <30 min)
+  | "user.changed_center"; // user switched the current center element (data: { from, to, dwellMs })
 
 export interface Signal {
   ts: string;                        // ISO 8601 timestamp
