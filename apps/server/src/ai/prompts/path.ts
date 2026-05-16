@@ -29,7 +29,7 @@ export function buildPathPrompt({ center, availableElements, kinds }: PathPrompt
 - 类型: ${center.type}
 - 标题: ${center.title}
 
-可用元 ID 列表（请**优先**从这些已有元中挑选步骤；只有不够时才能引入新 ID）：
+**可用元 ID 列表**（steps 数组的每个 ID 必须严格来自此列表，否则视为无效输出。不要发明新 ID，不要修改格式，不要把点 . 改为短划 -）：
 ${elList}
 
 要生成的路径种类（${kinds.length} 条，每条 2-4 步）：
