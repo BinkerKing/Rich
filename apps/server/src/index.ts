@@ -11,19 +11,27 @@ import { JsonRelationsRepo } from "./repos/JsonRelationsRepo.js";
 import { JsonPathsRepo } from "./repos/JsonPathsRepo.js";
 import { CachedElementsRepo } from "./repos/CachedElementsRepo.js";
 import { CachedRelationsRepo } from "./repos/CachedRelationsRepo.js";
-import { dataDir } from "./lib/paths.js";
+import { dataDir, aiDir } from "./lib/paths.js";
 import { ClaudeAdapter } from "./ai/claude.js";
 import { CodexAdapter } from "./ai/codex.js";
 import type { AIAdapter } from "./ai/adapter.js";
 import { createLogger, noopLogger, type Logger } from "./lib/logger.js";
 import { installShutdownHandlers, childRegistry } from "./lib/childRegistry.js";
 
-export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger) {
+export interface BuildAppOptions {
+  adapters?: AIAdapter[];
+  logger?: Logger;
+  /** Override the AI manuals directory. Defaults to monorepo's `ai/`. */
+  aiDir?: string;
+}
+
+export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, opts: BuildAppOptions = {}) {
   const elements = new CachedElementsRepo(new JsonElementsRepo(root));
   const relations = new CachedRelationsRepo(new JsonRelationsRepo(root));
   const paths = new JsonPathsRepo(root);
-  const ai = adapters ?? [new ClaudeAdapter(), new CodexAdapter()];
-  const log = logger ?? noopLogger;
+  const ai = adapters ?? opts.adapters ?? [new ClaudeAdapter(), new CodexAdapter()];
+  const log = logger ?? opts.logger ?? noopLogger;
+  const manualsDir = opts.aiDir ?? aiDir();
   const app = new Hono();
   app.use("*", async (c, next) => {
     c.header("access-control-allow-origin", "*");
@@ -34,7 +42,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger) 
   app.route("/api/elements", elementsRoutes(elements));
   app.route("/api/relations", relationsRoutes(relations));
   app.route("/api/paths", pathsRoutes(paths));
-  app.route("/api/ai", aiRoutes({ adapters: ai, elements, relations, paths, logger: log }));
+  app.route("/api/ai", aiRoutes({ adapters: ai, elements, relations, paths, aiDir: manualsDir, logger: log }));
 
   app.get("/api/health", async (c) => {
     const adapterChecks = await Promise.all(ai.map(async (a) => ({

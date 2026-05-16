@@ -17,13 +17,21 @@ import { KeyedLock } from "../lib/KeyedLock.js";
 import type { Logger } from "../lib/logger.js";
 import { noopLogger } from "../lib/logger.js";
 import { streamElementOp } from "./streamElementOp.js";
+import { loadManual, manualToPromptFragment } from "../ai/manuals.js";
 
 export interface AiRoutesDeps {
   adapters: AIAdapter[];
   elements: ElementsRepo;
   relations: RelationsRepo;
   paths: PathsRepo;
+  /** Directory containing AI manual markdown files (knowledge.md, codex.md, …). */
+  aiDir: string;
   logger?: Logger;
+}
+
+async function knowledgeManualFragment(aiDir: string): Promise<string> {
+  const m = await loadManual(aiDir, "knowledge");
+  return m ? manualToPromptFragment(m) : "";
 }
 
 function elementMetadataWithSession(
@@ -73,10 +81,11 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     const reqId = newReqId();
     const t0 = Date.now();
     log.info("ai.op.start", { reqId, op: "/api/ai/generate-tree", topic, adapter: adapter.name });
+    const manual = await knowledgeManualFragment(deps.aiDir);
     return streamSSE(c, async (stream) => {
       let deltas = 0;
       let bytes = 0;
-      for await (const ev of generateTreeFor(adapter, { topic, richness, signal })) {
+      for await (const ev of generateTreeFor(adapter, { topic, richness, signal, manual })) {
         if (ev.type === "delta") { deltas++; bytes += ev.text.length; }
         if (ev.type === "error") log.error("ai.op.error", { reqId, durationMs: Date.now() - t0, deltas, bytes, message: ev.message });
         await stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) });
@@ -118,6 +127,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
         element, targetRichness,
         sessionId: element.metadata.aiSessionId,
         signal,
+        manual: await knowledgeManualFragment(deps.aiDir),
       }),
       onDone: async (result, sessionId) => {
         await deps.elements.put(elementMetadataWithSession(
@@ -150,6 +160,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
         parent, existingChildren, count,
         sessionId: parent.metadata.aiSessionId,
         signal,
+        manual: await knowledgeManualFragment(deps.aiDir),
       }),
       onDone: async (result, sessionId) => {
         for (const el of result.elements) await deps.elements.put(el);
@@ -181,6 +192,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
         element, direction, count,
         sessionId: element.metadata.aiSessionId,
         signal,
+        manual: await knowledgeManualFragment(deps.aiDir),
       }),
       onDone: async (result, sessionId) => {
         for (const el of result.elements) await deps.elements.put(el);
@@ -213,6 +225,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
         center, availableElements, kinds,
         sessionId: center.metadata.aiSessionId,
         signal,
+        manual: await knowledgeManualFragment(deps.aiDir),
       }),
       onDone: async (result, sessionId) => {
         await deps.paths.appendForCenter(elementId, result.paths);

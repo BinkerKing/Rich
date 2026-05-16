@@ -51,44 +51,65 @@ function zodValidator<T>(schema: z.ZodSchema<T>): (parsed: unknown) => T {
   };
 }
 
+function withManual(manual: string | undefined, taskPrompt: string): string {
+  return manual ? `${manual}${taskPrompt}` : taskPrompt;
+}
+
+interface SharedOpArgs {
+  sessionId?: string;
+  signal?: AbortSignal;
+  /** Pre-formatted AI manual block (use manualToPromptFragment). Optional. */
+  manual?: string;
+}
+
 // ----- Operations -----
 
 export function generateTreeFor(
   adapter: AIAdapter,
-  args: { topic: string; richness?: RichnessLevel; signal?: AbortSignal },
+  args: { topic: string; richness?: RichnessLevel } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<GenerateTreeResult>> {
-  const prompt = buildGenerateTreePrompt({ topic: args.topic, richness: args.richness ?? 2 });
+  const prompt = withManual(args.manual, buildGenerateTreePrompt({
+    topic: args.topic, richness: args.richness ?? 2,
+  }));
   return runStructuredAI(adapter, { prompt, signal: args.signal, validate: zodValidator(GenerateTreeResultSchema) });
 }
 
 export function refineElement(
   adapter: AIAdapter,
-  args: { element: Element; targetRichness: RichnessLevel; sessionId?: string; signal?: AbortSignal },
+  args: { element: Element; targetRichness: RichnessLevel } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<RefineResult>> {
-  const prompt = buildRefinePrompt({ element: args.element, targetRichness: args.targetRichness });
+  const prompt = withManual(args.manual, buildRefinePrompt({
+    element: args.element, targetRichness: args.targetRichness,
+  }));
   return runStructuredAI(adapter, { prompt, sessionId: args.sessionId, signal: args.signal, validate: zodValidator(RefineResultSchema) });
 }
 
 export function expandElement(
   adapter: AIAdapter,
-  args: { parent: Element; existingChildren: Element[]; count?: number; sessionId?: string; signal?: AbortSignal },
+  args: { parent: Element; existingChildren: Element[]; count?: number } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<ExpandResult>> {
-  const prompt = buildExpandPrompt({ parent: args.parent, existingChildren: args.existingChildren, count: args.count });
+  const prompt = withManual(args.manual, buildExpandPrompt({
+    parent: args.parent, existingChildren: args.existingChildren, count: args.count,
+  }));
   return runStructuredAI(adapter, { prompt, sessionId: args.sessionId, signal: args.signal, validate: zodValidator(ElementsAndRelationsSchema) });
 }
 
 export function extendElement(
   adapter: AIAdapter,
-  args: { element: Element; direction: string; count?: number; sessionId?: string; signal?: AbortSignal },
+  args: { element: Element; direction: string; count?: number } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<ExtendResult>> {
-  const prompt = buildExtendPrompt({ element: args.element, direction: args.direction, count: args.count });
+  const prompt = withManual(args.manual, buildExtendPrompt({
+    element: args.element, direction: args.direction, count: args.count,
+  }));
   return runStructuredAI(adapter, { prompt, sessionId: args.sessionId, signal: args.signal, validate: zodValidator(ElementsAndRelationsSchema) });
 }
 
 export function generatePathsFor(
   adapter: AIAdapter,
-  args: { center: Element; availableElements: Element[]; kinds: PathKind[]; sessionId?: string; signal?: AbortSignal },
+  args: { center: Element; availableElements: Element[]; kinds: PathKind[] } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<PathResult>> {
-  const prompt = buildPathPrompt({ center: args.center, availableElements: args.availableElements, kinds: args.kinds });
+  const prompt = withManual(args.manual, buildPathPrompt({
+    center: args.center, availableElements: args.availableElements, kinds: args.kinds,
+  }));
   return runStructuredAI(adapter, { prompt, sessionId: args.sessionId, signal: args.signal, validate: zodValidator(PathResultSchema) });
 }
