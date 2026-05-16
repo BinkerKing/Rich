@@ -1,0 +1,16 @@
+{
+  "id": "photosyn.chloro.thylakoid",
+  "type": "concept",
+  "title": "类囊体",
+  "content": {
+    "oneSentence": "类囊体膜上分布着吸光色素和电子传递链。",
+    "coreExplain": "光反应在这里发生。",
+    "whyMatters": "是捕获光能的核心结构。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 1
+  }
+}

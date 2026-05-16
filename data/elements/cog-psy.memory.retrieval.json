@@ -1,0 +1,16 @@
+{
+  "id": "cog-psy.memory.retrieval",
+  "type": "concept",
+  "title": "提取",
+  "content": {
+    "oneSentence": "提取是从记忆中重新访问、激活并使用已保存信息的过程。",
+    "coreExplain": "提取依赖线索、情境、目标和当前认知状态。信息可能以回忆、再认或重构的形式被取出，因此提取并不总是像播放记录一样精确。",
+    "whyMatters": "提取决定记忆能否真正被使用，也解释了考试、提示、回忆练习和错误记忆等现象。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 2
+  }
+}

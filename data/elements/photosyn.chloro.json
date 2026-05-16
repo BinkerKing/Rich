@@ -1,0 +1,16 @@
+{
+  "id": "photosyn.chloro",
+  "type": "concept",
+  "title": "叶绿体结构",
+  "content": {
+    "oneSentence": "叶绿体是植物细胞进行光合作用的主要场所。",
+    "coreExplain": "类囊体进行光反应，基质进行卡尔文循环。",
+    "whyMatters": "结构决定反应位置。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 1
+  }
+}

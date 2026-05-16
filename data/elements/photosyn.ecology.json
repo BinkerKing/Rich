@@ -1,0 +1,16 @@
+{
+  "id": "photosyn.ecology",
+  "type": "concept",
+  "title": "生态意义",
+  "content": {
+    "oneSentence": "光合作用支撑食物网、氧气供应和全球碳循环。",
+    "coreExplain": "它把无机物和光能转入生物圈。",
+    "whyMatters": "是地球生命系统的基础过程。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 1
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "photosyn.factors",
+  "type": "concept",
+  "title": "影响因素",
+  "content": {
+    "oneSentence": "光照、二氧化碳浓度、温度和水分都会影响光合作用速率。",
+    "coreExplain": "任一条件不足都可能成为限制因素。",
+    "whyMatters": "可用于解释植物生长差异。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 1
+  }
+}

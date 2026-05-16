@@ -1,0 +1,3 @@
+{"id":"rel-cog-psy.memory-cog-psy.memory.encoding","from":"cog-psy.memory","to":"cog-psy.memory.encoding","kind":"child","createdAt":"2026-05-16T00:00:00+08:00"}
+{"id":"rel-cog-psy.memory-cog-psy.memory.storage","from":"cog-psy.memory","to":"cog-psy.memory.storage","kind":"child","createdAt":"2026-05-16T00:00:00+08:00"}
+{"id":"rel-cog-psy.memory-cog-psy.memory.retrieval","from":"cog-psy.memory","to":"cog-psy.memory.retrieval","kind":"child","createdAt":"2026-05-16T00:00:00+08:00"}

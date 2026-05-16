@@ -1,0 +1,16 @@
+{
+  "id": "photosyn.ecology.oxygen",
+  "type": "concept",
+  "title": "氧气来源",
+  "content": {
+    "oneSentence": "大气中的氧气主要由光合生物长期释放积累而来。",
+    "coreExplain": "氧气来自水的光解。",
+    "whyMatters": "支持需氧生命。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 1
+  }
+}

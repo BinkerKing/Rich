@@ -1,0 +1,16 @@
+{
+  "id": "photosyn.ecology.carbon",
+  "type": "concept",
+  "title": "碳循环",
+  "content": {
+    "oneSentence": "光合作用把大气中的二氧化碳固定进生物体。",
+    "coreExplain": "它与呼吸作用共同调节碳流动。",
+    "whyMatters": "关联气候和生态平衡。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 1
+  }
+}

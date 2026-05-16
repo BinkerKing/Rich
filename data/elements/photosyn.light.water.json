@@ -1,0 +1,16 @@
+{
+  "id": "photosyn.light.water",
+  "type": "concept",
+  "title": "水的光解",
+  "content": {
+    "oneSentence": "水分子在光反应中被分解，产生氧气、电子和氢离子。",
+    "coreExplain": "释放的氧气来自水。",
+    "whyMatters": "解释大气氧气的重要来源。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 1
+  }
+}

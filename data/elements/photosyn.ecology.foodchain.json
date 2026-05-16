@@ -1,0 +1,16 @@
+{
+  "id": "photosyn.ecology.foodchain",
+  "type": "concept",
+  "title": "食物链基础",
+  "content": {
+    "oneSentence": "植物制造的有机物是多数食物链的能量起点。",
+    "coreExplain": "消费者直接或间接依赖生产者。",
+    "whyMatters": "它说明植物为何是生态系统的基础。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 1
+  }
+}

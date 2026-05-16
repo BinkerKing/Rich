@@ -1,0 +1,16 @@
+{
+  "id": "photosyn.pigment.spectrum",
+  "type": "concept",
+  "title": "吸收光谱",
+  "content": {
+    "oneSentence": "不同色素对不同波长光的吸收效率不同。",
+    "coreExplain": "光谱帮助判断哪类光最适合光合作用。",
+    "whyMatters": "它连接了光照颜色与植物生长表现。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 1
+  }
+}

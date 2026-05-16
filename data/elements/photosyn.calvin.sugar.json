@@ -1,0 +1,16 @@
+{
+  "id": "photosyn.calvin.sugar",
+  "type": "concept",
+  "title": "糖的形成",
+  "content": {
+    "oneSentence": "卡尔文循环的产物可进一步合成葡萄糖等有机物。",
+    "coreExplain": "三碳糖是合成多种有机物的前体。",
+    "whyMatters": "它解释了植物如何制造自身营养。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 1
+  }
+}

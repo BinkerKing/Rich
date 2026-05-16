@@ -1,0 +1,16 @@
+{
+  "id": "photosyn.ecology.food",
+  "type": "concept",
+  "title": "食物网基础",
+  "content": {
+    "oneSentence": "植物等生产者通过光合作用制造有机物。",
+    "coreExplain": "消费者直接或间接依赖这些有机物。",
+    "whyMatters": "解释生态系统能量来源。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 1
+  }
+}

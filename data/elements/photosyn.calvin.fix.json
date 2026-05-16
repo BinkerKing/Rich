@@ -1,0 +1,16 @@
+{
+  "id": "photosyn.calvin.fix",
+  "type": "concept",
+  "title": "碳固定",
+  "content": {
+    "oneSentence": "RuBisCO 将二氧化碳固定到 RuBP 上。",
+    "coreExplain": "这是卡尔文循环的起点。",
+    "whyMatters": "决定碳进入有机分子的第一步。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 1
+  }
+}

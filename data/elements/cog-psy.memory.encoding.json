@@ -1,0 +1,16 @@
+{
+  "id": "cog-psy.memory.encoding",
+  "type": "concept",
+  "title": "编码",
+  "content": {
+    "oneSentence": "编码是把外界信息转化为可被记忆系统处理和保存的心理表征过程。",
+    "coreExplain": "人在感知信息后，会通过注意、理解、联想、语义加工或情境绑定等方式，将信息组织成可存储的形式。编码越深入、越有意义，后续越容易保存和提取。",
+    "whyMatters": "编码质量直接影响记忆效果，是学习、识别、回忆和形成长期知识结构的起点。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 2
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "photosyn.calvin.regen",
+  "type": "concept",
+  "title": "RuBP 再生",
+  "content": {
+    "oneSentence": "部分 G3P 用于再生 RuBP，使循环继续。",
+    "coreExplain": "再生过程需要 ATP。",
+    "whyMatters": "保证碳固定持续发生。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 1
+  }
+}

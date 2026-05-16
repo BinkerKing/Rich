@@ -1,0 +1,16 @@
+{
+  "id": "photosyn.overview.stage",
+  "type": "concept",
+  "title": "两大阶段",
+  "content": {
+    "oneSentence": "光合作用通常分为光反应和卡尔文循环。",
+    "coreExplain": "前者依赖光，后者利用前者产物固定碳。",
+    "whyMatters": "帮助拆解复杂过程。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 1
+  }
+}

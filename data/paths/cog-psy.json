@@ -1,0 +1,48 @@
+[
+  {
+    "id": "path-cog-psy-quick",
+    "centerElementId": "cog-psy",
+    "kind": "quick",
+    "label": "快速入门 30min",
+    "color": "gold",
+    "steps": [
+      "cog-psy-attention",
+      "cog-psy-memory",
+      "cog-psy-thinking"
+    ],
+    "estimatedTime": "30 min",
+    "generatedBy": "ai",
+    "createdAt": "2026-05-16T00:00:00+08:00"
+  },
+  {
+    "id": "path-cog-psy-practice",
+    "centerElementId": "cog-psy",
+    "kind": "practice",
+    "label": "实战应用 2h",
+    "color": "pink",
+    "steps": [
+      "cog-psy-cognitive-load",
+      "cog-psy-user-decision",
+      "cog-psy-learning-design",
+      "cog-psy-product-feedback"
+    ],
+    "estimatedTime": "2 h",
+    "generatedBy": "ai",
+    "createdAt": "2026-05-16T00:00:00+08:00"
+  },
+  {
+    "id": "path-cog-psy-quick",
+    "centerElementId": "cog-psy",
+    "kind": "quick",
+    "label": "快速入门 30min",
+    "color": "gold",
+    "steps": [
+      "cog-psy-attention",
+      "cog-psy-memory",
+      "cog-psy-thinking"
+    ],
+    "estimatedTime": "30 min",
+    "generatedBy": "ai",
+    "createdAt": "2026-05-16T00:00:00+08:00"
+  }
+]

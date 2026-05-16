@@ -1,0 +1,16 @@
+{
+  "id": "photosyn.chloroplast.stroma",
+  "type": "concept",
+  "title": "基质",
+  "content": {
+    "oneSentence": "叶绿体基质是卡尔文循环发生的区域。",
+    "coreExplain": "基质中含有固定二氧化碳所需的酶。",
+    "whyMatters": "它承接光反应提供的能量物质。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 1
+  }
+}

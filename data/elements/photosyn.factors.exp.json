@@ -1,0 +1,30 @@
+{
+  "id": "photosyn.factors.exp",
+  "type": "practice",
+  "title": "速率实验",
+  "content": {
+    "productPositioning": "用简单实验观察光照对光合作用速率的影响。",
+    "targetAudience": "初高中生物学习者",
+    "needs": [
+      "可观察变量",
+      "低成本材料"
+    ],
+    "mvpFeatures": [
+      "水草产气计数",
+      "光距调节",
+      "结果记录表"
+    ],
+    "implementationPath": [
+      "准备水草和光源",
+      "改变光照距离",
+      "记录气泡数量",
+      "比较趋势"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T00:00:00+08:00",
+    "updatedAt": "2026-05-16T00:00:00+08:00",
+    "generatedBy": "ai",
+    "richness": 1
+  }
+}
