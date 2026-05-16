@@ -3,15 +3,21 @@ import { serve } from "@hono/node-server";
 import { fileURLToPath } from "node:url";
 import { realpathSync } from "node:fs";
 import { elementsRoutes } from "./routes/elements.js";
+import { relationsRoutes } from "./routes/relations.js";
+import { pathsRoutes } from "./routes/paths.js";
 import { aiRoutes } from "./routes/ai.js";
 import { JsonElementsRepo } from "./repos/JsonElementsRepo.js";
+import { JsonRelationsRepo } from "./repos/JsonRelationsRepo.js";
+import { JsonPathsRepo } from "./repos/JsonPathsRepo.js";
 import { dataDir } from "./lib/paths.js";
 import { ClaudeAdapter } from "./ai/claude.js";
 import { CodexAdapter } from "./ai/codex.js";
 import type { AIAdapter } from "./ai/adapter.js";
 
 export function buildApp(root: string, adapters?: AIAdapter[]) {
-  const repo = new JsonElementsRepo(root);
+  const elements = new JsonElementsRepo(root);
+  const relations = new JsonRelationsRepo(root);
+  const paths = new JsonPathsRepo(root);
   const ai = adapters ?? [new ClaudeAdapter(), new CodexAdapter()];
   const app = new Hono();
   app.use("*", async (c, next) => {
@@ -20,8 +26,10 @@ export function buildApp(root: string, adapters?: AIAdapter[]) {
     if (c.req.method === "OPTIONS") return c.body(null, 204);
     await next();
   });
-  app.route("/api/elements", elementsRoutes(repo));
-  app.route("/api/ai", aiRoutes(ai, repo));
+  app.route("/api/elements", elementsRoutes(elements));
+  app.route("/api/relations", relationsRoutes(relations));
+  app.route("/api/paths", pathsRoutes(paths));
+  app.route("/api/ai", aiRoutes({ adapters: ai, elements, relations, paths }));
   app.get("/api/health", (c) => c.json({ ok: true }));
   return app;
 }
