@@ -15,12 +15,14 @@ import { dataDir } from "./lib/paths.js";
 import { ClaudeAdapter } from "./ai/claude.js";
 import { CodexAdapter } from "./ai/codex.js";
 import type { AIAdapter } from "./ai/adapter.js";
+import { createLogger, noopLogger, type Logger } from "./lib/logger.js";
 
-export function buildApp(root: string, adapters?: AIAdapter[]) {
+export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger) {
   const elements = new CachedElementsRepo(new JsonElementsRepo(root));
   const relations = new CachedRelationsRepo(new JsonRelationsRepo(root));
   const paths = new JsonPathsRepo(root);
   const ai = adapters ?? [new ClaudeAdapter(), new CodexAdapter()];
+  const log = logger ?? noopLogger;
   const app = new Hono();
   app.use("*", async (c, next) => {
     c.header("access-control-allow-origin", "*");
@@ -31,14 +33,15 @@ export function buildApp(root: string, adapters?: AIAdapter[]) {
   app.route("/api/elements", elementsRoutes(elements));
   app.route("/api/relations", relationsRoutes(relations));
   app.route("/api/paths", pathsRoutes(paths));
-  app.route("/api/ai", aiRoutes({ adapters: ai, elements, relations, paths }));
+  app.route("/api/ai", aiRoutes({ adapters: ai, elements, relations, paths, logger: log }));
   app.get("/api/health", (c) => c.json({ ok: true }));
   return app;
 }
 
 if (fileURLToPath(import.meta.url) === realpathSync(process.argv[1])) {
   const port = Number(process.env.PORT ?? 3001);
-  const app = buildApp(dataDir());
+  const log = createLogger({ bound: { app: "ke-server" } });
+  const app = buildApp(dataDir(), undefined, log);
   serve({ fetch: app.fetch, port });
-  console.log(`Know Everything server: http://localhost:${port}`);
+  log.info("server.started", { port, url: `http://localhost:${port}` });
 }

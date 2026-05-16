@@ -14,6 +14,8 @@ import {
   generatePathsFor,
 } from "../ai/operations.js";
 import { KeyedLock } from "../lib/KeyedLock.js";
+import type { Logger } from "../lib/logger.js";
+import { noopLogger } from "../lib/logger.js";
 import { streamElementOp } from "./streamElementOp.js";
 
 export interface AiRoutesDeps {
@@ -21,6 +23,7 @@ export interface AiRoutesDeps {
   elements: ElementsRepo;
   relations: RelationsRepo;
   paths: PathsRepo;
+  logger?: Logger;
 }
 
 function elementMetadataWithSession(
@@ -44,6 +47,10 @@ function elementMetadataWithSession(
 export function aiRoutes(deps: AiRoutesDeps): Hono {
   const r = new Hono();
   const lock = new KeyedLock();
+  const log = deps.logger ?? noopLogger;
+
+  let reqCounter = 0;
+  const newReqId = () => `r${Date.now().toString(36)}-${(++reqCounter).toString(36)}`;
 
   // ----- generate-tree: not element-bound, has its own SSE shape -----
   r.post("/generate-tree", async (c) => {
@@ -54,8 +61,15 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     if (!topic) return c.json({ error: "topic required" }, 400);
     const adapter = pickAdapter(deps.adapters, model);
     const signal = c.req.raw.signal;
+    const reqId = newReqId();
+    const t0 = Date.now();
+    log.info("ai.op.start", { reqId, op: "/api/ai/generate-tree", topic, adapter: adapter.name });
     return streamSSE(c, async (stream) => {
+      let deltas = 0;
+      let bytes = 0;
       for await (const ev of generateTreeFor(adapter, { topic, richness, signal })) {
+        if (ev.type === "delta") { deltas++; bytes += ev.text.length; }
+        if (ev.type === "error") log.error("ai.op.error", { reqId, durationMs: Date.now() - t0, deltas, bytes, message: ev.message });
         await stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) });
         if (ev.type === "done") {
           for (const el of ev.result.elements) await deps.elements.put(el);
@@ -69,6 +83,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
           for (const [centerId, list] of grouped) {
             await deps.paths.putForCenter(centerId, list);
           }
+          log.info("ai.op.done", { reqId, durationMs: Date.now() - t0, deltas, bytes, elements: ev.result.elements.length });
         }
       }
     });
@@ -84,7 +99,11 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     if (!element) return c.json({ error: "element not found" }, 404);
     const adapter = pickAdapter(deps.adapters, model);
     const signal = c.req.raw.signal;
+    const reqId = newReqId();
+    const logCtx = { reqId, op: c.req.path, elementId, adapter: adapter.name };
+    log.info("ai.op.start", logCtx);
     return streamElementOp({
+      logger: log, logCtx,
       c, lock, element,
       operation: refineElement(adapter, {
         element, targetRichness,
@@ -112,7 +131,11 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     const existingChildren = await loadChildren(deps, elementId);
     const adapter = pickAdapter(deps.adapters, model);
     const signal = c.req.raw.signal;
+    const reqId = newReqId();
+    const logCtx = { reqId, op: c.req.path, elementId, adapter: adapter.name };
+    log.info("ai.op.start", logCtx);
     return streamElementOp({
+      logger: log, logCtx,
       c, lock, element: parent,
       operation: expandElement(adapter, {
         parent, existingChildren, count,
@@ -139,7 +162,11 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     if (!element) return c.json({ error: "element not found" }, 404);
     const adapter = pickAdapter(deps.adapters, model);
     const signal = c.req.raw.signal;
+    const reqId = newReqId();
+    const logCtx = { reqId, op: c.req.path, elementId, adapter: adapter.name };
+    log.info("ai.op.start", logCtx);
     return streamElementOp({
+      logger: log, logCtx,
       c, lock, element,
       operation: extendElement(adapter, {
         element, direction, count,
@@ -167,7 +194,11 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     const availableElements = await loadSubtreeElements(deps, elementId, 2);
     const adapter = pickAdapter(deps.adapters, model);
     const signal = c.req.raw.signal;
+    const reqId = newReqId();
+    const logCtx = { reqId, op: c.req.path, elementId, adapter: adapter.name };
+    log.info("ai.op.start", logCtx);
     return streamElementOp({
+      logger: log, logCtx,
       c, lock, element: center,
       operation: generatePathsFor(adapter, {
         center, availableElements, kinds,
