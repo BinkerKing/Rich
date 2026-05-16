@@ -8,7 +8,7 @@ import type { LearningPath } from "@ke/domain";
 let dir: string;
 const path = (id: string, center: string): LearningPath => ({
   id, centerElementId: center, kind: "quick", label: "Q", color: "gold",
-  steps: [], generatedBy: "ai", createdAt: "",
+  steps: [center], generatedBy: "ai", createdAt: "",
 });
 
 beforeEach(() => { dir = mkdtempSync(join(tmpdir(), "ke-paths-")); });
@@ -39,5 +39,26 @@ describe("JsonPathsRepo", () => {
     await r.putForCenter("c1", [path("new", "c1")]);
     const got = await r.byCenter("c1");
     expect(got.map(x => x.id)).toEqual(["new"]);
+  });
+
+  it("appendForCenter merges by id (later wins, no dup)", async () => {
+    const r = new JsonPathsRepo(dir);
+    await r.putForCenter("c1", [path("p1", "c1"), path("p2", "c1")]);
+    await r.appendForCenter("c1", [path("p2", "c1"), path("p3", "c1")]);
+    const got = await r.byCenter("c1");
+    expect(got.map(x => x.id).sort()).toEqual(["p1", "p2", "p3"]);
+  });
+
+  it("appendForCenter on empty initial state", async () => {
+    const r = new JsonPathsRepo(dir);
+    await r.appendForCenter("c1", [path("p1", "c1")]);
+    const got = await r.byCenter("c1");
+    expect(got.map(x => x.id)).toEqual(["p1"]);
+  });
+
+  it("rejects schema-invalid path", async () => {
+    const r = new JsonPathsRepo(dir);
+    const bad = { ...path("p1", "c1"), steps: [] };
+    await expect(r.putForCenter("c1", [bad])).rejects.toThrow(/rejected/);
   });
 });

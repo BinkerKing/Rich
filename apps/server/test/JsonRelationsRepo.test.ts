@@ -46,4 +46,18 @@ describe("JsonRelationsRepo", () => {
     const all = await r.list();
     expect(all.length).toBe(2);
   });
+
+  it("dedupes appends by id (same id never stored twice)", async () => {
+    const r = new JsonRelationsRepo(dir);
+    await r.append([rel("r1", "a", "b")]);
+    await r.append([rel("r1", "a", "b"), rel("r2", "x", "y")]);
+    const all = await r.list();
+    expect(all.map(x => x.id).sort()).toEqual(["r1", "r2"]);
+  });
+
+  it("rejects schema-invalid relation", async () => {
+    const r = new JsonRelationsRepo(dir);
+    const bad = { id: "r1", from: "", to: "b", kind: "child", createdAt: "" } as Relation;
+    await expect(r.append([bad])).rejects.toThrow(/rejected/);
+  });
 });

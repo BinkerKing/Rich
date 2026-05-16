@@ -206,8 +206,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
         signal,
       }),
       onDone: async (result, sessionId) => {
-        const existing = await deps.paths.byCenter(elementId);
-        await deps.paths.putForCenter(elementId, [...existing, ...result.paths]);
+        await deps.paths.appendForCenter(elementId, result.paths);
         await deps.elements.put(elementMetadataWithSession(center, sessionId, adapter.name));
       },
     });

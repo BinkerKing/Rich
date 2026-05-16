@@ -36,4 +36,25 @@ describe("JsonElementsRepo", () => {
     const repo = new JsonElementsRepo(dir);
     expect(await repo.get("nope")).toBeNull();
   });
+
+  it("put rejects schema-invalid element", async () => {
+    const repo = new JsonElementsRepo(dir);
+    const bad = {
+      id: "", type: "concept", title: "X", content: {},
+      metadata: { createdAt: "", updatedAt: "", generatedBy: "ai", richness: 2 },
+    } as unknown as Parameters<typeof repo.put>[0];
+    await expect(repo.put(bad)).rejects.toThrow(/rejected/);
+  });
+
+  it("put writes atomically (no .tmp- file left behind)", async () => {
+    const repo = new JsonElementsRepo(dir);
+    await repo.put({
+      id: "atom", type: "concept", title: "A", content: {},
+      metadata: { createdAt: "", updatedAt: "", generatedBy: "ai", richness: 2 },
+    });
+    const { readdir } = await import("node:fs/promises");
+    const files = await readdir(join(dir, "elements"));
+    expect(files.some(f => f.startsWith("atom.json.tmp-"))).toBe(false);
+    expect(files).toContain("atom.json");
+  });
 });

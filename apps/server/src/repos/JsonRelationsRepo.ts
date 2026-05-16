@@ -1,6 +1,7 @@
 import { readFile, appendFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { Relation, ElementId } from "@ke/domain";
+import { RelationSchema } from "@ke/domain";
 import type { RelationsRepo } from "./RelationsRepo.js";
 
 export class JsonRelationsRepo implements RelationsRepo {
@@ -30,8 +31,20 @@ export class JsonRelationsRepo implements RelationsRepo {
 
   async append(rels: Relation[]): Promise<void> {
     if (rels.length === 0) return;
+    // Validate each at the boundary.
+    for (const r of rels) {
+      const result = RelationSchema.safeParse(r);
+      if (!result.success) {
+        const issues = result.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).slice(0, 3).join("; ");
+        throw new Error(`JsonRelationsRepo.append rejected ${r.id ?? "<no id>"}: ${issues}`);
+      }
+    }
+    // De-dup vs. on-disk state: skip relations whose id we already have.
+    const existing = new Set((await this.list()).map(r => r.id));
+    const fresh = rels.filter(r => !existing.has(r.id));
+    if (fresh.length === 0) return;
     await mkdir(dirname(this.file()), { recursive: true });
-    const lines = rels.map(r => JSON.stringify(r)).join("\n") + "\n";
+    const lines = fresh.map(r => JSON.stringify(r)).join("\n") + "\n";
     await appendFile(this.file(), lines);
   }
 }

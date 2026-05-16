@@ -47,11 +47,12 @@ export class CachedRelationsRepo implements RelationsRepo {
   async append(rels: Relation[]): Promise<void> {
     if (rels.length === 0) return;
     await this.inner.append(rels);
-    // If the cache hasn't been loaded yet, defer: the next read will load from
-    // disk which now includes these appended rows. Indexing them here too would
-    // double-count once that load happens.
     if (!this.all) return;
+    // De-dup vs. cache (inner already dedupes vs disk, but the cache may
+    // already hold an id from a prior append that hasn't been re-loaded).
+    const have = new Set(this.all.map(r => r.id));
     for (const rel of rels) {
+      if (have.has(rel.id)) continue;
       this.all.push(rel);
       this.index(rel);
     }
