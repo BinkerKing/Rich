@@ -14,3 +14,5 @@
 {"ts": "2026-05-16T09:17:09.468033+00:00", "type": "user.reverted", "manual": "knowledge", "elementId": "cog-psy.perception", "data": {"fromTimestamp": "t1", "note": "AI 编造了不存在的研究引用"}}
 {"ts":"2026-05-16T13:26:09.835Z","type":"op.failed","manual":"knowledge","op":"generate-tree","adapter":"claude-code","data":{"topic":"认知心理学","durationMs":4629,"message":"No valid JSON found in input"}}
 {"ts":"2026-05-16T13:30:28.892Z","type":"op.failed","manual":"knowledge","op":"generate-tree","adapter":"claude-code","data":{"topic":"光合作用","durationMs":2950,"message":"No valid JSON found in input"}}
+{"ts":"2026-05-16T17:50:40.916Z","type":"user.changed_center","manual":"knowledge","elementId":"cog-psy","data":{"from":null,"to":"cog-psy","dwellMs":null}}
+{"ts":"2026-05-16T17:51:50.980Z","type":"op.completed","manual":"knowledge","op":"refine","adapter":"codex","elementId":"cog-psy.attention","data":{"targetRichness":3,"persistMs":5}}
