@@ -119,6 +119,34 @@ describe("AI operation routes", () => {
     expect(Array.isArray(body)).toBe(true);
   });
 
+  it("serializes concurrent operations on the same element via per-element lock", async () => {
+    // A SlowAdapter records start/end order; with a per-element lock, run #2
+    // must wait until run #1 finishes (start1, end1, start2, end2).
+    const order: string[] = [];
+    let seq = 0;
+    class SlowAdapter implements AIAdapter {
+      readonly name = "claude-code" as const;
+      async available() { return true; }
+      async *stream(_args: GenerateArgs): AsyncIterable<StreamEvent> {
+        const n = ++seq;
+        order.push(`start${n}`);
+        await new Promise(r => setTimeout(r, 30));
+        order.push(`end${n}`);
+        const payload = { content: { oneSentence: `r${n}`, coreExplain: "x", whyMatters: "y" } };
+        yield { type: "done", fullText: JSON.stringify(payload) };
+      }
+    }
+    const app = buildApp(dir, [new SlowAdapter()]);
+    const req = () => app.request("/api/ai/refine", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ elementId: TEST_EL_ID, targetRichness: 3 }),
+    });
+    // fire concurrently; both target same element so they must serialize
+    const [r1, r2] = await Promise.all([req(), req()]);
+    await r1.text(); await r2.text();
+    expect(order).toEqual(["start1", "end1", "start2", "end2"]);
+  });
+
   it("POST /api/ai/expand emits error event on schema-invalid AI output", async () => {
     // AI returned elements with empty id (rejected by ElementSchema.id.min(1))
     const bad = {
