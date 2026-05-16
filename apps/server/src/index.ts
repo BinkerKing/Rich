@@ -1,14 +1,18 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
-import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { realpathSync } from "node:fs";
 import { elementsRoutes } from "./routes/elements.js";
 import { aiRoutes } from "./routes/ai.js";
 import { JsonElementsRepo } from "./repos/JsonElementsRepo.js";
 import { dataDir } from "./lib/paths.js";
+import { ClaudeAdapter } from "./ai/claude.js";
+import { CodexAdapter } from "./ai/codex.js";
+import type { AIAdapter } from "./ai/adapter.js";
 
-export function buildApp(root: string) {
+export function buildApp(root: string, adapters?: AIAdapter[]) {
   const repo = new JsonElementsRepo(root);
+  const ai = adapters ?? [new ClaudeAdapter(), new CodexAdapter()];
   const app = new Hono();
   app.use("*", async (c, next) => {
     c.header("access-control-allow-origin", "*");
@@ -17,13 +21,12 @@ export function buildApp(root: string) {
     await next();
   });
   app.route("/api/elements", elementsRoutes(repo));
-  app.route("/api/ai", aiRoutes(root));
+  app.route("/api/ai", aiRoutes(ai, repo));
   app.get("/api/health", (c) => c.json({ ok: true }));
   return app;
 }
 
-const isMain = fileURLToPath(import.meta.url) === realpathSync(process.argv[1]);
-if (isMain) {
+if (fileURLToPath(import.meta.url) === realpathSync(process.argv[1])) {
   const port = Number(process.env.PORT ?? 3001);
   const app = buildApp(dataDir());
   serve({ fetch: app.fetch, port });

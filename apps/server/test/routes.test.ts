@@ -1,10 +1,38 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
+import { rmSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { buildApp } from "../src/index.js";
 import { dataDir } from "../src/lib/paths.js";
+import type { AIAdapter, StreamEvent, GenerateArgs } from "../src/ai/adapter.js";
+
+class FakeAdapter implements AIAdapter {
+  readonly name = "claude-code" as const;
+  async available() { return true; }
+  async *stream(_args: GenerateArgs): AsyncIterable<StreamEvent> {
+    const tree = {
+      rootId: "fake",
+      elements: [{
+        id: "fake", type: "topic", title: "Fake",
+        content: { intro: "" },
+        metadata: { createdAt: "", updatedAt: "", generatedBy: "ai", richness: 2 },
+      }],
+      relations: [],
+      paths: [],
+    };
+    const text = JSON.stringify(tree);
+    yield { type: "delta", text };
+    yield { type: "done", fullText: text };
+  }
+}
 
 const app = buildApp(dataDir());
 
 describe("API routes", () => {
+  afterEach(() => {
+    const p = join(dataDir(), "elements", "fake.json");
+    if (existsSync(p)) rmSync(p);
+  });
+
   it("GET /api/elements returns array", async () => {
     const res = await app.request("/api/elements");
     expect(res.status).toBe(200);
@@ -25,16 +53,26 @@ describe("API routes", () => {
     expect(res.status).toBe(404);
   });
 
-  it("POST /api/ai/generate-tree returns seed tree", async () => {
-    const res = await app.request("/api/ai/generate-tree", {
+  it("POST /api/ai/generate-tree streams SSE with done event", async () => {
+    const fakeApp = buildApp(dataDir(), [new FakeAdapter()]);
+    const res = await fakeApp.request("/api/ai/generate-tree", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ topic: "认知心理学" }),
+      body: JSON.stringify({ topic: "test" }),
     });
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.rootId).toBe("cog-psy");
-    expect(body.elements.length).toBeGreaterThanOrEqual(7);
-    expect(body.paths.length).toBe(3);
+    const text = await res.text();
+    expect(text).toContain("event: done");
+    expect(text).toContain('"rootId":"fake"');
+  });
+
+  it("POST /api/ai/generate-tree returns 400 on missing topic", async () => {
+    const fakeApp = buildApp(dataDir(), [new FakeAdapter()]);
+    const res = await fakeApp.request("/api/ai/generate-tree", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
   });
 });
