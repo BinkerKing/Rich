@@ -55,40 +55,40 @@ function zodValidator<T>(schema: z.ZodSchema<T>): (parsed: unknown) => T {
 
 export function generateTreeFor(
   adapter: AIAdapter,
-  args: { topic: string; richness?: RichnessLevel },
+  args: { topic: string; richness?: RichnessLevel; signal?: AbortSignal },
 ): AsyncIterable<StructuredEvent<GenerateTreeResult>> {
   const prompt = buildGenerateTreePrompt({ topic: args.topic, richness: args.richness ?? 2 });
-  return runStructuredAI(adapter, { prompt, validate: zodValidator(GenerateTreeResultSchema) });
+  return runStructuredAI(adapter, { prompt, signal: args.signal, validate: zodValidator(GenerateTreeResultSchema) });
 }
 
 export function refineElement(
   adapter: AIAdapter,
-  args: { element: Element; targetRichness: RichnessLevel; sessionId?: string },
+  args: { element: Element; targetRichness: RichnessLevel; sessionId?: string; signal?: AbortSignal },
 ): AsyncIterable<StructuredEvent<RefineResult>> {
   const prompt = buildRefinePrompt({ element: args.element, targetRichness: args.targetRichness });
-  return runStructuredAI(adapter, { prompt, sessionId: args.sessionId, validate: zodValidator(RefineResultSchema) });
+  return runStructuredAI(adapter, { prompt, sessionId: args.sessionId, signal: args.signal, validate: zodValidator(RefineResultSchema) });
 }
 
 export function expandElement(
   adapter: AIAdapter,
-  args: { parent: Element; existingChildren: Element[]; count?: number; sessionId?: string },
+  args: { parent: Element; existingChildren: Element[]; count?: number; sessionId?: string; signal?: AbortSignal },
 ): AsyncIterable<StructuredEvent<ExpandResult>> {
   const prompt = buildExpandPrompt({ parent: args.parent, existingChildren: args.existingChildren, count: args.count });
-  return runStructuredAI(adapter, { prompt, sessionId: args.sessionId, validate: zodValidator(ElementsAndRelationsSchema) });
+  return runStructuredAI(adapter, { prompt, sessionId: args.sessionId, signal: args.signal, validate: zodValidator(ElementsAndRelationsSchema) });
 }
 
 export function extendElement(
   adapter: AIAdapter,
-  args: { element: Element; direction: string; count?: number; sessionId?: string },
+  args: { element: Element; direction: string; count?: number; sessionId?: string; signal?: AbortSignal },
 ): AsyncIterable<StructuredEvent<ExtendResult>> {
   const prompt = buildExtendPrompt({ element: args.element, direction: args.direction, count: args.count });
-  return runStructuredAI(adapter, { prompt, sessionId: args.sessionId, validate: zodValidator(ElementsAndRelationsSchema) });
+  return runStructuredAI(adapter, { prompt, sessionId: args.sessionId, signal: args.signal, validate: zodValidator(ElementsAndRelationsSchema) });
 }
 
 export function generatePathsFor(
   adapter: AIAdapter,
-  args: { center: Element; availableElements: Element[]; kinds: PathKind[]; sessionId?: string },
+  args: { center: Element; availableElements: Element[]; kinds: PathKind[]; sessionId?: string; signal?: AbortSignal },
 ): AsyncIterable<StructuredEvent<PathResult>> {
   const prompt = buildPathPrompt({ center: args.center, availableElements: args.availableElements, kinds: args.kinds });
-  return runStructuredAI(adapter, { prompt, sessionId: args.sessionId, validate: zodValidator(PathResultSchema) });
+  return runStructuredAI(adapter, { prompt, sessionId: args.sessionId, signal: args.signal, validate: zodValidator(PathResultSchema) });
 }

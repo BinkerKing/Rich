@@ -9,6 +9,7 @@ export type StructuredEvent<T> =
 export interface RunArgs<T> {
   prompt: string;
   sessionId?: string;
+  signal?: AbortSignal;
   validate: (parsed: unknown) => T;
 }
 
@@ -17,7 +18,7 @@ export async function* runStructuredAI<T>(
   args: RunArgs<T>,
 ): AsyncIterable<StructuredEvent<T>> {
   let buf = "";
-  for await (const ev of adapter.stream({ prompt: args.prompt, sessionId: args.sessionId })) {
+  for await (const ev of adapter.stream({ prompt: args.prompt, sessionId: args.sessionId, signal: args.signal })) {
     if (ev.type === "delta") {
       buf += ev.text;
       yield { type: "delta", text: ev.text };

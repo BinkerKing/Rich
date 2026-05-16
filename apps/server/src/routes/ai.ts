@@ -59,8 +59,9 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     const richness = (body.richness ?? 2) as RichnessLevel;
     if (!topic) return c.json({ error: "topic required" }, 400);
     const adapter = pickAdapter(deps.adapters, model);
+    const signal = c.req.raw.signal;
     return streamSSE(c, async (stream) => {
-      for await (const ev of generateTreeFor(adapter, { topic, richness })) {
+      for await (const ev of generateTreeFor(adapter, { topic, richness, signal })) {
         await stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) });
         if (ev.type === "done") {
           for (const el of ev.result.elements) await deps.elements.put(el);
@@ -88,11 +89,13 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     const element = await withElement(deps, elementId);
     if (!element) return c.json({ error: "element not found" }, 404);
     const adapter = pickAdapter(deps.adapters, model);
+    const signal = c.req.raw.signal;
     return streamSSE(c, async (stream) => {
       for await (const ev of refineElement(adapter, {
         element,
         targetRichness,
         sessionId: element.metadata.aiSessionId,
+        signal,
       })) {
         await stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) });
         if (ev.type === "done") {
@@ -130,12 +133,14 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       if (el) existingChildren.push(el);
     }
     const adapter = pickAdapter(deps.adapters, model);
+    const signal = c.req.raw.signal;
     return streamSSE(c, async (stream) => {
       for await (const ev of expandElement(adapter, {
         parent,
         existingChildren,
         count,
         sessionId: parent.metadata.aiSessionId,
+        signal,
       })) {
         await stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) });
         if (ev.type === "done") {
@@ -158,12 +163,14 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     const element = await withElement(deps, elementId);
     if (!element) return c.json({ error: "element not found" }, 404);
     const adapter = pickAdapter(deps.adapters, model);
+    const signal = c.req.raw.signal;
     return streamSSE(c, async (stream) => {
       for await (const ev of extendElement(adapter, {
         element,
         direction,
         count,
         sessionId: element.metadata.aiSessionId,
+        signal,
       })) {
         await stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) });
         if (ev.type === "done") {
@@ -203,12 +210,14 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       if (el) availableElements.push(el);
     }
     const adapter = pickAdapter(deps.adapters, model);
+    const signal = c.req.raw.signal;
     return streamSSE(c, async (stream) => {
       for await (const ev of generatePathsFor(adapter, {
         center,
         availableElements,
         kinds,
         sessionId: center.metadata.aiSessionId,
+        signal,
       })) {
         await stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) });
         if (ev.type === "done") {
