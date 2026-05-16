@@ -23,6 +23,7 @@ export interface ElementMetadata {
   updatedAt: string;
   generatedBy: "ai" | "user";
   aiModel?: string;
+  aiSessionId?: string;
   richness: RichnessLevel;
 }
 
