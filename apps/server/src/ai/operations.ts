@@ -5,12 +5,20 @@ import {
 } from "@ke/domain";
 import type { AIAdapter } from "./adapter.js";
 import { runStructuredAI, type StructuredEvent } from "./runStructuredAI.js";
+import { buildGenerateTreePrompt } from "./prompts/generateTree.js";
 import { buildRefinePrompt } from "./prompts/refine.js";
 import { buildExpandPrompt } from "./prompts/expand.js";
 import { buildExtendPrompt } from "./prompts/extend.js";
 import { buildPathPrompt } from "./prompts/path.js";
 
 // ----- Operation result schemas (what AI must produce) -----
+
+const GenerateTreeResultSchema = z.object({
+  rootId: z.string().min(1),
+  elements: z.array(ElementSchema).min(1),
+  relations: z.array(RelationSchema),
+  paths: z.array(LearningPathSchema),
+});
 
 const RefineResultSchema = z.object({
   content: z.unknown(),
@@ -25,6 +33,7 @@ const PathResultSchema = z.object({
   paths: z.array(LearningPathSchema),
 });
 
+export type GenerateTreeResult = z.infer<typeof GenerateTreeResultSchema>;
 export type RefineResult = z.infer<typeof RefineResultSchema>;
 export type ExpandResult = z.infer<typeof ElementsAndRelationsSchema>;
 export type ExtendResult = z.infer<typeof ElementsAndRelationsSchema>;
@@ -43,6 +52,14 @@ function zodValidator<T>(schema: z.ZodSchema<T>): (parsed: unknown) => T {
 }
 
 // ----- Operations -----
+
+export function generateTreeFor(
+  adapter: AIAdapter,
+  args: { topic: string; richness?: RichnessLevel },
+): AsyncIterable<StructuredEvent<GenerateTreeResult>> {
+  const prompt = buildGenerateTreePrompt({ topic: args.topic, richness: args.richness ?? 2 });
+  return runStructuredAI(adapter, { prompt, validate: zodValidator(GenerateTreeResultSchema) });
+}
 
 export function refineElement(
   adapter: AIAdapter,

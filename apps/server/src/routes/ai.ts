@@ -5,8 +5,9 @@ import type { AIAdapter } from "../ai/adapter.js";
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
 import type { RelationsRepo } from "../repos/RelationsRepo.js";
 import type { PathsRepo } from "../repos/PathsRepo.js";
-import { generateTree, pickAdapter } from "../ai/orchestrator.js";
+import { pickAdapter } from "../ai/pickAdapter.js";
 import {
+  generateTreeFor,
   refineElement,
   expandElement,
   extendElement,
@@ -59,7 +60,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     if (!topic) return c.json({ error: "topic required" }, 400);
     const adapter = pickAdapter(deps.adapters, model);
     return streamSSE(c, async (stream) => {
-      for await (const ev of generateTree(adapter, { topic, richness })) {
+      for await (const ev of generateTreeFor(adapter, { topic, richness })) {
         await stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) });
         if (ev.type === "done") {
           for (const el of ev.result.elements) await deps.elements.put(el);
