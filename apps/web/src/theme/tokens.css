@@ -1,6 +1,7 @@
 :root {
   color-scheme: dark;
   --bg: #050b16;
+  --bg-2: #07111f;
   --panel: #0c1827;
   --panel-2: #0f1d2e;
   --line: rgba(120,200,220,.10);
@@ -18,13 +19,23 @@
   --pink: #ff8fb5;
   --green: #74e5b0;
   --gold: #ffc977;
+  --blue: #6aa8ff;
+  --orange: #ff7a59;
   --radius: 10px;
   --sans: "PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
   --mono: "SFMono-Regular","Cascadia Code",Consolas,monospace;
 }
 * { box-sizing: border-box; }
+html,
+body,
+#root {
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: none;
+}
+
 body {
   margin: 0;
+  overflow: hidden;
   min-height: 100vh;
   background:
     radial-gradient(ellipse 1200px 700px at 20% 0%, rgba(61,213,205,.06), transparent 60%),
@@ -36,3 +47,28 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 button { font: inherit; cursor: pointer; }
+button:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(61,213,205,.38) rgba(5,13,25,.48);
+}
+
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(5,13,25,.48);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(61,213,205,.56), rgba(155,124,255,.44));
+  border: 2px solid rgba(5,13,25,.78);
+  border-radius: 999px;
+}

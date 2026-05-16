@@ -24,14 +24,14 @@ export const ConceptContentSchema = z.object({
   oneSentence: z.string(),
   coreExplain: z.string(),
   whyMatters: z.string(),
+  beginnerExplain: z.string().optional(),
+  keyPoints: z.array(z.string()).optional(),
+  learningGoals: z.array(z.string()).optional(),
   mechanisms: z.array(z.object({
     label: z.string(),
     description: z.string().optional(),
   })).optional(),
-  examples: z.array(z.object({
-    title: z.string(),
-    body: z.string(),
-  })).optional(),
+  examples: z.array(z.string()).optional(),
   misconceptions: z.array(z.string()).optional(),
   exercises: z.array(z.object({
     prompt: z.string(),
@@ -47,8 +47,10 @@ export const TopicContentSchema = z.object({
     id: z.string(),
     title: z.string(),
     description: z.string(),
+    focus: z.string().optional(),
   })),
   recommendedPaths: z.array(z.string()),
+  beginnerExplain: z.string().optional(),
 });
 
 export const StepContentSchema = z.object({

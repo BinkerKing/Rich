@@ -30,6 +30,10 @@ ${SCHEMAS.treeResult}
 - 颜色对应：quick→gold, academic→cyan, practice→pink。
 - 丰富度等级 ${richness}：${RICHNESS_NOTES[richness]}
 
+字段补充（前端会显示）：
+- 主题元 content 必填：intro, learningGoals, coreModules(每个含 id/title/description，可选 focus)，recommendedPaths。可选 beginnerExplain（一句给小白的版本）。
+- 概念元 content 必填：oneSentence, coreExplain, whyMatters。可选但**强烈建议**给出：beginnerExplain（小白版）、keyPoints（3-5 条学习重点）、examples（2-3 条字符串例子）、misconceptions（2-3 条易混点）、nextSteps（1-2 条下一步建议）。
+
 ID 命名：用主题英文/拼音短名作为前缀（≤ 12 字符），用点分隔层级。
 例：主题"认知心理学"→ "cog-psy"；其子元"感知"→ "cog-psy.perception"；孙元"视觉"→ "cog-psy.perception.vision"。
 

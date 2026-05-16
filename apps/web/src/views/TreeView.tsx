@@ -1,9 +1,13 @@
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "../state/store.js";
 import { selectCenterView } from "@ke/domain";
-import { CenterNode } from "../components/CenterNode.js";
-import { ChildCard } from "../components/ChildCard.js";
-import { GrandPill } from "../components/GrandPill.js";
-import { PathChip } from "../components/PathChip.js";
+import { KnowledgeStructureMap } from "../components/KnowledgeStructureMap.js";
+import { LearningSidebar } from "../components/LearningSidebar.js";
+import { ElementContentPanel } from "../components/ElementContentPanel.js";
+import { Icon } from "../components/Icon.js";
+import { LearningScenes, type LearningScene } from "../components/LearningScenes.js";
+import { SystemPanel, type SystemPanelMode } from "../components/SystemPanel.js";
+import { centerStyleFor } from "../theme/centerStyle.js";
 import "./TreeView.css";
 
 export function TreeView() {
@@ -13,79 +17,169 @@ export function TreeView() {
   const pathsByCenter = useStore(s => s.pathsByCenter);
   const visible = useStore(s => s.visiblePathKinds);
   const setCenter = useStore(s => s.setCenter);
-  const togglePath = useStore(s => s.togglePathKind);
+  const [selectedId, setSelectedId] = useState(centerId);
+  const [scene, setScene] = useState<LearningScene>("tree");
+  const [systemMode, setSystemMode] = useState<SystemPanelMode>("search");
 
   const view = selectCenterView({ centerId, elements, relations });
-  const paths = (pathsByCenter.get(centerId) ?? []).filter(p => visible.has(p.kind));
+  const centerStyle = centerStyleFor(view.center);
+  const selected = elements.get(selectedId) ?? view.center;
+  const paths = useMemo(
+    () => (pathsByCenter.get(centerId) ?? []).filter(p => visible.has(p.kind)),
+    [centerId, pathsByCenter, visible],
+  );
 
-  // Map each element id to the list of currently-visible paths it appears in.
+  useEffect(() => {
+    setSelectedId(centerId);
+  }, [centerId]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    for (const [key, value] of Object.entries(centerStyle.vars)) {
+      if (typeof value === "string") root.style.setProperty(key, value);
+    }
+  }, [centerStyle.vars]);
+
   const pathsForElement = (id: string) =>
     paths.filter(p => p.steps.includes(id));
 
+  const childrenCount = relations.filter(relation => relation.kind === "child" && relation.from === selected.id).length;
+  const selectedPath = lineageFor(selected.id, elements, relations);
+  const centerPath = lineageFor(centerId, elements, relations);
+  const centerBreadcrumb = centerPath.length > 4 ? centerPath.slice(-4) : centerPath;
+  const currentLevel = selectedPath.length;
+  const maxDepth = Math.max(
+    1,
+    ...Array.from(elements.keys()).map(id => depthFor(id, relations)),
+  );
+  const treeMap = (
+    <KnowledgeStructureMap
+      view={view}
+      selectedId={selected.id}
+      relations={relations}
+      elements={elements}
+      totalElements={elements.size}
+      currentLevel={currentLevel}
+      maxDepth={maxDepth}
+      pathsForElement={pathsForElement}
+      onSelect={setSelectedId}
+      onSetCenter={setCenter}
+    />
+  );
+
   return (
-    <div className="tree-view">
-      <aside className="tv-side">
-        <div className="tv-panel-h">起点（当前中心）</div>
-        <div>{view.center.title}</div>
-        <div className="tv-panel-h" style={{ marginTop: 24 }}>上游</div>
-        {view.upstream.length === 0
-          ? <div style={{ color: "var(--dim)", fontSize: 12 }}>（无）</div>
-          : view.upstream.map(u => <div key={u.id} className="tv-sibling" onClick={() => setCenter(u.id)}>↑ {u.title}</div>)}
-      </aside>
-
-      <main className="tv-main">
-        <div className="tv-crumb">
-          {view.upstream.slice().reverse().map(u => (
-            <span key={u.id}><a onClick={() => setCenter(u.id)}>{u.title}</a> › </span>
+    <div className="tree-view" style={centerStyle.vars} data-center-style={centerStyle.name}>
+      <header className="tv-topbar">
+        <div className="tv-brand">
+          <div className="tv-logo" />
+          <strong>Know Everything</strong>
+        </div>
+        <nav className="tv-crumb" aria-label="当前中心位置">
+          {centerBreadcrumb.map((item, index) => (
+            <button
+              key={item.id}
+              className={index === centerBreadcrumb.length - 1 ? "now" : ""}
+              type="button"
+              onClick={() => {
+                setSelectedId(item.id);
+                setCenter(item.id);
+              }}
+            >
+              {item.title}
+            </button>
           ))}
-          <a className="now">{view.center.title}</a>
+        </nav>
+        <div className="tv-tools">
+          <button className={systemMode === "search" ? "is-active" : ""} type="button" aria-label="搜索" onClick={() => setSystemMode("search")}><Icon name="search" /></button>
+          <button className={systemMode === "view" ? "is-active" : ""} type="button" aria-label="视图" onClick={() => setSystemMode("view")}><Icon name="grid" /></button>
+          <button className={systemMode === "map" ? "is-active" : ""} type="button" aria-label="知识地图" onClick={() => setSystemMode("map")}><Icon name="map" /></button>
+          <button className={systemMode === "notice" ? "is-active" : ""} type="button" aria-label="通知" onClick={() => setSystemMode("notice")}><Icon name="bell" /></button>
+          <span>K</span>
         </div>
+      </header>
 
-        <div className="tv-paths">
-          <span style={{ fontSize: 11, color: "var(--muted)" }}>推荐路径</span>
-          {(pathsByCenter.get(centerId) ?? []).map(p => (
-            <PathChip key={p.id} p={p} visible={visible.has(p.kind)} onToggle={() => togglePath(p.kind)} />
-          ))}
+      <LearningSidebar
+        view={view}
+        selectedId={selected.id}
+        elements={elements}
+        relations={relations}
+        paths={pathsForElement(selected.id)}
+        scene={scene}
+        onSelect={setSelectedId}
+        onSetCenter={setCenter}
+        onSceneChange={setScene}
+      />
+      {scene === "tree" ? (
+        <main className="tv-main">
+          {treeMap}
+          <ElementContentPanel
+            element={selected}
+            childrenCount={childrenCount}
+            currentLevel={currentLevel}
+            onOpenChildren={() => setCenter(selected.id)}
+          />
+        </main>
+      ) : (
+        <LearningScenes
+          scene={scene}
+          selected={selected}
+          currentLevel={currentLevel}
+          totalElements={elements.size}
+          maxDepth={maxDepth}
+          childrenCount={childrenCount}
+          treeMap={treeMap}
+          onOpenChildren={() => setCenter(selected.id)}
+        />
+      )}
+
+      <SystemPanel
+        mode={systemMode}
+        selected={selected}
+        elements={elements}
+        onSelect={setSelectedId}
+      />
+
+      <footer className="tv-footer">
+        <div>当前路径：{selectedPath.map(item => item.title).join("  >  ")}</div>
+        <div className="footer-actions">
+          <button type="button"><Icon name="center" />定位</button>
+          <button type="button"><Icon name="calendar" />加入计划</button>
+          <button type="button"><Icon name="upload" />导出</button>
         </div>
-
-        <div className="tv-stage">
-          <div className="tv-label">L1 · 中心元</div>
-          <div className="tv-center-row"><CenterNode el={view.center} /></div>
-
-          <div className="tv-label">下游第 2 层（{view.children.length}）</div>
-          <div className="tv-l2-row">
-            {view.children.map(c => (
-              <ChildCard key={c.id} el={c} onPaths={pathsForElement(c.id)} onSelect={() => setCenter(c.id)} />
-            ))}
-          </div>
-
-          <div className="tv-label">下游第 3 层</div>
-          <div className="tv-l3-row">
-            {view.children.map(c => (
-              <div key={c.id} className="tv-l3-col">
-                {(view.grandchildren[c.id] ?? []).map(g => (
-                  <GrandPill key={g.id} el={g} onPaths={pathsForElement(g.id)} onSelect={() => setCenter(g.id)} />
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-      </main>
-
-      <aside className="tv-side right">
-        <div className="tv-panel-h">同级元</div>
-        {view.siblings.map(s => (
-          <div key={s.id} className="tv-sibling" onClick={() => setCenter(s.id)}>{s.title}</div>
-        ))}
-        <div className="tv-sibling active">{view.center.title}</div>
-
-        <div className="tv-panel-h" style={{ marginTop: 24 }}>中心元操作</div>
-        <div className="tv-op" title="尚未接入 AI">细化</div>
-        <div className="tv-op" title="尚未接入 AI">展开</div>
-        <div className="tv-op" title="尚未接入 AI">延伸</div>
-        <div className="tv-op" title="尚未接入 AI">实战</div>
-        <div className="tv-op" title="尚未接入 AI">推荐路径</div>
-      </aside>
+      </footer>
     </div>
   );
+}
+
+function depthFor(id: string, relations: { kind: string; from: string; to: string }[]) {
+  let depth = 1;
+  let current = id;
+  const seen = new Set<string>();
+  while (!seen.has(current)) {
+    seen.add(current);
+    const parent = relations.find(relation => relation.kind === "child" && relation.to === current)?.from;
+    if (!parent) break;
+    depth += 1;
+    current = parent;
+  }
+  return depth;
+}
+
+function lineageFor(
+  id: string,
+  elements: Map<string, { id: string; title: string }>,
+  relations: { kind: string; from: string; to: string }[],
+) {
+  const chain: Array<{ id: string; title: string }> = [];
+  let current: string | undefined = id;
+  const seen = new Set<string>();
+
+  while (current && !seen.has(current)) {
+    seen.add(current);
+    const element = elements.get(current);
+    if (element) chain.unshift(element);
+    current = relations.find(relation => relation.kind === "child" && relation.to === current)?.from;
+  }
+
+  return chain.length > 0 ? chain : Array.from(elements.values()).slice(0, 1);
 }

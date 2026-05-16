@@ -1,0 +1,419 @@
+import { useEffect, useState, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
+import type { CenterView, Element, LearningPath, Relation } from "@ke/domain";
+import { ChildCard } from "./ChildCard.js";
+import { GrandPill } from "./GrandPill.js";
+import { Icon, iconForElement } from "./Icon.js";
+import { useStore } from "../state/store.js";
+import "./components.css";
+
+interface Props {
+  view: CenterView;
+  selectedId: string;
+  relations: Relation[];
+  elements: Map<string, Element>;
+  totalElements: number;
+  currentLevel: number;
+  maxDepth: number;
+  pathsForElement: (id: string) => LearningPath[];
+  onSelect: (id: string) => void;
+  onSetCenter: (id: string) => void;
+}
+
+interface TreeContextTarget {
+  x: number;
+  y: number;
+  element: Element;
+}
+
+interface MapRow {
+  parent: Element;
+  nodes: Element[];
+  selectedId?: string;
+  kind: "wide" | "pill";
+}
+
+interface PositionedRow extends MapRow {
+  top: number;
+  height: number;
+  width: number;
+  gap: number;
+  centers: number[];
+  positions: Map<string, number>;
+}
+
+function directChildren(id: string, relations: Relation[], elements: Map<string, Element>) {
+  return relations
+    .filter(relation => relation.kind === "child" && relation.from === id)
+    .map(relation => elements.get(relation.to))
+    .filter((element): element is Element => Boolean(element));
+}
+
+function directParent(id: string, relations: Relation[]) {
+  return relations.find(relation => relation.kind === "child" && relation.to === id)?.from;
+}
+
+function lineageFor(id: string, relations: Relation[], elements: Map<string, Element>) {
+  const chain: Element[] = [];
+  let current: string | undefined = id;
+  const seen = new Set<string>();
+
+  while (current && !seen.has(current)) {
+    seen.add(current);
+    const element = elements.get(current);
+    if (element) chain.unshift(element);
+    current = directParent(current, relations);
+  }
+
+  return chain;
+}
+
+export function KnowledgeStructureMap({
+  view,
+  selectedId,
+  relations,
+  elements,
+  pathsForElement,
+  onSelect,
+  onSetCenter,
+}: Props) {
+  const [contextTarget, setContextTarget] = useState<TreeContextTarget | null>(null);
+  const [lastAction, setLastAction] = useState<string | null>(null);
+  const refine = useStore(s => s.refine);
+  const expand = useStore(s => s.expand);
+  const extend = useStore(s => s.extend);
+  const generatePaths = useStore(s => s.generatePaths);
+  const inflight = useStore(s => s.inflight);
+  const selected = elements.get(selectedId) ?? view.center;
+  const root = view.center;
+  const lineage = relativeLineageFor(root.id, selected.id, relations, elements);
+  const rows = buildRows(lineage.length > 0 ? lineage : [root], relations, elements);
+  const layout = treeLayout(rows);
+
+  useEffect(() => {
+    if (!contextTarget) return;
+
+    const close = () => setContextTarget(null);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+
+    window.addEventListener("click", close);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [contextTarget]);
+
+  useEffect(() => {
+    if (!lastAction) return;
+    const timer = window.setTimeout(() => setLastAction(null), 1600);
+    return () => window.clearTimeout(timer);
+  }, [lastAction]);
+
+  function openNodeMenu(event: MouseEvent<HTMLElement>, element: Element) {
+    event.preventDefault();
+    event.stopPropagation();
+    onSelect(element.id);
+    setContextTarget({
+      x: Math.min(event.clientX, window.innerWidth - 228),
+      y: Math.min(event.clientY, window.innerHeight - 272),
+      element,
+    });
+  }
+
+  async function runNodeAction(action: string) {
+    if (!contextTarget) return;
+    const element = contextTarget.element;
+    setContextTarget(null);
+    onSelect(element.id);
+
+    switch (action) {
+      case "设为中心":
+        onSetCenter(element.id);
+        setLastAction(`设为中心 · ${element.title}`);
+        return;
+      case "细化":
+        setLastAction(`AI 正在细化 · ${element.title}`);
+        await refine(element.id, 3);
+        setLastAction(`细化完成 · ${element.title}`);
+        return;
+      case "展开下层":
+        setLastAction(`AI 正在展开 · ${element.title}`);
+        await expand(element.id, 4);
+        setLastAction(`展开完成 · ${element.title}`);
+        return;
+      case "延伸": {
+        const direction = window.prompt(
+          `朝什么方向延伸「${element.title}」？\n例如：AI 领域应用 / 类似概念 / 反面观点`,
+          "类似概念对比",
+        );
+        if (!direction || !direction.trim()) return;
+        setLastAction(`AI 正在延伸 · ${element.title}`);
+        await extend(element.id, direction.trim(), 3);
+        setLastAction(`延伸完成 · ${element.title}`);
+        return;
+      }
+      case "生成路径":
+        setLastAction(`AI 正在生成路径 · ${element.title}`);
+        await generatePaths(element.id);
+        setLastAction(`路径已生成 · ${element.title}`);
+        return;
+      default:
+        setLastAction(`${action} · ${element.title}`);
+    }
+  }
+
+  function isOpInflight(elementId: string): boolean {
+    for (const key of inflight.keys()) {
+      if (key.endsWith(`:${elementId}`)) return true;
+    }
+    return false;
+  }
+
+  const renderNodeMenu = () => contextTarget && typeof document !== "undefined"
+    ? createPortal(
+        <div
+          className="knowledge-context-menu tree-node-menu"
+          style={{ left: contextTarget.x, top: contextTarget.y }}
+          role="menu"
+          onClick={event => event.stopPropagation()}
+        >
+          <div className="knowledge-context-menu__head">
+            <strong>{contextTarget.element.title}</strong>
+            <span>{contextTarget.element.type}</span>
+          </div>
+          {["细化", "展开下层", "延伸", "生成路径"].map(action => (
+            <button
+              key={action}
+              type="button"
+              role="menuitem"
+              disabled={isOpInflight(contextTarget.element.id)}
+              onClick={() => void runNodeAction(action)}
+            >
+              {action}
+            </button>
+          ))}
+          <button
+            type="button"
+            role="menuitem"
+            disabled={contextTarget.element.id === view.center.id}
+            onClick={() => void runNodeAction("设为中心")}
+          >
+            {contextTarget.element.id === view.center.id ? "已是中心" : "设为中心"}
+          </button>
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <section className="structure-map">
+      <div className="structure-map__ambient" aria-hidden="true" />
+      <div className="tree-canvas-scroll" aria-label="知识地图">
+        <div className="tree-canvas" style={{ width: layout.canvasWidth, height: layout.canvasHeight }}>
+          <svg
+            className="tree-lines"
+            width={layout.canvasWidth}
+            height={layout.canvasHeight}
+            viewBox={`0 0 ${layout.canvasWidth} ${layout.canvasHeight}`}
+            aria-hidden="true"
+          >
+            <defs>
+              <linearGradient id="l2-line-gradient" x1="0" x2="1" y1="0" y2="0">
+                <stop offset="0%" stopColor="var(--center-accent-2)" />
+                <stop offset="45%" stopColor="var(--center-accent)" />
+                <stop offset="72%" stopColor="var(--center-warm)" />
+                <stop offset="100%" stopColor="var(--center-accent)" />
+              </linearGradient>
+              <linearGradient id="l3-line-gradient" x1="0" x2="1" y1="0" y2="0">
+                <stop offset="0%" stopColor="var(--center-accent-2)" />
+                <stop offset="52%" stopColor="var(--center-accent)" />
+                <stop offset="100%" stopColor="var(--center-warm)" />
+              </linearGradient>
+            </defs>
+            {layout.rows.map((row, index) => (
+              <path
+                key={`${row.parent.id}-${index}`}
+                className={`tree-line ${index === 0 ? "tree-line--root" : "tree-line--child"}`}
+                stroke={index === 0 ? "url(#l2-line-gradient)" : "url(#l3-line-gradient)"}
+                d={rootToChildrenPath(layout.rootX, row.centers, layout.parentBottoms[index], row.top - 34, row.top)}
+              />
+            ))}
+          </svg>
+
+          <button
+            className={`structure-chain-card ${selected.id === root.id ? "is-selected" : ""}`}
+            type="button"
+            style={{ left: layout.rootLeft, top: layout.rootTop }}
+            onClick={() => onSelect(root.id)}
+            onContextMenu={event => openNodeMenu(event, root)}
+          >
+            <div className="structure-chain-card__title">
+              <span className="node-glyph" aria-hidden="true">
+                <Icon name={iconForElement(root.type, root.title)} />
+              </span>
+              <h2>{root.title}</h2>
+              <span className="structure-chain-card__badge">中心元</span>
+            </div>
+            <p>{root.subtitle ?? "中心学习元"}</p>
+          </button>
+
+          {layout.rows.map((row, rowIndex) => (
+            <div key={`${row.parent.id}-${rowIndex}`} className={row.kind === "wide" ? "structure-l2-row" : "structure-l3-row"}>
+              {row.nodes.map(node => (
+                <div
+                  key={node.id}
+                  className={`tree-node-wrap ${row.kind === "pill" ? "tree-node-wrap--pill" : ""}`}
+                  style={{ left: row.positions.get(node.id) ?? 0, top: row.top }}
+                  onContextMenu={event => openNodeMenu(event, node)}
+                >
+                  {row.kind === "wide" ? (
+                    <ChildCard
+                      el={node}
+                      selected={selected.id === node.id}
+                      onPaths={pathsForElement(node.id)}
+                      onSelect={() => onSelect(node.id)}
+                    />
+                  ) : (
+                    <GrandPill
+                      el={node}
+                      selected={selected.id === node.id}
+                      onPaths={pathsForElement(node.id)}
+                      onSelect={() => onSelect(node.id)}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+
+          {rows.length === 0 && (
+            <div className="structure-empty structure-empty--tree">当前元还没有下层方向</div>
+          )}
+          {renderNodeMenu()}
+          {lastAction && typeof document !== "undefined"
+            ? createPortal(<div className="knowledge-action-toast">{lastAction}</div>, document.body)
+            : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function buildRows(lineage: Element[], relations: Relation[], elements: Map<string, Element>): MapRow[] {
+  const rows: MapRow[] = [];
+
+  lineage.forEach((parent, index) => {
+    const nodes = directChildren(parent.id, relations, elements);
+    if (nodes.length === 0) return;
+    rows.push({
+      parent,
+      nodes,
+      selectedId: lineage[index + 1]?.id,
+      kind: index === 0 ? "wide" : "pill",
+    });
+  });
+
+  return rows;
+}
+
+function relativeLineageFor(
+  centerId: string,
+  selectedId: string,
+  relations: Relation[],
+  elements: Map<string, Element>,
+) {
+  const center = elements.get(centerId);
+  if (!center) return [];
+
+  const fullLineage = lineageFor(selectedId, relations, elements);
+  const centerIndex = fullLineage.findIndex(element => element.id === centerId);
+  if (centerIndex >= 0) {
+    return fullLineage.slice(centerIndex);
+  }
+
+  return [center];
+}
+
+function treeLayout(rows: MapRow[]) {
+  const rootWidth = 450;
+  const rootHeight = 92;
+  const rootTop = 34;
+  const margin = 32;
+  const wide = { width: 150, height: 146, gap: 12 };
+  const pill = { width: 170, height: 48, gap: 10 };
+
+  let requiredRootX = 560;
+  for (const row of rows) {
+    const size = row.kind === "wide" ? wide : pill;
+    const rowWidth = row.nodes.length * size.width + Math.max(0, row.nodes.length - 1) * size.gap;
+    const selectedIndex = row.selectedId
+      ? Math.max(0, row.nodes.findIndex(node => node.id === row.selectedId))
+      : -1;
+    const leftNeed = selectedIndex >= 0
+      ? margin + selectedIndex * (size.width + size.gap) + size.width / 2
+      : margin + rowWidth / 2;
+    requiredRootX = Math.max(requiredRootX, leftNeed);
+  }
+
+  const rootX = requiredRootX;
+  const rootLeft = rootX - rootWidth / 2;
+  const positionedRows: PositionedRow[] = [];
+  const parentBottoms: number[] = [];
+  let canvasWidth = Math.max(1100, rootX + rootWidth / 2 + margin);
+  let previousTop = rootTop;
+  let previousHeight = rootHeight;
+
+  rows.forEach((row, index) => {
+    const size = row.kind === "wide" ? wide : pill;
+    const top = index === 0 ? rootTop + rootHeight + 72 : previousTop + previousHeight + 76;
+    const rowWidth = row.nodes.length * size.width + Math.max(0, row.nodes.length - 1) * size.gap;
+    const selectedIndex = row.selectedId
+      ? row.nodes.findIndex(node => node.id === row.selectedId)
+      : -1;
+    const start = selectedIndex >= 0
+      ? rootX - selectedIndex * (size.width + size.gap) - size.width / 2
+      : rootX - rowWidth / 2;
+    const centers = row.nodes.map((_, nodeIndex) => start + size.width / 2 + nodeIndex * (size.width + size.gap));
+    const positions = new Map(row.nodes.map((node, nodeIndex) => [node.id, start + nodeIndex * (size.width + size.gap)]));
+    const rightEdge = start + rowWidth;
+
+    parentBottoms.push(index === 0 ? rootTop + rootHeight : previousTop + previousHeight);
+    positionedRows.push({
+      ...row,
+      top,
+      height: size.height,
+      width: size.width,
+      gap: size.gap,
+      centers,
+      positions,
+    });
+    canvasWidth = Math.max(canvasWidth, rightEdge + margin);
+    previousTop = top;
+    previousHeight = size.height;
+  });
+
+  const canvasHeight = Math.max(620, previousTop + previousHeight + 80);
+
+  return {
+    canvasWidth,
+    canvasHeight,
+    rootX,
+    rootLeft,
+    rootTop,
+    rows: positionedRows,
+    parentBottoms,
+  };
+}
+
+function rootToChildrenPath(rootX: number, childCenters: number[], rootY: number, busY: number, childY: number) {
+  if (childCenters.length === 0) return "";
+  const first = childCenters[0];
+  const last = childCenters[childCenters.length - 1];
+  const drops = childCenters.map(x => `M ${x} ${busY} L ${x} ${childY}`).join(" ");
+  return `M ${rootX} ${rootY} L ${rootX} ${busY} M ${first} ${busY} L ${last} ${busY} ${drops}`;
+}
