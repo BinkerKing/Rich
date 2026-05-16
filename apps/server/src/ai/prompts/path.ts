@@ -1,10 +1,11 @@
 import type { Element, PathKind } from "@ke/domain";
+import { SCHEMAS } from "../jsonSchema.js";
 
 const KIND_DESC: Record<PathKind, string> = {
   quick: "快速入门 · 用最短时间获得直觉理解 · 颜色 gold",
   academic: "学术深度 · 系统全面、概念严谨、论文级 · 颜色 cyan",
   practice: "实战导向 · 产品/项目可落地 · 颜色 pink",
-  custom: "用户自定义",
+  custom: "用户自定义 · 颜色 violet",
 };
 
 export interface PathPromptArgs {
@@ -35,24 +36,11 @@ ${elList}
 要生成的路径种类（${kinds.length} 条，每条 2-4 步）：
 ${kindList}
 
-输出 JSON：
-{
-  "paths": [
-    {
-      "id": string,
-      "centerElementId": "${center.id}",
-      "kind": "${kinds[0]}",
-      "label": "<中文短标题，含预计时长，例如 '快速入门 15min'>",
-      "color": "<gold | cyan | pink>",
-      "steps": [ "<elementId-1>", "<elementId-2>", ... ],
-      "estimatedTime": "<例如 '15 min' / '2 h'>",
-      "generatedBy": "ai",
-      "createdAt": ISO8601
-    },
-    ...
-  ]
-}
+颜色对应：quick→gold, academic→cyan, practice→pink, custom→violet。
+所有 path 的 centerElementId 必须 = "${center.id}"。
 
-颜色对应：quick→gold, academic→cyan, practice→pink, custom→紫色 violet。
-只输出 JSON。不要解释。`;
+输出必须严格匹配下面的 JSON Schema：
+${SCHEMAS.pathResult}
+
+只输出符合上述 Schema 的 JSON。`;
 }

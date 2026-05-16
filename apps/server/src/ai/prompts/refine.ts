@@ -1,4 +1,5 @@
 import type { Element, RichnessLevel } from "@ke/domain";
+import { contentSchemaFor } from "../jsonSchema.js";
 
 const RICHNESS: Record<RichnessLevel, string> = {
   1: "骨架级（只有一句话定义和最简要点）",
@@ -14,6 +15,11 @@ export interface RefinePromptArgs {
 }
 
 export function buildRefinePrompt({ element, targetRichness }: RefinePromptArgs): string {
+  const contentSchema = contentSchemaFor(element.type);
+  const schemaBlock = contentSchema
+    ? `新 content 必须严格匹配以下 JSON Schema：\n${contentSchema}`
+    : "（此元类型没有结构化 content schema；保持现有字段结构，按需扩展。）";
+
   return `你是 Know Everything 系统的知识精炼师。
 
 请把以下元的内容**加深到丰富度等级 ${targetRichness}（${RICHNESS[targetRichness]}）**。
@@ -26,15 +32,11 @@ export function buildRefinePrompt({ element, targetRichness }: RefinePromptArgs)
 ${JSON.stringify(element.content, null, 2)}
 
 要求：
-1. 保留并增强现有字段，不要删除已有信息
-2. 按 type=${element.type} 的 content schema 添加缺失字段
-3. 内容必须准确、不能编造事实
-4. 中文输出
+1. 保留并增强现有字段，不要删除已有信息。
+2. 内容必须准确、不能编造事实。
+3. 中文输出。
 
-输出 JSON：
-{
-  "content": { ... 完整的新 content 对象，对应 ${element.type} 类型的 schema ... }
-}
+${schemaBlock}
 
-只输出 JSON。不要任何解释、Markdown 围栏或前后文字。`;
+输出必须是单个 JSON 对象，形如 \`{ "content": <新 content 对象> }\`。不要解释、Markdown 围栏或前后文字。`;
 }
