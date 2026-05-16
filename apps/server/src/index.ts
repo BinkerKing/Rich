@@ -35,7 +35,21 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger) 
   app.route("/api/relations", relationsRoutes(relations));
   app.route("/api/paths", pathsRoutes(paths));
   app.route("/api/ai", aiRoutes({ adapters: ai, elements, relations, paths, logger: log }));
-  app.get("/api/health", (c) => c.json({ ok: true }));
+
+  app.get("/api/health", async (c) => {
+    const adapterChecks = await Promise.all(ai.map(async (a) => ({
+      name: a.name,
+      available: await a.available(),
+    })));
+    const allAdaptersOk = adapterChecks.some(a => a.available);
+    return c.json({
+      ok: allAdaptersOk,
+      adapters: adapterChecks,
+      uptimeSec: Math.round(process.uptime()),
+      childProcesses: childRegistry.size(),
+    });
+  });
+
   return app;
 }
 

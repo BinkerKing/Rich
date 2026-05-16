@@ -52,6 +52,15 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
   let reqCounter = 0;
   const newReqId = () => `r${Date.now().toString(36)}-${(++reqCounter).toString(36)}`;
 
+  // ----- list available models (adapters) -----
+  r.get("/models", async (c) => {
+    const list = await Promise.all(deps.adapters.map(async (a) => ({
+      name: a.name,
+      available: await a.available(),
+    })));
+    return c.json(list);
+  });
+
   // ----- generate-tree: not element-bound, has its own SSE shape -----
   r.post("/generate-tree", async (c) => {
     const body = await c.req.json().catch(() => ({}));

@@ -67,11 +67,22 @@ describe("Core API routes", () => {
     expect(res.status).toBe(404);
   });
 
-  it("GET /api/health returns ok", async () => {
-    const app = buildApp(dir);
+  it("GET /api/health reports adapter availability + uptime", async () => {
+    const app = buildApp(dir, [new FakeAdapter()]);
     const res = await app.request("/api/health");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body.adapters).toEqual([{ name: "claude-code", available: true }]);
+    expect(typeof body.uptimeSec).toBe("number");
+    expect(typeof body.childProcesses).toBe("number");
+  });
+
+  it("GET /api/ai/models lists adapters", async () => {
+    const app = buildApp(dir, [new FakeAdapter()]);
+    const res = await app.request("/api/ai/models");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([{ name: "claude-code", available: true }]);
   });
 
   it("POST /api/ai/generate-tree streams SSE with done event", async () => {
