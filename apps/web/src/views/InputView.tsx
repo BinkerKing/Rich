@@ -7,6 +7,7 @@ export function InputView() {
   const generate = useStore(s => s.generate);
   const loading = useStore(s => s.loading);
   const error = useStore(s => s.error);
+  const deltaText = useStore(s => s.deltaText);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,6 +36,12 @@ export function InputView() {
             {loading ? "正在生成知识树…" : "开始 →"}
           </button>
         </form>
+        {loading && (
+          <div className="streaming">
+            <div className="status">AI 正在生成知识树…</div>
+            {deltaText && <pre className="preview">{deltaText.slice(-1200)}</pre>}
+          </div>
+        )}
         {error && <div className="err">{error}</div>}
         <div className="hint">提示：第一阶段无论输入什么，都会返回 "认知心理学" 的示例树。</div>
       </div>

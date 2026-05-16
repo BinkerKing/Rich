@@ -11,6 +11,7 @@ interface AppState {
   visiblePathKinds: Set<string>;
   loading: boolean;
   error: string | null;
+  deltaText: string;
   generate(topic: string): Promise<void>;
   setCenter(id: ElementId): void;
   togglePathKind(kind: string): void;
@@ -25,26 +26,34 @@ export const useStore = create<AppState>((set, get) => ({
   visiblePathKinds: new Set(["quick", "academic", "practice"]),
   loading: false,
   error: null,
+  deltaText: "",
 
   async generate(topic) {
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, deltaText: "" });
     try {
-      const tree = await api.generateTree(topic);
-      const elements = new Map(tree.elements.map(e => [e.id, e]));
-      const paths = new Map<string, LearningPath[]>();
-      for (const p of tree.paths) {
-        const list = paths.get(p.centerElementId) ?? [];
-        list.push(p);
-        paths.set(p.centerElementId, list);
+      for await (const ev of api.generateTreeStream(topic)) {
+        if (ev.type === "delta") {
+          set(s => ({ deltaText: (s.deltaText ?? "") + ev.text }));
+        } else if (ev.type === "error") {
+          set({ error: ev.message, loading: false });
+          return;
+        } else if (ev.type === "done") {
+          const tree = ev.result;
+          const elements = new Map(tree.elements.map(e => [e.id, e]));
+          const paths = new Map<string, LearningPath[]>();
+          for (const p of tree.paths) {
+            const list = paths.get(p.centerElementId) ?? [];
+            list.push(p);
+            paths.set(p.centerElementId, list);
+          }
+          set({
+            elements, relations: tree.relations, pathsByCenter: paths,
+            rootId: tree.rootId, centerId: tree.rootId,
+            loading: false, deltaText: "",
+          });
+          return;
+        }
       }
-      set({
-        elements,
-        relations: tree.relations,
-        pathsByCenter: paths,
-        rootId: tree.rootId,
-        centerId: tree.rootId,
-        loading: false,
-      });
     } catch (e) {
       set({ error: String(e), loading: false });
     }

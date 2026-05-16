@@ -24,3 +24,16 @@
 .input-shell button:disabled { opacity: .5; cursor: not-allowed; }
 .input-shell .err { color: var(--pink); font-size: 13px; }
 .input-shell .hint { color: var(--dim); font-size: 12px; margin-top: 24px; }
+.input-shell .streaming {
+  margin-top: 16px; padding: 14px;
+  border: 1px solid var(--teal-line); border-radius: var(--radius);
+  background: var(--teal-soft);
+}
+.input-shell .streaming .status {
+  color: var(--teal); font-size: 13px; margin-bottom: 8px;
+}
+.input-shell .streaming .preview {
+  margin: 0; max-height: 240px; overflow: auto;
+  font-family: var(--mono); font-size: 11px; color: var(--soft);
+  white-space: pre-wrap; word-break: break-all;
+}
