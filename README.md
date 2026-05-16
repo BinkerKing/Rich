@@ -31,9 +31,10 @@ docs/
 
 - ✅ Monorepo + types + repo skeleton
 - ✅ End-to-end vertical slice: input topic → mock generation → render polished tree
-- ✅ 10 tests passing (3 domain + 7 server)
+- ✅ Real AI `generate-tree` via Claude Code SDK + Codex CLI subprocess (SSE streaming)
+- ✅ 13 tests passing (3 domain + 5 extractJson + 5 server)
 - ✅ Center switching is pure JS (no AI call)
-- ⬜ Real Claude API integration (next plan)
+- ⬜ Real AI refine / expand / extend / paths endpoints (next sprint)
 - ⬜ Element reader view, popup card, textbook mode (subsequent plans)
 - ⬜ Codex task center, search, AI locate (subsequent plans)
 
