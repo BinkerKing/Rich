@@ -32,9 +32,12 @@ docs/
 - ✅ Monorepo + types + repo skeleton
 - ✅ End-to-end vertical slice: input topic → mock generation → render polished tree
 - ✅ Real AI `generate-tree` via Claude Code SDK + Codex CLI subprocess (SSE streaming)
-- ✅ 13 tests passing (3 domain + 5 extractJson + 5 server)
+- ✅ Real AI `refine` / `expand` / `extend` / `path` endpoints (SSE, per-element session continuity)
+- ✅ Relations + Paths persistence (`data/relations.jsonl`, `data/paths/*.json`)
+- ✅ 29 tests passing (domain + repos + AI ops + extractJson)
 - ✅ Center switching is pure JS (no AI call)
-- ⬜ Real AI refine / expand / extend / paths endpoints (next sprint)
+- ⬜ Frontend element-operation buttons wired to these endpoints (next sprint)
+- ⬜ Search / AI semantic locate / Codex task center (later sprints)
 - ⬜ Element reader view, popup card, textbook mode (subsequent plans)
 - ⬜ Codex task center, search, AI locate (subsequent plans)
 
