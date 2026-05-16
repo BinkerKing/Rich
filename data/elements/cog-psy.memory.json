@@ -1,0 +1,16 @@
+{
+  "id": "cog-psy.memory",
+  "type": "concept",
+  "title": "记忆",
+  "content": {
+    "oneSentence": "记忆是信息的编码、存储与提取系统。",
+    "coreExplain": "大脑使用三种记忆系统：感觉记忆、短期记忆、长期记忆，各有不同容量和持续时间。",
+    "whyMatters": "记忆是学习和个人连续性的基础。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T04:59:55.660Z",
+    "updatedAt": "2026-05-16T04:59:55.660Z",
+    "generatedBy": "ai",
+    "richness": 2
+  }
+}

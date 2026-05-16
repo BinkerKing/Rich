@@ -1,0 +1,16 @@
+{
+  "id": "cog-psy.reasoning",
+  "type": "concept",
+  "title": "推理",
+  "content": {
+    "oneSentence": "推理是从已知信息推导出新结论的认知过程。",
+    "coreExplain": "包括演绎推理（从一般到特殊）、归纳推理（从特殊到一般）和类比推理（基于相似性）。",
+    "whyMatters": "推理是问题解决、学习和科学思维的核心。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T04:59:55.660Z",
+    "updatedAt": "2026-05-16T04:59:55.660Z",
+    "generatedBy": "ai",
+    "richness": 2
+  }
+}

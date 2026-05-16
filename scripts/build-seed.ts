@@ -1,0 +1,91 @@
+import { writeFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+
+const now = new Date().toISOString();
+const meta = (richness = 2) => ({ createdAt: now, updatedAt: now, generatedBy: "ai", richness });
+
+const els = [
+  { id: "cog-psy", type: "topic", title: "认知心理学",
+    subtitle: "研究人如何感知、记忆、思考、决策",
+    domain: "心理学",
+    content: {
+      intro: "认知心理学是研究人类心智过程的科学，关注感知、注意、记忆、推理、决策等核心机制。",
+      learningGoals: ["建立认知机制的整体框架", "理解信息加工模型", "掌握各核心子领域"],
+      coreModules: [
+        { id: "perception", title: "感知", description: "大脑如何加工感官信号" },
+        { id: "memory", title: "记忆", description: "信息的编码、存储、提取" },
+        { id: "attention", title: "注意力", description: "信息过滤与焦点选择" },
+        { id: "language", title: "语言", description: "理解与产生语言" },
+        { id: "reasoning", title: "推理", description: "归纳、演绎与类比" },
+        { id: "decision", title: "决策", description: "评估与选择" },
+      ],
+      recommendedPaths: ["快速入门", "学术深度", "实战导向"],
+    },
+    metadata: meta(3),
+  },
+  { id: "cog-psy.perception", type: "concept", title: "感知", domain: "心理学",
+    content: {
+      oneSentence: "感知是大脑把感官输入加工成有意义体验的过程。",
+      coreExplain: "眼睛接收光、耳朵接收声波——这只是感觉。真正'看见'或'听见'需要大脑做组织、识别、解释。",
+      whyMatters: "所有更高级的认知能力——记忆、推理、决策——都建立在感知之上。",
+    },
+    metadata: meta(2),
+  },
+  { id: "cog-psy.memory", type: "concept", title: "记忆",
+    content: { oneSentence: "记忆是信息的编码、存储与提取系统。", coreExplain: "大脑使用三种记忆系统：感觉记忆、短期记忆、长期记忆，各有不同容量和持续时间。", whyMatters: "记忆是学习和个人连续性的基础。" },
+    metadata: meta(2) },
+  { id: "cog-psy.attention", type: "concept", title: "注意力",
+    content: { oneSentence: "注意力是大脑选择性处理某一部分信息、忽略其余的机制。", coreExplain: "注意力资源有限，我们无法同时完全处理所有信息，必须进行选择性过滤。", whyMatters: "注意力是所有认知任务的基础，影响感知、记忆和决策。" },
+    metadata: meta(2) },
+  { id: "cog-psy.language", type: "concept", title: "语言",
+    content: { oneSentence: "语言是人类用于交流思想和信息的符号系统。", coreExplain: "大脑通过布罗卡区和韦尼克区等区域处理语言的理解和产生。", whyMatters: "语言是人类特有的高级认知能力，使复杂思想的表达和传递成为可能。" },
+    metadata: meta(2) },
+  { id: "cog-psy.reasoning", type: "concept", title: "推理",
+    content: { oneSentence: "推理是从已知信息推导出新结论的认知过程。", coreExplain: "包括演绎推理（从一般到特殊）、归纳推理（从特殊到一般）和类比推理（基于相似性）。", whyMatters: "推理是问题解决、学习和科学思维的核心。" },
+    metadata: meta(2) },
+  { id: "cog-psy.decision", type: "concept", title: "决策",
+    content: { oneSentence: "决策是在多个选项中进行选择的过程。", coreExplain: "人们使用各种策略：理性分析、启发式方法、情感直觉，决策往往会受到认知偏差的影响。", whyMatters: "决策能力影响个人和组织的成功，理解认知偏差可以改进决策质量。" },
+    metadata: meta(2) },
+  { id: "cog-psy.perception.vision", type: "concept", title: "视觉",
+    content: { oneSentence: "视觉是通过眼睛和视觉皮层处理光信息来感知世界的过程。", coreExplain: "从视网膜的光感受器开始，信号经由视神经传递到大脑视觉皮层，经历多层处理形成视觉体验。", whyMatters: "视觉是人类最重要的感知通道，约占脑皮层1/3的区域用于视觉处理。" },
+    metadata: meta(2) },
+  { id: "cog-psy.perception.audition", type: "concept", title: "听觉",
+    content: { oneSentence: "听觉是通过耳朵和听觉皮层处理声波信息来感知声音的过程。", coreExplain: "声波通过外耳、中耳和内耳，最终在基底膜上引起不同频率的振动，被毛细胞转换为神经信号。", whyMatters: "听觉对语言理解、音乐欣赏和环境感知至关重要。" },
+    metadata: meta(2) },
+  { id: "cog-psy.attention.selective", type: "concept", title: "选择性注意",
+    content: { oneSentence: "选择性注意是有意识地聚焦于某些刺激而忽略其他刺激的能力。", coreExplain: "在喧闹环境中听到特定声音（鸡尾酒会效应）是选择性注意的典型例子。", whyMatters: "选择性注意让我们在复杂环境中有效地获取相关信息。" },
+    metadata: meta(2) },
+  { id: "cog-psy.decision.heuristic", type: "concept", title: "启发式",
+    content: { oneSentence: "启发式是人们在面对复杂决策时使用的快速、简化的思维策略。", coreExplain: "常见启发式包括可用性启发式（基于容易想起的例子）和代表性启发式（基于相似性），它们通常快速有效但易产生偏差。", whyMatters: "理解启发式及其偏差有助于改进决策，避免常见的认知陷阱。" },
+    metadata: meta(2) },
+];
+
+const relations = [
+  // children of cog-psy
+  ...["perception","memory","attention","language","reasoning","decision"].map(s => ({
+    id: `cog-psy->cog-psy.${s}`, from: "cog-psy", to: `cog-psy.${s}`, kind: "child", createdAt: now,
+  })),
+  // children of perception
+  { id: "p->v", from: "cog-psy.perception", to: "cog-psy.perception.vision", kind: "child", createdAt: now },
+  { id: "p->a", from: "cog-psy.perception", to: "cog-psy.perception.audition", kind: "child", createdAt: now },
+  // child of attention
+  { id: "a->s", from: "cog-psy.attention", to: "cog-psy.attention.selective", kind: "child", createdAt: now },
+  // child of decision
+  { id: "d->h", from: "cog-psy.decision", to: "cog-psy.decision.heuristic", kind: "child", createdAt: now },
+];
+
+const paths = [
+  { id: "p.quick", centerElementId: "cog-psy", kind: "quick", label: "快速入门 15min", color: "gold",
+    steps: ["cog-psy.perception", "cog-psy.perception.vision"], generatedBy: "ai", createdAt: now },
+  { id: "p.academic", centerElementId: "cog-psy", kind: "academic", label: "学术深度 2h", color: "cyan",
+    steps: ["cog-psy.attention", "cog-psy.attention.selective"], generatedBy: "ai", createdAt: now },
+  { id: "p.practice", centerElementId: "cog-psy", kind: "practice", label: "实战导向 1h", color: "pink",
+    steps: ["cog-psy.decision", "cog-psy.decision.heuristic"], generatedBy: "ai", createdAt: now },
+];
+
+mkdirSync("data/elements", { recursive: true });
+for (const el of els) {
+  writeFileSync(join("data/elements", `${el.id}.json`), JSON.stringify(el, null, 2));
+}
+writeFileSync("data/seed.tree.json", JSON.stringify({ elements: els, relations, paths, rootId: "cog-psy" }, null, 2));
+console.log(`Wrote ${els.length} elements + ${relations.length} relations + ${paths.length} paths`);

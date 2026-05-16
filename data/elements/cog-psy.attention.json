@@ -1,0 +1,16 @@
+{
+  "id": "cog-psy.attention",
+  "type": "concept",
+  "title": "注意力",
+  "content": {
+    "oneSentence": "注意力是大脑选择性处理某一部分信息、忽略其余的机制。",
+    "coreExplain": "注意力资源有限，我们无法同时完全处理所有信息，必须进行选择性过滤。",
+    "whyMatters": "注意力是所有认知任务的基础，影响感知、记忆和决策。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T04:59:55.660Z",
+    "updatedAt": "2026-05-16T04:59:55.660Z",
+    "generatedBy": "ai",
+    "richness": 2
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "id": "cog-psy",
+  "type": "topic",
+  "title": "认知心理学",
+  "subtitle": "研究人如何感知、记忆、思考、决策",
+  "domain": "心理学",
+  "content": {
+    "intro": "认知心理学是研究人类心智过程的科学，关注感知、注意、记忆、推理、决策等核心机制。",
+    "learningGoals": [
+      "建立认知机制的整体框架",
+      "理解信息加工模型",
+      "掌握各核心子领域"
+    ],
+    "coreModules": [
+      {
+        "id": "perception",
+        "title": "感知",
+        "description": "大脑如何加工感官信号"
+      },
+      {
+        "id": "memory",
+        "title": "记忆",
+        "description": "信息的编码、存储、提取"
+      },
+      {
+        "id": "attention",
+        "title": "注意力",
+        "description": "信息过滤与焦点选择"
+      },
+      {
+        "id": "language",
+        "title": "语言",
+        "description": "理解与产生语言"
+      },
+      {
+        "id": "reasoning",
+        "title": "推理",
+        "description": "归纳、演绎与类比"
+      },
+      {
+        "id": "decision",
+        "title": "决策",
+        "description": "评估与选择"
+      }
+    ],
+    "recommendedPaths": [
+      "快速入门",
+      "学术深度",
+      "实战导向"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-16T04:59:55.660Z",
+    "updatedAt": "2026-05-16T04:59:55.660Z",
+    "generatedBy": "ai",
+    "richness": 3
+  }
+}
