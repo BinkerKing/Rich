@@ -5,7 +5,9 @@ import type { AIAdapter } from "../ai/adapter.js";
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
 import type { RelationsRepo } from "../repos/RelationsRepo.js";
 import type { PathsRepo } from "../repos/PathsRepo.js";
+import type { SignalsRepo } from "../repos/SignalsRepo.js";
 import { pickAdapter } from "../ai/pickAdapter.js";
+import { recordSignal } from "../ai/signalRecorder.js";
 import {
   generateTreeFor,
   refineElement,
@@ -24,6 +26,7 @@ export interface AiRoutesDeps {
   elements: ElementsRepo;
   relations: RelationsRepo;
   paths: PathsRepo;
+  signals: SignalsRepo;
   /** Directory containing AI manual markdown files (knowledge.md, codex.md, …). */
   aiDir: string;
   logger?: Logger;
@@ -87,7 +90,14 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       let bytes = 0;
       for await (const ev of generateTreeFor(adapter, { topic, richness, signal, manual })) {
         if (ev.type === "delta") { deltas++; bytes += ev.text.length; }
-        if (ev.type === "error") log.error("ai.op.error", { reqId, durationMs: Date.now() - t0, deltas, bytes, message: ev.message });
+        if (ev.type === "error") {
+          log.error("ai.op.error", { reqId, durationMs: Date.now() - t0, deltas, bytes, message: ev.message });
+          await recordSignal(deps.signals, {
+            ts: new Date().toISOString(), type: "op.failed", manual: "knowledge",
+            op: "generate-tree", adapter: adapter.name,
+            data: { topic, durationMs: Date.now() - t0, message: ev.message },
+          });
+        }
         await stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) });
         if (ev.type === "done") {
           for (const el of ev.result.elements) await deps.elements.put(el);
@@ -102,6 +112,11 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
             await deps.paths.putForCenter(centerId, list);
           }
           log.info("ai.op.done", { reqId, durationMs: Date.now() - t0, deltas, bytes, elements: ev.result.elements.length });
+          await recordSignal(deps.signals, {
+            ts: new Date().toISOString(), type: "op.completed", manual: "knowledge",
+            op: "generate-tree", adapter: adapter.name, elementId: ev.result.rootId,
+            data: { topic, durationMs: Date.now() - t0, deltas, bytes, elementCount: ev.result.elements.length },
+          });
         }
       }
     });
@@ -130,11 +145,23 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
         manual: await knowledgeManualFragment(deps.aiDir),
       }),
       onDone: async (result, sessionId) => {
+        const t0 = Date.now();
         await deps.elements.put(elementMetadataWithSession(
           { ...element, content: result.content },
           sessionId, adapter.name,
           { richness: targetRichness },
         ));
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.completed", manual: "knowledge",
+          op: "refine", adapter: adapter.name, elementId,
+          data: { targetRichness, persistMs: Date.now() - t0 },
+        });
+      },
+      onError: async (message) => {
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.failed", manual: "knowledge",
+          op: "refine", adapter: adapter.name, elementId, data: { message },
+        });
       },
     });
   });
@@ -166,6 +193,17 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
         for (const el of result.elements) await deps.elements.put(el);
         await deps.relations.append(result.relations);
         await deps.elements.put(elementMetadataWithSession(parent, sessionId, adapter.name));
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.completed", manual: "knowledge",
+          op: "expand", adapter: adapter.name, elementId,
+          data: { newChildren: result.elements.length },
+        });
+      },
+      onError: async (message) => {
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.failed", manual: "knowledge",
+          op: "expand", adapter: adapter.name, elementId, data: { message },
+        });
       },
     });
   });
@@ -198,6 +236,17 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
         for (const el of result.elements) await deps.elements.put(el);
         await deps.relations.append(result.relations);
         await deps.elements.put(elementMetadataWithSession(element, sessionId, adapter.name));
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.completed", manual: "knowledge",
+          op: "extend", adapter: adapter.name, elementId,
+          data: { direction, newElements: result.elements.length },
+        });
+      },
+      onError: async (message) => {
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.failed", manual: "knowledge",
+          op: "extend", adapter: adapter.name, elementId, data: { direction, message },
+        });
       },
     });
   });
@@ -230,6 +279,17 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       onDone: async (result, sessionId) => {
         await deps.paths.appendForCenter(elementId, result.paths);
         await deps.elements.put(elementMetadataWithSession(center, sessionId, adapter.name));
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.completed", manual: "knowledge",
+          op: "path", adapter: adapter.name, elementId,
+          data: { kinds, newPaths: result.paths.length },
+        });
+      },
+      onError: async (message) => {
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.failed", manual: "knowledge",
+          op: "path", adapter: adapter.name, elementId, data: { kinds, message },
+        });
       },
     });
   });

@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
+import type { SignalsRepo } from "../repos/SignalsRepo.js";
+import { recordSignal } from "../ai/signalRecorder.js";
 
-export function elementsRoutes(repo: ElementsRepo): Hono {
+export function elementsRoutes(repo: ElementsRepo, signals?: SignalsRepo): Hono {
   const r = new Hono();
   r.get("/", async (c) => c.json(await repo.list()));
   r.get("/:id", async (c) => {
@@ -23,6 +25,15 @@ export function elementsRoutes(repo: ElementsRepo): Hono {
     if (!timestamp) return c.json({ error: "timestamp required" }, 400);
     try {
       const restored = await repo.revertTo(id, timestamp);
+      if (signals) {
+        await recordSignal(signals, {
+          ts: new Date().toISOString(),
+          type: "user.reverted",
+          manual: "knowledge",
+          elementId: id,
+          data: { fromTimestamp: timestamp },
+        });
+      }
       return c.json(restored);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

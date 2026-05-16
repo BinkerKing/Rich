@@ -25,10 +25,12 @@ export async function streamElementOp<T>(args: {
   element: Element;
   operation: AsyncIterable<StructuredEvent<T>>;
   onDone: (result: T, sessionId: string | undefined) => Promise<void>;
+  /** Invoked when the operation emitted an error event. */
+  onError?: (message: string) => Promise<void>;
   logger?: Logger;
   logCtx?: Record<string, unknown>;
 }): Promise<Response> {
-  const { c, lock, element, operation, onDone } = args;
+  const { c, lock, element, operation, onDone, onError } = args;
   const log = args.logger ?? noopLogger;
   const ctx = args.logCtx ?? {};
   const t0 = Date.now();
@@ -42,6 +44,7 @@ export async function streamElementOp<T>(args: {
           if (ev.type === "delta") { deltas++; bytes += ev.text.length; }
           if (ev.type === "error") {
             log.error("ai.op.error", { ...ctx, durationMs: Date.now() - t0, deltas, bytes, message: ev.message });
+            if (onError) await onError(ev.message);
           }
           if (ev.type === "done") {
             await onDone(ev.result, ev.sessionId);

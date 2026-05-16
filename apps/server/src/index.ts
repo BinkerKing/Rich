@@ -5,10 +5,12 @@ import { realpathSync } from "node:fs";
 import { elementsRoutes } from "./routes/elements.js";
 import { relationsRoutes } from "./routes/relations.js";
 import { pathsRoutes } from "./routes/paths.js";
+import { signalsRoutes } from "./routes/signals.js";
 import { aiRoutes } from "./routes/ai.js";
 import { JsonElementsRepo } from "./repos/JsonElementsRepo.js";
 import { JsonRelationsRepo } from "./repos/JsonRelationsRepo.js";
 import { JsonPathsRepo } from "./repos/JsonPathsRepo.js";
+import { JsonSignalsRepo } from "./repos/JsonSignalsRepo.js";
 import { CachedElementsRepo } from "./repos/CachedElementsRepo.js";
 import { CachedRelationsRepo } from "./repos/CachedRelationsRepo.js";
 import { dataDir, aiDir } from "./lib/paths.js";
@@ -29,6 +31,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   const elements = new CachedElementsRepo(new JsonElementsRepo(root));
   const relations = new CachedRelationsRepo(new JsonRelationsRepo(root));
   const paths = new JsonPathsRepo(root);
+  const signals = new JsonSignalsRepo(root);
   const ai = adapters ?? opts.adapters ?? [new ClaudeAdapter(), new CodexAdapter()];
   const log = logger ?? opts.logger ?? noopLogger;
   const manualsDir = opts.aiDir ?? aiDir();
@@ -39,10 +42,14 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     if (c.req.method === "OPTIONS") return c.body(null, 204);
     await next();
   });
-  app.route("/api/elements", elementsRoutes(elements));
+  app.route("/api/elements", elementsRoutes(elements, signals));
   app.route("/api/relations", relationsRoutes(relations));
   app.route("/api/paths", pathsRoutes(paths));
-  app.route("/api/ai", aiRoutes({ adapters: ai, elements, relations, paths, aiDir: manualsDir, logger: log }));
+  app.route("/api/signals", signalsRoutes(signals));
+  app.route("/api/ai", aiRoutes({
+    adapters: ai, elements, relations, paths, signals,
+    aiDir: manualsDir, logger: log,
+  }));
 
   app.get("/api/health", async (c) => {
     const adapterChecks = await Promise.all(ai.map(async (a) => ({
@@ -55,6 +62,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
       adapters: adapterChecks,
       uptimeSec: Math.round(process.uptime()),
       childProcesses: childRegistry.size(),
+      signals: await signals.count(),
     });
   });
 
