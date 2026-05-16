@@ -9,14 +9,16 @@ import { aiRoutes } from "./routes/ai.js";
 import { JsonElementsRepo } from "./repos/JsonElementsRepo.js";
 import { JsonRelationsRepo } from "./repos/JsonRelationsRepo.js";
 import { JsonPathsRepo } from "./repos/JsonPathsRepo.js";
+import { CachedElementsRepo } from "./repos/CachedElementsRepo.js";
+import { CachedRelationsRepo } from "./repos/CachedRelationsRepo.js";
 import { dataDir } from "./lib/paths.js";
 import { ClaudeAdapter } from "./ai/claude.js";
 import { CodexAdapter } from "./ai/codex.js";
 import type { AIAdapter } from "./ai/adapter.js";
 
 export function buildApp(root: string, adapters?: AIAdapter[]) {
-  const elements = new JsonElementsRepo(root);
-  const relations = new JsonRelationsRepo(root);
+  const elements = new CachedElementsRepo(new JsonElementsRepo(root));
+  const relations = new CachedRelationsRepo(new JsonRelationsRepo(root));
   const paths = new JsonPathsRepo(root);
   const ai = adapters ?? [new ClaudeAdapter(), new CodexAdapter()];
   const app = new Hono();
