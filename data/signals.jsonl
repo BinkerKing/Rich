@@ -1,0 +1,14 @@
+{"ts":"2026-05-16T09:15:34.242Z","type":"op.completed","manual":"knowledge","op":"refine","adapter":"codex","elementId":"cog-psy.decision","data":{"targetRichness":3,"persistMs":4}}
+{"ts":"2026-05-16T09:15:52.142Z","type":"user.reverted","manual":"knowledge","elementId":"cog-psy.decision","data":{"fromTimestamp":"2026-05-16T09-15-34-241Z"}}
+{"ts":"2026-05-16T09:16:31.524Z","type":"op.completed","manual":"knowledge","op":"refine","adapter":"codex","elementId":"cog-psy.decision","data":{"targetRichness":3,"persistMs":2}}
+{"ts":"2026-05-16T09:16:31.525Z","type":"user.repeated_op","manual":"knowledge","elementId":"cog-psy.decision","op":"refine","adapter":"codex","data":{"withinMs":1800000,"priorCount":1}}
+{"ts": "2026-05-16T09:17:09.468033+00:00", "type": "op.completed", "manual": "knowledge", "op": "refine", "adapter": "codex", "elementId": "cog-psy.attention", "data": {"targetRichness": 3}}
+{"ts": "2026-05-16T09:17:09.468033+00:00", "type": "user.reverted", "manual": "knowledge", "elementId": "cog-psy.attention", "data": {"fromTimestamp": "t1", "note": "AI 编造了不存在的研究引用"}}
+{"ts": "2026-05-16T09:17:09.468033+00:00", "type": "op.completed", "manual": "knowledge", "op": "refine", "adapter": "codex", "elementId": "cog-psy.memory", "data": {"targetRichness": 3}}
+{"ts": "2026-05-16T09:17:09.468033+00:00", "type": "user.reverted", "manual": "knowledge", "elementId": "cog-psy.memory", "data": {"fromTimestamp": "t1", "note": "AI 编造了不存在的研究引用"}}
+{"ts": "2026-05-16T09:17:09.468033+00:00", "type": "op.completed", "manual": "knowledge", "op": "refine", "adapter": "codex", "elementId": "cog-psy.language", "data": {"targetRichness": 3}}
+{"ts": "2026-05-16T09:17:09.468033+00:00", "type": "user.reverted", "manual": "knowledge", "elementId": "cog-psy.language", "data": {"fromTimestamp": "t1", "note": "AI 编造了不存在的研究引用"}}
+{"ts": "2026-05-16T09:17:09.468033+00:00", "type": "op.completed", "manual": "knowledge", "op": "refine", "adapter": "codex", "elementId": "cog-psy.reasoning", "data": {"targetRichness": 3}}
+{"ts": "2026-05-16T09:17:09.468033+00:00", "type": "user.reverted", "manual": "knowledge", "elementId": "cog-psy.reasoning", "data": {"fromTimestamp": "t1", "note": "AI 编造了不存在的研究引用"}}
+{"ts": "2026-05-16T09:17:09.468033+00:00", "type": "op.completed", "manual": "knowledge", "op": "refine", "adapter": "codex", "elementId": "cog-psy.perception", "data": {"targetRichness": 3}}
+{"ts": "2026-05-16T09:17:09.468033+00:00", "type": "user.reverted", "manual": "knowledge", "elementId": "cog-psy.perception", "data": {"fromTimestamp": "t1", "note": "AI 编造了不存在的研究引用"}}
