@@ -14,12 +14,13 @@ import {
   expandElement,
   extendElement,
   generatePathsFor,
+  reviewManual,
 } from "../ai/operations.js";
 import { KeyedLock } from "../lib/KeyedLock.js";
 import type { Logger } from "../lib/logger.js";
 import { noopLogger } from "../lib/logger.js";
 import { streamElementOp } from "./streamElementOp.js";
-import { loadManual, manualToPromptFragment } from "../ai/manuals.js";
+import { loadManual, manualToPromptFragment, appendLearnedRules } from "../ai/manuals.js";
 
 export interface AiRoutesDeps {
   adapters: AIAdapter[];
@@ -291,6 +292,58 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
           op: "path", adapter: adapter.name, elementId, data: { kinds, message },
         });
       },
+    });
+  });
+
+  // ----- review (复盘 AI 把信号沉淀进说明书 Learned Rules) -----
+  r.post("/review", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const manualName = String(body.manual ?? "knowledge");
+    const model = body.model as "claude-code" | "codex" | undefined;
+    const sinceArg = typeof body.since === "string" ? body.since : undefined;
+    const dryRun = body.dryRun === true;
+    const since = sinceArg ?? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(); // 7d
+    const manual = await loadManual(deps.aiDir, manualName);
+    if (!manual) return c.json({ error: `manual "${manualName}" not found` }, 404);
+    const signals = await deps.signals.list({ manual: manualName, since });
+    if (signals.length === 0) {
+      return c.json({ added: 0, skipped: 0, rules: [], signalsReviewed: 0, note: "no signals in window" });
+    }
+    const adapter = pickAdapter(deps.adapters, model);
+    const reqId = newReqId();
+    const t0 = Date.now();
+    log.info("ai.review.start", { reqId, manual: manualName, signalCount: signals.length, since });
+
+    let accumulated = "";
+    let errorMsg: string | undefined;
+    let proposedRules: { text: string; rationale?: string; date: string }[] = [];
+    for await (const ev of reviewManual(adapter, { manualName, manual, signals, signal: c.req.raw.signal })) {
+      if (ev.type === "delta") accumulated += ev.text;
+      if (ev.type === "error") errorMsg = ev.message;
+      if (ev.type === "done") proposedRules = ev.result.rules;
+    }
+    if (errorMsg) {
+      log.error("ai.review.error", { reqId, durationMs: Date.now() - t0, message: errorMsg });
+      return c.json({ error: errorMsg, accumulated: accumulated.slice(0, 1000) }, 500);
+    }
+
+    let added = 0;
+    let skipped = 0;
+    if (!dryRun && proposedRules.length > 0) {
+      const res = await appendLearnedRules(deps.aiDir, manualName, proposedRules);
+      added = res.added;
+      skipped = res.skipped;
+    }
+    log.info("ai.review.done", { reqId, durationMs: Date.now() - t0, proposed: proposedRules.length, added, skipped, dryRun });
+
+    return c.json({
+      manual: manualName,
+      signalsReviewed: signals.length,
+      since,
+      proposedRules,
+      added: dryRun ? 0 : added,
+      skipped: dryRun ? 0 : skipped,
+      dryRun,
     });
   });
 

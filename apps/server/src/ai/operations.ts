@@ -10,6 +10,9 @@ import { buildRefinePrompt } from "./prompts/refine.js";
 import { buildExpandPrompt } from "./prompts/expand.js";
 import { buildExtendPrompt } from "./prompts/extend.js";
 import { buildPathPrompt } from "./prompts/path.js";
+import { buildReviewPrompt } from "./prompts/review.js";
+import type { AIManual } from "./manuals.js";
+import type { Signal } from "@ke/domain";
 
 // ----- Operation result schemas (what AI must produce) -----
 
@@ -33,11 +36,20 @@ const PathResultSchema = z.object({
   paths: z.array(LearningPathSchema),
 });
 
+const ReviewResultSchema = z.object({
+  rules: z.array(z.object({
+    text: z.string().min(1).max(120),
+    rationale: z.string().optional(),
+    date: z.string(),
+  })).max(10),
+});
+
 export type GenerateTreeResult = z.infer<typeof GenerateTreeResultSchema>;
 export type RefineResult = z.infer<typeof RefineResultSchema>;
 export type ExpandResult = z.infer<typeof ElementsAndRelationsSchema>;
 export type ExtendResult = z.infer<typeof ElementsAndRelationsSchema>;
 export type PathResult = z.infer<typeof PathResultSchema>;
+export type ReviewResult = z.infer<typeof ReviewResultSchema>;
 
 // Build a validator that throws a readable error (zod gives field paths automatically).
 function zodValidator<T>(schema: z.ZodSchema<T>): (parsed: unknown) => T {
@@ -112,4 +124,16 @@ export function generatePathsFor(
     center: args.center, availableElements: args.availableElements, kinds: args.kinds,
   }));
   return runStructuredAI(adapter, { prompt, sessionId: args.sessionId, signal: args.signal, validate: zodValidator(PathResultSchema) });
+}
+
+export function reviewManual(
+  adapter: AIAdapter,
+  args: { manualName: string; manual: AIManual; signals: Signal[]; signal?: AbortSignal },
+): AsyncIterable<StructuredEvent<ReviewResult>> {
+  // Note: review never reuses a session (each review is independent), and it
+  // doesn't take a manual fragment because the manual itself is the input.
+  const prompt = buildReviewPrompt({
+    manualName: args.manualName, manual: args.manual, signals: args.signals,
+  });
+  return runStructuredAI(adapter, { prompt, signal: args.signal, validate: zodValidator(ReviewResultSchema) });
 }
