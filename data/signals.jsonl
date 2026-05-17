@@ -22,3 +22,14 @@
 {"ts":"2026-05-17T01:42:47.444Z","type":"user.changed_center","manual":"knowledge","elementId":"cog-psy","data":{"from":"cog-psy","to":"cog-psy","dwellMs":15180}}
 {"ts":"2026-05-17T01:44:32.152Z","type":"user.changed_center","manual":"knowledge","elementId":"cog-psy","data":{"from":"cog-psy","to":"cog-psy","dwellMs":104708}}
 {"ts":"2026-05-17T01:47:34.399Z","type":"user.changed_center","manual":"knowledge","elementId":"cog-psy","data":{"from":"cog-psy","to":"cog-psy","dwellMs":182247}}
+{"ts":"2026-05-17T01:58:39.403Z","type":"user.changed_center","manual":"knowledge","elementId":"cog-psy","data":{"from":"cog-psy","to":"cog-psy","dwellMs":665004}}
+{"ts":"2026-05-17T01:58:48.133Z","type":"user.changed_center","manual":"knowledge","elementId":"cog-psy","data":{"from":"cog-psy","to":"cog-psy","dwellMs":8730}}
+{"ts":"2026-05-17T02:00:57.018Z","type":"user.changed_center","manual":"knowledge","elementId":"claude-code","data":{"from":"cog-psy","to":"claude-code","dwellMs":128885}}
+{"ts":"2026-05-17T02:01:19.033Z","type":"user.changed_center","manual":"knowledge","elementId":"know-every","data":{"from":"claude-code","to":"know-every","dwellMs":22015}}
+{"ts":"2026-05-17T02:01:54.886Z","type":"user.changed_center","manual":"knowledge","elementId":"cog-psy","data":{"from":"know-every","to":"cog-psy","dwellMs":35853}}
+{"ts":"2026-05-17T02:02:27.424Z","type":"user.changed_center","manual":"knowledge","elementId":"claude-code","data":{"from":"cog-psy","to":"claude-code","dwellMs":32538}}
+{"ts":"2026-05-17T02:03:49.143Z","type":"user.changed_center","manual":"knowledge","elementId":"claude-code","data":{"from":"claude-code","to":"claude-code","dwellMs":81719}}
+{"ts":"2026-05-17T02:04:18.225Z","type":"user.changed_center","manual":"knowledge","elementId":"know-every","data":{"from":"claude-code","to":"know-every","dwellMs":29082}}
+{"ts":"2026-05-17T02:05:31.593Z","type":"user.changed_center","manual":"knowledge","elementId":"know-every","data":{"from":"know-every","to":"know-every","dwellMs":73368}}
+{"ts":"2026-05-17T02:07:12.903Z","type":"user.changed_center","manual":"knowledge","elementId":"photosyn","data":{"from":"know-every","to":"photosyn","dwellMs":101310}}
+{"ts":"2026-05-17T02:07:27.988Z","type":"user.changed_center","manual":"knowledge","elementId":"claude-code","data":{"from":"photosyn","to":"claude-code","dwellMs":15085}}

@@ -3,3 +3,14 @@
 {"ts":"2026-05-17T01:42:47.444Z","from":"cog-psy","to":"cog-psy","dwellMs":15180}
 {"ts":"2026-05-17T01:44:32.152Z","from":"cog-psy","to":"cog-psy","dwellMs":104708}
 {"ts":"2026-05-17T01:47:34.399Z","from":"cog-psy","to":"cog-psy","dwellMs":182247}
+{"ts":"2026-05-17T01:58:39.403Z","from":"cog-psy","to":"cog-psy","dwellMs":665004}
+{"ts":"2026-05-17T01:58:48.133Z","from":"cog-psy","to":"cog-psy","dwellMs":8730}
+{"ts":"2026-05-17T02:00:57.018Z","from":"cog-psy","to":"claude-code","dwellMs":128885}
+{"ts":"2026-05-17T02:01:19.033Z","from":"claude-code","to":"know-every","dwellMs":22015}
+{"ts":"2026-05-17T02:01:54.886Z","from":"know-every","to":"cog-psy","dwellMs":35853}
+{"ts":"2026-05-17T02:02:27.424Z","from":"cog-psy","to":"claude-code","dwellMs":32538}
+{"ts":"2026-05-17T02:03:49.143Z","from":"claude-code","to":"claude-code","dwellMs":81719}
+{"ts":"2026-05-17T02:04:18.225Z","from":"claude-code","to":"know-every","dwellMs":29082}
+{"ts":"2026-05-17T02:05:31.593Z","from":"know-every","to":"know-every","dwellMs":73368}
+{"ts":"2026-05-17T02:07:12.903Z","from":"know-every","to":"photosyn","dwellMs":101310}
+{"ts":"2026-05-17T02:07:27.988Z","from":"photosyn","to":"claude-code","dwellMs":15085}

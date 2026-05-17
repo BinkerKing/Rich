@@ -223,26 +223,35 @@ export function KnowledgeStructureMap({
             aria-hidden="true"
           >
             <defs>
-              <linearGradient id="l2-line-gradient" x1="0" x2="1" y1="0" y2="0">
+              <linearGradient id="l2-line-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={layout.canvasWidth} y2="0">
                 <stop offset="0%" stopColor="var(--center-accent-2)" />
                 <stop offset="45%" stopColor="var(--center-accent)" />
                 <stop offset="72%" stopColor="var(--center-warm)" />
                 <stop offset="100%" stopColor="var(--center-accent)" />
               </linearGradient>
-              <linearGradient id="l3-line-gradient" x1="0" x2="1" y1="0" y2="0">
+              <linearGradient id="l3-line-gradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={layout.canvasWidth} y2="0">
                 <stop offset="0%" stopColor="var(--center-accent-2)" />
                 <stop offset="52%" stopColor="var(--center-accent)" />
                 <stop offset="100%" stopColor="var(--center-warm)" />
               </linearGradient>
             </defs>
-            {layout.rows.map((row, index) => (
-              <path
-                key={`${row.parent.id}-${index}`}
-                className={`tree-line ${index === 0 ? "tree-line--root" : "tree-line--child"}`}
-                stroke={index === 0 ? "url(#l2-line-gradient)" : "url(#l3-line-gradient)"}
-                d={rootToChildrenPath(layout.rootX, row.centers, layout.parentBottoms[index], row.top - 34, row.top)}
-              />
-            ))}
+            {layout.rows.map((row, index) => {
+              // Row 0's children connect to the root; deeper rows connect to the
+              // parent L2 (or further) node above. Use that parent's actual x,
+              // not the root's, so the bus aligns with the parent column.
+              const sourceX = index === 0
+                ? layout.rootX
+                : (layout.rows[index - 1].positions.get(row.parent.id) ?? layout.rootX)
+                    + layout.rows[index - 1].width / 2;
+              return (
+                <path
+                  key={`${row.parent.id}-${index}`}
+                  className={`tree-line ${index === 0 ? "tree-line--root" : "tree-line--child"}`}
+                  stroke={index === 0 ? "url(#l2-line-gradient)" : "url(#l3-line-gradient)"}
+                  d={rootToChildrenPath(sourceX, row.centers, layout.parentBottoms[index], row.top - 34, row.top)}
+                />
+              );
+            })}
           </svg>
 
           <button
