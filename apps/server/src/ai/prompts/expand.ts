@@ -33,10 +33,11 @@ ID 命名：用父元 id 加点和短名前缀。例：父 "cog-psy.attention" �
 
 所有 relation 的 from 必须 = "${parent.id}"，kind 必须 = "child"。
 
-字段补充（前端会显示）：
-- 每个概念元的 content 至少含 oneSentence + coreExplain + whyMatters，强烈建议补充 beginnerExplain（小白版）、keyPoints（3-5 条）、examples（2-3 条）。
-- 步骤元至少含 goal + steps（每步 n/action）。
+内容方向（讲清楚为先，不要堆练习题）：
+- 概念元 content 至少含 oneSentence + coreExplain + whyMatters；强烈建议补充 beginnerExplain（小白版）、keyPoints（3-5 条）、mechanisms（关键机制，每步 label+description）、examples（2-3 条说明性例子）、misconceptions（2-3 条易混点）。
+- 步骤元至少含 goal + steps（每步 n/action，可选 check）。
 - 实战元至少含 productPositioning + targetAudience + needs + mvpFeatures + implementationPath。
+- 不要生成 exercises（练习题）。
 
 输出必须严格匹配下面的 JSON Schema：
 ${SCHEMAS.elementsAndRelations}

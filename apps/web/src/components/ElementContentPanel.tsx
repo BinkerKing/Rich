@@ -144,7 +144,6 @@ function ConceptBody({ element, u }: { element: Element; u: BodyUtils }) {
   const examples = asTextList(c.examples);
   const misconceptions = asTextList(c.misconceptions);
   const mechanisms = asObjectList(c.mechanisms);
-  const exercises = asObjectList(c.exercises);
   const nextSteps = asTextList(c.nextSteps);
   const learningPoints = [...goals, ...keyPoints].slice(0, 6);
 
@@ -194,19 +193,6 @@ function ConceptBody({ element, u }: { element: Element; u: BodyUtils }) {
           <>
             <h3>5. 学习重点</h3>
             {u.renderActionableList(learningPoints, "学习重点", "check-list")}
-          </>
-        )}
-        {exercises.length > 0 && (
-          <>
-            <h3>6. 练习</h3>
-            <ul className="exercise-list">
-              {exercises.map((ex, i) => (
-                <li key={i} {...u.bindContext("练习", asText(ex.prompt) ?? "")}>
-                  <p>{asText(ex.prompt)}</p>
-                  {asText(ex.hint) && <em>提示：{asText(ex.hint)}</em>}
-                </li>
-              ))}
-            </ul>
           </>
         )}
       </article>
