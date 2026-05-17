@@ -2,6 +2,7 @@ import { useEffect, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import type { CenterView, Element, LearningPath, Relation } from "@ke/domain";
 import { ChildCard } from "./ChildCard.js";
+import { elementTypeClass, elementTypeLabel } from "./elementLabels.js";
 import { GrandPill } from "./GrandPill.js";
 import { Icon, iconForElement } from "./Icon.js";
 import { useStore } from "../state/store.js";
@@ -255,7 +256,7 @@ export function KnowledgeStructureMap({
           </svg>
 
           <button
-            className={`structure-chain-card ${selected.id === root.id ? "is-selected" : ""}`}
+            className={`structure-chain-card ${elementTypeClass(root.type)} ${selected.id === root.id ? "is-selected" : ""}`}
             type="button"
             style={{ left: layout.rootLeft, top: layout.rootTop }}
             onClick={() => onSelect(root.id)}
@@ -266,7 +267,7 @@ export function KnowledgeStructureMap({
                 <Icon name={iconForElement(root.type, root.title)} />
               </span>
               <h2>{root.title}</h2>
-              <span className="structure-chain-card__badge">中心元</span>
+              <span className="structure-chain-card__badge">{elementTypeLabel(root.type)}</span>
             </div>
             <p>{root.subtitle ?? "中心学习元"}</p>
           </button>
@@ -353,8 +354,8 @@ function treeLayout(rows: MapRow[]) {
   const rootHeight = 92;
   const rootTop = 34;
   const margin = 32;
-  const wide = { width: 150, height: 146, gap: 12 };
-  const pill = { width: 170, height: 48, gap: 10 };
+  const wide = { width: 220, height: 86, gap: 12 };
+  const pill = { width: 220, height: 86, gap: 12 };
 
   let requiredRootX = 560;
   for (const row of rows) {

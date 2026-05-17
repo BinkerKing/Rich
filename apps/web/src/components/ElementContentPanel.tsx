@@ -1,8 +1,10 @@
 import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import type { Element } from "@ke/domain";
+import type { Element, ElementType, RichnessLevel } from "@ke/domain";
 import { Icon, iconForElement } from "./Icon.js";
+import { elementTypeLabel } from "./elementLabels.js";
 import { useStore } from "../state/store.js";
+import { api } from "../api/client.js";
 import "./components.css";
 
 type ContentRecord = Record<string, unknown>;
@@ -21,59 +23,469 @@ interface Props {
   onOpenChildren: () => void;
 }
 
+// ──────── helpers ────────
+
 function asRecord(value: unknown): ContentRecord {
   return value && typeof value === "object" && !Array.isArray(value)
-    ? value as ContentRecord
-    : {};
+    ? (value as ContentRecord) : {};
 }
-
 function asText(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
-
 function asTextList(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     : [];
 }
-
-function moduleRows(value: unknown) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter((item): item is ContentRecord => Boolean(item) && typeof item === "object" && !Array.isArray(item))
-    .map(item => ({
-      title: asText(item.title) ?? asText(item.id) ?? "未命名模块",
-      description: asText(item.description) ?? asText(item.summary) ?? "等待补充",
-      focus: asText(item.focus) ?? asText(item.learningFocus) ?? "建立理解",
-    }));
+function asObjectList(value: unknown): ContentRecord[] {
+  return Array.isArray(value)
+    ? value.filter((x): x is ContentRecord => Boolean(x) && typeof x === "object" && !Array.isArray(x))
+    : [];
 }
 
-function contentSections(element: Element) {
-  const content = asRecord(element.content);
-  const goals = asTextList(content.learningGoals);
-  const keyPoints = asTextList(content.keyPoints);
-  const examples = asTextList(content.examples);
-  const misconceptions = asTextList(content.misconceptions);
-  const nextSteps = asTextList(content.nextSteps);
+function formatRelativeTime(iso: string | undefined): string | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  const deltaSec = Math.round((Date.now() - t) / 1000);
+  if (deltaSec < 60) return "刚刚";
+  if (deltaSec < 3600) return `${Math.floor(deltaSec / 60)} 分钟前`;
+  if (deltaSec < 86400) return `${Math.floor(deltaSec / 3600)} 小时前`;
+  if (deltaSec < 86400 * 30) return `${Math.floor(deltaSec / 86400)} 天前`;
+  return new Date(t).toISOString().slice(0, 10);
+}
 
-  return {
-    oneSentence: asText(content.oneSentence) ?? asText(content.intro),
-    coreExplain: asText(content.coreExplain) ?? asText(content.description),
-    whyMatters: asText(content.whyMatters),
-    beginner: asText(content.beginnerExplain) ?? asText(content.simpleExplain),
-    modules: moduleRows(content.coreModules),
-    goals,
-    keyPoints,
-    examples,
-    misconceptions,
-    nextSteps,
+// ──────── MetaStrip ────────
+
+function RichnessGauge({ level }: { level: RichnessLevel }) {
+  return (
+    <span className="richness-gauge" aria-label={`内容深度 ${level}/5`} title={`内容深度 ${level}/5`}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <span key={n} className={n <= level ? "is-on" : ""} />
+      ))}
+    </span>
+  );
+}
+
+function MetaStrip({ element }: { element: Element }) {
+  const [versionCount, setVersionCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.listVersions(element.id).then(list => {
+      if (!cancelled) setVersionCount(list.length);
+    }).catch(() => {
+      if (!cancelled) setVersionCount(null);
+    });
+    return () => { cancelled = true; };
+  }, [element.id]);
+
+  const typeLabel = elementTypeLabel(element.type as ElementType);
+  const richness = element.metadata.richness as RichnessLevel;
+  const updated = formatRelativeTime(element.metadata.updatedAt);
+  const model = element.metadata.aiModel;
+  const tags = element.tags ?? [];
+  const difficulty = element.difficulty;
+
+  return (
+    <div className="meta-strip" role="group" aria-label="元信息">
+      <span className={`meta-chip meta-chip--type type-${element.type}`}>{typeLabel}</span>
+      <RichnessGauge level={richness} />
+      {difficulty && (
+        <span className="meta-chip meta-chip--difficulty" title="难度">
+          难度 · {difficulty === "low" ? "低" : difficulty === "mid" ? "中" : "高"}
+        </span>
+      )}
+      {element.domain && <span className="meta-chip meta-chip--domain" title="领域">{element.domain}</span>}
+      {tags.slice(0, 4).map(tag => (
+        <span key={tag} className="meta-chip meta-chip--tag">#{tag}</span>
+      ))}
+      {updated && (
+        <span className="meta-time" title={element.metadata.updatedAt}>
+          {model ? `${model} · ` : ""}{updated}更新
+        </span>
+      )}
+      {versionCount !== null && versionCount > 0 && (
+        <span
+          className="meta-history"
+          title={element.metadata.aiSessionId ?? ""}
+        >
+          ↻ {versionCount} 个历史版本
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ──────── shared body utilities ────────
+
+interface BodyUtils {
+  bindContext: (title: string, text: string, className?: string) => {
+    className: string;
+    onContextMenu: (event: MouseEvent<HTMLElement>) => void;
+    title: string;
   };
+  renderActionableText: (title: string, text: ReactNode, rawText: string) => ReactNode;
+  renderActionableList: (items: string[], kind: string, className: string) => ReactNode;
+  childrenCount: number;
+  onOpenChildren: () => void;
 }
 
-function fallbackBeginner(element: Element, oneSentence: string | null) {
-  if (oneSentence) return `可以先把「${element.title}」理解为：${oneSentence}`;
-  return `先抓住「${element.title}」的核心含义，再沿着它的下层方向逐步展开。`;
+// ──────── ConceptBody ────────
+
+function ConceptBody({ element, u }: { element: Element; u: BodyUtils }) {
+  const c = asRecord(element.content);
+  const oneSentence = asText(c.oneSentence);
+  const coreExplain = asText(c.coreExplain);
+  const whyMatters = asText(c.whyMatters);
+  const beginner = asText(c.beginnerExplain);
+  const keyPoints = asTextList(c.keyPoints);
+  const goals = asTextList(c.learningGoals);
+  const examples = asTextList(c.examples);
+  const misconceptions = asTextList(c.misconceptions);
+  const mechanisms = asObjectList(c.mechanisms);
+  const exercises = asObjectList(c.exercises);
+  const nextSteps = asTextList(c.nextSteps);
+  const learningPoints = [...goals, ...keyPoints].slice(0, 6);
+
+  return (
+    <>
+      <article className="content-section">
+        <h3>1. 定义</h3>
+        {oneSentence
+          ? u.renderActionableText("定义", oneSentence, oneSentence)
+          : <p className="content-empty">尚无一句话定义。可点击「细化」让 AI 生成。</p>}
+        {beginner && (
+          <div {...u.bindContext("小白理解版", beginner, "callout knowledge-actionable")}>
+            <strong>小白理解版</strong>
+            <p>{beginner}</p>
+          </div>
+        )}
+        <h3>2. 核心解释</h3>
+        {coreExplain
+          ? u.renderActionableText("核心解释", coreExplain, coreExplain)
+          : <p className="content-empty">尚无核心解释。</p>}
+        {whyMatters && (
+          <>
+            <h3>3. 为什么重要</h3>
+            {u.renderActionableText("为什么重要", whyMatters, whyMatters)}
+          </>
+        )}
+      </article>
+
+      <article className="content-section content-section--wide">
+        {mechanisms.length > 0 && (
+          <>
+            <h3>4. 关键机制</h3>
+            <ol className="mechanism-flow">
+              {mechanisms.map((step, i) => (
+                <li key={i} {...u.bindContext("关键机制", asText(step.label) ?? "")}>
+                  <span className="mechanism-step-num">{i + 1}</span>
+                  <div>
+                    <strong>{asText(step.label) ?? "（未命名）"}</strong>
+                    {asText(step.description) && <p>{asText(step.description)}</p>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </>
+        )}
+        {learningPoints.length > 0 && (
+          <>
+            <h3>5. 学习重点</h3>
+            {u.renderActionableList(learningPoints, "学习重点", "check-list")}
+          </>
+        )}
+        {exercises.length > 0 && (
+          <>
+            <h3>6. 练习</h3>
+            <ul className="exercise-list">
+              {exercises.map((ex, i) => (
+                <li key={i} {...u.bindContext("练习", asText(ex.prompt) ?? "")}>
+                  <p>{asText(ex.prompt)}</p>
+                  {asText(ex.hint) && <em>提示：{asText(ex.hint)}</em>}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </article>
+
+      <aside className="content-section content-section--side">
+        {examples.length > 0 && (
+          <>
+            <h3>例子</h3>
+            {u.renderActionableList(examples.slice(0, 4), "例子", "dot-list")}
+          </>
+        )}
+        {misconceptions.length > 0 && (
+          <>
+            <h3>常见误区</h3>
+            {u.renderActionableList(misconceptions.slice(0, 4), "常见误区", "warn-list")}
+          </>
+        )}
+        <h3>下一步</h3>
+        {nextSteps.length > 0
+          ? u.renderActionableList(nextSteps.slice(0, 3), "下一步", "dot-list")
+          : <p className="content-empty">尚未给出明确下一步。</p>}
+        {u.childrenCount > 0 && (
+          <button className="next-button" type="button" onClick={u.onOpenChildren}>
+            查看下层 {u.childrenCount} 个方向
+            <span>→</span>
+          </button>
+        )}
+      </aside>
+    </>
+  );
 }
+
+// ──────── TopicBody ────────
+
+function TopicBody({ element, u }: { element: Element; u: BodyUtils }) {
+  const c = asRecord(element.content);
+  const intro = asText(c.intro);
+  const beginner = asText(c.beginnerExplain);
+  const goals = asTextList(c.learningGoals);
+  const modules = asObjectList(c.coreModules);
+  const recommendedPaths = asTextList(c.recommendedPaths);
+
+  return (
+    <>
+      <article className="content-section">
+        <h3>1. 主题引言</h3>
+        {intro
+          ? u.renderActionableText("引言", intro, intro)
+          : <p className="content-empty">主题尚无引言。</p>}
+        {beginner && (
+          <div {...u.bindContext("小白理解版", beginner, "callout knowledge-actionable")}>
+            <strong>小白理解版</strong>
+            <p>{beginner}</p>
+          </div>
+        )}
+        {goals.length > 0 && (
+          <>
+            <h3>2. 学习目标</h3>
+            {u.renderActionableList(goals, "学习目标", "check-list")}
+          </>
+        )}
+      </article>
+
+      <article className="content-section content-section--wide">
+        <h3>3. 核心模块</h3>
+        {modules.length > 0 ? (
+          <table className="knowledge-table">
+            <thead>
+              <tr><th>模块</th><th>说明</th><th>学习重点</th></tr>
+            </thead>
+            <tbody>
+              {modules.map((row, i) => (
+                <tr key={asText(row.id) ?? i} {...u.bindContext(asText(row.title) ?? "模块", asText(row.description) ?? "")}>
+                  <td>{asText(row.title) ?? asText(row.id) ?? "未命名"}</td>
+                  <td>{asText(row.description) ?? "—"}</td>
+                  <td>{asText(row.focus) ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <p className="content-empty">尚未定义核心模块。</p>}
+      </article>
+
+      <aside className="content-section content-section--side">
+        {recommendedPaths.length > 0 && (
+          <>
+            <h3>推荐学习路径</h3>
+            {u.renderActionableList(recommendedPaths, "推荐路径", "dot-list")}
+          </>
+        )}
+        {u.childrenCount > 0 && (
+          <button className="next-button" type="button" onClick={u.onOpenChildren}>
+            进入第一层 {u.childrenCount} 个模块
+            <span>→</span>
+          </button>
+        )}
+      </aside>
+    </>
+  );
+}
+
+// ──────── StepBody ────────
+
+function StepBody({ element, u }: { element: Element; u: BodyUtils }) {
+  const c = asRecord(element.content);
+  const goal = asText(c.goal) ?? asText(c.oneSentence);
+  const preconditions = asTextList(c.preconditions);
+  const steps = asObjectList(c.steps);
+  const completionCriteria = asTextList(c.completionCriteria);
+  const commonFailures = asTextList(c.commonFailures);
+  const nextAction = asText(c.nextAction);
+
+  return (
+    <>
+      <article className="content-section">
+        <h3>1. 步骤目标</h3>
+        {goal
+          ? u.renderActionableText("步骤目标", goal, goal)
+          : <p className="content-empty">尚无目标说明。</p>}
+        {preconditions.length > 0 && (
+          <>
+            <h3>2. 前置条件</h3>
+            {u.renderActionableList(preconditions, "前置条件", "check-list")}
+          </>
+        )}
+      </article>
+
+      <article className="content-section content-section--wide">
+        <h3>3. 操作步骤</h3>
+        {steps.length > 0 ? (
+          <ol className="step-list">
+            {steps.map((step, i) => {
+              const n = typeof step.n === "number" ? step.n : i + 1;
+              const action = asText(step.action) ?? "（未填）";
+              const check = asText(step.check);
+              return (
+                <li key={i} {...u.bindContext(`步骤 ${n}`, action)}>
+                  <span className="step-num">{n}</span>
+                  <div>
+                    <p>{action}</p>
+                    {check && <em>验证：{check}</em>}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        ) : <p className="content-empty">尚未拆分操作步骤。</p>}
+      </article>
+
+      <aside className="content-section content-section--side">
+        {completionCriteria.length > 0 && (
+          <>
+            <h3>完成标准</h3>
+            {u.renderActionableList(completionCriteria, "完成标准", "check-list")}
+          </>
+        )}
+        {commonFailures.length > 0 && (
+          <>
+            <h3>常见失败点</h3>
+            {u.renderActionableList(commonFailures, "失败点", "warn-list")}
+          </>
+        )}
+        {nextAction && (
+          <>
+            <h3>下一步动作</h3>
+            {u.renderActionableText("下一步动作", nextAction, nextAction)}
+          </>
+        )}
+      </aside>
+    </>
+  );
+}
+
+// ──────── PracticeBody ────────
+
+function PracticeBody({ element, u }: { element: Element; u: BodyUtils }) {
+  const c = asRecord(element.content);
+  const productPositioning = asText(c.productPositioning);
+  const targetAudience = asText(c.targetAudience);
+  const needs = asTextList(c.needs);
+  const competitors = asObjectList(c.competitors);
+  const mvpFeatures = asTextList(c.mvpFeatures);
+  const implementationPath = asTextList(c.implementationPath);
+  // Practice elements often also carry concept-like fields when AI mixes them
+  const oneSentence = asText(c.oneSentence);
+  const fallbackPositioning = productPositioning ?? oneSentence;
+
+  return (
+    <>
+      <article className="content-section">
+        <h3>1. 产品定位</h3>
+        {fallbackPositioning
+          ? u.renderActionableText("产品定位", fallbackPositioning, fallbackPositioning)
+          : <p className="content-empty">尚无定位描述。</p>}
+        {targetAudience && (
+          <>
+            <h3>2. 目标用户</h3>
+            {u.renderActionableText("目标用户", targetAudience, targetAudience)}
+          </>
+        )}
+        {needs.length > 0 && (
+          <>
+            <h3>3. 用户需求</h3>
+            {u.renderActionableList(needs, "用户需求", "check-list")}
+          </>
+        )}
+      </article>
+
+      <article className="content-section content-section--wide">
+        <h3>4. MVP 功能</h3>
+        {mvpFeatures.length > 0
+          ? u.renderActionableList(mvpFeatures, "MVP 功能", "check-list")
+          : <p className="content-empty">尚未拆分 MVP 功能。</p>}
+        {implementationPath.length > 0 && (
+          <>
+            <h3>5. 实现路径</h3>
+            <ol className="step-list">
+              {implementationPath.map((stage, i) => (
+                <li key={i} {...u.bindContext("实现路径", stage)}>
+                  <span className="step-num">{i + 1}</span>
+                  <div><p>{stage}</p></div>
+                </li>
+              ))}
+            </ol>
+          </>
+        )}
+      </article>
+
+      <aside className="content-section content-section--side">
+        {competitors.length > 0 && (
+          <>
+            <h3>竞品</h3>
+            <ul className="warn-list">
+              {competitors.map((cmp, i) => (
+                <li key={i} {...u.bindContext("竞品", `${asText(cmp.name)}: ${asText(cmp.takeaway)}`)}>
+                  <strong>{asText(cmp.name) ?? "未命名"}</strong>
+                  {asText(cmp.takeaway) && <p>{asText(cmp.takeaway)}</p>}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {u.childrenCount > 0 && (
+          <button className="next-button" type="button" onClick={u.onOpenChildren}>
+            查看下层 {u.childrenCount} 个分支
+            <span>→</span>
+          </button>
+        )}
+      </aside>
+    </>
+  );
+}
+
+// ──────── Generic fallback body for unsupported types ────────
+
+function GenericBody({ element, u }: { element: Element; u: BodyUtils }) {
+  const c = asRecord(element.content);
+  const oneSentence = asText(c.oneSentence) ?? asText(c.intro);
+  const coreExplain = asText(c.coreExplain) ?? asText(c.description);
+  return (
+    <article className="content-section">
+      <h3>定义</h3>
+      {oneSentence
+        ? u.renderActionableText("定义", oneSentence, oneSentence)
+        : <p className="content-empty">尚无描述。</p>}
+      {coreExplain && (
+        <>
+          <h3>说明</h3>
+          {u.renderActionableText("说明", coreExplain, coreExplain)}
+        </>
+      )}
+      <p className="content-empty">
+        元类型「{element.type}」当前没有专属布局，已用通用模板。
+      </p>
+    </article>
+  );
+}
+
+// ──────── Main panel ────────
 
 export function ElementContentPanel({ element, childrenCount, currentLevel, onOpenChildren }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -89,41 +501,21 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
     }
     return null;
   });
-  const sections = contentSections(element);
-  const learningPoints = [
-    ...sections.goals,
-    ...sections.keyPoints,
-    ...(sections.whyMatters ? [sections.whyMatters] : []),
-  ].slice(0, 6);
-  const examples = sections.examples.length > 0
-    ? sections.examples
-    : [`用一个真实问题检验你是否理解「${element.title}」。`];
-  const misconceptions = sections.misconceptions.length > 0
-    ? sections.misconceptions
-    : [`不要只记住名词，要能说清「${element.title}」在整体结构里的作用。`];
-  const nextSteps = sections.nextSteps.length > 0
-    ? sections.nextSteps
-    : childrenCount > 0
-      ? [`查看下层 ${childrenCount} 个方向。`]
-      : ["继续细化这个元，补充更具体的分支。"];
 
   useEffect(() => {
     if (!isFullscreen && !contextTarget) return;
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsFullscreen(false);
         setContextTarget(null);
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isFullscreen, contextTarget]);
 
   useEffect(() => {
     if (!contextTarget) return;
-
     const close = () => setContextTarget(null);
     window.addEventListener("click", close);
     window.addEventListener("scroll", close, true);
@@ -147,8 +539,7 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
     setContextTarget({
       x: Math.min(event.clientX, window.innerWidth - menuWidth - 12),
       y: Math.min(event.clientY, window.innerHeight - menuHeight - 12),
-      title,
-      text,
+      title, text,
     });
   }
 
@@ -162,10 +553,7 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
         setLastAction(`细化完成 · ${element.title}`);
         return;
       case "延伸": {
-        const direction = window.prompt(
-          `朝什么方向延伸「${element.title}」？`,
-          contextTarget.title,
-        );
+        const direction = window.prompt(`朝什么方向延伸「${element.title}」？`, contextTarget.title);
         if (!direction || !direction.trim()) return;
         setLastAction(`AI 正在延伸 · ${element.title}`);
         await extend(element.id, direction.trim(), 3);
@@ -187,11 +575,55 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
     }
   }
 
-  const bindContext = (title: string, text: string, className = "knowledge-actionable") => ({
-    className,
-    onContextMenu: (event: MouseEvent<HTMLElement>) => openContextMenu(event, title, text),
-    title: "右击打开元信息操作",
-  });
+  const u: BodyUtils = {
+    bindContext: (title, text, className = "knowledge-actionable") => ({
+      className,
+      onContextMenu: (event: MouseEvent<HTMLElement>) => openContextMenu(event, title, text),
+      title: "右击打开元信息操作",
+    }),
+    renderActionableText: (title, text, rawText) => (
+      <p {...u.bindContext(title, rawText)}>{text}</p>
+    ),
+    renderActionableList: (items, kind, className) => (
+      <ul className={className}>
+        {items.map(item => (
+          <li key={item} {...u.bindContext(kind, item)}>{item}</li>
+        ))}
+      </ul>
+    ),
+    childrenCount,
+    onOpenChildren,
+  };
+
+  const renderBody = () => {
+    // Dispatch by element.type, but fall back to ConceptBody when the AI
+    // gave us concept-shaped content (oneSentence/coreExplain) on a non-concept
+    // element. This happens because the expand/generate prompts sometimes
+    // emit concept fields for practice/step elements.
+    const c = asRecord(element.content);
+    const hasConceptShape = asText(c.oneSentence) !== null || asText(c.coreExplain) !== null;
+    const hasTopicShape = asText(c.intro) !== null || asObjectList(c.coreModules).length > 0;
+    const hasStepShape = asText(c.goal) !== null || asObjectList(c.steps).length > 0;
+    const hasPracticeShape = asText(c.productPositioning) !== null || asTextList(c.mvpFeatures).length > 0;
+
+    switch (element.type) {
+      case "topic":
+        if (hasTopicShape) return <TopicBody element={element} u={u} />;
+        if (hasConceptShape) return <ConceptBody element={element} u={u} />;
+        return <GenericBody element={element} u={u} />;
+      case "concept":
+        return <ConceptBody element={element} u={u} />;
+      case "step":
+        if (hasStepShape) return <StepBody element={element} u={u} />;
+        return hasConceptShape ? <ConceptBody element={element} u={u} /> : <GenericBody element={element} u={u} />;
+      case "practice":
+      case "project":
+        if (hasPracticeShape) return <PracticeBody element={element} u={u} />;
+        return hasConceptShape ? <ConceptBody element={element} u={u} /> : <GenericBody element={element} u={u} />;
+      default:
+        return hasConceptShape ? <ConceptBody element={element} u={u} /> : <GenericBody element={element} u={u} />;
+    }
+  };
 
   const renderContextMenu = () => contextTarget && typeof document !== "undefined"
     ? createPortal(
@@ -221,39 +653,19 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
       )
     : null;
 
-  const renderActionableList = (items: string[], kind: string, className: string) => (
-    <ul className={className}>
-      {items.map(item => (
-        <li key={item} {...bindContext(kind, item)}>{item}</li>
-      ))}
-    </ul>
-  );
-
-  const renderKnowledgeList = (items: string[]) => (
-    <div className="knowledge-list">
-      {items.map(point => (
-        <span key={point} {...bindContext("知识组成", point)}>{point}</span>
-      ))}
-    </div>
-  );
-
-  const renderActionableText = (title: string, text: ReactNode, rawText: string) => (
-    <p {...bindContext(title, rawText)}>{text}</p>
-  );
-
   const renderPanel = (fullscreen = false) => (
     <section className={`element-content${fullscreen ? " is-fullscreen" : ""}`} aria-hidden={!fullscreen && isFullscreen ? true : undefined}>
       <header className="element-content__head">
         <div className="node-glyph" aria-hidden="true">
           <Icon name={iconForElement(element.type, element.title)} />
         </div>
-        <div>
+        <div className="element-head-main">
           <div className="element-title-row">
             <h2>{element.title}</h2>
-            <span>L{currentLevel}</span>
-            <span>{element.type}</span>
+            <span className="level-badge">L{currentLevel}</span>
           </div>
           {element.subtitle && <p>{element.subtitle}</p>}
+          <MetaStrip element={element} />
         </div>
         <div className="element-content__actions">
           {inflightForThis && (
@@ -292,68 +704,7 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
       </header>
 
       <div className="element-content__grid">
-        <article className="content-section">
-          <h3>1. 定义</h3>
-          {renderActionableText("定义", sections.oneSentence ?? `${element.title} 是当前知识树中的一个关键知识元。`, sections.oneSentence ?? `${element.title} 是当前知识树中的一个关键知识元。`)}
-
-          <div {...bindContext("小白理解版", sections.beginner ?? fallbackBeginner(element, sections.oneSentence), "callout knowledge-actionable")}>
-            <strong>小白理解版</strong>
-            <p>{sections.beginner ?? fallbackBeginner(element, sections.oneSentence)}</p>
-          </div>
-
-          <h3>2. 核心解释</h3>
-          {renderActionableText("核心解释", sections.coreExplain ?? `围绕「${element.title}」继续展开时，需要先理解它的边界、组成和适用场景。`, sections.coreExplain ?? `围绕「${element.title}」继续展开时，需要先理解它的边界、组成和适用场景。`)}
-        </article>
-
-        <article className="content-section content-section--wide">
-          <h3>3. 知识组成</h3>
-          {sections.modules.length > 0 ? (
-            <table className="knowledge-table">
-              <thead>
-                <tr>
-                  <th>组成</th>
-                  <th>作用</th>
-                  <th>学习重点</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sections.modules.map(row => (
-                  <tr key={row.title} {...bindContext(row.title, `${row.description}；${row.focus}`)}>
-                    <td>{row.title}</td>
-                    <td>{row.description}</td>
-                    <td>{row.focus}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            renderKnowledgeList(learningPoints.length > 0
-              ? learningPoints
-              : ["概念边界", "关键机制", "典型应用", "下一层分支"])
-          )}
-
-          <h3>4. 学习重点</h3>
-          {renderActionableList((learningPoints.length > 0 ? learningPoints : [
-              `理解「${element.title}」解决什么问题`,
-              `区分它和相邻知识元的关系`,
-              "能用自己的话复述核心机制",
-              "能找到一个真实应用场景",
-            ]), "学习重点", "check-list")}
-        </article>
-
-        <aside className="content-section content-section--side">
-          <h3>5. 例子</h3>
-          {renderActionableList(examples.slice(0, 4), "例子", "dot-list")}
-
-          <h3>6. 常见误区</h3>
-          {renderActionableList(misconceptions.slice(0, 4), "常见误区", "warn-list")}
-
-          <h3>7. 下一步可展开</h3>
-          <button className="next-button" type="button" onClick={onOpenChildren}>
-            {nextSteps[0]}
-            <span>→</span>
-          </button>
-        </aside>
+        {renderBody()}
       </div>
     </section>
   );
