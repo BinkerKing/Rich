@@ -684,8 +684,14 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
       </header>
 
       <div className="element-content__scroll">
-        {renderBody()}
-        <ContextRail element={element} onSelect={onSelect ?? (() => undefined)} />
+        <div className="element-content__three-col">
+          <div className="three-col-body">
+            {renderBody()}
+          </div>
+          <aside className="three-col-context" aria-label="上下文信息">
+            <ContextRail element={element} onSelect={onSelect ?? (() => undefined)} />
+          </aside>
+        </div>
       </div>
     </section>
   );

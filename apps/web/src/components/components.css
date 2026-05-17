@@ -1438,13 +1438,45 @@ button {
 }
 .element-content.is-fullscreen .element-content__scroll { max-height: calc(100vh - 120px); }
 
+/* Panel-level 3-pane: body (TOC+article) + right context rail */
+.element-content__three-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 0;
+  align-items: start;
+}
+
+.three-col-body { min-width: 0; }
+
+.three-col-context {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  padding: 24px 22px 24px 6px;
+  border-left: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(8, 19, 35, .15), transparent 40%);
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.element-content.is-fullscreen .three-col-context { max-height: calc(100vh - 120px); }
+
+/* The right-rail variant of ContextRail (override the standalone styling) */
+.three-col-context .context-rail {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Inside the body wrapper: TOC flush left, article fills the rest */
 .body-layout {
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr);
-  gap: 36px;
-  padding: 28px 36px 8px;
-  max-width: 1080px;
-  margin: 0 auto;
+  gap: 28px;
+  padding: 24px 8px 16px 14px;
 }
 
 .body-toc {
@@ -1453,39 +1485,77 @@ button {
   align-self: start;
   font-size: 12px;
   color: var(--muted);
-  padding: 8px 0;
-  border-left: 1px solid var(--line);
+  padding: 0;
 }
-.body-toc ol { list-style: none; padding: 0 0 0 14px; margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.body-toc::before {
+  content: "本元目录";
+  display: block;
+  font-size: 10px;
+  letter-spacing: .15em;
+  color: var(--dim, var(--muted));
+  text-transform: uppercase;
+  padding: 0 12px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 6px;
+}
+.body-toc ol { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
 .body-toc button {
+  position: relative;
   background: transparent;
   border: 0;
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 6px;
+  gap: 10px;
+  padding: 8px 12px 8px 14px;
+  border-radius: 0 8px 8px 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   text-align: left;
   cursor: pointer;
-  transition: color .15s ease, background .15s ease;
+  transition: color .15s ease, background .15s ease, transform .15s ease;
 }
-.body-toc button:hover { color: var(--text); background: rgba(120, 200, 220, .06); }
+.body-toc button::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 6px; bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background .15s ease;
+}
+.body-toc button:hover {
+  color: var(--text);
+  background: rgba(120, 200, 220, .06);
+  transform: translateX(2px);
+}
 .body-toc button.is-active {
   color: var(--center-accent, var(--teal));
   background: var(--center-soft, var(--teal-soft));
+  font-weight: 600;
 }
-.body-toc .toc-num { font-family: monospace; font-size: 10px; opacity: .55; }
+.body-toc button.is-active::before {
+  background: var(--center-accent, var(--teal));
+  box-shadow: 0 0 8px var(--center-accent, var(--teal));
+}
+.body-toc .toc-num { font-family: monospace; font-size: 10px; opacity: .6; }
+.body-toc button.is-active .toc-num { opacity: 1; color: var(--center-accent, var(--teal)); }
 .body-toc .toc-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .body-article {
-  max-width: 720px;
   min-width: 0;
   font-size: 15px;
   line-height: 1.78;
   color: var(--soft);
+}
+
+/* Prose paragraphs alone keep optimal reading width.
+   Cards / grids / callouts / mechanisms / CTAs fill the full article column. */
+.body-lead,
+.body-prose,
+.body-section > .check-list,
+.body-section > .dot-list {
+  max-width: 760px;
 }
 
 .body-section { margin: 0 0 32px; scroll-margin-top: 16px; }
@@ -1758,6 +1828,40 @@ button {
 }
 
 .element-content.is-fullscreen .element-content__grid { padding: 0; }
+
+/* ── Responsive: collapse 3-pane to 2 then 1 ── */
+@media (max-width: 1280px) {
+  .element-content__three-col {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .three-col-context {
+    position: static;
+    max-height: none;
+    border-left: 0;
+    border-top: 1px dashed var(--line-2);
+    padding: 18px 16px;
+  }
+  .three-col-context .context-rail {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (max-width: 860px) {
+  .body-layout {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 18px 14px;
+  }
+  .body-toc {
+    position: static;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 10px;
+    margin-bottom: 14px;
+  }
+  .body-toc ol { flex-direction: row; flex-wrap: wrap; }
+  .body-toc button { padding: 6px 12px; }
+}
 
 .content-section {
   min-width: 0;
