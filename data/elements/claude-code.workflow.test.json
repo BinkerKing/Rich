@@ -1,0 +1,54 @@
+{
+  "id": "claude-code.workflow.test",
+  "type": "practice",
+  "title": "测试与验证",
+  "subtitle": "用可重复证据确认结果",
+  "aliases": [
+    "verification",
+    "testing"
+  ],
+  "tags": [
+    "test",
+    "qa"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "测试与验证用自动化测试、构建、类型检查和手动检查证明修改有效。",
+    "beginnerExplain": "不能只看代码像对的，要跑一遍。",
+    "coreExplain": "Claude Code 可以运行项目脚本、读取失败输出并迭代修复。验证应从最小相关测试开始，必要时扩展到全量测试、构建或浏览器检查。",
+    "whyMatters": "AI 代码最需要可重复证据，否则容易隐藏边界问题。",
+    "keyPoints": [
+      "先跑与修改最相关的测试",
+      "失败时保留错误输出用于分析",
+      "不要把测试改到只为通过",
+      "最终说明哪些验证已完成"
+    ],
+    "examples": [
+      "修改解析器后跑对应单元测试",
+      "改 UI 后做浏览器截图检查",
+      "后端改接口后跑契约测试"
+    ],
+    "misconceptions": [
+      "没有报错就代表功能正确",
+      "改测试比改实现更快",
+      "全量测试永远是第一步"
+    ],
+    "nextSteps": [
+      "建立项目验证矩阵"
+    ],
+    "mechanisms": [
+      "选择验证命令",
+      "运行并读取结果",
+      "定位失败原因",
+      "复测并记录"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "gpt-5",
+    "richness": 3
+  }
+}

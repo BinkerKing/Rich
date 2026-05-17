@@ -1,0 +1,52 @@
+{
+  "id": "know-every.ai-core.quality",
+  "type": "concept",
+  "title": "AI 质量评估",
+  "subtitle": "判断内容是否准确、紧凑、可扩展",
+  "aliases": [
+    "质量评分",
+    "知识评估"
+  ],
+  "tags": [
+    "质量控制",
+    "AI评估",
+    "反馈"
+  ],
+  "domain": "ai",
+  "difficulty": "high",
+  "content": {
+    "oneSentence": "AI 质量评估用规则和模型判断生成内容是否适合进入知识系统。",
+    "beginnerExplain": "生成后要检查，不能只看起来像对的。",
+    "coreExplain": "评估维度可以包括事实风险、结构完整性、重复度、可读性、引用合法性和路径可执行性。系统可以先用程序校验 Schema，再用 AI 做语义层面的审查。",
+    "whyMatters": "没有质量评估，自进化系统会把错误和废话不断放大。",
+    "keyPoints": [
+      "先做硬校验，再做语义评估。",
+      "高风险事实需要来源或降级表达。",
+      "重复节点要合并或标记。",
+      "用户反馈应影响质量评分。"
+    ],
+    "examples": [
+      "发现路径步骤引用了不存在的 id，直接拒绝入库。",
+      "发现某概念只有空泛描述，降低 richness 并提示扩展。"
+    ],
+    "misconceptions": [
+      "模型自评完全可靠。自评需要规则和用户反馈补充。",
+      "只要 JSON 合法就是高质量。合法结构不等于有用内容。"
+    ],
+    "nextSteps": [
+      "为生成结果添加 Schema 校验和人工确认状态。"
+    ],
+    "mechanisms": [
+      "校验格式。",
+      "检测引用。",
+      "评估语义质量。",
+      "生成修正建议。"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "richness": 3
+  }
+}

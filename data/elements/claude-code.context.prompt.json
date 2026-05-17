@@ -1,0 +1,54 @@
+{
+  "id": "claude-code.context.prompt",
+  "type": "practice",
+  "title": "任务提示模板",
+  "subtitle": "把需求写成可执行任务",
+  "aliases": [
+    "prompt template",
+    "任务描述"
+  ],
+  "tags": [
+    "prompt",
+    "task"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "low",
+  "content": {
+    "oneSentence": "任务提示模板把目标、范围、约束、验收和输出格式固定下来。",
+    "beginnerExplain": "不要只说“帮我改一下”，要说明改哪里、为什么改、怎样算完成。",
+    "coreExplain": "一个实用模板包含背景、目标、允许修改范围、禁止事项、验证命令和最终汇报要求。复杂任务还应要求 Claude Code 先给计划，再执行。",
+    "whyMatters": "清晰任务能减少反复沟通，也能降低误改概率。",
+    "keyPoints": [
+      "明确问题现象和期望行为",
+      "写出可修改和不可修改范围",
+      "给出验证方式",
+      "要求保留用户已有改动"
+    ],
+    "examples": [
+      "请修复登录失败 bug，只改 auth 模块，跑 auth 测试",
+      "请解释这段构建错误，先不要修改文件",
+      "请实现筛选功能，并补充对应单元测试"
+    ],
+    "misconceptions": [
+      "提示词越长越专业",
+      "只给截图足够完成后端修复",
+      "不写验收标准也能得到稳定结果"
+    ],
+    "nextSteps": [
+      "沉淀团队常用模板"
+    ],
+    "mechanisms": [
+      "描述背景",
+      "指定目标",
+      "约束范围",
+      "定义验证"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "gpt-5",
+    "richness": 3
+  }
+}

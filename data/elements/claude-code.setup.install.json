@@ -1,0 +1,54 @@
+{
+  "id": "claude-code.setup.install",
+  "type": "practice",
+  "title": "安装与认证",
+  "subtitle": "完成可用的本地入口",
+  "aliases": [
+    "install",
+    "auth"
+  ],
+  "tags": [
+    "setup",
+    "auth"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "low",
+  "content": {
+    "oneSentence": "安装与认证是让 Claude Code 获得合法运行身份和基础执行环境。",
+    "beginnerExplain": "这一步相当于把工具装好并登录。",
+    "coreExplain": "常见流程包括安装官方 CLI 或桌面相关入口，使用账号登录或配置 API Key，然后确认命令可执行。企业环境还可能使用统一身份、代理、云服务或管理策略。",
+    "whyMatters": "认证不清会导致调用失败、额度混乱或把个人配置带进团队项目。",
+    "keyPoints": [
+      "区分个人账号、团队账号和企业账号",
+      "不要把密钥写入代码仓库",
+      "验证版本号和当前登录状态",
+      "记录团队推荐的安装方式"
+    ],
+    "examples": [
+      "新成员入职时按项目 README 完成 Claude Code 登录",
+      "本地命令报认证错误时先检查环境变量",
+      "企业网络下配置代理后再验证调用"
+    ],
+    "misconceptions": [
+      "复制别人的 API Key 是可接受的临时方案",
+      "认证通过后就不需要权限控制",
+      "所有机器都应使用同一套个人配置"
+    ],
+    "nextSteps": [
+      "补充本项目的安装检查清单"
+    ],
+    "mechanisms": [
+      "安装工具",
+      "完成登录或配置密钥",
+      "验证命令可运行",
+      "记录配置来源"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "gpt-5",
+    "richness": 3
+  }
+}

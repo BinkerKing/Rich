@@ -1,0 +1,51 @@
+{
+  "id": "know-every.product.scope",
+  "type": "concept",
+  "title": "系统边界与 MVP",
+  "subtitle": "先做能跑通闭环的最小系统",
+  "aliases": [
+    "MVP 范围",
+    "产品边界"
+  ],
+  "tags": [
+    "MVP",
+    "范围控制",
+    "产品策略"
+  ],
+  "domain": "product",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "Know Everything 的 MVP 应优先验证知识闭环，而不是一次性覆盖所有知识管理功能。",
+    "beginnerExplain": "先让一个小流程真的有用，再扩展复杂功能。",
+    "coreExplain": "最小版本可以只支持主题树、知识元、关系、路径和一次 AI 生成流程。标签、全文搜索、多人协作、插件生态等能力可以后置，避免早期系统过重。",
+    "whyMatters": "范围控制能降低工程复杂度，也能更快发现真实用户是否愿意持续使用。",
+    "keyPoints": [
+      "MVP 需要覆盖输入、生成、浏览、编辑和复盘。",
+      "先保证数据结构可扩展，再追求界面完整。",
+      "把复杂能力做成后续模块，不要绑死在第一版。"
+    ],
+    "examples": [
+      "第一版只支持粘贴文本生成知识树。",
+      "先支持单用户本地知识宇宙，再考虑团队知识库。"
+    ],
+    "misconceptions": [
+      "以为 MVP 就是粗糙版大系统。MVP 应验证核心假设。",
+      "以为功能少就没有架构要求。可演化的数据模型仍然重要。"
+    ],
+    "nextSteps": [
+      "列出第一版必须保留的 5 个动作。"
+    ],
+    "mechanisms": [
+      "明确核心假设。",
+      "删掉非闭环功能。",
+      "设计可扩展 Schema。",
+      "用真实输入验证。"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "richness": 3
+  }
+}

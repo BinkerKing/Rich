@@ -1,0 +1,52 @@
+{
+  "id": "know-every.graph.node-edge",
+  "type": "concept",
+  "title": "节点与边设计",
+  "subtitle": "为知识网络定义最小构件",
+  "aliases": [
+    "Node Edge",
+    "图结构"
+  ],
+  "tags": [
+    "节点",
+    "边",
+    "图数据"
+  ],
+  "domain": "knowledge-graph",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "节点和边是知识图谱的基本单位，分别表示知识内容和知识连接。",
+    "beginnerExplain": "节点是知识点，边是知识点之间的关系。",
+    "coreExplain": "节点可对应主题、概念、实践、问题等元素，边可表达父子、相关、前置和延伸。设计时要避免关系类型过多，否则用户和算法都难以理解。",
+    "whyMatters": "节点与边的设计决定图谱能否解释、搜索和演化。",
+    "keyPoints": [
+      "节点要可独立阅读。",
+      "边要有明确语义。",
+      "关系强度可以动态变化。",
+      "边的 reason 能帮助用户信任系统。"
+    ],
+    "examples": [
+      "前端知识工作台是 Know Everything 的子节点。",
+      "结构化提示词是 AI 知识生产引擎的实践前置。"
+    ],
+    "misconceptions": [
+      "所有关联都值得建边。弱关联会增加噪声。",
+      "边只服务展示。边也服务推荐和路径生成。"
+    ],
+    "nextSteps": [
+      "建立一组有限关系类型并在 UI 中解释。"
+    ],
+    "mechanisms": [
+      "定义节点类型。",
+      "定义边类型。",
+      "记录连接原因。",
+      "用关系支持查询。"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "richness": 3
+  }
+}

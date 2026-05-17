@@ -1,0 +1,54 @@
+{
+  "id": "claude-code.context.repo",
+  "type": "concept",
+  "title": "代码库理解",
+  "subtitle": "从目录、依赖和调用链建立地图",
+  "aliases": [
+    "repo understanding",
+    "代码地图"
+  ],
+  "tags": [
+    "repo",
+    "architecture"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "代码库理解是让 Claude Code 先建立项目结构和关键路径，再动手修改。",
+    "beginnerExplain": "先让它知道房间布局，再让它搬家具。",
+    "coreExplain": "有效方式包括让 Claude Code 总结目录结构、识别入口文件、追踪调用链、查找相似实现和阅读测试。对于大型仓库，应限制范围，先围绕问题相关模块建立局部地图。",
+    "whyMatters": "没有代码地图时，Agent 容易改到相邻但错误的模块。",
+    "keyPoints": [
+      "从入口、路由、服务、数据层逐步追踪",
+      "让它列出证据文件，而不是只给结论",
+      "优先查找已有实现和测试",
+      "大型仓库要限定搜索范围"
+    ],
+    "examples": [
+      "修支付回调前先追踪 webhook 到订单状态更新",
+      "添加设置项前查找现有配置读取模式",
+      "让它解释某个测试为什么覆盖该行为"
+    ],
+    "misconceptions": [
+      "全仓库扫描总是必要",
+      "文件名相似就代表职责相同",
+      "没有测试就可以直接凭代码推断行为"
+    ],
+    "nextSteps": [
+      "产出模块地图笔记"
+    ],
+    "mechanisms": [
+      "浏览目录",
+      "查找入口",
+      "追踪调用",
+      "对照测试"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "gpt-5",
+    "richness": 3
+  }
+}

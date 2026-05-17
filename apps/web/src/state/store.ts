@@ -19,6 +19,8 @@ interface AppState {
   rootId: ElementId | null;
   centerId: ElementId | null;
   visiblePathKinds: Set<string>;
+  /** Topic elements present in backend (shown on home for "open existing tree"). */
+  availableTopics: Element[];
   /** True while the very first generate/hydrate is running and no tree visible yet. */
   loading: boolean;
   /** Last error surfaced to UI (banner). Cleared on next op start. */
@@ -27,9 +29,15 @@ interface AppState {
   inflight: Map<string, InflightOp>;
   /** Backend availability flag. False = backend unreachable, UI shows demo. */
   backendAvailable: boolean;
+  /** Last persisted center, used to suggest "继续上次学习". */
+  lastCenterId: ElementId | null;
 
   // ----- read actions -----
   hydrate(): Promise<void>;
+  /** Switch into TreeView with `rootId` as root. Center = rootId by default. */
+  enterTree(rootId: ElementId): Promise<void>;
+  /** Return to InputView (without losing elements/relations cache). */
+  exitToHome(): void;
 
   // ----- AI actions (streaming) -----
   generate(topic: string, opts?: { model?: Model; richness?: RichnessLevel }): Promise<void>;
@@ -134,6 +142,8 @@ export const useStore = create<AppState>((set, get) => ({
   error: null,
   inflight: new Map(),
   backendAvailable: true,
+  availableTopics: [],
+  lastCenterId: null,
 
   async hydrate() {
     set({ loading: true, error: null });
@@ -143,42 +153,59 @@ export const useStore = create<AppState>((set, get) => ({
         api.listRelations(),
         api.getCenterState().catch(() => ({ current: null, updatedAt: null, recent: [] })),
       ]);
-      if (elements.length === 0) {
-        // Empty backend — keep "input topic" screen visible (rootId stays null).
-        set({ loading: false, backendAvailable: true });
-        return;
-      }
       const elementMap = new Map(elements.map(e => [e.id, e] as const));
-      // Pick root: state.current if present + valid; else first topic; else first element.
-      const center = state.current && elementMap.has(state.current) ? state.current
-        : (elements.find(e => e.type === "topic") ?? elements[0])?.id ?? null;
-      // Pick rootId: walk up from center along child relations
-      const root = center ? rootOf(center, relations) ?? center : null;
-      // Pull paths for the chosen root (may be empty)
-      let pathsByCenter = new Map<ElementId, LearningPath[]>();
-      if (root) {
-        try {
-          const paths = await api.listPathsForCenter(root);
-          if (paths.length > 0) pathsByCenter = new Map([[root, paths]]);
-        } catch { /* missing paths file is fine */ }
-      }
+      const topics = elements.filter(e => e.type === "topic");
       set({
         elements: elementMap,
         relations,
-        pathsByCenter,
-        rootId: root,
-        centerId: center,
+        availableTopics: topics,
+        lastCenterId: state.current && elementMap.has(state.current) ? state.current : null,
         loading: false,
         backendAvailable: true,
       });
     } catch (e) {
-      // Backend down: do NOT auto-load demo (let user explicitly pick).
       set({
         loading: false,
         backendAvailable: false,
-        error: `后端不可用：${String(e)}。可点击"载入示例树"查看 UI`,
+        error: `后端不可用：${String(e)}`,
       });
     }
+  },
+
+  async enterTree(rootId) {
+    const state = get();
+    if (!state.elements.has(rootId)) {
+      // If the element isn't in memory, refetch list
+      try {
+        const fresh = await api.listElements();
+        const map = new Map(fresh.map(e => [e.id, e] as const));
+        if (!map.has(rootId)) {
+          set({ error: `元 ${rootId} 不存在` });
+          return;
+        }
+        set({ elements: map });
+      } catch { /* ignore */ }
+    }
+    // pick a center: if lastCenterId is within this tree, prefer it
+    const lastCenter = state.lastCenterId;
+    const center = lastCenter && get().elements.has(lastCenter) && rootOf(lastCenter, state.relations) === rootId
+      ? lastCenter
+      : rootId;
+    let pathsByCenter = state.pathsByCenter;
+    try {
+      const paths = await api.listPathsForCenter(rootId);
+      if (paths.length > 0) {
+        pathsByCenter = new Map(state.pathsByCenter);
+        pathsByCenter.set(rootId, paths);
+      }
+    } catch { /* missing paths file is fine */ }
+    set({ rootId, centerId: center, pathsByCenter, error: null });
+    api.setCenterState(center).catch(() => undefined);
+  },
+
+  exitToHome() {
+    set({ rootId: null });
+    // keep elements/relations/topics so the home page still shows them
   },
 
   async generate(topic, opts) {
@@ -199,13 +226,32 @@ export const useStore = create<AppState>((set, get) => ({
           return;
         } else if (ev.type === "done") {
           const next = treeToState(ev.result);
-          set(s => ({
-            ...next,
-            loading: false,
-            inflight: withInflightDone(s, "generate"),
-            backendAvailable: true,
-          }));
-          // fire-and-forget: persist the new center
+          // Merge the new tree into the existing in-memory cache instead of replacing,
+          // so existing trees (cog-psy, claude-code, …) stay browsable after exit-to-home.
+          set(s => {
+            const mergedElements = new Map(s.elements);
+            for (const [id, el] of next.elements) mergedElements.set(id, el);
+            const mergedRelations = [...s.relations];
+            const have = new Set(mergedRelations.map(r => r.id));
+            for (const r of next.relations) if (!have.has(r.id)) mergedRelations.push(r);
+            const mergedPaths = new Map(s.pathsByCenter);
+            for (const [k, v] of next.pathsByCenter) mergedPaths.set(k, v);
+            const newTopics = [
+              ...s.availableTopics.filter(t => !next.elements.has(t.id)),
+              ...Array.from(next.elements.values()).filter(el => el.type === "topic"),
+            ];
+            return {
+              elements: mergedElements,
+              relations: mergedRelations,
+              pathsByCenter: mergedPaths,
+              rootId: next.rootId,
+              centerId: next.centerId,
+              availableTopics: newTopics,
+              loading: false,
+              inflight: withInflightDone(s, "generate"),
+              backendAvailable: true,
+            };
+          });
           api.setCenterState(next.centerId!).catch(() => undefined);
           return;
         }

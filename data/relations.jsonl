@@ -1,3 +1,70 @@
 {"id":"rel-cog-psy.memory-cog-psy.memory.encoding","from":"cog-psy.memory","to":"cog-psy.memory.encoding","kind":"child","createdAt":"2026-05-16T00:00:00+08:00"}
 {"id":"rel-cog-psy.memory-cog-psy.memory.storage","from":"cog-psy.memory","to":"cog-psy.memory.storage","kind":"child","createdAt":"2026-05-16T00:00:00+08:00"}
 {"id":"rel-cog-psy.memory-cog-psy.memory.retrieval","from":"cog-psy.memory","to":"cog-psy.memory.retrieval","kind":"child","createdAt":"2026-05-16T00:00:00+08:00"}
+{"id":"rel.claude-code.setup","from":"claude-code","to":"claude-code.setup","kind":"child","strength":98,"reason":"环境配置是使用 Claude Code 的起点。","createdAt":"2026-05-17"}
+{"id":"rel.claude-code.context","from":"claude-code","to":"claude-code.context","kind":"child","strength":96,"reason":"上下文质量直接影响产出质量。","createdAt":"2026-05-17"}
+{"id":"rel.claude-code.workflow","from":"claude-code","to":"claude-code.workflow","kind":"child","strength":96,"reason":"开发闭环是把工具用于真实项目的核心。","createdAt":"2026-05-17"}
+{"id":"rel.claude-code.safety","from":"claude-code","to":"claude-code.safety","kind":"child","strength":94,"reason":"权限和安全是 Agent 工具落地的必要边界。","createdAt":"2026-05-17"}
+{"id":"rel.claude-code.integration","from":"claude-code","to":"claude-code.integration","kind":"child","strength":88,"reason":"集成能力决定 Claude Code 能否融入团队工具链。","createdAt":"2026-05-17"}
+{"id":"rel.claude-code.advanced","from":"claude-code","to":"claude-code.advanced","kind":"child","strength":86,"reason":"高阶协作覆盖复杂任务和团队级应用。","createdAt":"2026-05-17"}
+{"id":"rel.setup.install","from":"claude-code.setup","to":"claude-code.setup.install","kind":"child","strength":92,"reason":"安装认证是环境搭建的第一步。","createdAt":"2026-05-17"}
+{"id":"rel.setup.project","from":"claude-code.setup","to":"claude-code.setup.project","kind":"child","strength":90,"reason":"项目初始化检查保证后续操作发生在正确上下文。","createdAt":"2026-05-17"}
+{"id":"rel.setup.modes","from":"claude-code.setup","to":"claude-code.setup.modes","kind":"child","strength":82,"reason":"入口选择影响任务效率和风险。","createdAt":"2026-05-17"}
+{"id":"rel.context.repo","from":"claude-code.context","to":"claude-code.context.repo","kind":"child","strength":92,"reason":"代码库理解是上下文管理的基础。","createdAt":"2026-05-17"}
+{"id":"rel.context.prompt","from":"claude-code.context","to":"claude-code.context.prompt","kind":"child","strength":90,"reason":"清晰任务提示能降低误解。","createdAt":"2026-05-17"}
+{"id":"rel.context.memory","from":"claude-code.context","to":"claude-code.context.memory","kind":"child","strength":86,"reason":"项目记忆让长期规范可复用。","createdAt":"2026-05-17"}
+{"id":"rel.workflow.plan","from":"claude-code.workflow","to":"claude-code.workflow.plan","kind":"child","strength":90,"reason":"计划是复杂修改前的控制点。","createdAt":"2026-05-17"}
+{"id":"rel.workflow.test","from":"claude-code.workflow","to":"claude-code.workflow.test","kind":"child","strength":95,"reason":"测试验证是确认结果的关键证据。","createdAt":"2026-05-17"}
+{"id":"rel.workflow.review","from":"claude-code.workflow","to":"claude-code.workflow.review","kind":"child","strength":88,"reason":"差异审查把 AI 输出转成可合并代码。","createdAt":"2026-05-17"}
+{"id":"rel.safety.perm","from":"claude-code.safety","to":"claude-code.safety.perm","kind":"child","strength":92,"reason":"权限模型定义 Agent 能力边界。","createdAt":"2026-05-17"}
+{"id":"rel.safety.secret","from":"claude-code.safety","to":"claude-code.safety.secret","kind":"child","strength":94,"reason":"密钥和隐私是开发 Agent 的高风险点。","createdAt":"2026-05-17"}
+{"id":"rel.safety.rollback","from":"claude-code.safety","to":"claude-code.safety.rollback","kind":"child","strength":86,"reason":"回滚机制降低误操作损失。","createdAt":"2026-05-17"}
+{"id":"rel.integration.mcp","from":"claude-code.integration","to":"claude-code.integration.mcp","kind":"child","strength":90,"reason":"MCP 是连接外部上下文的重要方式。","createdAt":"2026-05-17"}
+{"id":"rel.integration.ci","from":"claude-code.integration","to":"claude-code.integration.ci","kind":"child","strength":86,"reason":"CI 和日志是自动化调试的常见输入。","createdAt":"2026-05-17"}
+{"id":"rel.integration.script","from":"claude-code.integration","to":"claude-code.integration.script","kind":"child","strength":84,"reason":"脚本化让重复任务可复用。","createdAt":"2026-05-17"}
+{"id":"rel.advanced.refactor","from":"claude-code.advanced","to":"claude-code.advanced.refactor","kind":"child","strength":90,"reason":"大型重构是高阶使用的重要场景。","createdAt":"2026-05-17"}
+{"id":"rel.advanced.review","from":"claude-code.advanced","to":"claude-code.advanced.review","kind":"child","strength":86,"reason":"AI 审查提升复杂变更的风险识别。","createdAt":"2026-05-17"}
+{"id":"rel.advanced.knowledge","from":"claude-code.advanced","to":"claude-code.advanced.knowledge","kind":"child","strength":82,"reason":"知识沉淀让一次协作产生长期价值。","createdAt":"2026-05-17"}
+{"id":"rel.context.workflow","from":"claude-code.context","to":"claude-code.workflow","kind":"prerequisite","strength":88,"reason":"没有清晰上下文，开发流程难以稳定执行。","createdAt":"2026-05-17"}
+{"id":"rel.workflow.safety","from":"claude-code.workflow","to":"claude-code.safety","kind":"related","strength":78,"reason":"执行流程需要权限和回滚机制保护。","createdAt":"2026-05-17"}
+{"id":"rel.integration.advanced","from":"claude-code.integration","to":"claude-code.advanced","kind":"extension","strength":74,"reason":"集成能力可以扩展到团队级协作和自动化。","createdAt":"2026-05-17"}
+{"id":"rel.know-every.product","from":"know-every","to":"know-every.product","kind":"child","strength":96,"reason":"产品定位定义系统目标和用户闭环，是全局设计起点。","createdAt":"2026-05-17"}
+{"id":"rel.know-every.frontend","from":"know-every","to":"know-every.frontend","kind":"child","strength":94,"reason":"前端工作台承载用户与知识宇宙的主要交互。","createdAt":"2026-05-17"}
+{"id":"rel.know-every.backend","from":"know-every","to":"know-every.backend","kind":"child","strength":95,"reason":"后端与数据模型支撑知识长期存储和演化。","createdAt":"2026-05-17"}
+{"id":"rel.know-every.ai-core","from":"know-every","to":"know-every.ai-core","kind":"child","strength":97,"reason":"AI 知识生产引擎是内容结构化和自进化的核心能力。","createdAt":"2026-05-17"}
+{"id":"rel.know-every.graph","from":"know-every","to":"know-every.graph","kind":"child","strength":93,"reason":"知识图谱和路径系统让内容从列表变成网络。","createdAt":"2026-05-17"}
+{"id":"rel.know-every.evolve","from":"know-every","to":"know-every.evolve","kind":"child","strength":98,"reason":"自进化闭环决定系统能否随使用持续变好。","createdAt":"2026-05-17"}
+{"id":"rel.product.user-loop","from":"know-every.product","to":"know-every.product.user-loop","kind":"child","strength":92,"reason":"用户知识闭环是产品定位落地的核心流程。","createdAt":"2026-05-17"}
+{"id":"rel.product.scope","from":"know-every.product","to":"know-every.product.scope","kind":"child","strength":88,"reason":"MVP 范围帮助产品先验证核心闭环。","createdAt":"2026-05-17"}
+{"id":"rel.product.metrics","from":"know-every.product","to":"know-every.product.metrics","kind":"child","strength":86,"reason":"知识增长指标用于判断产品是否真的创造价值。","createdAt":"2026-05-17"}
+{"id":"rel.frontend.tree-view","from":"know-every.frontend","to":"know-every.frontend.tree-view","kind":"child","strength":90,"reason":"树视图是知识层级浏览和编辑的基础界面。","createdAt":"2026-05-17"}
+{"id":"rel.frontend.card-editor","from":"know-every.frontend","to":"know-every.frontend.card-editor","kind":"child","strength":91,"reason":"卡片编辑器让 AI 输出被用户校正和吸收。","createdAt":"2026-05-17"}
+{"id":"rel.frontend.path-ui","from":"know-every.frontend","to":"know-every.frontend.path-ui","kind":"child","strength":89,"reason":"路径界面把知识组织成可执行步骤。","createdAt":"2026-05-17"}
+{"id":"rel.backend.schema","from":"know-every.backend","to":"know-every.backend.schema","kind":"child","strength":95,"reason":"知识元 Schema 是后端数据模型的核心。","createdAt":"2026-05-17"}
+{"id":"rel.backend.relations","from":"know-every.backend","to":"know-every.backend.relations","kind":"child","strength":92,"reason":"关系模型让知识节点形成可查询网络。","createdAt":"2026-05-17"}
+{"id":"rel.backend.ai-jobs","from":"know-every.backend","to":"know-every.backend.ai-jobs","kind":"child","strength":90,"reason":"AI 任务队列支撑异步生成和可追踪执行。","createdAt":"2026-05-17"}
+{"id":"rel.ai-core.prompting","from":"know-every.ai-core","to":"know-every.ai-core.prompting","kind":"child","strength":90,"reason":"结构化提示词约束 AI 输出进入系统。","createdAt":"2026-05-17"}
+{"id":"rel.ai-core.extraction","from":"know-every.ai-core","to":"know-every.ai-core.extraction","kind":"child","strength":94,"reason":"抽取流水线负责从原始输入生成知识结构。","createdAt":"2026-05-17"}
+{"id":"rel.ai-core.quality","from":"know-every.ai-core","to":"know-every.ai-core.quality","kind":"child","strength":93,"reason":"质量评估防止错误和冗余进入知识库。","createdAt":"2026-05-17"}
+{"id":"rel.graph.node-edge","from":"know-every.graph","to":"know-every.graph.node-edge","kind":"child","strength":91,"reason":"节点与边设计是知识图谱的基础。","createdAt":"2026-05-17"}
+{"id":"rel.graph.path-gen","from":"know-every.graph","to":"know-every.graph.path-gen","kind":"child","strength":92,"reason":"路径生成策略把图谱转成学习路线。","createdAt":"2026-05-17"}
+{"id":"rel.graph.search","from":"know-every.graph","to":"know-every.graph.search","kind":"child","strength":88,"reason":"语义搜索和推荐让知识库变大后仍可找回。","createdAt":"2026-05-17"}
+{"id":"rel.evolve.feedback","from":"know-every.evolve","to":"know-every.evolve.feedback","kind":"child","strength":94,"reason":"反馈采集是自进化闭环的输入。","createdAt":"2026-05-17"}
+{"id":"rel.evolve.versioning","from":"know-every.evolve","to":"know-every.evolve.versioning","kind":"child","strength":91,"reason":"版本和候选变更让演化过程可控。","createdAt":"2026-05-17"}
+{"id":"rel.evolve.review-cycle","from":"know-every.evolve","to":"know-every.evolve.review-cycle","kind":"child","strength":90,"reason":"周期性复盘让系统长期保持质量。","createdAt":"2026-05-17"}
+{"id":"rel.schema.relations","from":"know-every.backend.schema","to":"know-every.backend.relations","kind":"related","strength":84,"reason":"关系模型依赖稳定的知识元 id。","createdAt":"2026-05-17"}
+{"id":"rel.prompt.extraction","from":"know-every.ai-core.prompting","to":"know-every.ai-core.extraction","kind":"prerequisite","strength":82,"reason":"结构化提示词是可靠抽取流水线的前置条件。","createdAt":"2026-05-17"}
+{"id":"rel.quality.versioning","from":"know-every.ai-core.quality","to":"know-every.evolve.versioning","kind":"related","strength":86,"reason":"质量评估产生的修改建议需要通过候选变更机制落地。","createdAt":"2026-05-17"}
+{"id":"rel.feedback.metrics","from":"know-every.evolve.feedback","to":"know-every.product.metrics","kind":"related","strength":83,"reason":"反馈事件会被转化为知识增长指标。","createdAt":"2026-05-17"}
+{"id":"rel.card.feedback","from":"know-every.frontend.card-editor","to":"know-every.evolve.feedback","kind":"practice","strength":85,"reason":"用户编辑知识卡片是高价值反馈来源。","createdAt":"2026-05-17"}
+{"id":"rel.pathui.pathgen","from":"know-every.frontend.path-ui","to":"know-every.graph.path-gen","kind":"related","strength":82,"reason":"路径生成策略需要在前端路径界面中被呈现和验证。","createdAt":"2026-05-17"}
+{"id": "cog-psy->cog-psy.perception", "from": "cog-psy", "to": "cog-psy.perception", "kind": "child", "createdAt": "2026-05-16T04:59:55.660Z"}
+{"id": "cog-psy->cog-psy.memory", "from": "cog-psy", "to": "cog-psy.memory", "kind": "child", "createdAt": "2026-05-16T04:59:55.660Z"}
+{"id": "cog-psy->cog-psy.attention", "from": "cog-psy", "to": "cog-psy.attention", "kind": "child", "createdAt": "2026-05-16T04:59:55.660Z"}
+{"id": "cog-psy->cog-psy.language", "from": "cog-psy", "to": "cog-psy.language", "kind": "child", "createdAt": "2026-05-16T04:59:55.660Z"}
+{"id": "cog-psy->cog-psy.reasoning", "from": "cog-psy", "to": "cog-psy.reasoning", "kind": "child", "createdAt": "2026-05-16T04:59:55.660Z"}
+{"id": "cog-psy->cog-psy.decision", "from": "cog-psy", "to": "cog-psy.decision", "kind": "child", "createdAt": "2026-05-16T04:59:55.660Z"}
+{"id": "p->v", "from": "cog-psy.perception", "to": "cog-psy.perception.vision", "kind": "child", "createdAt": "2026-05-16T04:59:55.660Z"}
+{"id": "p->a", "from": "cog-psy.perception", "to": "cog-psy.perception.audition", "kind": "child", "createdAt": "2026-05-16T04:59:55.660Z"}
+{"id": "a->s", "from": "cog-psy.attention", "to": "cog-psy.attention.selective", "kind": "child", "createdAt": "2026-05-16T04:59:55.660Z"}
+{"id": "d->h", "from": "cog-psy.decision", "to": "cog-psy.decision.heuristic", "kind": "child", "createdAt": "2026-05-16T04:59:55.660Z"}

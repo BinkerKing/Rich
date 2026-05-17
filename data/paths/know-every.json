@@ -1,0 +1,50 @@
+[
+  {
+    "id": "path.know-every.quick",
+    "centerElementId": "know-every",
+    "kind": "quick",
+    "label": "15 分钟理解系统全貌",
+    "color": "gold",
+    "steps": [
+      "know-every.product",
+      "know-every.frontend",
+      "know-every.ai-core",
+      "know-every.evolve"
+    ],
+    "estimatedTime": "15-25 分钟",
+    "generatedBy": "ai",
+    "createdAt": "2026-05-17"
+  },
+  {
+    "id": "path.know-every.academic",
+    "centerElementId": "know-every",
+    "kind": "academic",
+    "label": "系统原理路径",
+    "color": "cyan",
+    "steps": [
+      "know-every.backend.schema",
+      "know-every.backend.relations",
+      "know-every.graph.node-edge",
+      "know-every.ai-core.quality"
+    ],
+    "estimatedTime": "60-90 分钟",
+    "generatedBy": "ai",
+    "createdAt": "2026-05-17"
+  },
+  {
+    "id": "path.know-every.practice",
+    "centerElementId": "know-every",
+    "kind": "practice",
+    "label": "最小闭环实战路径",
+    "color": "pink",
+    "steps": [
+      "know-every.product.scope",
+      "know-every.ai-core.extraction",
+      "know-every.frontend.card-editor",
+      "know-every.evolve.versioning"
+    ],
+    "estimatedTime": "2-4 小时",
+    "generatedBy": "ai",
+    "createdAt": "2026-05-17"
+  }
+]

@@ -1,0 +1,55 @@
+{
+  "id": "claude-code.advanced",
+  "type": "concept",
+  "title": "高阶协作模式",
+  "subtitle": "用 Claude Code 处理复杂工程任务",
+  "aliases": [
+    "advanced workflow",
+    "协作模式"
+  ],
+  "tags": [
+    "refactor",
+    "review",
+    "team"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "high",
+  "content": {
+    "oneSentence": "高阶协作模式关注大型任务拆解、代码审查、多角色协作和知识沉淀。",
+    "beginnerExplain": "当任务变大时，不是让它更用力，而是让它更有组织。",
+    "coreExplain": "大型重构、跨模块功能和团队级代码审查需要更严格的计划、分工、检查点和回滚机制。Claude Code 可以承担探索、实现、验证、文档整理等角色，但每个角色都要有明确边界。",
+    "whyMatters": "复杂任务的风险来自影响面，而不只是代码难度。",
+    "keyPoints": [
+      "把大任务拆成可验证阶段",
+      "使用独立分支和检查点",
+      "让 Agent 输出证据和风险清单",
+      "把最终经验写回文档"
+    ],
+    "examples": [
+      "分阶段迁移状态管理方案",
+      "审查一个大型 PR 的行为风险",
+      "把线上事故复盘转成测试和文档更新"
+    ],
+    "misconceptions": [
+      "更强模型可以替代任务拆解",
+      "一次性重构最省时间",
+      "多 Agent 协作无需边界"
+    ],
+    "nextSteps": [
+      "选择一个中等规模重构演练"
+    ],
+    "mechanisms": [
+      "拆分任务",
+      "分配角色",
+      "阶段验证",
+      "沉淀规范"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "gpt-5",
+    "richness": 3
+  }
+}

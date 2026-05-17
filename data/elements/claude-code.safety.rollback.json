@@ -1,0 +1,54 @@
+{
+  "id": "claude-code.safety.rollback",
+  "type": "practice",
+  "title": "回滚与事故处理",
+  "subtitle": "为误改和误执行准备退路",
+  "aliases": [
+    "rollback",
+    "incident"
+  ],
+  "tags": [
+    "git",
+    "incident"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "回滚与事故处理是在 Claude Code 造成错误修改或命令影响时快速恢复。",
+    "beginnerExplain": "让助手工作前，先确保有撤回按钮。",
+    "coreExplain": "最基本的退路是 Git 分支、清晰提交和可重复测试。对数据库、文件系统和外部服务操作，还需要备份、dry-run、预览和人工确认。",
+    "whyMatters": "Agent 加快执行速度，也会加快错误扩散速度。",
+    "keyPoints": [
+      "重要任务前创建分支或提交检查点",
+      "危险操作优先 dry-run",
+      "保留命令输出和时间线",
+      "事故后总结触发条件和防护缺口"
+    ],
+    "examples": [
+      "重构前先提交当前稳定状态",
+      "批量修改文件前要求先列出目标列表",
+      "迁移数据库前备份并在测试环境演练"
+    ],
+    "misconceptions": [
+      "Git 能恢复所有外部影响",
+      "只要有测试就不需要回滚方案",
+      "事故处理只属于运维"
+    ],
+    "nextSteps": [
+      "为高风险任务写回滚步骤"
+    ],
+    "mechanisms": [
+      "建立检查点",
+      "预览操作",
+      "执行并监控",
+      "失败时恢复"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "gpt-5",
+    "richness": 3
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "id": "claude-code",
+  "type": "topic",
+  "title": "Claude Code 应用指南",
+  "subtitle": "从安装配置到真实项目协作的知识树",
+  "aliases": [
+    "Claude Code 使用指南",
+    "Claude Code 实战"
+  ],
+  "tags": [
+    "AI 编程",
+    "开发工具",
+    "Agent",
+    "CLI"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "mid",
+  "content": {
+    "intro": "Claude Code 是面向开发者的编程 Agent，核心入口通常在终端或 IDE 中。它适合处理读代码、改代码、跑测试、解释错误、整理提交和自动化重复开发任务。学习重点不是背命令，而是学会把任务拆清楚、给足上下文、控制权限，并用测试和版本管理兜底。",
+    "beginnerExplain": "可以把 Claude Code 理解成一个会读项目、会改文件、会运行命令的结对编程助手。",
+    "learningGoals": [
+      "理解 Claude Code 的工作边界和适用场景",
+      "掌握安装、认证、项目上下文和权限配置",
+      "学会用清晰任务描述驱动代码修改",
+      "建立测试、审查和回滚习惯",
+      "把 MCP、脚本和自动化接入日常开发流"
+    ],
+    "coreModules": [
+      {
+        "id": "claude-code.setup",
+        "title": "环境与入口",
+        "description": "安装、认证、项目初始化和常见运行方式。",
+        "focus": "先让工具稳定可用"
+      },
+      {
+        "id": "claude-code.context",
+        "title": "上下文管理",
+        "description": "让 Claude Code 正确理解代码库、需求、约束和历史决策。",
+        "focus": "减少误改和幻觉"
+      },
+      {
+        "id": "claude-code.workflow",
+        "title": "开发工作流",
+        "description": "从提出任务到修改、测试、审查、提交的闭环。",
+        "focus": "把 Agent 放进真实工程节奏"
+      },
+      {
+        "id": "claude-code.safety",
+        "title": "安全与权限",
+        "description": "控制命令执行、文件修改、密钥暴露和外部访问风险。",
+        "focus": "让自动化可控"
+      },
+      {
+        "id": "claude-code.integration",
+        "title": "集成与自动化",
+        "description": "通过 MCP、脚本、CI 和外部工具扩展能力。",
+        "focus": "连接团队已有系统"
+      },
+      {
+        "id": "claude-code.advanced",
+        "title": "高阶协作模式",
+        "description": "处理大型重构、多 Agent 协作、代码审查和知识沉淀。",
+        "focus": "提升复杂任务可靠性"
+      }
+    ],
+    "recommendedPaths": [
+      "快速上手路径",
+      "系统理解路径",
+      "项目实战路径"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "gpt-5",
+    "richness": 3
+  }
+}

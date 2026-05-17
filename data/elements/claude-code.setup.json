@@ -1,0 +1,56 @@
+{
+  "id": "claude-code.setup",
+  "type": "concept",
+  "title": "环境与入口",
+  "subtitle": "把 Claude Code 稳定接入本地开发环境",
+  "aliases": [
+    "安装配置",
+    "运行入口"
+  ],
+  "tags": [
+    "setup",
+    "cli",
+    "ide"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "low",
+  "content": {
+    "oneSentence": "环境与入口决定 Claude Code 能否稳定访问项目、执行命令并融入你的日常开发。",
+    "beginnerExplain": "先解决能不能用、在哪里用、用哪个账号和模型的问题。",
+    "coreExplain": "Claude Code 常见入口包括命令行、IDE 集成和相关 Web 入口。基础准备通常包含安装工具、登录或配置 API Key、进入项目目录、确认 Git 状态和运行一次简单任务。稳定的入口能降低后续调试成本。",
+    "whyMatters": "很多使用问题不是模型不会写代码，而是环境、权限、路径、依赖或认证没有对齐。",
+    "keyPoints": [
+      "优先在 Git 仓库内运行，方便查看差异和回滚",
+      "确认 Node、包管理器、编译器等项目依赖可用",
+      "把 API Key、代理、权限策略和团队规范分开管理",
+      "先用小任务验证读写文件和执行测试是否正常"
+    ],
+    "examples": [
+      "在一个前端项目里让 Claude Code 解释当前路由结构",
+      "在后端服务中让它先运行测试，再定位失败原因",
+      "在新机器上安装后先询问它当前项目的技术栈"
+    ],
+    "misconceptions": [
+      "安装成功不等于项目依赖都可运行",
+      "能读文件不代表应该允许它执行所有命令",
+      "入口越多不一定越好，团队需要约定主入口"
+    ],
+    "nextSteps": [
+      "建立项目级使用说明",
+      "准备一个最小验证任务"
+    ],
+    "mechanisms": [
+      "安装并完成认证",
+      "进入目标仓库并检查 Git 状态",
+      "让 Claude Code 读取项目结构",
+      "执行一个低风险任务验证链路"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "gpt-5",
+    "richness": 3
+  }
+}

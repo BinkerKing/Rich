@@ -16,3 +16,9 @@
 {"ts":"2026-05-16T13:30:28.892Z","type":"op.failed","manual":"knowledge","op":"generate-tree","adapter":"claude-code","data":{"topic":"光合作用","durationMs":2950,"message":"No valid JSON found in input"}}
 {"ts":"2026-05-16T17:50:40.916Z","type":"user.changed_center","manual":"knowledge","elementId":"cog-psy","data":{"from":null,"to":"cog-psy","dwellMs":null}}
 {"ts":"2026-05-16T17:51:50.980Z","type":"op.completed","manual":"knowledge","op":"refine","adapter":"codex","elementId":"cog-psy.attention","data":{"targetRichness":3,"persistMs":5}}
+{"ts":"2026-05-16T17:57:19.772Z","type":"op.completed","manual":"knowledge","op":"generate-tree","adapter":"codex","elementId":"claude-code","data":{"topic":"Claude Code 应用指南","durationMs":222675,"deltas":1,"bytes":27769,"elementCount":25}}
+{"ts":"2026-05-16T18:01:41.021Z","type":"op.completed","manual":"knowledge","op":"generate-tree","adapter":"codex","elementId":"know-every","data":{"topic":"Know Everything 项目系统级实战指南：用前后端 + AI 自进化闭环帮个人构建可生长的知识宇宙","durationMs":237576,"deltas":1,"bytes":28639,"elementCount":25}}
+{"ts":"2026-05-17T01:42:32.264Z","type":"user.changed_center","manual":"knowledge","elementId":"cog-psy","data":{"from":"cog-psy","to":"cog-psy","dwellMs":28311348}}
+{"ts":"2026-05-17T01:42:47.444Z","type":"user.changed_center","manual":"knowledge","elementId":"cog-psy","data":{"from":"cog-psy","to":"cog-psy","dwellMs":15180}}
+{"ts":"2026-05-17T01:44:32.152Z","type":"user.changed_center","manual":"knowledge","elementId":"cog-psy","data":{"from":"cog-psy","to":"cog-psy","dwellMs":104708}}
+{"ts":"2026-05-17T01:47:34.399Z","type":"user.changed_center","manual":"knowledge","elementId":"cog-psy","data":{"from":"cog-psy","to":"cog-psy","dwellMs":182247}}

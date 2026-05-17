@@ -1,0 +1,56 @@
+{
+  "id": "claude-code.safety",
+  "type": "concept",
+  "title": "安全与权限",
+  "subtitle": "让 Agent 能做事但不能乱做事",
+  "aliases": [
+    "安全边界",
+    "permissions"
+  ],
+  "tags": [
+    "security",
+    "permission",
+    "privacy"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "安全与权限是控制 Claude Code 能读取什么、能执行什么、能修改什么。",
+    "beginnerExplain": "给助手工具箱，但不要把所有钥匙都给它。",
+    "coreExplain": "Claude Code 涉及文件读写、命令执行、网络访问和外部工具连接。应根据任务风险设置审批、沙箱、密钥管理和日志审查机制。",
+    "whyMatters": "开发 Agent 的能力越强，误操作和数据泄露的成本越高。",
+    "keyPoints": [
+      "敏感文件默认不暴露",
+      "危险命令需要人工确认",
+      "密钥只通过安全渠道配置",
+      "外部系统权限按最小原则授予"
+    ],
+    "examples": [
+      "禁止读取 .env 和私钥文件",
+      "数据库迁移前必须人工确认",
+      "让它只在测试环境执行脚本"
+    ],
+    "misconceptions": [
+      "本地开发就没有安全风险",
+      "Agent 不会主动泄露敏感信息",
+      "权限越大效率越高"
+    ],
+    "nextSteps": [
+      "梳理项目敏感资源清单",
+      "设置命令审批规则"
+    ],
+    "mechanisms": [
+      "识别敏感资产",
+      "定义权限级别",
+      "执行前确认",
+      "记录和复盘操作"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "gpt-5",
+    "richness": 3
+  }
+}

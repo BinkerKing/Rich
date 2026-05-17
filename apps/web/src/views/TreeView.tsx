@@ -17,6 +17,7 @@ export function TreeView() {
   const pathsByCenter = useStore(s => s.pathsByCenter);
   const visible = useStore(s => s.visiblePathKinds);
   const setCenter = useStore(s => s.setCenter);
+  const exitToHome = useStore(s => s.exitToHome);
   const [selectedId, setSelectedId] = useState(centerId);
   const [scene, setScene] = useState<LearningScene>("tree");
   const [systemMode, setSystemMode] = useState<SystemPanelMode>("search");
@@ -71,8 +72,16 @@ export function TreeView() {
     <div className="tree-view" style={centerStyle.vars} data-center-style={centerStyle.name}>
       <header className="tv-topbar">
         <div className="tv-brand">
-          <div className="tv-logo" />
-          <strong>Know Everything</strong>
+          <button
+            type="button"
+            className="tv-home-button"
+            title="返回首页"
+            aria-label="返回首页"
+            onClick={exitToHome}
+          >
+            <span className="tv-logo" />
+            <strong>Know Everything</strong>
+          </button>
         </div>
         <nav className="tv-crumb" aria-label="当前中心位置">
           {centerBreadcrumb.map((item, index) => (
