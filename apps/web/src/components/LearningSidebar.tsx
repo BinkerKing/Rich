@@ -28,11 +28,17 @@ export function LearningSidebar({
   onSceneChange,
 }: Props) {
   const selected = elements.get(selectedId) ?? view.center;
-  const centerChain = lineageFor(view.center.id, elements, relations);
+  // 上级元 = ancestors of the SELECTED element, excluding the element itself.
+  // For the root, this is empty.
+  const ancestorChain = lineageFor(selectedId, elements, relations).slice(0, -1);
   const parentId = directParentId(selectedId, relations);
-  const lateral = parentId
+  const lateralAll = parentId
     ? directChildren(parentId, elements, relations)
     : directChildren(selectedId, elements, relations);
+  // 同级元 must not include the currently selected element.
+  const lateral = parentId
+    ? lateralAll.filter(el => el.id !== selectedId)
+    : lateralAll;
   const lateralLabel = parentId ? "同级元" : "下级元";
 
   return (
@@ -40,24 +46,27 @@ export function LearningSidebar({
       <section>
         <h2>学习导航</h2>
 
-        <div className="sidebar-label">上级元</div>
-        <div className="ancestor-list">
-          {centerChain.map((item, index) => (
-            <button
-              key={item.id}
-              className={item.id === view.center.id ? "is-center" : ""}
-              type="button"
-              onClick={() => {
-                onSelect(item.id);
-                onSetCenter(item.id);
-              }}
-            >
-              <span className="mini-icon"><Icon name={iconForElement(item.type, item.title)} /></span>
-              <span className="sidebar-node__title">{item.title}</span>
-              <em>L{index + 1}</em>
-            </button>
-          ))}
-        </div>
+        {ancestorChain.length > 0 ? (
+          <>
+            <div className="sidebar-label">上级元</div>
+            <div className="ancestor-list">
+              {ancestorChain.map((item, index) => (
+                <button
+                  key={item.id}
+                  className={item.id === view.center.id ? "is-center" : ""}
+                  type="button"
+                  title="单击查看 · 双击设为中心"
+                  onClick={() => onSelect(item.id)}
+                  onDoubleClick={() => { onSelect(item.id); onSetCenter(item.id); }}
+                >
+                  <span className="mini-icon"><Icon name={iconForElement(item.type, item.title)} /></span>
+                  <span className="sidebar-node__title">{item.title}</span>
+                  <em>L{index + 1}</em>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : null}
 
         <div className="sidebar-label">{lateralLabel}</div>
         <div className="sidebar-list">

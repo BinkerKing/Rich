@@ -46,8 +46,9 @@ export function TreeView() {
 
   const childrenCount = relations.filter(relation => relation.kind === "child" && relation.from === selected.id).length;
   const selectedPath = lineageFor(selected.id, elements, relations);
-  const centerPath = lineageFor(centerId, elements, relations);
-  const centerBreadcrumb = centerPath.length > 4 ? centerPath.slice(-4) : centerPath;
+  // Breadcrumb follows the focused element (selected), not just the center,
+  // so deep-clicks reveal the full root → L2 → L3 → … chain.
+  const centerBreadcrumb = selectedPath.length > 5 ? selectedPath.slice(-5) : selectedPath;
   const currentLevel = selectedPath.length;
   const maxDepth = Math.max(
     1,
@@ -83,20 +84,22 @@ export function TreeView() {
             <strong>Know Everything</strong>
           </button>
         </div>
-        <nav className="tv-crumb" aria-label="当前中心位置">
-          {centerBreadcrumb.map((item, index) => (
-            <button
-              key={item.id}
-              className={index === centerBreadcrumb.length - 1 ? "now" : ""}
-              type="button"
-              onClick={() => {
-                setSelectedId(item.id);
-                setCenter(item.id);
-              }}
-            >
-              {item.title}
-            </button>
-          ))}
+        <nav className="tv-crumb" aria-label="当前位置">
+          {centerBreadcrumb.map((item, index) => {
+            const isCurrent = index === centerBreadcrumb.length - 1;
+            return (
+              <button
+                key={item.id}
+                className={isCurrent ? "now" : ""}
+                type="button"
+                title={isCurrent ? "当前查看" : "点击切到这里 · 双击设为中心"}
+                onClick={() => setSelectedId(item.id)}
+                onDoubleClick={() => { setSelectedId(item.id); setCenter(item.id); }}
+              >
+                {item.title}
+              </button>
+            );
+          })}
         </nav>
         <div className="tv-tools">
           <button className={systemMode === "search" ? "is-active" : ""} type="button" aria-label="搜索" onClick={() => setSystemMode("search")}><Icon name="search" /></button>
