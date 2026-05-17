@@ -129,6 +129,7 @@ export function TreeView() {
             childrenCount={childrenCount}
             currentLevel={currentLevel}
             onOpenChildren={() => setCenter(selected.id)}
+            onSelect={setSelectedId}
           />
         </main>
       ) : (

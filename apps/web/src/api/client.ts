@@ -1,5 +1,5 @@
 import type {
-  Element, Relation, LearningPath, PathKind, RichnessLevel,
+  Element, Relation, LearningPath, PathKind, RichnessLevel, Signal,
 } from "@ke/domain";
 
 // ---------- shared SSE plumbing ----------
@@ -134,6 +134,19 @@ export const api = {
       body: JSON.stringify({ timestamp }),
     });
     if (!r.ok) throw new Error(`revert ${r.status}`);
+    return r.json();
+  },
+
+  // ----- signals -----
+  async listSignals(opts: { elementId?: string; manual?: string; since?: string; limit?: number } = {}): Promise<Signal[]> {
+    const qs = new URLSearchParams();
+    if (opts.elementId) qs.set("elementId", opts.elementId);
+    if (opts.manual) qs.set("manual", opts.manual);
+    if (opts.since) qs.set("since", opts.since);
+    if (opts.limit) qs.set("limit", String(opts.limit));
+    const q = qs.toString();
+    const r = await fetch(`/api/signals${q ? `?${q}` : ""}`);
+    if (!r.ok) throw new Error(`listSignals ${r.status}`);
     return r.json();
   },
 

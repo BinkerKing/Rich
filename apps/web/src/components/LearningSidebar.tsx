@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { CenterView, Element, LearningPath, Relation } from "@ke/domain";
 import { Icon, iconForElement } from "./Icon.js";
 import type { LearningScene } from "./LearningScenes.js";
@@ -83,20 +84,7 @@ export function LearningSidebar({
 
       <section>
         <div className="sidebar-label">推荐学习路径</div>
-        <div className="path-list">
-          {paths.map(path => (
-            <button key={path.id} type="button" className={`path-card path-card--${path.color}`}>
-              <strong>{path.label}</strong>
-              <span>{path.estimatedTime ?? "按当前结构学习"}</span>
-            </button>
-          ))}
-          {paths.length === 0 && (
-            <button type="button" className="path-card">
-              <strong>当前分支</strong>
-              <span>沿下层知识元继续学习</span>
-            </button>
-          )}
-        </div>
+        <PathList paths={paths} elements={elements} onSelect={onSelect} />
       </section>
 
       <section>
@@ -142,6 +130,68 @@ function lineageFor(id: string, elements: Map<string, Element>, relations: Relat
   }
 
   return chain;
+}
+
+function PathList({
+  paths,
+  elements,
+  onSelect,
+}: {
+  paths: LearningPath[];
+  elements: Map<string, Element>;
+  onSelect: (id: string) => void;
+}) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  if (paths.length === 0) {
+    return (
+      <div className="path-list">
+        <button type="button" className="path-card">
+          <strong>当前分支</strong>
+          <span>沿下层知识元继续学习</span>
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="path-list">
+      {paths.map(path => {
+        const expanded = expandedId === path.id;
+        return (
+          <div key={path.id} className="path-card-wrap">
+            <button
+              type="button"
+              className={`path-card path-card--${path.color} ${expanded ? "is-expanded" : ""}`}
+              onClick={() => setExpandedId(expanded ? null : path.id)}
+              aria-expanded={expanded}
+            >
+              <strong>{path.label}</strong>
+              <span>{path.estimatedTime ?? "按当前结构学习"} · {path.steps.length} 步</span>
+            </button>
+            {expanded && (
+              <ol className="path-steps">
+                {path.steps.map((stepId, i) => {
+                  const el = elements.get(stepId);
+                  return (
+                    <li key={`${stepId}-${i}`}>
+                      <button
+                        type="button"
+                        className="path-step-button"
+                        onClick={() => onSelect(stepId)}
+                        disabled={!el}
+                      >
+                        <span className="path-step-num">{i + 1}</span>
+                        <span className="path-step-title">{el?.title ?? `(缺失: ${stepId})`}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function SidebarItem({

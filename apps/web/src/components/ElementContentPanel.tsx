@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import type { Element, ElementType, RichnessLevel } from "@ke/domain";
 import { Icon, iconForElement } from "./Icon.js";
 import { elementTypeLabel } from "./elementLabels.js";
+import { ContextRail } from "./ContextRail.js";
+import { HistoryModal } from "./HistoryModal.js";
 import { useStore } from "../state/store.js";
 import { api } from "../api/client.js";
 import "./components.css";
@@ -21,6 +23,8 @@ interface Props {
   childrenCount: number;
   currentLevel: number;
   onOpenChildren: () => void;
+  /** Called when user clicks a related element on the ContextRail. */
+  onSelect?: (id: string) => void;
 }
 
 // ──────── helpers ────────
@@ -67,7 +71,7 @@ function RichnessGauge({ level }: { level: RichnessLevel }) {
   );
 }
 
-function MetaStrip({ element }: { element: Element }) {
+function MetaStrip({ element, onOpenHistory }: { element: Element; onOpenHistory: () => void }) {
   const [versionCount, setVersionCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -106,12 +110,14 @@ function MetaStrip({ element }: { element: Element }) {
         </span>
       )}
       {versionCount !== null && versionCount > 0 && (
-        <span
-          className="meta-history"
-          title={element.metadata.aiSessionId ?? ""}
+        <button
+          type="button"
+          className="meta-history is-clickable"
+          onClick={onOpenHistory}
+          title="点击查看历史版本并回滚"
         >
           ↻ {versionCount} 个历史版本
-        </span>
+        </button>
       )}
     </div>
   );
@@ -473,8 +479,9 @@ function GenericBody({ element, u }: { element: Element; u: BodyUtils }) {
 
 // ──────── Main panel ────────
 
-export function ElementContentPanel({ element, childrenCount, currentLevel, onOpenChildren }: Props) {
+export function ElementContentPanel({ element, childrenCount, currentLevel, onOpenChildren, onSelect }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null);
   const [lastAction, setLastAction] = useState<string | null>(null);
   const refine = useStore(s => s.refine);
@@ -651,7 +658,7 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
             <span className="level-badge">L{currentLevel}</span>
           </div>
           {element.subtitle && <p>{element.subtitle}</p>}
-          <MetaStrip element={element} />
+          <MetaStrip element={element} onOpenHistory={() => setHistoryOpen(true)} />
         </div>
         <div className="element-content__actions">
           {inflightForThis && (
@@ -692,6 +699,8 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
       <div className="element-content__grid">
         {renderBody()}
       </div>
+
+      <ContextRail element={element} onSelect={onSelect ?? (() => undefined)} />
     </section>
   );
 
@@ -705,6 +714,9 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
       {isFullscreen && typeof document !== "undefined"
         ? createPortal(renderPanel(true), document.body)
         : null}
+      {historyOpen && (
+        <HistoryModal element={element} onClose={() => setHistoryOpen(false)} />
+      )}
     </>
   );
 }
