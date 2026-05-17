@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { Element, ElementType, RichnessLevel } from "@ke/domain";
 import { Icon, iconForElement } from "./Icon.js";
@@ -11,39 +11,32 @@ import "./components.css";
 
 type ContentRecord = Record<string, unknown>;
 
-interface ContextTarget {
-  x: number;
-  y: number;
-  title: string;
-  text: string;
-}
+interface ContextTarget { x: number; y: number; title: string; text: string }
 
 interface Props {
   element: Element;
   childrenCount: number;
   currentLevel: number;
   onOpenChildren: () => void;
-  /** Called when user clicks a related element on the ContextRail. */
   onSelect?: (id: string) => void;
 }
 
-// ──────── helpers ────────
+// ──────── primitive helpers ────────
 
-function asRecord(value: unknown): ContentRecord {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as ContentRecord) : {};
+function asRecord(v: unknown): ContentRecord {
+  return v && typeof v === "object" && !Array.isArray(v) ? (v as ContentRecord) : {};
 }
-function asText(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value : null;
+function asText(v: unknown): string | null {
+  return typeof v === "string" && v.trim() ? v : null;
 }
-function asTextList(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+function asTextList(v: unknown): string[] {
+  return Array.isArray(v)
+    ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0)
     : [];
 }
-function asObjectList(value: unknown): ContentRecord[] {
-  return Array.isArray(value)
-    ? value.filter((x): x is ContentRecord => Boolean(x) && typeof x === "object" && !Array.isArray(x))
+function asObjectList(v: unknown): ContentRecord[] {
+  return Array.isArray(v)
+    ? v.filter((x): x is ContentRecord => Boolean(x) && typeof x === "object" && !Array.isArray(x))
     : [];
 }
 
@@ -51,12 +44,119 @@ function formatRelativeTime(iso: string | undefined): string | null {
   if (!iso) return null;
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return null;
-  const deltaSec = Math.round((Date.now() - t) / 1000);
-  if (deltaSec < 60) return "刚刚";
-  if (deltaSec < 3600) return `${Math.floor(deltaSec / 60)} 分钟前`;
-  if (deltaSec < 86400) return `${Math.floor(deltaSec / 3600)} 小时前`;
-  if (deltaSec < 86400 * 30) return `${Math.floor(deltaSec / 86400)} 天前`;
+  const s = Math.round((Date.now() - t) / 1000);
+  if (s < 60) return "刚刚";
+  if (s < 3600) return `${Math.floor(s / 60)} 分钟前`;
+  if (s < 86400) return `${Math.floor(s / 3600)} 小时前`;
+  if (s < 86400 * 30) return `${Math.floor(s / 86400)} 天前`;
   return new Date(t).toISOString().slice(0, 10);
+}
+
+// ──────── Visual primitives (used by all bodies) ────────
+
+interface SectionDef { id: string; label: string }
+
+function BodyShell({
+  sections,
+  children,
+}: {
+  sections: SectionDef[];
+  children: ReactNode;
+}) {
+  const [activeId, setActiveId] = useState<string | null>(sections[0]?.id ?? null);
+  const articleRef = useRef<HTMLElement | null>(null);
+
+  // Scroll-spy: find which section is currently in view
+  useEffect(() => {
+    if (sections.length === 0) return;
+    const root = articleRef.current;
+    if (!root) return;
+    const observer = new IntersectionObserver(
+      entries => {
+        const visible = entries
+          .filter(e => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visible[0]) setActiveId(visible[0].target.id);
+      },
+      { root: root.closest(".element-content__scroll") as globalThis.Element | null, rootMargin: "-20% 0px -60% 0px", threshold: [0, 0.25, 0.5, 1] },
+    );
+    for (const def of sections) {
+      const node = document.getElementById(`section-${def.id}`);
+      if (node) observer.observe(node);
+    }
+    return () => observer.disconnect();
+  }, [sections]);
+
+  function jumpTo(id: string) {
+    const node = document.getElementById(`section-${id}`);
+    if (node) node.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  return (
+    <div className="body-layout">
+      {sections.length > 1 && (
+        <aside className="body-toc" aria-label="本元目录">
+          <ol>
+            {sections.map((s, i) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  className={activeId === s.id ? "is-active" : ""}
+                  onClick={() => jumpTo(s.id)}
+                >
+                  <span className="toc-num">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="toc-label">{s.label}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </aside>
+      )}
+      <article ref={articleRef} className="body-article">
+        {children}
+      </article>
+    </div>
+  );
+}
+
+function SectionBlock({
+  id, num, title, children,
+}: { id: string; num: number; title: string; children: ReactNode }) {
+  return (
+    <section id={`section-${id}`} className="body-section">
+      <h2 className="body-section-h">
+        <span className="body-section-num">{String(num).padStart(2, "0")}</span>
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+type CalloutKind = "tip" | "insight" | "example" | "warning" | "info";
+function Callout({ kind, title, children }: { kind: CalloutKind; title?: string; children: ReactNode }) {
+  const icons: Record<CalloutKind, string> = {
+    tip: "💡", insight: "💎", example: "✦", warning: "⚠", info: "ⓘ",
+  };
+  return (
+    <div className={`callout callout--${kind}`}>
+      <span className="callout-icon" aria-hidden="true">{icons[kind]}</span>
+      <div className="callout-body">
+        {title && <strong>{title}</strong>}
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Lead({ text }: { text: string }) {
+  return <p className="body-lead">{text}</p>;
+}
+
+function Prose({ text }: { text: string }) {
+  // Split paragraphs on \n\n
+  const paragraphs = text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+  return <>{paragraphs.map((p, i) => <p key={i} className="body-prose">{p}</p>)}</>;
 }
 
 // ──────── MetaStrip ────────
@@ -64,23 +164,18 @@ function formatRelativeTime(iso: string | undefined): string | null {
 function RichnessGauge({ level }: { level: RichnessLevel }) {
   return (
     <span className="richness-gauge" aria-label={`内容深度 ${level}/5`} title={`内容深度 ${level}/5`}>
-      {[1, 2, 3, 4, 5].map(n => (
-        <span key={n} className={n <= level ? "is-on" : ""} />
-      ))}
+      {[1, 2, 3, 4, 5].map(n => <span key={n} className={n <= level ? "is-on" : ""} />)}
     </span>
   );
 }
 
 function MetaStrip({ element, onOpenHistory }: { element: Element; onOpenHistory: () => void }) {
   const [versionCount, setVersionCount] = useState<number | null>(null);
-
   useEffect(() => {
     let cancelled = false;
-    api.listVersions(element.id).then(list => {
-      if (!cancelled) setVersionCount(list.length);
-    }).catch(() => {
-      if (!cancelled) setVersionCount(null);
-    });
+    api.listVersions(element.id)
+      .then(list => { if (!cancelled) setVersionCount(list.length); })
+      .catch(() => { if (!cancelled) setVersionCount(null); });
     return () => { cancelled = true; };
   }, [element.id]);
 
@@ -96,11 +191,11 @@ function MetaStrip({ element, onOpenHistory }: { element: Element; onOpenHistory
       <span className={`meta-chip meta-chip--type type-${element.type}`}>{typeLabel}</span>
       <RichnessGauge level={richness} />
       {difficulty && (
-        <span className="meta-chip meta-chip--difficulty" title="难度">
+        <span className="meta-chip meta-chip--difficulty">
           难度 · {difficulty === "low" ? "低" : difficulty === "mid" ? "中" : "高"}
         </span>
       )}
-      {element.domain && <span className="meta-chip meta-chip--domain" title="领域">{element.domain}</span>}
+      {element.domain && <span className="meta-chip meta-chip--domain">{element.domain}</span>}
       {tags.slice(0, 4).map(tag => (
         <span key={tag} className="meta-chip meta-chip--tag">#{tag}</span>
       ))}
@@ -110,12 +205,7 @@ function MetaStrip({ element, onOpenHistory }: { element: Element; onOpenHistory
         </span>
       )}
       {versionCount !== null && versionCount > 0 && (
-        <button
-          type="button"
-          className="meta-history is-clickable"
-          onClick={onOpenHistory}
-          title="点击查看历史版本并回滚"
-        >
+        <button type="button" className="meta-history is-clickable" onClick={onOpenHistory} title="点击查看历史版本">
           ↻ {versionCount} 个历史版本
         </button>
       )}
@@ -123,117 +213,115 @@ function MetaStrip({ element, onOpenHistory }: { element: Element; onOpenHistory
   );
 }
 
-// ──────── shared body utilities ────────
+// ──────── Type-specific body components ────────
 
-interface BodyUtils {
-  bindContext: (title: string, text: string, className?: string) => {
-    className: string;
-    onContextMenu: (event: MouseEvent<HTMLElement>) => void;
-    title: string;
-  };
-  renderActionableText: (title: string, text: ReactNode, rawText: string) => ReactNode;
-  renderActionableList: (items: string[], kind: string, className: string) => ReactNode;
-  childrenCount: number;
-  onOpenChildren: () => void;
-}
+interface BodyProps { element: Element; childrenCount: number; onOpenChildren: () => void }
 
-// ──────── ConceptBody ────────
-
-function ConceptBody({ element, u }: { element: Element; u: BodyUtils }) {
+function ConceptBody({ element, childrenCount, onOpenChildren }: BodyProps) {
   const c = asRecord(element.content);
   const oneSentence = asText(c.oneSentence);
   const coreExplain = asText(c.coreExplain);
   const whyMatters = asText(c.whyMatters);
   const beginner = asText(c.beginnerExplain);
-  const keyPoints = asTextList(c.keyPoints);
-  const goals = asTextList(c.learningGoals);
+  const mechanisms = asObjectList(c.mechanisms);
   const examples = asTextList(c.examples);
   const misconceptions = asTextList(c.misconceptions);
-  const mechanisms = asObjectList(c.mechanisms);
+  const keyPoints = asTextList(c.keyPoints);
+  const goals = asTextList(c.learningGoals);
   const nextSteps = asTextList(c.nextSteps);
-  const learningPoints = [...goals, ...keyPoints].slice(0, 6);
+  const studyFocus = [...goals, ...keyPoints].slice(0, 6);
+
+  // build dynamic section list
+  const sections: SectionDef[] = useMemo(() => {
+    const out: SectionDef[] = [];
+    if (oneSentence || beginner) out.push({ id: "what", label: "是什么" });
+    if (coreExplain) out.push({ id: "how", label: "核心解释" });
+    if (whyMatters) out.push({ id: "why", label: "为什么重要" });
+    if (mechanisms.length > 0) out.push({ id: "mechanism", label: "关键机制" });
+    if (examples.length > 0) out.push({ id: "examples", label: "典型例子" });
+    if (misconceptions.length > 0) out.push({ id: "warning", label: "易混点" });
+    if (studyFocus.length > 0) out.push({ id: "focus", label: "学习重点" });
+    out.push({ id: "next", label: "下一步" });
+    return out;
+  }, [oneSentence, beginner, coreExplain, whyMatters, mechanisms.length, examples.length, misconceptions.length, studyFocus.length]);
 
   return (
-    <>
-      <article className="content-section">
-        <h3>1. 定义</h3>
-        {oneSentence
-          ? u.renderActionableText("定义", oneSentence, oneSentence)
-          : <p className="content-empty">尚无一句话定义。可点击「细化」让 AI 生成。</p>}
-        {beginner && (
-          <div {...u.bindContext("小白理解版", beginner, "callout knowledge-actionable")}>
-            <strong>小白理解版</strong>
-            <p>{beginner}</p>
+    <BodyShell sections={sections}>
+      <SectionBlock id="what" num={1} title="是什么">
+        {oneSentence ? <Lead text={oneSentence} /> : <p className="content-empty">尚无一句话定义。可点击「细化」让 AI 生成。</p>}
+        {beginner && <Callout kind="tip" title="小白理解版">{beginner}</Callout>}
+      </SectionBlock>
+
+      {coreExplain && (
+        <SectionBlock id="how" num={2} title="核心解释">
+          <Prose text={coreExplain} />
+        </SectionBlock>
+      )}
+
+      {whyMatters && (
+        <SectionBlock id="why" num={coreExplain ? 3 : 2} title="为什么重要">
+          <Callout kind="insight" title="关键洞察"><Prose text={whyMatters} /></Callout>
+        </SectionBlock>
+      )}
+
+      {mechanisms.length > 0 && (
+        <SectionBlock id="mechanism" num={sections.findIndex(s => s.id === "mechanism") + 1} title="关键机制">
+          <ol className="mechanism-flow mechanism-flow--prose">
+            {mechanisms.map((step, i) => (
+              <li key={i}>
+                <span className="mechanism-step-num">{i + 1}</span>
+                <div>
+                  <strong>{asText(step.label) ?? "未命名"}</strong>
+                  {asText(step.description) && <p>{asText(step.description)}</p>}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </SectionBlock>
+      )}
+
+      {examples.length > 0 && (
+        <SectionBlock id="examples" num={sections.findIndex(s => s.id === "examples") + 1} title="典型例子">
+          <div className="example-grid">
+            {examples.map((ex, i) => (
+              <Callout key={i} kind="example" title={`例 ${i + 1}`}>{ex}</Callout>
+            ))}
           </div>
-        )}
-        <h3>2. 核心解释</h3>
-        {coreExplain
-          ? u.renderActionableText("核心解释", coreExplain, coreExplain)
-          : <p className="content-empty">尚无核心解释。</p>}
-        {whyMatters && (
-          <>
-            <h3>3. 为什么重要</h3>
-            {u.renderActionableText("为什么重要", whyMatters, whyMatters)}
-          </>
-        )}
-      </article>
+        </SectionBlock>
+      )}
 
-      <article className="content-section content-section--wide">
-        {mechanisms.length > 0 && (
-          <>
-            <h3>4. 关键机制</h3>
-            <ol className="mechanism-flow">
-              {mechanisms.map((step, i) => (
-                <li key={i} {...u.bindContext("关键机制", asText(step.label) ?? "")}>
-                  <span className="mechanism-step-num">{i + 1}</span>
-                  <div>
-                    <strong>{asText(step.label) ?? "（未命名）"}</strong>
-                    {asText(step.description) && <p>{asText(step.description)}</p>}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </>
-        )}
-        {learningPoints.length > 0 && (
-          <>
-            <h3>5. 学习重点</h3>
-            {u.renderActionableList(learningPoints, "学习重点", "check-list")}
-          </>
-        )}
-      </article>
+      {misconceptions.length > 0 && (
+        <SectionBlock id="warning" num={sections.findIndex(s => s.id === "warning") + 1} title="常见易混点">
+          {misconceptions.map((m, i) => (
+            <Callout key={i} kind="warning">{m}</Callout>
+          ))}
+        </SectionBlock>
+      )}
 
-      <aside className="content-section content-section--side">
-        {examples.length > 0 && (
-          <>
-            <h3>例子</h3>
-            {u.renderActionableList(examples.slice(0, 4), "例子", "dot-list")}
-          </>
-        )}
-        {misconceptions.length > 0 && (
-          <>
-            <h3>常见误区</h3>
-            {u.renderActionableList(misconceptions.slice(0, 4), "常见误区", "warn-list")}
-          </>
-        )}
-        <h3>下一步</h3>
-        {nextSteps.length > 0
-          ? u.renderActionableList(nextSteps.slice(0, 3), "下一步", "dot-list")
-          : <p className="content-empty">尚未给出明确下一步。</p>}
-        {u.childrenCount > 0 && (
-          <button className="next-button" type="button" onClick={u.onOpenChildren}>
-            查看下层 {u.childrenCount} 个方向
+      {studyFocus.length > 0 && (
+        <SectionBlock id="focus" num={sections.findIndex(s => s.id === "focus") + 1} title="学习重点">
+          <ul className="check-list">
+            {studyFocus.map(p => <li key={p}>{p}</li>)}
+          </ul>
+        </SectionBlock>
+      )}
+
+      <SectionBlock id="next" num={sections.length} title="下一步">
+        {nextSteps.length > 0 ? (
+          <ul className="dot-list">{nextSteps.map(s => <li key={s}>{s}</li>)}</ul>
+        ) : null}
+        {childrenCount > 0 && (
+          <button className="cta-button" type="button" onClick={onOpenChildren}>
+            进入下层 · {childrenCount} 个方向
             <span>→</span>
           </button>
         )}
-      </aside>
-    </>
+      </SectionBlock>
+    </BodyShell>
   );
 }
 
-// ──────── TopicBody ────────
-
-function TopicBody({ element, u }: { element: Element; u: BodyUtils }) {
+function TopicBody({ element, childrenCount, onOpenChildren }: BodyProps) {
   const c = asRecord(element.content);
   const intro = asText(c.intro);
   const beginner = asText(c.beginnerExplain);
@@ -241,68 +329,66 @@ function TopicBody({ element, u }: { element: Element; u: BodyUtils }) {
   const modules = asObjectList(c.coreModules);
   const recommendedPaths = asTextList(c.recommendedPaths);
 
+  const sections: SectionDef[] = useMemo(() => [
+    { id: "intro", label: "主题介绍" },
+    ...(goals.length > 0 ? [{ id: "goals", label: "学完能做什么" }] : []),
+    ...(modules.length > 0 ? [{ id: "modules", label: "核心模块" }] : []),
+    ...(recommendedPaths.length > 0 ? [{ id: "paths", label: "推荐路径" }] : []),
+  ], [goals.length, modules.length, recommendedPaths.length]);
+
   return (
-    <>
-      <article className="content-section">
-        <h3>1. 主题引言</h3>
-        {intro
-          ? u.renderActionableText("引言", intro, intro)
-          : <p className="content-empty">主题尚无引言。</p>}
-        {beginner && (
-          <div {...u.bindContext("小白理解版", beginner, "callout knowledge-actionable")}>
-            <strong>小白理解版</strong>
-            <p>{beginner}</p>
+    <BodyShell sections={sections}>
+      <SectionBlock id="intro" num={1} title="主题介绍">
+        {intro ? (
+          <>
+            <Lead text={intro.split("\n")[0]} />
+            {intro.includes("\n") && <Prose text={intro.split("\n").slice(1).join("\n")} />}
+          </>
+        ) : <p className="content-empty">尚无主题介绍。</p>}
+        {beginner && <Callout kind="tip" title="小白理解版">{beginner}</Callout>}
+      </SectionBlock>
+
+      {goals.length > 0 && (
+        <SectionBlock id="goals" num={2} title="学完能做什么">
+          <ul className="check-list check-list--big">
+            {goals.map(g => <li key={g}>{g}</li>)}
+          </ul>
+        </SectionBlock>
+      )}
+
+      {modules.length > 0 && (
+        <SectionBlock id="modules" num={sections.findIndex(s => s.id === "modules") + 1} title="核心模块">
+          <div className="module-grid">
+            {modules.map((m, i) => (
+              <article key={asText(m.id) ?? i} className="module-card">
+                <header>{asText(m.title) ?? asText(m.id) ?? "未命名"}</header>
+                <p>{asText(m.description) ?? "—"}</p>
+                {asText(m.focus) && <em>学习重点：{asText(m.focus)}</em>}
+              </article>
+            ))}
           </div>
-        )}
-        {goals.length > 0 && (
-          <>
-            <h3>2. 学习目标</h3>
-            {u.renderActionableList(goals, "学习目标", "check-list")}
-          </>
-        )}
-      </article>
+        </SectionBlock>
+      )}
 
-      <article className="content-section content-section--wide">
-        <h3>3. 核心模块</h3>
-        {modules.length > 0 ? (
-          <table className="knowledge-table">
-            <thead>
-              <tr><th>模块</th><th>说明</th><th>学习重点</th></tr>
-            </thead>
-            <tbody>
-              {modules.map((row, i) => (
-                <tr key={asText(row.id) ?? i} {...u.bindContext(asText(row.title) ?? "模块", asText(row.description) ?? "")}>
-                  <td>{asText(row.title) ?? asText(row.id) ?? "未命名"}</td>
-                  <td>{asText(row.description) ?? "—"}</td>
-                  <td>{asText(row.focus) ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : <p className="content-empty">尚未定义核心模块。</p>}
-      </article>
+      {recommendedPaths.length > 0 && (
+        <SectionBlock id="paths" num={sections.findIndex(s => s.id === "paths") + 1} title="推荐路径">
+          <ul className="dot-list">
+            {recommendedPaths.map(p => <li key={p}>{p}</li>)}
+          </ul>
+        </SectionBlock>
+      )}
 
-      <aside className="content-section content-section--side">
-        {recommendedPaths.length > 0 && (
-          <>
-            <h3>推荐学习路径</h3>
-            {u.renderActionableList(recommendedPaths, "推荐路径", "dot-list")}
-          </>
-        )}
-        {u.childrenCount > 0 && (
-          <button className="next-button" type="button" onClick={u.onOpenChildren}>
-            进入第一层 {u.childrenCount} 个模块
-            <span>→</span>
-          </button>
-        )}
-      </aside>
-    </>
+      {childrenCount > 0 && (
+        <button className="cta-button" type="button" onClick={onOpenChildren}>
+          进入第一层 · {childrenCount} 个模块
+          <span>→</span>
+        </button>
+      )}
+    </BodyShell>
   );
 }
 
-// ──────── StepBody ────────
-
-function StepBody({ element, u }: { element: Element; u: BodyUtils }) {
+function StepBody({ element, childrenCount, onOpenChildren }: BodyProps) {
   const c = asRecord(element.content);
   const goal = asText(c.goal) ?? asText(c.oneSentence);
   const preconditions = asTextList(c.preconditions);
@@ -311,70 +397,78 @@ function StepBody({ element, u }: { element: Element; u: BodyUtils }) {
   const commonFailures = asTextList(c.commonFailures);
   const nextAction = asText(c.nextAction);
 
-  return (
-    <>
-      <article className="content-section">
-        <h3>1. 步骤目标</h3>
-        {goal
-          ? u.renderActionableText("步骤目标", goal, goal)
-          : <p className="content-empty">尚无目标说明。</p>}
-        {preconditions.length > 0 && (
-          <>
-            <h3>2. 前置条件</h3>
-            {u.renderActionableList(preconditions, "前置条件", "check-list")}
-          </>
-        )}
-      </article>
+  const sections: SectionDef[] = [
+    { id: "goal", label: "步骤目标" },
+    ...(preconditions.length > 0 ? [{ id: "pre", label: "前置条件" }] : []),
+    ...(steps.length > 0 ? [{ id: "steps", label: "操作步骤" }] : []),
+    ...(completionCriteria.length > 0 ? [{ id: "criteria", label: "完成标准" }] : []),
+    ...(commonFailures.length > 0 ? [{ id: "fail", label: "常见失败" }] : []),
+    ...(nextAction ? [{ id: "next", label: "下一步" }] : []),
+  ];
 
-      <article className="content-section content-section--wide">
-        <h3>3. 操作步骤</h3>
-        {steps.length > 0 ? (
-          <ol className="step-list">
-            {steps.map((step, i) => {
-              const n = typeof step.n === "number" ? step.n : i + 1;
-              const action = asText(step.action) ?? "（未填）";
-              const check = asText(step.check);
+  return (
+    <BodyShell sections={sections}>
+      <SectionBlock id="goal" num={1} title="步骤目标">
+        {goal ? <Lead text={goal} /> : <p className="content-empty">尚无目标说明。</p>}
+      </SectionBlock>
+
+      {preconditions.length > 0 && (
+        <SectionBlock id="pre" num={2} title="前置条件">
+          <ul className="check-list">{preconditions.map(p => <li key={p}>{p}</li>)}</ul>
+        </SectionBlock>
+      )}
+
+      {steps.length > 0 && (
+        <SectionBlock id="steps" num={sections.findIndex(s => s.id === "steps") + 1} title="操作步骤">
+          <ol className="recipe-list">
+            {steps.map((s, i) => {
+              const n = typeof s.n === "number" ? s.n : i + 1;
+              const action = asText(s.action) ?? "（未填）";
+              const check = asText(s.check);
               return (
-                <li key={i} {...u.bindContext(`步骤 ${n}`, action)}>
-                  <span className="step-num">{n}</span>
+                <li key={i}>
+                  <span className="recipe-num">{n}</span>
                   <div>
-                    <p>{action}</p>
-                    {check && <em>验证：{check}</em>}
+                    <p className="recipe-action">{action}</p>
+                    {check && <Callout kind="info" title="验证">{check}</Callout>}
                   </div>
                 </li>
               );
             })}
           </ol>
-        ) : <p className="content-empty">尚未拆分操作步骤。</p>}
-      </article>
+        </SectionBlock>
+      )}
 
-      <aside className="content-section content-section--side">
-        {completionCriteria.length > 0 && (
-          <>
-            <h3>完成标准</h3>
-            {u.renderActionableList(completionCriteria, "完成标准", "check-list")}
-          </>
-        )}
-        {commonFailures.length > 0 && (
-          <>
-            <h3>常见失败点</h3>
-            {u.renderActionableList(commonFailures, "失败点", "warn-list")}
-          </>
-        )}
-        {nextAction && (
-          <>
-            <h3>下一步动作</h3>
-            {u.renderActionableText("下一步动作", nextAction, nextAction)}
-          </>
-        )}
-      </aside>
-    </>
+      {completionCriteria.length > 0 && (
+        <SectionBlock id="criteria" num={sections.findIndex(s => s.id === "criteria") + 1} title="完成标准">
+          <Callout kind="insight">
+            <ul className="check-list">{completionCriteria.map(c => <li key={c}>{c}</li>)}</ul>
+          </Callout>
+        </SectionBlock>
+      )}
+
+      {commonFailures.length > 0 && (
+        <SectionBlock id="fail" num={sections.findIndex(s => s.id === "fail") + 1} title="常见失败点">
+          {commonFailures.map((f, i) => <Callout key={i} kind="warning">{f}</Callout>)}
+        </SectionBlock>
+      )}
+
+      {nextAction && (
+        <SectionBlock id="next" num={sections.length} title="下一步动作">
+          <Prose text={nextAction} />
+          {childrenCount > 0 && (
+            <button className="cta-button" type="button" onClick={onOpenChildren}>
+              查看下层 · {childrenCount} 个分支
+              <span>→</span>
+            </button>
+          )}
+        </SectionBlock>
+      )}
+    </BodyShell>
   );
 }
 
-// ──────── PracticeBody ────────
-
-function PracticeBody({ element, u }: { element: Element; u: BodyUtils }) {
+function PracticeBody({ element, childrenCount, onOpenChildren }: BodyProps) {
   const c = asRecord(element.content);
   const productPositioning = asText(c.productPositioning);
   const targetAudience = asText(c.targetAudience);
@@ -382,98 +476,101 @@ function PracticeBody({ element, u }: { element: Element; u: BodyUtils }) {
   const competitors = asObjectList(c.competitors);
   const mvpFeatures = asTextList(c.mvpFeatures);
   const implementationPath = asTextList(c.implementationPath);
-  // Practice elements often also carry concept-like fields when AI mixes them
   const oneSentence = asText(c.oneSentence);
-  const fallbackPositioning = productPositioning ?? oneSentence;
+  const pitch = productPositioning ?? oneSentence;
+
+  const sections: SectionDef[] = [
+    { id: "pitch", label: "项目定位" },
+    ...(needs.length > 0 ? [{ id: "needs", label: "核心需求" }] : []),
+    ...(mvpFeatures.length > 0 ? [{ id: "mvp", label: "MVP 功能" }] : []),
+    ...(implementationPath.length > 0 ? [{ id: "impl", label: "实现路径" }] : []),
+    ...(competitors.length > 0 ? [{ id: "competitors", label: "竞品" }] : []),
+  ];
 
   return (
-    <>
-      <article className="content-section">
-        <h3>1. 产品定位</h3>
-        {fallbackPositioning
-          ? u.renderActionableText("产品定位", fallbackPositioning, fallbackPositioning)
-          : <p className="content-empty">尚无定位描述。</p>}
-        {targetAudience && (
-          <>
-            <h3>2. 目标用户</h3>
-            {u.renderActionableText("目标用户", targetAudience, targetAudience)}
-          </>
-        )}
-        {needs.length > 0 && (
-          <>
-            <h3>3. 用户需求</h3>
-            {u.renderActionableList(needs, "用户需求", "check-list")}
-          </>
-        )}
-      </article>
+    <BodyShell sections={sections}>
+      <SectionBlock id="pitch" num={1} title="项目定位">
+        {pitch ? <Lead text={pitch} /> : <p className="content-empty">尚无定位描述。</p>}
+        {targetAudience && <Callout kind="info" title="目标用户">{targetAudience}</Callout>}
+      </SectionBlock>
 
-      <article className="content-section content-section--wide">
-        <h3>4. MVP 功能</h3>
-        {mvpFeatures.length > 0
-          ? u.renderActionableList(mvpFeatures, "MVP 功能", "check-list")
-          : <p className="content-empty">尚未拆分 MVP 功能。</p>}
-        {implementationPath.length > 0 && (
-          <>
-            <h3>5. 实现路径</h3>
-            <ol className="step-list">
-              {implementationPath.map((stage, i) => (
-                <li key={i} {...u.bindContext("实现路径", stage)}>
-                  <span className="step-num">{i + 1}</span>
-                  <div><p>{stage}</p></div>
-                </li>
-              ))}
-            </ol>
-          </>
-        )}
-      </article>
+      {needs.length > 0 && (
+        <SectionBlock id="needs" num={2} title="核心需求">
+          <ul className="check-list">{needs.map(n => <li key={n}>{n}</li>)}</ul>
+        </SectionBlock>
+      )}
 
-      <aside className="content-section content-section--side">
-        {competitors.length > 0 && (
-          <>
-            <h3>竞品</h3>
-            <ul className="warn-list">
+      {mvpFeatures.length > 0 && (
+        <SectionBlock id="mvp" num={sections.findIndex(s => s.id === "mvp") + 1} title="MVP 功能">
+          <div className="mvp-grid">
+            {mvpFeatures.map((feat, i) => (
+              <article key={i} className="mvp-card">
+                <span className="mvp-num">F{i + 1}</span>
+                <p>{feat}</p>
+              </article>
+            ))}
+          </div>
+        </SectionBlock>
+      )}
+
+      {implementationPath.length > 0 && (
+        <SectionBlock id="impl" num={sections.findIndex(s => s.id === "impl") + 1} title="实现路径">
+          <ol className="phase-timeline">
+            {implementationPath.map((phase, i) => (
+              <li key={i}>
+                <span className="phase-num">阶段 {i + 1}</span>
+                <p>{phase}</p>
+              </li>
+            ))}
+          </ol>
+        </SectionBlock>
+      )}
+
+      {competitors.length > 0 && (
+        <SectionBlock id="competitors" num={sections.findIndex(s => s.id === "competitors") + 1} title="竞品">
+          <table className="competitor-table">
+            <thead><tr><th>竞品</th><th>可借鉴</th></tr></thead>
+            <tbody>
               {competitors.map((cmp, i) => (
-                <li key={i} {...u.bindContext("竞品", `${asText(cmp.name)}: ${asText(cmp.takeaway)}`)}>
-                  <strong>{asText(cmp.name) ?? "未命名"}</strong>
-                  {asText(cmp.takeaway) && <p>{asText(cmp.takeaway)}</p>}
-                </li>
+                <tr key={i}>
+                  <td><strong>{asText(cmp.name) ?? "未命名"}</strong></td>
+                  <td>{asText(cmp.takeaway) ?? "—"}</td>
+                </tr>
               ))}
-            </ul>
-          </>
-        )}
-        {u.childrenCount > 0 && (
-          <button className="next-button" type="button" onClick={u.onOpenChildren}>
-            查看下层 {u.childrenCount} 个分支
-            <span>→</span>
-          </button>
-        )}
-      </aside>
-    </>
+            </tbody>
+          </table>
+        </SectionBlock>
+      )}
+
+      {childrenCount > 0 && (
+        <button className="cta-button" type="button" onClick={onOpenChildren}>
+          查看下层 · {childrenCount} 个分支
+          <span>→</span>
+        </button>
+      )}
+    </BodyShell>
   );
 }
 
-// ──────── Generic fallback body for unsupported types ────────
-
-function GenericBody({ element, u }: { element: Element; u: BodyUtils }) {
+function GenericBody({ element, childrenCount, onOpenChildren }: BodyProps) {
   const c = asRecord(element.content);
   const oneSentence = asText(c.oneSentence) ?? asText(c.intro);
   const coreExplain = asText(c.coreExplain) ?? asText(c.description);
+  const sections: SectionDef[] = [{ id: "what", label: "内容" }];
   return (
-    <article className="content-section">
-      <h3>定义</h3>
-      {oneSentence
-        ? u.renderActionableText("定义", oneSentence, oneSentence)
-        : <p className="content-empty">尚无描述。</p>}
-      {coreExplain && (
-        <>
-          <h3>说明</h3>
-          {u.renderActionableText("说明", coreExplain, coreExplain)}
-        </>
-      )}
-      <p className="content-empty">
-        元类型「{element.type}」当前没有专属布局，已用通用模板。
-      </p>
-    </article>
+    <BodyShell sections={sections}>
+      <SectionBlock id="what" num={1} title="内容">
+        {oneSentence ? <Lead text={oneSentence} /> : <p className="content-empty">尚无描述。</p>}
+        {coreExplain && <Prose text={coreExplain} />}
+        <Callout kind="info">元类型「{element.type}」尚无专属布局，已用通用模板。</Callout>
+        {childrenCount > 0 && (
+          <button className="cta-button" type="button" onClick={onOpenChildren}>
+            查看下层 · {childrenCount} 个分支
+            <span>→</span>
+          </button>
+        )}
+      </SectionBlock>
+    </BodyShell>
   );
 }
 
@@ -487,167 +584,73 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
   const refine = useStore(s => s.refine);
   const expand = useStore(s => s.expand);
   const extend = useStore(s => s.extend);
-  const generatePaths = useStore(s => s.generatePaths);
   const inflightForThis = useStore(s => {
-    for (const op of s.inflight.values()) {
-      if (op.elementId === element.id) return op;
-    }
+    for (const op of s.inflight.values()) if (op.elementId === element.id) return op;
     return null;
   });
 
   useEffect(() => {
     if (!isFullscreen && !contextTarget) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsFullscreen(false);
-        setContextTarget(null);
-      }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setIsFullscreen(false); setContextTarget(null); }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [isFullscreen, contextTarget]);
 
   useEffect(() => {
-    if (!contextTarget) return;
-    const close = () => setContextTarget(null);
-    window.addEventListener("click", close);
-    window.addEventListener("scroll", close, true);
-    return () => {
-      window.removeEventListener("click", close);
-      window.removeEventListener("scroll", close, true);
-    };
-  }, [contextTarget]);
-
-  useEffect(() => {
     if (!lastAction) return;
-    const timer = window.setTimeout(() => setLastAction(null), 1600);
-    return () => window.clearTimeout(timer);
+    const t = window.setTimeout(() => setLastAction(null), 1600);
+    return () => window.clearTimeout(t);
   }, [lastAction]);
 
-  function openContextMenu(event: MouseEvent<HTMLElement>, title: string, text: string) {
-    event.preventDefault();
-    event.stopPropagation();
-    const menuWidth = 220;
-    const menuHeight = 224;
-    setContextTarget({
-      x: Math.min(event.clientX, window.innerWidth - menuWidth - 12),
-      y: Math.min(event.clientY, window.innerHeight - menuHeight - 12),
-      title, text,
-    });
-  }
-
-  async function runContextAction(action: string) {
-    if (!contextTarget) return;
-    setContextTarget(null);
-    switch (action) {
-      case "细化":
-        setLastAction(`AI 正在细化 · ${element.title}`);
-        await refine(element.id, 3);
-        setLastAction(`细化完成 · ${element.title}`);
-        return;
-      case "延伸": {
-        const direction = window.prompt(`朝什么方向延伸「${element.title}」？`, contextTarget.title);
-        if (!direction || !direction.trim()) return;
-        setLastAction(`AI 正在延伸 · ${element.title}`);
-        await extend(element.id, direction.trim(), 3);
-        setLastAction(`延伸完成 · ${element.title}`);
-        return;
+  async function runQuickAction(action: "细化" | "展开" | "延伸") {
+    setLastAction(`AI 正在${action} · ${element.title}`);
+    try {
+      if (action === "细化") await refine(element.id, 3);
+      else if (action === "展开") await expand(element.id, 4);
+      else if (action === "延伸") {
+        const dir = window.prompt(`朝什么方向延伸「${element.title}」？`, "类似概念对比");
+        if (!dir || !dir.trim()) { setLastAction(null); return; }
+        await extend(element.id, dir.trim(), 3);
       }
-      case "展开分支":
-        setLastAction(`AI 正在展开 · ${element.title}`);
-        await expand(element.id, 4);
-        setLastAction(`展开完成 · ${element.title}`);
-        return;
-      case "生成路径":
-        setLastAction(`AI 正在生成路径 · ${element.title}`);
-        await generatePaths(element.id);
-        setLastAction(`路径已生成 · ${element.title}`);
-        return;
-      default:
-        setLastAction(`${action} · ${contextTarget.title}`);
+      setLastAction(`${action}完成 · ${element.title}`);
+    } catch (e) {
+      setLastAction(`${action}失败：${String(e)}`);
     }
   }
-
-  const u: BodyUtils = {
-    bindContext: (title, text, className = "knowledge-actionable") => ({
-      className,
-      onContextMenu: (event: MouseEvent<HTMLElement>) => openContextMenu(event, title, text),
-      title: "右击打开元信息操作",
-    }),
-    renderActionableText: (title, text, rawText) => (
-      <p {...u.bindContext(title, rawText)}>{text}</p>
-    ),
-    renderActionableList: (items, kind, className) => (
-      <ul className={className}>
-        {items.map(item => (
-          <li key={item} {...u.bindContext(kind, item)}>{item}</li>
-        ))}
-      </ul>
-    ),
-    childrenCount,
-    onOpenChildren,
-  };
 
   const renderBody = () => {
-    // Dispatch by element.type, but fall back to ConceptBody when the AI
-    // gave us concept-shaped content (oneSentence/coreExplain) on a non-concept
-    // element. This happens because the expand/generate prompts sometimes
-    // emit concept fields for practice/step elements.
     const c = asRecord(element.content);
-    const hasConceptShape = asText(c.oneSentence) !== null || asText(c.coreExplain) !== null;
-    const hasTopicShape = asText(c.intro) !== null || asObjectList(c.coreModules).length > 0;
-    const hasStepShape = asText(c.goal) !== null || asObjectList(c.steps).length > 0;
-    const hasPracticeShape = asText(c.productPositioning) !== null || asTextList(c.mvpFeatures).length > 0;
-
+    const hasConcept = asText(c.oneSentence) !== null || asText(c.coreExplain) !== null;
+    const hasTopic = asText(c.intro) !== null || asObjectList(c.coreModules).length > 0;
+    const hasStep = asText(c.goal) !== null || asObjectList(c.steps).length > 0;
+    const hasPractice = asText(c.productPositioning) !== null || asTextList(c.mvpFeatures).length > 0;
+    const props = { element, childrenCount, onOpenChildren };
     switch (element.type) {
       case "topic":
-        if (hasTopicShape) return <TopicBody element={element} u={u} />;
-        if (hasConceptShape) return <ConceptBody element={element} u={u} />;
-        return <GenericBody element={element} u={u} />;
+        if (hasTopic) return <TopicBody {...props} />;
+        if (hasConcept) return <ConceptBody {...props} />;
+        return <GenericBody {...props} />;
       case "concept":
-        return <ConceptBody element={element} u={u} />;
+        return <ConceptBody {...props} />;
       case "step":
-        if (hasStepShape) return <StepBody element={element} u={u} />;
-        return hasConceptShape ? <ConceptBody element={element} u={u} /> : <GenericBody element={element} u={u} />;
+        if (hasStep) return <StepBody {...props} />;
+        return hasConcept ? <ConceptBody {...props} /> : <GenericBody {...props} />;
       case "practice":
       case "project":
-        if (hasPracticeShape) return <PracticeBody element={element} u={u} />;
-        return hasConceptShape ? <ConceptBody element={element} u={u} /> : <GenericBody element={element} u={u} />;
+        if (hasPractice) return <PracticeBody {...props} />;
+        return hasConcept ? <ConceptBody {...props} /> : <GenericBody {...props} />;
       default:
-        return hasConceptShape ? <ConceptBody element={element} u={u} /> : <GenericBody element={element} u={u} />;
+        return hasConcept ? <ConceptBody {...props} /> : <GenericBody {...props} />;
     }
   };
 
-  const renderContextMenu = () => contextTarget && typeof document !== "undefined"
-    ? createPortal(
-        <div
-          className="knowledge-context-menu"
-          style={{ left: contextTarget.x, top: contextTarget.y }}
-          role="menu"
-          onClick={event => event.stopPropagation()}
-        >
-          <div className="knowledge-context-menu__head">
-            <strong>{contextTarget.title}</strong>
-            <span>{contextTarget.text}</span>
-          </div>
-          {["细化", "延伸", "展开分支", "生成路径"].map(action => (
-            <button
-              key={action}
-              type="button"
-              role="menuitem"
-              disabled={inflightForThis !== null}
-              onClick={() => void runContextAction(action)}
-            >
-              {action}
-            </button>
-          ))}
-        </div>,
-        document.body,
-      )
-    : null;
-
   const renderPanel = (fullscreen = false) => (
-    <section className={`element-content${fullscreen ? " is-fullscreen" : ""}`} aria-hidden={!fullscreen && isFullscreen ? true : undefined}>
+    <section
+      className={`element-content element-content--type-${element.type}${fullscreen ? " is-fullscreen" : ""}`}
+      aria-hidden={!fullscreen && isFullscreen ? true : undefined}
+    >
       <header className="element-content__head">
         <div className="node-glyph" aria-hidden="true">
           <Icon name={iconForElement(element.type, element.title)} />
@@ -666,57 +669,37 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
               AI {inflightForThis.kind} 中…
             </span>
           )}
+          <button className="quiet-button" type="button" disabled={inflightForThis !== null} onClick={() => void runQuickAction("细化")}>细化</button>
+          <button className="quiet-button" type="button" disabled={inflightForThis !== null} onClick={() => void runQuickAction("展开")}>展开</button>
+          <button className="quiet-button" type="button" disabled={inflightForThis !== null} onClick={() => void runQuickAction("延伸")}>延伸</button>
           <button
-            className="quiet-button"
-            type="button"
-            disabled={inflightForThis !== null}
-            onClick={() => void runContextAction("细化")}
-          >细化</button>
-          <button
-            className="quiet-button"
-            type="button"
-            disabled={inflightForThis !== null}
-            onClick={() => void runContextAction("展开分支")}
-          >展开</button>
-          <button
-            className="quiet-button"
-            type="button"
-            disabled={inflightForThis !== null}
-            onClick={() => void runContextAction("延伸")}
-          >延伸</button>
-          <button
-            aria-label={fullscreen ? "还原元信息详情框" : "放大元信息详情框"}
+            aria-label={fullscreen ? "还原" : "放大"}
             className="quiet-button quiet-button--icon"
-            title={fullscreen ? "还原" : "放大"}
             type="button"
-            onClick={() => setIsFullscreen(value => !value)}
+            onClick={() => setIsFullscreen(v => !v)}
           >
             <Icon name="expand" />
           </button>
         </div>
       </header>
 
-      <div className="element-content__grid">
+      <div className="element-content__scroll">
         {renderBody()}
+        <ContextRail element={element} onSelect={onSelect ?? (() => undefined)} />
       </div>
-
-      <ContextRail element={element} onSelect={onSelect ?? (() => undefined)} />
     </section>
   );
 
   return (
     <>
       {renderPanel(false)}
-      {renderContextMenu()}
       {lastAction && typeof document !== "undefined"
         ? createPortal(<div className="knowledge-action-toast">{lastAction}</div>, document.body)
         : null}
       {isFullscreen && typeof document !== "undefined"
         ? createPortal(renderPanel(true), document.body)
         : null}
-      {historyOpen && (
-        <HistoryModal element={element} onClose={() => setHistoryOpen(false)} />
-      )}
+      {historyOpen && <HistoryModal element={element} onClose={() => setHistoryOpen(false)} />}
     </>
   );
 }
