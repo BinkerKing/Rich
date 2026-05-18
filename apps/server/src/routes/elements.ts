@@ -1,9 +1,23 @@
 import { Hono } from "hono";
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
+import type { RelationsRepo } from "../repos/RelationsRepo.js";
+import type { PathsRepo } from "../repos/PathsRepo.js";
+import type { QARepo } from "../repos/QARepo.js";
+import type { AnnotationsRepo } from "../repos/AnnotationsRepo.js";
 import type { SignalsRepo } from "../repos/SignalsRepo.js";
 import { recordSignal } from "../ai/signalRecorder.js";
 
-export function elementsRoutes(repo: ElementsRepo, signals?: SignalsRepo): Hono {
+export interface ElementsRoutesDeps {
+  elements: ElementsRepo;
+  relations: RelationsRepo;
+  paths: PathsRepo;
+  qa: QARepo;
+  annotations: AnnotationsRepo;
+  signals?: SignalsRepo;
+}
+
+export function elementsRoutes(deps: ElementsRoutesDeps): Hono {
+  const { elements: repo, relations, paths, qa, annotations, signals } = deps;
   const r = new Hono();
   r.get("/", async (c) => c.json(await repo.list()));
   r.get("/:id", async (c) => {
@@ -41,5 +55,114 @@ export function elementsRoutes(repo: ElementsRepo, signals?: SignalsRepo): Hono 
       throw err;
     }
   });
+
+  // ----- subtree delete -----
+  // Removes the element, its entire descendant subtree (via child relations),
+  // and all attached data (relations, paths centered on it, qa, annotations).
+  r.delete("/:id", async (c) => {
+    const id = c.req.param("id");
+    const el = await repo.get(id);
+    if (!el) return c.json({ error: "not found" }, 404);
+
+    // Compute subtree via BFS over child relations.
+    const allRelations = await relations.list();
+    const childIndex = new Map<string, string[]>();
+    for (const rel of allRelations) {
+      if (rel.kind !== "child") continue;
+      const list = childIndex.get(rel.from) ?? [];
+      list.push(rel.to);
+      childIndex.set(rel.from, list);
+    }
+    const toRemove: string[] = [];
+    const seen = new Set<string>();
+    const queue: string[] = [id];
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      if (seen.has(cur)) continue;
+      seen.add(cur);
+      toRemove.push(cur);
+      for (const child of childIndex.get(cur) ?? []) queue.push(child);
+    }
+
+    // Wipe paths centered on any of the removed elements; leave other paths
+    // alone (path.steps may still reference removed ids, but the UI tolerates
+    // missing steps already).
+    for (const removedId of toRemove) {
+      await paths.putForCenter(removedId, []);
+    }
+
+    // Wipe Q&A + annotations for each removed element.
+    await qa.removeForElements(toRemove);
+    for (const removedId of toRemove) {
+      const annList = await annotations.listForElement(removedId);
+      for (const a of annList) await annotations.remove(a.id);
+    }
+
+    await relations.removeForElements(toRemove);
+    await repo.removeMany(toRemove);
+    if (signals) {
+      await recordSignal(signals, {
+        ts: new Date().toISOString(),
+        type: "user.reverted",   // closest existing type; could add user.deleted later
+        manual: "knowledge",
+        elementId: id,
+        data: { op: "delete-subtree", removedIds: toRemove },
+      });
+    }
+    return c.json({ removed: toRemove });
+  });
+
+  // ----- move (reparent) -----
+  // Body: { newParentId: string | null }. null = make `id` a root.
+  r.post("/:id/move", async (c) => {
+    const id = c.req.param("id");
+    const body = await c.req.json().catch(() => ({}));
+    const newParentId: string | null = body.newParentId == null ? null : String(body.newParentId);
+
+    const el = await repo.get(id);
+    if (!el) return c.json({ error: "not found" }, 404);
+
+    if (newParentId) {
+      if (newParentId === id) return c.json({ error: "cannot move element under itself" }, 400);
+      const parent = await repo.get(newParentId);
+      if (!parent) return c.json({ error: "new parent not found" }, 404);
+
+      // Cycle check: newParentId must not be a descendant of id.
+      const allRelations = await relations.list();
+      const childIndex = new Map<string, string[]>();
+      for (const rel of allRelations) {
+        if (rel.kind !== "child") continue;
+        const list = childIndex.get(rel.from) ?? [];
+        list.push(rel.to);
+        childIndex.set(rel.from, list);
+      }
+      const descendants = new Set<string>();
+      const queue = [id];
+      while (queue.length > 0) {
+        const cur = queue.shift()!;
+        for (const child of childIndex.get(cur) ?? []) {
+          if (descendants.has(child)) continue;
+          descendants.add(child);
+          queue.push(child);
+        }
+      }
+      if (descendants.has(newParentId)) {
+        return c.json({ error: "cannot move element under one of its descendants (cycle)" }, 400);
+      }
+    }
+
+    await relations.reparent(id, newParentId);
+    if (signals) {
+      await recordSignal(signals, {
+        ts: new Date().toISOString(),
+        type: "user.reverted",
+        manual: "knowledge",
+        elementId: id,
+        data: { op: "move", newParentId },
+      });
+    }
+    return c.json({ id, newParentId });
+  });
+
   return r;
 }

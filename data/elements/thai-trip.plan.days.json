@@ -1,0 +1,32 @@
+{
+  "id": "thai-trip.plan.days",
+  "type": "practice",
+  "title": "按天数选路线",
+  "subtitle": "3天、5天、7天、10天的取舍",
+  "aliases": [
+    "行程天数"
+  ],
+  "tags": [
+    "路线模板",
+    "天数"
+  ],
+  "domain": "travel",
+  "difficulty": "low",
+  "content": {
+    "goal": "用天数限制路线复杂度，避免过度转场。",
+    "templates": {
+      "3-4天": "曼谷单城，或曼谷加大城/芭提雅一晚。",
+      "5-7天": "曼谷加清迈，或曼谷加普吉/甲米。",
+      "8-10天": "曼谷加清迈加一个海岛，或南部双基地。",
+      "10天以上": "可考虑泰北深玩、南部多岛或潜水课程。"
+    },
+    "decisionRule": "每增加一个飞行或长途船车节点，至少预留半天转场成本。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.185Z",
+    "updatedAt": "2026-05-17T13:46:42.185Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

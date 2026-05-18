@@ -1,0 +1,46 @@
+{
+  "id": "codex-adv.workflow.docs",
+  "type": "practice",
+  "title": "文档同步",
+  "subtitle": "让实现变化及时进入知识层",
+  "aliases": [
+    "Docs with Codex",
+    "文档维护"
+  ],
+  "tags": [
+    "文档",
+    "知识管理"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "low",
+  "content": {
+    "oneSentence": "Codex 可以根据代码变化更新 README、接口文档、迁移说明和发布记录。",
+    "coreExplain": "文档同步不应只是生成漂亮文字，而是把真实行为、命令、限制和变更原因写清楚。Codex 适合从 diff、测试和代码中提取事实，但不应编造未确认的指标或路线图。",
+    "whyMatters": "代码变化如果不进入文档，团队知识会很快过期。Codex 能降低维护文档的摩擦。",
+    "beginnerExplain": "完成一个功能后，可以让 Codex 看改动并更新相关文档，但要要求它只写代码中能确认的事实。",
+    "keyPoints": [
+      "文档必须来源于代码、测试或明确需求",
+      "避免编造性能数字、时间线和用户数据",
+      "把使用方式、限制和迁移步骤写清楚",
+      "文档更新应和代码变更一起审查"
+    ],
+    "examples": [
+      "根据新 API 更新 OpenAPI 描述",
+      "为配置项补充环境变量说明",
+      "从合并改动生成发布说明草稿"
+    ],
+    "mechanisms": [
+      "让 Codex 阅读实际 diff 和相关代码",
+      "列出需要更新的文档位置",
+      "只写可验证事实和操作步骤",
+      "审查文档是否与实现一致"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "codex",
+    "richness": 3
+  }
+}

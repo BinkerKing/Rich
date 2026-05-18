@@ -1,0 +1,27 @@
+{
+  "id": "claude-code.advanced.refactor.positioning",
+  "type": "product-design",
+  "title": "重构任务定位",
+  "subtitle": "先定义重构服务什么目标，再决定改动边界。",
+  "content": {
+    "designQuestion": "这次大型重构到底是在解决可维护性、扩展性、性能、测试稳定性，还是迁移架构的问题？",
+    "positioning": "把大型重构定位为一次受控的内部结构调整，而不是顺手重写。产品目标是让 Claude Code 能围绕明确收益制定阶段计划，并持续保护外部行为。",
+    "targetAudience": "适合维护中大型代码库的开发者、技术负责人，以及需要让 AI 参与遗留系统治理的团队。",
+    "needs": [
+      "避免 Claude Code 把重构扩大成无边界改写",
+      "让每一阶段都有可验证的完成条件",
+      "把业务行为稳定性放在结构优化之前"
+    ],
+    "decisions": [
+      "先写清楚重构动机和非目标",
+      "把外部接口、数据格式、用户流程列为保护对象",
+      "用测试、日志或快照作为行为基线"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T00:00:00.000Z",
+    "updatedAt": "2026-05-17T00:00:00.000Z",
+    "generatedBy": "ai",
+    "richness": 3
+  }
+}

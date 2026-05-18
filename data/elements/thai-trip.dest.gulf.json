@@ -1,0 +1,39 @@
+{
+  "id": "thai-trip.dest.gulf",
+  "type": "concept",
+  "title": "泰国湾海岛",
+  "subtitle": "苏梅、涛岛与帕岸岛",
+  "aliases": [
+    "Koh Samui",
+    "Koh Tao",
+    "Koh Phangan"
+  ],
+  "tags": [
+    "海岛",
+    "度假",
+    "潜水"
+  ],
+  "domain": "travel",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "泰国湾海岛更偏度假、潜水和长期停留。",
+    "coreExplain": "苏梅适合酒店度假和亲子，涛岛适合潜水课程，帕岸岛以满月派对闻名但不只有派对。相比普吉，苏梅交通选择较少，机票和船程可能让预算上升。雨季节奏也与安达曼海一侧不同。",
+    "whyMatters": "把泰国湾和安达曼海混为一谈，容易在季节和交通上踩坑。",
+    "misconceptions": [
+      "以为苏梅一定比普吉便宜，交通成本可能更高",
+      "以为帕岸岛只适合派对人群，岛上也有瑜伽和安静海滩",
+      "以为涛岛只适合会潜水的人，初学课程也是主要产品"
+    ],
+    "nextSteps": [
+      "确认航班和船班衔接",
+      "按潜水、度假或派对目的选择岛屿"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.183Z",
+    "updatedAt": "2026-05-17T13:46:42.183Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

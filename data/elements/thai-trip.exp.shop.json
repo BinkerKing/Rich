@@ -1,0 +1,36 @@
+{
+  "id": "thai-trip.exp.shop",
+  "type": "practice",
+  "title": "购物与伴手礼",
+  "subtitle": "商场、夜市、药妆和退税",
+  "aliases": [
+    "买什么"
+  ],
+  "tags": [
+    "购物",
+    "伴手礼"
+  ],
+  "domain": "travel",
+  "difficulty": "low",
+  "content": {
+    "goal": "把购物变成行程补充，而不是拖垮行程。",
+    "categories": [
+      "商场品牌与设计品",
+      "夜市小物和服饰",
+      "药妆和日用品",
+      "零食、茶饮和香氛"
+    ],
+    "tips": [
+      "贵重商品优先正规商场",
+      "退税商品提前确认店铺资质和机场流程",
+      "不要在第一天买太多重物"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.198Z",
+    "updatedAt": "2026-05-17T13:46:42.198Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

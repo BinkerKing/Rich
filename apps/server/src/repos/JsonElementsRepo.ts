@@ -86,4 +86,13 @@ export class JsonElementsRepo implements ElementsRepo {
     await this.put(snapshot);
     return snapshot;
   }
+
+  async removeMany(ids: ElementId[]): Promise<void> {
+    if (ids.length === 0) return;
+    const { rm } = await import("node:fs/promises");
+    for (const id of ids) {
+      await rm(join(this.dir(), `${id}.json`), { force: true });
+      await rm(this.historyDir(id), { recursive: true, force: true });
+    }
+  }
 }

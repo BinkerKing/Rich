@@ -5,4 +5,7 @@ dist
 .env
 .env.local
 data/*.local.json
+data/*.db-wal
+data/*.db-shm
+.claude/
 .superpowers/

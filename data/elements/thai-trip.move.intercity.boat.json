@@ -1,0 +1,33 @@
+{
+  "id": "thai-trip.move.intercity.boat",
+  "type": "practice",
+  "title": "车船联运",
+  "subtitle": "海岛行程的真实瓶颈",
+  "aliases": [
+    "船班",
+    "码头接驳"
+  ],
+  "tags": [
+    "船",
+    "海岛"
+  ],
+  "domain": "travel",
+  "difficulty": "mid",
+  "content": {
+    "goal": "降低赶船、晕船和天气取消带来的损失。",
+    "checklist": [
+      "确认码头名称而不是只看岛名",
+      "提前询问酒店接送范围",
+      "准备晕船药和防水袋",
+      "雨季或风浪期预留备选日"
+    ],
+    "decisionRule": "带老人儿童或大件行李时，少换岛比多看一个岛更重要。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.192Z",
+    "updatedAt": "2026-05-17T13:46:42.192Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

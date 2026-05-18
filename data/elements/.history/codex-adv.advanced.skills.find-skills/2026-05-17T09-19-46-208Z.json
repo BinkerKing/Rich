@@ -1,0 +1,43 @@
+{
+  "id": "codex-adv.advanced.skills.find-skills",
+  "type": "concept",
+  "title": "Find Skills",
+  "subtitle": "技能发现与安装",
+  "aliases": [
+    "技能市场检索",
+    "Skill Discovery"
+  ],
+  "tags": [
+    "agent-skills",
+    "workflow",
+    "marketplace"
+  ],
+  "domain": "ai-agent",
+  "difficulty": "low",
+  "content": {
+    "oneSentence": "Find Skills 类技能帮助代理在技能市场或本地目录中查找、比较、安装合适的 SKILL.md 包。",
+    "coreExplain": "它不是直接完成业务任务，而是解决“该用哪个技能”的问题。常见能力包括按关键词检索、读取技能说明、判断适用场景、给出安装命令或路径。",
+    "whyMatters": "技能生态变大后，人工记住所有技能不现实。发现类技能能降低入口成本，也能避免每次从零写提示词。",
+    "beginnerExplain": "像应用商店搜索，但对象是给 AI 代理用的能力包。",
+    "keyPoints": [
+      "优先看触发条件、依赖工具、权限范围",
+      "不要只按热度安装，还要看维护状态和安全边界",
+      "适合放在技能工作流的第一步"
+    ],
+    "examples": [
+      "想做网页测试时，先找 Playwright 或 Browser 类技能",
+      "想处理 PDF 时，检索 document、pdf、ocr 相关技能"
+    ],
+    "misconceptions": [
+      "热门技能不等于适合当前仓库",
+      "安装更多技能不一定提升质量，可能增加误触发和权限风险"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T08:38:30.546Z",
+    "updatedAt": "2026-05-17T08:38:30.546Z",
+    "generatedBy": "ai",
+    "richness": 3,
+    "aiModel": "codex"
+  }
+}

@@ -46,9 +46,10 @@
   },
   "metadata": {
     "createdAt": "2026-05-17",
-    "updatedAt": "2026-05-17",
+    "updatedAt": "2026-05-17T05:13:17.265Z",
     "generatedBy": "ai",
-    "aiModel": "gpt-5",
-    "richness": 3
+    "aiModel": "codex",
+    "richness": 3,
+    "aiSessionId": "019e3459-d6af-7481-8adf-841e80bb1a0e"
   }
 }

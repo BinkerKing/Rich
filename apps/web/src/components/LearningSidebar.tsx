@@ -3,6 +3,7 @@ import type { CenterView, Element, LearningPath, Relation } from "@ke/domain";
 import { Icon, iconForElement } from "./Icon.js";
 import type { LearningScene } from "./LearningScenes.js";
 import { learningScenes } from "./LearningScenes.js";
+import { elementDragProps, useDropTarget } from "../lib/elementDnd.js";
 import "./components.css";
 
 interface Props {
@@ -15,6 +16,10 @@ interface Props {
   onSelect: (id: string) => void;
   onSetCenter: (id: string) => void;
   onSceneChange: (scene: LearningScene) => void;
+  onDropOnto?: (sourceId: string, targetId: string) => void;
+  /** Compact mode: hide 推荐学习路径 and 页面场景, keep only hierarchical nav.
+   *  Used when embedded inside the fullscreen element-content panel. */
+  compact?: boolean;
 }
 
 export function LearningSidebar({
@@ -27,20 +32,20 @@ export function LearningSidebar({
   onSelect,
   onSetCenter,
   onSceneChange,
+  onDropOnto,
+  compact = false,
 }: Props) {
-  const selected = elements.get(selectedId) ?? view.center;
   // 上级元 = ancestors of the SELECTED element, excluding the element itself.
   // For the root, this is empty.
   const ancestorChain = lineageFor(selectedId, elements, relations).slice(0, -1);
   const parentId = directParentId(selectedId, relations);
-  const lateralAll = parentId
-    ? directChildren(parentId, elements, relations)
-    : directChildren(selectedId, elements, relations);
-  // 同级元 must not include the currently selected element.
-  const lateral = parentId
-    ? lateralAll.filter(el => el.id !== selectedId)
-    : lateralAll;
-  const lateralLabel = parentId ? "同级元" : "下级元";
+  // 同级元: siblings of the selected element (children of its parent, minus self).
+  // For the root, this section is empty (no parent).
+  const siblings = parentId
+    ? directChildren(parentId, elements, relations).filter(el => el.id !== selectedId)
+    : [];
+  // 下级元: direct children of the selected element.
+  const children = directChildren(selectedId, elements, relations);
 
   return (
     <aside className="learning-sidebar">
@@ -56,9 +61,8 @@ export function LearningSidebar({
                   key={item.id}
                   className={item.id === view.center.id ? "is-center" : ""}
                   type="button"
-                  title="单击查看 · 双击设为中心"
-                  onClick={() => onSelect(item.id)}
-                  onDoubleClick={() => { onSelect(item.id); onSetCenter(item.id); }}
+                  title="点击导航到这里"
+                  onClick={() => { onSelect(item.id); onSetCenter(item.id); }}
                 >
                   <span className="mini-icon"><Icon name={iconForElement(item.type, item.title)} /></span>
                   <span className="sidebar-node__title">{item.title}</span>
@@ -69,39 +73,67 @@ export function LearningSidebar({
           </>
         ) : null}
 
-        <div className="sidebar-label">{lateralLabel}</div>
-        <div className="sidebar-list">
-          {lateral.map(child => (
-            <SidebarItem
-              key={child.id}
-              element={child}
-              active={selectedId === child.id}
-              onSelect={onSelect}
-            />
-          ))}
-        </div>
+        {siblings.length > 0 && (
+          <>
+            <div className="sidebar-label">同级元</div>
+            <div className="sidebar-list">
+              {siblings.map(child => (
+                <SidebarItem
+                  key={child.id}
+                  element={child}
+                  active={selectedId === child.id}
+                  onSelect={onSelect}
+                  onSetCenter={onSetCenter}
+                  onDropOnto={onDropOnto}
+                />
+              ))}
+            </div>
+          </>
+        )}
+
+        {children.length > 0 && (
+          <>
+            <div className="sidebar-label">下级元</div>
+            <div className="sidebar-list">
+              {children.map(child => (
+                <SidebarItem
+                  key={child.id}
+                  element={child}
+                  active={selectedId === child.id}
+                  onSelect={onSelect}
+                  onSetCenter={onSetCenter}
+                  onDropOnto={onDropOnto}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </section>
 
-      <section>
-        <div className="sidebar-label">推荐学习路径</div>
-        <PathList paths={paths} elements={elements} onSelect={onSelect} />
-      </section>
+      {!compact && (
+        <section>
+          <div className="sidebar-label">推荐学习路径</div>
+          <PathList paths={paths} elements={elements} onSelect={onSelect} />
+        </section>
+      )}
 
-      <section>
-        <div className="sidebar-label">页面场景</div>
-        <div className="scene-list">
-          {learningScenes.map(item => (
-            <button
-              key={item.id}
-              className={scene === item.id ? "is-active" : ""}
-              type="button"
-              onClick={() => onSceneChange(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </section>
+      {!compact && (
+        <section>
+          <div className="sidebar-label">页面场景</div>
+          <div className="scene-list">
+            {learningScenes.map(item => (
+              <button
+                key={item.id}
+                className={scene === item.id ? "is-active" : ""}
+                type="button"
+                onClick={() => onSceneChange(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
     </aside>
   );
 }
@@ -198,16 +230,28 @@ function SidebarItem({
   element,
   active,
   onSelect,
+  onSetCenter,
+  onDropOnto,
 }: {
   element: Element;
   active: boolean;
   onSelect: (id: string) => void;
+  onSetCenter?: (id: string) => void;
+  onDropOnto?: (sourceId: string, targetId: string) => void;
 }) {
+  const drop = useDropTarget(element.id, src => onDropOnto?.(src, element.id));
   return (
     <button
-      className={`sidebar-node ${active ? "is-active" : ""}`}
+      className={`sidebar-node ${active ? "is-active" : ""}${drop.isOver ? " is-drop-over" : ""}`}
       type="button"
+      title="单击查看 · 双击设为中心元 · 可拖动 · 拖到这里 = 设为新父元"
       onClick={() => onSelect(element.id)}
+      onDoubleClick={() => {
+        onSelect(element.id);
+        onSetCenter?.(element.id);
+      }}
+      {...elementDragProps(element.id)}
+      {...drop.bind}
     >
       <span className="mini-icon"><Icon name={iconForElement(element.type, element.title)} /></span>
       <span className="sidebar-node__title">{element.title}</span>

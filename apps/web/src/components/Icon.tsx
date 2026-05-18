@@ -20,7 +20,9 @@ export type IconName =
   | "map"
   | "bell"
   | "upload"
-  | "calendar";
+  | "calendar"
+  | "palette"
+  | "gear";
 
 interface Props {
   name: IconName;
@@ -51,6 +53,14 @@ const paths: Record<IconName, string[]> = {
   bell: ["M18 10a6 6 0 0 0-12 0c0 7-2 7-2 7h16s-2 0-2-7Z", "M10 21h4"],
   upload: ["M12 16V4M7 9l5-5 5 5", "M5 18v2h14v-2"],
   calendar: ["M5 5h14v15H5V5Z", "M8 3v4M16 3v4M5 10h14"],
+  palette: [
+    "M12 3a9 9 0 1 0 0 18c1.2 0 2-.8 2-1.9 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2H17a4 4 0 0 0 4-4c0-4.4-4-7.5-9-7.5Z",
+    "M7.5 12a1 1 0 1 1 0-2 1 1 0 0 1 0 2ZM10.5 8.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2ZM15 8.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2ZM17.5 12a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z",
+  ],
+  gear: [
+    "M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z",
+    "M19.4 12c0-.5-.05-1-.13-1.5l2-1.5-2-3.4-2.3.95a7.5 7.5 0 0 0-2.6-1.5L14 2.5h-4l-.37 2.55a7.5 7.5 0 0 0-2.6 1.5L4.73 5.6 2.73 9l2 1.5c-.08.5-.13 1-.13 1.5s.05 1 .13 1.5l-2 1.5 2 3.4 2.3-.95a7.5 7.5 0 0 0 2.6 1.5L10 21.5h4l.37-2.55a7.5 7.5 0 0 0 2.6-1.5l2.3.95 2-3.4-2-1.5c.08-.5.13-1 .13-1.5Z",
+  ],
 };
 
 export function Icon({ name, className = "" }: Props) {
@@ -71,6 +81,7 @@ export function iconForElement(type: ElementType, title?: string): IconName {
   if (title?.includes("推理")) return "diamond";
   if (title?.includes("决策")) return "branch";
   if (type === "practice" || type === "project") return "rocket";
+  if (type === "product-design") return "diamond";
   if (type === "summary") return "card";
   if (type === "topic") return "brain";
   return "spark";

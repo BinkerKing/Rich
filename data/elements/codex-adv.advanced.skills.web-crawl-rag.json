@@ -1,0 +1,44 @@
+{
+  "id": "codex-adv.advanced.skills.web-crawl-rag",
+  "type": "concept",
+  "title": "Web Crawl / RAG",
+  "subtitle": "网页抓取与知识入库技能",
+  "aliases": [
+    "Crawl4AI",
+    "Firecrawl",
+    "网页转 Markdown"
+  ],
+  "tags": [
+    "web",
+    "rag",
+    "research"
+  ],
+  "domain": "knowledge-work",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "Web Crawl / RAG 类技能把网页、文档站点或公开资料转成适合模型读取和入库的结构化文本。",
+    "coreExplain": "这类技能通常处理抓取、正文提取、去噪、链接遍历、Markdown 输出和元数据保留。它适合构建知识库、竞品资料库、文档问答和研究素材池。",
+    "whyMatters": "模型直接读网页容易受到广告、导航、脚本和格式噪声干扰。抓取技能能把外部信息变成稳定、可追踪的知识输入。",
+    "beginnerExplain": "它像一个会整理网页资料的采集员。",
+    "keyPoints": [
+      "需要保留来源 URL 和抓取时间",
+      "优先遵守网站 robots、版权和访问限制",
+      "适合和向量库、知识图谱、总结技能组合使用"
+    ],
+    "examples": [
+      "抓取产品文档站并生成内部问答知识库",
+      "把竞品博客整理成可检索的主题材料"
+    ],
+    "misconceptions": [
+      "抓到内容不代表可以自由再发布",
+      "网页转 Markdown 后仍需要去重和事实校验"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T08:38:30.551Z",
+    "updatedAt": "2026-05-17T08:38:30.551Z",
+    "generatedBy": "ai",
+    "richness": 3,
+    "aiModel": "codex"
+  }
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "path.thai-trip.quick",
+    "centerElementId": "thai-trip",
+    "kind": "quick",
+    "label": "快速成行路径",
+    "color": "gold",
+    "steps": [
+      "thai-trip.dest",
+      "thai-trip.plan.itinerary",
+      "thai-trip.entry",
+      "thai-trip.move.hotel"
+    ],
+    "estimatedTime": "30-45分钟",
+    "generatedBy": "ai",
+    "createdAt": "2026-05-17"
+  }
+]

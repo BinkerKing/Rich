@@ -1,0 +1,32 @@
+{
+  "id": "thai-trip.move.intercity.air",
+  "type": "practice",
+  "title": "飞行转场",
+  "subtitle": "国内航班与机场选择",
+  "aliases": [
+    "泰国国内航班"
+  ],
+  "tags": [
+    "航班",
+    "转场"
+  ],
+  "domain": "travel",
+  "difficulty": "low",
+  "content": {
+    "goal": "把航班时间转化为真实行程时间。",
+    "checklist": [
+      "确认曼谷使用素万那普还是廊曼机场",
+      "核对行李额度和托运行李费用",
+      "预留市区到机场的堵车时间",
+      "海岛返程避免压线衔接国际航班"
+    ],
+    "decisionRule": "早班机适合延长目的地时间，但会增加起床和误机压力。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.192Z",
+    "updatedAt": "2026-05-17T13:46:42.192Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

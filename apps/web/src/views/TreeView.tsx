@@ -7,6 +7,7 @@ import { ElementContentPanel } from "../components/ElementContentPanel.js";
 import { Icon } from "../components/Icon.js";
 import { LearningScenes, type LearningScene } from "../components/LearningScenes.js";
 import { SystemPanel, type SystemPanelMode } from "../components/SystemPanel.js";
+import { ThemeSwitch } from "../components/ThemeSwitch.js";
 import { centerStyleFor } from "../theme/centerStyle.js";
 import "./TreeView.css";
 
@@ -18,6 +19,7 @@ export function TreeView() {
   const visible = useStore(s => s.visiblePathKinds);
   const setCenter = useStore(s => s.setCenter);
   const exitToHome = useStore(s => s.exitToHome);
+  const moveElement = useStore(s => s.moveElement);
   const [selectedId, setSelectedId] = useState(centerId);
   const [scene, setScene] = useState<LearningScene>("tree");
   const [systemMode, setSystemMode] = useState<SystemPanelMode>("search");
@@ -33,6 +35,19 @@ export function TreeView() {
   useEffect(() => {
     setSelectedId(centerId);
   }, [centerId]);
+
+  // Shared handler for HTML5 drag-drop reparent. Confirms with the user,
+  // then asks the store to call the backend move endpoint.
+  const handleDropOnto = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    const src = elements.get(sourceId);
+    const tgt = elements.get(targetId);
+    if (!src || !tgt) return;
+    if (!window.confirm(`把「${src.title}」移到「${tgt.title}」下？`)) return;
+    void moveElement(sourceId, targetId).catch(err => {
+      window.alert(`移动失败：${err instanceof Error ? err.message : String(err)}`);
+    });
+  };
 
   useEffect(() => {
     const root = document.documentElement;
@@ -66,6 +81,7 @@ export function TreeView() {
       pathsForElement={pathsForElement}
       onSelect={setSelectedId}
       onSetCenter={setCenter}
+      onDropOnto={handleDropOnto}
     />
   );
 
@@ -92,9 +108,8 @@ export function TreeView() {
                 key={item.id}
                 className={isCurrent ? "now" : ""}
                 type="button"
-                title={isCurrent ? "当前查看" : "点击切到这里 · 双击设为中心"}
-                onClick={() => setSelectedId(item.id)}
-                onDoubleClick={() => { setSelectedId(item.id); setCenter(item.id); }}
+                title={isCurrent ? "当前查看" : "点击导航到这里"}
+                onClick={() => { setSelectedId(item.id); setCenter(item.id); }}
               >
                 {item.title}
               </button>
@@ -106,6 +121,8 @@ export function TreeView() {
           <button className={systemMode === "view" ? "is-active" : ""} type="button" aria-label="视图" onClick={() => setSystemMode("view")}><Icon name="grid" /></button>
           <button className={systemMode === "map" ? "is-active" : ""} type="button" aria-label="知识地图" onClick={() => setSystemMode("map")}><Icon name="map" /></button>
           <button className={systemMode === "notice" ? "is-active" : ""} type="button" aria-label="通知" onClick={() => setSystemMode("notice")}><Icon name="bell" /></button>
+          <button type="button" aria-label="后台" title="后台管理" onClick={() => { window.location.hash = "/admin"; }}><Icon name="gear" /></button>
+          <ThemeSwitch />
           <span>K</span>
         </div>
       </header>
@@ -120,6 +137,7 @@ export function TreeView() {
         onSelect={setSelectedId}
         onSetCenter={setCenter}
         onSceneChange={setScene}
+        onDropOnto={handleDropOnto}
       />
       {scene === "tree" ? (
         <main className="tv-main">
@@ -130,6 +148,21 @@ export function TreeView() {
             currentLevel={currentLevel}
             onOpenChildren={() => setCenter(selected.id)}
             onSelect={setSelectedId}
+            leftSidebarFullscreen={(
+              <LearningSidebar
+                view={view}
+                selectedId={selected.id}
+                elements={elements}
+                relations={relations}
+                paths={pathsForElement(selected.id)}
+                scene={scene}
+                onSelect={setSelectedId}
+                onSetCenter={setCenter}
+                onSceneChange={setScene}
+                onDropOnto={handleDropOnto}
+                compact
+              />
+            )}
           />
         </main>
       ) : (

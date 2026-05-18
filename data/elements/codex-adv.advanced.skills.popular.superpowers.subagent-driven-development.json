@@ -1,0 +1,41 @@
+{
+  "id": "codex-adv.advanced.skills.popular.superpowers.subagent-driven-development",
+  "type": "concept",
+  "title": "Subagent-Driven Development",
+  "subtitle": "把可并行的任务拆给子代理协作",
+  "aliases": [
+    "subagent-driven-development"
+  ],
+  "tags": [
+    "codex",
+    "subagents",
+    "parallel-work"
+  ],
+  "domain": "AI coding agent",
+  "difficulty": "high",
+  "content": {
+    "oneSentence": "Subagent-Driven Development Skill 用多个子代理并行处理相对独立的探索、实现或验证任务。",
+    "coreExplain": "它适合任务范围较大、可以拆成互不冲突部分的场景。主代理负责拆分边界、指定文件或职责、整合结果，并避免多个子代理在同一片代码上互相覆盖。",
+    "whyMatters": "大型任务只靠单一路径推进，容易慢且视野窄。合理使用子代理可以并行收集信息、分块实现、提前发现风险。",
+    "beginnerExplain": "主 Codex 像项目负责人，把不同小任务交给不同助手，同时自己继续推进关键路径。",
+    "keyPoints": [
+      "只有独立任务才适合并行。",
+      "需要明确每个子代理的职责和写入范围。",
+      "主代理仍要负责最终整合和质量判断。"
+    ],
+    "examples": [
+      "一个子代理检查 API 调用链，另一个子代理检查前端状态流。",
+      "一个子代理实现后端校验，另一个子代理补前端错误展示。"
+    ],
+    "misconceptions": [
+      "误区：子代理越多越好。拆分不清会制造合并成本和冲突。"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T09:06:08.478Z",
+    "updatedAt": "2026-05-17T09:06:08.478Z",
+    "generatedBy": "ai",
+    "richness": 3,
+    "aiModel": "codex"
+  }
+}

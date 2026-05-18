@@ -1,0 +1,76 @@
+.mermaid-diagram {
+  margin: 14px 0;
+  padding: 16px 16px 14px;
+  border: 1px solid var(--line);
+  border-left: 3px solid #6aa8ff;
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(106, 168, 255, .06), transparent 40%),
+    rgba(13, 24, 42, .55);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mermaid-diagram > header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.mermaid-diagram__badge {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(106, 168, 255, .14);
+  color: #8dbcff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+.mermaid-diagram > header strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.mermaid-diagram__host {
+  display: flex;
+  justify-content: stretch;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+.mermaid-diagram__host svg {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  min-height: 240px;
+}
+/* Bump up label readability inside SVG */
+.mermaid-diagram__host svg .nodeLabel,
+.mermaid-diagram__host svg .edgeLabel,
+.mermaid-diagram__host svg .taskText,
+.mermaid-diagram__host svg .titleText,
+.mermaid-diagram__host svg text {
+  font-size: 13px !important;
+}
+.mermaid-diagram__host svg .titleText { font-size: 16px !important; font-weight: 600; }
+.mermaid-diagram__host svg .sectionTitle { font-size: 14px !important; font-weight: 500; }
+
+.mermaid-diagram figcaption {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.mermaid-diagram__error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 7px;
+  background: rgba(255, 138, 138, .08);
+  border: 1px solid rgba(255, 138, 138, .35);
+  color: #ff8a8a;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow-y: auto;
+}

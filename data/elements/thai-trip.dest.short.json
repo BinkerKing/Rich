@@ -1,0 +1,36 @@
+{
+  "id": "thai-trip.dest.short",
+  "type": "concept",
+  "title": "近曼谷短途",
+  "subtitle": "芭提雅、华欣、大城与北碧",
+  "aliases": [
+    "Bangkok side trips"
+  ],
+  "tags": [
+    "短途",
+    "周边"
+  ],
+  "domain": "travel",
+  "difficulty": "low",
+  "content": {
+    "oneSentence": "近曼谷短途适合用1-2天补充海边、古城或自然体验。",
+    "coreExplain": "芭提雅交通方便、娱乐和亲子项目多；华欣更安静，适合度假；大城偏历史遗迹；北碧适合自然、河流和二战相关遗址。它们不应被当作南部海岛的替代品。",
+    "whyMatters": "短途目的地能提升行程弹性，但期待管理很关键。",
+    "misconceptions": [
+      "以为芭提雅海滩能代表泰国海岛水准",
+      "以为大城适合正午暴走，炎热季节体验会下降",
+      "以为华欣适合所有短假，路程和住宿位置仍需规划"
+    ],
+    "nextSteps": [
+      "用交通时间倒推是否过夜",
+      "把短途作为曼谷后的缓冲模块"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.184Z",
+    "updatedAt": "2026-05-17T13:46:42.184Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "id": "codex-adv.advanced.skills.popular.superpowers.systematic-debugging",
+  "type": "concept",
+  "title": "Systematic Debugging",
+  "subtitle": "用证据链定位问题，而不是猜修",
+  "aliases": [
+    "systematic-debugging"
+  ],
+  "tags": [
+    "codex",
+    "debugging",
+    "quality"
+  ],
+  "domain": "AI coding agent",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "Systematic Debugging Skill 要求先复现、再定位、再修复，避免凭直觉改代码。",
+    "coreExplain": "它把调试拆成几个阶段：确认现象、收集证据、形成假设、做最小验证、再落地修复。适合测试失败、线上异常、行为和预期不一致等情况。",
+    "whyMatters": "复杂 bug 的危险不在于不会改，而在于改错地方后引入新问题。系统调试让每次修改都能回到证据上。",
+    "beginnerExplain": "先搞清楚问题在哪里，再动手修。不要看到可疑代码就马上改。",
+    "keyPoints": [
+      "先复现问题。",
+      "每个假设都要有验证动作。",
+      "修复后要确认原问题消失，并检查相邻风险。"
+    ],
+    "examples": [
+      "接口偶发 500，先查日志和输入条件，而不是直接改异常处理。",
+      "组件状态错乱，先定位触发顺序，再改状态更新逻辑。"
+    ],
+    "misconceptions": [
+      "误区：系统调试会拖慢速度。对不明确的问题，它通常比反复猜修更快。"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T09:06:08.476Z",
+    "updatedAt": "2026-05-17T09:06:08.476Z",
+    "generatedBy": "ai",
+    "richness": 3,
+    "aiModel": "codex"
+  }
+}

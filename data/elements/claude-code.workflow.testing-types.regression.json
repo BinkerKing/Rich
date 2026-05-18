@@ -1,0 +1,21 @@
+{
+  "id": "claude-code.workflow.testing-types.regression",
+  "type": "concept",
+  "title": "回归测试",
+  "content": {
+    "oneSentence": "回归测试验证新修改没有破坏已经存在且曾经正常工作的功能。",
+    "coreExplain": "它常围绕核心路径、历史缺陷和高风险模块组织。回归测试可以由单元测试、集成测试或端到端测试组成，重点是保护旧行为。",
+    "whyMatters": "在开发工作流中，每次修复和重构都可能引入意外副作用。回归测试把过去的经验沉淀为可重复验证的保护网。",
+    "misconceptions": [
+      "回归测试不是一种固定层级的测试，而是一种测试目标",
+      "回归测试不等于把所有测试都跑一遍"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T08:48:36.345Z",
+    "updatedAt": "2026-05-17T08:48:36.345Z",
+    "generatedBy": "ai",
+    "richness": 3,
+    "aiModel": "codex"
+  }
+}

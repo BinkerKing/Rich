@@ -1,0 +1,24 @@
+{
+  "id": "claude-code.workflow.testing-types.e2e",
+  "type": "concept",
+  "title": "端到端测试",
+  "aliases": [
+    "E2E 测试"
+  ],
+  "content": {
+    "oneSentence": "端到端测试从用户视角验证一条完整业务路径是否能在系统中走通。",
+    "coreExplain": "它通常跨越前端、后端、数据库和外部服务，模拟真实用户操作。端到端测试能发现系统级问题，但运行成本高，维护也更敏感。",
+    "whyMatters": "Claude Code 修改跨层逻辑时，端到端测试能验证用户可见结果是否仍然成立。它不适合替代低层测试，更适合作为关键路径的最后防线。",
+    "examples": [
+      "从登录到下单再到支付完成的完整流程",
+      "从创建项目到邀请成员再到权限生效的完整流程"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T08:48:36.343Z",
+    "updatedAt": "2026-05-17T08:48:36.343Z",
+    "generatedBy": "ai",
+    "richness": 3,
+    "aiModel": "codex"
+  }
+}

@@ -1,0 +1,269 @@
+/* Styles specific to the dynamic Section palette. The check-list / dot-list /
+   callout / mechanism-flow / module-grid / competitor-table / mvp-grid /
+   warn-grid / decision-list / phase-timeline / example-list classes are
+   already defined elsewhere — we only add what's new here. */
+
+.sec-quote {
+  margin: 12px 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--center-accent, var(--teal));
+  background: linear-gradient(180deg, rgba(255, 255, 255, .02), transparent);
+  color: var(--soft);
+  font-style: italic;
+}
+.sec-quote p { margin: 0 0 6px; }
+.sec-quote cite { font-size: 12px; color: var(--muted); font-style: normal; }
+
+.sec-kv-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.sec-kv-table th,
+.sec-kv-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  text-align: left;
+  font-size: 14px;
+  color: var(--soft);
+  line-height: 1.6;
+}
+.sec-kv-table th {
+  width: 30%;
+  background: rgba(106, 168, 255, .06);
+  font-weight: 500;
+  color: var(--text);
+}
+.sec-kv-table tr:last-child th,
+.sec-kv-table tr:last-child td { border-bottom: 0; }
+
+/* Day-by-day schedule (travel / project planning) */
+.sec-day-schedule {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.sec-day-schedule__day {
+  border: 1px solid var(--line);
+  border-left: 3px solid #6aa8ff;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(106, 168, 255, .05), transparent 38%), rgba(13, 24, 42, .55);
+}
+.sec-day-schedule__day > header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.sec-day-schedule__num {
+  flex: 0 0 auto;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(106, 168, 255, .14);
+  color: #8dbcff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+.sec-day-schedule__day > header strong {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 600;
+}
+.sec-day-schedule__day > header em {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 12px;
+  margin-left: auto;
+}
+.sec-day-schedule__day > ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sec-day-schedule__day > ul > li {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  column-gap: 14px;
+  row-gap: 4px;
+  align-items: baseline;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--line);
+  color: var(--soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.sec-day-schedule__day > ul > li:last-child { border-bottom: 0; }
+.sec-day-schedule__time {
+  font-variant-numeric: tabular-nums;
+  color: var(--center-accent, var(--teal));
+  font-weight: 600;
+  font-size: 13px;
+  grid-column: 1;
+  grid-row: 1;
+}
+.sec-day-schedule__what {
+  grid-column: 2;
+  grid-row: 1;
+  color: var(--text);
+}
+/* Note flows on the next row under "what", same column — no more dead space on the right. */
+.sec-day-schedule__note {
+  grid-column: 2;
+  grid-row: 2;
+  color: var(--muted);
+  font-size: 12.5px;
+  padding-left: 0;
+}
+/* Items missing a time still align cleanly. */
+.sec-day-schedule__day > ul > li:not(:has(.sec-day-schedule__time)) .sec-day-schedule__what { grid-column: 1 / -1; }
+.sec-day-schedule__day > ul > li:not(:has(.sec-day-schedule__time)) .sec-day-schedule__note { grid-column: 1 / -1; }
+
+/* Budget table */
+.sec-budget {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sec-budget__table {
+  border-collapse: collapse;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.sec-budget__table th,
+.sec-budget__table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--soft);
+  text-align: left;
+}
+.sec-budget__table th {
+  background: rgba(106, 168, 255, .06);
+  color: var(--text);
+  font-weight: 500;
+}
+.sec-budget__total {
+  align-self: flex-end;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(116, 229, 176, .14);
+  color: #74e5b0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Grouped checklist */
+.sec-checklist-grouped {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.sec-checklist-grouped section h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Real image — full-bleed by default so it never leaves the giant black gutters
+   the user complained about. Caption goes underneath, aligned left.
+   If you want image-side-text, use the .body-section--image-pair wrapper. */
+.sec-image {
+  margin: 14px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.sec-image img {
+  width: 100%;
+  max-height: none;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .35);
+  object-fit: cover;
+  display: block;
+}
+.sec-image figcaption {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: left;
+  padding: 0 4px;
+  line-height: 1.55;
+}
+
+/* Image-with-text composite: image left, text column right.
+   Collapses to stacked on narrow widths. */
+.sec-image-pair {
+  margin: 14px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.sec-image-pair__media .sec-image { margin: 0; }
+.sec-image-pair__text {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sec-image-pair__text .body-lead,
+.sec-image-pair__text .body-prose,
+.sec-image-pair__text .callout { margin: 0; }
+@media (max-width: 920px) {
+  .sec-image-pair { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Image placeholder */
+.sec-image-placeholder {
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sec-image-placeholder__box {
+  height: 140px;
+  border: 1px dashed var(--line-2);
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--muted);
+  background: rgba(8, 19, 34, .42);
+}
+.sec-image-placeholder__box span { font-size: 26px; }
+.sec-image-placeholder figcaption { font-size: 12px; color: var(--muted); }
+
+/* Unknown block style fallback */
+.sec-unknown {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 138, 138, .07);
+  border: 1px solid rgba(255, 138, 138, .3);
+  color: #ff8a8a;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sec-unknown pre {
+  margin: 0;
+  font-size: 11px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}

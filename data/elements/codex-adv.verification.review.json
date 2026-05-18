@@ -1,0 +1,46 @@
+{
+  "id": "codex-adv.verification.review",
+  "type": "practice",
+  "title": "PR 审查自动化",
+  "subtitle": "让 Codex 先抓回归风险",
+  "aliases": [
+    "Codex Code Review",
+    "自动代码审查"
+  ],
+  "tags": [
+    "PR",
+    "代码审查"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "Codex 可以作为第一轮 PR 审查者，寻找明显 bug、遗漏测试和潜在回归。",
+    "coreExplain": "自动审查适合发现逻辑漏洞、边界条件、接口不兼容、测试不足和文档遗漏。它不能替代团队对产品方向、架构取舍和长期维护成本的判断。",
+    "whyMatters": "让 Codex 先审一遍，可以把人工审查注意力留给更高层问题。它尤其适合重复检查团队已有规则。",
+    "beginnerExplain": "提交 PR 前，让 Codex 像同事一样挑问题。你不一定采纳全部建议，但能提前发现低级风险。",
+    "keyPoints": [
+      "审查提示要说明关注重点",
+      "要求输出按严重程度排序",
+      "建议必须绑定具体文件或行为",
+      "误报要反馈并沉淀规则"
+    ],
+    "examples": [
+      "审查认证逻辑是否可能绕过权限",
+      "检查数据迁移是否兼容旧记录",
+      "发现新增组件缺少加载和错误状态"
+    ],
+    "mechanisms": [
+      "提供 diff 或 PR 范围",
+      "指定审查维度和严重程度标准",
+      "让 Codex 输出发现、证据和建议",
+      "人工确认并决定是否修改"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "codex",
+    "richness": 3
+  }
+}

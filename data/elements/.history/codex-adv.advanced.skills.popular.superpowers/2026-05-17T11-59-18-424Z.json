@@ -1,0 +1,94 @@
+{
+  "id": "codex-adv.advanced.skills.popular.superpowers",
+  "type": "concept",
+  "title": "Superpowers Skill 体系",
+  "subtitle": "一组把高质量工程流程显式化的元技能",
+  "aliases": [
+    "Superpowers",
+    "superpower skills"
+  ],
+  "tags": [
+    "codex",
+    "skills",
+    "workflow"
+  ],
+  "domain": "AI coding agent",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "Superpowers Skill 体系是一组可安装、可查看源码的流程型技能，用来提醒 Codex 在关键场景采用更稳的工作方法。",
+    "coreExplain": "它不是单一工具，而是一套面向软件开发流程的操作习惯：先理解技能规则，再按场景进入测试驱动、系统调试、并行代理、收尾验证等工作流。它的价值在于把容易被跳过的工程纪律写成可触发的步骤，并通过每个技能目录里的 SKILL.md 明确说明触发条件、执行步骤和约束。若要安装或查看来源，优先看上游仓库 https://github.com/obra/superpowers，Codex 相关说明可看 https://github.com/obra/superpowers/blob/main/docs/README.codex.md。",
+    "whyMatters": "AI 编程代理容易过早动手、验证不足或在复杂任务中丢失结构。Superpowers 类技能通过显式流程约束，把“会写代码”推进到“能可靠交付”。补充场景使用方法后，用户不仅知道有哪些技能，还能用明确提示词把 Agent 引导到正确工作流。",
+    "beginnerExplain": "可以把它理解成 Codex 的工作手册。每个技能通常对应一个目录，核心说明文件是 SKILL.md，例如 test-driven-development、systematic-debugging、verification-before-completion 这类目录。安装时可以用技能管理命令按需添加，例如 npx skills add https://github.com/obra/superpowers --skill verification-before-completion；安装后再在本地技能目录中查看对应 SKILL.md。",
+    "keyPoints": [
+      "它偏向流程与协作，不是某个单点 API。",
+      "它常用于实现、调试、测试、收尾、并行任务等环节。",
+      "它的核心是降低遗漏，而不是增加形式感。",
+      "官方源码入口是 https://github.com/obra/superpowers，单个技能通常位于 skills/<skill-name>/SKILL.md。",
+      "常见安装方式是按技能名安装：npx skills add https://github.com/obra/superpowers --skill <skill-name>。"
+    ],
+    "learningGoals": [
+      "知道 Superpowers Skill 不是模型能力本身，而是流程规则集合。",
+      "能通过官方仓库找到某个技能的 SKILL.md。",
+      "能区分源码下载、技能安装、本地查看这三个动作。",
+      "能按任务场景选择最小必要技能，而不是一次启用全部技能。",
+      "能用清晰提示词要求 Agent 在实现、调试、验证等场景调用对应 Superpowers 流程。"
+    ],
+    "mechanisms": [
+      {
+        "label": "1. 找官方来源",
+        "description": "先从 https://github.com/obra/superpowers 查看上游仓库；如果是 Codex 使用场景，再看 https://github.com/obra/superpowers/blob/main/docs/README.codex.md。"
+      },
+      {
+        "label": "2. 定位具体技能",
+        "description": "在仓库的 skills/<skill-name>/SKILL.md 中查看规则，例如 skills/test-driven-development/SKILL.md 或 skills/verification-before-completion/SKILL.md。"
+      },
+      {
+        "label": "3. 按需安装",
+        "description": "使用 npx skills add https://github.com/obra/superpowers --skill <skill-name> 安装单个技能，例如把 <skill-name> 换成 verification-before-completion。"
+      },
+      {
+        "label": "4. 本地核对",
+        "description": "安装后在本地技能目录查看 SKILL.md；在当前 Codex 环境中，Superpowers 技能常见路径形如 /Users/binkerking/.codex/superpowers/skills/<skill-name>/SKILL.md。"
+      },
+      {
+        "label": "5. 场景触发",
+        "description": "真正使用时不是背诵所有技能，而是在提示词里说明当前场景、指定或暗示对应技能，并要求 Agent 按该技能流程执行。"
+      }
+    ],
+    "examples": [
+      "实现新功能前触发 test-driven-development，先写会失败的测试，再写最小实现。",
+      "修复诡异 bug 时触发 systematic-debugging，先定位根因，再改代码。",
+      "交付前触发 verification-before-completion，先运行测试、构建或检查命令，再声明完成。",
+      "想查看安装来源时，打开 https://github.com/obra/superpowers；想看 Codex 使用说明时，打开 https://github.com/obra/superpowers/blob/main/docs/README.codex.md。"
+    ],
+    "misconceptions": [
+      "误区：Superpowers 会自动提高模型能力。更准确地说，它提高的是工作流程的稳定性。",
+      "误区：每次都要使用所有 Superpowers。实际应按任务场景选择最小必要技能。",
+      "误区：知道技能名字就等于会用。真正要核对的是该技能目录里的 SKILL.md，因为触发条件和步骤写在那里。",
+      "误区：安装仓库就等于安装所有技能。更稳妥的理解是按技能名安装和启用，避免把无关流程引入当前任务。",
+      "误区：只写“用 Superpowers”就足够。更稳的提示词应说明任务场景、目标、希望采用的技能流程和验证要求。"
+    ],
+    "nextSteps": [
+      "官方源码入口：https://github.com/obra/superpowers",
+      "Codex 使用说明：https://github.com/obra/superpowers/blob/main/docs/README.codex.md",
+      "单技能安装模板：npx skills add https://github.com/obra/superpowers --skill <skill-name>",
+      "源码压缩包下载：https://github.com/obra/superpowers/archive/refs/heads/main.zip"
+    ],
+    "extraSections": [
+      {
+        "id": "scenario-usage",
+        "title": "场景使用方法",
+        "body": "使用 Superpowers 时，提示词的关键不是喊一个总名，而是把“当前场景 + 目标 + 希望采用的技能流程 + 验证要求”讲清楚。Agent 能否稳定进入正确流程，取决于提示词是否把任务类型说准。\n\n- 新功能开发：可以说“请使用 test-driven-development 的方式实现这个功能：先根据需求补一个会失败的测试，再写最小实现，最后运行相关测试并说明结果。”这种提示适合需求明确、可测试的功能改动。\n- Bug 修复：可以说“请使用 systematic-debugging 的方式处理这个 bug：先复现或定位证据，不要直接猜测修改；找到根因后再给出最小修复并验证。”这种提示适合报错、回归、边界行为异常等问题。\n- 复杂任务拆分：可以说“请先用 writing-plans 制定一个可执行计划，列出步骤、风险和验证方式；在我确认前不要改代码。”这种提示适合跨模块改造、迁移、重构或需求还不够清晰的任务。\n- 并行探索：可以说“如果有多个互不依赖的问题，请使用 dispatching-parallel-agents 或 subagent-driven-development，把代码阅读、测试定位和实现拆开并行推进。”这种提示适合信息量大、可以拆分的任务。\n- 交付前检查：可以说“完成后请使用 verification-before-completion：运行必要测试或检查命令，确认结果后再声明完成；如果不能验证，请说明原因。”这种提示适合任何准备交付的改动。\n\n一个通用模板是：“请使用 <skill-name> 处理这个任务。当前场景是 <场景>，目标是 <目标>，约束是 <约束>，完成前请 <验证方式>。”例如：“请使用 verification-before-completion 处理这个任务。当前场景是前端修复，目标是让按钮在移动端不溢出，约束是不改动无关样式，完成前请运行现有测试并用浏览器检查页面。”\n\n如果不确定该用哪个 skill，可以让 Agent 先选择：“请先判断这个任务适合使用哪个 Superpowers skill，并说明理由；选定后按该技能流程执行。”这样能避免用户硬指定错误技能，也能让 Agent 把选择依据暴露出来。",
+        "order": 1
+      }
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T09:06:08.472Z",
+    "updatedAt": "2026-05-17T10:48:41.852Z",
+    "generatedBy": "ai",
+    "richness": 3,
+    "aiModel": "codex",
+    "aiSessionId": "019e3532-07a1-77b3-b2d4-794d8edea56b"
+  }
+}

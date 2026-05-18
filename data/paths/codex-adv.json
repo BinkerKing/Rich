@@ -1,0 +1,49 @@
+[
+  {
+    "id": "path.codex-adv.quick",
+    "centerElementId": "codex-adv",
+    "kind": "quick",
+    "label": "快速上手路径",
+    "color": "gold",
+    "steps": [
+      "codex-adv.model",
+      "codex-adv.prompting.spec",
+      "codex-adv.verification"
+    ],
+    "estimatedTime": "45-60 分钟",
+    "generatedBy": "ai",
+    "createdAt": "2026-05-17"
+  },
+  {
+    "id": "path.codex-adv.academic",
+    "centerElementId": "codex-adv",
+    "kind": "academic",
+    "label": "系统理解路径",
+    "color": "cyan",
+    "steps": [
+      "codex-adv.model",
+      "codex-adv.context",
+      "codex-adv.workflow",
+      "codex-adv.advanced.governance"
+    ],
+    "estimatedTime": "2-3 小时",
+    "generatedBy": "ai",
+    "createdAt": "2026-05-17"
+  },
+  {
+    "id": "path.codex-adv.practice",
+    "centerElementId": "codex-adv",
+    "kind": "practice",
+    "label": "实践提升路径",
+    "color": "pink",
+    "steps": [
+      "codex-adv.workflow.debug",
+      "codex-adv.verification.tests",
+      "codex-adv.advanced.parallel",
+      "codex-adv.advanced.skills"
+    ],
+    "estimatedTime": "1-2 周项目实践",
+    "generatedBy": "ai",
+    "createdAt": "2026-05-17"
+  }
+]

@@ -1,0 +1,35 @@
+{
+  "id": "claude-code.workflow.plan.user-control",
+  "type": "product-design",
+  "title": "用户控制点设计",
+  "subtitle": "计划的核心价值是让用户在修改发生前拥有可操作的否决权。",
+  "content": {
+    "designQuestion": "用户应该在计划阶段获得哪些控制能力？",
+    "targetAudience": [
+      "代码所有者",
+      "结对协作中的 reviewer",
+      "对业务背景更了解但不一定亲自写代码的用户"
+    ],
+    "needs": [
+      "知道 AI 接下来会碰哪些文件",
+      "能阻止偏离目标的实现方向",
+      "能要求补充验证或缩小改动范围"
+    ],
+    "decisions": [
+      "计划应暴露关键假设，而不是只列任务清单",
+      "计划后如果用户纠正方向，后续执行必须服从最新指令",
+      "当需求含糊或风险较高时，应先提问再进入修改"
+    ],
+    "outOfScope": [
+      "不要求用户审批每一行代码",
+      "不把计划阶段设计成完整 PR 评审",
+      "不替代测试、lint 或人工 code review"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T00:00:00.000Z",
+    "updatedAt": "2026-05-17T00:00:00.000Z",
+    "generatedBy": "ai",
+    "richness": 3
+  }
+}

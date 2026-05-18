@@ -1,0 +1,42 @@
+{
+  "id": "codex-adv.advanced.skills.popular.gstack.design-review",
+  "type": "concept",
+  "title": "Design Review",
+  "subtitle": "用设计视角检查界面质量",
+  "aliases": [
+    "gstack-design-review"
+  ],
+  "tags": [
+    "codex",
+    "gstack",
+    "design",
+    "frontend"
+  ],
+  "domain": "AI coding agent",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "Design Review Skill 用设计评审视角检查界面的一致性、层级、间距和可用性问题。",
+    "coreExplain": "它适合前端改动后使用，关注视觉和交互质量，而不是只看功能是否通。常见检查点包括布局拥挤、文字溢出、状态不清、组件风格不一致和移动端适配。",
+    "whyMatters": "一个功能能用，不代表用户愿意反复使用。设计评审能发现代码测试看不到的体验问题。",
+    "beginnerExplain": "它像请设计师看一眼页面，指出哪里不舒服、哪里不一致。",
+    "keyPoints": [
+      "关注视觉层级和交互体验。",
+      "适合搭配截图或浏览器检查。",
+      "结果应尽量落到可修改的问题上。"
+    ],
+    "examples": [
+      "发现工具栏按钮大小不一致。",
+      "发现移动端卡片内容被按钮遮住。"
+    ],
+    "misconceptions": [
+      "误区：Design Review 只是在挑颜色。它更关注信息组织和可用性。"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T09:12:31.140Z",
+    "updatedAt": "2026-05-17T09:12:31.140Z",
+    "generatedBy": "ai",
+    "richness": 3,
+    "aiModel": "codex"
+  }
+}

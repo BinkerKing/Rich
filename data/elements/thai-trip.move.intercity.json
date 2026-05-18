@@ -1,0 +1,42 @@
+{
+  "id": "thai-trip.move.intercity",
+  "type": "concept",
+  "title": "跨城转场",
+  "subtitle": "飞机、火车、车船联运",
+  "aliases": [
+    "跨城交通"
+  ],
+  "tags": [
+    "转场",
+    "交通"
+  ],
+  "domain": "travel",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "跨城转场要计算门到门时间，而不是只看航班或车票时间。",
+    "coreExplain": "曼谷到清迈常用飞机或夜火车；南部海岛常涉及飞机加车船联运。机场距离、值机、行李、码头等候和天气取消都应计入计划。海岛离境日不宜安排过紧。",
+    "mechanisms": [
+      "计算酒店到机场或车站时间",
+      "加入提前到达和安检时间",
+      "加入落地后取行李与接驳时间",
+      "为船班和天气设置缓冲"
+    ],
+    "whyMatters": "转场低估是自由行最常见的时间漏洞。",
+    "misconceptions": [
+      "以为1小时航班只占1小时",
+      "以为车船联运一定无缝衔接",
+      "以为当天海岛回程可以稳接国际航班"
+    ],
+    "nextSteps": [
+      "用门到门方式重算所有转场",
+      "关键航班前一晚尽量住回出发城市"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.191Z",
+    "updatedAt": "2026-05-17T13:46:42.191Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

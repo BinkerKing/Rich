@@ -1,0 +1,32 @@
+{
+  "id": "thai-trip.plan.itinerary",
+  "type": "practice",
+  "title": "经典路线模板",
+  "subtitle": "从模板改出自己的行程",
+  "aliases": [
+    "自由行路线"
+  ],
+  "tags": [
+    "路线",
+    "模板"
+  ],
+  "domain": "travel",
+  "difficulty": "mid",
+  "content": {
+    "goal": "提供可直接改造的路线骨架。",
+    "templates": [
+      "曼谷5天：老城寺庙、湄南河、商圈、夜市、大城一日。",
+      "曼谷加清迈7天：曼谷3晚，清迈3晚，最后回曼谷或清迈离境。",
+      "曼谷加普吉7天：曼谷2晚，普吉4晚，最后一天留购物或转机缓冲。",
+      "甲米加普吉8天：甲米3晚，皮皮或跳岛1天，普吉3晚。"
+    ],
+    "adaptationRule": "带老人儿童时减少夜市和长船程，潜水或摄影旅客则增加连续海岛天数。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.187Z",
+    "updatedAt": "2026-05-17T13:46:42.187Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

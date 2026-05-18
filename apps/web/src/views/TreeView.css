@@ -3,6 +3,9 @@
   height: 100vh;
   max-height: 100vh;
   display: grid;
+  /* Standard layout: learning sidebar | main | system rail.
+     When the element panel is fullscreen, the sidebar is also rendered INSIDE
+     that overlay (the overlay floats above everything else anyway). */
   grid-template-columns: 250px minmax(0, 1fr) 250px;
   grid-template-rows: 60px minmax(0, 1fr) 54px;
   gap: 10px;
@@ -113,12 +116,26 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
+  flex: 0 0 auto;
+  position: relative;
   background:
     radial-gradient(circle at 48% 48%, rgba(231, 241, 247, .65), transparent 11%),
     radial-gradient(circle at 50% 50%, var(--center-accent), #17464d 57%, #071824);
   border: 1px solid var(--center-line);
   box-shadow: 0 0 22px var(--center-glow), inset 0 0 16px rgba(5, 11, 22, .8);
-  animation: pulseCore 4s ease-in-out infinite;
+  animation: pulseCore 2.8s ease-in-out infinite;
+}
+/* Outer breathing halo — a separate pseudo so we can pulse scale without
+   distorting the actual brand mark. */
+.tv-logo::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1px solid rgba(91, 227, 218, .35);
+  opacity: 0;
+  animation: pulseHalo 2.8s ease-out infinite;
+  pointer-events: none;
 }
 
 .tv-crumb {
@@ -257,15 +274,25 @@
 }
 
 @keyframes pulseCore {
-  0%, 100% { box-shadow: 0 0 20px var(--center-glow), inset 0 0 16px rgba(5, 11, 22, .8); }
-  50% { box-shadow: 0 0 34px var(--center-line), inset 0 0 20px rgba(5, 11, 22, .9); }
+  0%, 100% {
+    box-shadow: 0 0 18px var(--center-glow), inset 0 0 14px rgba(5, 11, 22, .85);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 0 40px var(--center-line), 0 0 60px var(--center-glow), inset 0 0 22px rgba(5, 11, 22, .9);
+    filter: brightness(1.15);
+  }
+}
+@keyframes pulseHalo {
+  0%   { transform: scale(.85); opacity: 0;   border-color: rgba(91, 227, 218, .55); }
+  35%  { opacity: .55; }
+  100% { transform: scale(1.7); opacity: 0;   border-color: rgba(91, 227, 218, 0); }
 }
 
 @media (max-width: 1240px) {
   .tree-view {
     grid-template-columns: 260px minmax(0, 1fr);
   }
-
   .system-panel {
     display: none;
   }

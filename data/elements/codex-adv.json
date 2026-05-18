@@ -1,0 +1,49 @@
+{
+  "id": "codex-adv",
+  "type": "topic",
+  "title": "Codex 的进阶使用指南",
+  "subtitle": "如何高效使用 Codex，并挖掘高阶用法",
+  "aliases": [
+    "Codex 高阶使用",
+    "AI 编程代理协作",
+    "Codex 工作流"
+  ],
+  "tags": [
+    "AI 编程",
+    "工程效率",
+    "开发工具",
+    "智能体"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "mid",
+  "content": {
+    "intro": "Codex 不只是代码补全工具，而是能阅读仓库、修改文件、运行命令、验证结果的编程代理。高效使用 Codex 的关键，不是把需求说得更长，而是让它获得正确上下文、明确边界、持续验证，并把复杂任务拆成可执行的工作流。",
+    "beginnerExplain": "可以把 Codex 理解成一个会动手的工程搭档。你给它目标、约束和验收标准，它会在项目里查找相关代码，做修改，跑测试，再把结果告诉你。进阶使用的重点，是学会指挥它，而不是只向它提问。",
+    "learningGoals": [
+      "理解 Codex 适合处理哪些开发任务，以及不适合完全放手的边界",
+      "掌握高质量提示、上下文管理、任务拆分和验证闭环",
+      "学会使用本地、云端、IDE、CLI、PR Review 等不同协作模式",
+      "能把 Codex 嵌入真实团队流程，而不是停留在一次性问答"
+    ],
+    "coreModules": [
+      "codex-adv.model",
+      "codex-adv.prompting",
+      "codex-adv.context",
+      "codex-adv.workflow",
+      "codex-adv.verification",
+      "codex-adv.advanced"
+    ],
+    "recommendedPaths": [
+      "quick",
+      "academic",
+      "practice"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "codex",
+    "richness": 3
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "id": "thai-trip.dest.bangkok",
+  "type": "concept",
+  "title": "曼谷",
+  "subtitle": "城市体验、购物、美食和中转核心",
+  "aliases": [
+    "Bangkok",
+    "曼谷自由行"
+  ],
+  "tags": [
+    "城市",
+    "购物",
+    "美食"
+  ],
+  "domain": "travel",
+  "difficulty": "low",
+  "content": {
+    "oneSentence": "曼谷是最适合作为泰国旅行起点的城市。",
+    "coreExplain": "它集合了大皇宫、郑王庙、湄南河、商圈、夜市、咖啡馆和米其林街头餐饮。第一次去泰国，曼谷通常值得安排2-3晚。住在BTS或MRT沿线比住在单个网红区域更稳。",
+    "whyMatters": "曼谷决定了入境后的适应速度，也常承担购物、转机和行程缓冲功能。",
+    "misconceptions": [
+      "以为大皇宫必须排满一天，多数游客半天即可",
+      "以为夜市越远越本地，交通成本可能抵消体验",
+      "以为住河边一定方便，部分河边酒店更适合度假而非高频移动"
+    ],
+    "nextSteps": [
+      "优先比较暹罗、素坤逸、是隆和老城住宿",
+      "把寺庙、商圈和夜市分到不同半天"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.182Z",
+    "updatedAt": "2026-05-17T13:46:42.182Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

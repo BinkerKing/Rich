@@ -49,12 +49,21 @@ function SearchSystem({
 }) {
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [submittedQuery, setSubmittedQuery] = useState("");
+  // Pin the ranking anchor at the moment the user submits the search. Without
+  // this the list re-ranks every time the user clicks a result (because
+  // `selected` changes and rankRelated uses it as a weight).
+  const [searchAnchor, setSearchAnchor] = useState<Element | null>(null);
   const all = Array.from(elements.values());
-  const related = rankRelated(selected, all).slice(0, 8);
+  const anchor = searchAnchor ?? selected;
+  const related = submittedQuery ? rankRelated(anchor, all, submittedQuery).slice(0, 8) : [];
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!query.trim()) return;
+    const nextQuery = query.trim();
+    if (!nextQuery) return;
+    setSubmittedQuery(nextQuery);
+    setSearchAnchor(selected);
     setIsSearching(true);
     window.setTimeout(() => setIsSearching(false), 900);
   }
@@ -62,16 +71,21 @@ function SearchSystem({
   return (
     <aside className="system-panel search-system">
       <header className="system-panel__head">
-        <h2>AI 定位</h2>
-        <span>搜索系统</span>
+        <h2>搜索</h2>
       </header>
 
       <form className="system-search-box" onSubmit={submitSearch}>
-        <Icon name="search" />
         <input
           value={query}
           placeholder="搜索知识元或主题（支持自然语言）"
-          onChange={event => setQuery(event.target.value)}
+          onChange={event => {
+            const nextQuery = event.target.value;
+            setQuery(nextQuery);
+            if (!nextQuery.trim()) {
+              setSubmittedQuery("");
+              setIsSearching(false);
+            }
+          }}
         />
         <button type="submit" aria-label="搜索">
           <Icon name="search" />
@@ -85,32 +99,34 @@ function SearchSystem({
         </div>
       )}
 
-      <section className="system-section">
-        <h3>相关知识元</h3>
-        <div className="search-result-list">
-          {related.map((item, index) => (
-            <button key={item.element.id} type="button" onClick={() => onSelect(item.element.id)}>
-              <span className="search-result-dot" style={{ "--dot-color": item.color } as CSSProperties} />
-              <span className="search-result-main">
-                <strong>{item.element.title}</strong>
-                <em>{item.reason}</em>
-              </span>
-              <b>{Math.max(62, 100 - index * 5)}%</b>
-            </button>
-          ))}
-        </div>
-      </section>
+      {submittedQuery && !isSearching && (
+        <>
+          <section className="system-section">
+            <h3>相关知识元</h3>
+            <div className="search-result-list">
+              {related.map((item, index) => (
+                <button key={item.element.id} type="button" onClick={() => onSelect(item.element.id)}>
+                  <span className="search-result-dot" style={{ "--dot-color": item.color } as CSSProperties} />
+                  <span className="search-result-main">
+                    <strong>{item.element.title}</strong>
+                    <em>{item.reason}</em>
+                  </span>
+                  <b>{Math.max(62, 100 - index * 5)}%</b>
+                </button>
+              ))}
+            </div>
+          </section>
 
-      <button className="system-more" type="button">
-        展开更多
-        <span>⌄</span>
-      </button>
+        </>
+      )}
     </aside>
   );
 }
 
-function rankRelated(selected: Element, elements: Element[]) {
+function rankRelated(selected: Element, elements: Element[], query: string) {
   const terms = new Set([
+    query,
+    ...query.split(/[·\s,，。:：/]+/).filter(Boolean),
     selected.title,
     ...selected.title.split(/[·\s]+/).filter(Boolean),
     selected.type,
@@ -121,8 +137,9 @@ function rankRelated(selected: Element, elements: Element[]) {
     .filter(element => element.id !== selected.id)
     .map(element => {
       const title = element.title;
+      const haystack = `${element.title} ${element.subtitle ?? ""} ${element.tags?.join(" ") ?? ""}`;
       const score = Array.from(terms).reduce((sum, term) => (
-        term && title.includes(term) ? sum + 1 : sum
+        term && haystack.includes(term) ? sum + 1 : sum
       ), 0);
       return {
         element,

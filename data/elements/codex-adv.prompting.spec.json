@@ -1,0 +1,46 @@
+{
+  "id": "codex-adv.prompting.spec",
+  "type": "practice",
+  "title": "规格化任务写法",
+  "subtitle": "用目标、范围、验收组织提示",
+  "aliases": [
+    "任务规格",
+    "Prompt 模板"
+  ],
+  "tags": [
+    "提示模板",
+    "需求表达"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "low",
+  "content": {
+    "oneSentence": "把提示写成小规格，可以让 Codex 少猜测、多执行。",
+    "coreExplain": "一个实用结构是：背景、目标、范围、约束、验收、最终汇报。背景只放必要信息，目标写成可验证行为，范围说明可改目录，验收给出命令或人工检查点。",
+    "whyMatters": "规格化提示能复用到 bug 修复、功能开发、重构、测试补全和文档维护，减少每次从零组织语言的成本。",
+    "beginnerExplain": "像给同事派任务一样写给 Codex。告诉它做什么、不能做什么、怎么知道做好了。",
+    "keyPoints": [
+      "背景只给会影响实现的事实",
+      "目标用结果语言表达",
+      "范围限制能降低误伤",
+      "验收标准让 Codex 有闭环"
+    ],
+    "examples": [
+      "目标：修复保存按钮点击后无响应的问题",
+      "范围：只改 apps/web/src/features/settings 下的文件",
+      "验收：运行 npm test -- settings，并说明未覆盖项"
+    ],
+    "mechanisms": [
+      "先写一句任务目标",
+      "补充相关文件、报错或复现步骤",
+      "写清可改与不可改范围",
+      "指定验证命令和最终说明格式"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "codex",
+    "richness": 3
+  }
+}

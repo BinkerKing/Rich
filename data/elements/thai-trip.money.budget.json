@@ -1,0 +1,36 @@
+{
+  "id": "thai-trip.money.budget",
+  "type": "practice",
+  "title": "预算框架",
+  "subtitle": "把钱分到大项里",
+  "aliases": [
+    "预算表"
+  ],
+  "tags": [
+    "预算",
+    "花费"
+  ],
+  "domain": "travel",
+  "difficulty": "low",
+  "content": {
+    "goal": "建立可调整的旅行预算，而不是只问总共要多少钱。",
+    "categories": [
+      "国际机票",
+      "住宿",
+      "跨城交通",
+      "本地交通",
+      "餐饮",
+      "门票与一日游",
+      "按摩与娱乐",
+      "购物与备用金"
+    ],
+    "decisionRule": "第一次去泰国，住宿位置和交通便利度通常比单纯压低房价更值得投资。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.193Z",
+    "updatedAt": "2026-05-17T13:46:42.193Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

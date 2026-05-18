@@ -1,0 +1,37 @@
+{
+  "id": "thai-trip.entry.connect",
+  "type": "concept",
+  "title": "通信与地图",
+  "subtitle": "手机卡、eSIM、导航和翻译",
+  "aliases": [
+    "上网",
+    "eSIM"
+  ],
+  "tags": [
+    "通信",
+    "工具"
+  ],
+  "domain": "travel",
+  "difficulty": "low",
+  "content": {
+    "oneSentence": "稳定网络是泰国自由行的基础设施。",
+    "coreExplain": "eSIM适合支持机型和轻装旅客，实体SIM适合不确定兼容性的用户。地图、打车、翻译、支付和酒店联系都依赖网络。抵达前完成安装和测试，比机场排队购买更省心。",
+    "whyMatters": "没有稳定网络会放大语言、交通和支付问题。",
+    "misconceptions": [
+      "以为酒店Wi-Fi足够，自由行移动场景更多",
+      "以为所有手机都支持eSIM",
+      "以为离线地图可以替代实时打车和沟通"
+    ],
+    "nextSteps": [
+      "出发前确认手机制式和eSIM支持",
+      "下载离线地图和酒店地址截图"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.189Z",
+    "updatedAt": "2026-05-17T13:46:42.189Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

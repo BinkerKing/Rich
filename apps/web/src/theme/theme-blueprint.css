@@ -1,0 +1,1126 @@
+/* Blueprint / drafting-paper theme.
+   Activated by html[data-theme="blueprint"].
+   Design language: deep indigo paper, 1px cyan hairlines, mono labels,
+   transparent fills, dimension-line accents. Clarity above all — no glow,
+   no gradients on surfaces, no offset shadows. Everything reads like a
+   technical drawing. Fully isolated from cyber/brutal themes via the
+   [data-theme] attribute scope. */
+
+html[data-theme="blueprint"] {
+  --bg: #0a1d3a;
+  --bg-2: #0e2748;
+  --panel: rgba(255, 255, 255, .02);
+  --panel-2: rgba(255, 255, 255, .04);
+  --line: rgba(125, 199, 255, .35);
+  --line-2: rgba(125, 199, 255, .6);
+  --text: #e6f1ff;
+  --soft: #b9d4f0;
+  --muted: #7fa8d4;
+  --dim: #5683b3;
+  --teal: #5dcfff;
+  --teal-2: #8fdfff;
+  --teal-soft: rgba(93, 207, 255, .12);
+  --teal-line: rgba(93, 207, 255, .55);
+  --violet: #b39dff;
+  --amber: #ffd479;
+  --pink: #ff96c8;
+  --green: #7be39e;
+  --gold: #ffd479;
+  --blue: #5dcfff;
+  --orange: #ffb070;
+  --radius: 2px;
+  --bp-line: rgba(125, 199, 255, .35);
+  --bp-line-strong: rgba(125, 199, 255, .8);
+  --bp-mono: "JetBrains Mono", "SFMono-Regular", "Cascadia Code", Consolas, "PingFang SC", "Microsoft YaHei", monospace;
+  --bp-sans: "Inter", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+}
+
+html[data-theme="blueprint"] body {
+  background:
+    linear-gradient(rgba(125, 199, 255, .06) 1px, transparent 1px) 0 0 / 100% 32px,
+    linear-gradient(90deg, rgba(125, 199, 255, .06) 1px, transparent 1px) 0 0 / 32px 100%,
+    linear-gradient(rgba(125, 199, 255, .12) 1px, transparent 1px) 0 0 / 100% 160px,
+    linear-gradient(90deg, rgba(125, 199, 255, .12) 1px, transparent 1px) 0 0 / 160px 100%,
+    var(--bg) !important;
+  color: var(--text);
+  font-family: var(--bp-sans);
+}
+
+html[data-theme="blueprint"] *,
+html[data-theme="blueprint"] *::before,
+html[data-theme="blueprint"] *::after {
+  backdrop-filter: none !important;
+  text-shadow: none !important;
+  animation: none !important;
+}
+
+/* Strip ambient layers */
+html[data-theme="blueprint"] .tree-view::before,
+html[data-theme="blueprint"] .tree-view::after,
+html[data-theme="blueprint"] .tv-topbar::before,
+html[data-theme="blueprint"] .structure-map__ambient { display: none !important; }
+
+html[data-theme="blueprint"] .tree-view { background: transparent; gap: 12px; padding: 14px; }
+
+/* Shared panel chrome — translucent paper with hairline border + corner crosshairs */
+html[data-theme="blueprint"] .tv-topbar,
+html[data-theme="blueprint"] .learning-sidebar,
+html[data-theme="blueprint"] .tv-main,
+html[data-theme="blueprint"] .system-panel,
+html[data-theme="blueprint"] .tv-footer {
+  background: rgba(10, 29, 58, .55) !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+  position: relative;
+}
+
+/* Drafting corner ticks — every panel gets 4 small cyan crosshairs */
+html[data-theme="blueprint"] .tv-topbar::before,
+html[data-theme="blueprint"] .learning-sidebar::before,
+html[data-theme="blueprint"] .tv-main::before,
+html[data-theme="blueprint"] .system-panel::before,
+html[data-theme="blueprint"] .tv-footer::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--bp-line-strong), var(--bp-line-strong)) 0 0 / 10px 1px no-repeat,
+    linear-gradient(var(--bp-line-strong), var(--bp-line-strong)) 0 0 / 1px 10px no-repeat,
+    linear-gradient(var(--bp-line-strong), var(--bp-line-strong)) 100% 0 / 10px 1px no-repeat,
+    linear-gradient(var(--bp-line-strong), var(--bp-line-strong)) 100% 0 / 1px 10px no-repeat,
+    linear-gradient(var(--bp-line-strong), var(--bp-line-strong)) 0 100% / 10px 1px no-repeat,
+    linear-gradient(var(--bp-line-strong), var(--bp-line-strong)) 0 100% / 1px 10px no-repeat,
+    linear-gradient(var(--bp-line-strong), var(--bp-line-strong)) 100% 100% / 10px 1px no-repeat,
+    linear-gradient(var(--bp-line-strong), var(--bp-line-strong)) 100% 100% / 1px 10px no-repeat;
+}
+
+/* Brand / logo */
+html[data-theme="blueprint"] .tv-home-button:hover { background: var(--teal-soft); }
+html[data-theme="blueprint"] .tv-brand strong {
+  font-family: var(--bp-mono);
+  font-weight: 600;
+  letter-spacing: .05em;
+  color: var(--text);
+}
+html[data-theme="blueprint"] .tv-logo {
+  background: transparent !important;
+  border: 1.5px solid var(--teal) !important;
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .tv-logo::after { display: none !important; }
+
+/* Breadcrumb */
+html[data-theme="blueprint"] .tv-crumb {
+  background: transparent !important;
+  border: 1px dashed var(--bp-line) !important;
+  border-radius: 2px;
+  box-shadow: none;
+}
+html[data-theme="blueprint"] .tv-crumb button {
+  color: var(--soft) !important;
+  font-family: var(--bp-mono);
+  font-size: 13px;
+}
+html[data-theme="blueprint"] .tv-crumb button:not(:last-child)::after { color: var(--teal); }
+html[data-theme="blueprint"] .tv-crumb .now { color: var(--teal) !important; font-weight: 600; }
+
+/* Topbar tools */
+html[data-theme="blueprint"] .tv-tools button,
+html[data-theme="blueprint"] .tv-tools span {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  color: var(--soft) !important;
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .tv-tools button:hover {
+  border-color: var(--teal) !important;
+  color: var(--teal) !important;
+  background: var(--teal-soft) !important;
+  transform: none;
+}
+html[data-theme="blueprint"] .tv-tools button.is-active {
+  background: var(--teal-soft) !important;
+  border-color: var(--teal) !important;
+  color: var(--teal) !important;
+}
+html[data-theme="blueprint"] .tv-tools span {
+  font-family: var(--bp-mono);
+  color: var(--teal) !important;
+  border-color: var(--teal) !important;
+}
+
+/* Sidebar — clean list with hairlines, mono labels */
+html[data-theme="blueprint"] .sidebar-label {
+  font-family: var(--bp-mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-left: 2px solid var(--teal);
+  padding-left: 8px;
+  margin-top: 18px;
+}
+html[data-theme="blueprint"] .sidebar-list,
+html[data-theme="blueprint"] .ancestor-list { gap: 4px; padding-right: 0; }
+html[data-theme="blueprint"] .sidebar-node,
+html[data-theme="blueprint"] .ancestor-list button {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+  font-family: var(--bp-sans);
+  transform: none !important;
+}
+html[data-theme="blueprint"] .sidebar-node:hover,
+html[data-theme="blueprint"] .ancestor-list button:hover {
+  border-color: var(--teal) !important;
+  background: var(--teal-soft) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .sidebar-node.is-active,
+html[data-theme="blueprint"] .ancestor-list button.is-center {
+  border-color: var(--teal) !important;
+  background: var(--teal-soft) !important;
+  color: var(--teal) !important;
+  transform: none !important;
+  box-shadow: inset 3px 0 0 var(--teal) !important;
+}
+html[data-theme="blueprint"] .sidebar-node .mini-icon,
+html[data-theme="blueprint"] .ancestor-list button .mini-icon { color: var(--teal); }
+html[data-theme="blueprint"] .ancestor-list button em {
+  font-family: var(--bp-mono);
+  font-style: normal;
+  color: var(--muted);
+  border: 1px solid var(--bp-line);
+  padding: 0 4px;
+  font-size: 10px;
+}
+
+/* Path / scene */
+html[data-theme="blueprint"] .path-card,
+html[data-theme="blueprint"] .scene-list button {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+  font-family: var(--bp-sans);
+}
+html[data-theme="blueprint"] .path-card:hover,
+html[data-theme="blueprint"] .scene-list button:hover {
+  border-color: var(--teal) !important;
+  background: var(--teal-soft) !important;
+}
+html[data-theme="blueprint"] .scene-list button.is-active {
+  border-color: var(--teal) !important;
+  background: var(--teal-soft) !important;
+  color: var(--teal) !important;
+}
+html[data-theme="blueprint"] .path-card strong { font-family: var(--bp-mono); color: var(--text); }
+
+/* Knowledge tree nodes — all transparent with cyan hairlines */
+html[data-theme="blueprint"] .structure-map {
+  background:
+    linear-gradient(rgba(125,199,255,.08) 1px, transparent 1px) 0 0 / 100% 28px,
+    linear-gradient(90deg, rgba(125,199,255,.08) 1px, transparent 1px) 0 0 / 28px 100%,
+    rgba(10, 29, 58, .35) !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  box-shadow: none;
+}
+html[data-theme="blueprint"] .structure-chain-card,
+html[data-theme="blueprint"] .child-card,
+html[data-theme="blueprint"] .grand-pill {
+  background: rgba(10, 29, 58, .8) !important;
+  border: 1.5px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+html[data-theme="blueprint"] .structure-chain-card { border-color: var(--teal) !important; }
+html[data-theme="blueprint"] .structure-chain-card.is-selected,
+html[data-theme="blueprint"] .child-card.is-selected,
+html[data-theme="blueprint"] .grand-pill.is-selected {
+  border-color: var(--teal) !important;
+  background: var(--teal-soft) !important;
+  box-shadow: inset 0 0 0 1px var(--teal) !important;
+  transform: none !important;
+}
+html[data-theme="blueprint"] .structure-chain-card *,
+html[data-theme="blueprint"] .child-card *,
+html[data-theme="blueprint"] .grand-pill * { color: var(--text) !important; }
+html[data-theme="blueprint"] .structure-chain-card__badge {
+  background: transparent !important;
+  border: 1px solid var(--teal) !important;
+  color: var(--teal) !important;
+  border-radius: 0 !important;
+  font-family: var(--bp-mono);
+  padding: 2px 6px;
+}
+html[data-theme="blueprint"] .tree-line {
+  stroke: var(--bp-line-strong) !important;
+  stroke-width: 1px !important;
+  stroke-dasharray: 4 3 !important;
+}
+
+/* Footer */
+html[data-theme="blueprint"] .footer-actions button {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+  font-family: var(--bp-mono);
+  font-size: 12px;
+}
+html[data-theme="blueprint"] .footer-actions button:hover {
+  border-color: var(--teal) !important;
+  background: var(--teal-soft) !important;
+  transform: none;
+}
+html[data-theme="blueprint"] .footer-actions button:first-child { color: var(--teal) !important; border-color: var(--teal) !important; }
+html[data-theme="blueprint"] .tv-footer > div:first-child { font-family: var(--bp-mono); font-size: 12px; color: var(--soft); }
+
+/* Element detail page */
+html[data-theme="blueprint"] .element-content,
+html[data-theme="blueprint"] .element-content__scroll,
+html[data-theme="blueprint"] .element-content__three-col,
+html[data-theme="blueprint"] .body-article,
+html[data-theme="blueprint"] .body-layout {
+  background: transparent !important;
+}
+
+/* Fullscreen overlay — must fully cover underlying tree view. Use the same
+   blueprint paper (deep indigo + grid lines) so it reads as the page surface. */
+html[data-theme="blueprint"] .element-content.is-fullscreen {
+  background:
+    linear-gradient(rgba(125, 199, 255, .06) 1px, transparent 1px) 0 0 / 100% 32px,
+    linear-gradient(90deg, rgba(125, 199, 255, .06) 1px, transparent 1px) 0 0 / 32px 100%,
+    linear-gradient(rgba(125, 199, 255, .12) 1px, transparent 1px) 0 0 / 100% 160px,
+    linear-gradient(90deg, rgba(125, 199, 255, .12) 1px, transparent 1px) 0 0 / 160px 100%,
+    #0a1d3a !important;
+  border: 1px solid var(--bp-line) !important;
+}
+html[data-theme="blueprint"] .element-content.is-fullscreen::before {
+  display: none !important;
+}
+html[data-theme="blueprint"] .element-content__head {
+  background: rgba(10, 29, 58, .85) !important;
+  border-bottom: 1px solid var(--bp-line) !important;
+  backdrop-filter: none !important;
+}
+html[data-theme="blueprint"] .element-content__head p { color: var(--soft) !important; font-family: var(--bp-sans); }
+html[data-theme="blueprint"] .element-title-row h2 {
+  font-family: var(--bp-sans);
+  font-weight: 600;
+  color: var(--text);
+}
+html[data-theme="blueprint"] .element-title-row span {
+  background: transparent !important;
+  border: 1px solid var(--teal) !important;
+  color: var(--teal) !important;
+  border-radius: 0 !important;
+  font-family: var(--bp-mono);
+}
+
+/* Element panel action buttons */
+html[data-theme="blueprint"] .element-content__actions button {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+  font-family: var(--bp-mono);
+  font-size: 12px;
+}
+html[data-theme="blueprint"] .element-content__actions button:hover {
+  border-color: var(--teal) !important;
+  background: var(--teal-soft) !important;
+  color: var(--teal) !important;
+}
+
+/* Meta chips */
+html[data-theme="blueprint"] .meta-chip {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 0 !important;
+  color: var(--text) !important;
+  font-family: var(--bp-mono);
+  font-size: 11px;
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .meta-chip--type { border-color: var(--teal) !important; color: var(--teal) !important; }
+html[data-theme="blueprint"] .meta-chip--difficulty { border-color: var(--amber) !important; color: var(--amber) !important; }
+html[data-theme="blueprint"] .meta-chip--domain { border-color: var(--violet) !important; color: var(--violet) !important; }
+html[data-theme="blueprint"] .meta-chip--tag { border-color: var(--bp-line) !important; color: var(--soft) !important; }
+html[data-theme="blueprint"] .meta-author,
+html[data-theme="blueprint"] .meta-time,
+html[data-theme="blueprint"] .meta-history { color: var(--muted) !important; font-family: var(--bp-mono); font-size: 11px; }
+
+/* TOC */
+html[data-theme="blueprint"] .body-toc {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+  padding: 12px !important;
+}
+html[data-theme="blueprint"] .body-toc h3,
+html[data-theme="blueprint"] .body-toc__title,
+html[data-theme="blueprint"] .body-toc > strong {
+  background: transparent !important;
+  border-bottom: 1px solid var(--bp-line) !important;
+  color: var(--teal) !important;
+  font-family: var(--bp-mono) !important;
+  letter-spacing: .08em;
+  padding: 0 0 8px !important;
+  margin: 0 0 8px !important;
+}
+html[data-theme="blueprint"] .body-toc ol { padding: 0 !important; gap: 2px !important; }
+html[data-theme="blueprint"] .body-toc button {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 2px !important;
+  color: var(--soft) !important;
+  box-shadow: none !important;
+  font-family: var(--bp-sans);
+  padding: 6px 8px !important;
+  transform: none !important;
+}
+html[data-theme="blueprint"] .body-toc button:hover {
+  border-color: var(--bp-line) !important;
+  background: var(--teal-soft) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .body-toc button.is-active {
+  border-color: var(--teal) !important;
+  background: var(--teal-soft) !important;
+  color: var(--teal) !important;
+  box-shadow: inset 3px 0 0 var(--teal) !important;
+  transform: none !important;
+}
+html[data-theme="blueprint"] .body-toc .toc-num {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  color: var(--muted) !important;
+  font-family: var(--bp-mono) !important;
+  padding: 1px 5px;
+  opacity: 1 !important;
+}
+html[data-theme="blueprint"] .body-toc button.is-active .toc-num {
+  color: var(--teal) !important; border-color: var(--teal) !important;
+}
+html[data-theme="blueprint"] .body-toc .toc-label { color: inherit !important; }
+
+/* Section blocks */
+html[data-theme="blueprint"] .section-block,
+html[data-theme="blueprint"] .body-section {
+  background: rgba(10, 29, 58, .35) !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+  margin-bottom: 16px;
+}
+html[data-theme="blueprint"] .body-section-num,
+html[data-theme="blueprint"] .example-num,
+html[data-theme="blueprint"] .step-num,
+html[data-theme="blueprint"] .mechanism-step-num,
+html[data-theme="blueprint"] .path-step-num {
+  background: transparent !important;
+  border: 1px solid var(--teal) !important;
+  color: var(--teal) !important;
+  border-radius: 2px !important;
+  font-family: var(--bp-mono) !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .body-section h2,
+html[data-theme="blueprint"] .body-section h3,
+html[data-theme="blueprint"] .body-section-h {
+  background: transparent !important;
+  border-bottom: 1px dashed var(--bp-line) !important;
+  font-family: var(--bp-sans);
+  font-weight: 600;
+  color: var(--text) !important;
+  padding: 6px 20px !important;
+  margin: 0 -20px 12px !important;
+}
+
+/* Callouts / warnings / lists */
+html[data-theme="blueprint"] .callout,
+html[data-theme="blueprint"] .warn-card,
+html[data-theme="blueprint"] .example-item,
+html[data-theme="blueprint"] .decision-item,
+html[data-theme="blueprint"] .module-card,
+html[data-theme="blueprint"] .mvp-card,
+html[data-theme="blueprint"] .phase-item,
+html[data-theme="blueprint"] .check-item,
+html[data-theme="blueprint"] .dot-item {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .callout { border-left: 3px solid var(--amber) !important; }
+html[data-theme="blueprint"] .callout--tip { border-left-color: var(--amber) !important; }
+html[data-theme="blueprint"] .callout--insight { border-left-color: var(--teal) !important; }
+html[data-theme="blueprint"] .callout--warning { border-left-color: var(--pink) !important; }
+html[data-theme="blueprint"] .callout--info { border-left-color: var(--muted) !important; }
+html[data-theme="blueprint"] .callout strong,
+html[data-theme="blueprint"] .callout-body strong,
+html[data-theme="blueprint"] .warn-card strong {
+  color: var(--teal) !important;
+  font-family: var(--bp-mono);
+  font-weight: 600 !important;
+  background: transparent !important;
+}
+html[data-theme="blueprint"] .callout-icon,
+html[data-theme="blueprint"] .warn-card::before { color: var(--teal) !important; opacity: 1 !important; }
+html[data-theme="blueprint"] .warn-card { border-left: 3px solid var(--pink) !important; }
+html[data-theme="blueprint"] .warn-card * { color: var(--text) !important; }
+html[data-theme="blueprint"] .warn-card__bar { background: var(--pink) !important; }
+
+/* check / dot list */
+html[data-theme="blueprint"] .check-list li {
+  color: var(--text) !important;
+  padding-left: 26px !important;
+}
+html[data-theme="blueprint"] .check-list li::before {
+  content: "✓" !important;
+  background: transparent !important;
+  border: 1px solid var(--teal) !important;
+  border-radius: 2px !important;
+  color: var(--teal) !important;
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  font-family: var(--bp-mono);
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  top: 1px !important; left: 0 !important;
+  line-height: 1 !important;
+}
+html[data-theme="blueprint"] .dot-list li { color: var(--text) !important; }
+html[data-theme="blueprint"] .dot-list li::before { color: var(--teal) !important; }
+
+/* Tables */
+html[data-theme="blueprint"] table,
+html[data-theme="blueprint"] .kv-table,
+html[data-theme="blueprint"] .competitor-table,
+html[data-theme="blueprint"] .budget-table {
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+}
+html[data-theme="blueprint"] th,
+html[data-theme="blueprint"] td {
+  border: 1px solid var(--bp-line) !important;
+  background: transparent !important;
+  color: var(--text) !important;
+  font-family: var(--bp-sans);
+}
+html[data-theme="blueprint"] th {
+  background: rgba(125,199,255,.06) !important;
+  color: var(--teal) !important;
+  font-family: var(--bp-mono);
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+
+/* Day schedule */
+html[data-theme="blueprint"] .sec-day-schedule__day {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .sec-day-schedule__day > header {
+  background: rgba(125,199,255,.06) !important;
+  border-bottom: 1px solid var(--bp-line) !important;
+}
+html[data-theme="blueprint"] .sec-day-schedule__num {
+  background: transparent !important;
+  border: 1px solid var(--teal) !important;
+  color: var(--teal) !important;
+  border-radius: 2px !important;
+  font-family: var(--bp-mono);
+  font-weight: 600;
+}
+html[data-theme="blueprint"] .sec-day-schedule__day > header strong { color: var(--text) !important; }
+html[data-theme="blueprint"] .sec-day-schedule__day > header em {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  color: var(--soft) !important;
+  font-family: var(--bp-mono);
+  font-style: normal;
+}
+html[data-theme="blueprint"] .sec-day-schedule__day > ul > li {
+  border-bottom: 1px dashed var(--bp-line) !important;
+  background: transparent !important;
+}
+html[data-theme="blueprint"] .sec-day-schedule__day > ul > li:nth-child(even) { background: rgba(125,199,255,.03) !important; }
+html[data-theme="blueprint"] .sec-day-schedule__time {
+  background: transparent !important;
+  border: 1px solid var(--teal) !important;
+  color: var(--teal) !important;
+  border-radius: 2px !important;
+  font-family: var(--bp-mono);
+}
+html[data-theme="blueprint"] .sec-day-schedule__what { color: var(--text) !important; }
+html[data-theme="blueprint"] .sec-day-schedule__note { color: var(--muted) !important; }
+
+/* Inputs / forms */
+html[data-theme="blueprint"] input,
+html[data-theme="blueprint"] textarea,
+html[data-theme="blueprint"] select {
+  background: rgba(10, 29, 58, .6) !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+  font-family: var(--bp-sans);
+}
+html[data-theme="blueprint"] input:focus,
+html[data-theme="blueprint"] textarea:focus,
+html[data-theme="blueprint"] select:focus {
+  outline: 0;
+  border-color: var(--teal) !important;
+}
+
+/* SystemPanel right rail */
+html[data-theme="blueprint"] .system-panel__head h2,
+html[data-theme="blueprint"] .system-section h3 {
+  color: var(--teal) !important;
+  font-family: var(--bp-mono);
+  letter-spacing: .08em;
+  font-weight: 600;
+}
+html[data-theme="blueprint"] .system-panel__head span {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  color: var(--soft) !important;
+  border-radius: 2px !important;
+  font-family: var(--bp-mono);
+  font-size: 11px;
+}
+html[data-theme="blueprint"] .system-search-box {
+  background: rgba(10, 29, 58, .6) !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .system-search-box button {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  color: var(--teal) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+  font-family: var(--bp-mono);
+}
+html[data-theme="blueprint"] .system-search-box button:hover {
+  border-color: var(--teal) !important;
+  background: var(--teal-soft) !important;
+}
+html[data-theme="blueprint"] .search-result-list button {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .search-result-list button:hover {
+  border-color: var(--teal) !important;
+  background: var(--teal-soft) !important;
+}
+html[data-theme="blueprint"] .search-result-main em { color: var(--muted) !important; }
+html[data-theme="blueprint"] .system-placeholder {
+  background: transparent !important;
+  border: 1px dashed var(--bp-line) !important;
+  border-radius: 2px !important;
+  color: var(--soft) !important;
+  font-family: var(--bp-mono);
+  font-size: 12px;
+}
+
+/* Right rail cards */
+html[data-theme="blueprint"] .three-col-context,
+html[data-theme="blueprint"] .ai-tasks-panel,
+html[data-theme="blueprint"] .context-rail,
+html[data-theme="blueprint"] .embedded-tasks {
+  background: transparent !important;
+  border-left: 1px solid var(--bp-line) !important;
+  color: var(--text) !important;
+}
+html[data-theme="blueprint"] .embedded-tasks,
+html[data-theme="blueprint"] .context-rail .rail-block {
+  background: rgba(10, 29, 58, .35) !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+  padding: 12px 14px !important;
+  margin-bottom: 14px !important;
+}
+html[data-theme="blueprint"] .rail-block header strong,
+html[data-theme="blueprint"] .embedded-tasks header strong {
+  color: var(--teal) !important;
+  font-family: var(--bp-mono);
+  letter-spacing: .08em;
+  font-weight: 600;
+}
+html[data-theme="blueprint"] .rail-block header span {
+  font-family: var(--bp-mono);
+  color: var(--teal) !important;
+}
+html[data-theme="blueprint"] .rail-paths > li,
+html[data-theme="blueprint"] .rail-lateral > li {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+  color: var(--text) !important;
+}
+html[data-theme="blueprint"] .rail-paths > li:hover,
+html[data-theme="blueprint"] .rail-lateral > li:hover {
+  border-color: var(--teal) !important;
+  background: var(--teal-soft) !important;
+}
+html[data-theme="blueprint"] .rail-path-color { border: 1px solid var(--bp-line) !important; border-radius: 0 !important; }
+html[data-theme="blueprint"] .rail-strength {
+  background: transparent !important;
+  border: 1px solid var(--teal) !important;
+  color: var(--teal) !important;
+  border-radius: 2px !important;
+  font-family: var(--bp-mono);
+}
+html[data-theme="blueprint"] .embedded-tasks .empty {
+  background: transparent !important;
+  border: 1px dashed var(--bp-line) !important;
+  border-radius: 2px !important;
+  color: var(--soft) !important;
+  font-family: var(--bp-mono);
+  font-size: 12px;
+}
+
+/* AI action input panel */
+html[data-theme="blueprint"] .action-input {
+  background: rgba(10, 29, 58, .55) !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+  margin: 12px 16px !important;
+}
+html[data-theme="blueprint"] .action-input--refine { border-left: 3px solid var(--teal) !important; }
+html[data-theme="blueprint"] .action-input--expand { border-left: 3px solid var(--amber) !important; }
+html[data-theme="blueprint"] .action-input--extend { border-left: 3px solid var(--violet) !important; }
+html[data-theme="blueprint"] .action-input--feedback { border-left: 3px solid var(--green) !important; }
+html[data-theme="blueprint"] .action-input__hint strong {
+  background: transparent !important;
+  border: 1px solid var(--teal) !important;
+  color: var(--teal) !important;
+  font-family: var(--bp-mono);
+  padding: 2px 8px;
+}
+html[data-theme="blueprint"] .action-input__hint span { color: var(--soft) !important; }
+html[data-theme="blueprint"] .action-chip {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  color: var(--text) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+  font-family: var(--bp-sans);
+}
+html[data-theme="blueprint"] .action-chip:hover {
+  border-color: var(--teal) !important;
+  background: var(--teal-soft) !important;
+  color: var(--teal) !important;
+  transform: none;
+}
+html[data-theme="blueprint"] .quiet-button {
+  background: transparent !important;
+  border: 1px solid var(--teal) !important;
+  color: var(--teal) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+  font-family: var(--bp-mono);
+  font-weight: 600 !important;
+}
+html[data-theme="blueprint"] .quiet-button:hover {
+  background: var(--teal-soft) !important;
+  transform: none;
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .quiet-button:disabled {
+  border-color: var(--bp-line) !important;
+  color: var(--muted) !important;
+  background: transparent !important;
+}
+html[data-theme="blueprint"] .quiet-button--ghost { color: var(--soft) !important; border-color: var(--bp-line) !important; }
+
+/* Inline QA */
+html[data-theme="blueprint"] .inline-qa {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .inline-qa__head {
+  background: rgba(125,199,255,.06) !important;
+  border-bottom: 1px solid var(--bp-line) !important;
+}
+html[data-theme="blueprint"] .inline-qa__badge {
+  background: transparent !important;
+  border: 1px solid var(--teal) !important;
+  color: var(--teal) !important;
+  border-radius: 0 !important;
+  font-family: var(--bp-mono);
+}
+html[data-theme="blueprint"] .inline-qa__q { background: transparent !important; border-bottom: 1px dashed var(--bp-line) !important; color: var(--text) !important; }
+html[data-theme="blueprint"] .inline-qa__a { color: var(--text) !important; }
+html[data-theme="blueprint"] .inline-qa__delete {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  color: var(--soft) !important;
+  border-radius: 2px !important;
+}
+
+/* Ask popup */
+html[data-theme="blueprint"] .ask-popup {
+  background: rgba(10, 29, 58, .95) !important;
+  border: 1px solid var(--teal) !important;
+  border-radius: 2px !important;
+  box-shadow: 0 0 0 1px rgba(125,199,255,.15), 0 20px 60px rgba(0,0,0,.4) !important;
+}
+html[data-theme="blueprint"] .ask-popup__backdrop { background: rgba(5, 15, 32, .55) !important; }
+html[data-theme="blueprint"] .ask-popup__badge {
+  background: transparent !important;
+  border: 1px solid var(--teal) !important;
+  color: var(--teal) !important;
+  border-radius: 0 !important;
+  font-family: var(--bp-mono);
+}
+html[data-theme="blueprint"] .ask-popup__scope { color: var(--soft) !important; font-family: var(--bp-mono); font-size: 12px; }
+html[data-theme="blueprint"] .ask-popup__close {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  color: var(--soft) !important;
+  border-radius: 2px !important;
+}
+html[data-theme="blueprint"] .ask-popup__stream,
+html[data-theme="blueprint"] .ask-popup__answer {
+  background: rgba(125,199,255,.04) !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  color: var(--text) !important;
+}
+html[data-theme="blueprint"] .ask-popup__error {
+  background: rgba(255,150,200,.08) !important;
+  border: 1px solid var(--pink) !important;
+  color: var(--pink) !important;
+  border-radius: 2px !important;
+}
+html[data-theme="blueprint"] .ask-popup__submit {
+  background: transparent !important;
+  border: 1px solid var(--teal) !important;
+  color: var(--teal) !important;
+  border-radius: 2px !important;
+  font-family: var(--bp-mono) !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .ask-popup__submit:hover { background: var(--teal-soft) !important; }
+html[data-theme="blueprint"] .ask-popup__cancel {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  color: var(--soft) !important;
+  border-radius: 2px !important;
+  font-family: var(--bp-mono) !important;
+  box-shadow: none !important;
+}
+
+/* Annotation menu + highlights */
+html[data-theme="blueprint"] .ke-annotation-menu {
+  background: rgba(10, 29, 58, .95) !important;
+  border: 1px solid var(--teal) !important;
+  border-radius: 2px !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.4) !important;
+}
+html[data-theme="blueprint"] .ke-annotation-menu button {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  color: var(--text) !important;
+  border-radius: 2px !important;
+  font-family: var(--bp-mono);
+}
+html[data-theme="blueprint"] .ke-annotation-menu button:hover {
+  border-color: var(--teal) !important;
+  background: var(--teal-soft) !important;
+  color: var(--teal) !important;
+}
+html[data-theme="blueprint"] .ke-annotation--highlight {
+  background: rgba(255, 212, 121, .28) !important;
+  color: inherit !important;
+  border-bottom: 1px solid var(--amber) !important;
+}
+html[data-theme="blueprint"] .ke-annotation--underline {
+  background: transparent !important;
+  border-bottom: 1px dashed var(--teal) !important;
+}
+
+/* Children CTA */
+html[data-theme="blueprint"] .cta-button {
+  background: transparent !important;
+  border: 1px solid var(--teal) !important;
+  color: var(--teal) !important;
+  border-radius: 2px !important;
+  font-family: var(--bp-mono);
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .cta-button:hover { background: var(--teal-soft) !important; transform: none; box-shadow: none !important; }
+html[data-theme="blueprint"] .cta-button.is-open { background: var(--teal-soft) !important; transform: none; box-shadow: none !important; }
+html[data-theme="blueprint"] .children-cta-list {
+  background: rgba(10, 29, 58, .95) !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.4) !important;
+}
+html[data-theme="blueprint"] .children-cta-list > li > button {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  color: var(--text) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .children-cta-list > li > button:hover {
+  border-color: var(--teal) !important;
+  background: var(--teal-soft) !important;
+}
+html[data-theme="blueprint"] .children-cta-list__type {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  color: var(--soft) !important;
+  border-radius: 2px !important;
+  font-family: var(--bp-mono);
+  font-size: 11px;
+}
+html[data-theme="blueprint"] .children-cta-list__center { border-top: 1px dashed var(--bp-line) !important; }
+html[data-theme="blueprint"] .children-cta-list__center button {
+  background: transparent !important;
+  border: 1px solid var(--teal) !important;
+  color: var(--teal) !important;
+  border-radius: 2px !important;
+  font-family: var(--bp-mono);
+}
+
+/* Mermaid */
+html[data-theme="blueprint"] .mermaid-diagram {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .mermaid-diagram > header {
+  background: rgba(125,199,255,.06) !important;
+  border-bottom: 1px solid var(--bp-line) !important;
+}
+html[data-theme="blueprint"] .mermaid-diagram__badge {
+  background: transparent !important;
+  border: 1px solid var(--teal) !important;
+  color: var(--teal) !important;
+  border-radius: 0 !important;
+  font-family: var(--bp-mono);
+}
+html[data-theme="blueprint"] .mermaid-diagram > header strong { color: var(--text) !important; font-family: var(--bp-mono); }
+html[data-theme="blueprint"] .mermaid-diagram__host {
+  background:
+    linear-gradient(rgba(125,199,255,.05) 1px, transparent 1px) 0 0 / 100% 24px,
+    linear-gradient(90deg, rgba(125,199,255,.05) 1px, transparent 1px) 0 0 / 24px 100%,
+    rgba(10, 29, 58, .25) !important;
+}
+html[data-theme="blueprint"] .mermaid-diagram__host svg text,
+html[data-theme="blueprint"] .mermaid-diagram__host svg .nodeLabel,
+html[data-theme="blueprint"] .mermaid-diagram__host svg .edgeLabel,
+html[data-theme="blueprint"] .mermaid-diagram__host svg .taskText,
+html[data-theme="blueprint"] .mermaid-diagram__host svg .titleText,
+html[data-theme="blueprint"] .mermaid-diagram__host svg .sectionTitle {
+  fill: var(--text) !important;
+  color: var(--text) !important;
+  font-family: var(--bp-mono) !important;
+}
+html[data-theme="blueprint"] .mermaid-diagram__host svg .node rect,
+html[data-theme="blueprint"] .mermaid-diagram__host svg .node polygon,
+html[data-theme="blueprint"] .mermaid-diagram__host svg .node circle,
+html[data-theme="blueprint"] .mermaid-diagram__host svg .node ellipse {
+  fill: rgba(10, 29, 58, .8) !important;
+  stroke: var(--teal) !important;
+  stroke-width: 1.2px !important;
+}
+html[data-theme="blueprint"] .mermaid-diagram__host svg .edgePath path,
+html[data-theme="blueprint"] .mermaid-diagram__host svg .flowchart-link,
+html[data-theme="blueprint"] .mermaid-diagram__host svg .marker {
+  stroke: var(--bp-line-strong) !important;
+  fill: var(--bp-line-strong) !important;
+  stroke-width: 1.2px !important;
+}
+html[data-theme="blueprint"] .mermaid-diagram__host svg .task,
+html[data-theme="blueprint"] .mermaid-diagram__host svg .task0,
+html[data-theme="blueprint"] .mermaid-diagram__host svg .task2 {
+  fill: rgba(93,207,255,.35) !important;
+  stroke: var(--teal) !important;
+  stroke-width: 1.2px !important;
+}
+html[data-theme="blueprint"] .mermaid-diagram__host svg .task1,
+html[data-theme="blueprint"] .mermaid-diagram__host svg .task3 {
+  fill: rgba(255,212,121,.35) !important;
+  stroke: var(--amber) !important;
+  stroke-width: 1.2px !important;
+}
+html[data-theme="blueprint"] .mermaid-diagram figcaption {
+  background: transparent !important;
+  border-top: 1px dashed var(--bp-line) !important;
+  color: var(--soft) !important;
+  font-family: var(--bp-mono);
+  font-size: 12px;
+}
+
+/* --- Parity patches (matching what brutal theme covers) --- */
+
+/* Element panel inner wrappers — brutal handled ec-panel/three-col-nav/content-toc too */
+html[data-theme="blueprint"] .ec-panel,
+html[data-theme="blueprint"] .three-col-nav,
+html[data-theme="blueprint"] .content-toc {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+
+/* Drop-target visual on sidebar nodes (HTML5 drag-drop reparent) */
+html[data-theme="blueprint"] .sidebar-node.is-drop-over,
+html[data-theme="blueprint"] .structure-chain-card.is-drop-over,
+html[data-theme="blueprint"] .child-card.is-drop-over,
+html[data-theme="blueprint"] .grand-pill.is-drop-over {
+  border-color: var(--amber) !important;
+  background: rgba(255, 212, 121, .14) !important;
+  box-shadow: inset 0 0 0 1px var(--amber) !important;
+}
+
+/* Path-card color variants — accent stripe on left */
+html[data-theme="blueprint"] .path-card--blue   { border-left: 3px solid var(--blue) !important; }
+html[data-theme="blueprint"] .path-card--green  { border-left: 3px solid var(--green) !important; }
+html[data-theme="blueprint"] .path-card--amber  { border-left: 3px solid var(--amber) !important; }
+html[data-theme="blueprint"] .path-card--violet { border-left: 3px solid var(--violet) !important; }
+
+/* Search-result color dot */
+html[data-theme="blueprint"] .search-result-dot {
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 0 !important;
+}
+
+/* "More" button below search results */
+html[data-theme="blueprint"] .system-more {
+  background: transparent !important;
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 2px !important;
+  color: var(--soft) !important;
+  font-family: var(--bp-mono);
+  box-shadow: none !important;
+}
+html[data-theme="blueprint"] .system-more:hover {
+  border-color: var(--teal) !important;
+  color: var(--teal) !important;
+  background: var(--teal-soft) !important;
+}
+
+/* Annotation menu color swatches */
+html[data-theme="blueprint"] .ke-annotation-menu .swatch {
+  border: 1px solid var(--bp-line) !important;
+  border-radius: 0 !important;
+}
+html[data-theme="blueprint"] .ke-annotation-menu .swatch--highlight { background: var(--amber) !important; }
+
+/* Mermaid: error state + gantt section bands */
+html[data-theme="blueprint"] .mermaid-diagram__error {
+  background: rgba(255,150,200,.08) !important;
+  border: 1px solid var(--pink) !important;
+  border-radius: 2px !important;
+  color: var(--pink) !important;
+  font-family: var(--bp-mono);
+}
+html[data-theme="blueprint"] .mermaid-diagram__host svg .section0,
+html[data-theme="blueprint"] .mermaid-diagram__host svg .section2 { fill: transparent !important; }
+html[data-theme="blueprint"] .mermaid-diagram__host svg .section1,
+html[data-theme="blueprint"] .mermaid-diagram__host svg .section3 { fill: rgba(125,199,255,.05) !important; }
+html[data-theme="blueprint"] .mermaid-diagram__host svg .grid .tick line { stroke: rgba(125,199,255,.18) !important; }
+html[data-theme="blueprint"] .mermaid-diagram__host svg .grid path { stroke: var(--bp-line-strong) !important; }
+html[data-theme="blueprint"] .mermaid-diagram__host svg .today { stroke: var(--amber) !important; stroke-width: 1.5px !important; }
+
+/* Icon-only quiet button (× and expand on element panel head) */
+html[data-theme="blueprint"] .quiet-button--icon {
+  min-width: 0 !important;
+  width: 32px;
+  height: 32px;
+  padding: 0 !important;
+  display: grid;
+  place-items: center;
+}
+html[data-theme="blueprint"] .quiet-button--icon .ke-icon { color: inherit; }
+
+/* Generic icons inherit color (no cyber teal leak) */
+html[data-theme="blueprint"] .ke-icon { stroke: currentColor; }
+
+/* ChildrenCTA list title + mini icons */
+html[data-theme="blueprint"] .children-cta-list__title { color: var(--text) !important; }
+html[data-theme="blueprint"] .children-cta-list .mini-icon { color: var(--teal) !important; }
+
+/* Section header h2/h3 — extra .section-block variant + ensure padding-h consistent */
+html[data-theme="blueprint"] .section-block h2,
+html[data-theme="blueprint"] .section-block h3 {
+  background: transparent !important;
+  border-bottom: 1px dashed var(--bp-line) !important;
+  font-family: var(--bp-sans);
+  font-weight: 600;
+  color: var(--text) !important;
+  padding: 6px 20px !important;
+  margin: 0 -20px 12px !important;
+}
+
+/* Generic <button> — kill cyber's default radius/glow if it leaks through */
+html[data-theme="blueprint"] button { border-radius: 2px; }
+
+/* Scrollbar */
+html[data-theme="blueprint"] * {
+  scrollbar-color: var(--bp-line-strong) rgba(10, 29, 58, .6);
+}
+html[data-theme="blueprint"] *::-webkit-scrollbar-track { background: rgba(10, 29, 58, .6); border-radius: 0; }
+html[data-theme="blueprint"] *::-webkit-scrollbar-thumb {
+  background: var(--bp-line-strong); border: 1px solid var(--bg); border-radius: 0;
+}
+
+/* Inline deep-analysis panel */
+html[data-theme="blueprint"] .ke-annotation-analysis {
+  background: rgba(125,199,255,.04) !important;
+  border: 1px solid var(--bp-line) !important;
+  border-left: 3px solid var(--teal) !important;
+  border-radius: 2px !important;
+  box-shadow: none !important;
+  padding: 12px 14px !important;
+}
+html[data-theme="blueprint"] .ke-annotation-analysis__badge {
+  background: transparent !important;
+  border: 1px solid var(--teal) !important;
+  color: var(--teal) !important;
+  border-radius: 2px !important;
+  font-family: var(--bp-mono) !important;
+}
+html[data-theme="blueprint"] .ke-annotation-analysis header strong {
+  color: var(--text) !important;
+  font-family: var(--bp-sans);
+}
+html[data-theme="blueprint"] .ke-annotation-analysis p { color: var(--soft) !important; }

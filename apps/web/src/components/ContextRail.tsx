@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import type { Element, LearningPath, Relation, Signal } from "@ke/domain";
+import { useMemo } from "react";
+import type { Element, LearningPath, Relation } from "@ke/domain";
 import { useStore } from "../state/store.js";
-import { api } from "../api/client.js";
 import "./components.css";
 
 interface Props {
@@ -51,40 +50,7 @@ export function ContextRail({ element, onSelect }: Props) {
     return rows.sort((a, b) => (b.relation.strength ?? 0) - (a.relation.strength ?? 0));
   }, [relations, elements, element.id]);
 
-  // 3) Activity signals for this element -------------------------------------
-  const [signals, setSignals] = useState<Signal[]>([]);
-  const [signalsLoading, setSignalsLoading] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setSignalsLoading(true);
-    api.listSignals({ elementId: element.id, limit: 50 })
-      .then(list => { if (!cancelled) setSignals(list); })
-      .catch(() => { if (!cancelled) setSignals([]); })
-      .finally(() => { if (!cancelled) setSignalsLoading(false); });
-    return () => { cancelled = true; };
-  }, [element.id]);
-
-  const activitySummary = useMemo(() => {
-    const counts: Record<string, number> = {};
-    let totalDwellMs = 0;
-    for (const s of signals) {
-      counts[s.type] = (counts[s.type] ?? 0) + 1;
-      if (s.type === "user.changed_center" && typeof s.data?.dwellMs === "number") {
-        totalDwellMs += s.data.dwellMs;
-      }
-    }
-    return { counts, totalDwellMs };
-  }, [signals]);
-
-  const opCounts = activitySummary.counts;
-  const dwellLabel = activitySummary.totalDwellMs > 60_000
-    ? `${Math.round(activitySummary.totalDwellMs / 60_000)} 分钟`
-    : activitySummary.totalDwellMs > 0
-      ? `${Math.round(activitySummary.totalDwellMs / 1000)} 秒`
-      : "—";
-
-  if (participations.length === 0 && lateral.length === 0 && signals.length === 0 && !signalsLoading) {
+  if (participations.length === 0 && lateral.length === 0) {
     // Nothing to show — keep panel cleaner
     return null;
   }
@@ -130,17 +96,6 @@ export function ContextRail({ element, onSelect }: Props) {
           </ul>
         </div>
       )}
-
-      <div className="rail-block">
-        <header><strong>活动摘要</strong><span>{signalsLoading ? "..." : signals.length}</span></header>
-        <dl className="rail-activity">
-          <div><dt>AI 操作完成</dt><dd>{opCounts["op.completed"] ?? 0} 次</dd></div>
-          <div><dt>AI 操作失败</dt><dd>{opCounts["op.failed"] ?? 0} 次</dd></div>
-          <div><dt>用户回滚</dt><dd>{opCounts["user.reverted"] ?? 0} 次</dd></div>
-          <div><dt>重复操作</dt><dd>{opCounts["user.repeated_op"] ?? 0} 次</dd></div>
-          <div><dt>停留时长</dt><dd>{dwellLabel}</dd></div>
-        </dl>
-      </div>
 
     </section>
   );

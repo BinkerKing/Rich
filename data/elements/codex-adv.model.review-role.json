@@ -1,0 +1,46 @@
+{
+  "id": "codex-adv.model.review-role",
+  "type": "concept",
+  "title": "人类审查角色",
+  "subtitle": "把注意力放在判断而不是机械执行",
+  "aliases": [
+    "人机协作",
+    "审查责任"
+  ],
+  "tags": [
+    "协作",
+    "代码审查"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "高阶使用 Codex 时，人类的主要价值是设定方向、检查假设、确认风险和做最终取舍。",
+    "coreExplain": "Codex 可以快速提出改动，但它不拥有真实业务背景、团队政治成本和长期维护偏好。人类应重点审查它的假设是否成立、是否改错层级、是否引入隐性耦合、是否漏掉测试。",
+    "whyMatters": "如果人类只检查语法，就会错过真正的风险。好的协作方式是让 Codex 承担繁琐执行，让人类集中做工程判断。",
+    "beginnerExplain": "你不需要逐字盯着它写代码，但要看它为什么这么改、验证了什么、没验证什么。",
+    "keyPoints": [
+      "先看意图和影响面，再看具体代码",
+      "要求 Codex 列出假设和未验证项",
+      "对公共 API、数据迁移、权限逻辑保持高审查强度",
+      "把可复用的审查规则沉淀成提示或项目文档"
+    ],
+    "examples": [
+      "要求 Codex 在最终说明中列出风险和测试结果",
+      "让 Codex 先做 PR review，再由人类判断是否采纳",
+      "对认证、支付、数据删除等代码进行人工复核"
+    ],
+    "mechanisms": [
+      "检查任务描述与实际 diff 是否一致",
+      "审查关键路径、边界条件和异常处理",
+      "确认测试覆盖了核心风险",
+      "决定合并、退回或继续迭代"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "codex",
+    "richness": 3
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "thai-trip.plan.season.cool",
+  "type": "concept",
+  "title": "凉季",
+  "subtitle": "舒适但价格和人流更高",
+  "aliases": [
+    "旺季"
+  ],
+  "tags": [
+    "凉季",
+    "旺季"
+  ],
+  "domain": "travel",
+  "difficulty": "low",
+  "content": {
+    "oneSentence": "凉季通常是第一次去泰国最稳的季节。",
+    "coreExplain": "气温和湿度相对友好，适合城市步行、寺庙参观和多数海岛活动。代价是热门酒店、航班和跳岛产品价格更高。圣诞、新年和春节前后还会遇到更高人流。",
+    "whyMatters": "凉季降低天气风险，但需要更早预订和更强预算控制。",
+    "misconceptions": [
+      "以为凉季不热，白天户外仍需防晒补水",
+      "以为旺季所有地方都拥挤，冷门区域仍有空间"
+    ],
+    "nextSteps": [
+      "提前锁定核心酒店",
+      "热门一日游预留备选日期"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.186Z",
+    "updatedAt": "2026-05-17T13:46:42.186Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

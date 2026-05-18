@@ -1,0 +1,1445 @@
+/* Ghibli / Miyazaki picture-book theme.
+   Activated by html[data-theme="ghibli"]. Aesthetic: warm cream paper with
+   a soft sky-blue + grass-green watercolor wash, deep forest-ink text,
+   sunset orange and dusty rose accents. Rounded edges (18px), diffused
+   shadows (no offset), hand-drawn rounded sans + storybook serif. Strictly
+   scoped under [data-theme="ghibli"] so the other six themes are untouched. */
+
+html[data-theme="ghibli"] {
+  --bg: #f3ecd9;                 /* warm sun-bleached cream */
+  --bg-2: #fbf4dd;
+  --panel: #fffaeb;
+  --panel-2: #f4ecd2;
+  --line: rgba(60, 80, 50, .18);
+  --line-2: rgba(60, 80, 50, .38);
+  --text: #2d3e2f;               /* deep forest ink */
+  --soft: #4b5f49;
+  --muted: #7a8a72;
+  --dim: #a6b29e;
+  --teal: #7ba56b;               /* meadow / leaf green */
+  --teal-2: #93b984;
+  --teal-soft: rgba(123, 165, 107, .16);
+  --teal-line: #7ba56b;
+  --violet: #b08fc7;             /* dusty mauve */
+  --amber: #e89a5a;              /* sunset orange */
+  --pink: #d99b9b;               /* dusty rose */
+  --green: #7ba56b;
+  --gold: #e89a5a;
+  --blue: #8fb6d4;               /* watercolor sky */
+  --orange: #d97645;             /* deeper sunset */
+  --radius: 18px;
+  --gh-paper: #f3ecd9;
+  --gh-panel: #fffaeb;
+  --gh-panel-2: #f4ecd2;
+  --gh-ink: #2d3e2f;
+  --gh-soft: #4b5f49;
+  --gh-muted: #7a8a72;
+  --gh-line: rgba(60, 80, 50, .22);
+  --gh-line-2: rgba(60, 80, 50, .45);
+  --gh-leaf: #7ba56b;
+  --gh-leaf-2: #5e8c50;
+  --gh-leaf-soft: rgba(123, 165, 107, .16);
+  --gh-sky: #8fb6d4;
+  --gh-sky-soft: rgba(143, 182, 212, .22);
+  --gh-sunset: #e89a5a;
+  --gh-sunset-2: #d97645;
+  --gh-rose: #d99b9b;
+  --gh-mauve: #b08fc7;
+  --gh-radius: 18px;
+  --gh-radius-sm: 10px;
+  --gh-shadow: 0 8px 24px rgba(60, 80, 50, .10), 0 1px 0 rgba(255,255,255,.6) inset;
+  --gh-shadow-sm: 0 4px 12px rgba(60, 80, 50, .08);
+  --gh-display: "Caveat", "Patrick Hand", "Songti SC", "PingFang SC", "Microsoft YaHei", cursive;
+  --gh-serif: "Fraunces", "Lora", Georgia, "Songti SC", "PingFang SC", serif;
+  --gh-sans: "Nunito", "Quicksand", "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+html[data-theme="ghibli"] body {
+  /* Sky + meadow wash: soft blue at top, warm cream middle, gentle green hint */
+  background:
+    radial-gradient(ellipse 1200px 600px at 20% 0%, rgba(143, 182, 212, .35), transparent 60%),
+    radial-gradient(ellipse 900px 500px at 95% 100%, rgba(123, 165, 107, .22), transparent 60%),
+    radial-gradient(ellipse 700px 400px at 75% 15%, rgba(232, 154, 90, .14), transparent 60%),
+    var(--gh-paper) !important;
+  color: var(--gh-ink);
+  font-family: var(--gh-sans);
+  font-weight: 500;
+}
+
+html[data-theme="ghibli"] *,
+html[data-theme="ghibli"] *::before,
+html[data-theme="ghibli"] *::after {
+  backdrop-filter: none !important;
+  text-shadow: none !important;
+  animation: none !important;
+}
+
+/* Strip cyber ambient layers */
+html[data-theme="ghibli"] .tree-view::before,
+html[data-theme="ghibli"] .tree-view::after,
+html[data-theme="ghibli"] .tv-topbar::before,
+html[data-theme="ghibli"] .structure-map__ambient { display: none !important; }
+
+html[data-theme="ghibli"] .tree-view { background: transparent; gap: 16px; padding: 16px; }
+
+/* Shared panel chrome — cream cards with rounded corners + soft shadow */
+html[data-theme="ghibli"] .tv-topbar,
+html[data-theme="ghibli"] .learning-sidebar,
+html[data-theme="ghibli"] .tv-main,
+html[data-theme="ghibli"] .system-panel,
+html[data-theme="ghibli"] .tv-footer {
+  background: var(--gh-panel) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius) !important;
+  box-shadow: var(--gh-shadow) !important;
+}
+
+/* Topbar — sky wash band, no underline */
+html[data-theme="ghibli"] .tv-topbar {
+  background:
+    linear-gradient(90deg, var(--gh-sky-soft), transparent 35%, transparent 65%, var(--gh-leaf-soft)),
+    var(--gh-panel) !important;
+}
+html[data-theme="ghibli"] .tv-brand strong {
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0;
+}
+html[data-theme="ghibli"] .tv-home-button:hover { background: var(--gh-leaf-soft); }
+html[data-theme="ghibli"] .tv-logo {
+  background: var(--gh-sunset) !important;
+  border: 1.5px solid var(--gh-ink) !important;
+  box-shadow: 0 4px 10px rgba(232,154,90,.45) !important;
+}
+html[data-theme="ghibli"] .tv-logo::after { display: none !important; }
+
+/* Breadcrumb */
+html[data-theme="ghibli"] .tv-crumb {
+  background: rgba(255,255,255,.45) !important;
+  border: 1.5px solid var(--gh-line) !important;
+  border-radius: 999px !important;
+  box-shadow: none;
+}
+html[data-theme="ghibli"] .tv-crumb button {
+  color: var(--gh-soft) !important;
+  font-family: var(--gh-sans);
+  font-weight: 700;
+}
+html[data-theme="ghibli"] .tv-crumb button:not(:last-child)::after { color: var(--gh-leaf); margin-left: 8px; }
+html[data-theme="ghibli"] .tv-crumb .now {
+  color: var(--gh-ink) !important;
+  background: var(--gh-leaf-soft);
+  padding: 3px 12px;
+  border: 1.5px solid var(--gh-leaf);
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+/* Topbar tools */
+html[data-theme="ghibli"] .tv-tools button,
+html[data-theme="ghibli"] .tv-tools span {
+  background: rgba(255,255,255,.55) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: 12px !important;
+  color: var(--gh-soft) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+}
+html[data-theme="ghibli"] .tv-tools button:hover {
+  background: var(--gh-sky-soft) !important;
+  border-color: var(--gh-sky) !important;
+  color: var(--gh-ink) !important;
+  transform: translateY(-1px);
+}
+html[data-theme="ghibli"] .tv-tools button.is-active {
+  background: rgba(232,154,90,.22) !important;
+  border-color: var(--gh-sunset) !important;
+  color: var(--gh-sunset-2) !important;
+}
+html[data-theme="ghibli"] .tv-tools span {
+  background: var(--gh-leaf) !important;
+  border-color: var(--gh-ink) !important;
+  color: var(--gh-panel) !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+}
+
+/* Sidebar */
+html[data-theme="ghibli"] .learning-sidebar { background: var(--gh-panel) !important; }
+html[data-theme="ghibli"] .sidebar-label {
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display);
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+  border-left: 4px solid var(--gh-sunset);
+  padding-left: 10px;
+  margin-top: 18px;
+}
+html[data-theme="ghibli"] .sidebar-label__count {
+  background: var(--gh-sunset) !important;
+  color: var(--gh-panel) !important;
+  border-radius: 999px !important;
+  padding: 1px 8px;
+  font-family: var(--gh-sans);
+  font-weight: 800;
+  font-size: 11px;
+}
+html[data-theme="ghibli"] .sidebar-list,
+html[data-theme="ghibli"] .ancestor-list { gap: 8px; padding-right: 4px; }
+html[data-theme="ghibli"] .sidebar-node,
+html[data-theme="ghibli"] .ancestor-list button {
+  background: rgba(255,255,255,.65) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  color: var(--gh-ink) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+  font-family: var(--gh-sans);
+  font-weight: 700;
+  transform: none !important;
+}
+html[data-theme="ghibli"] .sidebar-node:hover,
+html[data-theme="ghibli"] .ancestor-list button:hover {
+  background: var(--gh-sky-soft) !important;
+  border-color: var(--gh-sky) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 14px rgba(60,80,50,.12) !important;
+}
+html[data-theme="ghibli"] .sidebar-node.is-active,
+html[data-theme="ghibli"] .ancestor-list button.is-center {
+  background: var(--gh-leaf-soft) !important;
+  border-color: var(--gh-leaf) !important;
+  color: var(--gh-leaf-2) !important;
+  box-shadow: inset 4px 0 0 var(--gh-leaf) !important;
+  transform: none !important;
+}
+html[data-theme="ghibli"] .sidebar-node.is-active .mini-icon,
+html[data-theme="ghibli"] .ancestor-list button.is-center .mini-icon { color: var(--gh-leaf-2); }
+html[data-theme="ghibli"] .sidebar-node.is-active .sidebar-node__title,
+html[data-theme="ghibli"] .ancestor-list button.is-center .sidebar-node__title { color: var(--gh-leaf-2); }
+
+/* Sidebar inner padding — keep list items from hugging the column edges */
+html[data-theme="ghibli"] .learning-sidebar { padding: 18px 14px !important; }
+html[data-theme="ghibli"] .learning-sidebar section { padding-bottom: 14px; }
+html[data-theme="ghibli"] .sidebar-node.is-drop-over {
+  background: var(--gh-sunset) !important;
+  border: 1.5px dashed var(--gh-ink) !important;
+  color: var(--gh-ink) !important;
+}
+html[data-theme="ghibli"] .sidebar-node .mini-icon,
+html[data-theme="ghibli"] .ancestor-list button .mini-icon {
+  color: var(--gh-sunset);
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+html[data-theme="ghibli"] .ancestor-list button em {
+  background: rgba(232,154,90,.22);
+  color: var(--gh-sunset-2) !important;
+  font-style: normal;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 0 7px;
+  font-family: var(--gh-display);
+}
+
+/* Paths / scenes */
+html[data-theme="ghibli"] .path-card,
+html[data-theme="ghibli"] .scene-list button {
+  background: rgba(255,255,255,.65) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  color: var(--gh-ink) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+  font-family: var(--gh-sans);
+  font-weight: 700;
+}
+html[data-theme="ghibli"] .path-card:hover,
+html[data-theme="ghibli"] .scene-list button:hover {
+  border-color: var(--gh-leaf) !important;
+  background: var(--gh-leaf-soft) !important;
+  transform: translateY(-1px);
+}
+html[data-theme="ghibli"] .path-card strong { color: inherit; font-family: var(--gh-display); font-size: 17px; font-weight: 700; }
+html[data-theme="ghibli"] .path-card--blue   { border-left: 4px solid var(--gh-sky) !important; }
+html[data-theme="ghibli"] .path-card--green  { border-left: 4px solid var(--gh-leaf) !important; }
+html[data-theme="ghibli"] .path-card--amber  { border-left: 4px solid var(--gh-sunset) !important; }
+html[data-theme="ghibli"] .path-card--violet { border-left: 4px solid var(--gh-mauve) !important; }
+html[data-theme="ghibli"] .scene-list button.is-active {
+  background: var(--gh-leaf-soft) !important;
+  color: var(--gh-leaf-2) !important;
+  border-color: var(--gh-leaf) !important;
+  box-shadow: inset 4px 0 0 var(--gh-leaf) !important;
+}
+
+/* Knowledge tree */
+html[data-theme="ghibli"] .structure-map {
+  background:
+    radial-gradient(ellipse 600px 300px at 50% 0%, var(--gh-sky-soft), transparent 60%),
+    radial-gradient(ellipse 500px 250px at 50% 100%, var(--gh-leaf-soft), transparent 60%),
+    var(--gh-panel) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius) !important;
+  box-shadow: var(--gh-shadow);
+}
+html[data-theme="ghibli"] .structure-chain-card,
+html[data-theme="ghibli"] .child-card,
+html[data-theme="ghibli"] .grand-pill {
+  background: var(--gh-panel) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  color: var(--gh-ink) !important;
+  box-shadow: var(--gh-shadow) !important;
+  filter: none !important;
+}
+html[data-theme="ghibli"] .structure-chain-card { background: linear-gradient(180deg, #fff7e0, #ffe7c4) !important; border-color: var(--gh-sunset) !important; }
+html[data-theme="ghibli"] .structure-chain-card.is-selected,
+html[data-theme="ghibli"] .child-card.is-selected,
+html[data-theme="ghibli"] .grand-pill.is-selected {
+  background: var(--gh-leaf-soft) !important;
+  color: var(--gh-leaf-2) !important;
+  border-color: var(--gh-leaf) !important;
+  box-shadow: 0 6px 18px rgba(60,80,50,.12), 0 0 0 1px var(--gh-leaf) inset !important;
+  transform: none !important;
+}
+html[data-theme="ghibli"] .child-card.is-selected *,
+html[data-theme="ghibli"] .grand-pill.is-selected *,
+html[data-theme="ghibli"] .child-card.is-selected .tree-element-card__title,
+html[data-theme="ghibli"] .grand-pill.is-selected .tree-element-card__title { color: var(--gh-leaf-2) !important; }
+html[data-theme="ghibli"] .structure-chain-card *,
+html[data-theme="ghibli"] .child-card *,
+html[data-theme="ghibli"] .grand-pill * { color: inherit !important; }
+html[data-theme="ghibli"] .structure-chain-card__badge {
+  background: rgba(232,154,90,.22) !important;
+  border: 0 !important;
+  color: var(--gh-sunset-2) !important;
+  border-radius: 999px !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  padding: 2px 10px;
+}
+html[data-theme="ghibli"] .structure-chain-card.is-drop-over,
+html[data-theme="ghibli"] .child-card.is-drop-over,
+html[data-theme="ghibli"] .grand-pill.is-drop-over {
+  background: var(--gh-sunset) !important;
+  border: 1.5px dashed var(--gh-ink) !important;
+}
+html[data-theme="ghibli"] .tree-line {
+  stroke: var(--gh-line-2) !important;
+  stroke-width: 1.5px !important;
+  stroke-dasharray: 6 4 !important;
+}
+
+/* Tree card text */
+html[data-theme="ghibli"] .tree-element-card__title {
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-serif);
+  font-weight: 600;
+}
+html[data-theme="ghibli"] .tree-element-card__desc,
+html[data-theme="ghibli"] .child-card p,
+html[data-theme="ghibli"] .grand-pill p,
+html[data-theme="ghibli"] .child-card h4 {
+  color: var(--gh-muted) !important;
+  font-family: var(--gh-sans);
+  font-weight: 600;
+}
+html[data-theme="ghibli"] .child-card .ke-icon,
+html[data-theme="ghibli"] .grand-pill .ke-icon,
+html[data-theme="ghibli"] .structure-chain-card .ke-icon { color: var(--gh-sunset) !important; }
+
+/* Type chips per element type */
+html[data-theme="ghibli"] .child-card .tree-element-card__type,
+html[data-theme="ghibli"] .grand-pill .tree-element-card__type,
+html[data-theme="ghibli"] .structure-chain-card .tree-element-card__type {
+  border: 1.5px solid var(--gh-ink) !important;
+  border-radius: 999px !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  font-size: 11px;
+}
+html[data-theme="ghibli"] .child-card .tree-element-card__type,
+html[data-theme="ghibli"] .grand-pill .tree-element-card__type,
+html[data-theme="ghibli"] .structure-chain-card .tree-element-card__type {
+  border: 0 !important;
+  font-weight: 700;
+}
+html[data-theme="ghibli"] .element-type--concept .tree-element-card__type,
+html[data-theme="ghibli"] .element-type--knowledge .tree-element-card__type {
+  background: var(--gh-sky-soft) !important;
+  color: #2c5375 !important;
+}
+html[data-theme="ghibli"] .element-type--topic .tree-element-card__type {
+  background: rgba(232,154,90,.22) !important;
+  color: var(--gh-sunset-2) !important;
+}
+html[data-theme="ghibli"] .element-type--practice .tree-element-card__type {
+  background: rgba(217,155,155,.30) !important;
+  color: #8a4a4a !important;
+}
+html[data-theme="ghibli"] .element-type--product-design .tree-element-card__type {
+  background: rgba(176,143,199,.24) !important;
+  color: #6a4d80 !important;
+}
+html[data-theme="ghibli"] .element-type--step .tree-element-card__type {
+  background: var(--gh-leaf-soft) !important;
+  color: var(--gh-leaf-2) !important;
+}
+
+/* Footer */
+html[data-theme="ghibli"] .tv-footer { color: var(--gh-ink) !important; }
+html[data-theme="ghibli"] .tv-footer > div:first-child { color: var(--gh-soft) !important; font-family: var(--gh-sans); }
+html[data-theme="ghibli"] .footer-actions button {
+  background: rgba(255,255,255,.65) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  color: var(--gh-ink) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+  font-family: var(--gh-sans);
+  font-weight: 700;
+}
+html[data-theme="ghibli"] .footer-actions button:hover {
+  background: var(--gh-leaf-soft) !important;
+  border-color: var(--gh-leaf) !important;
+  transform: translateY(-1px);
+}
+html[data-theme="ghibli"] .footer-actions button:first-child {
+  background: rgba(232,154,90,.22) !important;
+  color: var(--gh-sunset-2) !important;
+  border-color: var(--gh-sunset) !important;
+}
+
+/* Element detail page */
+html[data-theme="ghibli"] .element-content,
+html[data-theme="ghibli"] .element-content__scroll,
+html[data-theme="ghibli"] .element-content__three-col,
+html[data-theme="ghibli"] .body-article,
+html[data-theme="ghibli"] .body-layout,
+html[data-theme="ghibli"] .ec-panel,
+html[data-theme="ghibli"] .three-col-nav,
+html[data-theme="ghibli"] .content-toc {
+  background: var(--gh-panel) !important;
+}
+html[data-theme="ghibli"] .element-content.is-fullscreen { background: var(--gh-panel) !important; }
+html[data-theme="ghibli"] .element-content.is-fullscreen::before { display: none !important; }
+
+/* Element panel head — sky→sunset watercolor wash */
+html[data-theme="ghibli"] .element-content__head {
+  background:
+    linear-gradient(135deg, var(--gh-sky-soft) 0%, transparent 50%, rgba(232,154,90,.18) 100%),
+    var(--gh-panel) !important;
+  border-bottom: 1.5px solid var(--gh-line-2) !important;
+  overflow: visible !important;
+}
+html[data-theme="ghibli"] .element-content__head::after { display: none !important; }
+html[data-theme="ghibli"] .element-content__head p { color: var(--gh-soft) !important; font-family: var(--gh-sans); font-weight: 600; }
+html[data-theme="ghibli"] .element-title-row h2 {
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  font-size: clamp(26px, 2vw, 36px);
+  letter-spacing: 0;
+}
+html[data-theme="ghibli"] .element-title-row span {
+  background: rgba(232,154,90,.22) !important;
+  border: 0 !important;
+  color: var(--gh-sunset-2) !important;
+  border-radius: 999px !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  padding: 2px 10px;
+}
+
+/* Action buttons in head */
+html[data-theme="ghibli"] .element-content__actions button {
+  background: rgba(255,255,255,.6) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: 12px !important;
+  color: var(--gh-ink) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+  font-family: var(--gh-sans);
+  font-weight: 700;
+}
+html[data-theme="ghibli"] .element-content__actions button:hover {
+  background: var(--gh-leaf-soft) !important;
+  border-color: var(--gh-leaf) !important;
+  transform: translateY(-1px);
+}
+
+/* Meta chips */
+html[data-theme="ghibli"] .meta-chip {
+  background: rgba(255,255,255,.6) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: 999px !important;
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-sans);
+  font-weight: 700;
+  font-size: 12px;
+  box-shadow: none !important;
+}
+html[data-theme="ghibli"] .meta-chip--type { background: var(--gh-sky-soft) !important; border-color: var(--gh-sky) !important; color: #2c5375 !important; }
+html[data-theme="ghibli"] .meta-chip--difficulty { background: rgba(232,154,90,.20) !important; border-color: var(--gh-sunset) !important; color: #8a4f1e !important; }
+html[data-theme="ghibli"] .meta-chip--domain { background: rgba(176,143,199,.20) !important; border-color: var(--gh-mauve) !important; color: #6a4d80 !important; }
+html[data-theme="ghibli"] .meta-chip--tag { background: var(--gh-leaf-soft) !important; border-color: var(--gh-leaf) !important; color: var(--gh-leaf-2) !important; }
+html[data-theme="ghibli"] .meta-author,
+html[data-theme="ghibli"] .meta-time,
+html[data-theme="ghibli"] .meta-history { color: var(--gh-muted) !important; font-family: var(--gh-sans); }
+
+/* TOC */
+html[data-theme="ghibli"] .body-toc {
+  background: var(--gh-panel-2) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+  padding: 0 !important;
+}
+html[data-theme="ghibli"] .body-toc h3,
+html[data-theme="ghibli"] .body-toc > strong,
+html[data-theme="ghibli"] .body-toc__title {
+  background: var(--gh-sunset) !important;
+  color: var(--gh-panel) !important;
+  font-family: var(--gh-display) !important;
+  font-weight: 700 !important;
+  font-size: 16px !important;
+  border-bottom: 1.5px solid var(--gh-ink) !important;
+  padding: 10px 16px !important;
+  margin: 0 !important;
+  display: block;
+  border-top-left-radius: calc(var(--gh-radius) - 2px);
+  border-top-right-radius: calc(var(--gh-radius) - 2px);
+}
+
+/* The real title is rendered via .body-toc::before — repaint it as a
+   proper sunset band with comfortable inset. */
+html[data-theme="ghibli"] .body-toc::before {
+  content: "本元目录" !important;
+  display: block;
+  background: rgba(232,154,90,.16) !important;
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display) !important;
+  font-size: 17px !important;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 10px 18px !important;
+  border-bottom: 1.5px solid var(--gh-line) !important;
+  margin: 0 !important;
+  border-top-left-radius: calc(var(--gh-radius) - 2px);
+  border-top-right-radius: calc(var(--gh-radius) - 2px);
+}
+html[data-theme="ghibli"] .body-toc ol { padding: 14px 16px !important; gap: 8px !important; }
+html[data-theme="ghibli"] .body-toc button {
+  background: rgba(255,255,255,.65) !important;
+  border: 1.5px solid var(--gh-line) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-sans);
+  font-weight: 700;
+  padding: 8px 10px !important;
+  display: flex; align-items: center; gap: 8px;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html[data-theme="ghibli"] .body-toc button:hover {
+  background: var(--gh-sky-soft) !important;
+  border-color: var(--gh-sky) !important;
+  transform: translateY(-1px) !important;
+}
+html[data-theme="ghibli"] .body-toc button.is-active {
+  background: var(--gh-leaf-soft) !important;
+  color: var(--gh-leaf-2) !important;
+  border-color: var(--gh-leaf) !important;
+  box-shadow: inset 4px 0 0 var(--gh-leaf) !important;
+}
+html[data-theme="ghibli"] .body-toc button::before { display: none !important; }
+html[data-theme="ghibli"] .body-toc ol .toc-num,
+html[data-theme="ghibli"] .body-toc button .toc-num {
+  background: rgba(232,154,90,.22) !important;
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display) !important;
+  font-weight: 700 !important;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 0 !important;
+  opacity: 1 !important;
+}
+html[data-theme="ghibli"] .body-toc button.is-active .toc-num {
+  background: var(--gh-leaf-soft) !important; color: var(--gh-leaf-2) !important;
+}
+html[data-theme="ghibli"] .body-toc .toc-label { color: inherit !important; font-weight: 700; }
+
+/* Section blocks */
+html[data-theme="ghibli"] .section-block,
+html[data-theme="ghibli"] .body-section {
+  background: var(--gh-panel) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+  margin-bottom: 18px;
+}
+html[data-theme="ghibli"] .section-block h2,
+html[data-theme="ghibli"] .section-block h3,
+html[data-theme="ghibli"] .body-section h2,
+html[data-theme="ghibli"] .body-section h3,
+html[data-theme="ghibli"] .body-section-h {
+  background: linear-gradient(90deg, var(--gh-leaf-soft), transparent 80%) !important;
+  border-bottom: 1.5px solid var(--gh-line) !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  font-size: 24px;
+  color: var(--gh-ink) !important;
+  padding: 10px 22px !important;
+  margin: 0 -22px 16px !important;
+}
+html[data-theme="ghibli"] .body-section-num,
+html[data-theme="ghibli"] .example-num,
+html[data-theme="ghibli"] .step-num,
+html[data-theme="ghibli"] .mechanism-step-num,
+html[data-theme="ghibli"] .path-step-num {
+  background: rgba(232,154,90,.22) !important;
+  border: 0 !important;
+  color: var(--gh-sunset-2) !important;
+  border-radius: 999px !important;
+  font-family: var(--gh-display) !important;
+  font-weight: 700 !important;
+  padding: 2px 9px !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+
+/* Decision list cards (扩展策略 / 决策卡) — dark gradient by default, repaint */
+html[data-theme="ghibli"] .decision-card {
+  background: var(--gh-panel-2) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-left: 6px solid var(--gh-sunset) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+  padding: 14px 16px !important;
+  gap: 8px;
+}
+html[data-theme="ghibli"] .decision-card header strong {
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  font-size: 16px;
+}
+html[data-theme="ghibli"] .decision-card header span {
+  color: var(--gh-sunset-2) !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  background: rgba(232,154,90,.18);
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+html[data-theme="ghibli"] .decision-card p {
+  color: var(--gh-soft) !important;
+  font-family: var(--gh-sans);
+  font-weight: 500;
+}
+html[data-theme="ghibli"] .decision-card .dot-list li { color: var(--gh-ink) !important; }
+html[data-theme="ghibli"] .decision-card .dot-list li::before { color: var(--gh-sunset) !important; }
+
+/* Phase timeline (阶段 1 / 阶段 2 ... 建议执行顺序) */
+html[data-theme="ghibli"] .phase-timeline li {
+  background: var(--gh-panel-2) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-left: 6px solid var(--gh-sunset) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+}
+html[data-theme="ghibli"] .phase-timeline li:nth-child(4n+2) { border-left-color: var(--gh-leaf) !important; }
+html[data-theme="ghibli"] .phase-timeline li:nth-child(4n+3) { border-left-color: var(--gh-sky) !important; }
+html[data-theme="ghibli"] .phase-timeline li:nth-child(4n+4) { border-left-color: var(--gh-mauve) !important; }
+html[data-theme="ghibli"] .phase-num {
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display) !important;
+  font-weight: 700 !important;
+  font-size: 16px !important;
+}
+html[data-theme="ghibli"] .phase-timeline li strong {
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  font-size: 16px;
+}
+html[data-theme="ghibli"] .phase-timeline li p {
+  color: var(--gh-soft) !important;
+  font-family: var(--gh-sans);
+  font-weight: 600;
+}
+
+/* Mechanism flow */
+html[data-theme="ghibli"] .mechanism-flow li {
+  background: var(--gh-panel-2) !important;
+  border: 1.5px solid var(--gh-line) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+}
+html[data-theme="ghibli"] .mechanism-flow li strong {
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  font-size: 15px;
+}
+html[data-theme="ghibli"] .mechanism-flow li p {
+  color: var(--gh-muted) !important;
+  font-family: var(--gh-sans);
+  font-weight: 600;
+}
+
+/* Callouts */
+html[data-theme="ghibli"] .callout,
+html[data-theme="ghibli"] .warn-card,
+html[data-theme="ghibli"] .example-item,
+html[data-theme="ghibli"] .decision-item,
+html[data-theme="ghibli"] .module-card,
+html[data-theme="ghibli"] .mvp-card,
+html[data-theme="ghibli"] .phase-item {
+  background: var(--gh-panel-2) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  color: var(--gh-ink) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+}
+html[data-theme="ghibli"] .callout { border-left: 6px solid var(--gh-sunset) !important; background: rgba(232,154,90,.12) !important; }
+html[data-theme="ghibli"] .callout--tip { border-left-color: var(--gh-sunset) !important; background: rgba(232,154,90,.12) !important; }
+html[data-theme="ghibli"] .callout--insight { border-left-color: var(--gh-leaf) !important; background: var(--gh-leaf-soft) !important; }
+html[data-theme="ghibli"] .callout--warning { border-left-color: var(--gh-rose) !important; background: rgba(217,155,155,.16) !important; }
+html[data-theme="ghibli"] .callout--info { border-left-color: var(--gh-sky) !important; background: var(--gh-sky-soft) !important; }
+html[data-theme="ghibli"] .callout strong,
+html[data-theme="ghibli"] .callout-body strong,
+html[data-theme="ghibli"] .warn-card strong {
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display);
+  font-weight: 700 !important;
+  font-size: 16px;
+  background: transparent !important;
+}
+html[data-theme="ghibli"] .callout-icon,
+html[data-theme="ghibli"] .warn-card::before { color: var(--gh-sunset) !important; opacity: 1 !important; }
+html[data-theme="ghibli"] .warn-card { border-left: 6px solid var(--gh-rose) !important; background: rgba(217,155,155,.16) !important; }
+html[data-theme="ghibli"] .warn-card * { color: var(--gh-ink) !important; }
+html[data-theme="ghibli"] .warn-card__bar { background: var(--gh-rose) !important; }
+
+/* Module cards — sky/leaf/sand/rose rotation (replaced washed-out orange
+   with a deeper sand tone for better contrast against cream paper). */
+html[data-theme="ghibli"] .module-card:nth-child(4n+1) { background: var(--gh-sky-soft) !important; border-color: var(--gh-sky) !important; }
+html[data-theme="ghibli"] .module-card:nth-child(4n+2) { background: var(--gh-leaf-soft) !important; border-color: var(--gh-leaf) !important; }
+html[data-theme="ghibli"] .module-card:nth-child(4n+3) { background: rgba(176,143,199,.20) !important; border-color: var(--gh-mauve) !important; }
+html[data-theme="ghibli"] .module-card:nth-child(4n+4) { background: rgba(217,155,155,.20) !important; border-color: var(--gh-rose) !important; }
+html[data-theme="ghibli"] .module-card:nth-child(4n+5) { background: rgba(232,154,90,.28) !important; border-color: var(--gh-sunset) !important; }
+
+/* Force module-card text colors to ink/forest so accent-tinted bg stays
+   readable (default cyber em uses --center-accent which clashes). */
+html[data-theme="ghibli"] .module-card header,
+html[data-theme="ghibli"] .module-card strong {
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  font-size: 16px;
+}
+html[data-theme="ghibli"] .module-card p {
+  color: var(--gh-soft) !important;
+  font-family: var(--gh-sans);
+  font-weight: 600;
+}
+html[data-theme="ghibli"] .module-card em {
+  color: var(--gh-leaf-2) !important;
+  font-family: var(--gh-display);
+  font-style: normal;
+  font-weight: 700;
+}
+
+/* check / dot list */
+html[data-theme="ghibli"] .check-list li {
+  color: var(--gh-ink) !important;
+  padding-left: 28px !important;
+}
+html[data-theme="ghibli"] .check-list li::before {
+  content: "✓" !important;
+  background: var(--gh-leaf) !important;
+  border: 1.5px solid var(--gh-ink) !important;
+  color: var(--gh-panel) !important;
+  border-radius: 999px !important;
+  width: 20px; height: 20px;
+  display: grid; place-items: center;
+  font-family: var(--gh-display);
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  top: 1px !important; left: 0 !important;
+  line-height: 1 !important;
+}
+html[data-theme="ghibli"] .dot-list li { color: var(--gh-ink) !important; }
+html[data-theme="ghibli"] .dot-list li::before { color: var(--gh-sunset) !important; }
+
+/* Tables */
+html[data-theme="ghibli"] table,
+html[data-theme="ghibli"] .kv-table,
+html[data-theme="ghibli"] .competitor-table,
+html[data-theme="ghibli"] .budget-table {
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  overflow: hidden;
+}
+html[data-theme="ghibli"] th,
+html[data-theme="ghibli"] td {
+  border: 1px solid var(--gh-line) !important;
+  background: transparent !important;
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-sans);
+}
+html[data-theme="ghibli"] th {
+  background: var(--gh-leaf-soft) !important;
+  color: var(--gh-leaf-2) !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+}
+
+/* Day schedule */
+html[data-theme="ghibli"] .sec-day-schedule__day {
+  background: var(--gh-panel) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+}
+html[data-theme="ghibli"] .sec-day-schedule__day > header {
+  background: linear-gradient(90deg, var(--gh-sky-soft), var(--gh-leaf-soft)) !important;
+  border-bottom: 1.5px solid var(--gh-line) !important;
+  padding: 12px 18px !important;
+  align-items: center !important;
+  gap: 12px !important;
+  margin-bottom: 0 !important;
+}
+html[data-theme="ghibli"] .sec-day-schedule__num {
+  background: rgba(232,154,90,.20) !important;
+  border: 0 !important;
+  color: var(--gh-sunset-2) !important;
+  border-radius: 999px !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  padding: 2px 10px;
+}
+html[data-theme="ghibli"] .sec-day-schedule__day > header strong {
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+html[data-theme="ghibli"] .sec-day-schedule__day > header em {
+  margin-left: auto;
+  max-width: 60%;
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  color: var(--gh-soft) !important;
+  font-style: normal;
+  font-weight: 600;
+  font-family: var(--gh-sans);
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+html[data-theme="ghibli"] .sec-day-schedule__day > ul > li {
+  border-bottom: 1px dashed var(--gh-line) !important;
+  background: transparent !important;
+  padding: 10px 16px !important;
+  column-gap: 16px !important;
+}
+html[data-theme="ghibli"] .sec-day-schedule__day > ul > li:nth-child(even) { background: var(--gh-panel-2) !important; }
+html[data-theme="ghibli"] .sec-day-schedule__time {
+  background: transparent !important;
+  border: 0 !important;
+  color: #2c5375 !important;
+  border-radius: 0 !important;
+  font-family: var(--gh-sans);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 0 !important;
+  justify-self: start;
+}
+html[data-theme="ghibli"] .sec-day-schedule__what {
+  color: var(--gh-ink) !important;
+  font-weight: 700;
+  font-family: var(--gh-display);
+  font-size: 16px;
+}
+html[data-theme="ghibli"] .sec-day-schedule__note {
+  color: var(--gh-soft) !important;
+  font-family: var(--gh-sans);
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+/* Inputs */
+html[data-theme="ghibli"] input,
+html[data-theme="ghibli"] textarea,
+html[data-theme="ghibli"] select {
+  background: rgba(255,255,255,.7) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  color: var(--gh-ink) !important;
+  box-shadow: none !important;
+  font-family: var(--gh-sans);
+}
+html[data-theme="ghibli"] input:focus,
+html[data-theme="ghibli"] textarea:focus,
+html[data-theme="ghibli"] select:focus {
+  outline: 0;
+  border-color: var(--gh-leaf) !important;
+  background: var(--gh-panel) !important;
+}
+
+/* SystemPanel */
+html[data-theme="ghibli"] .system-panel__head h2,
+html[data-theme="ghibli"] .system-section h3 {
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display);
+  font-size: 20px;
+  font-weight: 700;
+}
+html[data-theme="ghibli"] .system-search-box {
+  background: rgba(255,255,255,.6) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+}
+html[data-theme="ghibli"] .system-search-box input {
+  background: transparent !important;
+  color: var(--gh-ink) !important;
+  border: 0 !important;
+}
+html[data-theme="ghibli"] .system-search-box input::placeholder { color: var(--gh-muted) !important; }
+html[data-theme="ghibli"] .system-search-box .ke-icon { color: var(--gh-muted) !important; }
+/* Submit button — just the magnifier icon, no pill / border / fill */
+html[data-theme="ghibli"] .system-search-box button {
+  background: transparent !important;
+  border: 0 !important;
+  color: var(--gh-muted) !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  font-family: var(--gh-sans);
+  width: 32px;
+  height: 32px;
+  padding: 0 !important;
+}
+html[data-theme="ghibli"] .system-search-box button:hover {
+  background: var(--gh-leaf-soft) !important;
+  color: var(--gh-leaf-2) !important;
+}
+html[data-theme="ghibli"] .search-result-list button {
+  background: rgba(255,255,255,.6) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  color: var(--gh-ink) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+  margin-bottom: 6px;
+}
+html[data-theme="ghibli"] .search-result-list button:hover {
+  background: var(--gh-sky-soft) !important;
+  border-color: var(--gh-sky) !important;
+}
+html[data-theme="ghibli"] .search-result-dot { border: 1.5px solid var(--gh-ink) !important; border-radius: 999px !important; }
+html[data-theme="ghibli"] .search-result-main strong { color: var(--gh-ink) !important; font-family: var(--gh-display); }
+html[data-theme="ghibli"] .search-result-main em { color: var(--gh-muted) !important; }
+/* Match-percentage — readable text only, no background pill */
+html[data-theme="ghibli"] .search-result-list b {
+  background: transparent !important;
+  border: 0 !important;
+  color: var(--gh-leaf-2) !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* Result buttons: kill any focus/active tint that lingers after clicking
+   the last item (was causing a faint blue stain). */
+html[data-theme="ghibli"] .search-result-list button:focus,
+html[data-theme="ghibli"] .search-result-list button:focus-visible,
+html[data-theme="ghibli"] .search-result-list button:active {
+  outline: 0 !important;
+  background: rgba(255,255,255,.65) !important;
+  border-color: var(--gh-line-2) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+}
+html[data-theme="ghibli"] .system-more {
+  background: var(--gh-panel) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  box-shadow: var(--gh-shadow-sm) !important;
+}
+html[data-theme="ghibli"] .system-placeholder {
+  background: var(--gh-panel-2) !important;
+  border: 1.5px dashed var(--gh-line-2) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  color: var(--gh-muted) !important;
+}
+
+/* Right rail */
+html[data-theme="ghibli"] .three-col-context,
+html[data-theme="ghibli"] .ai-tasks-panel,
+html[data-theme="ghibli"] .context-rail,
+html[data-theme="ghibli"] .embedded-tasks {
+  background: var(--gh-panel) !important;
+  border-left: 1.5px solid var(--gh-line-2) !important;
+  color: var(--gh-ink) !important;
+}
+html[data-theme="ghibli"] .embedded-tasks,
+html[data-theme="ghibli"] .context-rail .rail-block {
+  background: var(--gh-panel-2) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+  padding: 12px 14px !important;
+  margin-bottom: 14px !important;
+}
+html[data-theme="ghibli"] .rail-block header strong,
+html[data-theme="ghibli"] .embedded-tasks header strong {
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  font-size: 18px;
+}
+html[data-theme="ghibli"] .rail-block header span {
+  background: var(--gh-sunset);
+  color: var(--gh-panel) !important;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-family: var(--gh-display);
+}
+html[data-theme="ghibli"] .rail-paths > li,
+html[data-theme="ghibli"] .rail-lateral > li {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  margin: 0 0 8px !important;
+}
+/* The actual visible card is the inner button — override its dark cyber bg */
+html[data-theme="ghibli"] .rail-paths li button,
+html[data-theme="ghibli"] .rail-lateral button {
+  background: rgba(255,255,255,.65) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+  color: var(--gh-ink) !important;
+  padding: 10px 12px !important;
+}
+html[data-theme="ghibli"] .rail-paths li button:hover,
+html[data-theme="ghibli"] .rail-lateral button:hover {
+  background: var(--gh-leaf-soft) !important;
+  border-color: var(--gh-leaf) !important;
+  transform: translateY(-1px);
+}
+html[data-theme="ghibli"] .rail-lateral-arrow { color: var(--gh-sunset) !important; }
+html[data-theme="ghibli"] .rail-lateral-info strong {
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  font-size: 15px;
+}
+html[data-theme="ghibli"] .rail-lateral-info em {
+  color: var(--gh-soft) !important;
+  font-family: var(--gh-sans);
+  font-weight: 600;
+  font-style: normal;
+}
+
+/* Section count badge "3" — soft instead of solid */
+html[data-theme="ghibli"] .rail-block header span,
+html[data-theme="ghibli"] .embedded-tasks header span {
+  background: rgba(232,154,90,.22) !important;
+  color: var(--gh-ink) !important;
+}
+html[data-theme="ghibli"] .rail-path-color { border: 1.5px solid var(--gh-ink) !important; border-radius: 999px !important; }
+html[data-theme="ghibli"] .rail-strength {
+  background: var(--gh-sunset) !important;
+  border: 0 !important;
+  color: var(--gh-panel) !important;
+  border-radius: 999px !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+}
+html[data-theme="ghibli"] .embedded-tasks .empty {
+  background: rgba(255,255,255,.65) !important;
+  border: 1.5px dashed var(--gh-line-2) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  color: var(--gh-muted) !important;
+}
+html[data-theme="ghibli"] .embedded-tasks li {
+  background: var(--gh-panel) !important;
+  border: 1.5px solid var(--gh-line) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  color: var(--gh-ink) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+  margin-bottom: 6px;
+}
+
+/* Action input panel */
+html[data-theme="ghibli"] .action-input {
+  background: var(--gh-panel-2) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+  margin: 12px 16px !important;
+  padding: 14px !important;
+}
+html[data-theme="ghibli"] .action-input--refine { border-left: 6px solid var(--gh-leaf) !important; }
+html[data-theme="ghibli"] .action-input--expand { border-left: 6px solid var(--gh-sunset) !important; }
+html[data-theme="ghibli"] .action-input--extend { border-left: 6px solid var(--gh-mauve) !important; }
+html[data-theme="ghibli"] .action-input--feedback { border-left: 6px solid var(--gh-rose) !important; }
+html[data-theme="ghibli"] .action-input__hint strong {
+  background: var(--gh-ink) !important;
+  border: 0 !important;
+  color: var(--gh-panel) !important;
+  border-radius: 999px !important;
+  font-family: var(--gh-display);
+  font-weight: 700 !important;
+  padding: 2px 10px;
+}
+html[data-theme="ghibli"] .action-input__hint span { color: var(--gh-soft) !important; font-weight: 600; }
+html[data-theme="ghibli"] .action-chip {
+  background: rgba(255,255,255,.65) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: 999px !important;
+  color: var(--gh-ink) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+  font-family: var(--gh-sans);
+  font-weight: 700 !important;
+}
+html[data-theme="ghibli"] .action-chip:hover {
+  background: var(--gh-leaf-soft) !important;
+  border-color: var(--gh-leaf) !important;
+  color: var(--gh-leaf-2) !important;
+  transform: translateY(-1px);
+}
+html[data-theme="ghibli"] .quiet-button {
+  background: var(--gh-sunset) !important;
+  border: 1.5px solid var(--gh-ink) !important;
+  color: var(--gh-panel) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+  font-family: var(--gh-display);
+  font-weight: 700 !important;
+}
+html[data-theme="ghibli"] .quiet-button:hover {
+  background: var(--gh-sunset-2) !important;
+  transform: translateY(-1px);
+}
+html[data-theme="ghibli"] .quiet-button:disabled {
+  background: var(--gh-panel-2) !important;
+  border-color: var(--gh-line) !important;
+  color: var(--gh-muted) !important;
+}
+html[data-theme="ghibli"] .quiet-button--ghost {
+  background: rgba(255,255,255,.65) !important;
+  color: var(--gh-ink) !important;
+  border-color: var(--gh-line-2) !important;
+}
+html[data-theme="ghibli"] .quiet-button--icon {
+  min-width: 0 !important;
+  width: 36px; height: 36px;
+  padding: 0 !important;
+  display: grid; place-items: center;
+}
+
+/* Inline QA */
+html[data-theme="ghibli"] .inline-qa {
+  background: var(--gh-panel) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+}
+html[data-theme="ghibli"] .inline-qa__head {
+  background: linear-gradient(90deg, var(--gh-rose), rgba(217,155,155,.55)) !important;
+  border-bottom: 1.5px solid var(--gh-line) !important;
+}
+html[data-theme="ghibli"] .inline-qa__badge {
+  background: var(--gh-ink) !important;
+  border: 0 !important;
+  color: var(--gh-panel) !important;
+  border-radius: 999px !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+}
+html[data-theme="ghibli"] .inline-qa__q { background: var(--gh-panel-2) !important; border-bottom: 1.5px dashed var(--gh-line) !important; color: var(--gh-ink) !important; font-weight: 700; }
+html[data-theme="ghibli"] .inline-qa__a { color: var(--gh-ink) !important; }
+html[data-theme="ghibli"] .inline-qa__delete {
+  background: var(--gh-panel) !important;
+  border: 1.5px solid var(--gh-ink) !important;
+  color: var(--gh-ink) !important;
+  border-radius: 999px !important;
+  font-weight: 800 !important;
+}
+
+/* Ask popup */
+html[data-theme="ghibli"] .ask-popup {
+  background: var(--gh-panel) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius) !important;
+  box-shadow: 0 12px 30px rgba(60,80,50,.20) !important;
+  color: var(--gh-ink) !important;
+}
+html[data-theme="ghibli"] .ask-popup__backdrop { background: rgba(60,80,50,.25) !important; }
+html[data-theme="ghibli"] .ask-popup__badge {
+  background: var(--gh-sunset) !important;
+  border: 0 !important;
+  color: var(--gh-panel) !important;
+  border-radius: 999px !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+}
+html[data-theme="ghibli"] .ask-popup__scope { color: var(--gh-soft) !important; }
+html[data-theme="ghibli"] .ask-popup__close {
+  background: var(--gh-panel-2) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  color: var(--gh-ink) !important;
+  border-radius: 999px !important;
+}
+html[data-theme="ghibli"] .ask-popup__stream,
+html[data-theme="ghibli"] .ask-popup__answer {
+  background: var(--gh-panel-2) !important;
+  border: 1.5px solid var(--gh-line) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  color: var(--gh-ink) !important;
+}
+html[data-theme="ghibli"] .ask-popup__error {
+  background: rgba(217,155,155,.20) !important;
+  border: 1.5px solid var(--gh-rose) !important;
+  color: var(--gh-ink) !important;
+  border-radius: var(--gh-radius-sm) !important;
+}
+html[data-theme="ghibli"] .ask-popup__submit {
+  background: var(--gh-sunset) !important;
+  border: 1.5px solid var(--gh-ink) !important;
+  color: var(--gh-panel) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  font-family: var(--gh-display) !important;
+  font-weight: 700 !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+}
+html[data-theme="ghibli"] .ask-popup__submit:hover { background: var(--gh-sunset-2) !important; }
+html[data-theme="ghibli"] .ask-popup__submit:disabled { background: var(--gh-panel-2) !important; color: var(--gh-muted) !important; }
+html[data-theme="ghibli"] .ask-popup__cancel {
+  background: var(--gh-panel-2) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  color: var(--gh-ink) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  font-family: var(--gh-display) !important;
+}
+
+/* Annotation menu + highlights */
+html[data-theme="ghibli"] .ke-annotation-menu {
+  background: var(--gh-panel) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius) !important;
+  box-shadow: 0 12px 30px rgba(60,80,50,.20) !important;
+}
+html[data-theme="ghibli"] .ke-annotation-menu button {
+  background: var(--gh-panel-2) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  color: var(--gh-ink) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  font-family: var(--gh-sans);
+  font-weight: 700 !important;
+}
+html[data-theme="ghibli"] .ke-annotation-menu button:hover {
+  background: var(--gh-leaf-soft) !important;
+  border-color: var(--gh-leaf) !important;
+}
+html[data-theme="ghibli"] .ke-annotation-menu .swatch {
+  border: 1.5px solid var(--gh-ink) !important;
+  border-radius: 999px !important;
+}
+html[data-theme="ghibli"] .ke-annotation-menu .swatch--highlight { background: var(--gh-sunset) !important; }
+html[data-theme="ghibli"] .ke-annotation--highlight {
+  background: rgba(232,154,90,.42) !important;
+  color: var(--gh-ink) !important;
+  border-bottom: 1.5px solid var(--gh-sunset) !important;
+  padding: 0 2px;
+}
+html[data-theme="ghibli"] .ke-annotation--underline {
+  background: transparent !important;
+  border-bottom: 2px dashed var(--gh-leaf) !important;
+}
+
+/* Children CTA — soft cream pill, leaf-green text + outline (no dark fill) */
+html[data-theme="ghibli"] .cta-button {
+  background: var(--gh-panel) !important;
+  border: 1.5px solid var(--gh-leaf) !important;
+  color: var(--gh-leaf-2) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  font-family: var(--gh-display);
+  font-weight: 700 !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+}
+html[data-theme="ghibli"] .cta-button:hover {
+  background: var(--gh-leaf-soft) !important;
+  transform: translateY(-1px);
+}
+html[data-theme="ghibli"] .cta-button.is-open {
+  background: var(--gh-leaf-soft) !important;
+  color: var(--gh-leaf-2) !important;
+}
+html[data-theme="ghibli"] .children-cta-list {
+  background: var(--gh-panel) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius) !important;
+  box-shadow: 0 12px 30px rgba(60,80,50,.20) !important;
+}
+html[data-theme="ghibli"] .children-cta-list > li > button {
+  background: var(--gh-panel-2) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  color: var(--gh-ink) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  font-weight: 700;
+  box-shadow: var(--gh-shadow-sm) !important;
+}
+html[data-theme="ghibli"] .children-cta-list > li > button:hover {
+  background: var(--gh-sky-soft) !important;
+  border-color: var(--gh-sky) !important;
+}
+html[data-theme="ghibli"] .children-cta-list__title { color: var(--gh-ink) !important; }
+html[data-theme="ghibli"] .children-cta-list .mini-icon { color: var(--gh-sunset) !important; }
+html[data-theme="ghibli"] .children-cta-list__type {
+  background: var(--gh-sunset) !important;
+  color: var(--gh-panel) !important;
+  border-radius: 999px !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+}
+html[data-theme="ghibli"] .children-cta-list__center { border-top: 1.5px dashed var(--gh-line) !important; }
+html[data-theme="ghibli"] .children-cta-list__center button {
+  background: var(--gh-leaf) !important;
+  border: 1.5px solid var(--gh-ink) !important;
+  color: var(--gh-panel) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+}
+
+/* Mermaid */
+html[data-theme="ghibli"] .mermaid-diagram {
+  background: var(--gh-panel) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-radius: var(--gh-radius) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+}
+html[data-theme="ghibli"] .mermaid-diagram > header {
+  background: linear-gradient(90deg, var(--gh-sky-soft), var(--gh-leaf-soft)) !important;
+  border-bottom: 1.5px solid var(--gh-line) !important;
+}
+html[data-theme="ghibli"] .mermaid-diagram__badge {
+  background: var(--gh-ink) !important;
+  border: 0 !important;
+  color: var(--gh-panel) !important;
+  border-radius: 999px !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+}
+html[data-theme="ghibli"] .mermaid-diagram > header strong { color: var(--gh-ink) !important; font-family: var(--gh-display); font-weight: 700; font-size: 18px; }
+html[data-theme="ghibli"] .mermaid-diagram__host { background: var(--gh-panel-2) !important; }
+html[data-theme="ghibli"] .mermaid-diagram__host svg text,
+html[data-theme="ghibli"] .mermaid-diagram__host svg .nodeLabel,
+html[data-theme="ghibli"] .mermaid-diagram__host svg .edgeLabel,
+html[data-theme="ghibli"] .mermaid-diagram__host svg .taskText,
+html[data-theme="ghibli"] .mermaid-diagram__host svg .titleText,
+html[data-theme="ghibli"] .mermaid-diagram__host svg .sectionTitle {
+  fill: var(--gh-ink) !important;
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-sans) !important;
+  font-weight: 700 !important;
+}
+html[data-theme="ghibli"] .mermaid-diagram__host svg .node rect,
+html[data-theme="ghibli"] .mermaid-diagram__host svg .node polygon,
+html[data-theme="ghibli"] .mermaid-diagram__host svg .node circle,
+html[data-theme="ghibli"] .mermaid-diagram__host svg .node ellipse {
+  fill: var(--gh-panel) !important;
+  stroke: var(--gh-leaf) !important;
+  stroke-width: 1.5px !important;
+}
+html[data-theme="ghibli"] .mermaid-diagram__host svg .edgePath path,
+html[data-theme="ghibli"] .mermaid-diagram__host svg .flowchart-link,
+html[data-theme="ghibli"] .mermaid-diagram__host svg .marker {
+  stroke: var(--gh-line-2) !important;
+  fill: var(--gh-line-2) !important;
+  stroke-width: 1.5px !important;
+  stroke-dasharray: 5 3 !important;
+}
+html[data-theme="ghibli"] .mermaid-diagram__host svg .section0,
+html[data-theme="ghibli"] .mermaid-diagram__host svg .section2 { fill: var(--gh-panel) !important; }
+html[data-theme="ghibli"] .mermaid-diagram__host svg .section1,
+html[data-theme="ghibli"] .mermaid-diagram__host svg .section3 { fill: var(--gh-panel-2) !important; }
+html[data-theme="ghibli"] .mermaid-diagram__host svg .task,
+html[data-theme="ghibli"] .mermaid-diagram__host svg .task0,
+html[data-theme="ghibli"] .mermaid-diagram__host svg .task2 {
+  fill: var(--gh-sunset) !important;
+  stroke: var(--gh-ink) !important;
+  stroke-width: 1.5px !important;
+}
+html[data-theme="ghibli"] .mermaid-diagram__host svg .task1,
+html[data-theme="ghibli"] .mermaid-diagram__host svg .task3 {
+  fill: var(--gh-leaf) !important;
+  stroke: var(--gh-ink) !important;
+  stroke-width: 1.5px !important;
+}
+html[data-theme="ghibli"] .mermaid-diagram__host svg .today { stroke: var(--gh-sunset) !important; stroke-width: 2px !important; }
+html[data-theme="ghibli"] .mermaid-diagram figcaption {
+  background: var(--gh-panel-2) !important;
+  border-top: 1.5px dashed var(--gh-line) !important;
+  color: var(--gh-soft) !important;
+  font-family: var(--gh-sans);
+  font-weight: 600;
+}
+html[data-theme="ghibli"] .mermaid-diagram__error {
+  background: rgba(217,155,155,.20) !important;
+  border: 1.5px solid var(--gh-rose) !important;
+  color: var(--gh-ink) !important;
+  border-radius: var(--gh-radius-sm) !important;
+}
+
+/* Generic icons inherit color */
+html[data-theme="ghibli"] .ke-icon { stroke: currentColor; }
+/* Generic button radius */
+html[data-theme="ghibli"] button { border-radius: 12px; }
+
+/* Inline deep-analysis panel — soft cream card with sunset accent */
+html[data-theme="ghibli"] .ke-annotation-analysis {
+  background: var(--gh-panel-2) !important;
+  border: 1.5px solid var(--gh-line-2) !important;
+  border-left: 4px solid var(--gh-sunset) !important;
+  border-radius: var(--gh-radius-sm) !important;
+  box-shadow: var(--gh-shadow-sm) !important;
+  padding: 14px 16px !important;
+}
+html[data-theme="ghibli"] .ke-annotation-analysis__badge {
+  background: rgba(232,154,90,.22) !important;
+  color: var(--gh-ink) !important;
+  border-radius: 999px !important;
+  font-family: var(--gh-display) !important;
+  font-weight: 700 !important;
+}
+html[data-theme="ghibli"] .ke-annotation-analysis header strong {
+  color: var(--gh-ink) !important;
+  font-family: var(--gh-display);
+  font-weight: 700;
+  font-size: 16px;
+}
+html[data-theme="ghibli"] .ke-annotation-analysis p {
+  color: var(--gh-soft) !important;
+  font-family: var(--gh-sans);
+  font-weight: 500;
+}
+
+/* Scrollbar */
+html[data-theme="ghibli"] * { scrollbar-color: var(--gh-line-2) var(--gh-panel-2); }
+html[data-theme="ghibli"] *::-webkit-scrollbar-track { background: var(--gh-panel-2); border-radius: 999px; }
+html[data-theme="ghibli"] *::-webkit-scrollbar-thumb {
+  background: var(--gh-line-2); border: 2px solid var(--gh-panel-2); border-radius: 999px;
+}

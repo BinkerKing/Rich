@@ -1,0 +1,37 @@
+{
+  "id": "thai-trip.move.city",
+  "type": "concept",
+  "title": "城市交通",
+  "subtitle": "轨道、打车、突突车和步行",
+  "aliases": [
+    "曼谷交通",
+    "市内交通"
+  ],
+  "tags": [
+    "交通",
+    "城市"
+  ],
+  "domain": "travel",
+  "difficulty": "low",
+  "content": {
+    "oneSentence": "城市交通应优先使用轨道和正规叫车，再根据场景补充步行或短途车。",
+    "coreExplain": "曼谷BTS、MRT适合避开拥堵，打车适合多人和非轨道区域，突突车更像体验而非稳定交通工具。老城和河边可结合船运。高峰期应少安排跨城横移。",
+    "whyMatters": "交通选择会直接影响准点、体力和安全。",
+    "misconceptions": [
+      "以为突突车一定便宜，游客区议价可能更高",
+      "以为打车软件永远最快，堵车时轨道更稳定",
+      "以为步行距离短就轻松，高温和人行环境会增加负担"
+    ],
+    "nextSteps": [
+      "酒店优先选轨道步行可达区域",
+      "寺庙和河边行程可结合船运"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.191Z",
+    "updatedAt": "2026-05-17T13:46:42.191Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

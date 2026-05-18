@@ -1,63 +1,63 @@
-{"id":"rel-cog-psy.memory-cog-psy.memory.encoding","from":"cog-psy.memory","to":"cog-psy.memory.encoding","kind":"child","createdAt":"2026-05-16T00:00:00+08:00"}
-{"id":"rel-cog-psy.memory-cog-psy.memory.storage","from":"cog-psy.memory","to":"cog-psy.memory.storage","kind":"child","createdAt":"2026-05-16T00:00:00+08:00"}
-{"id":"rel-cog-psy.memory-cog-psy.memory.retrieval","from":"cog-psy.memory","to":"cog-psy.memory.retrieval","kind":"child","createdAt":"2026-05-16T00:00:00+08:00"}
-{"id":"rel.claude-code.setup","from":"claude-code","to":"claude-code.setup","kind":"child","strength":98,"reason":"环境配置是使用 Claude Code 的起点。","createdAt":"2026-05-17"}
-{"id":"rel.claude-code.context","from":"claude-code","to":"claude-code.context","kind":"child","strength":96,"reason":"上下文质量直接影响产出质量。","createdAt":"2026-05-17"}
-{"id":"rel.claude-code.workflow","from":"claude-code","to":"claude-code.workflow","kind":"child","strength":96,"reason":"开发闭环是把工具用于真实项目的核心。","createdAt":"2026-05-17"}
-{"id":"rel.claude-code.safety","from":"claude-code","to":"claude-code.safety","kind":"child","strength":94,"reason":"权限和安全是 Agent 工具落地的必要边界。","createdAt":"2026-05-17"}
-{"id":"rel.claude-code.integration","from":"claude-code","to":"claude-code.integration","kind":"child","strength":88,"reason":"集成能力决定 Claude Code 能否融入团队工具链。","createdAt":"2026-05-17"}
-{"id":"rel.claude-code.advanced","from":"claude-code","to":"claude-code.advanced","kind":"child","strength":86,"reason":"高阶协作覆盖复杂任务和团队级应用。","createdAt":"2026-05-17"}
-{"id":"rel.setup.install","from":"claude-code.setup","to":"claude-code.setup.install","kind":"child","strength":92,"reason":"安装认证是环境搭建的第一步。","createdAt":"2026-05-17"}
-{"id":"rel.setup.project","from":"claude-code.setup","to":"claude-code.setup.project","kind":"child","strength":90,"reason":"项目初始化检查保证后续操作发生在正确上下文。","createdAt":"2026-05-17"}
-{"id":"rel.setup.modes","from":"claude-code.setup","to":"claude-code.setup.modes","kind":"child","strength":82,"reason":"入口选择影响任务效率和风险。","createdAt":"2026-05-17"}
-{"id":"rel.context.repo","from":"claude-code.context","to":"claude-code.context.repo","kind":"child","strength":92,"reason":"代码库理解是上下文管理的基础。","createdAt":"2026-05-17"}
-{"id":"rel.context.prompt","from":"claude-code.context","to":"claude-code.context.prompt","kind":"child","strength":90,"reason":"清晰任务提示能降低误解。","createdAt":"2026-05-17"}
-{"id":"rel.context.memory","from":"claude-code.context","to":"claude-code.context.memory","kind":"child","strength":86,"reason":"项目记忆让长期规范可复用。","createdAt":"2026-05-17"}
-{"id":"rel.workflow.plan","from":"claude-code.workflow","to":"claude-code.workflow.plan","kind":"child","strength":90,"reason":"计划是复杂修改前的控制点。","createdAt":"2026-05-17"}
-{"id":"rel.workflow.test","from":"claude-code.workflow","to":"claude-code.workflow.test","kind":"child","strength":95,"reason":"测试验证是确认结果的关键证据。","createdAt":"2026-05-17"}
-{"id":"rel.workflow.review","from":"claude-code.workflow","to":"claude-code.workflow.review","kind":"child","strength":88,"reason":"差异审查把 AI 输出转成可合并代码。","createdAt":"2026-05-17"}
-{"id":"rel.safety.perm","from":"claude-code.safety","to":"claude-code.safety.perm","kind":"child","strength":92,"reason":"权限模型定义 Agent 能力边界。","createdAt":"2026-05-17"}
-{"id":"rel.safety.secret","from":"claude-code.safety","to":"claude-code.safety.secret","kind":"child","strength":94,"reason":"密钥和隐私是开发 Agent 的高风险点。","createdAt":"2026-05-17"}
-{"id":"rel.safety.rollback","from":"claude-code.safety","to":"claude-code.safety.rollback","kind":"child","strength":86,"reason":"回滚机制降低误操作损失。","createdAt":"2026-05-17"}
-{"id":"rel.integration.mcp","from":"claude-code.integration","to":"claude-code.integration.mcp","kind":"child","strength":90,"reason":"MCP 是连接外部上下文的重要方式。","createdAt":"2026-05-17"}
-{"id":"rel.integration.ci","from":"claude-code.integration","to":"claude-code.integration.ci","kind":"child","strength":86,"reason":"CI 和日志是自动化调试的常见输入。","createdAt":"2026-05-17"}
-{"id":"rel.integration.script","from":"claude-code.integration","to":"claude-code.integration.script","kind":"child","strength":84,"reason":"脚本化让重复任务可复用。","createdAt":"2026-05-17"}
-{"id":"rel.advanced.refactor","from":"claude-code.advanced","to":"claude-code.advanced.refactor","kind":"child","strength":90,"reason":"大型重构是高阶使用的重要场景。","createdAt":"2026-05-17"}
-{"id":"rel.advanced.review","from":"claude-code.advanced","to":"claude-code.advanced.review","kind":"child","strength":86,"reason":"AI 审查提升复杂变更的风险识别。","createdAt":"2026-05-17"}
-{"id":"rel.advanced.knowledge","from":"claude-code.advanced","to":"claude-code.advanced.knowledge","kind":"child","strength":82,"reason":"知识沉淀让一次协作产生长期价值。","createdAt":"2026-05-17"}
-{"id":"rel.context.workflow","from":"claude-code.context","to":"claude-code.workflow","kind":"prerequisite","strength":88,"reason":"没有清晰上下文，开发流程难以稳定执行。","createdAt":"2026-05-17"}
-{"id":"rel.workflow.safety","from":"claude-code.workflow","to":"claude-code.safety","kind":"related","strength":78,"reason":"执行流程需要权限和回滚机制保护。","createdAt":"2026-05-17"}
-{"id":"rel.integration.advanced","from":"claude-code.integration","to":"claude-code.advanced","kind":"extension","strength":74,"reason":"集成能力可以扩展到团队级协作和自动化。","createdAt":"2026-05-17"}
-{"id":"rel.know-every.product","from":"know-every","to":"know-every.product","kind":"child","strength":96,"reason":"产品定位定义系统目标和用户闭环，是全局设计起点。","createdAt":"2026-05-17"}
-{"id":"rel.know-every.frontend","from":"know-every","to":"know-every.frontend","kind":"child","strength":94,"reason":"前端工作台承载用户与知识宇宙的主要交互。","createdAt":"2026-05-17"}
-{"id":"rel.know-every.backend","from":"know-every","to":"know-every.backend","kind":"child","strength":95,"reason":"后端与数据模型支撑知识长期存储和演化。","createdAt":"2026-05-17"}
-{"id":"rel.know-every.ai-core","from":"know-every","to":"know-every.ai-core","kind":"child","strength":97,"reason":"AI 知识生产引擎是内容结构化和自进化的核心能力。","createdAt":"2026-05-17"}
-{"id":"rel.know-every.graph","from":"know-every","to":"know-every.graph","kind":"child","strength":93,"reason":"知识图谱和路径系统让内容从列表变成网络。","createdAt":"2026-05-17"}
-{"id":"rel.know-every.evolve","from":"know-every","to":"know-every.evolve","kind":"child","strength":98,"reason":"自进化闭环决定系统能否随使用持续变好。","createdAt":"2026-05-17"}
-{"id":"rel.product.user-loop","from":"know-every.product","to":"know-every.product.user-loop","kind":"child","strength":92,"reason":"用户知识闭环是产品定位落地的核心流程。","createdAt":"2026-05-17"}
-{"id":"rel.product.scope","from":"know-every.product","to":"know-every.product.scope","kind":"child","strength":88,"reason":"MVP 范围帮助产品先验证核心闭环。","createdAt":"2026-05-17"}
-{"id":"rel.product.metrics","from":"know-every.product","to":"know-every.product.metrics","kind":"child","strength":86,"reason":"知识增长指标用于判断产品是否真的创造价值。","createdAt":"2026-05-17"}
-{"id":"rel.frontend.tree-view","from":"know-every.frontend","to":"know-every.frontend.tree-view","kind":"child","strength":90,"reason":"树视图是知识层级浏览和编辑的基础界面。","createdAt":"2026-05-17"}
-{"id":"rel.frontend.card-editor","from":"know-every.frontend","to":"know-every.frontend.card-editor","kind":"child","strength":91,"reason":"卡片编辑器让 AI 输出被用户校正和吸收。","createdAt":"2026-05-17"}
-{"id":"rel.frontend.path-ui","from":"know-every.frontend","to":"know-every.frontend.path-ui","kind":"child","strength":89,"reason":"路径界面把知识组织成可执行步骤。","createdAt":"2026-05-17"}
-{"id":"rel.backend.schema","from":"know-every.backend","to":"know-every.backend.schema","kind":"child","strength":95,"reason":"知识元 Schema 是后端数据模型的核心。","createdAt":"2026-05-17"}
-{"id":"rel.backend.relations","from":"know-every.backend","to":"know-every.backend.relations","kind":"child","strength":92,"reason":"关系模型让知识节点形成可查询网络。","createdAt":"2026-05-17"}
-{"id":"rel.backend.ai-jobs","from":"know-every.backend","to":"know-every.backend.ai-jobs","kind":"child","strength":90,"reason":"AI 任务队列支撑异步生成和可追踪执行。","createdAt":"2026-05-17"}
-{"id":"rel.ai-core.prompting","from":"know-every.ai-core","to":"know-every.ai-core.prompting","kind":"child","strength":90,"reason":"结构化提示词约束 AI 输出进入系统。","createdAt":"2026-05-17"}
-{"id":"rel.ai-core.extraction","from":"know-every.ai-core","to":"know-every.ai-core.extraction","kind":"child","strength":94,"reason":"抽取流水线负责从原始输入生成知识结构。","createdAt":"2026-05-17"}
-{"id":"rel.ai-core.quality","from":"know-every.ai-core","to":"know-every.ai-core.quality","kind":"child","strength":93,"reason":"质量评估防止错误和冗余进入知识库。","createdAt":"2026-05-17"}
-{"id":"rel.graph.node-edge","from":"know-every.graph","to":"know-every.graph.node-edge","kind":"child","strength":91,"reason":"节点与边设计是知识图谱的基础。","createdAt":"2026-05-17"}
-{"id":"rel.graph.path-gen","from":"know-every.graph","to":"know-every.graph.path-gen","kind":"child","strength":92,"reason":"路径生成策略把图谱转成学习路线。","createdAt":"2026-05-17"}
-{"id":"rel.graph.search","from":"know-every.graph","to":"know-every.graph.search","kind":"child","strength":88,"reason":"语义搜索和推荐让知识库变大后仍可找回。","createdAt":"2026-05-17"}
-{"id":"rel.evolve.feedback","from":"know-every.evolve","to":"know-every.evolve.feedback","kind":"child","strength":94,"reason":"反馈采集是自进化闭环的输入。","createdAt":"2026-05-17"}
-{"id":"rel.evolve.versioning","from":"know-every.evolve","to":"know-every.evolve.versioning","kind":"child","strength":91,"reason":"版本和候选变更让演化过程可控。","createdAt":"2026-05-17"}
-{"id":"rel.evolve.review-cycle","from":"know-every.evolve","to":"know-every.evolve.review-cycle","kind":"child","strength":90,"reason":"周期性复盘让系统长期保持质量。","createdAt":"2026-05-17"}
-{"id":"rel.schema.relations","from":"know-every.backend.schema","to":"know-every.backend.relations","kind":"related","strength":84,"reason":"关系模型依赖稳定的知识元 id。","createdAt":"2026-05-17"}
-{"id":"rel.prompt.extraction","from":"know-every.ai-core.prompting","to":"know-every.ai-core.extraction","kind":"prerequisite","strength":82,"reason":"结构化提示词是可靠抽取流水线的前置条件。","createdAt":"2026-05-17"}
-{"id":"rel.quality.versioning","from":"know-every.ai-core.quality","to":"know-every.evolve.versioning","kind":"related","strength":86,"reason":"质量评估产生的修改建议需要通过候选变更机制落地。","createdAt":"2026-05-17"}
-{"id":"rel.feedback.metrics","from":"know-every.evolve.feedback","to":"know-every.product.metrics","kind":"related","strength":83,"reason":"反馈事件会被转化为知识增长指标。","createdAt":"2026-05-17"}
-{"id":"rel.card.feedback","from":"know-every.frontend.card-editor","to":"know-every.evolve.feedback","kind":"practice","strength":85,"reason":"用户编辑知识卡片是高价值反馈来源。","createdAt":"2026-05-17"}
-{"id":"rel.pathui.pathgen","from":"know-every.frontend.path-ui","to":"know-every.graph.path-gen","kind":"related","strength":82,"reason":"路径生成策略需要在前端路径界面中被呈现和验证。","createdAt":"2026-05-17"}
+{"id": "rel-cog-psy.memory-cog-psy.memory.encoding", "from": "cog-psy.memory", "to": "cog-psy.memory.encoding", "kind": "child", "createdAt": "2026-05-16T00:00:00+08:00"}
+{"id": "rel-cog-psy.memory-cog-psy.memory.storage", "from": "cog-psy.memory", "to": "cog-psy.memory.storage", "kind": "child", "createdAt": "2026-05-16T00:00:00+08:00"}
+{"id": "rel-cog-psy.memory-cog-psy.memory.retrieval", "from": "cog-psy.memory", "to": "cog-psy.memory.retrieval", "kind": "child", "createdAt": "2026-05-16T00:00:00+08:00"}
+{"id": "rel.claude-code.setup", "from": "claude-code", "to": "claude-code.setup", "kind": "child", "strength": 98, "reason": "环境配置是使用 Claude Code 的起点。", "createdAt": "2026-05-17"}
+{"id": "rel.claude-code.context", "from": "claude-code", "to": "claude-code.context", "kind": "child", "strength": 96, "reason": "上下文质量直接影响产出质量。", "createdAt": "2026-05-17"}
+{"id": "rel.claude-code.workflow", "from": "claude-code", "to": "claude-code.workflow", "kind": "child", "strength": 96, "reason": "开发闭环是把工具用于真实项目的核心。", "createdAt": "2026-05-17"}
+{"id": "rel.claude-code.safety", "from": "claude-code", "to": "claude-code.safety", "kind": "child", "strength": 94, "reason": "权限和安全是 Agent 工具落地的必要边界。", "createdAt": "2026-05-17"}
+{"id": "rel.claude-code.integration", "from": "claude-code", "to": "claude-code.integration", "kind": "child", "strength": 88, "reason": "集成能力决定 Claude Code 能否融入团队工具链。", "createdAt": "2026-05-17"}
+{"id": "rel.claude-code.advanced", "from": "claude-code", "to": "claude-code.advanced", "kind": "child", "strength": 86, "reason": "高阶协作覆盖复杂任务和团队级应用。", "createdAt": "2026-05-17"}
+{"id": "rel.setup.install", "from": "claude-code.setup", "to": "claude-code.setup.install", "kind": "child", "strength": 92, "reason": "安装认证是环境搭建的第一步。", "createdAt": "2026-05-17"}
+{"id": "rel.setup.project", "from": "claude-code.setup", "to": "claude-code.setup.project", "kind": "child", "strength": 90, "reason": "项目初始化检查保证后续操作发生在正确上下文。", "createdAt": "2026-05-17"}
+{"id": "rel.setup.modes", "from": "claude-code.setup", "to": "claude-code.setup.modes", "kind": "child", "strength": 82, "reason": "入口选择影响任务效率和风险。", "createdAt": "2026-05-17"}
+{"id": "rel.context.repo", "from": "claude-code.context", "to": "claude-code.context.repo", "kind": "child", "strength": 92, "reason": "代码库理解是上下文管理的基础。", "createdAt": "2026-05-17"}
+{"id": "rel.context.prompt", "from": "claude-code.context", "to": "claude-code.context.prompt", "kind": "child", "strength": 90, "reason": "清晰任务提示能降低误解。", "createdAt": "2026-05-17"}
+{"id": "rel.context.memory", "from": "claude-code.context", "to": "claude-code.context.memory", "kind": "child", "strength": 86, "reason": "项目记忆让长期规范可复用。", "createdAt": "2026-05-17"}
+{"id": "rel.workflow.plan", "from": "claude-code.workflow", "to": "claude-code.workflow.plan", "kind": "child", "strength": 90, "reason": "计划是复杂修改前的控制点。", "createdAt": "2026-05-17"}
+{"id": "rel.workflow.test", "from": "claude-code.workflow", "to": "claude-code.workflow.test", "kind": "child", "strength": 95, "reason": "测试验证是确认结果的关键证据。", "createdAt": "2026-05-17"}
+{"id": "rel.workflow.review", "from": "claude-code.workflow", "to": "claude-code.workflow.review", "kind": "child", "strength": 88, "reason": "差异审查把 AI 输出转成可合并代码。", "createdAt": "2026-05-17"}
+{"id": "rel.safety.perm", "from": "claude-code.safety", "to": "claude-code.safety.perm", "kind": "child", "strength": 92, "reason": "权限模型定义 Agent 能力边界。", "createdAt": "2026-05-17"}
+{"id": "rel.safety.secret", "from": "claude-code.safety", "to": "claude-code.safety.secret", "kind": "child", "strength": 94, "reason": "密钥和隐私是开发 Agent 的高风险点。", "createdAt": "2026-05-17"}
+{"id": "rel.safety.rollback", "from": "claude-code.safety", "to": "claude-code.safety.rollback", "kind": "child", "strength": 86, "reason": "回滚机制降低误操作损失。", "createdAt": "2026-05-17"}
+{"id": "rel.integration.mcp", "from": "claude-code.integration", "to": "claude-code.integration.mcp", "kind": "child", "strength": 90, "reason": "MCP 是连接外部上下文的重要方式。", "createdAt": "2026-05-17"}
+{"id": "rel.integration.ci", "from": "claude-code.integration", "to": "claude-code.integration.ci", "kind": "child", "strength": 86, "reason": "CI 和日志是自动化调试的常见输入。", "createdAt": "2026-05-17"}
+{"id": "rel.integration.script", "from": "claude-code.integration", "to": "claude-code.integration.script", "kind": "child", "strength": 84, "reason": "脚本化让重复任务可复用。", "createdAt": "2026-05-17"}
+{"id": "rel.advanced.refactor", "from": "claude-code.advanced", "to": "claude-code.advanced.refactor", "kind": "child", "strength": 90, "reason": "大型重构是高阶使用的重要场景。", "createdAt": "2026-05-17"}
+{"id": "rel.advanced.review", "from": "claude-code.advanced", "to": "claude-code.advanced.review", "kind": "child", "strength": 86, "reason": "AI 审查提升复杂变更的风险识别。", "createdAt": "2026-05-17"}
+{"id": "rel.advanced.knowledge", "from": "claude-code.advanced", "to": "claude-code.advanced.knowledge", "kind": "child", "strength": 82, "reason": "知识沉淀让一次协作产生长期价值。", "createdAt": "2026-05-17"}
+{"id": "rel.context.workflow", "from": "claude-code.context", "to": "claude-code.workflow", "kind": "prerequisite", "strength": 88, "reason": "没有清晰上下文，开发流程难以稳定执行。", "createdAt": "2026-05-17"}
+{"id": "rel.workflow.safety", "from": "claude-code.workflow", "to": "claude-code.safety", "kind": "related", "strength": 78, "reason": "执行流程需要权限和回滚机制保护。", "createdAt": "2026-05-17"}
+{"id": "rel.integration.advanced", "from": "claude-code.integration", "to": "claude-code.advanced", "kind": "extension", "strength": 74, "reason": "集成能力可以扩展到团队级协作和自动化。", "createdAt": "2026-05-17"}
+{"id": "rel.know-every.product", "from": "know-every", "to": "know-every.product", "kind": "child", "strength": 96, "reason": "产品定位定义系统目标和用户闭环，是全局设计起点。", "createdAt": "2026-05-17"}
+{"id": "rel.know-every.frontend", "from": "know-every", "to": "know-every.frontend", "kind": "child", "strength": 94, "reason": "前端工作台承载用户与知识宇宙的主要交互。", "createdAt": "2026-05-17"}
+{"id": "rel.know-every.backend", "from": "know-every", "to": "know-every.backend", "kind": "child", "strength": 95, "reason": "后端与数据模型支撑知识长期存储和演化。", "createdAt": "2026-05-17"}
+{"id": "rel.know-every.ai-core", "from": "know-every", "to": "know-every.ai-core", "kind": "child", "strength": 97, "reason": "AI 知识生产引擎是内容结构化和自进化的核心能力。", "createdAt": "2026-05-17"}
+{"id": "rel.know-every.graph", "from": "know-every", "to": "know-every.graph", "kind": "child", "strength": 93, "reason": "知识图谱和路径系统让内容从列表变成网络。", "createdAt": "2026-05-17"}
+{"id": "rel.know-every.evolve", "from": "know-every", "to": "know-every.evolve", "kind": "child", "strength": 98, "reason": "自进化闭环决定系统能否随使用持续变好。", "createdAt": "2026-05-17"}
+{"id": "rel.product.user-loop", "from": "know-every.product", "to": "know-every.product.user-loop", "kind": "child", "strength": 92, "reason": "用户知识闭环是产品定位落地的核心流程。", "createdAt": "2026-05-17"}
+{"id": "rel.product.scope", "from": "know-every.product", "to": "know-every.product.scope", "kind": "child", "strength": 88, "reason": "MVP 范围帮助产品先验证核心闭环。", "createdAt": "2026-05-17"}
+{"id": "rel.product.metrics", "from": "know-every.product", "to": "know-every.product.metrics", "kind": "child", "strength": 86, "reason": "知识增长指标用于判断产品是否真的创造价值。", "createdAt": "2026-05-17"}
+{"id": "rel.frontend.tree-view", "from": "know-every.frontend", "to": "know-every.frontend.tree-view", "kind": "child", "strength": 90, "reason": "树视图是知识层级浏览和编辑的基础界面。", "createdAt": "2026-05-17"}
+{"id": "rel.frontend.card-editor", "from": "know-every.frontend", "to": "know-every.frontend.card-editor", "kind": "child", "strength": 91, "reason": "卡片编辑器让 AI 输出被用户校正和吸收。", "createdAt": "2026-05-17"}
+{"id": "rel.frontend.path-ui", "from": "know-every.frontend", "to": "know-every.frontend.path-ui", "kind": "child", "strength": 89, "reason": "路径界面把知识组织成可执行步骤。", "createdAt": "2026-05-17"}
+{"id": "rel.backend.schema", "from": "know-every.backend", "to": "know-every.backend.schema", "kind": "child", "strength": 95, "reason": "知识元 Schema 是后端数据模型的核心。", "createdAt": "2026-05-17"}
+{"id": "rel.backend.relations", "from": "know-every.backend", "to": "know-every.backend.relations", "kind": "child", "strength": 92, "reason": "关系模型让知识节点形成可查询网络。", "createdAt": "2026-05-17"}
+{"id": "rel.backend.ai-jobs", "from": "know-every.backend", "to": "know-every.backend.ai-jobs", "kind": "child", "strength": 90, "reason": "AI 任务队列支撑异步生成和可追踪执行。", "createdAt": "2026-05-17"}
+{"id": "rel.ai-core.prompting", "from": "know-every.ai-core", "to": "know-every.ai-core.prompting", "kind": "child", "strength": 90, "reason": "结构化提示词约束 AI 输出进入系统。", "createdAt": "2026-05-17"}
+{"id": "rel.ai-core.extraction", "from": "know-every.ai-core", "to": "know-every.ai-core.extraction", "kind": "child", "strength": 94, "reason": "抽取流水线负责从原始输入生成知识结构。", "createdAt": "2026-05-17"}
+{"id": "rel.ai-core.quality", "from": "know-every.ai-core", "to": "know-every.ai-core.quality", "kind": "child", "strength": 93, "reason": "质量评估防止错误和冗余进入知识库。", "createdAt": "2026-05-17"}
+{"id": "rel.graph.node-edge", "from": "know-every.graph", "to": "know-every.graph.node-edge", "kind": "child", "strength": 91, "reason": "节点与边设计是知识图谱的基础。", "createdAt": "2026-05-17"}
+{"id": "rel.graph.path-gen", "from": "know-every.graph", "to": "know-every.graph.path-gen", "kind": "child", "strength": 92, "reason": "路径生成策略把图谱转成学习路线。", "createdAt": "2026-05-17"}
+{"id": "rel.graph.search", "from": "know-every.graph", "to": "know-every.graph.search", "kind": "child", "strength": 88, "reason": "语义搜索和推荐让知识库变大后仍可找回。", "createdAt": "2026-05-17"}
+{"id": "rel.evolve.feedback", "from": "know-every.evolve", "to": "know-every.evolve.feedback", "kind": "child", "strength": 94, "reason": "反馈采集是自进化闭环的输入。", "createdAt": "2026-05-17"}
+{"id": "rel.evolve.versioning", "from": "know-every.evolve", "to": "know-every.evolve.versioning", "kind": "child", "strength": 91, "reason": "版本和候选变更让演化过程可控。", "createdAt": "2026-05-17"}
+{"id": "rel.evolve.review-cycle", "from": "know-every.evolve", "to": "know-every.evolve.review-cycle", "kind": "child", "strength": 90, "reason": "周期性复盘让系统长期保持质量。", "createdAt": "2026-05-17"}
+{"id": "rel.schema.relations", "from": "know-every.backend.schema", "to": "know-every.backend.relations", "kind": "related", "strength": 84, "reason": "关系模型依赖稳定的知识元 id。", "createdAt": "2026-05-17"}
+{"id": "rel.prompt.extraction", "from": "know-every.ai-core.prompting", "to": "know-every.ai-core.extraction", "kind": "prerequisite", "strength": 82, "reason": "结构化提示词是可靠抽取流水线的前置条件。", "createdAt": "2026-05-17"}
+{"id": "rel.quality.versioning", "from": "know-every.ai-core.quality", "to": "know-every.evolve.versioning", "kind": "related", "strength": 86, "reason": "质量评估产生的修改建议需要通过候选变更机制落地。", "createdAt": "2026-05-17"}
+{"id": "rel.feedback.metrics", "from": "know-every.evolve.feedback", "to": "know-every.product.metrics", "kind": "related", "strength": 83, "reason": "反馈事件会被转化为知识增长指标。", "createdAt": "2026-05-17"}
+{"id": "rel.card.feedback", "from": "know-every.frontend.card-editor", "to": "know-every.evolve.feedback", "kind": "practice", "strength": 85, "reason": "用户编辑知识卡片是高价值反馈来源。", "createdAt": "2026-05-17"}
+{"id": "rel.pathui.pathgen", "from": "know-every.frontend.path-ui", "to": "know-every.graph.path-gen", "kind": "related", "strength": 82, "reason": "路径生成策略需要在前端路径界面中被呈现和验证。", "createdAt": "2026-05-17"}
 {"id": "cog-psy->cog-psy.perception", "from": "cog-psy", "to": "cog-psy.perception", "kind": "child", "createdAt": "2026-05-16T04:59:55.660Z"}
 {"id": "cog-psy->cog-psy.memory", "from": "cog-psy", "to": "cog-psy.memory", "kind": "child", "createdAt": "2026-05-16T04:59:55.660Z"}
 {"id": "cog-psy->cog-psy.attention", "from": "cog-psy", "to": "cog-psy.attention", "kind": "child", "createdAt": "2026-05-16T04:59:55.660Z"}
@@ -68,3 +68,135 @@
 {"id": "p->a", "from": "cog-psy.perception", "to": "cog-psy.perception.audition", "kind": "child", "createdAt": "2026-05-16T04:59:55.660Z"}
 {"id": "a->s", "from": "cog-psy.attention", "to": "cog-psy.attention.selective", "kind": "child", "createdAt": "2026-05-16T04:59:55.660Z"}
 {"id": "d->h", "from": "cog-psy.decision", "to": "cog-psy.decision.heuristic", "kind": "child", "createdAt": "2026-05-16T04:59:55.660Z"}
+{"id": "rel.claude-code.workflow.plan.positioning", "from": "claude-code.workflow.plan", "to": "claude-code.workflow.plan.positioning", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.workflow.plan.user-control", "from": "claude-code.workflow.plan", "to": "claude-code.workflow.plan.user-control", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.workflow.plan.verification-design", "from": "claude-code.workflow.plan", "to": "claude-code.workflow.plan.verification-design", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.safety.perm.related.claude-code.safety.fs-scope", "from": "claude-code.safety.perm", "to": "claude-code.safety.fs-scope", "kind": "related", "strength": 92, "reason": "权限模型中的读取和编辑能力需要落到具体文件系统边界，文件系统作用域是对通用权限的细分视角。", "createdAt": "2026-05-17"}
+{"id": "rel.claude-code.safety.perm.related.claude-code.safety.cmd-scope", "from": "claude-code.safety.perm", "to": "claude-code.safety.cmd-scope", "kind": "related", "strength": 90, "reason": "权限模型中的执行命令能力需要进一步区分命令类型、参数和副作用范围，命令执行作用域提供了更细的控制粒度。", "createdAt": "2026-05-17"}
+{"id": "rel.claude-code.workflow.related.feedback-loop", "from": "claude-code.workflow", "to": "test-automation.feedback-loop", "kind": "related", "strength": 88, "reason": "开发工作流需要在修改后获得可靠反馈，自动化测试反馈环正是把测试信号接入计划、修改、验证和提交过程的横向机制。", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.workflow.related.regression-testing", "from": "claude-code.workflow", "to": "test-automation.regression-testing", "kind": "related", "strength": 84, "reason": "回归测试自动化与开发工作流共同服务于稳定交付，但它聚焦旧功能保护和风险复验，属于测试自动化方向的平行关联元。", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.safety.perm.read", "from": "claude-code.safety.perm", "to": "claude-code.safety.perm.read", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.safety.perm.edit", "from": "claude-code.safety.perm", "to": "claude-code.safety.perm.edit", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.workflow.review.positioning", "from": "claude-code.workflow.review", "to": "claude-code.workflow.review.positioning", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.workflow.review.audience", "from": "claude-code.workflow.review", "to": "claude-code.workflow.review.audience", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.workflow.review.mvp", "from": "claude-code.workflow.review", "to": "claude-code.workflow.review.mvp", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.workflow.review.architecture", "from": "claude-code.workflow.review", "to": "claude-code.workflow.review.architecture", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.advanced.refactor.positioning", "from": "claude-code.advanced.refactor", "to": "claude-code.advanced.refactor.positioning", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.advanced.refactor.user-scenarios", "from": "claude-code.advanced.refactor", "to": "claude-code.advanced.refactor.user-scenarios", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.advanced.refactor.mvp-workflow", "from": "claude-code.advanced.refactor", "to": "claude-code.advanced.refactor.mvp-workflow", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.advanced.refactor.architecture-guardrails", "from": "claude-code.advanced.refactor", "to": "claude-code.advanced.refactor.architecture-guardrails", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.codex-adv.model", "from": "codex-adv", "to": "codex-adv.model", "kind": "child", "strength": 95, "reason": "能力模型是学习 Codex 高阶使用的基础", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.prompting", "from": "codex-adv", "to": "codex-adv.prompting", "kind": "child", "strength": 95, "reason": "提示设计直接影响 Codex 的执行质量", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.context", "from": "codex-adv", "to": "codex-adv.context", "kind": "child", "strength": 92, "reason": "上下文管理决定 Codex 是否理解真实项目", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.workflow", "from": "codex-adv", "to": "codex-adv.workflow", "kind": "child", "strength": 90, "reason": "工作流把单次使用扩展为持续效率", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.verification", "from": "codex-adv", "to": "codex-adv.verification", "kind": "child", "strength": 94, "reason": "验证闭环是可靠使用 Codex 的关键", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.advanced", "from": "codex-adv", "to": "codex-adv.advanced", "kind": "child", "strength": 88, "reason": "高阶自动化把个人技巧转化为团队能力", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.model.local-cloud", "from": "codex-adv.model", "to": "codex-adv.model.local-cloud", "kind": "child", "strength": 82, "reason": "运行模式影响任务选择和协作方式", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.model.boundary", "from": "codex-adv.model", "to": "codex-adv.model.boundary", "kind": "child", "strength": 90, "reason": "任务边界决定 Codex 是否适合直接执行", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.model.review-role", "from": "codex-adv.model", "to": "codex-adv.model.review-role", "kind": "child", "strength": 85, "reason": "人类审查角色定义了可靠协作的责任分工", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.prompting.spec", "from": "codex-adv.prompting", "to": "codex-adv.prompting.spec", "kind": "child", "strength": 90, "reason": "规格化写法是高质量提示的主要实践", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.prompting.constraints", "from": "codex-adv.prompting", "to": "codex-adv.prompting.constraints", "kind": "child", "strength": 88, "reason": "约束和验收让提示具备执行边界", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.prompting.iteration", "from": "codex-adv.prompting", "to": "codex-adv.prompting.iteration", "kind": "child", "strength": 84, "reason": "迭代式指挥适合复杂任务的风险控制", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.context.repo-map", "from": "codex-adv.context", "to": "codex-adv.context.repo-map", "kind": "child", "strength": 86, "reason": "仓库地图帮助 Codex 快速建立项目坐标", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.context.memory", "from": "codex-adv.context", "to": "codex-adv.context.memory", "kind": "child", "strength": 88, "reason": "长期规则减少重复提醒和上下文漂移", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.context.logs", "from": "codex-adv.context", "to": "codex-adv.context.logs", "kind": "child", "strength": 82, "reason": "日志是调试任务中最重要的上下文证据", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.workflow.debug", "from": "codex-adv.workflow", "to": "codex-adv.workflow.debug", "kind": "child", "strength": 88, "reason": "调试是 Codex 高频且高价值的工作流", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.workflow.refactor", "from": "codex-adv.workflow", "to": "codex-adv.workflow.refactor", "kind": "child", "strength": 86, "reason": "重构需要工作流化来控制风险", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.workflow.docs", "from": "codex-adv.workflow", "to": "codex-adv.workflow.docs", "kind": "child", "strength": 80, "reason": "文档同步扩展了 Codex 在知识维护中的价值", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.verification.tests", "from": "codex-adv.verification", "to": "codex-adv.verification.tests", "kind": "child", "strength": 92, "reason": "测试是验证闭环中最稳定的证据来源", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.verification.review", "from": "codex-adv.verification", "to": "codex-adv.verification.review", "kind": "child", "strength": 86, "reason": "PR 审查自动化能提前发现回归风险", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.verification.visual", "from": "codex-adv.verification", "to": "codex-adv.verification.visual", "kind": "child", "strength": 82, "reason": "前端任务需要代码之外的视觉证据", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.advanced.parallel", "from": "codex-adv.advanced", "to": "codex-adv.advanced.parallel", "kind": "child", "strength": 86, "reason": "并行委派是提升吞吐的高阶协作方式", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.advanced.skills", "from": "codex-adv.advanced", "to": "codex-adv.advanced.skills", "kind": "child", "strength": 88, "reason": "技能和脚本让经验可复用", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.advanced.governance", "from": "codex-adv.advanced", "to": "codex-adv.advanced.governance", "kind": "child", "strength": 84, "reason": "团队化使用需要治理和安全边界", "createdAt": "2026-05-17"}
+{"id": "rel.codex-adv.verification.visual.scope", "from": "codex-adv.verification.visual", "to": "codex-adv.verification.visual.scope", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.codex-adv.verification.visual.viewport", "from": "codex-adv.verification.visual", "to": "codex-adv.verification.visual.viewport", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.codex-adv.verification.visual.states", "from": "codex-adv.verification.visual", "to": "codex-adv.verification.visual.states", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.codex-adv.verification.visual.report", "from": "codex-adv.verification.visual", "to": "codex-adv.verification.visual.report", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "codex-adv.advanced.skills.rel.find-skills", "from": "codex-adv.advanced.skills.popular", "to": "codex-adv.advanced.skills.find-skills", "kind": "child", "strength": 90, "reason": "技能发现是使用技能生态的入口能力。", "createdAt": "2026-05-17"}
+{"id": "codex-adv.advanced.skills.rel.browser-use", "from": "codex-adv.advanced.skills.popular", "to": "codex-adv.advanced.skills.browser-use", "kind": "child", "strength": 90, "reason": "浏览器自动化是当前代理技能的高频应用类别。", "createdAt": "2026-05-17"}
+{"id": "codex-adv.advanced.skills.rel.playwright-e2e", "from": "codex-adv.advanced.skills.popular", "to": "codex-adv.advanced.skills.playwright-e2e", "kind": "child", "strength": 88, "reason": "Playwright E2E 是前端测试和回归验证中的代表性技能。", "createdAt": "2026-05-17"}
+{"id": "codex-adv.advanced.skills.rel.web-crawl-rag", "from": "codex-adv.advanced.skills.popular", "to": "codex-adv.advanced.skills.web-crawl-rag", "kind": "child", "strength": 86, "reason": "网页抓取与 RAG 入库是知识型代理常用技能方向。", "createdAt": "2026-05-17"}
+{"id": "codex-adv.advanced.skills.rel.memory", "from": "codex-adv.advanced.skills.popular", "to": "codex-adv.advanced.skills.memory", "kind": "child", "strength": 88, "reason": "长期记忆是让代理跨会话工作的基础能力。", "createdAt": "2026-05-17"}
+{"id": "codex-adv.advanced.skills.rel.github-workflow", "from": "codex-adv.advanced.skills.popular", "to": "codex-adv.advanced.skills.github-workflow", "kind": "child", "strength": 87, "reason": "GitHub 工作流技能覆盖代码协作、PR 和 CI 场景。", "createdAt": "2026-05-17"}
+{"id": "codex-adv.advanced.skills.rel.security-audit", "from": "codex-adv.advanced.skills.popular", "to": "codex-adv.advanced.skills.security-audit", "kind": "child", "strength": 84, "reason": "安全审计技能用于控制代理执行和代码交付带来的风险。", "createdAt": "2026-05-17"}
+{"id": "codex-adv.advanced.skills.rel.document-automation", "from": "codex-adv.advanced.skills.popular", "to": "codex-adv.advanced.skills.document-automation", "kind": "child", "strength": 82, "reason": "文档自动化是知识生产和办公场景中的常见技能。", "createdAt": "2026-05-17"}
+{"id": "codex-adv.advanced.skills.rel.spreadsheet-analysis", "from": "codex-adv.advanced.skills.popular", "to": "codex-adv.advanced.skills.spreadsheet-analysis", "kind": "child", "strength": 82, "reason": "表格分析技能连接自然语言问题和结构化数据操作。", "createdAt": "2026-05-17"}
+{"id": "codex-adv.advanced.skills.rel.presentation-generation", "from": "codex-adv.advanced.skills.popular", "to": "codex-adv.advanced.skills.presentation-generation", "kind": "child", "strength": 80, "reason": "演示文稿生成技能适合把研究和业务材料转成可沟通成果。", "createdAt": "2026-05-17"}
+{"id": "codex-adv.advanced.skills.rel.image-video-generation", "from": "codex-adv.advanced.skills.popular", "to": "codex-adv.advanced.skills.image-video-generation", "kind": "child", "strength": 80, "reason": "图像与视频生成是创意生产类技能中的高需求方向。", "createdAt": "2026-05-17"}
+{"id": "rel.claude-code.workflow.child.testing-types", "from": "claude-code.workflow", "to": "claude-code.workflow.testing-types", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.workflow.testing-types.child.unit", "from": "claude-code.workflow.testing-types", "to": "claude-code.workflow.testing-types.unit", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.workflow.testing-types.child.integration", "from": "claude-code.workflow.testing-types", "to": "claude-code.workflow.testing-types.integration", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.workflow.testing-types.child.e2e", "from": "claude-code.workflow.testing-types", "to": "claude-code.workflow.testing-types.e2e", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.workflow.testing-types.child.regression", "from": "claude-code.workflow.testing-types", "to": "claude-code.workflow.testing-types.regression", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.workflow.testing-types.child.smoke", "from": "claude-code.workflow.testing-types", "to": "claude-code.workflow.testing-types.smoke", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.claude-code.workflow.testing-types.child.acceptance", "from": "claude-code.workflow.testing-types", "to": "claude-code.workflow.testing-types.acceptance", "kind": "child", "createdAt": "2026-05-17T00:00:00.000Z"}
+{"id": "rel.codex-adv.advanced.skills.popular", "from": "codex-adv.advanced.skills", "to": "codex-adv.advanced.skills.popular", "kind": "child", "strength": 95, "reason": "热门 Skill 一览作为父元下的索引层。", "createdAt": "2026-05-17T06:00:00.000Z"}
+{"id":"codex-adv.advanced.skills.popular.superpowers.child","from":"codex-adv.advanced.skills.popular","to":"codex-adv.advanced.skills.popular.superpowers","kind":"child","strength":92,"reason":"Superpowers 是热门 Skill 中值得单独说明的一组流程型技能。","createdAt":"2026-05-17"}
+{"id":"codex-adv.advanced.skills.popular.superpowers.using-superpowers.child","from":"codex-adv.advanced.skills.popular.superpowers","to":"codex-adv.advanced.skills.popular.superpowers.using-superpowers","kind":"child","strength":90,"reason":"Using Superpowers 是理解和触发该体系的入口技能。","createdAt":"2026-05-17"}
+{"id":"codex-adv.advanced.skills.popular.superpowers.test-driven-development.child","from":"codex-adv.advanced.skills.popular.superpowers","to":"codex-adv.advanced.skills.popular.superpowers.test-driven-development","kind":"child","strength":88,"reason":"TDD 是 Superpowers 体系中常见的实现前流程约束。","createdAt":"2026-05-17"}
+{"id":"codex-adv.advanced.skills.popular.superpowers.systematic-debugging.child","from":"codex-adv.advanced.skills.popular.superpowers","to":"codex-adv.advanced.skills.popular.superpowers.systematic-debugging","kind":"child","strength":88,"reason":"系统调试是处理失败和异常时的核心流程技能。","createdAt":"2026-05-17"}
+{"id":"codex-adv.advanced.skills.popular.superpowers.subagent-driven-development.child","from":"codex-adv.advanced.skills.popular.superpowers","to":"codex-adv.advanced.skills.popular.superpowers.subagent-driven-development","kind":"child","strength":82,"reason":"子代理开发说明了 Superpowers 在复杂任务拆分中的用法。","createdAt":"2026-05-17"}
+{"id":"codex-adv.advanced.skills.popular.superpowers.verification-before-completion.child","from":"codex-adv.advanced.skills.popular.superpowers","to":"codex-adv.advanced.skills.popular.superpowers.verification-before-completion","kind":"child","strength":90,"reason":"完成前验证是保证交付可信度的关键技能。","createdAt":"2026-05-17"}
+{"id":"codex-adv.advanced.skills.popular.superpowers.finishing-development-branch.child","from":"codex-adv.advanced.skills.popular.superpowers","to":"codex-adv.advanced.skills.popular.superpowers.finishing-development-branch","kind":"child","strength":84,"reason":"开发分支收尾覆盖实现后的整理、验证和交付说明。","createdAt":"2026-05-17"}
+{"id":"rel.codex-adv.advanced.skills.popular.superpowers.related.gstack.review","from":"codex-adv.advanced.skills.popular.superpowers","to":"codex-adv.advanced.skills.popular.gstack.review","kind":"related","strength":86,"reason":"二者都是通过流程化技能降低代理工作风险，Review 更聚焦代码审查与落地前风险识别。","createdAt":"2026-05-17T00:00:00.000Z"}
+{"id":"rel.codex-adv.advanced.skills.popular.superpowers.related.gstack.qa","from":"codex-adv.advanced.skills.popular.superpowers","to":"codex-adv.advanced.skills.popular.gstack.qa","kind":"related","strength":84,"reason":"二者都强调在关键阶段使用更稳的工作方法，QA 更偏向真实应用验证与问题复现。","createdAt":"2026-05-17T00:00:00.000Z"}
+{"id":"rel.codex-adv.advanced.skills.popular.superpowers.related.gstack.ship","from":"codex-adv.advanced.skills.popular.superpowers","to":"codex-adv.advanced.skills.popular.gstack.ship","kind":"related","strength":88,"reason":"二者都把经验性的工程动作固化为技能流程，Ship 更关注实现完成后的提交、验证与交付收口。","createdAt":"2026-05-17T00:00:00.000Z"}
+{"id":"codex-adv.advanced.skills.popular.gstack.child","from":"codex-adv.advanced.skills.popular","to":"codex-adv.advanced.skills.popular.gstack","kind":"child","strength":92,"reason":"GStack 是热门 Skill 中面向工程交付链路的一组技能。","createdAt":"2026-05-17"}
+{"id":"codex-adv.advanced.skills.popular.gstack.qa.child","from":"codex-adv.advanced.skills.popular.gstack","to":"codex-adv.advanced.skills.popular.gstack.qa","kind":"child","strength":88,"reason":"QA 是 GStack 中用于真实应用验证和问题修复的核心技能。","createdAt":"2026-05-17"}
+{"id":"codex-adv.advanced.skills.popular.gstack.review.child","from":"codex-adv.advanced.skills.popular.gstack","to":"codex-adv.advanced.skills.popular.gstack.review","kind":"child","strength":86,"reason":"Review 覆盖落地前的代码风险检查。","createdAt":"2026-05-17"}
+{"id":"codex-adv.advanced.skills.popular.gstack.ship.child","from":"codex-adv.advanced.skills.popular.gstack","to":"codex-adv.advanced.skills.popular.gstack.ship","kind":"child","strength":86,"reason":"Ship 对应从完成实现到可交付状态的流程。","createdAt":"2026-05-17"}
+{"id":"codex-adv.advanced.skills.popular.gstack.investigate.child","from":"codex-adv.advanced.skills.popular.gstack","to":"codex-adv.advanced.skills.popular.gstack.investigate","kind":"child","strength":84,"reason":"Investigate 用于失败和异常场景下的根因定位。","createdAt":"2026-05-17"}
+{"id":"codex-adv.advanced.skills.popular.gstack.design-review.child","from":"codex-adv.advanced.skills.popular.gstack","to":"codex-adv.advanced.skills.popular.gstack.design-review","kind":"child","strength":80,"reason":"Design Review 补充了前端体验和视觉质量检查。","createdAt":"2026-05-17"}
+{"id":"codex-adv.advanced.skills.popular.gstack.health.child","from":"codex-adv.advanced.skills.popular.gstack","to":"codex-adv.advanced.skills.popular.gstack.health","kind":"child","strength":82,"reason":"Health 提供项目质量状态的快速体检入口。","createdAt":"2026-05-17"}
+{"id":"codex-adv.advanced.skills.popular.gstack.land-and-deploy.child","from":"codex-adv.advanced.skills.popular.gstack","to":"codex-adv.advanced.skills.popular.gstack.land-and-deploy","kind":"child","strength":82,"reason":"Land And Deploy 覆盖合并、部署和上线观察的发布闭环。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.dest","from":"thai-trip","to":"thai-trip.dest","kind":"child","strength":100,"reason":"目的地结构是泰国旅行规划的第一层决策。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.plan","from":"thai-trip","to":"thai-trip.plan","kind":"child","strength":100,"reason":"行程和季节决定路线可行性。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.entry","from":"thai-trip","to":"thai-trip.entry","kind":"child","strength":95,"reason":"入境和出发准备是旅行执行前提。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.move","from":"thai-trip","to":"thai-trip.move","kind":"child","strength":95,"reason":"交通与住宿影响每日体验和成本。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.money","from":"thai-trip","to":"thai-trip.money","kind":"child","strength":90,"reason":"预算与支付决定旅行资源分配。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.safe","from":"thai-trip","to":"thai-trip.safe","kind":"child","strength":95,"reason":"安全与规则是自由行的底线模块。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.exp","from":"thai-trip","to":"thai-trip.exp","kind":"child","strength":90,"reason":"体验与文化构成旅行记忆和复盘价值。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.dest.bangkok","from":"thai-trip.dest","to":"thai-trip.dest.bangkok","kind":"child","strength":95,"reason":"曼谷是泰国旅行最常见入口。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.dest.north","from":"thai-trip.dest","to":"thai-trip.dest.north","kind":"child","strength":90,"reason":"泰北代表文化和慢旅行路线。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.dest.andaman","from":"thai-trip.dest","to":"thai-trip.dest.andaman","kind":"child","strength":92,"reason":"安达曼海岛是热门海岛旅行方向。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.dest.gulf","from":"thai-trip.dest","to":"thai-trip.dest.gulf","kind":"child","strength":85,"reason":"泰国湾海岛提供另一套海岛和潜水逻辑。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.dest.short","from":"thai-trip.dest","to":"thai-trip.dest.short","kind":"child","strength":80,"reason":"近曼谷短途适合补充和缓冲行程。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.plan.days","from":"thai-trip.plan","to":"thai-trip.plan.days","kind":"child","strength":90,"reason":"天数决定路线复杂度。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.plan.season","from":"thai-trip.plan","to":"thai-trip.plan.season","kind":"child","strength":95,"reason":"季节影响海况、价格和体感。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.plan.itinerary","from":"thai-trip.plan","to":"thai-trip.plan.itinerary","kind":"child","strength":92,"reason":"路线模板帮助快速落地规划。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.plan.pace","from":"thai-trip.plan","to":"thai-trip.plan.pace","kind":"child","strength":88,"reason":"节奏管理影响旅行质量。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.plan.season.cool","from":"thai-trip.plan.season","to":"thai-trip.plan.season.cool","kind":"child","strength":85,"reason":"凉季是高频出行窗口。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.plan.season.rain","from":"thai-trip.plan.season","to":"thai-trip.plan.season.rain","kind":"child","strength":85,"reason":"雨季需要特殊行程弹性。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.entry.visa","from":"thai-trip.entry","to":"thai-trip.entry.visa","kind":"child","strength":95,"reason":"签证与免签是入境判断核心。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.entry.tdac","from":"thai-trip.entry","to":"thai-trip.entry.tdac","kind":"child","strength":88,"reason":"数字入境信息影响抵达效率。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.entry.pack","from":"thai-trip.entry","to":"thai-trip.entry.pack","kind":"child","strength":82,"reason":"打包决定现场便利度。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.entry.connect","from":"thai-trip.entry","to":"thai-trip.entry.connect","kind":"child","strength":85,"reason":"通信是自由行工具链基础。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.entry.insurance","from":"thai-trip.entry","to":"thai-trip.entry.insurance","kind":"child","strength":90,"reason":"保险为医疗和活动风险兜底。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.move.city","from":"thai-trip.move","to":"thai-trip.move.city","kind":"child","strength":90,"reason":"市内交通影响日常移动效率。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.move.intercity","from":"thai-trip.move","to":"thai-trip.move.intercity","kind":"child","strength":95,"reason":"跨城转场是路线成败关键。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.move.hotel","from":"thai-trip.move","to":"thai-trip.move.hotel","kind":"child","strength":92,"reason":"住宿区域决定移动成本。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.move.local","from":"thai-trip.move","to":"thai-trip.move.local","kind":"child","strength":84,"reason":"当地短途移动影响现场自由度。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.move.intercity.air","from":"thai-trip.move.intercity","to":"thai-trip.move.intercity.air","kind":"child","strength":82,"reason":"国内航班是常见跨区方式。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.move.intercity.boat","from":"thai-trip.move.intercity","to":"thai-trip.move.intercity.boat","kind":"child","strength":88,"reason":"车船联运是海岛路线的关键瓶颈。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.money.budget","from":"thai-trip.money","to":"thai-trip.money.budget","kind":"child","strength":95,"reason":"预算框架帮助控制总成本。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.money.cash","from":"thai-trip.money","to":"thai-trip.money.cash","kind":"child","strength":88,"reason":"现金覆盖大量小额场景。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.money.card","from":"thai-trip.money","to":"thai-trip.money.card","kind":"child","strength":85,"reason":"银行卡适合大额和正规商户支付。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.money.value","from":"thai-trip.money","to":"thai-trip.money.value","kind":"child","strength":86,"reason":"性价比取舍影响体验质量。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.safe.health","from":"thai-trip.safe","to":"thai-trip.safe.health","kind":"child","strength":90,"reason":"健康风险是高频旅行风险。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.safe.scam","from":"thai-trip.safe","to":"thai-trip.safe.scam","kind":"child","strength":88,"reason":"常见骗局影响预算和安全感。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.safe.law","from":"thai-trip.safe","to":"thai-trip.safe.law","kind":"child","strength":90,"reason":"法律与文化边界不可忽略。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.safe.emergency","from":"thai-trip.safe","to":"thai-trip.safe.emergency","kind":"child","strength":86,"reason":"应急处理提供事故后的行动框架。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.exp.food","from":"thai-trip.exp","to":"thai-trip.exp.food","kind":"child","strength":92,"reason":"美食是泰国旅行的核心体验。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.exp.temple","from":"thai-trip.exp","to":"thai-trip.exp.temple","kind":"child","strength":86,"reason":"寺庙体现文化体验和礼仪要求。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.exp.sea","from":"thai-trip.exp","to":"thai-trip.exp.sea","kind":"child","strength":92,"reason":"海岛活动是泰国旅行的重要分支。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.exp.shop","from":"thai-trip.exp","to":"thai-trip.exp.shop","kind":"child","strength":78,"reason":"购物和伴手礼是常见补充体验。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.exp.sea.snorkel","from":"thai-trip.exp.sea","to":"thai-trip.exp.sea.snorkel","kind":"child","strength":86,"reason":"浮潜和跳岛是大众海岛活动。","createdAt":"2026-05-17"}
+{"id":"rel.thai-trip.exp.sea.dive","from":"thai-trip.exp.sea","to":"thai-trip.exp.sea.dive","kind":"child","strength":82,"reason":"潜水课程是更进阶的海岛体验。","createdAt":"2026-05-17"}
+{"id":"thai-trip.dest.phuket.child","from":"thai-trip.dest","to":"thai-trip.dest.phuket","kind":"child","strength":85,"reason":"用户指定想了解普吉岛旅游相关内容，因此先建立普吉岛旅游结构作为中间分类元。","createdAt":"2026-05-17"}
+{"id":"thai-trip.dest.phuket.areas.child","from":"thai-trip.dest.phuket","to":"thai-trip.dest.phuket.areas","kind":"child","strength":90,"reason":"住宿区域是理解普吉岛旅行体验差异的第一层拆分。","createdAt":"2026-05-17"}
+{"id":"thai-trip.dest.phuket.beaches.child","from":"thai-trip.dest.phuket","to":"thai-trip.dest.phuket.beaches","kind":"child","strength":86,"reason":"本岛海滩决定普吉岛日常度假体验和区域选择。","createdAt":"2026-05-17"}
+{"id":"thai-trip.dest.phuket.island-hopping.child","from":"thai-trip.dest.phuket","to":"thai-trip.dest.phuket.island-hopping","kind":"child","strength":88,"reason":"离岛与跳岛是普吉旅行中常见且需要单独判断的模块。","createdAt":"2026-05-17"}
+{"id":"thai-trip.dest.phuket.transport.child","from":"thai-trip.dest.phuket","to":"thai-trip.dest.phuket.transport","kind":"child","strength":84,"reason":"交通与动线会影响住宿、码头、老城和海滩之间的实际体验。","createdAt":"2026-05-17"}
+{"id":"thai-trip.dest.phuket.season.child","from":"thai-trip.dest.phuket","to":"thai-trip.dest.phuket.season","kind":"child","strength":82,"reason":"季节与海况会影响出海、海滩和行程弹性。","createdAt":"2026-05-17"}
+{"id":"thai-trip.dest.phuket.itinerary.child","from":"thai-trip.dest.phuket","to":"thai-trip.dest.phuket.itinerary","kind":"child","strength":83,"reason":"行程骨架把区域、海滩、离岛和交通整合成可执行路线。","createdAt":"2026-05-17"}

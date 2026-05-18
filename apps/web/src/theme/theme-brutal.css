@@ -1,0 +1,1149 @@
+/* Neo-Brutalism theme override.
+   Activated by html[data-theme="brutal"]. Stacked on top of tokens.css and
+   component CSS to flatten / harden the visual language: solid bright fills,
+   thick black borders, hard offset shadows (no blur), no gradients, no glow,
+   no glassy backdrops, sharp corners, bold type. */
+
+html[data-theme="brutal"] {
+  --bg: #fef6e4;
+  --bg-2: #fff6c2;
+  --panel: #ffffff;
+  --panel-2: #f4f4f4;
+  --line: #000000;
+  --line-2: #000000;
+  --text: #0d0d0d;
+  --soft: #1a1a1a;
+  --muted: #444444;
+  --dim: #555555;
+  --teal: #00d1b2;
+  --teal-2: #00b89d;
+  --teal-soft: #b4ffe6;
+  --teal-line: #000000;
+  --violet: #c084fc;
+  --amber: #ffd23f;
+  --pink: #ff6b9d;
+  --green: #6bff8a;
+  --gold: #ffd23f;
+  --blue: #5b8eff;
+  --orange: #ff7a00;
+  --radius: 0px;
+  --brut-shadow: 6px 6px 0 #000;
+  --brut-shadow-sm: 4px 4px 0 #000;
+  --brut-border: 3px solid #000;
+}
+
+html[data-theme="brutal"] body {
+  background:
+    repeating-linear-gradient(45deg, transparent 0 14px, rgba(0,0,0,.03) 14px 15px),
+    var(--bg) !important;
+  color: var(--text);
+  font-weight: 600;
+}
+
+html[data-theme="brutal"] *,
+html[data-theme="brutal"] *::before,
+html[data-theme="brutal"] *::after {
+  backdrop-filter: none !important;
+  text-shadow: none !important;
+}
+
+/* Kill background ambient + scanlines on tree view */
+html[data-theme="brutal"] .tree-view::before,
+html[data-theme="brutal"] .tree-view::after,
+html[data-theme="brutal"] .tv-topbar::before,
+html[data-theme="brutal"] .structure-map__ambient {
+  display: none !important;
+}
+
+html[data-theme="brutal"] .tree-view {
+  background: var(--bg);
+  gap: 14px;
+  padding: 14px;
+}
+
+/* Shared panel chrome — flat white with black border + hard shadow */
+html[data-theme="brutal"] .tv-topbar,
+html[data-theme="brutal"] .learning-sidebar,
+html[data-theme="brutal"] .tv-main,
+html[data-theme="brutal"] .system-panel,
+html[data-theme="brutal"] .tv-footer {
+  border: var(--brut-border);
+  border-radius: 0;
+  background: var(--panel) !important;
+  box-shadow: var(--brut-shadow);
+  backdrop-filter: none;
+}
+
+html[data-theme="brutal"] .tv-topbar { background: var(--amber) !important; }
+html[data-theme="brutal"] .tv-footer { background: var(--blue) !important; color: #000; }
+html[data-theme="brutal"] .tv-footer { font-weight: 700; }
+html[data-theme="brutal"] .learning-sidebar { background: var(--bg-2) !important; }
+
+/* Brand / logo */
+html[data-theme="brutal"] .tv-home-button { border-radius: 0; }
+html[data-theme="brutal"] .tv-home-button:hover {
+  background: #000; color: #fff; transform: none;
+}
+html[data-theme="brutal"] .tv-logo {
+  background: var(--pink) !important;
+  border: 2.5px solid #000;
+  box-shadow: 3px 3px 0 #000;
+  animation: none !important;
+}
+html[data-theme="brutal"] .tv-logo::after { display: none !important; }
+html[data-theme="brutal"] .tv-brand strong { font-weight: 900; letter-spacing: 0; }
+
+/* Breadcrumb */
+html[data-theme="brutal"] .tv-crumb {
+  background: #fff;
+  border: 2.5px solid #000;
+  border-radius: 0;
+  box-shadow: 3px 3px 0 #000;
+}
+html[data-theme="brutal"] .tv-crumb button { color: #000; font-weight: 700; }
+html[data-theme="brutal"] .tv-crumb button:not(:last-child)::after { color: #000; }
+html[data-theme="brutal"] .tv-crumb .now {
+  color: #000;
+  background: var(--green);
+  padding: 2px 8px;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000;
+}
+
+/* Topbar tools */
+html[data-theme="brutal"] .tv-tools button,
+html[data-theme="brutal"] .tv-tools span {
+  border: 2.5px solid #000 !important;
+  border-radius: 0;
+  background: #fff !important;
+  color: #000 !important;
+  box-shadow: 3px 3px 0 #000;
+}
+html[data-theme="brutal"] .tv-tools button:hover {
+  transform: translate(-2px,-2px);
+  box-shadow: 5px 5px 0 #000;
+  background: var(--teal) !important;
+}
+html[data-theme="brutal"] .tv-tools button.is-active {
+  background: var(--pink) !important;
+  transform: translate(2px,2px);
+  box-shadow: 1px 1px 0 #000;
+}
+html[data-theme="brutal"] .tv-tools span {
+  background: var(--green) !important;
+  font-weight: 900;
+}
+
+/* Sidebar items */
+html[data-theme="brutal"] .sidebar-label {
+  color: #000;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+/* Sidebar node list — brutalist sticky-card stack. Keep the offset shadow
+   for character, but use a proper gap so shadows don't collide. */
+html[data-theme="brutal"] .sidebar-list,
+html[data-theme="brutal"] .ancestor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px; /* room for the right shadow */
+}
+html[data-theme="brutal"] .sidebar-node,
+html[data-theme="brutal"] .ancestor-list button {
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  color: #000 !important;
+  box-shadow: 3px 3px 0 #000 !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+html[data-theme="brutal"] .sidebar-node:hover,
+html[data-theme="brutal"] .ancestor-list button:hover {
+  background: var(--teal-soft) !important;
+  transform: translate(-2px,-2px) !important;
+  box-shadow: 5px 5px 0 #000 !important;
+}
+html[data-theme="brutal"] .sidebar-node.is-active,
+html[data-theme="brutal"] .ancestor-list button.is-center {
+  background: var(--amber) !important;
+  transform: translate(1px,1px) !important;
+  box-shadow: 2px 2px 0 #000 !important;
+}
+/* Breathing room between the three groups (上级元 / 同级元 / 下级元) */
+html[data-theme="brutal"] .sidebar-label { margin-top: 16px; }
+html[data-theme="brutal"] .sidebar-node.is-drop-over {
+  background: var(--green) !important;
+}
+
+/* Path / scene cards */
+html[data-theme="brutal"] .path-card,
+html[data-theme="brutal"] .scene-list button {
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  background: var(--pink) !important;
+  color: #000 !important;
+  box-shadow: 3px 3px 0 #000;
+  font-weight: 700;
+}
+html[data-theme="brutal"] .path-card--blue { background: var(--blue) !important; }
+html[data-theme="brutal"] .path-card--green { background: var(--green) !important; }
+html[data-theme="brutal"] .path-card--amber { background: var(--amber) !important; }
+html[data-theme="brutal"] .path-card--violet { background: var(--violet) !important; }
+html[data-theme="brutal"] .scene-list button.is-active {
+  background: #000 !important; color: #fff !important;
+}
+
+/* Knowledge tree nodes */
+html[data-theme="brutal"] .structure-chain-card,
+html[data-theme="brutal"] .child-card,
+html[data-theme="brutal"] .grand-pill {
+  border: 3px solid #000 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  color: #000 !important;
+  box-shadow: var(--brut-shadow-sm);
+  filter: none !important;
+}
+html[data-theme="brutal"] .structure-chain-card { background: var(--amber) !important; }
+html[data-theme="brutal"] .child-card { background: var(--teal) !important; }
+html[data-theme="brutal"] .grand-pill { background: var(--pink) !important; }
+html[data-theme="brutal"] .structure-chain-card.is-selected,
+html[data-theme="brutal"] .child-card.is-selected,
+html[data-theme="brutal"] .grand-pill.is-selected {
+  background: var(--green) !important;
+  transform: translate(2px,2px);
+  box-shadow: 2px 2px 0 #000;
+}
+html[data-theme="brutal"] .structure-chain-card *,
+html[data-theme="brutal"] .child-card *,
+html[data-theme="brutal"] .grand-pill * {
+  color: #000 !important;
+  text-shadow: none !important;
+}
+html[data-theme="brutal"] .structure-chain-card__badge {
+  background: #000 !important; color: #fff !important;
+  border-radius: 0; padding: 2px 6px; font-weight: 800;
+}
+
+/* Tree lines */
+html[data-theme="brutal"] .tree-line { stroke: #000 !important; stroke-width: 2.5px !important; }
+
+/* Footer buttons */
+html[data-theme="brutal"] .footer-actions button {
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  color: #000 !important;
+  box-shadow: 3px 3px 0 #000;
+  font-weight: 700;
+}
+html[data-theme="brutal"] .footer-actions button:first-child { background: var(--pink) !important; }
+html[data-theme="brutal"] .footer-actions button:hover {
+  transform: translate(-2px,-2px); box-shadow: 5px 5px 0 #000;
+}
+
+/* Generic buttons inside panels — keep flat hard-edged style */
+html[data-theme="brutal"] button {
+  border-radius: 0;
+}
+
+/* Element content panel + sections */
+html[data-theme="brutal"] .element-content,
+html[data-theme="brutal"] .ec-panel,
+html[data-theme="brutal"] .section-block,
+html[data-theme="brutal"] .three-col-nav,
+html[data-theme="brutal"] .content-toc {
+  border: var(--brut-border) !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  color: #000 !important;
+  box-shadow: none;
+  backdrop-filter: none !important;
+}
+
+/* Element panel body — flat cream so white section blocks pop with hierarchy */
+html[data-theme="brutal"] .element-content,
+html[data-theme="brutal"] .element-content__scroll,
+html[data-theme="brutal"] .element-content__three-col,
+html[data-theme="brutal"] .body-article,
+html[data-theme="brutal"] .body-layout {
+  background: #fef6e4 !important;
+}
+
+/* Element panel sticky header — flat amber band */
+html[data-theme="brutal"] .element-content__head {
+  background: var(--amber) !important;
+  border-bottom: 3px solid #000 !important;
+  backdrop-filter: none !important;
+}
+html[data-theme="brutal"] .element-content__head p { color: #000 !important; }
+html[data-theme="brutal"] .element-title-row h2 { color: #000; font-weight: 900; }
+html[data-theme="brutal"] .element-title-row span {
+  background: #000 !important;
+  color: #fff !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  font-weight: 800;
+}
+
+/* Element header action buttons (细化/展开/延伸/反馈/×) */
+html[data-theme="brutal"] .element-content__actions button {
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  color: #000 !important;
+  box-shadow: 3px 3px 0 #000 !important;
+  font-weight: 700;
+}
+html[data-theme="brutal"] .element-content__actions button:hover {
+  transform: translate(-2px,-2px);
+  box-shadow: 5px 5px 0 #000 !important;
+  background: var(--teal) !important;
+}
+
+/* Meta strip chips */
+html[data-theme="brutal"] .meta-chip {
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  color: #000 !important;
+  box-shadow: 2px 2px 0 #000;
+  font-weight: 700;
+}
+html[data-theme="brutal"] .meta-chip--type { background: var(--pink) !important; }
+html[data-theme="brutal"] .meta-chip--difficulty { background: var(--teal) !important; }
+html[data-theme="brutal"] .meta-chip--domain { background: var(--blue) !important; color: #fff !important; }
+html[data-theme="brutal"] .meta-chip--tag { background: var(--green) !important; }
+html[data-theme="brutal"] .meta-author,
+html[data-theme="brutal"] .meta-time,
+html[data-theme="brutal"] .meta-history { color: #000 !important; }
+
+/* Knowledge map outer frame — white with dotted grid pattern, hard border */
+html[data-theme="brutal"] .structure-map {
+  background:
+    radial-gradient(circle, #c8c8c8 1.4px, transparent 1.6px) 0 0 / 24px 24px,
+    #ffffff !important;
+  border: var(--brut-border) !important;
+  border-radius: 0 !important;
+  box-shadow: var(--brut-shadow-sm);
+}
+
+/* Body TOC — wrap as its own card with a clear amber title band */
+html[data-theme="brutal"] .body-toc {
+  background: #fff !important;
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0 #000 !important;
+  padding: 0 !important;
+}
+html[data-theme="brutal"] .body-toc h3,
+html[data-theme="brutal"] .body-toc > strong,
+html[data-theme="brutal"] .body-toc__title {
+  background: var(--amber) !important;
+  color: #000 !important;
+  font-weight: 900 !important;
+  border-bottom: 2.5px solid #000 !important;
+  padding: 8px 12px !important;
+  margin: 0 !important;
+  display: block;
+}
+html[data-theme="brutal"] .body-toc ol { padding: 10px !important; gap: 6px !important; }
+html[data-theme="brutal"] .body-toc button {
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  color: #000 !important;
+  font-weight: 700;
+  margin-bottom: 0;
+  box-shadow: 2px 2px 0 #000;
+  padding: 8px 10px !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+html[data-theme="brutal"] .body-toc button:hover {
+  transform: translate(-1px,-1px);
+  box-shadow: 3px 3px 0 #000 !important;
+  background: var(--bg-2) !important;
+}
+html[data-theme="brutal"] .body-toc button.is-active {
+  background: var(--amber) !important;
+  transform: translate(1px,1px);
+  box-shadow: 1px 1px 0 #000 !important;
+}
+html[data-theme="brutal"] .body-toc button::before { display: none !important; }
+html[data-theme="brutal"] .body-toc .toc-num {
+  background: #000 !important;
+  color: #fff !important;
+  font-family: var(--mono) !important;
+  font-weight: 900 !important;
+  opacity: 1 !important;
+  padding: 2px 6px;
+  font-size: 11px !important;
+  border: 2px solid #000;
+}
+html[data-theme="brutal"] .body-toc button.is-active .toc-num {
+  background: #fff !important; color: #000 !important;
+}
+html[data-theme="brutal"] .body-toc .toc-label { color: #000 !important; font-weight: 700; }
+
+/* Check-list bullets — solid black on a green chip so they read on any bg */
+html[data-theme="brutal"] .check-list li {
+  color: #000 !important;
+  padding-left: 30px !important;
+}
+html[data-theme="brutal"] .check-list li::before {
+  content: "✓" !important;
+  background: var(--green) !important;
+  color: #000 !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  width: 20px; height: 20px;
+  display: grid; place-items: center;
+  font-weight: 900 !important;
+  font-size: 13px !important;
+  top: 1px !important; left: 0 !important;
+  line-height: 1 !important;
+}
+html[data-theme="brutal"] .dot-list li { color: #000 !important; }
+html[data-theme="brutal"] .dot-list li::before { color: #000 !important; }
+
+/* Children CTA popover — was dark glassy, force white card + black text */
+html[data-theme="brutal"] .cta-button {
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  background: var(--green) !important;
+  color: #000 !important;
+  box-shadow: 3px 3px 0 #000;
+  font-weight: 800;
+}
+html[data-theme="brutal"] .cta-button:hover {
+  transform: translate(-2px,-2px);
+  box-shadow: 5px 5px 0 #000;
+}
+html[data-theme="brutal"] .cta-button.is-open {
+  background: var(--amber) !important;
+  transform: translate(2px,2px);
+  box-shadow: 1px 1px 0 #000;
+}
+html[data-theme="brutal"] .children-cta-list {
+  background: #fff !important;
+  border: 3px solid #000 !important;
+  border-radius: 0 !important;
+  box-shadow: 6px 6px 0 #000 !important;
+  backdrop-filter: none !important;
+}
+html[data-theme="brutal"] .children-cta-list > li > button {
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  color: #000 !important;
+  font-weight: 700;
+  margin-bottom: 6px;
+  box-shadow: 2px 2px 0 #000;
+}
+html[data-theme="brutal"] .children-cta-list > li > button:hover {
+  background: var(--teal) !important;
+  transform: translate(-1px,-1px);
+  box-shadow: 3px 3px 0 #000 !important;
+}
+html[data-theme="brutal"] .children-cta-list .mini-icon { color: #000 !important; }
+html[data-theme="brutal"] .children-cta-list__title { color: #000 !important; }
+html[data-theme="brutal"] .children-cta-list__type {
+  background: #000 !important; color: #fff !important;
+  border-radius: 0 !important; padding: 2px 6px; font-weight: 800;
+}
+html[data-theme="brutal"] .children-cta-list__center { border-top: 2px dashed #000 !important; padding-top: 8px; }
+html[data-theme="brutal"] .children-cta-list__center button {
+  background: var(--pink) !important; color: #000 !important;
+  border: 2px solid #000 !important; border-radius: 0 !important;
+  font-weight: 800; box-shadow: 2px 2px 0 #000;
+}
+
+/* Section / example / step number badges — solid black on color, max readability */
+html[data-theme="brutal"] .body-section-num,
+html[data-theme="brutal"] .example-num,
+html[data-theme="brutal"] .step-num,
+html[data-theme="brutal"] .mechanism-step-num,
+html[data-theme="brutal"] .path-step-num {
+  background: #000 !important;
+  color: #fff !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  font-weight: 900 !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+
+/* Callout / warn / check icons — force solid bright color, never washed-out */
+html[data-theme="brutal"] .callout-icon,
+html[data-theme="brutal"] .warn-card::before {
+  color: #000 !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+html[data-theme="brutal"] .check-item::before,
+html[data-theme="brutal"] .check-item .check-mark,
+html[data-theme="brutal"] .check-mark {
+  color: #000 !important;
+  background: var(--green) !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  font-weight: 900 !important;
+}
+html[data-theme="brutal"] .warn-card * { color: #000 !important; }
+html[data-theme="brutal"] .warn-card__bar { background: #000 !important; }
+
+/* Callout titles — were teal/amber on amber bg (invisible). Force black bold. */
+html[data-theme="brutal"] .callout strong,
+html[data-theme="brutal"] .callout-body strong,
+html[data-theme="brutal"] .warn-card strong {
+  color: #000 !important;
+  font-weight: 900 !important;
+  background: transparent !important;
+}
+
+/* SystemPanel (right rail: search / view / map / notice) */
+html[data-theme="brutal"] .system-panel__head h2,
+html[data-theme="brutal"] .system-section h3 {
+  color: #000 !important;
+  font-weight: 900 !important;
+}
+html[data-theme="brutal"] .system-panel__head span {
+  background: #000 !important;
+  color: #fff !important;
+  border-radius: 0 !important;
+  padding: 2px 8px;
+  font-weight: 800;
+}
+html[data-theme="brutal"] .system-search-box {
+  background: #fff !important;
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  box-shadow: 3px 3px 0 #000;
+  padding: 4px 6px;
+}
+html[data-theme="brutal"] .system-search-box input {
+  background: transparent !important;
+  color: #000 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html[data-theme="brutal"] .system-search-box input::placeholder { color: #555 !important; }
+html[data-theme="brutal"] .system-search-box .ke-icon { color: #000 !important; }
+html[data-theme="brutal"] .system-search-box button {
+  background: var(--amber) !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+  box-shadow: 2px 2px 0 #000 !important;
+  font-weight: 800;
+}
+html[data-theme="brutal"] .system-search-box button:hover {
+  transform: translate(-1px,-1px);
+  box-shadow: 3px 3px 0 #000 !important;
+}
+html[data-theme="brutal"] .search-result-list button {
+  background: #fff !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+  box-shadow: 2px 2px 0 #000;
+  margin-bottom: 6px;
+}
+html[data-theme="brutal"] .search-result-list button:hover {
+  background: var(--teal) !important;
+  transform: translate(-1px,-1px);
+  box-shadow: 3px 3px 0 #000 !important;
+}
+html[data-theme="brutal"] .search-result-dot {
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+}
+html[data-theme="brutal"] .search-result-main strong { color: #000 !important; font-weight: 800; }
+html[data-theme="brutal"] .search-result-main em { color: #444 !important; }
+html[data-theme="brutal"] .system-more {
+  background: #fff !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+  font-weight: 800;
+  box-shadow: 2px 2px 0 #000;
+}
+html[data-theme="brutal"] .system-placeholder {
+  background: #fff !important;
+  border: 2.5px dashed #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+}
+
+/* Annotation popup menu (高亮 / 下划线) — flat white card */
+html[data-theme="brutal"] .ke-annotation-menu {
+  background: #fff !important;
+  border: 3px solid #000 !important;
+  border-radius: 0 !important;
+  box-shadow: 6px 6px 0 #000 !important;
+  backdrop-filter: none !important;
+}
+html[data-theme="brutal"] .ke-annotation-menu button {
+  background: #fff !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+  font-weight: 800 !important;
+  box-shadow: 2px 2px 0 #000 !important;
+}
+html[data-theme="brutal"] .ke-annotation-menu button:hover {
+  background: var(--amber) !important;
+  transform: translate(-1px,-1px);
+  box-shadow: 3px 3px 0 #000 !important;
+}
+html[data-theme="brutal"] .ke-annotation-menu .swatch {
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+}
+html[data-theme="brutal"] .ke-annotation-menu .swatch--highlight { background: var(--pink) !important; }
+
+/* Annotation highlights — keep readable on any brutal bg */
+html[data-theme="brutal"] .ke-annotation--highlight {
+  background: #ff6b9d !important;
+  color: #000 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  padding: 0 2px;
+  border-bottom: 2px solid #000 !important;
+}
+html[data-theme="brutal"] .ke-annotation--underline {
+  background: transparent !important;
+  border-bottom: 3px solid #000 !important;
+  color: inherit !important;
+}
+
+/* AI tasks side panel — same cream as body so the detail page reads as one surface */
+html[data-theme="brutal"] .three-col-context,
+html[data-theme="brutal"] .ai-tasks-panel,
+html[data-theme="brutal"] .context-rail,
+html[data-theme="brutal"] .embedded-tasks {
+  background: #fef6e4 !important;
+  border-left: 2.5px solid #000 !important;
+  color: #000 !important;
+}
+
+/* Right-rail cards: path card + lateral relation card (were dark gray) */
+html[data-theme="brutal"] .rail-paths li,
+html[data-theme="brutal"] .rail-lateral li,
+html[data-theme="brutal"] .rail-block > * {
+  color: #000 !important;
+}
+html[data-theme="brutal"] .rail-paths > li,
+html[data-theme="brutal"] .rail-lateral > li {
+  background: #fff !important;
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  box-shadow: 3px 3px 0 #000 !important;
+  margin-bottom: 8px;
+}
+html[data-theme="brutal"] .rail-path-color {
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+}
+html[data-theme="brutal"] .rail-strength {
+  background: var(--amber) !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+  font-weight: 800;
+}
+html[data-theme="brutal"] .rail-block header strong { color: #000 !important; font-weight: 900; }
+html[data-theme="brutal"] .rail-block header span { color: #000 !important; font-weight: 800; }
+
+/* Day-schedule block — flat white card per day, amber header band */
+html[data-theme="brutal"] .sec-day-schedule__day {
+  background: #fff !important;
+  margin-bottom: 14px !important;
+}
+html[data-theme="brutal"] .sec-day-schedule__day > header {
+  background: var(--amber) !important;
+  border-bottom: 2.5px solid #000 !important;
+  padding: 10px 12px !important;
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+}
+html[data-theme="brutal"] .sec-day-schedule__num {
+  background: #000 !important;
+  color: #fff !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  padding: 2px 8px !important;
+  font-weight: 900 !important;
+}
+html[data-theme="brutal"] .sec-day-schedule__day > header strong { color: #000 !important; font-weight: 900; }
+html[data-theme="brutal"] .sec-day-schedule__day > header em {
+  margin-left: auto !important;
+  font-style: normal;
+  background: #fff !important;
+  border: 2px solid #000 !important;
+  padding: 2px 8px;
+  color: #000 !important;
+  font-weight: 700;
+}
+html[data-theme="brutal"] .sec-day-schedule__day > ul {
+  background: #fff !important;
+  padding: 0 !important;
+}
+html[data-theme="brutal"] .sec-day-schedule__day > ul > li {
+  border-bottom: 2px dashed #000 !important;
+  background: #fff !important;
+  padding: 10px 12px !important;
+  align-items: flex-start !important;
+}
+html[data-theme="brutal"] .sec-day-schedule__day > ul > li:last-child { border-bottom: 0 !important; }
+html[data-theme="brutal"] .sec-day-schedule__day > ul > li:nth-child(even) { background: var(--bg-2) !important; }
+html[data-theme="brutal"] .sec-day-schedule__time {
+  background: #000 !important;
+  color: #fff !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  padding: 2px 6px !important;
+  font-weight: 900 !important;
+  align-self: flex-start;
+}
+html[data-theme="brutal"] .sec-day-schedule__what { color: #000 !important; font-weight: 700; }
+html[data-theme="brutal"] .sec-day-schedule__note { color: #444 !important; }
+
+/* AI action input panel (细化 / 展开 / 延伸 / 反馈 输入面板) */
+html[data-theme="brutal"] .action-input {
+  background: #fff !important;
+  border: 3px solid #000 !important;
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0 #000 !important;
+  margin: 12px 16px !important;
+  padding: 14px !important;
+}
+html[data-theme="brutal"] .action-input--refine { background: var(--bg-2) !important; }
+html[data-theme="brutal"] .action-input--expand { background: #e7f9ff !important; }
+html[data-theme="brutal"] .action-input--extend { background: #ffe7f0 !important; }
+html[data-theme="brutal"] .action-input--feedback { background: #e7ffe7 !important; }
+html[data-theme="brutal"] .action-input__hint strong {
+  background: #000 !important;
+  color: #fff !important;
+  padding: 2px 8px;
+  font-weight: 900 !important;
+  margin-right: 8px;
+}
+html[data-theme="brutal"] .action-input__hint span { color: #000 !important; font-weight: 600; }
+html[data-theme="brutal"] .action-input__chips {
+  display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0;
+}
+html[data-theme="brutal"] .action-chip {
+  background: #fff !important;
+  color: #000 !important;
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  padding: 6px 10px !important;
+  font-weight: 700 !important;
+  box-shadow: 3px 3px 0 #000 !important;
+}
+html[data-theme="brutal"] .action-chip:hover {
+  background: var(--amber) !important;
+  transform: translate(-1px,-1px);
+  box-shadow: 4px 4px 0 #000 !important;
+}
+html[data-theme="brutal"] .action-input__row { gap: 10px !important; align-items: stretch; }
+html[data-theme="brutal"] .action-input textarea {
+  background: #fff !important;
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+  box-shadow: 3px 3px 0 #000 !important;
+  padding: 10px !important;
+  font-weight: 600;
+}
+html[data-theme="brutal"] .action-input__buttons { display: flex; flex-direction: column; gap: 8px; }
+html[data-theme="brutal"] .quiet-button {
+  background: var(--amber) !important;
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+  box-shadow: 3px 3px 0 #000 !important;
+  font-weight: 800 !important;
+  padding: 8px 14px !important;
+  min-width: 80px;
+}
+html[data-theme="brutal"] .quiet-button:hover {
+  background: var(--green) !important;
+  transform: translate(-1px,-1px);
+  box-shadow: 4px 4px 0 #000 !important;
+}
+html[data-theme="brutal"] .quiet-button:disabled {
+  background: #ccc !important;
+  box-shadow: 2px 2px 0 #000 !important;
+  cursor: not-allowed;
+}
+html[data-theme="brutal"] .quiet-button--ghost {
+  background: #fff !important;
+}
+html[data-theme="brutal"] .quiet-button--icon {
+  min-width: 0 !important;
+  width: 36px;
+  height: 36px;
+  padding: 0 !important;
+  display: grid;
+  place-items: center;
+}
+
+/* Inline QA card (the answer rendered below a section after 答疑) */
+html[data-theme="brutal"] .inline-qa {
+  background: #fff !important;
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  box-shadow: 3px 3px 0 #000 !important;
+  padding: 0 !important;
+  margin: 12px 0 !important;
+}
+html[data-theme="brutal"] .inline-qa__head {
+  background: var(--pink) !important;
+  border-bottom: 2.5px solid #000 !important;
+  padding: 8px 12px !important;
+  display: flex; align-items: center; gap: 8px;
+}
+html[data-theme="brutal"] .inline-qa__badge {
+  background: #000 !important;
+  color: #fff !important;
+  border-radius: 0 !important;
+  padding: 2px 8px;
+  font-weight: 900 !important;
+}
+html[data-theme="brutal"] .inline-qa__delete {
+  margin-left: auto;
+  background: #fff !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+  font-weight: 900 !important;
+  width: 24px; height: 24px;
+  display: grid; place-items: center;
+}
+html[data-theme="brutal"] .inline-qa__q,
+html[data-theme="brutal"] .inline-qa__a {
+  padding: 8px 14px !important;
+  color: #000 !important;
+}
+html[data-theme="brutal"] .inline-qa__q { background: var(--bg-2) !important; border-bottom: 2px dashed #000 !important; font-weight: 700; }
+
+/* Ask popup (right-click section → ask) */
+html[data-theme="brutal"] .ask-popup {
+  background: #fff !important;
+  border: 3px solid #000 !important;
+  border-radius: 0 !important;
+  box-shadow: 6px 6px 0 #000 !important;
+  backdrop-filter: none !important;
+  color: #000 !important;
+}
+html[data-theme="brutal"] .ask-popup__backdrop {
+  background: rgba(0,0,0,.15) !important;
+  backdrop-filter: none !important;
+}
+html[data-theme="brutal"] .ask-popup__badge {
+  background: #000 !important;
+  color: #fff !important;
+  border-radius: 0 !important;
+  padding: 2px 8px;
+  font-weight: 900 !important;
+}
+html[data-theme="brutal"] .ask-popup__scope { color: #000 !important; font-weight: 600; }
+html[data-theme="brutal"] .ask-popup__close {
+  background: #fff !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+  font-weight: 900 !important;
+}
+html[data-theme="brutal"] .ask-popup textarea,
+html[data-theme="brutal"] .ask-popup input {
+  background: #fff !important;
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+  box-shadow: 3px 3px 0 #000 !important;
+}
+html[data-theme="brutal"] .ask-popup__stream,
+html[data-theme="brutal"] .ask-popup__answer {
+  background: var(--bg-2) !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+  padding: 8px 10px;
+}
+html[data-theme="brutal"] .ask-popup__error {
+  background: var(--pink) !important;
+  border: 2px solid #000 !important;
+  color: #000 !important;
+  border-radius: 0 !important;
+  font-weight: 700;
+}
+html[data-theme="brutal"] .ask-popup__submit {
+  background: var(--amber) !important;
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+  box-shadow: 3px 3px 0 #000 !important;
+  font-weight: 800 !important;
+}
+html[data-theme="brutal"] .ask-popup__submit:hover {
+  background: var(--green) !important;
+  transform: translate(-1px,-1px);
+  box-shadow: 4px 4px 0 #000 !important;
+}
+html[data-theme="brutal"] .ask-popup__submit:disabled {
+  background: #ccc !important;
+  box-shadow: 2px 2px 0 #000 !important;
+}
+html[data-theme="brutal"] .ask-popup__cancel {
+  background: #fff !important;
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+  box-shadow: 3px 3px 0 #000 !important;
+  font-weight: 800 !important;
+}
+
+/* Mermaid diagram block — flat white card, amber title band, black-on-white SVG */
+html[data-theme="brutal"] .mermaid-diagram {
+  background: #fff !important;
+  border: 3px solid #000 !important;
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0 #000 !important;
+  padding: 0 !important;
+}
+html[data-theme="brutal"] .mermaid-diagram > header {
+  background: var(--amber) !important;
+  border-bottom: 2.5px solid #000 !important;
+  padding: 10px 14px !important;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+html[data-theme="brutal"] .mermaid-diagram__badge {
+  background: #000 !important;
+  color: #fff !important;
+  border-radius: 0 !important;
+  padding: 2px 8px;
+  font-weight: 900 !important;
+}
+html[data-theme="brutal"] .mermaid-diagram > header strong { color: #000 !important; font-weight: 900; }
+html[data-theme="brutal"] .mermaid-diagram__host {
+  background: #fff !important;
+  padding: 16px !important;
+}
+html[data-theme="brutal"] .mermaid-diagram figcaption {
+  background: var(--bg-2) !important;
+  border-top: 2px dashed #000 !important;
+  color: #000 !important;
+  padding: 8px 14px !important;
+}
+html[data-theme="brutal"] .mermaid-diagram__error {
+  background: var(--pink) !important;
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+}
+
+/* Force Mermaid SVG primitives to black-on-white for readability */
+html[data-theme="brutal"] .mermaid-diagram__host svg text,
+html[data-theme="brutal"] .mermaid-diagram__host svg .nodeLabel,
+html[data-theme="brutal"] .mermaid-diagram__host svg .edgeLabel,
+html[data-theme="brutal"] .mermaid-diagram__host svg .taskText,
+html[data-theme="brutal"] .mermaid-diagram__host svg .titleText,
+html[data-theme="brutal"] .mermaid-diagram__host svg .sectionTitle {
+  fill: #000 !important;
+  color: #000 !important;
+}
+html[data-theme="brutal"] .mermaid-diagram__host svg .edgeLabel rect,
+html[data-theme="brutal"] .mermaid-diagram__host svg .edgeLabel foreignObject div {
+  background: #fff !important;
+  color: #000 !important;
+}
+html[data-theme="brutal"] .mermaid-diagram__host svg .node rect,
+html[data-theme="brutal"] .mermaid-diagram__host svg .node polygon,
+html[data-theme="brutal"] .mermaid-diagram__host svg .node circle,
+html[data-theme="brutal"] .mermaid-diagram__host svg .node ellipse {
+  fill: #fff !important;
+  stroke: #000 !important;
+  stroke-width: 2.5px !important;
+}
+html[data-theme="brutal"] .mermaid-diagram__host svg .edgePath path,
+html[data-theme="brutal"] .mermaid-diagram__host svg .flowchart-link,
+html[data-theme="brutal"] .mermaid-diagram__host svg .marker {
+  stroke: #000 !important;
+  fill: #000 !important;
+  stroke-width: 2px !important;
+}
+/* Gantt: section bands → pale stripes, task bars → solid amber/pink */
+html[data-theme="brutal"] .mermaid-diagram__host svg .section0,
+html[data-theme="brutal"] .mermaid-diagram__host svg .section2 { fill: #ffffff !important; }
+html[data-theme="brutal"] .mermaid-diagram__host svg .section1,
+html[data-theme="brutal"] .mermaid-diagram__host svg .section3 { fill: var(--bg-2) !important; }
+html[data-theme="brutal"] .mermaid-diagram__host svg .task,
+html[data-theme="brutal"] .mermaid-diagram__host svg .task0,
+html[data-theme="brutal"] .mermaid-diagram__host svg .task2 {
+  fill: var(--amber) !important;
+  stroke: #000 !important;
+  stroke-width: 2px !important;
+}
+html[data-theme="brutal"] .mermaid-diagram__host svg .task1,
+html[data-theme="brutal"] .mermaid-diagram__host svg .task3 {
+  fill: var(--pink) !important;
+  stroke: #000 !important;
+  stroke-width: 2px !important;
+}
+html[data-theme="brutal"] .mermaid-diagram__host svg .grid .tick line { stroke: #ddd !important; }
+html[data-theme="brutal"] .mermaid-diagram__host svg .grid path { stroke: #000 !important; }
+html[data-theme="brutal"] .mermaid-diagram__host svg .today { stroke: var(--orange) !important; stroke-width: 2.5px !important; }
+
+/* Right-rail: wrap each section (AI 任务 / 学习路径 / 横向关联元) as its own
+   white card with hard black border + offset shadow, so they read as distinct
+   blocks on the cream column instead of melting into it. */
+html[data-theme="brutal"] .embedded-tasks,
+html[data-theme="brutal"] .context-rail .rail-block {
+  background: #fff !important;
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0 #000 !important;
+  padding: 12px 14px !important;
+  margin-bottom: 14px !important;
+}
+
+/* Restore right column outer to plain cream (cards now provide the structure) */
+html[data-theme="brutal"] .context-rail {
+  background: #fef6e4 !important;
+  border-left: 2.5px solid #000 !important;
+  padding: 14px !important;
+}
+
+html[data-theme="brutal"] .embedded-tasks header strong { color: #000 !important; font-weight: 900; }
+html[data-theme="brutal"] .embedded-tasks .empty {
+  background: var(--bg-2) !important;
+  border: 2px dashed #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+  padding: 10px 12px;
+}
+html[data-theme="brutal"] .embedded-tasks li {
+  background: #fff !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  color: #000 !important;
+  box-shadow: 2px 2px 0 #000;
+  margin-bottom: 6px;
+}
+html[data-theme="brutal"] .section-block { box-shadow: var(--brut-shadow-sm); margin-bottom: 18px; }
+html[data-theme="brutal"] .section-block h2,
+html[data-theme="brutal"] .section-block h3 {
+  background: var(--amber);
+  border-bottom: 2.5px solid #000;
+  padding: 8px 20px;
+  margin: 0 -20px 14px;
+  font-weight: 900;
+}
+
+/* Callouts / lists / tables — paint solid color blocks with black borders */
+html[data-theme="brutal"] .callout,
+html[data-theme="brutal"] .warn-card,
+html[data-theme="brutal"] .check-item,
+html[data-theme="brutal"] .dot-item,
+html[data-theme="brutal"] .example-item,
+html[data-theme="brutal"] .decision-item,
+html[data-theme="brutal"] .module-card,
+html[data-theme="brutal"] .mvp-card,
+html[data-theme="brutal"] .sec-day-schedule__day,
+html[data-theme="brutal"] .day-row,
+html[data-theme="brutal"] .phase-item {
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  box-shadow: 3px 3px 0 #000 !important;
+  background: #fff !important;
+  color: #000 !important;
+}
+html[data-theme="brutal"] .callout { background: var(--amber) !important; }
+html[data-theme="brutal"] .warn-card { background: var(--pink) !important; }
+html[data-theme="brutal"] .module-card:nth-child(3n+1) { background: var(--teal) !important; }
+html[data-theme="brutal"] .module-card:nth-child(3n+2) { background: var(--amber) !important; }
+html[data-theme="brutal"] .module-card:nth-child(3n+3) { background: var(--pink) !important; }
+html[data-theme="brutal"] table,
+html[data-theme="brutal"] .kv-table,
+html[data-theme="brutal"] .competitor-table,
+html[data-theme="brutal"] .budget-table {
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+}
+html[data-theme="brutal"] th,
+html[data-theme="brutal"] td {
+  border: 1.5px solid #000 !important;
+  background: #fff !important;
+  color: #000 !important;
+}
+html[data-theme="brutal"] th {
+  background: var(--amber) !important; font-weight: 900;
+}
+
+/* Inputs / forms */
+html[data-theme="brutal"] input,
+html[data-theme="brutal"] textarea,
+html[data-theme="brutal"] select {
+  border: 2.5px solid #000 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  color: #000 !important;
+  box-shadow: 3px 3px 0 #000;
+}
+html[data-theme="brutal"] input:focus,
+html[data-theme="brutal"] textarea:focus,
+html[data-theme="brutal"] select:focus {
+  outline: 0;
+  background: var(--bg-2) !important;
+}
+
+/* Scrollbar */
+html[data-theme="brutal"] * {
+  scrollbar-color: #000 var(--bg-2);
+}
+html[data-theme="brutal"] *::-webkit-scrollbar-track { background: var(--bg-2); border-radius: 0; }
+html[data-theme="brutal"] *::-webkit-scrollbar-thumb {
+  background: #000; border: 2px solid var(--bg-2); border-radius: 0;
+}
+
+/* Theme switcher popover itself */
+html[data-theme="brutal"] .theme-switch-popover {
+  background: var(--bg) !important;
+}
+
+/* Inline deep-analysis panel */
+html[data-theme="brutal"] .ke-annotation-analysis {
+  background: #fff !important;
+  border: 3px solid #000 !important;
+  border-left: 8px solid var(--amber) !important;
+  border-radius: 0 !important;
+  box-shadow: 4px 4px 0 #000 !important;
+  padding: 14px 16px !important;
+}
+html[data-theme="brutal"] .ke-annotation-analysis__badge {
+  background: var(--amber) !important;
+  color: #000 !important;
+  border: 2px solid #000 !important;
+  border-radius: 0 !important;
+  font-weight: 900 !important;
+}
+html[data-theme="brutal"] .ke-annotation-analysis header strong { color: #000 !important; font-weight: 900; }
+html[data-theme="brutal"] .ke-annotation-analysis p { color: #000 !important; }
+
+/* Disable cyber animations that look wrong on light background */
+html[data-theme="brutal"] *,
+html[data-theme="brutal"] *::before,
+html[data-theme="brutal"] *::after {
+  animation: none !important;
+}

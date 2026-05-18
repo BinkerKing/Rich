@@ -1,0 +1,36 @@
+{
+  "id": "thai-trip.safe.law",
+  "type": "concept",
+  "title": "法律与文化边界",
+  "subtitle": "王室、寺庙、禁烟、酒精和证件",
+  "aliases": [
+    "当地规则"
+  ],
+  "tags": [
+    "法律",
+    "文化"
+  ],
+  "domain": "travel",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "尊重泰国法律和文化边界，是游客的基础责任。",
+    "coreExplain": "进入寺庙需注意着装和行为，涉及王室的言行要谨慎，电子烟、禁烟区、酒精销售时间、无人机和药品携带等都可能有具体规定。不要因“游客身份”忽略当地执法。",
+    "whyMatters": "文化和法律问题的后果可能远超普通旅行纠纷。",
+    "misconceptions": [
+      "以为寺庙只是拍照景点",
+      "以为电子烟和普通香烟规则一样",
+      "以为处方药随便带，部分药物需要证明"
+    ],
+    "nextSteps": [
+      "出发前核对药品和电子烟相关规定",
+      "寺庙日准备遮肩遮膝衣物"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.195Z",
+    "updatedAt": "2026-05-17T13:46:42.195Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

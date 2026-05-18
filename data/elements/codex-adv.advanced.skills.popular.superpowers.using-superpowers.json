@@ -1,0 +1,41 @@
+{
+  "id": "codex-adv.advanced.skills.popular.superpowers.using-superpowers",
+  "type": "concept",
+  "title": "Using Superpowers",
+  "subtitle": "进入 Superpowers 工作方式的入口技能",
+  "aliases": [
+    "using-superpowers"
+  ],
+  "tags": [
+    "codex",
+    "skills",
+    "workflow-entry"
+  ],
+  "domain": "AI coding agent",
+  "difficulty": "low",
+  "content": {
+    "oneSentence": "Using Superpowers 是用于启动和对齐 Superpowers 工作规则的入口技能。",
+    "coreExplain": "它通常要求代理在会话开始时检查可用技能，并在任务匹配时主动使用对应技能。它的重点不是解决某个业务问题，而是建立“先识别场景，再选择方法”的工作习惯。",
+    "whyMatters": "没有入口规则，后续技能容易只存在于列表里，实际工作时不被触发。这个技能让技能体系从被动资料变成主动流程。",
+    "beginnerExplain": "它像一个开场检查清单，提醒 Codex：先看看这件事应该用哪种工作方式。",
+    "keyPoints": [
+      "关注技能发现与触发。",
+      "适合会话开始或任务切换时使用。",
+      "能减少“明明有技能却没用上”的情况。"
+    ],
+    "examples": [
+      "用户提出实现功能时，先判断是否要进入测试驱动开发。",
+      "用户说测试失败时，先判断是否要进入系统调试。"
+    ],
+    "misconceptions": [
+      "误区：它本身会完成开发任务。它只是帮助选择后续流程。"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T09:06:08.474Z",
+    "updatedAt": "2026-05-17T09:06:08.474Z",
+    "generatedBy": "ai",
+    "richness": 3,
+    "aiModel": "codex"
+  }
+}

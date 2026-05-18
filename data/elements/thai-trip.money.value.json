@@ -1,0 +1,36 @@
+{
+  "id": "thai-trip.money.value",
+  "type": "concept",
+  "title": "性价比取舍",
+  "subtitle": "把预算花在体验瓶颈上",
+  "aliases": [
+    "省钱策略"
+  ],
+  "tags": [
+    "性价比",
+    "决策"
+  ],
+  "domain": "travel",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "泰国旅行的性价比来自对关键体验的精准投入。",
+    "coreExplain": "可以在普通餐饮和非核心购物上节省，但不建议在海岛船只安全、酒店位置、保险和关键转场上过度压价。热门一日游要看船型、人数、路线和安全记录，不只看低价。",
+    "whyMatters": "错误省钱会换来时间损失、安全风险和体验缩水。",
+    "misconceptions": [
+      "以为最便宜的一日游最划算",
+      "以为酒店远一点没关系，后续交通会不断加价",
+      "以为网红餐厅一定值得排长队"
+    ],
+    "nextSteps": [
+      "列出本次旅行最重要的3个体验",
+      "把预算优先分配给这3项"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.194Z",
+    "updatedAt": "2026-05-17T13:46:42.194Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

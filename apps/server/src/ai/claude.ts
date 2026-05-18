@@ -30,7 +30,15 @@ export class ClaudeAdapter implements AIAdapter {
     try {
       for await (const msg of query({
         prompt: args.prompt,
-        options: { resume: args.sessionId, abortController: ac },
+        options: {
+          resume: args.sessionId,
+          abortController: ac,
+          // Knowledge ops are pure JSON generation — no tool use needed.
+          // Without these, the SDK may invoke Read/Write/Bash and return
+          // empty text, which then fails JSON parsing downstream.
+          allowedTools: [],
+          maxTurns: 1,
+        },
       })) {
         if (msg.type === "assistant") {
           if (msg.error) assistantMsgError = msg.error;

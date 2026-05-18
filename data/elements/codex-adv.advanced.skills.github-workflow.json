@@ -1,0 +1,43 @@
+{
+  "id": "codex-adv.advanced.skills.github-workflow",
+  "type": "concept",
+  "title": "GitHub Workflow",
+  "subtitle": "代码协作与 PR 技能",
+  "aliases": [
+    "GitHub Skill",
+    "PR Automation"
+  ],
+  "tags": [
+    "github",
+    "code-review",
+    "ci"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "GitHub Workflow 技能把 issue、分支、PR、review、CI 和发布检查串成可执行流程。",
+    "coreExplain": "这类技能通常封装 gh CLI、仓库规则、PR 评论读取、CI 失败分析和合并前检查。它适合团队协作场景，尤其是多分支、多 reviewer、多流水线项目。",
+    "whyMatters": "代码本身只是交付的一部分。PR 质量、CI 状态、评论处理和发布节奏也需要稳定流程。",
+    "beginnerExplain": "它帮代理像工程同事一样使用 GitHub，而不是只会改本地文件。",
+    "keyPoints": [
+      "先确认 base branch 和工作树状态",
+      "处理 review 时只改有行动价值的问题",
+      "合并前要看 CI、测试和变更范围"
+    ],
+    "examples": [
+      "读取 PR 评论并逐条修复",
+      "定位 GitHub Actions 失败原因并提交补丁"
+    ],
+    "misconceptions": [
+      "自动开 PR 不等于完成交付",
+      "CI 绿了也不代表产品行为一定正确"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T08:38:30.552Z",
+    "updatedAt": "2026-05-17T08:38:30.552Z",
+    "generatedBy": "ai",
+    "richness": 3,
+    "aiModel": "codex"
+  }
+}

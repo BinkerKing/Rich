@@ -1,0 +1,36 @@
+{
+  "id": "thai-trip.entry.insurance",
+  "type": "concept",
+  "title": "旅行保险",
+  "subtitle": "医疗、延误、水上活动和责任风险",
+  "aliases": [
+    "保险"
+  ],
+  "tags": [
+    "保险",
+    "风险"
+  ],
+  "domain": "travel",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "泰国旅行保险要重点看医疗额度和活动覆盖范围。",
+    "coreExplain": "普通观光、骑摩托、潜水、跳岛、滑翔伞等风险级别不同，保险条款覆盖也不同。高风险活动通常需要确认是否承保。还应关注航班延误、行李丢失和紧急救援。",
+    "whyMatters": "医疗和救援费用可能远超一张保单价格。",
+    "misconceptions": [
+      "以为买了保险就覆盖所有活动",
+      "以为信用卡赠险一定足够",
+      "以为短途旅行不需要医疗保障"
+    ],
+    "nextSteps": [
+      "按计划活动核对免责条款",
+      "保存保单和紧急电话"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.190Z",
+    "updatedAt": "2026-05-17T13:46:42.190Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

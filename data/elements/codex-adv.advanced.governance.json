@@ -1,0 +1,47 @@
+{
+  "id": "codex-adv.advanced.governance",
+  "type": "concept",
+  "title": "团队治理与安全边界",
+  "subtitle": "让自动化可控、可审、可回滚",
+  "aliases": [
+    "AI 工程治理",
+    "安全边界"
+  ],
+  "tags": [
+    "安全",
+    "治理",
+    "团队流程"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "high",
+  "content": {
+    "oneSentence": "团队使用 Codex 时，需要明确权限、数据边界、审查责任和回滚机制。",
+    "coreExplain": "Codex 能提升开发效率，也可能放大错误修改、敏感数据暴露和审查松懈。团队应规定哪些任务可自动执行，哪些必须人工批准，哪些目录或凭据不可触碰。",
+    "whyMatters": "没有治理的自动化很容易从效率工具变成风险来源。安全边界能让团队放心扩大使用范围。",
+    "beginnerExplain": "让 Codex 动手之前，要先说清楚它能碰哪里、不能碰哪里、谁来验收。",
+    "keyPoints": [
+      "敏感数据和凭据不能随意暴露给任务上下文",
+      "高风险改动必须人工审查",
+      "自动化结果要可追踪",
+      "保留回滚路径和失败处理流程"
+    ],
+    "examples": [
+      "数据库迁移必须由负责人复核",
+      "权限、支付、删除逻辑需要二次审查",
+      "云端任务不能依赖本地未提交机密文件"
+    ],
+    "mechanisms": [
+      "定义任务风险等级",
+      "配置权限和可访问范围",
+      "设置审查、测试和合并门槛",
+      "记录执行结果并支持回滚"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "codex",
+    "richness": 3
+  }
+}

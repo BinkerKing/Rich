@@ -1,0 +1,36 @@
+{
+  "id": "thai-trip.exp.sea.dive",
+  "type": "concept",
+  "title": "潜水课程",
+  "subtitle": "涛岛、普吉与甲米周边选择",
+  "aliases": [
+    "Scuba diving"
+  ],
+  "tags": [
+    "潜水",
+    "课程"
+  ],
+  "domain": "travel",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "潜水课程不是普通一日游，而是需要时间、身体状态和安全意识的学习项目。",
+    "coreExplain": "体验潜水、开放水域课程和进阶课程要求不同，通常需要连续时间安排。感冒、耳压问题、宿醉和飞行前后时间都可能影响潜水安全。选择机构时应看教练资质、语言沟通、学生比例和装备维护。",
+    "whyMatters": "潜水的风险管理比拍照效果重要。",
+    "misconceptions": [
+      "以为体验潜水等于学会潜水",
+      "以为便宜课程只是在住宿上省钱，可能也影响教练比例",
+      "以为潜水后马上坐飞机没问题"
+    ],
+    "nextSteps": [
+      "预留连续课程时间",
+      "确认潜水后飞行间隔要求"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.197Z",
+    "updatedAt": "2026-05-17T13:46:42.197Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

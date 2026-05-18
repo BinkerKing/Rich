@@ -1,0 +1,36 @@
+{
+  "id": "thai-trip.plan.pace",
+  "type": "concept",
+  "title": "旅行节奏",
+  "subtitle": "高温国家的体力管理",
+  "aliases": [
+    "行程强度"
+  ],
+  "tags": [
+    "体力",
+    "节奏"
+  ],
+  "domain": "travel",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "泰国行程应按热、晒、堵车和转场来设计节奏。",
+    "coreExplain": "上午适合寺庙、市场和户外，正午适合休息、商场、按摩或咖啡馆，傍晚再安排夜市和河边活动。海岛日要考虑上船、日晒、补水和晕船。连续高强度安排会让后半程质量下降。",
+    "whyMatters": "节奏管理能减少中暑、争吵、迟到和临时取消。",
+    "misconceptions": [
+      "以为年轻人就能硬扛高温，湿热环境会持续消耗体力",
+      "以为按摩可以随便插入，热门店也需要排队或预约",
+      "以为夜市越晚越好，部分摊位和交通会变化"
+    ],
+    "nextSteps": [
+      "每天只设置一个必须完成的核心体验",
+      "在地图上检查景点之间的实际车程"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.187Z",
+    "updatedAt": "2026-05-17T13:46:42.187Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

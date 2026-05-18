@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   ElementSchema, RelationSchema, LearningPathSchema,
   ConceptContentSchema, TopicContentSchema, StepContentSchema, PracticeContentSchema,
+  ProductDesignContentSchema,
   type ElementType,
 } from "@ke/domain";
 
@@ -37,6 +38,7 @@ const CONTENT_BY_TYPE: Partial<Record<ElementType, z.ZodType>> = {
   topic: TopicContentSchema,
   step: StepContentSchema,
   practice: PracticeContentSchema,
+  "product-design": ProductDesignContentSchema,
 };
 
 /** Returns JSON Schema text for the content sub-schema of `type`, or null if unknown. */

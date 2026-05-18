@@ -1,0 +1,38 @@
+{
+  "id": "claude-code.safety.perm.read",
+  "type": "concept",
+  "title": "读取权限",
+  "subtitle": "读取权限决定代理能看见哪些上下文。",
+  "tags": [
+    "claude-code",
+    "safety",
+    "permission"
+  ],
+  "domain": "ai-coding-agent",
+  "difficulty": "low",
+  "content": {
+    "oneSentence": "读取权限控制 Claude Code 可以访问哪些文件、目录、配置和上下文信息。",
+    "coreExplain": "读取是后续分析、编辑和执行的前提，但它本身也有边界。代码文件、日志、环境变量、本地密钥和用户私人文档的风险不同，不能简单视为同一种可读资源。",
+    "whyMatters": "读取权限过宽会让敏感信息进入模型上下文，增加泄露和误用风险。读取权限过窄则会让代理缺少必要背景，导致判断失准或反复询问。",
+    "beginnerExplain": "可以把它理解成给助手看资料的范围：有些文件可以看，有些只能在确认后看，有些不该看。",
+    "keyPoints": [
+      "按路径、文件类型和敏感程度划分可读范围",
+      "密钥、令牌、私人数据应默认收紧",
+      "读取权限通常比编辑权限更早触发"
+    ],
+    "examples": [
+      "允许读取项目源码，但不允许读取 .env",
+      "允许读取测试日志，但不读取浏览器 Cookie 文件"
+    ],
+    "misconceptions": [
+      "读取没有副作用，所以不需要控制",
+      "只要不能编辑文件，读取任何内容都安全"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T00:00:00.000Z",
+    "updatedAt": "2026-05-17T00:00:00.000Z",
+    "generatedBy": "ai",
+    "richness": 3
+  }
+}

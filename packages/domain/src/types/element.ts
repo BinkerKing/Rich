@@ -2,6 +2,7 @@ export type ElementType =
   | "topic"
   | "concept"
   | "step"
+  | "product-design"
   | "viewpoint"
   | "question"
   | "case"

@@ -58,6 +58,16 @@ export class CachedRelationsRepo implements RelationsRepo {
     }
   }
 
+  async removeForElements(ids: ElementId[]): Promise<void> {
+    await this.inner.removeForElements(ids);
+    this.invalidate();
+  }
+
+  async reparent(childId: ElementId, newParentId: ElementId | null): Promise<void> {
+    await this.inner.reparent(childId, newParentId);
+    this.invalidate();
+  }
+
   invalidate(): void {
     this.all = null;
     this.byFromIdx.clear();

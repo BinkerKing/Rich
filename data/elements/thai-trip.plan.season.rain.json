@@ -1,0 +1,35 @@
+{
+  "id": "thai-trip.plan.season.rain",
+  "type": "concept",
+  "title": "雨季",
+  "subtitle": "低价、阵雨和海况不确定",
+  "aliases": [
+    "淡季"
+  ],
+  "tags": [
+    "雨季",
+    "淡季"
+  ],
+  "domain": "travel",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "雨季不是不能旅行，而是要降低对海岛和户外项目的确定性预期。",
+    "coreExplain": "雨季酒店价格可能更友好，城市、美食和按摩体验仍可正常安排。海岛跳岛、浮潜和长尾船更容易因风浪调整。行程要留可替代日，不要把唯一想去的海上项目放在离境前一天。",
+    "whyMatters": "雨季旅行的关键是弹性，而不是赌天气。",
+    "misconceptions": [
+      "以为雨季一定省钱，热门酒店和航线仍可能贵",
+      "以为所有船都照常出海，安全取消是正常情况"
+    ],
+    "nextSteps": [
+      "购买覆盖天气延误风险的保险",
+      "预留室内、购物和餐厅备选"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.186Z",
+    "updatedAt": "2026-05-17T13:46:42.186Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

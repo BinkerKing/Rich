@@ -29,6 +29,34 @@ export class JsonRelationsRepo implements RelationsRepo {
     return all.filter(r => r.to === id);
   }
 
+  private async writeAll(rels: Relation[]): Promise<void> {
+    const { writeFile } = await import("node:fs/promises");
+    await mkdir(dirname(this.file()), { recursive: true });
+    await writeFile(this.file(), rels.map(r => JSON.stringify(r)).join("\n") + (rels.length ? "\n" : ""));
+  }
+
+  async removeForElements(ids: ElementId[]): Promise<void> {
+    if (ids.length === 0) return;
+    const set = new Set(ids);
+    const kept = (await this.list()).filter(r => !set.has(r.from) && !set.has(r.to));
+    await this.writeAll(kept);
+  }
+
+  async reparent(childId: ElementId, newParentId: ElementId | null): Promise<void> {
+    const all = await this.list();
+    const kept = all.filter(r => !(r.kind === "child" && r.to === childId));
+    if (newParentId) {
+      kept.push({
+        id: `rel.move.${newParentId}.${childId}`,
+        from: newParentId,
+        to: childId,
+        kind: "child",
+        createdAt: new Date().toISOString(),
+      });
+    }
+    await this.writeAll(kept);
+  }
+
   async append(rels: Relation[]): Promise<void> {
     if (rels.length === 0) return;
     // Validate each at the boundary.

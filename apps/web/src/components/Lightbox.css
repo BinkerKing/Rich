@@ -1,0 +1,76 @@
+.ke-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 4vh 4vw;
+  background: rgba(8, 12, 22, .82);
+  cursor: zoom-out;
+}
+
+.ke-lightbox__inner {
+  width: min(96vw, 1800px);
+  max-height: 92vh;
+  display: grid;
+  place-items: center;
+  cursor: default;
+}
+
+.ke-lightbox__inner img {
+  max-width: 100%;
+  max-height: 92vh;
+  display: block;
+  border-radius: 8px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.5);
+}
+
+.ke-lightbox__svg {
+  width: 100%;
+  max-height: 92vh;
+  background: #fff;
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.5);
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.ke-lightbox__svg svg {
+  width: 100% !important;
+  height: auto !important;
+  max-width: none !important;
+  display: block;
+}
+
+.ke-lightbox__close {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.4);
+  border-radius: 999px;
+  background: rgba(255,255,255,.1);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 400;
+  cursor: pointer;
+  z-index: 1001;
+  transition: background .15s ease, border-color .15s ease;
+}
+
+.ke-lightbox__close:hover {
+  background: rgba(255,255,255,.2);
+  border-color: #fff;
+}
+
+/* Hint: cursor on hover */
+.body-section img,
+.sec-image img,
+.sec-image-pair img,
+.mermaid-diagram__host {
+  cursor: zoom-in;
+}

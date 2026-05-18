@@ -1,0 +1,18 @@
+[
+  {
+    "id": "path.thai-trip.practice",
+    "centerElementId": "thai-trip.entry",
+    "kind": "practice",
+    "label": "落地执行路径",
+    "color": "pink",
+    "steps": [
+      "thai-trip.entry.tdac",
+      "thai-trip.entry.pack",
+      "thai-trip.money.cash",
+      "thai-trip.safe.emergency"
+    ],
+    "estimatedTime": "40-60分钟",
+    "generatedBy": "ai",
+    "createdAt": "2026-05-17"
+  }
+]

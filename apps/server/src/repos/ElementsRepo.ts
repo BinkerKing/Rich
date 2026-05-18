@@ -14,4 +14,6 @@ export interface ElementsRepo {
   listVersions(id: ElementId): Promise<ElementVersion[]>;
   /** Restore `id` to the snapshot at `timestamp`. Throws if not found. */
   revertTo(id: ElementId, timestamp: string): Promise<Element>;
+  /** Bulk delete a set of element ids (and their version history). */
+  removeMany(ids: ElementId[]): Promise<void>;
 }

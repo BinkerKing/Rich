@@ -1,0 +1,32 @@
+{
+  "id": "thai-trip.exp.sea.snorkel",
+  "type": "practice",
+  "title": "浮潜与跳岛",
+  "subtitle": "大众海上项目的安全选择",
+  "aliases": [
+    "跳岛游"
+  ],
+  "tags": [
+    "浮潜",
+    "跳岛"
+  ],
+  "domain": "travel",
+  "difficulty": "low",
+  "content": {
+    "goal": "在可控风险内获得海岛体验。",
+    "checklist": [
+      "确认救生衣、保险和船型",
+      "携带防晒衣、防水袋和晕船药",
+      "不要触碰珊瑚和海洋生物",
+      "听从船员关于下水区域和集合时间的说明"
+    ],
+    "decisionRule": "不会游泳或带儿童时，选择人数少、服务强、船程短的产品。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T13:46:42.197Z",
+    "updatedAt": "2026-05-17T13:46:42.197Z",
+    "generatedBy": "ai",
+    "richness": 4,
+    "aiModel": "codex"
+  }
+}

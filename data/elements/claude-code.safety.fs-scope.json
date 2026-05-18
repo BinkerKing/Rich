@@ -1,0 +1,29 @@
+{
+  "id": "claude-code.safety.fs-scope",
+  "type": "concept",
+  "title": "文件系统作用域",
+  "aliases": [
+    "文件读写范围",
+    "路径权限边界"
+  ],
+  "tags": [
+    "claude-code",
+    "safety",
+    "permission",
+    "filesystem"
+  ],
+  "domain": "ai-coding-agent",
+  "difficulty": "mid",
+  "content": {
+    "summary": "文件系统作用域把权限限制到具体目录、文件类型或操作类型，而不是笼统允许读写整个工作区。它常用于区分可读、可编辑、不可触碰的路径，例如源码目录、密钥文件、构建产物和用户私人文件。",
+    "hooks": [
+      "可继续延伸到路径白名单、敏感文件检测、工作区边界"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "richness": 2
+  }
+}

@@ -1,5 +1,5 @@
 import type {
-  Element, Relation, LearningPath, PathKind, RichnessLevel, Signal,
+  Element, Relation, LearningPath, PathKind, RichnessLevel, Signal, QARecord, Annotation, AnnotationKind,
 } from "@ke/domain";
 
 // ---------- shared SSE plumbing ----------
@@ -55,6 +55,23 @@ export interface RefineResult {
   content: unknown;
 }
 
+export interface SectionRefineResult {
+  section: { id: string; title: string; blocks: unknown[] };
+}
+
+export type AttachOption =
+  | { kind: "new-topic"; confidence: "low"|"medium"|"high"; reasoning: string }
+  | { kind: "attach-direct"; parentId: string; confidence: "low"|"medium"|"high"; reasoning: string }
+  | { kind: "attach-with-bridge"; parentId: string; bridges: string[]; confidence: "low"|"medium"|"high"; reasoning: string };
+
+export interface AnalyzeInputResult {
+  keywords: string[];
+  intent: string;
+  type: string;
+  candidates: Array<{ id: string; title: string; type: string; subtitle?: string; parentPath: string[]; tags?: string[] }>;
+  options: AttachOption[];
+}
+
 export interface ElementsAndRelationsResult {
   elements: Element[];
   relations: Relation[];
@@ -75,11 +92,26 @@ export const api = {
   },
 
   // ----- per-element ops -----
-  refineStream(elementId: string, targetRichness?: RichnessLevel, model?: Model) {
-    return sseStream<RefineResult>("/ai/refine", { elementId, targetRichness, model });
+  refineStream(elementId: string, targetRichness?: RichnessLevel, direction?: string, model?: Model) {
+    return sseStream<RefineResult>("/ai/refine", { elementId, targetRichness, direction, model });
   },
-  expandStream(elementId: string, count?: number, model?: Model) {
-    return sseStream<ElementsAndRelationsResult>("/ai/expand", { elementId, count, model });
+  feedbackStream(elementId: string, feedback: string, model?: Model) {
+    return sseStream<RefineResult>("/ai/feedback", { elementId, feedback, model });
+  },
+  sectionFeedbackStream(elementId: string, sectionId: string, feedback: string, model?: Model) {
+    return sseStream<SectionRefineResult>("/ai/section-feedback", { elementId, sectionId, feedback, model });
+  },
+  async analyzeInput(text: string, model?: Model): Promise<AnalyzeInputResult> {
+    const res = await fetch("/api/ai/analyze-input", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, model }),
+    });
+    if (!res.ok) throw new Error(`analyze-input failed: ${res.status}`);
+    return await res.json() as AnalyzeInputResult;
+  },
+  expandStream(elementId: string, count?: number, direction?: string, model?: Model) {
+    return sseStream<ElementsAndRelationsResult>("/ai/expand", { elementId, count, direction, model });
   },
   extendStream(elementId: string, direction: string, count?: number, model?: Model) {
     return sseStream<ElementsAndRelationsResult>("/ai/extend", { elementId, direction, count, model });
@@ -92,6 +124,23 @@ export const api = {
   async listElements(): Promise<Element[]> {
     const r = await fetch("/api/elements");
     if (!r.ok) throw new Error(`listElements ${r.status}`);
+    return r.json();
+  },
+  async deleteElement(id: string): Promise<{ removed: string[] }> {
+    const r = await fetch(`/api/elements/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!r.ok) throw new Error(`deleteElement ${r.status}`);
+    return r.json();
+  },
+  async moveElement(id: string, newParentId: string | null): Promise<{ id: string; newParentId: string | null }> {
+    const r = await fetch(`/api/elements/${encodeURIComponent(id)}/move`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ newParentId }),
+    });
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      throw new Error(body.error ?? `moveElement ${r.status}`);
+    }
     return r.json();
   },
   async getElement(id: string): Promise<Element | null> {
@@ -175,5 +224,68 @@ export const api = {
     const r = await fetch("/api/health");
     if (!r.ok) throw new Error(`getHealth ${r.status}`);
     return r.json();
+  },
+  async getRichnessSpec(): Promise<Record<string, { label: string; structure: string; content: string }>> {
+    const r = await fetch("/api/ai/richness-spec");
+    if (!r.ok) throw new Error(`getRichnessSpec ${r.status}`);
+    return r.json();
+  },
+
+  // ----- Q&A -----
+  async listQA(elementId: string): Promise<QARecord[]> {
+    const r = await fetch(`/api/ai/qa?elementId=${encodeURIComponent(elementId)}`);
+    if (!r.ok) throw new Error(`listQA ${r.status}`);
+    return r.json();
+  },
+  askStream(input: {
+    elementId: string;
+    question: string;
+    anchor?: { type: "section"; sectionId: string } | { type: "annotation"; annotationId: string } | { type: "element" };
+    contextText?: string;
+    model?: Model;
+  }) {
+    return sseStream<{ qa: QARecord }>("/ai/ask", input);
+  },
+  async deleteQA(id: string): Promise<void> {
+    const r = await fetch(`/api/ai/qa/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!r.ok) throw new Error(`deleteQA ${r.status}`);
+  },
+
+  // ----- annotations (user text marks) -----
+  async listAnnotations(elementId: string): Promise<Annotation[]> {
+    const r = await fetch(`/api/annotations?elementId=${encodeURIComponent(elementId)}`);
+    if (!r.ok) throw new Error(`listAnnotations ${r.status}`);
+    return r.json();
+  },
+  async createAnnotation(input: {
+    elementId: string;
+    kind: AnnotationKind;
+    text: string;
+    contextBefore?: string;
+    contextAfter?: string;
+    note?: string;
+  }): Promise<Annotation> {
+    const r = await fetch("/api/annotations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!r.ok) throw new Error(`createAnnotation ${r.status}`);
+    return r.json();
+  },
+  async deleteAnnotation(id: string): Promise<void> {
+    const r = await fetch(`/api/annotations/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!r.ok) throw new Error(`deleteAnnotation ${r.status}`);
+  },
+  analyzeMarkStream(input: {
+    elementId: string;
+    markedText: string;
+    annotationId?: string;
+    contextBefore?: string;
+    contextAfter?: string;
+    hint?: string;
+    model?: Model;
+  }) {
+    return sseStream<{ title: string; body: string }>("/ai/analyze-mark", input);
   },
 };

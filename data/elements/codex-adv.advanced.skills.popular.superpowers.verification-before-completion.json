@@ -1,0 +1,41 @@
+{
+  "id": "codex-adv.advanced.skills.popular.superpowers.verification-before-completion",
+  "type": "concept",
+  "title": "Verification Before Completion",
+  "subtitle": "完成前先做可验证检查",
+  "aliases": [
+    "verification-before-completion"
+  ],
+  "tags": [
+    "codex",
+    "verification",
+    "delivery"
+  ],
+  "domain": "AI coding agent",
+  "difficulty": "low",
+  "content": {
+    "oneSentence": "Verification Before Completion Skill 要求在声称完成前运行或说明必要验证。",
+    "coreExplain": "它要求代理不能只凭代码阅读就宣布完成，而要执行测试、构建、类型检查、手动验证或其他与任务匹配的检查。若无法验证，也要明确说明原因和剩余风险。",
+    "whyMatters": "交付质量往往败在最后一步的自信过量。这个技能把“我觉得好了”改成“我验证过这些”。",
+    "beginnerExplain": "交作业前先检查一遍，并告诉用户检查了什么。",
+    "keyPoints": [
+      "完成声明必须绑定验证动作。",
+      "验证方式应匹配改动风险。",
+      "无法验证时要透明说明。"
+    ],
+    "examples": [
+      "改后端逻辑后运行相关单元测试。",
+      "改 UI 后打开页面做截图或交互检查。"
+    ],
+    "misconceptions": [
+      "误区：验证就是跑全量测试。实际应根据改动选择合理检查。"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T09:06:08.480Z",
+    "updatedAt": "2026-05-17T09:06:08.480Z",
+    "generatedBy": "ai",
+    "richness": 3,
+    "aiModel": "codex"
+  }
+}

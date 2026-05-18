@@ -2,6 +2,13 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App.js";
 import "./theme/tokens.css";
+import "./theme/themeStore.js";
+import "./theme/theme-brutal.css";
+import "./theme/theme-blueprint.css";
+import "./theme/theme-duotone.css";
+import "./theme/theme-fabric.css";
+import "./theme/theme-editorial.css";
+import "./theme/theme-ghibli.css";
 
 installNavigationSwipeGuard();
 

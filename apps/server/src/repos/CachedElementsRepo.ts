@@ -53,6 +53,11 @@ export class CachedElementsRepo implements ElementsRepo {
     return restored;
   }
 
+  async removeMany(ids: ElementId[]): Promise<void> {
+    await this.inner.removeMany(ids);
+    if (this.cache) for (const id of ids) this.cache.delete(id);
+  }
+
   /** Test-only / admin: drop the cache so the next read re-loads from disk. */
   invalidate(): void {
     this.cache = null;

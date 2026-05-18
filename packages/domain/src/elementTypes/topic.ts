@@ -13,4 +13,8 @@ export interface TopicContent {
   recommendedPaths: string[];
   /** Beginner-friendly restatement of the topic. Optional. */
   beginnerExplain?: string;
+  /** User-requested ad-hoc sections (added via refine). */
+  extraSections?: import("./concept.js").ExtraSection[];
+  /** Mermaid flow / sequence / state diagrams. */
+  diagrams?: import("./concept.js").DiagramBlock[];
 }

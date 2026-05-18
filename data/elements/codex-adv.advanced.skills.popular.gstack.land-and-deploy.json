@@ -1,0 +1,42 @@
+{
+  "id": "codex-adv.advanced.skills.popular.gstack.land-and-deploy",
+  "type": "concept",
+  "title": "Land And Deploy",
+  "subtitle": "合并后部署与上线观察流程",
+  "aliases": [
+    "gstack-land-and-deploy"
+  ],
+  "tags": [
+    "codex",
+    "gstack",
+    "deploy",
+    "release"
+  ],
+  "domain": "AI coding agent",
+  "difficulty": "high",
+  "content": {
+    "oneSentence": "Land And Deploy Skill 用于把已准备好的变更合并、部署，并观察上线后的基本状态。",
+    "coreExplain": "它通常接在 PR 或发布准备之后，关注合并、等待 CI、部署触发和上线后检查。它比 Ship 更靠近真实发布终点。",
+    "whyMatters": "合并和部署之间有很多容易被忽视的状态：CI 未完成、部署失败、线上健康检查异常。这个技能把发布闭环纳入 Codex 工作流。",
+    "beginnerExplain": "它是“把改动真正落到线上并确认没出大问题”的流程。",
+    "keyPoints": [
+      "适合发布权限和流程明确的项目。",
+      "需要等待 CI 或部署结果。",
+      "上线后应做基本可用性或健康检查。"
+    ],
+    "examples": [
+      "合并 PR 后等待部署完成，再打开关键页面确认可访问。",
+      "发布后检查服务状态或 canary 结果。"
+    ],
+    "misconceptions": [
+      "误区：Land And Deploy 可以跳过人工审批。实际应服从项目权限、CI 和发布策略。"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T09:12:31.143Z",
+    "updatedAt": "2026-05-17T09:12:31.143Z",
+    "generatedBy": "ai",
+    "richness": 3,
+    "aiModel": "codex"
+  }
+}

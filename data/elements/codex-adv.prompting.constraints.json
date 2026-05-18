@@ -1,0 +1,46 @@
+{
+  "id": "codex-adv.prompting.constraints",
+  "type": "concept",
+  "title": "约束与验收标准",
+  "subtitle": "让完成不再靠感觉判断",
+  "aliases": [
+    "验收标准",
+    "完成定义"
+  ],
+  "tags": [
+    "质量控制",
+    "任务管理"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "约束规定 Codex 怎么做，验收标准规定怎样算做完。",
+    "coreExplain": "约束包括代码风格、兼容性、性能预算、不可修改文件、不要新增依赖等。验收标准包括测试命令、构建命令、截图检查、日志检查、API 响应和用户可见行为。",
+    "whyMatters": "没有约束，Codex 可能用过重方案解决小问题。没有验收，它可能停在“看起来合理”的实现上。",
+    "beginnerExplain": "你给 Codex 的不是愿望清单，而是完成定义。它越知道边界，越能稳定产出。",
+    "keyPoints": [
+      "约束应覆盖实现范围、依赖、兼容性和风格",
+      "验收标准应尽量可运行或可观察",
+      "复杂任务可以分阶段验收",
+      "最终说明应包含已验证和未验证两类信息"
+    ],
+    "examples": [
+      "不要新增数据库字段，只在服务层兼容旧数据",
+      "必须通过 pnpm test 和 pnpm lint",
+      "移动端 375px 宽度下按钮文字不能溢出"
+    ],
+    "mechanisms": [
+      "列出禁止事项和必须遵守的规则",
+      "把期望行为转换成测试或检查点",
+      "要求 Codex 执行验证命令",
+      "根据验证结果决定是否继续迭代"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "codex",
+    "richness": 3
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "id": "codex-adv.workflow.refactor",
+  "type": "practice",
+  "title": "安全重构",
+  "subtitle": "用小步保持行为不变",
+  "aliases": [
+    "Refactor with Codex",
+    "结构调整"
+  ],
+  "tags": [
+    "重构",
+    "可维护性"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "安全重构要明确保持哪些行为不变，并用测试证明没有破坏。",
+    "coreExplain": "Codex 可以快速移动代码、提取函数、统一命名和消除重复。关键是把重构限定在明确范围内，避免同时改变行为和结构，导致审查困难。",
+    "whyMatters": "重构最怕“顺手修了很多东西”。小步、可验证的 Codex 重构更容易被团队接受。",
+    "beginnerExplain": "让 Codex 重构时，要说清楚“只改结构，不改行为”。如果要改行为，另开一个任务。",
+    "keyPoints": [
+      "先建立或确认测试保护",
+      "一次只做一种结构变化",
+      "保持公共接口兼容",
+      "最终说明哪些行为被验证为不变"
+    ],
+    "examples": [
+      "把重复的表单校验逻辑提取成共享函数",
+      "把大型组件拆成容器和展示组件",
+      "统一服务层错误处理格式"
+    ],
+    "mechanisms": [
+      "确认现有行为和测试覆盖",
+      "限定重构范围和不变接口",
+      "执行小步结构调整",
+      "运行测试并审查 diff 是否混入行为变化"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "codex",
+    "richness": 3
+  }
+}

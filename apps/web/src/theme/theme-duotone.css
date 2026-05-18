@@ -1,0 +1,2621 @@
+/* Duotone / editorial theme.
+   Activated by html[data-theme="duotone"]. Strictly two surface colors plus
+   a single vivid accent — every other color is derived from these three.
+   Aesthetic: poster / magazine layout. Solid ink cards on warm cream paper,
+   coral used sparingly for the one thing that matters in each view. Bold
+   sans-serif, no gradients, no glow, near-zero shadows. Fully scoped under
+   [data-theme="duotone"]; cyber/brutal/blueprint are unaffected. */
+
+html[data-theme="duotone"] {
+  --bg: #d4ff3a;                 /* fluorescent lime — page-fill */
+  --bg-2: #c8f527;
+  --panel: #0a0a23;              /* deep ink — for cards */
+  --panel-2: #15123a;
+  --line: #0a0a23;
+  --line-2: rgba(10, 10, 35, .25);
+  --text: #d4ff3a;               /* lime on ink (default text color) */
+  --soft: rgba(212, 255, 58, .82);
+  --muted: rgba(212, 255, 58, .58);
+  --dim: rgba(212, 255, 58, .38);
+  --teal: #ff2e93;               /* electric pink accent */
+  --teal-2: #ff4ea6;
+  --teal-soft: rgba(255, 46, 147, .18);
+  --teal-line: #ff2e93;
+  --violet: #ff2e93;
+  --amber: #ff2e93;
+  --pink: #ff2e93;
+  --green: #d4ff3a;
+  --gold: #ff2e93;
+  --blue: #ff2e93;
+  --orange: #ff2e93;
+  --radius: 4px;
+  --dt-ink: #0a0a23;
+  --dt-lime: #d4ff3a;
+  --dt-lime-2: #c8f527;
+  --dt-lime-soft: rgba(212, 255, 58, .35);
+  --dt-pink: #ff2e93;
+  --dt-pink-2: #ff4ea6;
+  --dt-pink-soft: rgba(255, 46, 147, .18);
+  --dt-cream: #d4ff3a;           /* alias kept for prior rules */
+  --dt-cream-2: #c8f527;
+  --dt-accent: #ff2e93;
+  --dt-accent-soft: rgba(255, 46, 147, .18);
+  --dt-ink-soft: rgba(10, 10, 35, .12);
+  --dt-line: rgba(10, 10, 35, .25);
+  --dt-sans: "Space Grotesk", "Inter", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  --dt-display: "Space Grotesk", "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+html[data-theme="duotone"] body {
+  background: var(--dt-cream) !important;
+  color: var(--dt-ink);
+  font-family: var(--dt-sans);
+  font-weight: 500;
+}
+
+html[data-theme="duotone"] *,
+html[data-theme="duotone"] *::before,
+html[data-theme="duotone"] *::after {
+  backdrop-filter: none !important;
+  text-shadow: none !important;
+  animation: none !important;
+}
+
+/* Strip ambient layers */
+html[data-theme="duotone"] .tree-view::before,
+html[data-theme="duotone"] .tree-view::after,
+html[data-theme="duotone"] .tv-topbar::before,
+html[data-theme="duotone"] .structure-map__ambient { display: none !important; }
+
+html[data-theme="duotone"] .tree-view { background: var(--dt-cream); gap: 14px; padding: 14px; }
+
+/* Shared panel chrome — cream cards with thin ink borders */
+html[data-theme="duotone"] .tv-topbar,
+html[data-theme="duotone"] .learning-sidebar,
+html[data-theme="duotone"] .tv-main,
+html[data-theme="duotone"] .system-panel,
+html[data-theme="duotone"] .tv-footer {
+  background: var(--dt-cream-2) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+
+/* Topbar — solid ink band with cream content */
+html[data-theme="duotone"] .tv-topbar {
+  background: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .tv-brand strong {
+  color: var(--dt-cream) !important;
+  font-family: var(--dt-display);
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+html[data-theme="duotone"] .tv-home-button:hover { background: var(--dt-accent-soft); }
+html[data-theme="duotone"] .tv-logo {
+  background: var(--dt-accent) !important;
+  border: 1.5px solid var(--dt-cream) !important;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .tv-logo::after { display: none !important; }
+
+/* Breadcrumb */
+html[data-theme="duotone"] .tv-crumb {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-cream) !important;
+  border-radius: 4px;
+  box-shadow: none;
+}
+html[data-theme="duotone"] .tv-crumb button {
+  color: var(--dt-cream) !important;
+  font-family: var(--dt-sans);
+  font-weight: 600;
+}
+html[data-theme="duotone"] .tv-crumb button:not(:last-child)::after { color: var(--dt-accent); }
+html[data-theme="duotone"] .tv-crumb .now {
+  color: var(--dt-ink) !important;
+  background: var(--dt-accent);
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+/* Topbar tools */
+html[data-theme="duotone"] .tv-tools button,
+html[data-theme="duotone"] .tv-tools span {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-cream) !important;
+  border-radius: 4px !important;
+  color: var(--dt-cream) !important;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .tv-tools button:hover {
+  background: var(--dt-cream) !important;
+  color: var(--dt-ink) !important;
+  transform: none;
+}
+html[data-theme="duotone"] .tv-tools button.is-active {
+  background: var(--dt-accent) !important;
+  border-color: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .tv-tools span {
+  background: var(--dt-accent) !important;
+  border-color: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+  font-weight: 800;
+}
+
+/* Sidebar — cream column, ink nodes */
+html[data-theme="duotone"] .learning-sidebar { background: var(--dt-cream-2) !important; }
+html[data-theme="duotone"] .sidebar-label {
+  color: var(--dt-ink) !important;
+  font-family: var(--dt-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-size: 12px;
+  border-left: 3px solid var(--dt-accent);
+  padding-left: 8px;
+  margin-top: 18px;
+}
+html[data-theme="duotone"] .sidebar-list,
+html[data-theme="duotone"] .ancestor-list { gap: 6px; padding-right: 0; }
+html[data-theme="duotone"] .sidebar-node,
+html[data-theme="duotone"] .ancestor-list button {
+  background: var(--dt-ink) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  color: var(--dt-cream) !important;
+  box-shadow: none !important;
+  font-family: var(--dt-sans);
+  font-weight: 600;
+  transform: none !important;
+}
+html[data-theme="duotone"] .sidebar-node:hover,
+html[data-theme="duotone"] .ancestor-list button:hover {
+  background: var(--dt-accent) !important;
+  border-color: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .sidebar-node.is-active,
+html[data-theme="duotone"] .ancestor-list button.is-center {
+  background: var(--dt-accent) !important;
+  border-color: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+  transform: none !important;
+  box-shadow: inset 4px 0 0 var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .sidebar-node.is-drop-over {
+  background: var(--dt-cream) !important;
+  color: var(--dt-ink) !important;
+  border: 1.5px dashed var(--dt-accent) !important;
+}
+html[data-theme="duotone"] .sidebar-node .mini-icon,
+html[data-theme="duotone"] .ancestor-list button .mini-icon { color: var(--dt-accent); }
+html[data-theme="duotone"] .ancestor-list button em {
+  background: var(--dt-accent);
+  color: var(--dt-ink) !important;
+  font-style: normal;
+  font-weight: 800;
+  border-radius: 2px;
+  padding: 0 5px;
+}
+
+/* Recommended paths + scenes — ink cards */
+html[data-theme="duotone"] .path-card,
+html[data-theme="duotone"] .scene-list button {
+  background: var(--dt-ink) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  color: var(--dt-cream) !important;
+  box-shadow: none !important;
+  font-family: var(--dt-sans);
+  font-weight: 600;
+}
+html[data-theme="duotone"] .path-card:hover,
+html[data-theme="duotone"] .scene-list button:hover {
+  background: var(--dt-accent) !important;
+  border-color: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .path-card strong { color: inherit; font-family: var(--dt-display); }
+html[data-theme="duotone"] .path-card--blue,
+html[data-theme="duotone"] .path-card--green,
+html[data-theme="duotone"] .path-card--amber,
+html[data-theme="duotone"] .path-card--violet { border-left: 4px solid var(--dt-accent) !important; }
+html[data-theme="duotone"] .scene-list button.is-active {
+  background: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-accent) !important;
+}
+
+/* Knowledge tree — ink nodes on cream paper */
+html[data-theme="duotone"] .structure-map {
+  background: var(--dt-cream-2) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  box-shadow: none;
+}
+html[data-theme="duotone"] .structure-chain-card,
+html[data-theme="duotone"] .child-card,
+html[data-theme="duotone"] .grand-pill {
+  background: var(--dt-ink) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  color: var(--dt-cream) !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+html[data-theme="duotone"] .structure-chain-card { background: var(--dt-accent) !important; color: var(--dt-ink) !important; border-color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .structure-chain-card.is-selected,
+html[data-theme="duotone"] .child-card.is-selected,
+html[data-theme="duotone"] .grand-pill.is-selected {
+  background: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-ink) !important;
+  transform: none !important;
+  box-shadow: inset 0 0 0 1.5px var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .structure-chain-card *,
+html[data-theme="duotone"] .child-card *,
+html[data-theme="duotone"] .grand-pill * { color: inherit !important; }
+html[data-theme="duotone"] .structure-chain-card__badge {
+  background: var(--dt-ink) !important;
+  border: 0 !important;
+  color: var(--dt-cream) !important;
+  border-radius: 2px !important;
+  font-family: var(--dt-display);
+  font-weight: 700;
+  padding: 2px 6px;
+}
+html[data-theme="duotone"] .structure-chain-card.is-drop-over,
+html[data-theme="duotone"] .child-card.is-drop-over,
+html[data-theme="duotone"] .grand-pill.is-drop-over {
+  background: var(--dt-cream) !important;
+  border: 1.5px dashed var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .tree-line {
+  stroke: var(--dt-ink) !important;
+  stroke-width: 1.5px !important;
+}
+
+/* Footer */
+html[data-theme="duotone"] .tv-footer { background: var(--dt-cream-2) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .tv-footer > div:first-child { color: var(--dt-ink) !important; font-weight: 600; }
+html[data-theme="duotone"] .footer-actions button {
+  background: var(--dt-ink) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  color: var(--dt-cream) !important;
+  box-shadow: none !important;
+  font-family: var(--dt-sans);
+  font-weight: 700;
+}
+html[data-theme="duotone"] .footer-actions button:hover {
+  background: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-accent) !important;
+  transform: none;
+}
+html[data-theme="duotone"] .footer-actions button:first-child {
+  background: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-accent) !important;
+}
+
+/* Element detail page */
+html[data-theme="duotone"] .element-content,
+html[data-theme="duotone"] .element-content__scroll,
+html[data-theme="duotone"] .element-content__three-col,
+html[data-theme="duotone"] .body-article,
+html[data-theme="duotone"] .body-layout,
+html[data-theme="duotone"] .ec-panel,
+html[data-theme="duotone"] .three-col-nav,
+html[data-theme="duotone"] .content-toc {
+  background: var(--dt-cream-2) !important;
+}
+html[data-theme="duotone"] .element-content.is-fullscreen { background: var(--dt-cream-2) !important; }
+html[data-theme="duotone"] .element-content.is-fullscreen::before { display: none !important; }
+
+/* Element panel head — ink band with cream title */
+html[data-theme="duotone"] .element-content__head {
+  background: var(--dt-ink) !important;
+  border-bottom: 1.5px solid var(--dt-ink) !important;
+  backdrop-filter: none !important;
+}
+html[data-theme="duotone"] .element-content__head p { color: var(--dt-cream) !important; }
+html[data-theme="duotone"] .element-title-row h2 {
+  color: var(--dt-cream) !important;
+  font-family: var(--dt-display);
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+html[data-theme="duotone"] .element-title-row span {
+  background: var(--dt-accent) !important;
+  border: 0 !important;
+  color: var(--dt-ink) !important;
+  border-radius: 3px !important;
+  font-weight: 800;
+  font-family: var(--dt-display);
+}
+
+/* Action buttons in head */
+html[data-theme="duotone"] .element-content__actions button {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-cream) !important;
+  border-radius: 4px !important;
+  color: var(--dt-cream) !important;
+  box-shadow: none !important;
+  font-family: var(--dt-sans);
+  font-weight: 700;
+}
+html[data-theme="duotone"] .element-content__actions button:hover {
+  background: var(--dt-accent) !important;
+  border-color: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+}
+
+/* Meta chips — coral chip on ink, all uniform (true duotone) */
+html[data-theme="duotone"] .meta-chip {
+  background: var(--dt-accent) !important;
+  border: 0 !important;
+  border-radius: 3px !important;
+  color: var(--dt-ink) !important;
+  font-family: var(--dt-display);
+  font-weight: 700;
+  font-size: 11px;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .meta-chip--tag {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-cream) !important;
+  color: var(--dt-cream) !important;
+}
+html[data-theme="duotone"] .meta-author,
+html[data-theme="duotone"] .meta-time,
+html[data-theme="duotone"] .meta-history { color: var(--dt-cream) !important; opacity: .8; }
+
+/* TOC */
+html[data-theme="duotone"] .body-toc {
+  background: var(--dt-ink) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+html[data-theme="duotone"] .body-toc h3,
+html[data-theme="duotone"] .body-toc > strong,
+html[data-theme="duotone"] .body-toc__title {
+  background: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+  font-family: var(--dt-display) !important;
+  font-weight: 800 !important;
+  border-bottom: 1.5px solid var(--dt-ink) !important;
+  padding: 8px 12px !important;
+  margin: 0 !important;
+  display: block;
+}
+html[data-theme="duotone"] .body-toc ol { padding: 10px !important; gap: 6px !important; }
+html[data-theme="duotone"] .body-toc button {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-cream) !important;
+  border-radius: 3px !important;
+  color: var(--dt-cream) !important;
+  font-family: var(--dt-sans);
+  font-weight: 600;
+  padding: 8px 10px !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html[data-theme="duotone"] .body-toc button:hover {
+  background: var(--dt-cream) !important;
+  color: var(--dt-ink) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .body-toc button.is-active {
+  background: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-accent) !important;
+}
+html[data-theme="duotone"] .body-toc button::before { display: none !important; }
+html[data-theme="duotone"] .body-toc .toc-num {
+  background: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+  font-family: var(--dt-display) !important;
+  font-weight: 800 !important;
+  padding: 2px 6px;
+  border-radius: 2px;
+  opacity: 1 !important;
+}
+html[data-theme="duotone"] .body-toc button.is-active .toc-num {
+  background: var(--dt-ink) !important; color: var(--dt-cream) !important;
+}
+html[data-theme="duotone"] .body-toc .toc-label { color: inherit !important; font-weight: 600; }
+
+/* Section blocks — cream surface, ink heading band */
+html[data-theme="duotone"] .section-block,
+html[data-theme="duotone"] .body-section {
+  background: var(--dt-cream) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  margin-bottom: 16px;
+}
+html[data-theme="duotone"] .section-block h2,
+html[data-theme="duotone"] .section-block h3,
+html[data-theme="duotone"] .body-section h2,
+html[data-theme="duotone"] .body-section h3,
+html[data-theme="duotone"] .body-section-h {
+  background: var(--dt-ink) !important;
+  color: var(--dt-cream) !important;
+  border-bottom: 0 !important;
+  font-family: var(--dt-display);
+  font-weight: 700;
+  padding: 8px 20px !important;
+  margin: 0 -20px 14px !important;
+}
+html[data-theme="duotone"] .body-section-num,
+html[data-theme="duotone"] .example-num,
+html[data-theme="duotone"] .step-num,
+html[data-theme="duotone"] .mechanism-step-num,
+html[data-theme="duotone"] .path-step-num {
+  background: var(--dt-accent) !important;
+  border: 0 !important;
+  color: var(--dt-ink) !important;
+  border-radius: 2px !important;
+  font-family: var(--dt-display) !important;
+  font-weight: 800 !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+
+/* Callouts / warnings / lists */
+html[data-theme="duotone"] .callout,
+html[data-theme="duotone"] .warn-card,
+html[data-theme="duotone"] .example-item,
+html[data-theme="duotone"] .decision-item,
+html[data-theme="duotone"] .module-card,
+html[data-theme="duotone"] .mvp-card,
+html[data-theme="duotone"] .phase-item {
+  background: var(--dt-cream-2) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  color: var(--dt-ink) !important;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .callout { border-left: 6px solid var(--dt-accent) !important; }
+html[data-theme="duotone"] .warn-card { border-left: 6px solid var(--dt-accent) !important; }
+html[data-theme="duotone"] .callout strong,
+html[data-theme="duotone"] .callout-body strong,
+html[data-theme="duotone"] .warn-card strong {
+  color: var(--dt-ink) !important;
+  font-family: var(--dt-display);
+  font-weight: 800 !important;
+  background: transparent !important;
+}
+html[data-theme="duotone"] .callout-icon,
+html[data-theme="duotone"] .warn-card::before { color: var(--dt-accent) !important; opacity: 1 !important; }
+html[data-theme="duotone"] .warn-card * { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .warn-card__bar { background: var(--dt-accent) !important; }
+
+/* Module cards in a duotone get rotating accent */
+html[data-theme="duotone"] .module-card { background: var(--dt-ink) !important; color: var(--dt-cream) !important; }
+html[data-theme="duotone"] .module-card:nth-child(2n) { background: var(--dt-accent) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .module-card * { color: inherit !important; }
+
+/* check / dot list */
+html[data-theme="duotone"] .check-list li {
+  color: var(--dt-ink) !important;
+  padding-left: 28px !important;
+}
+html[data-theme="duotone"] .check-list li::before {
+  content: "✓" !important;
+  background: var(--dt-accent) !important;
+  border: 0 !important;
+  color: var(--dt-ink) !important;
+  border-radius: 2px !important;
+  width: 20px; height: 20px;
+  display: grid; place-items: center;
+  font-family: var(--dt-display);
+  font-weight: 800 !important;
+  font-size: 13px !important;
+  top: 1px !important; left: 0 !important;
+  line-height: 1 !important;
+}
+html[data-theme="duotone"] .dot-list li { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .dot-list li::before { color: var(--dt-accent) !important; }
+
+/* Tables */
+html[data-theme="duotone"] table,
+html[data-theme="duotone"] .kv-table,
+html[data-theme="duotone"] .competitor-table,
+html[data-theme="duotone"] .budget-table {
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+}
+html[data-theme="duotone"] th,
+html[data-theme="duotone"] td {
+  border: 1px solid var(--dt-line) !important;
+  background: transparent !important;
+  color: var(--dt-ink) !important;
+  font-family: var(--dt-sans);
+}
+html[data-theme="duotone"] th {
+  background: var(--dt-ink) !important;
+  color: var(--dt-cream) !important;
+  font-family: var(--dt-display);
+  font-weight: 700;
+}
+
+/* Day schedule */
+html[data-theme="duotone"] .sec-day-schedule__day {
+  background: var(--dt-cream) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .sec-day-schedule__day > header {
+  background: var(--dt-ink) !important;
+  border-bottom: 0 !important;
+  color: var(--dt-cream) !important;
+}
+html[data-theme="duotone"] .sec-day-schedule__num {
+  background: var(--dt-accent) !important;
+  border: 0 !important;
+  color: var(--dt-ink) !important;
+  border-radius: 2px !important;
+  font-family: var(--dt-display);
+  font-weight: 800;
+}
+html[data-theme="duotone"] .sec-day-schedule__day > header strong { color: var(--dt-cream) !important; font-family: var(--dt-display); }
+html[data-theme="duotone"] .sec-day-schedule__day > header em {
+  background: var(--dt-accent) !important;
+  border: 0 !important;
+  color: var(--dt-ink) !important;
+  font-style: normal;
+  font-weight: 700;
+  border-radius: 2px;
+}
+html[data-theme="duotone"] .sec-day-schedule__day > ul > li {
+  border-bottom: 1.5px solid var(--dt-line) !important;
+  background: transparent !important;
+}
+html[data-theme="duotone"] .sec-day-schedule__day > ul > li:nth-child(even) { background: var(--dt-cream-2) !important; }
+html[data-theme="duotone"] .sec-day-schedule__time {
+  background: var(--dt-accent) !important;
+  border: 0 !important;
+  color: var(--dt-ink) !important;
+  border-radius: 2px !important;
+  font-family: var(--dt-display);
+  font-weight: 800;
+}
+html[data-theme="duotone"] .sec-day-schedule__what { color: var(--dt-ink) !important; font-weight: 600; }
+html[data-theme="duotone"] .sec-day-schedule__note { color: var(--dt-soft, var(--muted)) !important; }
+
+/* Inputs / forms */
+html[data-theme="duotone"] input,
+html[data-theme="duotone"] textarea,
+html[data-theme="duotone"] select {
+  background: var(--dt-cream-2) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  color: var(--dt-ink) !important;
+  box-shadow: none !important;
+  font-family: var(--dt-sans);
+}
+html[data-theme="duotone"] input:focus,
+html[data-theme="duotone"] textarea:focus,
+html[data-theme="duotone"] select:focus {
+  outline: 0;
+  border-color: var(--dt-accent) !important;
+  background: var(--dt-cream) !important;
+}
+
+/* SystemPanel right rail */
+html[data-theme="duotone"] .system-panel__head h2,
+html[data-theme="duotone"] .system-section h3 {
+  color: var(--dt-ink) !important;
+  font-family: var(--dt-display);
+  font-weight: 700;
+}
+html[data-theme="duotone"] .system-panel__head span {
+  background: var(--dt-accent) !important;
+  border: 0 !important;
+  color: var(--dt-ink) !important;
+  border-radius: 2px !important;
+  font-family: var(--dt-display);
+  font-weight: 700;
+}
+html[data-theme="duotone"] .system-search-box {
+  background: var(--dt-cream-2) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .system-search-box input {
+  background: transparent !important;
+  color: var(--dt-ink) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .system-search-box input::placeholder { color: var(--muted) !important; }
+html[data-theme="duotone"] .system-search-box .ke-icon { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .system-search-box button {
+  background: var(--dt-ink) !important;
+  border: 0 !important;
+  color: var(--dt-cream) !important;
+  border-radius: 3px !important;
+  box-shadow: none !important;
+  font-family: var(--dt-display);
+  font-weight: 700;
+}
+html[data-theme="duotone"] .system-search-box button:hover {
+  background: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .search-result-list button {
+  background: var(--dt-cream-2) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  color: var(--dt-ink) !important;
+  box-shadow: none !important;
+  margin-bottom: 6px;
+}
+html[data-theme="duotone"] .search-result-list button:hover {
+  background: var(--dt-accent) !important;
+  border-color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .search-result-dot {
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 2px !important;
+}
+html[data-theme="duotone"] .search-result-main strong { color: var(--dt-ink) !important; font-family: var(--dt-display); font-weight: 700; }
+html[data-theme="duotone"] .search-result-main em { color: var(--muted) !important; }
+html[data-theme="duotone"] .system-more {
+  background: var(--dt-ink) !important;
+  border: 0 !important;
+  color: var(--dt-cream) !important;
+  border-radius: 3px !important;
+  font-family: var(--dt-display);
+  font-weight: 700;
+}
+html[data-theme="duotone"] .system-placeholder {
+  background: var(--dt-cream-2) !important;
+  border: 1.5px dashed var(--dt-ink) !important;
+  border-radius: 4px !important;
+  color: var(--dt-ink) !important;
+  font-family: var(--dt-sans);
+}
+
+/* Right rail */
+html[data-theme="duotone"] .three-col-context,
+html[data-theme="duotone"] .ai-tasks-panel,
+html[data-theme="duotone"] .context-rail,
+html[data-theme="duotone"] .embedded-tasks {
+  background: var(--dt-cream-2) !important;
+  border-left: 1.5px solid var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .embedded-tasks,
+html[data-theme="duotone"] .context-rail .rail-block {
+  background: var(--dt-cream) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  padding: 12px 14px !important;
+  margin-bottom: 14px !important;
+}
+html[data-theme="duotone"] .rail-block header strong,
+html[data-theme="duotone"] .embedded-tasks header strong {
+  color: var(--dt-ink) !important;
+  font-family: var(--dt-display);
+  font-weight: 700;
+}
+html[data-theme="duotone"] .rail-block header span {
+  background: var(--dt-accent);
+  color: var(--dt-ink) !important;
+  font-weight: 800;
+  padding: 0 6px;
+  border-radius: 2px;
+  font-family: var(--dt-display);
+}
+html[data-theme="duotone"] .rail-paths > li,
+html[data-theme="duotone"] .rail-lateral > li {
+  background: var(--dt-ink) !important;
+  border: 0 !important;
+  border-radius: 3px !important;
+  box-shadow: none !important;
+  color: var(--dt-cream) !important;
+  margin-bottom: 8px;
+}
+html[data-theme="duotone"] .rail-paths > li:hover,
+html[data-theme="duotone"] .rail-lateral > li:hover {
+  background: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .rail-paths > li *,
+html[data-theme="duotone"] .rail-lateral > li * { color: inherit !important; }
+html[data-theme="duotone"] .rail-path-color {
+  border: 1.5px solid var(--dt-cream) !important;
+  border-radius: 2px !important;
+}
+html[data-theme="duotone"] .rail-strength {
+  background: var(--dt-accent) !important;
+  border: 0 !important;
+  color: var(--dt-ink) !important;
+  border-radius: 2px !important;
+  font-family: var(--dt-display);
+  font-weight: 800;
+}
+html[data-theme="duotone"] .embedded-tasks .empty {
+  background: var(--dt-cream-2) !important;
+  border: 1.5px dashed var(--dt-ink) !important;
+  border-radius: 3px !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .embedded-tasks li {
+  background: var(--dt-ink) !important;
+  border: 0 !important;
+  border-radius: 3px !important;
+  color: var(--dt-cream) !important;
+  box-shadow: none !important;
+  margin-bottom: 6px;
+}
+
+/* Action input panel (细化/展开/延伸/反馈) */
+html[data-theme="duotone"] .action-input {
+  background: var(--dt-cream) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  margin: 12px 16px !important;
+  padding: 14px !important;
+}
+html[data-theme="duotone"] .action-input--refine,
+html[data-theme="duotone"] .action-input--expand,
+html[data-theme="duotone"] .action-input--extend,
+html[data-theme="duotone"] .action-input--feedback { border-left: 6px solid var(--dt-accent) !important; }
+html[data-theme="duotone"] .action-input__hint strong {
+  background: var(--dt-ink) !important;
+  border: 0 !important;
+  color: var(--dt-cream) !important;
+  font-family: var(--dt-display);
+  font-weight: 800 !important;
+  padding: 2px 8px;
+  border-radius: 2px;
+}
+html[data-theme="duotone"] .action-input__hint span { color: var(--dt-ink) !important; font-weight: 500; }
+html[data-theme="duotone"] .action-chip {
+  background: var(--dt-cream-2) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 3px !important;
+  color: var(--dt-ink) !important;
+  box-shadow: none !important;
+  font-family: var(--dt-sans);
+  font-weight: 600 !important;
+}
+html[data-theme="duotone"] .action-chip:hover {
+  background: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-accent) !important;
+  transform: none;
+}
+html[data-theme="duotone"] .quiet-button {
+  background: var(--dt-accent) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+  border-radius: 3px !important;
+  box-shadow: none !important;
+  font-family: var(--dt-display);
+  font-weight: 800 !important;
+}
+html[data-theme="duotone"] .quiet-button:hover {
+  background: var(--dt-ink) !important;
+  color: var(--dt-cream) !important;
+  transform: none;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .quiet-button:disabled {
+  background: var(--dt-cream-2) !important;
+  border-color: var(--dt-line) !important;
+  color: var(--muted) !important;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .quiet-button--ghost {
+  background: var(--dt-cream-2) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .quiet-button--icon {
+  min-width: 0 !important;
+  width: 32px;
+  height: 32px;
+  padding: 0 !important;
+  display: grid;
+  place-items: center;
+}
+
+/* Inline QA */
+html[data-theme="duotone"] .inline-qa {
+  background: var(--dt-cream) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .inline-qa__head {
+  background: var(--dt-accent) !important;
+  border-bottom: 1.5px solid var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .inline-qa__badge {
+  background: var(--dt-ink) !important;
+  border: 0 !important;
+  color: var(--dt-cream) !important;
+  border-radius: 2px !important;
+  font-family: var(--dt-display);
+  font-weight: 800;
+}
+html[data-theme="duotone"] .inline-qa__q { background: var(--dt-cream-2) !important; border-bottom: 1.5px solid var(--dt-line) !important; color: var(--dt-ink) !important; font-weight: 600; }
+html[data-theme="duotone"] .inline-qa__a { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .inline-qa__delete {
+  background: var(--dt-cream) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+  border-radius: 2px !important;
+  font-weight: 800 !important;
+}
+
+/* Ask popup */
+html[data-theme="duotone"] .ask-popup {
+  background: var(--dt-cream) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 12px 30px rgba(26,15,61,.25) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .ask-popup__backdrop { background: rgba(26,15,61,.25) !important; }
+html[data-theme="duotone"] .ask-popup__badge {
+  background: var(--dt-accent) !important;
+  border: 0 !important;
+  color: var(--dt-ink) !important;
+  border-radius: 2px !important;
+  font-family: var(--dt-display);
+  font-weight: 800;
+}
+html[data-theme="duotone"] .ask-popup__scope { color: var(--dt-ink) !important; font-weight: 600; }
+html[data-theme="duotone"] .ask-popup__close {
+  background: var(--dt-cream-2) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+  border-radius: 2px !important;
+}
+html[data-theme="duotone"] .ask-popup__stream,
+html[data-theme="duotone"] .ask-popup__answer {
+  background: var(--dt-cream-2) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 3px !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .ask-popup__error {
+  background: var(--dt-accent) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+  border-radius: 3px !important;
+  font-weight: 700;
+}
+html[data-theme="duotone"] .ask-popup__submit {
+  background: var(--dt-accent) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+  border-radius: 3px !important;
+  font-family: var(--dt-display) !important;
+  font-weight: 800 !important;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .ask-popup__submit:hover { background: var(--dt-ink) !important; color: var(--dt-cream) !important; }
+html[data-theme="duotone"] .ask-popup__submit:disabled { background: var(--dt-cream-2) !important; color: var(--muted) !important; }
+html[data-theme="duotone"] .ask-popup__cancel {
+  background: var(--dt-cream-2) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+  border-radius: 3px !important;
+  font-family: var(--dt-display) !important;
+  font-weight: 700 !important;
+}
+
+/* Annotation menu + highlights */
+html[data-theme="duotone"] .ke-annotation-menu {
+  background: var(--dt-cream) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 12px 30px rgba(26,15,61,.25) !important;
+}
+html[data-theme="duotone"] .ke-annotation-menu button {
+  background: var(--dt-cream-2) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+  border-radius: 3px !important;
+  font-family: var(--dt-display);
+  font-weight: 700 !important;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .ke-annotation-menu button:hover {
+  background: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .ke-annotation-menu .swatch {
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 2px !important;
+}
+html[data-theme="duotone"] .ke-annotation-menu .swatch--highlight { background: var(--dt-accent) !important; }
+html[data-theme="duotone"] .ke-annotation--highlight {
+  background: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+  border-bottom: 1.5px solid var(--dt-ink) !important;
+  padding: 0 2px;
+}
+html[data-theme="duotone"] .ke-annotation--underline {
+  background: transparent !important;
+  border-bottom: 2px solid var(--dt-accent) !important;
+}
+
+/* Children CTA */
+html[data-theme="duotone"] .cta-button {
+  background: var(--dt-accent) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+  border-radius: 3px !important;
+  font-family: var(--dt-display);
+  font-weight: 800 !important;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .cta-button:hover { background: var(--dt-ink) !important; color: var(--dt-cream) !important; transform: none; box-shadow: none !important; }
+html[data-theme="duotone"] .cta-button.is-open { background: var(--dt-ink) !important; color: var(--dt-cream) !important; box-shadow: none !important; }
+html[data-theme="duotone"] .children-cta-list {
+  background: var(--dt-cream) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 12px 30px rgba(26,15,61,.25) !important;
+}
+html[data-theme="duotone"] .children-cta-list > li > button {
+  background: var(--dt-cream-2) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+  border-radius: 3px !important;
+  font-weight: 600;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .children-cta-list > li > button:hover {
+  background: var(--dt-accent) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .children-cta-list__title { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .children-cta-list .mini-icon { color: var(--dt-accent) !important; }
+html[data-theme="duotone"] .children-cta-list__type {
+  background: var(--dt-ink) !important;
+  color: var(--dt-cream) !important;
+  border-radius: 2px !important;
+  font-family: var(--dt-display);
+  font-weight: 700;
+}
+html[data-theme="duotone"] .children-cta-list__center { border-top: 1.5px dashed var(--dt-ink) !important; }
+html[data-theme="duotone"] .children-cta-list__center button {
+  background: var(--dt-accent) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+  border-radius: 3px !important;
+  font-family: var(--dt-display);
+  font-weight: 800;
+}
+
+/* Mermaid */
+html[data-theme="duotone"] .mermaid-diagram {
+  background: var(--dt-cream) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+html[data-theme="duotone"] .mermaid-diagram > header {
+  background: var(--dt-ink) !important;
+  border-bottom: 1.5px solid var(--dt-ink) !important;
+  color: var(--dt-cream) !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__badge {
+  background: var(--dt-accent) !important;
+  border: 0 !important;
+  color: var(--dt-ink) !important;
+  border-radius: 2px !important;
+  font-family: var(--dt-display);
+  font-weight: 800;
+}
+html[data-theme="duotone"] .mermaid-diagram > header strong { color: var(--dt-cream) !important; font-family: var(--dt-display); }
+html[data-theme="duotone"] .mermaid-diagram__host {
+  background: var(--dt-cream-2) !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__host svg text,
+html[data-theme="duotone"] .mermaid-diagram__host svg .nodeLabel,
+html[data-theme="duotone"] .mermaid-diagram__host svg .edgeLabel,
+html[data-theme="duotone"] .mermaid-diagram__host svg .taskText,
+html[data-theme="duotone"] .mermaid-diagram__host svg .titleText,
+html[data-theme="duotone"] .mermaid-diagram__host svg .sectionTitle {
+  fill: var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+  font-family: var(--dt-sans) !important;
+  font-weight: 600 !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__host svg .edgeLabel rect,
+html[data-theme="duotone"] .mermaid-diagram__host svg .edgeLabel foreignObject div {
+  background: var(--dt-cream) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__host svg .node rect,
+html[data-theme="duotone"] .mermaid-diagram__host svg .node polygon,
+html[data-theme="duotone"] .mermaid-diagram__host svg .node circle,
+html[data-theme="duotone"] .mermaid-diagram__host svg .node ellipse {
+  fill: var(--dt-cream) !important;
+  stroke: var(--dt-ink) !important;
+  stroke-width: 1.5px !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__host svg .edgePath path,
+html[data-theme="duotone"] .mermaid-diagram__host svg .flowchart-link,
+html[data-theme="duotone"] .mermaid-diagram__host svg .marker {
+  stroke: var(--dt-ink) !important;
+  fill: var(--dt-ink) !important;
+  stroke-width: 1.5px !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__host svg .section0,
+html[data-theme="duotone"] .mermaid-diagram__host svg .section2 { fill: var(--dt-cream) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host svg .section1,
+html[data-theme="duotone"] .mermaid-diagram__host svg .section3 { fill: var(--dt-cream-2) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host svg .task,
+html[data-theme="duotone"] .mermaid-diagram__host svg .task0,
+html[data-theme="duotone"] .mermaid-diagram__host svg .task2 {
+  fill: var(--dt-accent) !important;
+  stroke: var(--dt-ink) !important;
+  stroke-width: 1.5px !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__host svg .task1,
+html[data-theme="duotone"] .mermaid-diagram__host svg .task3 {
+  fill: var(--dt-ink) !important;
+  stroke: var(--dt-ink) !important;
+  stroke-width: 1.5px !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__host svg .grid .tick line { stroke: var(--dt-line) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host svg .grid path { stroke: var(--dt-ink) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host svg .today { stroke: var(--dt-accent) !important; stroke-width: 2px !important; }
+html[data-theme="duotone"] .mermaid-diagram figcaption {
+  background: var(--dt-cream-2) !important;
+  border-top: 1.5px solid var(--dt-line) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__error {
+  background: var(--dt-accent) !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+  border-radius: 3px !important;
+  font-weight: 700;
+}
+
+/* Generic icons inherit color */
+html[data-theme="duotone"] .ke-icon { stroke: currentColor; }
+
+/* Generic button radius reset */
+html[data-theme="duotone"] button { border-radius: 4px; }
+
+/* Scrollbar */
+html[data-theme="duotone"] * {
+  scrollbar-color: var(--dt-ink) var(--dt-cream-2);
+}
+html[data-theme="duotone"] *::-webkit-scrollbar-track { background: var(--dt-cream-2); border-radius: 0; }
+html[data-theme="duotone"] *::-webkit-scrollbar-thumb {
+  background: var(--dt-ink); border: 2px solid var(--dt-lime-2); border-radius: 0;
+}
+
+/* ============================================================
+   NEON-ON-BLACK duotone (dark page, fluorescent strokes + text)
+   ============================================================ */
+
+/* Page bg + full surface — deep ink everywhere */
+html[data-theme="duotone"] body { background: var(--dt-ink) !important; color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .tree-view { background: var(--dt-ink) !important; }
+
+/* All container panels stay deep ink, only the BORDER and TEXT light up */
+html[data-theme="duotone"] .learning-sidebar,
+html[data-theme="duotone"] .tv-main,
+html[data-theme="duotone"] .system-panel,
+html[data-theme="duotone"] .tv-footer,
+html[data-theme="duotone"] .structure-map,
+html[data-theme="duotone"] .element-content,
+html[data-theme="duotone"] .element-content__scroll,
+html[data-theme="duotone"] .element-content__three-col,
+html[data-theme="duotone"] .body-article,
+html[data-theme="duotone"] .body-layout,
+html[data-theme="duotone"] .ec-panel,
+html[data-theme="duotone"] .three-col-nav,
+html[data-theme="duotone"] .content-toc,
+html[data-theme="duotone"] .three-col-context,
+html[data-theme="duotone"] .ai-tasks-panel,
+html[data-theme="duotone"] .context-rail,
+html[data-theme="duotone"] .element-content.is-fullscreen {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+}
+/* Slightly elevated inner cards to separate ink-on-ink */
+html[data-theme="duotone"] .structure-map { background: var(--panel-2) !important; }
+
+/* Topbar — keep ink */
+html[data-theme="duotone"] .tv-topbar { background: var(--dt-ink) !important; border-color: var(--dt-ink) !important; }
+
+/* Footer text */
+html[data-theme="duotone"] .tv-footer,
+html[data-theme="duotone"] .tv-footer > div:first-child { color: var(--dt-lime) !important; }
+
+/* Element panel head — flip to electric pink ribbon for max poster pop */
+html[data-theme="duotone"] .element-content__head {
+  background: var(--dt-pink) !important;
+  border-bottom: 0 !important;
+}
+html[data-theme="duotone"] .element-content__head p { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .element-title-row h2 { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .element-title-row span {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .element-content__actions button {
+  border-color: var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+  background: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .element-content__actions button:hover {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+
+/* Meta chips: now sit on pink ribbon — flip palette */
+html[data-theme="duotone"] .meta-chip {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .meta-chip--tag {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .meta-author,
+html[data-theme="duotone"] .meta-time,
+html[data-theme="duotone"] .meta-history { color: var(--dt-ink) !important; opacity: .85; }
+
+/* Sidebar items — lime cards on ink column (flip), pink on active */
+html[data-theme="duotone"] .sidebar-node,
+html[data-theme="duotone"] .ancestor-list button {
+  background: var(--dt-lime) !important;
+  border-color: var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .sidebar-node:hover,
+html[data-theme="duotone"] .ancestor-list button:hover {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .sidebar-node.is-active,
+html[data-theme="duotone"] .ancestor-list button.is-center {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-ink) !important;
+  box-shadow: inset 4px 0 0 var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .sidebar-node .mini-icon,
+html[data-theme="duotone"] .ancestor-list button .mini-icon { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .ancestor-list button em {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .sidebar-label { color: var(--dt-lime) !important; border-left-color: var(--dt-pink); }
+html[data-theme="duotone"] .sidebar-label__count { background: var(--dt-pink) !important; color: var(--dt-ink) !important; }
+
+/* Recommended paths + scenes — lime cards */
+html[data-theme="duotone"] .path-card,
+html[data-theme="duotone"] .scene-list button {
+  background: var(--dt-lime) !important;
+  border-color: var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .path-card:hover,
+html[data-theme="duotone"] .scene-list button:hover {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .path-card--blue,
+html[data-theme="duotone"] .path-card--green,
+html[data-theme="duotone"] .path-card--amber,
+html[data-theme="duotone"] .path-card--violet { border-left: 6px solid var(--dt-pink) !important; }
+html[data-theme="duotone"] .scene-list button.is-active { background: var(--dt-pink) !important; }
+
+/* Knowledge tree — ink panel host, lime/pink nodes */
+html[data-theme="duotone"] .structure-chain-card {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .child-card,
+html[data-theme="duotone"] .grand-pill {
+  background: var(--dt-lime) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .structure-chain-card.is-selected,
+html[data-theme="duotone"] .child-card.is-selected,
+html[data-theme="duotone"] .grand-pill.is-selected {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-ink) !important;
+  box-shadow: inset 0 0 0 2px var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .structure-chain-card__badge {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .tree-line { stroke: var(--dt-lime) !important; }
+
+/* Breadcrumb — high contrast on ink topbar */
+html[data-theme="duotone"] .tv-crumb {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .tv-crumb button { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .tv-crumb button:not(:last-child)::after { color: var(--dt-pink); }
+html[data-theme="duotone"] .tv-crumb .now {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+
+/* Topbar tool icons */
+html[data-theme="duotone"] .tv-tools button,
+html[data-theme="duotone"] .tv-tools span {
+  background: transparent !important;
+  border-color: var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .tv-tools button:hover {
+  background: var(--dt-lime) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .tv-tools button.is-active,
+html[data-theme="duotone"] .tv-tools span {
+  background: var(--dt-pink) !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+
+/* Section blocks — lime cards floating on ink page (HIGH CONTRAST poster) */
+html[data-theme="duotone"] .section-block,
+html[data-theme="duotone"] .body-section {
+  background: var(--dt-lime) !important;
+  border-color: var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .section-block * { color: var(--dt-ink); }
+html[data-theme="duotone"] .section-block h2,
+html[data-theme="duotone"] .section-block h3,
+html[data-theme="duotone"] .body-section h2,
+html[data-theme="duotone"] .body-section h3,
+html[data-theme="duotone"] .body-section-h {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .body-section-num,
+html[data-theme="duotone"] .example-num,
+html[data-theme="duotone"] .step-num,
+html[data-theme="duotone"] .mechanism-step-num,
+html[data-theme="duotone"] .path-step-num {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+
+/* Body TOC */
+html[data-theme="duotone"] .body-toc {
+  background: var(--dt-ink) !important;
+  border-color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .body-toc h3,
+html[data-theme="duotone"] .body-toc > strong,
+html[data-theme="duotone"] .body-toc__title {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .body-toc button {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .body-toc button:hover {
+  background: var(--dt-lime) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .body-toc button.is-active {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .body-toc .toc-num {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .body-toc button.is-active .toc-num {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+
+/* Callouts on lime section cards — flip text to ink */
+html[data-theme="duotone"] .callout,
+html[data-theme="duotone"] .warn-card,
+html[data-theme="duotone"] .example-item,
+html[data-theme="duotone"] .decision-item,
+html[data-theme="duotone"] .mvp-card,
+html[data-theme="duotone"] .phase-item {
+  background: var(--dt-lime-2) !important;
+  border-color: var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .callout { border-left: 6px solid var(--dt-pink) !important; }
+html[data-theme="duotone"] .warn-card { border-left: 6px solid var(--dt-pink) !important; background: var(--dt-pink-soft) !important; }
+html[data-theme="duotone"] .callout strong,
+html[data-theme="duotone"] .callout-body strong,
+html[data-theme="duotone"] .warn-card strong { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .callout-icon,
+html[data-theme="duotone"] .warn-card::before { color: var(--dt-pink) !important; }
+html[data-theme="duotone"] .warn-card__bar { background: var(--dt-pink) !important; }
+
+/* Module cards alternate ink/pink */
+html[data-theme="duotone"] .module-card { background: var(--dt-ink) !important; color: var(--dt-lime) !important; border-color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .module-card:nth-child(2n) { background: var(--dt-pink) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .module-card * { color: inherit !important; }
+
+/* Check ✓ */
+html[data-theme="duotone"] .check-list li { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .check-list li::before {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .dot-list li { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .dot-list li::before { color: var(--dt-pink) !important; }
+
+/* Tables */
+html[data-theme="duotone"] table,
+html[data-theme="duotone"] .kv-table,
+html[data-theme="duotone"] .competitor-table,
+html[data-theme="duotone"] .budget-table {
+  border-color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] th,
+html[data-theme="duotone"] td { color: var(--dt-ink) !important; border-color: var(--dt-line) !important; }
+html[data-theme="duotone"] th {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+
+/* Day-schedule lime card */
+html[data-theme="duotone"] .sec-day-schedule__day {
+  background: var(--dt-lime) !important;
+  border-color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .sec-day-schedule__day > header {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .sec-day-schedule__num {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .sec-day-schedule__day > header strong { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .sec-day-schedule__day > header em {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .sec-day-schedule__day > ul > li:nth-child(even) { background: rgba(10,10,35,.06) !important; }
+html[data-theme="duotone"] .sec-day-schedule__time {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .sec-day-schedule__what { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .sec-day-schedule__note { color: var(--soft) !important; }
+
+/* Inputs / forms */
+html[data-theme="duotone"] input,
+html[data-theme="duotone"] textarea,
+html[data-theme="duotone"] select {
+  background: var(--dt-lime) !important;
+  border-color: var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] input:focus,
+html[data-theme="duotone"] textarea:focus,
+html[data-theme="duotone"] select:focus {
+  background: var(--dt-pink-soft) !important;
+  border-color: var(--dt-pink) !important;
+}
+
+/* SystemPanel — ink panel with lime text */
+html[data-theme="duotone"] .system-panel__head h2,
+html[data-theme="duotone"] .system-section h3 { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .system-panel__head span {
+  background: var(--dt-pink) !important; color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .system-search-box {
+  background: var(--dt-lime) !important;
+  border-color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .system-search-box input { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .system-search-box input::placeholder { color: var(--soft) !important; }
+html[data-theme="duotone"] .system-search-box .ke-icon { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .system-search-box button {
+  background: var(--dt-pink) !important; color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .system-search-box button:hover {
+  background: var(--dt-ink) !important; color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .search-result-list button {
+  background: var(--dt-lime) !important;
+  border-color: var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .search-result-list button:hover {
+  background: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .search-result-main strong { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .search-result-main em { color: var(--soft) !important; }
+html[data-theme="duotone"] .system-more {
+  background: var(--dt-pink) !important; color: var(--dt-ink) !important; border: 0 !important;
+}
+html[data-theme="duotone"] .system-placeholder {
+  background: rgba(212,255,58,.08) !important;
+  border: 1.5px dashed var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+
+/* Right rail cards (AI 任务 / 学习路径 / 横向关联) */
+html[data-theme="duotone"] .embedded-tasks,
+html[data-theme="duotone"] .context-rail .rail-block {
+  background: var(--dt-lime) !important;
+  border-color: var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .rail-block header strong,
+html[data-theme="duotone"] .embedded-tasks header strong { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .rail-block header span {
+  background: var(--dt-pink) !important; color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .rail-paths > li,
+html[data-theme="duotone"] .rail-lateral > li {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .rail-paths > li:hover,
+html[data-theme="duotone"] .rail-lateral > li:hover {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .rail-strength { background: var(--dt-pink) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .rail-path-color { border-color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .embedded-tasks .empty {
+  background: rgba(212,255,58,.08) !important;
+  border: 1.5px dashed var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .embedded-tasks li {
+  background: var(--dt-pink) !important; color: var(--dt-ink) !important; border: 0 !important;
+}
+
+/* Action input panel (细化/展开/延伸/反馈) */
+html[data-theme="duotone"] .action-input {
+  background: var(--dt-lime) !important;
+  border-color: var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .action-input--refine,
+html[data-theme="duotone"] .action-input--expand,
+html[data-theme="duotone"] .action-input--extend,
+html[data-theme="duotone"] .action-input--feedback { border-left: 8px solid var(--dt-pink) !important; }
+html[data-theme="duotone"] .action-input__hint strong {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .action-input__hint span { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .action-chip {
+  background: var(--dt-ink) !important;
+  border-color: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .action-chip:hover {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .quiet-button {
+  background: var(--dt-pink) !important;
+  border-color: var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .quiet-button:hover {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .quiet-button:disabled {
+  background: rgba(10,10,35,.12) !important; color: var(--muted) !important;
+}
+html[data-theme="duotone"] .quiet-button--ghost {
+  background: var(--dt-ink) !important; color: var(--dt-lime) !important;
+}
+
+/* Inline QA */
+html[data-theme="duotone"] .inline-qa {
+  background: var(--dt-lime) !important;
+  border-color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .inline-qa__head {
+  background: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .inline-qa__badge {
+  background: var(--dt-ink) !important; color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .inline-qa__q,
+html[data-theme="duotone"] .inline-qa__a { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .inline-qa__q { background: rgba(10,10,35,.06) !important; }
+html[data-theme="duotone"] .inline-qa__delete {
+  background: var(--dt-lime) !important; color: var(--dt-ink) !important;
+}
+
+/* Ask popup */
+html[data-theme="duotone"] .ask-popup {
+  background: var(--dt-lime) !important;
+  border-color: var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .ask-popup__badge {
+  background: var(--dt-pink) !important; color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .ask-popup__scope { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .ask-popup__close {
+  background: var(--dt-ink) !important; color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .ask-popup__stream,
+html[data-theme="duotone"] .ask-popup__answer {
+  background: rgba(10,10,35,.08) !important;
+  border-color: var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .ask-popup__error {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .ask-popup__submit {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .ask-popup__submit:hover {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .ask-popup__cancel {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+  border-color: var(--dt-ink) !important;
+}
+
+/* Annotation menu */
+html[data-theme="duotone"] .ke-annotation-menu {
+  background: var(--dt-lime) !important;
+  border-color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .ke-annotation-menu button {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .ke-annotation-menu button:hover {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .ke-annotation-menu .swatch--highlight { background: var(--dt-pink) !important; }
+html[data-theme="duotone"] .ke-annotation--highlight {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+  border-bottom: 1.5px solid var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .ke-annotation--underline {
+  border-bottom: 2px solid var(--dt-pink) !important;
+}
+
+/* Children CTA */
+html[data-theme="duotone"] .cta-button {
+  background: var(--dt-pink) !important;
+  border-color: var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .cta-button:hover {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .cta-button.is-open {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .children-cta-list {
+  background: var(--dt-lime) !important;
+  border-color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .children-cta-list > li > button {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+  border: 0 !important;
+}
+html[data-theme="duotone"] .children-cta-list > li > button:hover {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .children-cta-list__title { color: inherit !important; }
+html[data-theme="duotone"] .children-cta-list .mini-icon { color: var(--dt-pink) !important; }
+html[data-theme="duotone"] .children-cta-list__type {
+  background: var(--dt-pink) !important; color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .children-cta-list__center { border-top-color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .children-cta-list__center button {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-ink) !important;
+}
+
+/* Mermaid — lime page panel + ink nodes + pink Gantt accents */
+html[data-theme="duotone"] .mermaid-diagram {
+  background: var(--dt-lime) !important;
+  border-color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .mermaid-diagram > header {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__badge {
+  background: var(--dt-pink) !important; color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .mermaid-diagram > header strong { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host {
+  background: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__host svg text,
+html[data-theme="duotone"] .mermaid-diagram__host svg .nodeLabel,
+html[data-theme="duotone"] .mermaid-diagram__host svg .taskText,
+html[data-theme="duotone"] .mermaid-diagram__host svg .titleText { fill: var(--dt-ink) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host svg .node rect,
+html[data-theme="duotone"] .mermaid-diagram__host svg .node polygon,
+html[data-theme="duotone"] .mermaid-diagram__host svg .node circle,
+html[data-theme="duotone"] .mermaid-diagram__host svg .node ellipse {
+  fill: var(--dt-ink) !important;
+  stroke: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__host svg .node text,
+html[data-theme="duotone"] .mermaid-diagram__host svg .node .nodeLabel { fill: var(--dt-lime) !important; color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host svg .edgePath path,
+html[data-theme="duotone"] .mermaid-diagram__host svg .flowchart-link,
+html[data-theme="duotone"] .mermaid-diagram__host svg .marker { stroke: var(--dt-ink) !important; fill: var(--dt-ink) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host svg .section0,
+html[data-theme="duotone"] .mermaid-diagram__host svg .section2 { fill: var(--dt-lime) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host svg .section1,
+html[data-theme="duotone"] .mermaid-diagram__host svg .section3 { fill: rgba(10,10,35,.06) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host svg .task,
+html[data-theme="duotone"] .mermaid-diagram__host svg .task0,
+html[data-theme="duotone"] .mermaid-diagram__host svg .task2 {
+  fill: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__host svg .task1,
+html[data-theme="duotone"] .mermaid-diagram__host svg .task3 {
+  fill: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .mermaid-diagram figcaption {
+  background: rgba(10,10,35,.06) !important;
+  border-top-color: var(--dt-ink) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__error {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+
+/* ============================================================
+   NEON-ON-BLACK consolidated override — every "surface" that the
+   prior flip set to lime, now goes back to deep ink with a
+   fluorescent lime border + lime text. Pink stays as accent for
+   active/hover and small highlight chips.
+   ============================================================ */
+
+/* Topbar */
+html[data-theme="duotone"] .tv-topbar { background: var(--dt-ink) !important; border-color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .tv-brand strong { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .tv-logo { background: var(--dt-pink) !important; border: 1.5px solid var(--dt-lime) !important; }
+
+/* Sidebar items */
+html[data-theme="duotone"] .sidebar-node,
+html[data-theme="duotone"] .ancestor-list button {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .sidebar-node:hover,
+html[data-theme="duotone"] .ancestor-list button:hover {
+  background: var(--dt-pink-soft) !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .sidebar-node.is-active,
+html[data-theme="duotone"] .ancestor-list button.is-center {
+  background: var(--dt-pink) !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+  box-shadow: inset 4px 0 0 var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .sidebar-node .mini-icon,
+html[data-theme="duotone"] .ancestor-list button .mini-icon { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .sidebar-node.is-active .mini-icon,
+html[data-theme="duotone"] .ancestor-list button.is-center .mini-icon { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .ancestor-list button em {
+  background: var(--dt-lime) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .sidebar-label { color: var(--dt-lime) !important; border-left-color: var(--dt-pink); }
+html[data-theme="duotone"] .sidebar-label__count { background: var(--dt-pink) !important; color: var(--dt-ink) !important; }
+
+/* Paths + scenes */
+html[data-theme="duotone"] .path-card,
+html[data-theme="duotone"] .scene-list button {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .path-card:hover,
+html[data-theme="duotone"] .scene-list button:hover {
+  background: var(--dt-pink-soft) !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .scene-list button.is-active {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+
+/* Tree nodes — neon outlined ink boxes */
+html[data-theme="duotone"] .structure-chain-card {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .child-card,
+html[data-theme="duotone"] .grand-pill {
+  background: var(--panel-2) !important;
+  color: var(--dt-lime) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .child-card.is-selected,
+html[data-theme="duotone"] .grand-pill.is-selected,
+html[data-theme="duotone"] .structure-chain-card.is-selected {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-pink) !important;
+  box-shadow: 0 0 0 2px var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .structure-chain-card__badge {
+  background: var(--dt-lime) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .tree-line { stroke: var(--dt-lime) !important; }
+
+/* Breadcrumb */
+html[data-theme="duotone"] .tv-crumb { background: transparent !important; border: 1.5px solid var(--dt-lime) !important; }
+html[data-theme="duotone"] .tv-crumb button { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .tv-crumb button:not(:last-child)::after { color: var(--dt-pink); }
+html[data-theme="duotone"] .tv-crumb .now { background: var(--dt-pink) !important; color: var(--dt-ink) !important; }
+
+/* Topbar tools */
+html[data-theme="duotone"] .tv-tools button,
+html[data-theme="duotone"] .tv-tools span {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .tv-tools button:hover {
+  background: var(--dt-pink-soft) !important;
+  color: var(--dt-pink) !important;
+  border-color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .tv-tools button.is-active,
+html[data-theme="duotone"] .tv-tools span {
+  background: var(--dt-pink) !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+
+/* Element panel head — deep panel surface with neon outline + neon text.
+   Pink is reserved for small chips/badges, never a full background here. */
+html[data-theme="duotone"] .element-content__head {
+  background: var(--panel-2) !important;
+  border-bottom: 1.5px solid var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .element-content__head p { color: var(--dt-lime) !important; opacity: .85; }
+html[data-theme="duotone"] .element-title-row h2 { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .element-title-row span {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+  font-weight: 800;
+}
+html[data-theme="duotone"] .element-content__actions button {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .element-content__actions button:hover {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .meta-chip {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .meta-chip--type { border-color: var(--dt-pink) !important; color: var(--dt-pink) !important; }
+html[data-theme="duotone"] .meta-chip--difficulty { background: var(--dt-pink) !important; color: var(--dt-ink) !important; border-color: var(--dt-pink) !important; }
+html[data-theme="duotone"] .meta-chip--tag {
+  background: var(--dt-ink) !important; color: var(--dt-lime) !important; border-color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .meta-author,
+html[data-theme="duotone"] .meta-time,
+html[data-theme="duotone"] .meta-history { color: var(--dt-lime) !important; opacity: .7; }
+
+/* Section blocks — ink card with neon lime outline + pink heading */
+html[data-theme="duotone"] .section-block,
+html[data-theme="duotone"] .body-section {
+  background: var(--dt-ink) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .section-block,
+html[data-theme="duotone"] .section-block p,
+html[data-theme="duotone"] .section-block li,
+html[data-theme="duotone"] .section-block strong,
+html[data-theme="duotone"] .section-block em,
+html[data-theme="duotone"] .section-block span,
+html[data-theme="duotone"] .body-section p,
+html[data-theme="duotone"] .body-section li,
+html[data-theme="duotone"] .body-lead,
+html[data-theme="duotone"] .body-prose {
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .section-block h2,
+html[data-theme="duotone"] .section-block h3,
+html[data-theme="duotone"] .body-section h2,
+html[data-theme="duotone"] .body-section h3,
+html[data-theme="duotone"] .body-section-h {
+  background: transparent !important;
+  border-bottom: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-lime) !important;
+  padding: 8px 20px !important;
+  margin: 0 -20px 14px !important;
+}
+html[data-theme="duotone"] .body-section-num,
+html[data-theme="duotone"] .example-num,
+html[data-theme="duotone"] .step-num,
+html[data-theme="duotone"] .mechanism-step-num,
+html[data-theme="duotone"] .path-step-num {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+}
+
+/* TOC */
+html[data-theme="duotone"] .body-toc {
+  background: var(--dt-ink) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .body-toc h3,
+html[data-theme="duotone"] .body-toc > strong,
+html[data-theme="duotone"] .body-toc__title {
+  background: var(--dt-lime) !important; color: var(--dt-ink) !important; border-bottom: 1.5px solid var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .body-toc button {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .body-toc button:hover {
+  background: var(--dt-pink-soft) !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .body-toc button.is-active {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .body-toc .toc-num { background: var(--dt-lime) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .body-toc button.is-active .toc-num { background: var(--dt-ink) !important; color: var(--dt-lime) !important; }
+
+/* Callouts */
+html[data-theme="duotone"] .callout,
+html[data-theme="duotone"] .warn-card,
+html[data-theme="duotone"] .example-item,
+html[data-theme="duotone"] .decision-item,
+html[data-theme="duotone"] .mvp-card,
+html[data-theme="duotone"] .phase-item {
+  background: var(--panel-2) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .callout { border-left: 6px solid var(--dt-pink) !important; }
+html[data-theme="duotone"] .warn-card { border-left: 6px solid var(--dt-pink) !important; background: rgba(255,46,147,.10) !important; }
+html[data-theme="duotone"] .callout strong,
+html[data-theme="duotone"] .callout-body strong,
+html[data-theme="duotone"] .warn-card strong { color: var(--dt-pink) !important; }
+html[data-theme="duotone"] .callout-icon,
+html[data-theme="duotone"] .warn-card::before { color: var(--dt-pink) !important; }
+html[data-theme="duotone"] .warn-card *,
+html[data-theme="duotone"] .callout * { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .warn-card__bar { background: var(--dt-pink) !important; }
+
+/* Module cards alternate lime-outline / pink-outline */
+html[data-theme="duotone"] .module-card { background: var(--panel-2) !important; color: var(--dt-lime) !important; border: 1.5px solid var(--dt-lime) !important; }
+html[data-theme="duotone"] .module-card:nth-child(2n) { border-color: var(--dt-pink) !important; color: var(--dt-pink) !important; }
+html[data-theme="duotone"] .module-card * { color: inherit !important; }
+
+/* Check ✓ on dark — keep pink/lime accents */
+html[data-theme="duotone"] .check-list li { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .check-list li::before {
+  background: var(--dt-lime) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .dot-list li { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .dot-list li::before { color: var(--dt-pink) !important; }
+
+/* Tables on dark */
+html[data-theme="duotone"] table,
+html[data-theme="duotone"] .kv-table,
+html[data-theme="duotone"] .competitor-table,
+html[data-theme="duotone"] .budget-table { border-color: var(--dt-lime) !important; }
+html[data-theme="duotone"] th,
+html[data-theme="duotone"] td { color: var(--dt-lime) !important; border-color: rgba(212,255,58,.25) !important; background: transparent !important; }
+html[data-theme="duotone"] th { background: var(--dt-lime) !important; color: var(--dt-ink) !important; }
+
+/* Day schedule */
+html[data-theme="duotone"] .sec-day-schedule__day {
+  background: var(--dt-ink) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .sec-day-schedule__day > header {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+  border-bottom: 1.5px solid var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .sec-day-schedule__num { background: var(--dt-ink) !important; color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .sec-day-schedule__day > header strong { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .sec-day-schedule__day > header em { background: var(--dt-ink) !important; color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .sec-day-schedule__day > ul > li { border-bottom: 1.5px solid rgba(212,255,58,.2) !important; color: var(--dt-lime); }
+html[data-theme="duotone"] .sec-day-schedule__day > ul > li:nth-child(even) { background: rgba(212,255,58,.04) !important; }
+html[data-theme="duotone"] .sec-day-schedule__time { background: var(--dt-lime) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .sec-day-schedule__what { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .sec-day-schedule__note { color: var(--muted) !important; }
+
+/* Inputs */
+html[data-theme="duotone"] input,
+html[data-theme="duotone"] textarea,
+html[data-theme="duotone"] select {
+  background: var(--panel-2) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] input:focus,
+html[data-theme="duotone"] textarea:focus,
+html[data-theme="duotone"] select:focus { border-color: var(--dt-pink) !important; background: var(--dt-ink) !important; }
+
+/* SystemPanel right rail */
+html[data-theme="duotone"] .system-panel__head h2,
+html[data-theme="duotone"] .system-section h3 { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .system-panel__head span { background: var(--dt-pink) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .system-search-box {
+  background: var(--panel-2) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .system-search-box input { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .system-search-box input::placeholder { color: var(--muted) !important; }
+html[data-theme="duotone"] .system-search-box .ke-icon { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .system-search-box button { background: var(--dt-pink) !important; color: var(--dt-ink) !important; border: 0 !important; }
+html[data-theme="duotone"] .system-search-box button:hover { background: var(--dt-lime) !important; }
+html[data-theme="duotone"] .search-result-list button {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .search-result-list button:hover { background: var(--dt-pink-soft) !important; border-color: var(--dt-pink) !important; color: var(--dt-pink) !important; }
+html[data-theme="duotone"] .search-result-main strong { color: inherit !important; }
+html[data-theme="duotone"] .search-result-main em { color: var(--muted) !important; }
+html[data-theme="duotone"] .system-more {
+  background: var(--dt-lime) !important; color: var(--dt-ink) !important; border: 0 !important;
+}
+html[data-theme="duotone"] .system-placeholder {
+  background: transparent !important; border: 1.5px dashed var(--dt-lime) !important; color: var(--dt-lime) !important;
+}
+
+/* Right rail (AI 任务 / 学习路径 / 横向关联) */
+html[data-theme="duotone"] .embedded-tasks,
+html[data-theme="duotone"] .context-rail .rail-block {
+  background: var(--panel-2) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .rail-block header strong,
+html[data-theme="duotone"] .embedded-tasks header strong { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .rail-block header span { background: var(--dt-pink) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .rail-paths > li,
+html[data-theme="duotone"] .rail-lateral > li {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .rail-paths > li:hover,
+html[data-theme="duotone"] .rail-lateral > li:hover {
+  background: var(--dt-pink-soft) !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .rail-strength { background: var(--dt-pink) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .rail-path-color { border-color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .embedded-tasks .empty {
+  background: transparent !important;
+  border: 1.5px dashed var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .embedded-tasks li {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+
+/* Action input panel */
+html[data-theme="duotone"] .action-input {
+  background: var(--panel-2) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .action-input--refine,
+html[data-theme="duotone"] .action-input--expand,
+html[data-theme="duotone"] .action-input--extend,
+html[data-theme="duotone"] .action-input--feedback { border-left: 8px solid var(--dt-pink) !important; }
+html[data-theme="duotone"] .action-input__hint strong { background: var(--dt-lime) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .action-input__hint span { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .action-chip {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .action-chip:hover {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .quiet-button {
+  background: var(--dt-pink) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .quiet-button:hover { background: var(--dt-lime) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .quiet-button:disabled { background: var(--panel-2) !important; color: var(--muted) !important; border-color: var(--muted) !important; }
+html[data-theme="duotone"] .quiet-button--ghost { background: transparent !important; color: var(--dt-lime) !important; border-color: var(--dt-lime) !important; }
+
+/* Inline QA */
+html[data-theme="duotone"] .inline-qa {
+  background: var(--panel-2) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .inline-qa__head { background: var(--dt-pink) !important; border-bottom: 1.5px solid var(--dt-lime) !important; }
+html[data-theme="duotone"] .inline-qa__badge { background: var(--dt-ink) !important; color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .inline-qa__q { background: transparent !important; border-bottom: 1.5px dashed var(--dt-lime) !important; color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .inline-qa__a { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .inline-qa__delete { background: transparent !important; color: var(--dt-lime) !important; border: 1.5px solid var(--dt-lime) !important; }
+
+/* Ask popup */
+html[data-theme="duotone"] .ask-popup {
+  background: var(--dt-ink) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+  box-shadow: 0 0 0 1px var(--dt-pink), 0 12px 30px rgba(0,0,0,.6) !important;
+}
+html[data-theme="duotone"] .ask-popup__badge { background: var(--dt-pink) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .ask-popup__scope { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .ask-popup__close {
+  background: transparent !important; border: 1.5px solid var(--dt-lime) !important; color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .ask-popup__stream,
+html[data-theme="duotone"] .ask-popup__answer {
+  background: var(--panel-2) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .ask-popup__error { background: var(--dt-pink) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .ask-popup__submit { background: var(--dt-pink) !important; color: var(--dt-ink) !important; border-color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .ask-popup__submit:hover { background: var(--dt-lime) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .ask-popup__cancel { background: transparent !important; color: var(--dt-lime) !important; border-color: var(--dt-lime) !important; }
+
+/* Annotation menu */
+html[data-theme="duotone"] .ke-annotation-menu {
+  background: var(--dt-ink) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .ke-annotation-menu button {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .ke-annotation-menu button:hover {
+  background: var(--dt-pink) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .ke-annotation-menu .swatch--highlight { background: var(--dt-lime) !important; }
+html[data-theme="duotone"] .ke-annotation--highlight {
+  background: var(--dt-lime) !important;
+  color: var(--dt-ink) !important;
+  border-bottom: 1.5px solid var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .ke-annotation--underline {
+  border-bottom: 2px solid var(--dt-pink) !important;
+}
+
+/* Children CTA */
+html[data-theme="duotone"] .cta-button {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .cta-button:hover { background: var(--dt-pink) !important; color: var(--dt-ink) !important; border-color: var(--dt-pink) !important; }
+html[data-theme="duotone"] .cta-button.is-open { background: var(--dt-pink) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .children-cta-list {
+  background: var(--dt-ink) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .children-cta-list > li > button {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .children-cta-list > li > button:hover { background: var(--dt-pink-soft) !important; color: var(--dt-pink) !important; border-color: var(--dt-pink) !important; }
+html[data-theme="duotone"] .children-cta-list__title { color: inherit !important; }
+html[data-theme="duotone"] .children-cta-list .mini-icon { color: var(--dt-pink) !important; }
+html[data-theme="duotone"] .children-cta-list__type { background: var(--dt-lime) !important; color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .children-cta-list__center { border-top-color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .children-cta-list__center button { background: var(--dt-pink) !important; color: var(--dt-ink) !important; border-color: var(--dt-lime) !important; }
+
+/* Mermaid — dark page, lime outlines */
+html[data-theme="duotone"] .mermaid-diagram {
+  background: var(--dt-ink) !important;
+  border: 1.5px solid var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .mermaid-diagram > header { background: var(--dt-pink) !important; color: var(--dt-ink) !important; border-bottom: 1.5px solid var(--dt-lime) !important; }
+html[data-theme="duotone"] .mermaid-diagram > header strong { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .mermaid-diagram__badge { background: var(--dt-ink) !important; color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host { background: var(--panel-2) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host svg text,
+html[data-theme="duotone"] .mermaid-diagram__host svg .nodeLabel,
+html[data-theme="duotone"] .mermaid-diagram__host svg .taskText,
+html[data-theme="duotone"] .mermaid-diagram__host svg .titleText { fill: var(--dt-lime) !important; color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host svg .node rect,
+html[data-theme="duotone"] .mermaid-diagram__host svg .node polygon,
+html[data-theme="duotone"] .mermaid-diagram__host svg .node circle,
+html[data-theme="duotone"] .mermaid-diagram__host svg .node ellipse {
+  fill: var(--dt-ink) !important;
+  stroke: var(--dt-lime) !important;
+  stroke-width: 1.5px !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__host svg .node text,
+html[data-theme="duotone"] .mermaid-diagram__host svg .node .nodeLabel { fill: var(--dt-lime) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host svg .edgePath path,
+html[data-theme="duotone"] .mermaid-diagram__host svg .flowchart-link,
+html[data-theme="duotone"] .mermaid-diagram__host svg .marker { stroke: var(--dt-lime) !important; fill: var(--dt-lime) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host svg .section0,
+html[data-theme="duotone"] .mermaid-diagram__host svg .section2 { fill: transparent !important; }
+html[data-theme="duotone"] .mermaid-diagram__host svg .section1,
+html[data-theme="duotone"] .mermaid-diagram__host svg .section3 { fill: rgba(212,255,58,.05) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host svg .task,
+html[data-theme="duotone"] .mermaid-diagram__host svg .task0,
+html[data-theme="duotone"] .mermaid-diagram__host svg .task2 { fill: var(--dt-pink) !important; stroke: var(--dt-lime) !important; }
+html[data-theme="duotone"] .mermaid-diagram__host svg .task1,
+html[data-theme="duotone"] .mermaid-diagram__host svg .task3 { fill: var(--dt-lime) !important; stroke: var(--dt-pink) !important; }
+html[data-theme="duotone"] .mermaid-diagram figcaption { background: var(--panel-2) !important; border-top-color: var(--dt-lime) !important; color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .mermaid-diagram__error { background: var(--dt-pink) !important; color: var(--dt-ink) !important; border: 1.5px solid var(--dt-lime) !important; }
+
+/* Footer */
+html[data-theme="duotone"] .tv-footer { background: var(--dt-ink) !important; color: var(--dt-lime) !important; border-color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .tv-footer > div:first-child { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .footer-actions button {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .footer-actions button:hover {
+  background: var(--dt-pink) !important; color: var(--dt-ink) !important; border-color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .footer-actions button:first-child {
+  background: var(--dt-pink) !important; color: var(--dt-ink) !important; border-color: var(--dt-lime) !important;
+}
+
+/* Scrollbar */
+html[data-theme="duotone"] * { scrollbar-color: var(--dt-lime) var(--dt-ink); }
+html[data-theme="duotone"] *::-webkit-scrollbar-track { background: var(--dt-ink); }
+html[data-theme="duotone"] *::-webkit-scrollbar-thumb { background: var(--dt-lime); border: 2px solid var(--dt-ink); }
+
+/* ============================================================
+   FINAL PASS — no pink-filled backgrounds. Pink is reserved for
+   border/text/stroke. Active/hover/highlight uses lime fill on
+   ink, or transparent + pink outline. Big poster surfaces all
+   stay deep ink.
+   ============================================================ */
+
+/* Logo: deep ink dot with pink outline */
+html[data-theme="duotone"] .tv-logo {
+  background: var(--dt-ink) !important;
+  border: 1.5px solid var(--dt-pink) !important;
+}
+
+/* Topbar "K" avatar — outline only */
+html[data-theme="duotone"] .tv-tools span {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .tv-tools button.is-active {
+  background: transparent !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+
+/* Breadcrumb current — lime fill (replaces pink fill) */
+html[data-theme="duotone"] .tv-crumb .now {
+  background: var(--dt-lime) !important;
+  color: var(--dt-ink) !important;
+}
+
+/* SystemPanel "搜索系统" sub-label */
+html[data-theme="duotone"] .system-panel__head span {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .system-search-box button {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .system-search-box button:hover {
+  background: var(--dt-lime) !important;
+  color: var(--dt-ink) !important;
+}
+html[data-theme="duotone"] .system-more {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+
+/* Knowledge tree root + selected — outline + text accent only */
+html[data-theme="duotone"] .structure-chain-card {
+  background: var(--panel-2) !important;
+  color: var(--dt-pink) !important;
+  border: 2px solid var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .structure-chain-card * { color: var(--dt-pink) !important; }
+html[data-theme="duotone"] .structure-chain-card__badge {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .child-card.is-selected,
+html[data-theme="duotone"] .grand-pill.is-selected,
+html[data-theme="duotone"] .structure-chain-card.is-selected {
+  background: var(--panel-2) !important;
+  color: var(--dt-pink) !important;
+  border: 2px solid var(--dt-pink) !important;
+  box-shadow: 0 0 0 1px var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .child-card.is-selected *,
+html[data-theme="duotone"] .grand-pill.is-selected * { color: var(--dt-pink) !important; }
+
+/* Sidebar active item — lime fill (was pink) */
+html[data-theme="duotone"] .sidebar-node.is-active,
+html[data-theme="duotone"] .ancestor-list button.is-center {
+  background: var(--dt-lime) !important;
+  border-color: var(--dt-lime) !important;
+  color: var(--dt-ink) !important;
+  box-shadow: inset 4px 0 0 var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .sidebar-node.is-active .mini-icon,
+html[data-theme="duotone"] .ancestor-list button.is-center .mini-icon { color: var(--dt-ink) !important; }
+html[data-theme="duotone"] .ancestor-list button em {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .sidebar-label__count {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+
+/* Sidebar hover — pink outline + pink text only */
+html[data-theme="duotone"] .sidebar-node:hover,
+html[data-theme="duotone"] .ancestor-list button:hover {
+  background: transparent !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+
+/* Path / scene cards hover & active — outline only */
+html[data-theme="duotone"] .path-card:hover,
+html[data-theme="duotone"] .scene-list button:hover {
+  background: transparent !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .scene-list button.is-active {
+  background: var(--dt-lime) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-lime) !important;
+}
+
+/* Topbar tools hover */
+html[data-theme="duotone"] .tv-tools button:hover {
+  background: transparent !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+
+/* Element panel L2 chip + difficulty (these were pink fill) */
+html[data-theme="duotone"] .element-title-row span {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .meta-chip--difficulty {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+
+/* Element panel action buttons hover */
+html[data-theme="duotone"] .element-content__actions button:hover {
+  background: transparent !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+
+/* Section numbers + step numbers */
+html[data-theme="duotone"] .body-section-num,
+html[data-theme="duotone"] .example-num,
+html[data-theme="duotone"] .step-num,
+html[data-theme="duotone"] .mechanism-step-num,
+html[data-theme="duotone"] .path-step-num {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+
+/* TOC */
+html[data-theme="duotone"] .body-toc h3,
+html[data-theme="duotone"] .body-toc > strong,
+html[data-theme="duotone"] .body-toc__title {
+  background: transparent !important;
+  border-bottom: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .body-toc button:hover {
+  background: transparent !important;
+  color: var(--dt-pink) !important;
+  border-color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .body-toc button.is-active {
+  background: var(--dt-lime) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .body-toc .toc-num {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .body-toc button.is-active .toc-num {
+  background: var(--dt-ink) !important;
+  color: var(--dt-lime) !important;
+  border-color: var(--dt-ink) !important;
+}
+
+/* Callouts — keep dark surface */
+html[data-theme="duotone"] .warn-card { background: transparent !important; }
+
+/* Module cards — only outline differs */
+html[data-theme="duotone"] .module-card { background: var(--panel-2) !important; }
+html[data-theme="duotone"] .module-card:nth-child(2n) { background: var(--panel-2) !important; }
+
+/* Day-schedule */
+html[data-theme="duotone"] .sec-day-schedule__day > header {
+  background: var(--panel-2) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .sec-day-schedule__day > header strong { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .sec-day-schedule__num,
+html[data-theme="duotone"] .sec-day-schedule__time {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .sec-day-schedule__day > header em {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+
+/* Right rail */
+html[data-theme="duotone"] .rail-block header span {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .rail-strength {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .rail-paths > li:hover,
+html[data-theme="duotone"] .rail-lateral > li:hover {
+  background: transparent !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+
+/* Action input panel */
+html[data-theme="duotone"] .action-input__hint strong {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  color: var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .action-chip:hover {
+  background: transparent !important;
+  color: var(--dt-pink) !important;
+  border-color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .quiet-button {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .quiet-button:hover {
+  background: var(--dt-lime) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-lime) !important;
+}
+
+/* Inline QA */
+html[data-theme="duotone"] .inline-qa__head {
+  background: var(--panel-2) !important;
+  border-bottom: 1.5px solid var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .inline-qa__badge {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+
+/* Ask popup */
+html[data-theme="duotone"] .ask-popup__badge {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .ask-popup__error {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .ask-popup__submit {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .ask-popup__submit:hover {
+  background: var(--dt-lime) !important;
+  color: var(--dt-ink) !important;
+  border-color: var(--dt-lime) !important;
+}
+
+/* Annotation menu hover */
+html[data-theme="duotone"] .ke-annotation-menu button:hover {
+  background: transparent !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .ke-annotation-menu .swatch--highlight { background: var(--dt-lime) !important; }
+html[data-theme="duotone"] .ke-annotation--highlight {
+  background: var(--dt-lime) !important;
+  color: var(--dt-ink) !important;
+}
+
+/* Children CTA */
+html[data-theme="duotone"] .cta-button:hover,
+html[data-theme="duotone"] .cta-button.is-open {
+  background: transparent !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .children-cta-list > li > button:hover {
+  background: transparent !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .children-cta-list__type {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .children-cta-list__center button {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+
+/* Mermaid */
+html[data-theme="duotone"] .mermaid-diagram > header {
+  background: var(--panel-2) !important;
+  color: var(--dt-lime) !important;
+  border-bottom: 1.5px solid var(--dt-lime) !important;
+}
+html[data-theme="duotone"] .mermaid-diagram > header strong { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .mermaid-diagram__badge {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__error {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .mermaid-diagram__host svg .task,
+html[data-theme="duotone"] .mermaid-diagram__host svg .task0,
+html[data-theme="duotone"] .mermaid-diagram__host svg .task2 { fill: rgba(255,46,147,.18) !important; stroke: var(--dt-pink) !important; }
+
+/* Footer */
+html[data-theme="duotone"] .footer-actions button:first-child {
+  background: transparent !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+html[data-theme="duotone"] .footer-actions button:hover {
+  background: transparent !important;
+  border-color: var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+}
+
+
+/* Inline deep-analysis panel */
+html[data-theme="duotone"] .ke-annotation-analysis {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-lime) !important;
+  border-left: 4px solid var(--dt-pink) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 12px 14px !important;
+}
+html[data-theme="duotone"] .ke-annotation-analysis__badge {
+  background: transparent !important;
+  border: 1.5px solid var(--dt-pink) !important;
+  color: var(--dt-pink) !important;
+  border-radius: 0 !important;
+}
+html[data-theme="duotone"] .ke-annotation-analysis header strong { color: var(--dt-lime) !important; }
+html[data-theme="duotone"] .ke-annotation-analysis p { color: var(--dt-lime) !important; }

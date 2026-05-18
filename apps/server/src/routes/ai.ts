@@ -6,16 +6,26 @@ import type { ElementsRepo } from "../repos/ElementsRepo.js";
 import type { RelationsRepo } from "../repos/RelationsRepo.js";
 import type { PathsRepo } from "../repos/PathsRepo.js";
 import type { SignalsRepo } from "../repos/SignalsRepo.js";
+import type { QARepo } from "../repos/QARepo.js";
+import type { AnnotationsRepo } from "../repos/AnnotationsRepo.js";
+import { buildAskPrompt } from "../ai/prompts/ask.js";
 import { pickAdapter } from "../ai/pickAdapter.js";
 import { recordSignal } from "../ai/signalRecorder.js";
+import { RICHNESS_SPECS } from "../ai/prompts/generateTree.js";
+import { adoptImagesInContent } from "../lib/imageAssets.js";
 import {
   generateTreeFor,
   refineElement,
+  refineSection,
   expandElement,
   extendElement,
   generatePathsFor,
   reviewManual,
+  analyzeMark,
+  extractKeywords,
+  analyzeAttachment,
 } from "../ai/operations.js";
+import { shortlistByKeywords } from "../lib/elementShortlist.js";
 import { KeyedLock } from "../lib/KeyedLock.js";
 import type { Logger } from "../lib/logger.js";
 import { noopLogger } from "../lib/logger.js";
@@ -28,6 +38,8 @@ export interface AiRoutesDeps {
   relations: RelationsRepo;
   paths: PathsRepo;
   signals: SignalsRepo;
+  qa: QARepo;
+  annotations: AnnotationsRepo;
   /** Directory containing AI manual markdown files (knowledge.md, codex.md, …). */
   aiDir: string;
   logger?: Logger;
@@ -36,6 +48,33 @@ export interface AiRoutesDeps {
 async function knowledgeManualFragment(aiDir: string): Promise<string> {
   const m = await loadManual(aiDir, "knowledge");
   return m ? manualToPromptFragment(m) : "";
+}
+
+/** Only resume a saved session if the same adapter produced it. */
+function resumableSessionFor(element: Element, adapterName: string): string | undefined {
+  if (element.metadata.aiSessionId && element.metadata.aiModel === adapterName) {
+    return element.metadata.aiSessionId;
+  }
+  return undefined;
+}
+
+/**
+ * AI sometimes copies example timestamps verbatim (e.g. "2026-05-17T00:00:00.000Z").
+ * Always stamp newly-generated elements with the actual server time, preserving
+ * any user-supplied richness and other metadata fields.
+ */
+function stampNewElement(el: Element, adapterName: string): Element {
+  const now = new Date().toISOString();
+  return {
+    ...el,
+    metadata: {
+      ...el.metadata,
+      createdAt: now,
+      updatedAt: now,
+      generatedBy: "ai",
+      aiModel: adapterName,
+    },
+  };
 }
 
 function elementMetadataWithSession(
@@ -73,6 +112,63 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     return c.json(list);
   });
 
+  // Public spec for richness tiers — used by InputView to render the standard.
+  r.get("/richness-spec", (c) => c.json(RICHNESS_SPECS));
+
+  // ----- analyze-input: AI 解析引擎 -----
+  // Two-pass routing for the home-page input box:
+  //   1) AI extracts keywords + suggests type + intent from raw user text.
+  //   2) Program searches the element store by keywords → top candidates.
+  //   3) AI proposes 1-3 attachment options (new-topic / attach-direct /
+  //      attach-with-bridge) over those candidates.
+  // Returns synchronously (single JSON), no streaming.
+  r.post("/analyze-input", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const text = typeof body.text === "string" ? body.text.trim() : "";
+    const model = body.model as "claude-code" | "codex" | undefined;
+    if (!text) return c.json({ error: "text required" }, 400);
+    const adapter = pickAdapter(deps.adapters, model);
+    const signal = c.req.raw.signal;
+
+    // Step 1: AI keyword extraction.
+    let kwResult: import("../ai/operations.js").ExtractKeywordsResult | null = null;
+    let lastErr: string | null = null;
+    for await (const ev of extractKeywords(adapter, { text, signal })) {
+      if (ev.type === "error") { lastErr = ev.message; break; }
+      if (ev.type === "done") { kwResult = ev.result; break; }
+    }
+    if (!kwResult) return c.json({ error: lastErr ?? "keyword extraction failed" }, 500);
+
+    // Step 2: program-side shortlist.
+    const allElements = await deps.elements.list();
+    const allRelations = await deps.relations.list();
+    const candidates = shortlistByKeywords(kwResult.keywords, allElements, allRelations, 12);
+
+    // Step 3: AI hierarchy analysis.
+    let attach: import("../ai/operations.js").AnalyzeAttachmentResult | null = null;
+    lastErr = null;
+    for await (const ev of analyzeAttachment(adapter, {
+      text,
+      keywords: kwResult.keywords,
+      intent: kwResult.intent,
+      suggestedType: kwResult.type,
+      candidates,
+      signal,
+    })) {
+      if (ev.type === "error") { lastErr = ev.message; break; }
+      if (ev.type === "done") { attach = ev.result; break; }
+    }
+    if (!attach) return c.json({ error: lastErr ?? "attachment analysis failed" }, 500);
+
+    return c.json({
+      keywords: kwResult.keywords,
+      intent: kwResult.intent,
+      type: attach.type,
+      candidates,  // so the client can render parent paths next to parentId
+      options: attach.options,
+    });
+  });
+
   // ----- generate-tree: not element-bound, has its own SSE shape -----
   r.post("/generate-tree", async (c) => {
     const body = await c.req.json().catch(() => ({}));
@@ -101,7 +197,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
         }
         await stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) });
         if (ev.type === "done") {
-          for (const el of ev.result.elements) await deps.elements.put(el);
+          for (const el of ev.result.elements) await deps.elements.put(stampNewElement(el, adapter.name));
           await deps.relations.append(ev.result.relations);
           const grouped = new Map<string, typeof ev.result.paths>();
           for (const p of ev.result.paths) {
@@ -128,6 +224,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     const body = await c.req.json().catch(() => ({}));
     const elementId = String(body.elementId ?? "");
     const targetRichness = (body.targetRichness ?? 3) as RichnessLevel;
+    const direction = typeof body.direction === "string" ? body.direction.trim() : undefined;
     const model = body.model as "claude-code" | "codex" | undefined;
     const element = await deps.elements.get(elementId);
     if (!element) return c.json({ error: "element not found" }, 404);
@@ -140,13 +237,16 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       logger: log, logCtx,
       c, lock, element,
       operation: refineElement(adapter, {
-        element, targetRichness,
-        sessionId: element.metadata.aiSessionId,
+        element, targetRichness, direction,
+        sessionId: resumableSessionFor(element, adapter.name),
         signal,
         manual: await knowledgeManualFragment(deps.aiDir),
       }),
       onDone: async (result, sessionId) => {
         const t0 = Date.now();
+        // Copy any AI-emitted local image files into our served images dir
+        // and rewrite their `src` to /api/images/<elementId>/<file>.
+        await adoptImagesInContent(elementId, result.content);
         await deps.elements.put(elementMetadataWithSession(
           { ...element, content: result.content },
           sessionId, adapter.name,
@@ -167,11 +267,149 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     });
   });
 
+  // ----- feedback: explicit user feedback on an element + targeted refine -----
+  // Logs a `user.feedback` signal (so the Reviewer can later learn from it)
+  // and then runs a refine with the feedback text as the direction so the
+  // element gets fixed immediately. Streams the refine SSE back to caller.
+  r.post("/feedback", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const elementId = String(body.elementId ?? "");
+    const feedback = typeof body.feedback === "string" ? body.feedback.trim() : "";
+    const model = body.model as "claude-code" | "codex" | undefined;
+    if (!feedback) return c.json({ error: "feedback required" }, 400);
+    const element = await deps.elements.get(elementId);
+    if (!element) return c.json({ error: "element not found" }, 404);
+    const adapter = pickAdapter(deps.adapters, model);
+    const beforeRichness = element.metadata.richness;
+    const targetRichness = Math.max(beforeRichness, 3) as RichnessLevel;
+    // Record the feedback signal up front so it's preserved even if refine fails.
+    await recordSignal(deps.signals, {
+      ts: new Date().toISOString(), type: "user.feedback", manual: "knowledge",
+      elementId, adapter: adapter.name,
+      data: { feedback, beforeRichness, autoRefined: true },
+    });
+    const sig = c.req.raw.signal;
+    const reqId = newReqId();
+    const logCtx = { reqId, op: c.req.path, elementId, adapter: adapter.name };
+    log.info("ai.op.start", logCtx);
+    const direction = `用户反馈：${feedback}\n请直接针对这条反馈修订 content，让用户感觉问题被理解并被解决。`;
+    return streamElementOp({
+      logger: log, logCtx,
+      c, lock, element,
+      operation: refineElement(adapter, {
+        element, targetRichness, direction,
+        sessionId: resumableSessionFor(element, adapter.name),
+        signal: sig,
+        manual: await knowledgeManualFragment(deps.aiDir),
+      }),
+      onDone: async (result, sessionId) => {
+        await adoptImagesInContent(elementId, result.content);
+        await deps.elements.put(elementMetadataWithSession(
+          { ...element, content: result.content },
+          sessionId, adapter.name,
+          { richness: targetRichness },
+        ));
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.completed", manual: "knowledge",
+          op: "feedback", adapter: adapter.name, elementId,
+          data: { feedback, beforeRichness, targetRichness },
+        });
+      },
+      onError: async (message) => {
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.failed", manual: "knowledge",
+          op: "feedback", adapter: adapter.name, elementId,
+          data: { feedback, message },
+        });
+      },
+    });
+  });
+
+  // ----- section-feedback: scoped reaction to a single section -----
+  // Body: { elementId, sectionId, feedback, model? }
+  // AI receives only the target section + brief element context, and returns
+  // ONLY the updated section JSON. The server then replaces that section by
+  // id in the existing element.content.sections — every other section, every
+  // other field on the element, is byte-identical to before. The AI has no
+  // way to delete or rewrite anything outside the targeted section.
+  r.post("/section-feedback", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const elementId = String(body.elementId ?? "");
+    const sectionId = String(body.sectionId ?? "");
+    const feedback = typeof body.feedback === "string" ? body.feedback.trim() : "";
+    const model = body.model as "claude-code" | "codex" | undefined;
+    if (!feedback) return c.json({ error: "feedback required" }, 400);
+    if (!sectionId) return c.json({ error: "sectionId required" }, 400);
+    const element = await deps.elements.get(elementId);
+    if (!element) return c.json({ error: "element not found" }, 404);
+
+    // Find the targeted section in the existing content.sections array.
+    const content = (element.content ?? {}) as Record<string, unknown>;
+    const sectionsRaw = Array.isArray(content.sections) ? (content.sections as unknown[]) : [];
+    const sectionIndex = sectionsRaw.findIndex(s =>
+      s && typeof s === "object" && (s as Record<string, unknown>).id === sectionId,
+    );
+    if (sectionIndex < 0) return c.json({ error: "section not found in this element" }, 404);
+    const targetSection = sectionsRaw[sectionIndex] as { id: string; title: string; blocks: unknown[] };
+
+    const adapter = pickAdapter(deps.adapters, model);
+    await recordSignal(deps.signals, {
+      ts: new Date().toISOString(), type: "user.feedback", manual: "knowledge",
+      elementId, adapter: adapter.name,
+      data: { feedback, scope: "section", sectionId, autoRefined: true },
+    });
+    const sig = c.req.raw.signal;
+    const reqId = newReqId();
+    const logCtx = { reqId, op: c.req.path, elementId, adapter: adapter.name };
+    log.info("ai.op.start", { ...logCtx, sectionId });
+    return streamElementOp({
+      logger: log, logCtx,
+      c, lock, element,
+      operation: refineSection(adapter, {
+        element, section: targetSection, direction: feedback,
+        sessionId: resumableSessionFor(element, adapter.name),
+        signal: sig,
+        manual: await knowledgeManualFragment(deps.aiDir),
+      }),
+      onDone: async (result, sessionId) => {
+        const t0 = Date.now();
+        // Guard: the AI must keep the original section id. If it changed
+        // anyway, force-restore it so the array stays stably referenced.
+        const newSection = { ...result.section, id: sectionId };
+        // Adopt any AI-emitted local image paths inside this section's blocks.
+        await adoptImagesInContent(elementId, { sections: [newSection] });
+        // Splice the new section into the existing content; every other
+        // section + every other content field is preserved as-is.
+        const nextSections = sectionsRaw.slice();
+        nextSections[sectionIndex] = newSection;
+        const nextContent = { ...content, sections: nextSections };
+        await deps.elements.put(elementMetadataWithSession(
+          { ...element, content: nextContent },
+          sessionId, adapter.name,
+        ));
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.completed", manual: "knowledge",
+          op: "section-feedback", adapter: adapter.name, elementId,
+          data: { sectionId, feedback, persistMs: Date.now() - t0 },
+        });
+      },
+      onError: async (message) => {
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.failed", manual: "knowledge",
+          op: "section-feedback", adapter: adapter.name, elementId,
+          data: { sectionId, feedback, message },
+        });
+      },
+    });
+  });
+
   // ----- expand (向下生成子元) -----
   r.post("/expand", async (c) => {
     const body = await c.req.json().catch(() => ({}));
     const elementId = String(body.elementId ?? "");
     const count = body.count as number | undefined;
+    const direction = typeof body.direction === "string" ? body.direction.trim() : undefined;
+    const maxDepth = typeof body.maxDepth === "number" ? body.maxDepth : (direction ? 2 : 1);
     const model = body.model as "claude-code" | "codex" | undefined;
     const parent = await deps.elements.get(elementId);
     if (!parent) return c.json({ error: "element not found" }, 404);
@@ -185,13 +423,13 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       logger: log, logCtx,
       c, lock, element: parent,
       operation: expandElement(adapter, {
-        parent, existingChildren, count,
-        sessionId: parent.metadata.aiSessionId,
+        parent, existingChildren, count, direction, maxDepth,
+        sessionId: resumableSessionFor(parent, adapter.name),
         signal,
         manual: await knowledgeManualFragment(deps.aiDir),
       }),
       onDone: async (result, sessionId) => {
-        for (const el of result.elements) await deps.elements.put(el);
+        for (const el of result.elements) await deps.elements.put(stampNewElement(el, adapter.name));
         await deps.relations.append(result.relations);
         await deps.elements.put(elementMetadataWithSession(parent, sessionId, adapter.name));
         await recordSignal(deps.signals, {
@@ -229,12 +467,12 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       c, lock, element,
       operation: extendElement(adapter, {
         element, direction, count,
-        sessionId: element.metadata.aiSessionId,
+        sessionId: resumableSessionFor(element, adapter.name),
         signal,
         manual: await knowledgeManualFragment(deps.aiDir),
       }),
       onDone: async (result, sessionId) => {
-        for (const el of result.elements) await deps.elements.put(el);
+        for (const el of result.elements) await deps.elements.put(stampNewElement(el, adapter.name));
         await deps.relations.append(result.relations);
         await deps.elements.put(elementMetadataWithSession(element, sessionId, adapter.name));
         await recordSignal(deps.signals, {
@@ -273,7 +511,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       c, lock, element: center,
       operation: generatePathsFor(adapter, {
         center, availableElements, kinds,
-        sessionId: center.metadata.aiSessionId,
+        sessionId: resumableSessionFor(center, adapter.name),
         signal,
         manual: await knowledgeManualFragment(deps.aiDir),
       }),
@@ -345,6 +583,163 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       skipped: dryRun ? 0 : skipped,
       dryRun,
     });
+  });
+
+  // ----- ask: free-form Q&A scoped to a single element -----
+  r.post("/ask", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const elementId = String(body.elementId ?? "");
+    const question = String(body.question ?? "").trim();
+    const model = body.model as "claude-code" | "codex" | undefined;
+    // Optional anchor: { type: "section", sectionId } | { type: "annotation", annotationId } | { type: "element" }
+    const anchor = body.anchor && typeof body.anchor === "object" ? body.anchor : { type: "element" };
+    // Optional extra context that the caller knows (e.g. the section title + body, or the marked text).
+    const contextText = typeof body.contextText === "string" ? body.contextText : "";
+    if (!question) return c.json({ error: "question required" }, 400);
+    const element = await deps.elements.get(elementId);
+    if (!element) return c.json({ error: "element not found" }, 404);
+
+    const adapter = pickAdapter(deps.adapters, model);
+    const history = await deps.qa.listForElement(elementId);
+    const manual = await knowledgeManualFragment(deps.aiDir);
+    const scopedQuestion = contextText
+      ? `（聚焦上下文：${contextText.slice(0, 800)}）\n${question}`
+      : question;
+    const prompt = manual + buildAskPrompt({ element, question: scopedQuestion, history });
+
+    const reqId = newReqId();
+    const logCtx = { reqId, op: "/api/ai/ask", elementId, adapter: adapter.name };
+    log.info("ai.op.start", logCtx);
+
+    return streamSSE(c, async (stream) => {
+      let answer = "";
+      let sessionId: string | undefined;
+      try {
+        for await (const ev of adapter.stream({ prompt, signal: c.req.raw.signal })) {
+          if (ev.type === "delta") {
+            answer += ev.text;
+            await stream.writeSSE({ event: "delta", data: JSON.stringify({ type: "delta", text: ev.text }) });
+          } else if (ev.type === "error") {
+            await stream.writeSSE({ event: "error", data: JSON.stringify({ type: "error", message: ev.message }) });
+            await recordSignal(deps.signals, {
+              ts: new Date().toISOString(), type: "op.failed", manual: "knowledge",
+              op: "ask", adapter: adapter.name, elementId, data: { message: ev.message },
+            });
+            return;
+          } else if (ev.type === "done") {
+            sessionId = ev.sessionId;
+            const finalAnswer = (ev.fullText && ev.fullText.length > answer.length ? ev.fullText : answer).trim();
+            const qa = {
+              id: `qa-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              elementId,
+              question,
+              answer: finalAnswer,
+              anchor,
+              createdAt: new Date().toISOString(),
+              aiModel: adapter.name,
+              aiSessionId: sessionId,
+            };
+            await deps.qa.append(qa);
+            await stream.writeSSE({ event: "done", data: JSON.stringify({ type: "done", result: { qa } }) });
+            await recordSignal(deps.signals, {
+              ts: qa.createdAt, type: "op.completed", manual: "knowledge",
+              op: "ask", adapter: adapter.name, elementId, data: { answerLen: finalAnswer.length },
+            });
+            return;
+          }
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        await stream.writeSSE({ event: "error", data: JSON.stringify({ type: "error", message: msg }) });
+      }
+    });
+  });
+
+  // ----- analyze-mark: deep analysis of a user-highlighted snippet.
+  // When annotationId is provided, the result is attached to that annotation
+  // (rendered inline under the mark). Otherwise it falls back to appending
+  // an extraSection on the element body.
+  r.post("/analyze-mark", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const elementId = String(body.elementId ?? "");
+    const annotationId = typeof body.annotationId === "string" ? body.annotationId : undefined;
+    const markedText = typeof body.markedText === "string" ? body.markedText.trim() : "";
+    const contextBefore = typeof body.contextBefore === "string" ? body.contextBefore : undefined;
+    const contextAfter = typeof body.contextAfter === "string" ? body.contextAfter : undefined;
+    const hint = typeof body.hint === "string" ? body.hint : undefined;
+    const model = body.model as "claude-code" | "codex" | undefined;
+    if (!elementId || !markedText) return c.json({ error: "elementId + markedText required" }, 400);
+    const element = await deps.elements.get(elementId);
+    if (!element) return c.json({ error: "element not found" }, 404);
+    const adapter = pickAdapter(deps.adapters, model);
+    const sig = c.req.raw.signal;
+    const reqId = newReqId();
+    const logCtx = { reqId, op: c.req.path, elementId, adapter: adapter.name, annotationId };
+    log.info("ai.op.start", logCtx);
+    return streamElementOp({
+      logger: log, logCtx,
+      c, lock, element,
+      operation: analyzeMark(adapter, {
+        element, markedText, contextBefore, contextAfter, hint,
+        sessionId: resumableSessionFor(element, adapter.name),
+        signal: sig,
+        manual: await knowledgeManualFragment(deps.aiDir),
+      }),
+      onDone: async (result, sessionId) => {
+        const now = new Date().toISOString();
+        if (annotationId) {
+          // Inline path: attach analysis to the annotation; no element mutation.
+          await deps.annotations.update(annotationId, {
+            analysis: { title: result.title, body: result.body, aiModel: adapter.name, createdAt: now },
+          });
+        } else {
+          // Fallback: append as element extraSection.
+          const content = { ...(element.content as Record<string, unknown>) };
+          const existing = Array.isArray(content.extraSections) ? [...(content.extraSections as Array<{title:string;id:string}>)] : [];
+          const dupIdx = existing.findIndex(s => s.title === result.title);
+          const section = {
+            id: dupIdx >= 0 ? existing[dupIdx].id : `analyze-${Date.now().toString(36)}`,
+            title: result.title,
+            body: result.body,
+          };
+          if (dupIdx >= 0) existing[dupIdx] = section;
+          else existing.push(section);
+          content.extraSections = existing;
+          await deps.elements.put(elementMetadataWithSession(
+            { ...element, content },
+            sessionId, adapter.name,
+          ));
+        }
+        await recordSignal(deps.signals, {
+          ts: now, type: "op.completed", manual: "knowledge",
+          op: "analyze-mark", adapter: adapter.name, elementId,
+          data: { markedText, annotationId, title: result.title },
+        });
+      },
+      onError: async (message) => {
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.failed", manual: "knowledge",
+          op: "analyze-mark", adapter: adapter.name, elementId,
+          data: { markedText, annotationId, message },
+        });
+      },
+    });
+  });
+
+  // ----- list Q&A for an element -----
+  r.get("/qa", async (c) => {
+    const elementId = c.req.query("elementId");
+    if (!elementId) return c.json({ error: "elementId required" }, 400);
+    const list = await deps.qa.listForElement(elementId);
+    return c.json(list);
+  });
+
+  // ----- delete one Q&A -----
+  r.delete("/qa/:id", async (c) => {
+    const id = c.req.param("id");
+    const ok = await deps.qa.remove(id);
+    if (!ok) return c.json({ error: "not found" }, 404);
+    return c.body(null, 204);
   });
 
   return r;

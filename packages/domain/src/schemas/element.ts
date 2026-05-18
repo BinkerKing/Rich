@@ -1,9 +1,10 @@
 import { z } from "zod";
 
 export const ElementTypeSchema = z.enum([
-  "topic", "concept", "step", "viewpoint", "question",
-  "case", "tool", "ability", "project", "practice",
-  "summary", "relation", "dispute", "exercise",
+  "topic", "concept", "step", "product-design",
+  "viewpoint", "question", "case", "tool", "ability",
+  "project", "practice", "summary", "relation",
+  "dispute", "exercise",
 ]);
 
 export const RichnessLevelSchema = z.union([
@@ -20,6 +21,33 @@ export const ElementMetadataSchema = z.object({
 });
 
 // Per-type content schemas
+export const ExtraSectionSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  body: z.string(),
+  order: z.number().optional(),
+});
+
+export const DiagramBlockSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  caption: z.string().optional(),
+  mermaid: z.string().min(1),
+});
+
+/**
+ * Dynamic sections schema is permissive on `blocks[*]` — the frontend
+ * dispatches by `block.style` and ignores unknown blocks gracefully.
+ * This keeps the AI ↔ schema contract loose enough to evolve the palette
+ * without breaking older generations.
+ */
+export const StyleBlockSchema = z.object({ style: z.string() }).passthrough();
+export const DynamicSectionSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  blocks: z.array(StyleBlockSchema),
+});
+
 export const ConceptContentSchema = z.object({
   oneSentence: z.string(),
   coreExplain: z.string(),
@@ -38,6 +66,9 @@ export const ConceptContentSchema = z.object({
     hint: z.string().optional(),
   })).optional(),
   nextSteps: z.array(z.string()).optional(),
+  extraSections: z.array(ExtraSectionSchema).optional(),
+  diagrams: z.array(DiagramBlockSchema).optional(),
+  sections: z.array(DynamicSectionSchema).optional(),
 });
 
 export const TopicContentSchema = z.object({
@@ -51,6 +82,9 @@ export const TopicContentSchema = z.object({
   })),
   recommendedPaths: z.array(z.string()),
   beginnerExplain: z.string().optional(),
+  extraSections: z.array(ExtraSectionSchema).optional(),
+  diagrams: z.array(DiagramBlockSchema).optional(),
+  sections: z.array(DynamicSectionSchema).optional(),
 });
 
 export const StepContentSchema = z.object({
@@ -64,6 +98,26 @@ export const StepContentSchema = z.object({
   completionCriteria: z.array(z.string()).optional(),
   commonFailures: z.array(z.string()).optional(),
   nextAction: z.string().optional(),
+});
+
+export const ProductDesignContentSchema = z.object({
+  designQuestion: z.string(),
+  positioning: z.string().optional(),
+  targetAudience: z.string().optional(),
+  needs: z.array(z.string()).optional(),
+  competitors: z.array(z.object({
+    name: z.string(),
+    takeaway: z.string(),
+  })).optional(),
+  decisions: z.array(z.object({
+    topic: z.string(),
+    choice: z.string(),
+    rationale: z.string(),
+    alternatives: z.array(z.string()).optional(),
+  })).optional(),
+  mvpScope: z.array(z.string()).optional(),
+  outOfScope: z.array(z.string()).optional(),
+  architectureNote: z.string().optional(),
 });
 
 export const PracticeContentSchema = z.object({
@@ -100,6 +154,7 @@ const TYPE_TO_CONTENT_SCHEMA: Partial<Record<z.infer<typeof ElementTypeSchema>, 
   concept: ConceptContentSchema,
   step: StepContentSchema,
   practice: PracticeContentSchema,
+  "product-design": ProductDesignContentSchema,
 };
 
 /**

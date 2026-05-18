@@ -1,0 +1,55 @@
+{
+  "id": "claude-code.context.memory",
+  "type": "concept",
+  "title": "项目记忆与规范",
+  "subtitle": "让长期约定可被复用",
+  "aliases": [
+    "CLAUDE.md",
+    "project memory"
+  ],
+  "tags": [
+    "memory",
+    "docs",
+    "convention"
+  ],
+  "domain": "software-engineering",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "项目记忆与规范把团队长期约定写成 Claude Code 可读取的持久上下文。",
+    "beginnerExplain": "把常说的规矩写下来，下次不用从头解释。",
+    "coreExplain": "项目可维护一份面向 Agent 的说明，记录架构边界、常用命令、代码风格、测试策略、禁区和安全注意事项。它不应替代完整文档，而应提供高频决策线索。",
+    "whyMatters": "稳定规范能让多次会话结果更一致，特别适合团队协作。",
+    "keyPoints": [
+      "记录常用命令和失败排查方式",
+      "写清文件职责边界",
+      "说明安全和密钥处理规则",
+      "定期删除过时说明"
+    ],
+    "examples": [
+      "说明后端迁移必须走 migration 工具",
+      "注明不要直接修改生成文件",
+      "记录前端组件命名和状态管理习惯"
+    ],
+    "misconceptions": [
+      "项目记忆可以无限堆积",
+      "写给人看的 README 一定适合 Agent",
+      "规范过时也不会影响结果"
+    ],
+    "nextSteps": [
+      "创建精简的项目 Agent 指南"
+    ],
+    "mechanisms": [
+      "提取高频规则",
+      "写入项目说明",
+      "在任务中引用",
+      "随代码演进更新"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17",
+    "updatedAt": "2026-05-17",
+    "generatedBy": "ai",
+    "aiModel": "gpt-5",
+    "richness": 3
+  }
+}

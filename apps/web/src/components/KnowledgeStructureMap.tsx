@@ -1,7 +1,8 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import type { CenterView, Element, LearningPath, Relation } from "@ke/domain";
 import { ChildCard } from "./ChildCard.js";
+import { elementDragProps, useDropTarget } from "../lib/elementDnd.js";
 import { elementTypeClass, elementTypeLabel } from "./elementLabels.js";
 import { GrandPill } from "./GrandPill.js";
 import { Icon, iconForElement } from "./Icon.js";
@@ -19,6 +20,8 @@ interface Props {
   pathsForElement: (id: string) => LearningPath[];
   onSelect: (id: string) => void;
   onSetCenter: (id: string) => void;
+  /** Called when a card is HTML5-dragged onto another card (= reparent). */
+  onDropOnto?: (sourceId: string, targetId: string) => void;
 }
 
 interface TreeContextTarget {
@@ -77,7 +80,9 @@ export function KnowledgeStructureMap({
   pathsForElement,
   onSelect,
   onSetCenter,
+  onDropOnto,
 }: Props) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const [contextTarget, setContextTarget] = useState<TreeContextTarget | null>(null);
   const [lastAction, setLastAction] = useState<string | null>(null);
   const refine = useStore(s => s.refine);
@@ -108,6 +113,26 @@ export function KnowledgeStructureMap({
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [contextTarget]);
+
+  // Center the selected node in the scroll viewport whenever selection changes.
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    let cx: number;
+    let cy: number;
+    if (selected.id === root.id) {
+      cx = layout.rootX;
+      cy = layout.rootTop + 46;
+    } else {
+      const row = layout.rows.find(r => r.positions.has(selected.id));
+      if (!row) return;
+      cx = (row.positions.get(selected.id) ?? 0) + row.width / 2;
+      cy = row.top + row.height / 2;
+    }
+    const targetLeft = Math.max(0, cx - scroller.clientWidth / 2);
+    const targetTop = Math.max(0, cy - scroller.clientHeight / 2);
+    scroller.scrollTo({ left: targetLeft, top: targetTop, behavior: "smooth" });
+  }, [selected.id, layout]);
 
   useEffect(() => {
     if (!lastAction) return;
@@ -214,7 +239,7 @@ export function KnowledgeStructureMap({
   return (
     <section className="structure-map">
       <div className="structure-map__ambient" aria-hidden="true" />
-      <div className="tree-canvas-scroll" aria-label="知识地图">
+      <div className="tree-canvas-scroll" aria-label="知识地图" ref={scrollRef}>
         <div className="tree-canvas" style={{ width: layout.canvasWidth, height: layout.canvasHeight }}>
           <svg
             className="tree-lines"
@@ -255,12 +280,14 @@ export function KnowledgeStructureMap({
             })}
           </svg>
 
-          <button
-            className={`structure-chain-card ${elementTypeClass(root.type)} ${selected.id === root.id ? "is-selected" : ""}`}
-            type="button"
+          <CenterDropButton
+            root={root}
+            selected={selected.id === root.id}
             style={{ left: layout.rootLeft, top: layout.rootTop }}
-            onClick={() => onSelect(root.id)}
+            onSelect={onSelect}
+            onSetCenter={onSetCenter}
             onContextMenu={event => openNodeMenu(event, root)}
+            onDropOnto={onDropOnto}
           >
             <div className="structure-chain-card__title">
               <span className="node-glyph" aria-hidden="true">
@@ -270,7 +297,7 @@ export function KnowledgeStructureMap({
               <span className="structure-chain-card__badge">{elementTypeLabel(root.type)}</span>
             </div>
             <p>{root.subtitle ?? "中心学习元"}</p>
-          </button>
+          </CenterDropButton>
 
           {layout.rows.map((row, rowIndex) => (
             <div key={`${row.parent.id}-${rowIndex}`} className={row.kind === "wide" ? "structure-l2-row" : "structure-l3-row"}>
@@ -287,6 +314,8 @@ export function KnowledgeStructureMap({
                       selected={selected.id === node.id}
                       onPaths={pathsForElement(node.id)}
                       onSelect={() => onSelect(node.id)}
+                      onSetCenter={() => { onSelect(node.id); onSetCenter(node.id); }}
+                      onDropOnto={onDropOnto}
                     />
                   ) : (
                     <GrandPill
@@ -294,6 +323,8 @@ export function KnowledgeStructureMap({
                       selected={selected.id === node.id}
                       onPaths={pathsForElement(node.id)}
                       onSelect={() => onSelect(node.id)}
+                      onSetCenter={() => { onSelect(node.id); onSetCenter(node.id); }}
+                      onDropOnto={onDropOnto}
                     />
                   )}
                 </div>
@@ -311,6 +342,36 @@ export function KnowledgeStructureMap({
         </div>
       </div>
     </section>
+  );
+}
+
+function CenterDropButton({
+  root, selected, style, onSelect, onSetCenter, onContextMenu, onDropOnto, children,
+}: {
+  root: Element;
+  selected: boolean;
+  style: React.CSSProperties;
+  onSelect: (id: string) => void;
+  onSetCenter: (id: string) => void;
+  onContextMenu: (e: MouseEvent<HTMLElement>) => void;
+  onDropOnto?: (sourceId: string, targetId: string) => void;
+  children: React.ReactNode;
+}) {
+  const drop = useDropTarget(root.id, src => onDropOnto?.(src, root.id));
+  return (
+    <button
+      className={`structure-chain-card ${elementTypeClass(root.type)} ${selected ? "is-selected" : ""}${drop.isOver ? " is-drop-over" : ""}`}
+      type="button"
+      title="单击查看 · 双击设为中心 · 拖到这里 = 设为新父元"
+      style={style}
+      onClick={() => onSelect(root.id)}
+      onDoubleClick={() => { onSelect(root.id); onSetCenter(root.id); }}
+      onContextMenu={onContextMenu}
+      {...elementDragProps(root.id)}
+      {...drop.bind}
+    >
+      {children}
+    </button>
   );
 }
 

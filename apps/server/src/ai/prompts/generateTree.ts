@@ -1,12 +1,46 @@
 import type { RichnessLevel } from "@ke/domain";
 import { SCHEMAS } from "../jsonSchema.js";
+import { SECTION_STYLE_CATALOG } from "./sectionStyles.js";
 
-const RICHNESS_NOTES: Record<RichnessLevel, string> = {
-  1: "骨架级：只输出最核心的概念，oneSentence 必填，其余字段尽量简短或省略。",
-  2: "中等：核心概念 + 简短解释（oneSentence + coreExplain + whyMatters 完整）。",
-  3: "丰富：增加例子、关键机制（mechanisms 3-4 步）。",
-  4: "深度：增加常见误区、练习题、下一步学习建议。",
-  5: "专家：增加专家视角、争议点、研究方向。",
+interface RichnessSpec {
+  label: string;
+  /** Per-level structural rules (breadth/depth). */
+  structure: string;
+  /** Per-level content depth rules. */
+  content: string;
+}
+
+/**
+ * Public tier standard. Each tier controls BOTH the tree structure (how many
+ * children, how deep) and the per-element content depth. Single source of
+ * truth — frontend reads this via /api/ai/richness-spec to render the spec card.
+ */
+export const RICHNESS_SPECS: Record<RichnessLevel, RichnessSpec> = {
+  1: {
+    label: "低档（骨架）",
+    structure: "根 + 3-4 个二级元，二级元下不再展开。总元数 4-5。",
+    content: "每个元只填 oneSentence（概念）或 intro（主题）。其它字段省略。",
+  },
+  2: {
+    label: "中档（入门）",
+    structure: "根 + 4-5 个二级元，每个二级元下 2-3 个三级元。总元数 12-20。",
+    content: "概念元含 oneSentence + coreExplain + whyMatters。主题元含 intro + learningGoals + coreModules。",
+  },
+  3: {
+    label: "高档（完整）",
+    structure: "根 + 5-7 个二级元，每个二级元下 3-4 个三级元。总元数 20-35。",
+    content: "在中档基础上，概念元补 beginnerExplain + keyPoints(3-5) + examples(2-3) + mechanisms(3-4 步)。主题元补 beginnerExplain。",
+  },
+  4: {
+    label: "深度（进阶）",
+    structure: "根 + 5-7 个二级元，每个二级元下 3-4 个三级元，并在 2-3 个关键三级元下补一层四级元（2-3 个）。总元数 35-55。",
+    content: "在高档基础上，概念元补 misconceptions(2-3) + nextSteps(1-2)。涉及流程的概念元必须有 mechanisms。",
+  },
+  5: {
+    label: "专家（全景）",
+    structure: "根 + 6-8 个二级元，每个二级元下 4-5 个三级元，关键分支下展开 2 层四级元。总元数 60-100。",
+    content: "在深度基础上，概念元补充专家视角、与相邻概念的对比、争议点；为有歧义的字段提供 aliases。",
+  },
 };
 
 export interface GenerateTreePromptArgs {
@@ -15,29 +49,46 @@ export interface GenerateTreePromptArgs {
 }
 
 export function buildGenerateTreePrompt({ topic, richness }: GenerateTreePromptArgs): string {
+  const spec = RICHNESS_SPECS[richness];
   return `你是 Know Everything 系统的"知识树架构师"。用户输入主题：「${topic}」。
 
-请生成一棵以该主题为根的知识树。输出必须严格匹配下面的 JSON Schema，不要任何前后文字、Markdown 围栏或解释。
+请生成一棵以该主题为根的知识树。直接输出 JSON，不要任何前后文字、Markdown 围栏或解释。
 
-JSON Schema:
+**档位 = ${richness} · ${spec.label}**
+
+结构规格（必须遵守）：
+${spec.structure}
+
+内容规格（必须遵守）：
+${spec.content}
+
+通用规则：
+- 根元 1 个（type=topic）。
+- 二级元主要为 concept，少量 practice。
+- 三级元主要为 concept 或 practice。
+- 概念元 content 至少含 oneSentence + coreExplain + whyMatters（档位 ≥ 2）。
+- 主题元 content 至少含 intro + learningGoals + coreModules + recommendedPaths。
+- 不要生成 exercises（练习题）；用户后续需要时会单独发起请求。
+- 路径 3 条：quick / academic / practice，每条 2-4 个 element id，颜色：quick→gold, academic→cyan, practice→pink。
+
+**动态章节（按需使用）：**
+- 当主题天然是"按时间 / 步骤 / 多种异构信息"时（旅游、训练、烹饪、活动策划、项目方案…），可以为元额外加 \`content.sections\` 数组，让前端按你选择的样式渲染。前端会优先用 sections，老字段作兜底。
+- 概念学习类主题（认知心理学、React 动画、机器学习算法…）继续用 oneSentence/coreExplain/whyMatters 等老字段即可，不需要 sections。
+${SECTION_STYLE_CATALOG}
+
+ID 命名：主题英文/拼音短名作前缀（≤ 12 字符），点分隔层级。
+例：主题"认知心理学"→ "cog-psy"；子元"感知"→ "cog-psy.perception"；孙元"视觉"→ "cog-psy.perception.vision"。
+
+输出格式（严格 JSON）：
+{
+  "rootId": "<主题元 id>",
+  "elements": [ /* 见 schema */ ],
+  "relations": [ /* kind=child，from 父 id，to 子 id */ ],
+  "paths": [ /* 3 条，按上面颜色规则 */ ]
+}
+
+完整 schema 供参考：
 ${SCHEMAS.treeResult}
 
-规模要求：
-- 根元 1 个（type=topic）。
-- 二级元 5-7 个（type=concept 为主），全部作为根的 child。
-- 三级元每个二级元下 2-4 个（type=concept 或 practice）。
-- 路径 3 条：quick / academic / practice，每条 2-4 个 element id。
-- 颜色对应：quick→gold, academic→cyan, practice→pink。
-- 丰富度等级 ${richness}：${RICHNESS_NOTES[richness]}
-
-内容方向（重点是**把事情讲清楚**，不要堆练习题）：
-- 主题元 content 必填：intro, learningGoals, coreModules(每个含 id/title/description，可选 focus)，recommendedPaths。可选 beginnerExplain（一句给小白的版本）。
-- 概念元 content 必填：oneSentence（一句话定义）、coreExplain（核心解释，2-4 句把事情说透）、whyMatters（为什么重要）。
-- 概念元强烈建议补充：beginnerExplain（给完全不懂的人的口语版）、keyPoints（3-5 条学习重点）、mechanisms（关键机制有序步骤，每步 label+description）、examples（2-3 条说明性例子，纯字符串）、misconceptions（2-3 条易混点）、nextSteps（1-2 条下一步学习方向）。
-- 不要生成 exercises（练习题）；用户需要练习时会单独发起请求。
-
-ID 命名：用主题英文/拼音短名作为前缀（≤ 12 字符），用点分隔层级。
-例：主题"认知心理学"→ "cog-psy"；其子元"感知"→ "cog-psy.perception"；孙元"视觉"→ "cog-psy.perception.vision"。
-
-只输出符合上述 Schema 的 JSON。`;
+只输出 JSON。`;
 }

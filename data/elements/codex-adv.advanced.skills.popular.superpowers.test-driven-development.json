@@ -1,0 +1,42 @@
+{
+  "id": "codex-adv.advanced.skills.popular.superpowers.test-driven-development",
+  "type": "concept",
+  "title": "Test-Driven Development",
+  "subtitle": "先写失败测试，再实现功能",
+  "aliases": [
+    "TDD",
+    "test-driven-development"
+  ],
+  "tags": [
+    "codex",
+    "testing",
+    "implementation"
+  ],
+  "domain": "AI coding agent",
+  "difficulty": "mid",
+  "content": {
+    "oneSentence": "Test-Driven Development Skill 用测试先描述目标行为，再推动实现代码。",
+    "coreExplain": "它强调先写一个能失败的测试，确认测试确实捕捉到缺口，再写最小实现让测试通过。之后再根据需要重构。这个流程适合功能边界清楚、行为可验证的改动。",
+    "whyMatters": "AI 代理容易直接写实现，然后用宽泛检查证明自己完成了。TDD 把目标行为提前固化，能降低误解需求和漏测边界的概率。",
+    "beginnerExplain": "先写一条会失败的验收标准，再让代码通过它。这样能知道代码是真的解决了问题。",
+    "keyPoints": [
+      "先测试，后实现。",
+      "测试必须先失败，否则不能证明它有效。",
+      "实现应围绕目标行为收敛，避免顺手重构过多。"
+    ],
+    "examples": [
+      "给登录表单新增邮箱格式校验，先写非法邮箱失败的测试。",
+      "修复分页 bug，先写复现错误页码的测试。"
+    ],
+    "misconceptions": [
+      "误区：TDD 等于写很多测试。它更关注测试和实现之间的反馈顺序。"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T09:06:08.475Z",
+    "updatedAt": "2026-05-17T09:06:08.475Z",
+    "generatedBy": "ai",
+    "richness": 3,
+    "aiModel": "codex"
+  }
+}

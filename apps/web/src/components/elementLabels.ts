@@ -9,6 +9,8 @@ export function elementTypeLabel(type: ElementType): string {
     case "practice":
     case "project":
       return "实战元";
+    case "product-design":
+      return "产品设计元";
     case "step":
     case "exercise":
       return "步骤元";
@@ -26,6 +28,8 @@ export function elementTypeClass(type: ElementType): string {
     case "practice":
     case "project":
       return "element-type--practice";
+    case "product-design":
+      return "element-type--product-design";
     case "step":
     case "exercise":
       return "element-type--step";

@@ -1,0 +1,43 @@
+{
+  "id": "codex-adv.advanced.skills.security-audit",
+  "type": "concept",
+  "title": "Security Audit",
+  "subtitle": "安全审计技能",
+  "aliases": [
+    "Security Skill",
+    "Code Security Review"
+  ],
+  "tags": [
+    "security",
+    "review",
+    "supply-chain"
+  ],
+  "domain": "security",
+  "difficulty": "high",
+  "content": {
+    "oneSentence": "Security Audit 技能帮助代理按安全清单检查代码、依赖、配置、权限和供应链风险。",
+    "coreExplain": "它通常覆盖鉴权绕过、注入、密钥泄漏、依赖风险、文件权限、命令执行和敏感数据处理。对技能生态来说，它还会关注 SKILL.md 自身是否诱导越权或执行不可信脚本。",
+    "whyMatters": "代理能执行命令和调用工具后，安全边界变得更重要。安全技能能在速度之外补上风险检查。",
+    "beginnerExplain": "它像交付前的安全复核表，但会结合代码和运行环境看问题。",
+    "keyPoints": [
+      "优先查高影响面入口：认证、支付、上传、后台管理",
+      "不要把扫描结果等同于真实漏洞，需要复核可利用性",
+      "安装第三方技能前应检查来源、脚本和权限"
+    ],
+    "examples": [
+      "审查一个新增 API 是否缺少权限校验",
+      "检查技能包里是否包含可疑 curl、eval 或外部脚本"
+    ],
+    "misconceptions": [
+      "安全技能不能替代专业渗透测试",
+      "没有报错不代表没有风险"
+    ]
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T08:38:30.553Z",
+    "updatedAt": "2026-05-17T08:38:30.553Z",
+    "generatedBy": "ai",
+    "richness": 3,
+    "aiModel": "codex"
+  }
+}

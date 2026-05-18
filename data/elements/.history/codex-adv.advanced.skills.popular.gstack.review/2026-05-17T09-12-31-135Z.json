@@ -1,0 +1,18 @@
+{
+  "id": "codex-adv.advanced.skills.popular.gstack.review",
+  "type": "concept",
+  "title": "Gstack Review Skill",
+  "subtitle": "面向落地前的代码审查流程",
+  "content": {
+    "oneSentence": "Gstack Review Skill 是一类用于在合并或交付前系统检查代码风险、行为回归和测试缺口的流程型技能。",
+    "coreExplain": "它通常把注意力放在 diff、基线分支、测试结果和潜在回归上，而不是泛泛评价代码风格。它的产出更接近工程审查记录，优先列出问题、证据和影响面。",
+    "whyMatters": "它与 Superpowers Skill 一样强调关键场景下的工作纪律，但更偏向代码交付前的审查节点。Superpowers 更像通用工作方法提醒，Gstack Review 更像围绕工程落地的具体关卡。"
+  },
+  "metadata": {
+    "createdAt": "2026-05-17T09:09:27.690Z",
+    "updatedAt": "2026-05-17T09:09:27.690Z",
+    "generatedBy": "ai",
+    "richness": 3,
+    "aiModel": "codex"
+  }
+}
