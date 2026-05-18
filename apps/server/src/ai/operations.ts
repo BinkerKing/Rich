@@ -67,6 +67,7 @@ const ReviewResultSchema = z.object({
 const ElementTypeSchema = z.enum(["topic", "concept", "practice", "project", "step", "exercise", "product-design", "summary"]);
 
 const ExtractKeywordsResultSchema = z.object({
+  topic: z.string().min(1).max(40),
   keywords: z.array(z.string().min(1).max(20)).min(1).max(8),
   type: ElementTypeSchema,
   intent: z.string().min(1).max(80),

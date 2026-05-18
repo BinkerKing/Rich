@@ -161,6 +161,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     if (!attach) return c.json({ error: lastErr ?? "attachment analysis failed" }, 500);
 
     return c.json({
+      topic: kwResult.topic,
       keywords: kwResult.keywords,
       intent: kwResult.intent,
       type: attach.type,

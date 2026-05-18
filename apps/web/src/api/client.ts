@@ -65,6 +65,8 @@ export type AttachOption =
   | { kind: "attach-with-bridge"; parentId: string; bridges: string[]; confidence: "low"|"medium"|"high"; reasoning: string };
 
 export interface AnalyzeInputResult {
+  /** Clean, title-ready noun phrase distilled by AI from the raw user input. */
+  topic: string;
   keywords: string[];
   intent: string;
   type: string;

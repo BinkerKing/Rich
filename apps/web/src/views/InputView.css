@@ -235,9 +235,29 @@ html .home-inflight-dot { animation: home-inflight-pulse 1.4s ease-in-out infini
 .home-analysis__close:hover { color: var(--text); }
 .home-analysis__quote {
   margin: 0;
-  font-size: 13px;
-  color: var(--soft);
-  font-style: italic;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.home-analysis__title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--teal-soft);
+  border: 1px solid var(--teal-line);
+  border-radius: 8px;
+}
+.home-analysis__title-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.home-analysis__title strong {
+  font-size: 15px;
+  color: var(--text);
+  font-weight: 700;
 }
 .home-analysis__options {
   list-style: none;

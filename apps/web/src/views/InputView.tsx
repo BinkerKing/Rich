@@ -63,13 +63,17 @@ export function InputView() {
 
   function chooseOption(opt: AttachOption) {
     const userText = analyzedText;
+    const cleanTitle = analysis?.topic ?? userText;
     if (opt.kind === "new-topic") {
-      void generate(userText, { richness, model: "codex" });
+      // Use AI-distilled clean title as the topic so the root element is
+      // titled nicely instead of carrying the user's raw paragraph.
+      void generate(cleanTitle, { richness, model: "codex" });
     } else if (opt.kind === "attach-direct") {
-      void expand(opt.parentId, 1, userText, "codex");
+      const direction = `请在该父元下创建 1 个新元，标题为「${cleanTitle}」，内容要覆盖用户的完整意图：${userText}`;
+      void expand(opt.parentId, 1, direction, "codex");
     } else if (opt.kind === "attach-with-bridge") {
-      const chain = [...opt.bridges, userText].join(" → ");
-      const direction = `先按以下层级在该父元下创建：${chain}。每层只创建一个元，最深一层 = ${userText}。`;
+      const chain = [...opt.bridges, cleanTitle].join(" → ");
+      const direction = `请在该父元下按以下层级链创建：${chain}。每层只创建 1 个元，最深一层的标题恰好为「${cleanTitle}」，并要覆盖用户完整意图：${userText}`;
       void expand(opt.parentId, 1, direction, "codex");
     }
     // Clear the analysis state so the user can submit another topic.
@@ -251,12 +255,16 @@ function AnalysisCard({
     <div className="home-analysis">
       <header className="home-analysis__head">
         <strong>AI 解析结果</strong>
-        <span className="home-analysis__meta">
-          类型：{analysis.type} · 意图：{analysis.intent} · 关键词：{analysis.keywords.join("、")}
-        </span>
         <button type="button" className="home-analysis__close" onClick={onCancel} aria-label="关闭">×</button>
       </header>
-      <p className="home-analysis__quote">「{analyzedText}」</p>
+      <p className="home-analysis__quote">原文：「{analyzedText}」</p>
+      <div className="home-analysis__title">
+        <span className="home-analysis__title-label">建议标题</span>
+        <strong>{analysis.topic}</strong>
+      </div>
+      <div className="home-analysis__meta">
+        类型：{analysis.type} · 意图：{analysis.intent} · 关键词：{analysis.keywords.join("、")}
+      </div>
       <ul className="home-analysis__options">
         {analysis.options.map((opt, i) => {
           const parent = "parentId" in opt ? candidatesById.get(opt.parentId) : null;
