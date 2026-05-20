@@ -29,6 +29,16 @@ interface Props {
    *  (in the inline layout the LearningSidebar is already shown beside the panel,
    *  so we don't want to double it up). */
   leftSidebarFullscreen?: ReactNode;
+  /** Imperative open signal — when this number changes, the detail panel
+   *  enters fullscreen. Used by the knowledge map's right-click "打开". */
+  openSignal?: number;
+  /** Hide the fullscreen toggle (expand/restore) icon. Used when the panel is
+   *  opened from outside the tree view (e.g. 早报 深入了解) where shrinking back
+   *  to the inline tree layout wouldn't make sense. */
+  hideFullscreenToggle?: boolean;
+  /** Called after a successful delete. Lets the caller navigate elsewhere
+   *  (e.g. 早报 视图) since the now-deleted element can't be shown anymore. */
+  onAfterDelete?: () => void;
 }
 
 // ──────── primitive helpers ────────
@@ -247,6 +257,24 @@ function Prose({ text }: { text: string }) {
 
 // ──────── MetaStrip ────────
 
+/** The element's glyph icon — clickable to toggle favorite. When favorited,
+ *  the icon switches to a gold star and the chip itself takes a gold tint. */
+function FavoriteGlyph({ element }: { element: Element }) {
+  const isFavorited = useStore(s => s.favorites.includes(element.id));
+  const toggleFavorite = useStore(s => s.toggleFavorite);
+  return (
+    <button
+      type="button"
+      className={`node-glyph node-glyph--favoritable${isFavorited ? " is-favorited" : ""}`}
+      title={isFavorited ? "取消收藏" : "加入收藏夹"}
+      aria-pressed={isFavorited}
+      onClick={e => { e.stopPropagation(); toggleFavorite(element.id); }}
+    >
+      <Icon name={isFavorited ? "spark" : iconForElement(element.type, element.title)} />
+    </button>
+  );
+}
+
 function RichnessGauge({ level }: { level: RichnessLevel }) {
   return (
     <span className="richness-gauge" aria-label={`内容深度 ${level}/5`} title={`内容深度 ${level}/5`}>
@@ -255,8 +283,28 @@ function RichnessGauge({ level }: { level: RichnessLevel }) {
   );
 }
 
+// Element types offered in the inline type picker. Matches the home-page
+// manual creation set; other esoteric types stay editable via direct API.
+const TYPE_OPTIONS: Array<{ value: ElementType; label: string }> = [
+  { value: "topic" as ElementType,    label: "主题元" },
+  { value: "concept" as ElementType,  label: "概念元" },
+  { value: "practice" as ElementType, label: "实战元" },
+  { value: "project" as ElementType,  label: "项目元" },
+  { value: "step" as ElementType,     label: "步骤元" },
+  { value: "report" as ElementType,   label: "报告元" },
+  { value: "guide" as ElementType,    label: "攻略元" },
+];
+const DIFFICULTY_OPTIONS: Array<{ value: "low" | "mid" | "high" | null; label: string }> = [
+  { value: null,  label: "未设置" },
+  { value: "low", label: "低" },
+  { value: "mid", label: "中" },
+  { value: "high", label: "高" },
+];
+
 function MetaStrip({ element, onOpenHistory }: { element: Element; onOpenHistory: () => void }) {
   const [versionCount, setVersionCount] = useState<number | null>(null);
+  const [pickerOpen, setPickerOpen] = useState<"type" | "difficulty" | null>(null);
+  const editElement = useStore(s => s.editElement);
   useEffect(() => {
     let cancelled = false;
     api.listVersions(element.id)
@@ -264,6 +312,27 @@ function MetaStrip({ element, onOpenHistory }: { element: Element; onOpenHistory
       .catch(() => { if (!cancelled) setVersionCount(null); });
     return () => { cancelled = true; };
   }, [element.id]);
+
+  // Close picker on outside click or Escape.
+  useEffect(() => {
+    if (!pickerOpen) return undefined;
+    const close = (e: Event) => {
+      if (e instanceof KeyboardEvent && e.key !== "Escape") return;
+      // Click events: ignore clicks that originated inside a picker (the
+      // picker has data-meta-picker; chip click toggles open/close itself).
+      if (e instanceof MouseEvent) {
+        const target = e.target as HTMLElement;
+        if (target.closest("[data-meta-picker]")) return;
+      }
+      setPickerOpen(null);
+    };
+    window.addEventListener("keydown", close);
+    window.addEventListener("click", close);
+    return () => {
+      window.removeEventListener("keydown", close);
+      window.removeEventListener("click", close);
+    };
+  }, [pickerOpen]);
 
   const typeLabel = elementTypeLabel(element.type as ElementType);
   const richness = element.metadata.richness as RichnessLevel;
@@ -277,13 +346,64 @@ function MetaStrip({ element, onOpenHistory }: { element: Element; onOpenHistory
 
   return (
     <div className="meta-strip" role="group" aria-label="元信息">
-      <span className={`meta-chip meta-chip--type type-${element.type}`}>{typeLabel}</span>
+      <span className="meta-chip-wrap">
+        <button
+          type="button"
+          className={`meta-chip meta-chip--type meta-chip--editable type-${element.type}`}
+          title="点击修改元类型"
+          onClick={e => { e.stopPropagation(); setPickerOpen(pickerOpen === "type" ? null : "type"); }}
+        >
+          {typeLabel}
+          <em className="meta-chip__caret" aria-hidden="true">▾</em>
+        </button>
+        {pickerOpen === "type" && (
+          <div className="meta-picker" data-meta-picker role="menu" aria-label="选择元类型">
+            {TYPE_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`meta-picker__opt${element.type === opt.value ? " is-current" : ""}`}
+                onClick={() => {
+                  void editElement(element.id, { type: opt.value });
+                  setPickerOpen(null);
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </span>
       <RichnessGauge level={richness} />
-      {difficulty && (
-        <span className="meta-chip meta-chip--difficulty">
-          难度 · {difficulty === "low" ? "低" : difficulty === "mid" ? "中" : "高"}
-        </span>
-      )}
+      <span className="meta-chip-wrap">
+        <button
+          type="button"
+          className="meta-chip meta-chip--difficulty meta-chip--editable"
+          title="点击修改难度"
+          onClick={e => { e.stopPropagation(); setPickerOpen(pickerOpen === "difficulty" ? null : "difficulty"); }}
+        >
+          难度 · {difficulty ? (difficulty === "low" ? "低" : difficulty === "mid" ? "中" : "高") : "未设置"}
+          <em className="meta-chip__caret" aria-hidden="true">▾</em>
+        </button>
+        {pickerOpen === "difficulty" && (
+          <div className="meta-picker" data-meta-picker role="menu" aria-label="选择难度">
+            {DIFFICULTY_OPTIONS.map(opt => (
+              <button
+                key={String(opt.value)}
+                type="button"
+                className={`meta-picker__opt${difficulty === opt.value ? " is-current" : ""}${!difficulty && opt.value === null ? " is-current" : ""}`}
+                onClick={() => {
+                  void editElement(element.id, { difficulty: opt.value });
+                  setPickerOpen(null);
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </span>
+      {/* difficulty rendered via editable chip above */}
       {element.domain && <span className="meta-chip meta-chip--domain">{element.domain}</span>}
       {tags.slice(0, 4).map(tag => (
         <span key={tag} className="meta-chip meta-chip--tag">#{tag}</span>
@@ -1028,8 +1148,12 @@ const ACTION_SPECS: Record<ActionKind, ActionSpec> = {
   },
 };
 
-export function ElementContentPanel({ element, childrenCount, currentLevel, onOpenChildren, onSelect, leftSidebarFullscreen }: Props) {
+export function ElementContentPanel({ element, childrenCount, currentLevel, onOpenChildren, onSelect, leftSidebarFullscreen, openSignal, hideFullscreenToggle, onAfterDelete }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Open imperatively when the parent bumps openSignal (e.g. right-click "打开").
+  useEffect(() => {
+    if (typeof openSignal === "number" && openSignal > 0) setIsFullscreen(true);
+  }, [openSignal]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null);
   const [lastAction, setLastAction] = useState<string | null>(null);
@@ -1085,7 +1209,22 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
   const extend = useStore(s => s.extend);
   const feedback = useStore(s => s.feedback);
   const sectionFeedback = useStore(s => s.sectionFeedback);
+  const editElement = useStore(s => s.editElement);
   const deleteElement = useStore(s => s.deleteElement);
+  const refreshElement = useStore(s => s.refreshElement);
+
+  // Background image engine polling: when the element has image-placeholder
+  // blocks marked pending/generating, refresh every 4s until they all clear.
+  // Stops on its own once no pending placeholders remain.
+  useEffect(() => {
+    const c = element.content as { sections?: Array<{ blocks: Array<{ style?: string; status?: string }> }> } | undefined;
+    const hasPending = c?.sections?.some(s => s.blocks.some(
+      b => b.style === "image-placeholder" && (b.status === "pending" || b.status === "generating"),
+    )) ?? false;
+    if (!hasPending) return undefined;
+    const id = window.setInterval(() => { void refreshElement(element.id); }, 4000);
+    return () => window.clearInterval(id);
+  }, [element, refreshElement]);
   const allRelations = useStore(s => s.relations);
   const inflightForThis = useStore(s => {
     for (const op of s.inflight.values()) if (op.elementId === element.id) return op;
@@ -1144,6 +1283,11 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
       ? `删除「${element.title}」及其 ${descCount} 个后代元？\n此操作不可撤销。`
       : `删除「${element.title}」？\n此操作不可撤销。`;
     if (!window.confirm(msg)) return;
+    // Navigate AWAY first so the parent view (TreeView) doesn't try to render
+    // the now-deleted element. Without this, deleteElement clears centerId in
+    // the store, TreeView re-renders against the null centerId, and the user
+    // sees a blank screen for one frame before onAfterDelete kicks in.
+    onAfterDelete?.();
     try {
       await deleteElement(element.id);
     } catch (e) {
@@ -1221,15 +1365,25 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
           setIsFullscreen(v => !v);
         }}
       >
-        <div className="node-glyph" aria-hidden="true">
-          <Icon name={iconForElement(element.type, element.title)} />
-        </div>
+        <FavoriteGlyph element={element} />
+
         <div className="element-head-main">
           <div className="element-title-row">
-            <h2>{element.title}</h2>
+            <EditableField
+              value={element.title}
+              kind="title"
+              placeholder="（标题）"
+              onSave={(next) => editElement(element.id, { title: next })}
+            />
             <span className="level-badge">L{currentLevel}</span>
           </div>
-          {element.subtitle && <p>{element.subtitle}</p>}
+          <EditableField
+            value={element.subtitle ?? ""}
+            kind="subtitle"
+            placeholder="（点击添加说明）"
+            allowEmpty
+            onSave={(next) => editElement(element.id, { subtitle: next })}
+          />
           <MetaStrip element={element} onOpenHistory={() => setHistoryOpen(true)} />
         </div>
         <div className="element-content__actions">
@@ -1260,14 +1414,16 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
             type="button"
             onClick={() => void handleDelete()}
           >×</button>
-          <button
-            aria-label={fullscreen ? "还原" : "放大"}
-            className="quiet-button quiet-button--icon"
-            type="button"
-            onClick={() => setIsFullscreen(v => !v)}
-          >
-            <Icon name="expand" />
-          </button>
+          {!hideFullscreenToggle && (
+            <button
+              aria-label={fullscreen ? "还原" : "放大"}
+              className="quiet-button quiet-button--icon"
+              type="button"
+              onClick={() => setIsFullscreen(v => !v)}
+            >
+              <Icon name="expand" />
+            </button>
+          )}
         </div>
       </header>
 
@@ -1377,5 +1533,128 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
         />
       )}
     </QAContext.Provider>
+  );
+}
+
+/* ---------- Editable title / subtitle (used by the panel head) ---------- */
+
+function EditableField({
+  value,
+  kind,
+  placeholder,
+  allowEmpty = false,
+  onSave,
+}: {
+  value: string;
+  kind: "title" | "subtitle";
+  placeholder?: string;
+  allowEmpty?: boolean;
+  onSave: (next: string) => Promise<void> | void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+
+  useEffect(() => { if (!editing) setDraft(value); }, [value, editing]);
+  useEffect(() => {
+    if (editing) {
+      const el = inputRef.current;
+      if (el) { el.focus(); el.select(); }
+    }
+  }, [editing]);
+
+  function startEdit(e: React.MouseEvent) {
+    e.stopPropagation();
+    setEditing(true);
+  }
+
+  async function commit() {
+    const next = draft.trim();
+    const original = (value ?? "").trim();
+    if (next === original) { setEditing(false); return; }
+    if (!next && !allowEmpty) { setEditing(false); setDraft(value); return; }
+    setSaving(true);
+    try { await onSave(next); }
+    catch { /* error already surfaced by store */ }
+    finally { setSaving(false); setEditing(false); }
+  }
+  function cancel() { setDraft(value); setEditing(false); }
+
+  const isEmpty = !value;
+  const display = isEmpty ? (placeholder ?? "") : value;
+
+  // While viewing, render the ORIGINAL h2/p so all existing styles (font size,
+  // weight, family, theme overrides) still match. The pencil button is a
+  // sibling so it doesn't disturb the title/subtitle box itself.
+  if (!editing) {
+    if (kind === "title") {
+      return (
+        <>
+          <h2 className={`editable-title ${isEmpty ? "is-empty" : ""}`}>{display}</h2>
+          <button
+            type="button"
+            className="editable-pencil editable-pencil--title"
+            title="修改标题"
+            aria-label="修改标题"
+            onClick={startEdit}
+          >
+            <Icon name="pencil" />
+          </button>
+        </>
+      );
+    }
+    return (
+      <p className={`editable-subtitle ${isEmpty ? "is-empty" : ""}`}>
+        {display}
+        <button
+          type="button"
+          className="editable-pencil editable-pencil--subtitle"
+          title="修改说明"
+          aria-label="修改说明"
+          onClick={startEdit}
+        >
+          <Icon name="pencil" />
+        </button>
+      </p>
+    );
+  }
+
+  // In editing mode swap the visual element for an input/textarea but keep
+  // the same outer tag so layout doesn't jump.
+  if (kind === "title") {
+    return (
+      <input
+        ref={inputRef as React.Ref<HTMLInputElement>}
+        className="editable-title-input"
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={() => void commit()}
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => {
+          if (e.key === "Escape") { e.preventDefault(); cancel(); }
+          else if (e.key === "Enter") { e.preventDefault(); void commit(); }
+        }}
+        disabled={saving}
+        placeholder={placeholder}
+      />
+    );
+  }
+  return (
+    <textarea
+      ref={inputRef as React.Ref<HTMLTextAreaElement>}
+      className="editable-subtitle-input"
+      value={draft}
+      onChange={e => setDraft(e.target.value)}
+      onBlur={() => void commit()}
+      onClick={e => e.stopPropagation()}
+      onKeyDown={e => {
+        if (e.key === "Escape") { e.preventDefault(); cancel(); }
+        else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void commit(); }
+      }}
+      disabled={saving}
+      placeholder={placeholder}
+      rows={2}
+    />
   );
 }

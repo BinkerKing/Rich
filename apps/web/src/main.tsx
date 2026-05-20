@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { App } from "./App.js";
 import "./theme/tokens.css";
 import "./theme/themeStore.js";
+import "./theme/theme-cyber.css";
 import "./theme/theme-brutal.css";
 import "./theme/theme-blueprint.css";
 import "./theme/theme-duotone.css";

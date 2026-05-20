@@ -116,6 +116,36 @@ const presets: Record<string, CenterStyleInput> = {
     line: "rgba(255, 201, 119, .36)",
     glow: "rgba(255, 201, 119, .24)",
   },
+  // 报告元（AI 早报里每条新闻都是 report）— 用绿色与卡片上分类 chip 视觉一致。
+  report: {
+    name: "情报绿",
+    accent: "#4ade80",
+    accent2: "#74e5b0",
+    warm: "#ffd86b",
+    soft: "rgba(74, 222, 128, .13)",
+    line: "rgba(74, 222, 128, .36)",
+    glow: "rgba(74, 222, 128, .24)",
+  },
+  // 项目元 — 独立蓝紫调，区别于概念元的浅蓝、实战元的橙红。
+  project: {
+    name: "项目蓝紫",
+    accent: "#6366f1",
+    accent2: "#8b8eff",
+    warm: "#ffb6e2",
+    soft: "rgba(99, 102, 241, .13)",
+    line: "rgba(99, 102, 241, .38)",
+    glow: "rgba(99, 102, 241, .26)",
+  },
+  // 攻略元 — 玫粉，跟"实战橙"互补；用于旅游 / 游戏 / 学习攻略类元。
+  guide: {
+    name: "攻略玫粉",
+    accent: "#f472b6",
+    accent2: "#fb7185",
+    warm: "#ffd28d",
+    soft: "rgba(244, 114, 182, .13)",
+    line: "rgba(244, 114, 182, .40)",
+    glow: "rgba(244, 114, 182, .26)",
+  },
   default: {
     name: "宇宙青",
     accent: "#3dd5cd",
@@ -156,7 +186,10 @@ function presetFor(element: Element) {
   if (element.title.includes("学习")) return presets.learning;
   if (element.title.includes("复盘")) return presets.review;
   if (element.title.includes("专家")) return presets.expert;
-  if (element.type === "practice" || element.type === "project" || element.title.includes("实战")) return presets.practice;
+  if (element.type === "project") return presets.project;
+  if (element.type === "practice" || element.title.includes("实战")) return presets.practice;
+  if (element.type === "report") return presets.report;
+  if (element.type === "guide" || element.title.includes("攻略")) return presets.guide;
   return presets.default;
 }
 

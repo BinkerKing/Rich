@@ -2,9 +2,25 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px 0 16px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 14px;
+  /* No padding/border/margin — the wrapping SystemPanel already provides the
+   * outer shell and the title. Keep this flush so there's no empty band
+   * between "任务列表" header and the first task card. */
+}
+
+/* Both side rails (left .learning-sidebar + right .system-panel) get a
+ * transparent outer container — inner cards carry their own styling. Avoids
+ * the "panel-within-a-panel" double-frame look. Specificity boosted with
+ * [data-theme] to outrank theme blanket gradients. */
+html[data-theme] .system-panel,
+html .system-panel,
+html[data-theme] .learning-sidebar,
+html .learning-sidebar,
+html[data-theme] .system-panel .embedded-tasks,
+html .embedded-tasks {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
 }
 .embedded-tasks header {
   display: flex;
@@ -48,25 +64,43 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 320px;
+  gap: 8px;
   overflow-y: auto;
 }
 
 .embedded-task {
-  padding: 8px 10px;
+  padding: 10px 12px 10px 14px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 10px;
   background: rgba(15, 29, 46, .42);
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 .embedded-task--running {
-  border-color: rgba(61, 213, 205, .35);
-  background: linear-gradient(180deg, rgba(61, 213, 205, .06), rgba(15, 29, 46, .42));
+  /* "Charging" state — animated background pulse + border breathing. The
+   *  shimmer overlay from ::before adds the moving highlight on top. */
+  border-color: rgba(61, 213, 205, .55) !important;
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--kind-color, var(--teal)) 26%, transparent),
+      color-mix(in srgb, var(--kind-color, var(--teal)) 10%, transparent) 60%,
+      rgba(15, 29, 46, .42)) !important;
   position: relative;
   overflow: hidden;
+  animation: embedded-task-charge 2.4s ease-in-out infinite !important;
+}
+@keyframes embedded-task-charge {
+  0%, 100% {
+    box-shadow:
+      0 0 0 0 color-mix(in srgb, var(--kind-color, var(--teal)) 0%, transparent),
+      inset 0 0 0 0 color-mix(in srgb, var(--kind-color, var(--teal)) 0%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 26px color-mix(in srgb, var(--kind-color, var(--teal)) 50%, transparent),
+      inset 0 0 18px color-mix(in srgb, var(--kind-color, var(--teal)) 22%, transparent);
+  }
 }
 /* Shimmer sweep traveling left → right across the running card */
 .embedded-task--running::before {
@@ -145,10 +179,84 @@ html .embedded-task--running .embedded-task__kind::after {
   50%      { transform: scale(1.4); opacity: .55; }
 }
 
-.embedded-task__kind { color: var(--soft); }
+.embedded-task__kind {
+  color: var(--soft);
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .04);
+  letter-spacing: 0.04em;
+}
 .embedded-task__elapsed {
   margin-left: auto;
   font-variant-numeric: tabular-nums;
+}
+.embedded-task__remove {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .12s, background .12s, color .12s;
+  margin-left: 4px;
+}
+.embedded-task:hover .embedded-task__remove,
+.embedded-task__remove:focus { opacity: 1; }
+.embedded-task__remove:hover {
+  background: rgba(255, 138, 138, .16);
+  color: #ff8a8a;
+}
+
+/* Per-kind coloring — the ENTIRE card frame + background carries the type
+ * color, not just the left edge. Border is full type-color outline; the
+ * background is a soft type-tinted wash that keeps text readable. */
+.embedded-task--kind-generate     { --kind-color: #38f2e6; }
+.embedded-task--kind-refine       { --kind-color: #3dd5cd; }
+.embedded-task--kind-expand       { --kind-color: #6aa8ff; }
+.embedded-task--kind-extend       { --kind-color: #b9a3ff; }
+.embedded-task--kind-feedback     { --kind-color: #ffa86b; }
+.embedded-task--kind-path         { --kind-color: #74e5b0; }
+.embedded-task--kind-hydrate      { --kind-color: #8fb3ca; }
+.embedded-task--kind-daily-news   { --kind-color: #4ade80; }
+.embedded-task--kind-ai-search    { --kind-color: #8ffef7; }
+.embedded-task[class*="embedded-task--kind-"] {
+  position: relative;
+  /* Subtle outline + soft type tint, but the prominent left-edge bar (below)
+   * carries most of the per-type visual weight, matching 已有主题 cards. */
+  border: 1px solid color-mix(in srgb, var(--kind-color, var(--teal)) 30%, var(--line));
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--kind-color, var(--teal)) 10%, transparent),
+      transparent 70%),
+    rgba(15, 29, 46, .42);
+  /* Padding-left makes room for the wider left bar without crowding the head row. */
+  padding-left: 18px;
+}
+.embedded-task[class*="embedded-task--kind-"]::after {
+  /* Left-edge color bar — uses ::after so the running task's ::before shimmer
+   * (overlay) stays intact. */
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  background: linear-gradient(180deg,
+    var(--kind-color, var(--teal)),
+    color-mix(in srgb, var(--kind-color, var(--teal)) 35%, transparent));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--kind-color, var(--teal)) 50%, transparent);
+  pointer-events: none;
+}
+.embedded-task[class*="embedded-task--kind-"] .embedded-task__kind {
+  color: var(--kind-color, var(--teal));
+  background: color-mix(in srgb, var(--kind-color, var(--teal)) 22%, transparent);
 }
 
 .embedded-task__title {
@@ -164,6 +272,23 @@ html .embedded-task--running .embedded-task__kind::after {
 }
 .embedded-task__summary { font-size: 11px; color: var(--muted); }
 .embedded-task__error { font-size: 11px; color: #ff8a8a; word-break: break-word; }
+.embedded-task__retry {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  border: 1px solid rgba(255, 138, 138, .45);
+  border-radius: 6px;
+  background: rgba(255, 138, 138, .08);
+  color: #ff8a8a;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.embedded-task__retry:hover {
+  background: rgba(255, 138, 138, .22);
+  border-color: #ff8a8a;
+  color: #ffa3a3;
+}
 
 .embedded-task__action {
   margin-top: 4px;
@@ -192,4 +317,30 @@ html .embedded-task--running .embedded-task__kind::after {
   color: var(--teal);
   font-weight: 700;
   letter-spacing: .04em;
+}
+
+/* Done-but-not-yet-clicked task — gold "unread" highlight that beats the
+ * per-kind tint. Click → store marks viewed → class drops → kind color shows. */
+.embedded-task.is-unread {
+  --kind-color: #ffc94d !important;
+  border-color: #ffc94d !important;
+  background:
+    linear-gradient(135deg,
+      rgba(255, 201, 77, .22),
+      rgba(255, 201, 77, .08) 60%,
+      rgba(15, 29, 46, .42)) !important;
+  box-shadow: 0 0 20px rgba(255, 201, 77, .30) !important;
+  animation: embedded-task-unread-pulse 2s ease-in-out infinite;
+}
+.embedded-task.is-unread .embedded-task__kind {
+  color: #ffc94d !important;
+  background: rgba(255, 201, 77, .22) !important;
+}
+.embedded-task.is-unread::after {
+  background: linear-gradient(180deg, #ffc94d, rgba(255, 201, 77, .35)) !important;
+  box-shadow: 0 0 10px rgba(255, 201, 77, .8) !important;
+}
+@keyframes embedded-task-unread-pulse {
+  0%, 100% { box-shadow: 0 0 16px rgba(255, 201, 77, .22); }
+  50%      { box-shadow: 0 0 28px rgba(255, 201, 77, .50); }
 }

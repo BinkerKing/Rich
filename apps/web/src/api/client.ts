@@ -103,6 +103,23 @@ export const api = {
   sectionFeedbackStream(elementId: string, sectionId: string, feedback: string, model?: Model) {
     return sseStream<SectionRefineResult>("/ai/section-feedback", { elementId, sectionId, feedback, model });
   },
+  attachUnderStream(parentId: string, args: {
+    mode: "leaf" | "chain";
+    leafTitle?: string;
+    chain?: string[];
+    fullIntent: string;
+    richness?: RichnessLevel;
+  }, model?: Model) {
+    return sseStream<ElementsAndRelationsResult>("/ai/attach-under", { parentId, ...args, model });
+  },
+  // ----- AI 早报 daily news generation -----
+  // Streams progress; "materialized" event on success carries the new roundup id.
+  generateDailyNewsStream(date?: string, model?: Model) {
+    return sseStream<{ date: string; editorNote: string; items: unknown[] }>(
+      "/ai/news/generate-daily",
+      { date, model },
+    );
+  },
   async analyzeInput(text: string, model?: Model): Promise<AnalyzeInputResult> {
     const res = await fetch("/api/ai/analyze-input", {
       method: "POST",
@@ -149,6 +166,35 @@ export const api = {
     const r = await fetch(`/api/elements/${encodeURIComponent(id)}`);
     if (r.status === 404) return null;
     if (!r.ok) throw new Error(`getElement ${r.status}`);
+    return r.json();
+  },
+  async createElement(input: {
+    title: string;
+    type?: string;
+    subtitle?: string;
+    parentId?: string;
+  }): Promise<{ element: Element; relation: Relation | null }> {
+    const r = await fetch("/api/elements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      throw new Error(`createElement ${r.status}: ${t}`);
+    }
+    return r.json();
+  },
+  async patchElement(id: string, patch: { title?: string; subtitle?: string; type?: string; difficulty?: "low" | "mid" | "high" | null }): Promise<Element> {
+    const r = await fetch(`/api/elements/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      throw new Error(`patchElement ${r.status}: ${t}`);
+    }
     return r.json();
   },
   async listRelations(opts: { from?: string; to?: string } = {}): Promise<Relation[]> {

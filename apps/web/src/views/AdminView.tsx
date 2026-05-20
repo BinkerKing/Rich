@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../components/Icon.js";
-import { ThemeSwitch } from "../components/ThemeSwitch.js";
-import { setHashRoute } from "../lib/useHashRoute.js";
+import { TopBar } from "../components/TopBar.js";
+import { SystemPanel } from "../components/SystemPanel.js";
+import { FooterTaskStrip } from "../components/FooterTaskStrip.js";
+import { useStore } from "../state/store.js";
 import "./AdminView.css";
 
 type Tab = "engine" | "ops" | "signals" | "manuals";
@@ -49,23 +51,11 @@ const OP_FILTERS = ["", "generate", "refine", "section-refine", "expand", "exten
 
 export function AdminView() {
   const [tab, setTab] = useState<Tab>("engine");
+  const systemMode = useStore(s => s.systemMode);
+  const elements = useStore(s => s.elements);
   return (
     <div className="tree-view admin-shell">
-      <header className="tv-topbar">
-        <div className="tv-brand">
-          <button type="button" className="tv-home-button" title="返回首页" onClick={() => setHashRoute("")}>
-            <span className="tv-logo" />
-            <strong>Know Everything</strong>
-          </button>
-        </div>
-        <nav className="tv-crumb" aria-label="当前位置">
-          <span className="now">后台</span>
-        </nav>
-        <div className="tv-tools">
-          <ThemeSwitch />
-          <span>K</span>
-        </div>
-      </header>
+      <TopBar breadcrumb={<span className="now">后台</span>} />
 
       <aside className="learning-sidebar admin-sidebar" aria-label="后台分区">
         <section>
@@ -110,19 +100,11 @@ export function AdminView() {
         {tab === "manuals" && <ManualsTab />}
       </main>
 
-      <aside className="system-panel" aria-label="提示">
-        <header className="system-panel__head">
-          <h2>说明</h2>
-        </header>
-        <div className="admin-hint">
-          <p><strong>AI 任务历史</strong>记录每次 AI 调用的完整 prompt 与返回，按时间倒序。</p>
-          <p><strong>信号日志</strong>包含用户反馈、操作完成 / 失败、重复操作等系统行为信号 — 这是反思流程的原材料。</p>
-          <p><strong>知识手册</strong>是 AI 长期学习的沉淀。点开可看每本手册的当前内容与最近写入。</p>
-        </div>
-      </aside>
+      <SystemPanel mode={systemMode} elements={elements} onSelect={() => undefined} />
 
       <footer className="tv-footer">
         <div>后台管理 · 仅用于观察系统运行</div>
+        <FooterTaskStrip />
       </footer>
     </div>
   );

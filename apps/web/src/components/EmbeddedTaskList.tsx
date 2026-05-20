@@ -11,6 +11,8 @@ const KIND_LABEL: Record<string, string> = {
   feedback: "反馈",
   path: "路径",
   hydrate: "加载",
+  "daily-news": "早报",
+  "ai-search": "AI 搜索",
 };
 
 function elapsed(t: TaskRecord): string {
@@ -33,22 +35,25 @@ export function EmbeddedTaskList({ elementId, scopeToElement = true, limit = 8 }
   const tasks = useStore(s => s.tasks);
   const enterTree = useStore(s => s.enterTree);
   const enterAtElement = useStore(s => s.enterAtElement);
+  const markTaskViewed = useStore(s => s.markTaskViewed);
+  const removeTask = useStore(s => s.removeTask);
+  const retryTask = useStore(s => s.retryTask);
+  const openHomeAnalysisTab = useStore(s => s.openHomeAnalysisTab);
   const filtered = useMemo(() => {
-    const xs = elementId && scopeToElement
-      ? tasks.filter(t => t.elementId === elementId || t.kind === "generate")
-      : tasks;
-    return xs.slice(0, limit);
+    const visible = tasks.filter(t => !t.hidden);
+    if (elementId && scopeToElement) {
+      // Scoped mode (element detail panel): only tasks bound to THIS element.
+      // No cap — show all of them, since the user explicitly wants to see
+      // the full history for this element.
+      return visible.filter(t => t.elementId === elementId);
+    }
+    return visible.slice(0, limit);
   }, [tasks, elementId, scopeToElement, limit]);
 
-  const running = filtered.filter(t => t.status === "running").length;
-
   return (
-    <section className="embedded-tasks" aria-label="AI 任务">
-      <header>
-        <strong>AI 任务</strong>
-        {running > 0 && <span className="embedded-tasks__badge">{running} 进行中</span>}
-        {running === 0 && filtered.length > 0 && <span className="embedded-tasks__hint">{filtered.length} 条</span>}
-      </header>
+    <section className="embedded-tasks" aria-label="任务列表">
+      {/* Status info moved to the SystemPanel header so the inline view is just
+       *  the task list itself — no duplicate title, no header line. */}
       {filtered.length === 0 ? (
         <div className="embedded-tasks__empty">点 细化 / 展开 / 延伸 / 反馈 / 深入分析 后会在这里看到任务状态</div>
       ) : (
@@ -59,16 +64,21 @@ export function EmbeddedTaskList({ elementId, scopeToElement = true, limit = 8 }
             // clickable (we don't want to navigate mid-stream).
             const isGenerate = t.kind === "generate" && !!t.rootId;
             const hasElement = !!t.elementId;
-            const navigable = t.status !== "running" && (isGenerate || hasElement);
+            const isAiSearch = t.kind === "ai-search" && !!t.analysisId;
+            const navigable = t.status !== "running" && (isGenerate || hasElement || isAiSearch);
+            const unread = t.status === "done" && !t.viewed && navigable;
             const onClick = navigable
-              ? (isGenerate
-                  ? () => void enterTree(t.rootId!)
-                  : () => void enterAtElement(t.elementId!))
+              ? () => {
+                  markTaskViewed(t.id);
+                  if (isAiSearch) openHomeAnalysisTab(t.analysisId!);
+                  else if (isGenerate) void enterTree(t.rootId!);
+                  else void enterAtElement(t.elementId!);
+                }
               : undefined;
             return (
               <li
                 key={t.id}
-                className={`embedded-task embedded-task--${t.status}${navigable ? " is-navigable" : ""}`}
+                className={`embedded-task embedded-task--${t.status} embedded-task--kind-${t.kind}${navigable ? " is-navigable" : ""}${unread ? " is-unread" : ""}`}
                 onClick={onClick}
                 role={navigable ? "button" : undefined}
                 tabIndex={navigable ? 0 : undefined}
@@ -81,6 +91,21 @@ export function EmbeddedTaskList({ elementId, scopeToElement = true, limit = 8 }
                   <span className={`embedded-task__dot embedded-task__dot--${t.status}`} aria-hidden="true" />
                   <span className="embedded-task__kind">{KIND_LABEL[t.kind] ?? t.kind}</span>
                   <span className="embedded-task__elapsed">{elapsed(t)}</span>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="embedded-task__remove"
+                    aria-label="删除任务"
+                    title={t.status === "running" ? "从列表移除（不会停止服务端任务）" : "删除任务"}
+                    onClick={e => { e.stopPropagation(); removeTask(t.id); }}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        removeTask(t.id);
+                      }
+                    }}
+                  >×</span>
                 </div>
                 <div className="embedded-task__title">{t.title}</div>
                 {t.status === "done" && t.summary && (
@@ -88,6 +113,18 @@ export function EmbeddedTaskList({ elementId, scopeToElement = true, limit = 8 }
                 )}
                 {t.status === "error" && t.error && (
                   <div className="embedded-task__error">{t.error}</div>
+                )}
+                {t.status === "error" && (
+                  <button
+                    type="button"
+                    className="embedded-task__retry"
+                    onClick={e => { e.stopPropagation(); void retryTask(t.id); }}
+                    title={t.retryArgs
+                      ? "重新跑这个任务（用相同参数）"
+                      : "重新跑这个任务（旧任务用 title 推断参数，richness 默认中档）"}
+                  >
+                    ↻ 重跑
+                  </button>
                 )}
                 {navigable && (
                   <span className="embedded-task__hint">{isGenerate ? "点击进入 →" : "点击跳转到对应元 →"}</span>

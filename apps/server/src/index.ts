@@ -40,6 +40,7 @@ import { dataDir, aiDir } from "./lib/paths.js";
 import { ClaudeAdapter } from "./ai/claude.js";
 import { CodexAdapter } from "./ai/codex.js";
 import { configureOpLog } from "./ai/aiOpLog.js";
+import { imageQueue } from "./ai/imageQueue.js";
 import type { AIAdapter } from "./ai/adapter.js";
 import { createLogger, noopLogger, type Logger } from "./lib/logger.js";
 import { installShutdownHandlers, childRegistry } from "./lib/childRegistry.js";
@@ -88,6 +89,10 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   const manualsDir = opts.aiDir ?? aiDir();
   // Persist every AI op prompt + output to data/ai-ops.jsonl for the admin UI.
   configureOpLog(root);
+  // Image generation runs in a separate AI op from text generation. The text
+  // op emits image-placeholder blocks; this background queue processes them.
+  // pickAdapter() returns adapters[0] when no preference — Codex first.
+  imageQueue.configure(ai[0], elements, log);
   const app = new Hono();
   app.use("*", async (c, next) => {
     c.header("access-control-allow-origin", "*");

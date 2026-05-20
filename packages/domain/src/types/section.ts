@@ -10,31 +10,49 @@
  * if an element has BOTH the typed fields and `sections`, `sections` wins.
  */
 
+/**
+ * Provenance for a piece of information. Used by 报告元 to mark each item with
+ * its real-world source. UI renders this as a small "来源 · 出处 · 时间" line
+ * beneath the content. All fields optional so AI can emit partial citations.
+ */
+export interface Source {
+  /** Short publisher / outlet name shown to the user: "Anthropic Blog", "TechCrunch". */
+  cite?: string;
+  /** Canonical URL of the source. */
+  url?: string;
+  /** ISO date (YYYY-MM-DD or full ISO timestamp) when the source was published. */
+  publishedAt?: string;
+}
+
+/** List item that may carry its own source. Plain string = no source. */
+export type SourcedItem = string | { text: string; source?: Source };
+
 export interface CalloutBlock {
   style: "callout";
   kind: "tip" | "insight" | "example" | "warning" | "info";
   title?: string;
   body: string;
+  source?: Source;
 }
 
-export interface LeadBlock { style: "lead"; text: string }
-export interface ProseBlock { style: "prose"; text: string }
-export interface QuoteBlock { style: "quote"; text: string; cite?: string }
+export interface LeadBlock { style: "lead"; text: string; source?: Source }
+export interface ProseBlock { style: "prose"; text: string; source?: Source }
+export interface QuoteBlock { style: "quote"; text: string; cite?: string; source?: Source }
 
 export interface CheckListBlock {
   style: "check-list";
-  items: string[];
+  items: SourcedItem[];
   /** 1 = single column (default), 2 = two columns */
   columns?: 1 | 2;
 }
 
-export interface DotListBlock { style: "dot-list"; items: string[] }
+export interface DotListBlock { style: "dot-list"; items: SourcedItem[] }
 
 /** Vertical warning cards (one per row), red bar + ⚠ icon. */
-export interface WarnCardsBlock { style: "warn-cards"; items: string[] }
+export interface WarnCardsBlock { style: "warn-cards"; items: SourcedItem[] }
 
 /** Numbered example cards (one per row), green bar. */
-export interface ExampleListBlock { style: "example-list"; items: string[] }
+export interface ExampleListBlock { style: "example-list"; items: SourcedItem[] }
 
 /** Numbered mechanism / step flow. */
 export interface MechanismFlowBlock {
@@ -63,7 +81,7 @@ export interface KvTableBlock {
 /** Module grid: rectangular cards in 2-col layout. */
 export interface ModuleGridBlock {
   style: "module-grid";
-  cards: Array<{ title: string; body: string; focus?: string }>;
+  cards: Array<{ title: string; body: string; focus?: string; source?: Source }>;
 }
 
 /** Competitor / comparison table. */
@@ -109,11 +127,26 @@ export interface ChecklistGroupedBlock {
   groups: Array<{ title: string; items: string[] }>;
 }
 
-/** Generic placeholder for an image AI cannot generate; user can replace. */
+/**
+ * Placeholder emitted by the text-generating AI. The dedicated image engine
+ * (separate background op) fills this in later — at that point the block is
+ * rewritten to `image` with a served URL. `imagePrompt` is optional; when
+ * missing the image engine composes its own prompt from alt + caption + the
+ * surrounding section text.
+ */
 export interface ImagePlaceholderBlock {
   style: "image-placeholder";
   alt: string;
   caption?: string;
+  /** Optional English prompt for the image-gen model (subject / composition /
+   *  lighting / style keywords). Hybrid mode: if absent, image engine writes
+   *  its own. */
+  imagePrompt?: string;
+  /** Set by the image engine while a generation is in flight, so the frontend
+   *  can show a loading state. Cleared once the placeholder is replaced. */
+  status?: "pending" | "generating" | "failed";
+  /** Last error if status === "failed". */
+  error?: string;
 }
 
 /** Real image: either an AI-generated file (codex image tool) or external URL. */

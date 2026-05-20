@@ -1,7 +1,42 @@
 import type { ReactNode } from "react";
-import type { StyleBlock, DynamicSection } from "@ke/domain";
+import type { StyleBlock, DynamicSection, Source, SourcedItem } from "@ke/domain";
 import { MermaidDiagram } from "./MermaidDiagram.js";
 import "./SectionRenderer.css";
+
+// ---- source citation ----
+
+function formatPublishedAt(raw?: string): string | null {
+  if (!raw) return null;
+  // Accept YYYY-MM-DD or full ISO; render as YYYY-MM-DD.
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : raw;
+}
+
+function SourceLine({ source }: { source?: Source }) {
+  if (!source) return null;
+  const date = formatPublishedAt(source.publishedAt);
+  if (!source.cite && !source.url && !date) return null;
+  const label = source.cite ?? source.url ?? "未注明出处";
+  const inner = (
+    <>
+      <span className="sec-source__tag">来源</span>
+      <span className="sec-source__cite">{label}</span>
+      {date && <span className="sec-source__date">· {date}</span>}
+    </>
+  );
+  return source.url ? (
+    <a className="sec-source" href={source.url} target="_blank" rel="noreferrer">{inner}</a>
+  ) : (
+    <span className="sec-source">{inner}</span>
+  );
+}
+
+function itemTextOf(item: SourcedItem): string {
+  return typeof item === "string" ? item : item.text;
+}
+function itemSourceOf(item: SourcedItem): Source | undefined {
+  return typeof item === "string" ? undefined : item.source;
+}
 
 // ---- primitive helpers ----
 
@@ -35,32 +70,54 @@ function Callout({ kind, title, children }: { kind: CalloutKind; title?: string;
 function renderBlock(block: StyleBlock, key: number): ReactNode {
   switch (block.style) {
     case "lead":
-      return <Lead key={key} text={block.text} />;
+      return (
+        <div key={key} className="sec-with-source">
+          <Lead text={block.text} />
+          <SourceLine source={block.source} />
+        </div>
+      );
     case "prose":
-      return <Prose key={key} text={block.text} />;
+      return (
+        <div key={key} className="sec-with-source">
+          <Prose text={block.text} />
+          <SourceLine source={block.source} />
+        </div>
+      );
     case "quote":
       return (
         <blockquote key={key} className="sec-quote">
           <p>{block.text}</p>
           {block.cite && <cite>— {block.cite}</cite>}
+          <SourceLine source={block.source} />
         </blockquote>
       );
     case "callout":
       return (
         <Callout key={key} kind={block.kind} title={block.title}>
           <Prose text={block.body} />
+          <SourceLine source={block.source} />
         </Callout>
       );
     case "check-list":
       return (
         <ul key={key} className={`check-list${block.columns === 2 ? " check-list--grid" : ""}`}>
-          {block.items.map(item => <li key={item}>{item}</li>)}
+          {block.items.map((item, i) => (
+            <li key={i}>
+              <span>{itemTextOf(item)}</span>
+              <SourceLine source={itemSourceOf(item)} />
+            </li>
+          ))}
         </ul>
       );
     case "dot-list":
       return (
         <ul key={key} className="dot-list">
-          {block.items.map(item => <li key={item}>{item}</li>)}
+          {block.items.map((item, i) => (
+            <li key={i}>
+              <span>{itemTextOf(item)}</span>
+              <SourceLine source={itemSourceOf(item)} />
+            </li>
+          ))}
         </ul>
       );
     case "warn-cards":
@@ -69,7 +126,8 @@ function renderBlock(block: StyleBlock, key: number): ReactNode {
           {block.items.map((item, i) => (
             <div key={i} className="warn-card">
               <span className="warn-card__bar" aria-hidden="true" />
-              <p>{item}</p>
+              <p>{itemTextOf(item)}</p>
+              <SourceLine source={itemSourceOf(item)} />
             </div>
           ))}
         </div>
@@ -80,7 +138,8 @@ function renderBlock(block: StyleBlock, key: number): ReactNode {
           {block.items.map((item, i) => (
             <li key={i} className="example-item">
               <span className="example-num">{String(i + 1).padStart(2, "0")}</span>
-              <p>{item}</p>
+              <p>{itemTextOf(item)}</p>
+              <SourceLine source={itemSourceOf(item)} />
             </li>
           ))}
         </ol>
@@ -150,6 +209,7 @@ function renderBlock(block: StyleBlock, key: number): ReactNode {
               <header>{c.title}</header>
               <p>{c.body}</p>
               {c.focus && <em>{c.focus}</em>}
+              <SourceLine source={c.source} />
             </article>
           ))}
         </div>
@@ -227,22 +287,37 @@ function renderBlock(block: StyleBlock, key: number): ReactNode {
             <section key={i}>
               <h4>{g.title}</h4>
               <ul className="check-list">
-                {g.items.map(item => <li key={item}>{item}</li>)}
+                {g.items.map((item, j) => <li key={j}>{item}</li>)}
               </ul>
             </section>
           ))}
         </div>
       );
-    case "image-placeholder":
+    case "image-placeholder": {
+      // The dedicated image engine processes placeholders in the background.
+      // Show a loading state while pending/generating; a failure note if it
+      // errored. Idle placeholders (no status) mean image engine hasn't picked
+      // them up yet — render as plain placeholder.
+      const status = block.status;
+      const stateText = status === "generating" ? "AI 正在生成图片…"
+        : status === "pending" ? "排队中…"
+        : status === "failed" ? `生成失败：${block.error ?? "未知错误"}`
+        : "图片占位";
       return (
-        <figure key={key} className="sec-image-placeholder" aria-label={block.alt}>
+        <figure
+          key={key}
+          className={`sec-image-placeholder${status ? ` sec-image-placeholder--${status}` : ""}`}
+          aria-label={block.alt}
+        >
           <div className="sec-image-placeholder__box">
-            <span>🖼</span>
-            <em>图片占位 · {block.alt}</em>
+            <span>{status === "failed" ? "⚠" : status ? "✦" : "🖼"}</span>
+            <em>{stateText}</em>
+            <small>{block.alt}</small>
           </div>
           {block.caption && <figcaption>{block.caption}</figcaption>}
         </figure>
       );
+    }
     case "image":
       return (
         <figure key={key} className="sec-image">

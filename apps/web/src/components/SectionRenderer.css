@@ -236,18 +236,45 @@
   gap: 8px;
 }
 .sec-image-placeholder__box {
-  height: 140px;
+  height: 160px;
   border: 1px dashed var(--line-2);
   border-radius: 9px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 6px;
   color: var(--muted);
   background: rgba(8, 19, 34, .42);
+  position: relative;
+  overflow: hidden;
 }
 .sec-image-placeholder__box span { font-size: 26px; }
+.sec-image-placeholder__box em { font-size: 13px; font-style: normal; }
+.sec-image-placeholder__box small { font-size: 11px; opacity: 0.6; max-width: 80%; text-align: center; }
 .sec-image-placeholder figcaption { font-size: 12px; color: var(--muted); }
+
+/* Pending/generating: animated shimmer to signal background work. */
+.sec-image-placeholder--pending .sec-image-placeholder__box,
+.sec-image-placeholder--generating .sec-image-placeholder__box {
+  border-color: rgba(56, 242, 230, .35);
+  color: var(--teal);
+}
+.sec-image-placeholder--generating .sec-image-placeholder__box::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(56, 242, 230, .08) 50%, transparent 100%);
+  animation: sec-img-shimmer 1.6s linear infinite;
+}
+@keyframes sec-img-shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+.sec-image-placeholder--failed .sec-image-placeholder__box {
+  border-color: rgba(255, 138, 138, .35);
+  color: #ff8a8a;
+}
 
 /* Unknown block style fallback */
 .sec-unknown {
@@ -266,4 +293,59 @@
   font-size: 11px;
   overflow-x: auto;
   white-space: pre-wrap;
+}
+
+/* Source line: a small "来源 · 出处 · 时间" caption that can attach to any block
+ * or list item. Visually quiet — secondary text color, 12px. */
+.sec-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+  line-height: 1.4;
+}
+a.sec-source:hover { color: var(--accent, #38f2e6); text-decoration: underline; }
+.sec-source__tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--element-soft, rgba(255, 255, 255, .06));
+  color: var(--element-accent, var(--muted));
+  letter-spacing: 0.5px;
+}
+.sec-source__cite { font-weight: 500; }
+.sec-source__date { opacity: 0.75; }
+
+.sec-with-source {
+  display: flex;
+  flex-direction: column;
+  /* Critical: keep the SourceLine to its own intrinsic width so the clickable
+   * anchor area only covers the text. Without this, flex column defaults to
+   * align-items: stretch and the link spans the full row. */
+  align-items: flex-start;
+}
+/* Inner text blocks (lead/prose) still need full width even though parent is
+ * align-items: flex-start (which is per-child width:auto by default). */
+.sec-with-source > .body-lead,
+.sec-with-source > .body-prose,
+.sec-with-source > p { align-self: stretch; }
+
+/* When a SourceLine appears inside list items / cards, push it to its own row */
+.dot-list li,
+.check-list li,
+.example-list .example-item,
+.warn-card,
+.module-card {
+  flex-wrap: wrap;
+}
+.dot-list li .sec-source,
+.check-list li .sec-source,
+.example-list .example-item .sec-source,
+.warn-card .sec-source,
+.module-card .sec-source {
+  width: 100%;
+  margin-top: 4px;
 }

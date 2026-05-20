@@ -9,7 +9,8 @@ export type SignalType =
   | "user.repeated_op"    // same op was invoked on same element within window
   | "user.frustrated"     // composite signal (≥ 3 repeated ops on same element in <30 min)
   | "user.changed_center" // user switched the current center element (data: { from, to, dwellMs })
-  | "user.feedback";      // explicit user feedback on an element (data: { feedback, autoRefined?, beforeRichness? })
+  | "user.feedback"       // explicit user feedback on an element (data: { feedback, autoRefined?, beforeRichness? })
+  | "user.edited";        // user manually edited element fields (data: { fields: string[] })
 
 export interface Signal {
   ts: string;                        // ISO 8601 timestamp

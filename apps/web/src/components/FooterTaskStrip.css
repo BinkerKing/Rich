@@ -1,0 +1,108 @@
+/* Compact in-flight / unread task strip living in the bottom bar.
+ * Mirrors the visual language of EmbeddedTaskList (per-kind color, running
+ * charging pulse, unread gold) but compressed to a single horizontal pill row. */
+
+.footer-task-strip {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  max-width: 100%;
+  margin-left: auto;
+}
+
+.footer-task {
+  --kind-color: var(--teal);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--kind-color) 40%, var(--line-2));
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--kind-color) 14%, transparent),
+    color-mix(in srgb, var(--kind-color) 4%, transparent) 70%,
+    rgba(15, 29, 46, .42));
+  color: var(--soft);
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 280px;
+  transition: filter .12s, transform .12s;
+}
+.footer-task:hover:not(:disabled) {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+.footer-task:disabled {
+  cursor: progress;
+}
+
+.footer-task__kind {
+  font-weight: 700;
+  color: var(--kind-color);
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--kind-color) 18%, transparent);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+.footer-task__title {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.footer-task__elapsed {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+/* Per-kind color tokens — same palette as EmbeddedTaskList. */
+.footer-task--kind-generate     { --kind-color: #38f2e6; }
+.footer-task--kind-refine       { --kind-color: #3dd5cd; }
+.footer-task--kind-expand       { --kind-color: #6aa8ff; }
+.footer-task--kind-extend       { --kind-color: #b9a3ff; }
+.footer-task--kind-feedback     { --kind-color: #ffa86b; }
+.footer-task--kind-path         { --kind-color: #74e5b0; }
+.footer-task--kind-hydrate      { --kind-color: #8fb3ca; }
+.footer-task--kind-daily-news   { --kind-color: #4ade80; }
+.footer-task--kind-ai-search    { --kind-color: #8ffef7; }
+
+/* Running ("charging") — shimmer wash + breathing border glow. */
+.footer-task--running {
+  position: relative;
+  overflow: hidden;
+  animation: footer-task-pulse 2s ease-in-out infinite;
+}
+.footer-task--running::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--kind-color) 36%, transparent), transparent);
+  transform: translateX(-100%);
+  animation: footer-task-scan 1.4s linear infinite;
+  pointer-events: none;
+}
+@keyframes footer-task-scan { to { transform: translateX(100%); } }
+@keyframes footer-task-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--kind-color) 0%, transparent); }
+  50%      { box-shadow: 0 0 18px color-mix(in srgb, var(--kind-color) 50%, transparent); }
+}
+
+/* Done but not yet clicked — gold "new result" pill. */
+.footer-task.is-unread {
+  --kind-color: #ffc94d;
+  color: #ffc94d;
+  font-weight: 600;
+  animation: footer-task-pulse-gold 2s ease-in-out infinite;
+}
+.footer-task.is-unread .footer-task__kind {
+  color: #ffc94d;
+  background: rgba(255, 201, 77, .22);
+}
+@keyframes footer-task-pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 201, 77, 0); }
+  50%      { box-shadow: 0 0 18px rgba(255, 201, 77, .45); }
+}

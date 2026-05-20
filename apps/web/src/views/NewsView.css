@@ -1,0 +1,320 @@
+/* NewsView reuses tree-view's grid (250 | 1fr | 250) — only the main + sidebar
+ * content differ. Keeps chrome perfectly consistent with knowledge tree view. */
+
+.news-sidebar .news-cat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.news-cat__count {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .06);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.news-cat.is-active .news-cat__count {
+  background: var(--center-accent, var(--teal));
+  color: #06121e;
+}
+
+/* Override .tv-main's two-row grid (designed for knowledge map + element panel).
+ * NewsView is just a scrollable feed — plain block layout. */
+.news-main {
+  display: block !important;
+  grid-template-rows: none !important;
+  overflow-y: auto;
+  padding: 12px 16px;
+}
+
+.news-page-head {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 4px 4px 18px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.news-page-head h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+.news-page-head__date {
+  font-size: 14px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.news-generate-btn {
+  margin-left: auto;
+  padding: 8px 16px;
+  background: var(--center-accent, var(--teal));
+  border: none;
+  border-radius: 8px;
+  color: #06121e;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+}
+.news-generate-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.news-generate-btn:disabled {
+  background: rgba(56, 242, 230, .25);
+  color: var(--teal);
+  cursor: progress;
+}
+
+.news-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding-bottom: 16px;
+}
+.news-feed > section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/* Date group header = a proper section divider, not a tiny caption. Sits on its
+ * own row with a baseline rule so cards below feel clearly grouped. */
+.news-feed__group-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  margin: 0;
+}
+.news-feed__group-title strong {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink, #e6edf5);
+  letter-spacing: 0.3px;
+}
+.news-feed__group-title em {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+.news-feed__group-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .04);
+  font-variant-numeric: tabular-nums;
+}
+.news-feed__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  /* Critical: align grid rows to start so cards keep their natural height,
+   * otherwise a tall card stretches all siblings in the same row. */
+  align-items: start;
+  gap: 14px;
+}
+
+.news-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: rgba(7, 16, 29, .42);
+  cursor: pointer;
+  transition: border-color .15s, transform .12s, background .15s;
+}
+.news-card:hover {
+  border-color: var(--center-accent, var(--teal));
+  background: rgba(56, 242, 230, .06);
+  transform: translateY(-1px);
+}
+
+.news-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.news-card__cat {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(56, 242, 230, .12);
+  color: var(--teal);
+  letter-spacing: 0.3px;
+}
+.news-card__cat[data-category="能力突破"]   { background: rgba(74, 222, 128, .14); color: #4ade80; }
+.news-card__cat[data-category="应用产品"]   { background: rgba(255, 209, 102, .14); color: #ffd166; }
+.news-card__cat[data-category="大模型"]     { background: rgba(87, 167, 255, .14); color: #57a7ff; }
+.news-card__cat[data-category="工具与开源"] { background: rgba(167, 139, 250, .14); color: #a78bfa; }
+.news-card__cat[data-category="研究论文"]   { background: rgba(255, 122, 92, .12); color: #ff7a5c; }
+.news-card__cat[data-category="政策与安全"] { background: rgba(255, 138, 138, .12); color: #ff8a8a; }
+.news-card__cat[data-category="投融资"]     { background: rgba(56, 242, 230, .12); color: var(--teal); }
+
+.news-card__impact {
+  font-size: 11px;
+  color: #ff7a5c;
+  font-weight: 500;
+}
+
+.news-card__title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0;
+}
+.news-card__sub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.news-card__foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  margin-top: 2px;
+}
+
+.news-modal__footer {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: flex-end;
+}
+.news-modal__deep {
+  padding: 10px 20px;
+  background: rgba(56, 242, 230, .12);
+  border: 1px solid var(--teal);
+  border-radius: 10px;
+  color: var(--teal);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.news-modal__deep:hover { background: rgba(56, 242, 230, .22); }
+
+.news-empty {
+  padding: 60px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* News detail = modal card overlay. Opens centered, dim backdrop, ESC closes. */
+.news-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(2, 8, 18, .72);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  animation: news-modal-fade-in .15s ease-out;
+}
+@keyframes news-modal-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.news-modal__card {
+  position: relative;
+  width: min(1100px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  background: rgba(10, 20, 34, .96);
+  border: 1px solid var(--line-2);
+  border-radius: 18px;
+  padding: 48px 64px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .55);
+  animation: news-modal-pop .18s ease-out;
+  font-size: 16px;
+  line-height: 1.7;
+}
+@keyframes news-modal-pop {
+  from { transform: translateY(8px) scale(.98); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.news-modal__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+}
+.news-modal__close:hover {
+  border-color: var(--center-accent, var(--teal));
+  color: var(--center-accent, var(--teal));
+}
+.news-modal__esc-hint {
+  position: absolute;
+  top: 22px;
+  right: 60px;
+  font-size: 11px;
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.news-modal__head h1 {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 12px;
+  padding-right: 100px;
+}
+.news-modal__sub {
+  font-size: 18px;
+  color: var(--muted);
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+.news-modal__meta {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 32px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+.news-modal__meta .news-card__cat { font-size: 12px; padding: 3px 10px; }
+
+.news-modal__body section {
+  margin-bottom: 28px;
+}
+.news-modal__body .body-lead {
+  font-size: 19px;
+  line-height: 1.6;
+}
+.news-modal__body .body-prose {
+  font-size: 16px;
+  line-height: 1.8;
+}

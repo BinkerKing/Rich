@@ -13,7 +13,9 @@ export type ElementType =
   | "summary"
   | "relation"
   | "dispute"
-  | "exercise";
+  | "exercise"
+  | "report"
+  | "guide";
 
 export type ElementId = string;
 

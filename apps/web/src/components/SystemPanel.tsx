@@ -1,38 +1,110 @@
 import { useState, type CSSProperties, type FormEvent } from "react";
 import type { Element } from "@ke/domain";
 import { Icon, iconForElement } from "./Icon.js";
+import { useStore, type AppView } from "../state/store.js";
+import { EmbeddedTaskList } from "./EmbeddedTaskList.js";
 import "./components.css";
 
 export type SystemPanelMode = "search" | "view" | "map" | "notice";
 
 interface Props {
   mode: SystemPanelMode;
-  selected: Element;
+  /** Selected element — required for search relevance ranking. Optional so the
+   *  panel can mount on pages that don't have a current element (e.g. home). */
+  selected?: Element;
   elements: Map<string, Element>;
   onSelect: (id: string) => void;
 }
 
 export function SystemPanel({ mode, selected, elements, onSelect }: Props) {
   if (mode === "search") {
+    if (!selected) {
+      return (
+        <aside className="system-panel">
+          <header className="system-panel__head"><h2>搜索</h2></header>
+          <div className="system-placeholder">
+            <Icon name="search" />
+            <strong>进入知识树后可搜索元</strong>
+          </div>
+        </aside>
+      );
+    }
     return <SearchSystem selected={selected} elements={elements} onSelect={onSelect} />;
   }
+  if (mode === "view") {
+    return <ViewSystem />;
+  }
+  if (mode === "notice") {
+    return <NoticeSystem />;
+  }
 
-  const labels: Record<SystemPanelMode, string> = {
-    search: "搜索系统",
-    view: "视图系统",
-    map: "地图系统",
-    notice: "通知系统",
-  };
-
+  // map (only remaining placeholder)
   return (
     <aside className="system-panel">
       <header className="system-panel__head">
-        <h2>{labels[mode]}</h2>
+        <h2>知识地图</h2>
         <span>待接入</span>
       </header>
       <div className="system-placeholder">
-        <Icon name={mode === "map" ? "map" : mode === "view" ? "grid" : "bell"} />
-        <strong>{labels[mode]}</strong>
+        <Icon name="map" />
+        <strong>知识地图</strong>
+      </div>
+    </aside>
+  );
+}
+
+function NoticeSystem() {
+  // Count only visible (non-hidden) tasks so the header matches what's shown.
+  const visible = useStore(s => s.tasks.filter(t => !t.hidden));
+  const running = visible.filter(t => t.status === "running").length;
+  return (
+    <aside className="system-panel notice-system">
+      <header className="system-panel__head">
+        <h2>任务列表</h2>
+        <span className="system-panel__head-meta">
+          {running > 0 ? `${running} 进行中 · 共 ${visible.length} 条` : `${visible.length} 条`}
+        </span>
+      </header>
+      <EmbeddedTaskList />
+    </aside>
+  );
+}
+
+function ViewSystem() {
+  const appView = useStore(s => s.appView);
+  const setAppView = useStore(s => s.setAppView);
+  const exitToHome = useStore(s => s.exitToHome);
+
+  // Click 知识树 → always land on the InputView home page (clears rootId).
+  // Picking / continuing a specific tree happens from that page.
+  const views: Array<{ id: AppView; label: string; desc: string; icon: "branch" | "gear" | "spark"; onClick: () => void }> = [
+    { id: "tree", label: "知识树", desc: "回到知识树首页选择 / 新建", icon: "branch", onClick: exitToHome },
+    { id: "news", label: "AI 早报", desc: "每日 AI 能力进展与应用速览", icon: "spark", onClick: () => setAppView("news") },
+    { id: "admin", label: "后台", desc: "AI 引擎 · 操作日志 · 提示词", icon: "gear", onClick: () => setAppView("admin") },
+  ];
+
+  return (
+    <aside className="system-panel view-system">
+      <header className="system-panel__head">
+        <h2>视图系统</h2>
+      </header>
+      <div className="view-list">
+        {views.map(v => (
+          <button
+            key={v.id}
+            type="button"
+            className={`view-card${appView === v.id ? " is-active" : ""}`}
+            onClick={v.onClick}
+            title={`切换到${v.label}`}
+          >
+            <span className="view-card__icon"><Icon name={v.icon} /></span>
+            <span className="view-card__main">
+              <strong>{v.label}</strong>
+              <em>{v.desc}</em>
+            </span>
+            {appView === v.id && <span className="view-card__badge">当前</span>}
+          </button>
+        ))}
       </div>
     </aside>
   );

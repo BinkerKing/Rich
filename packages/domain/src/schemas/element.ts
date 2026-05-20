@@ -4,7 +4,7 @@ export const ElementTypeSchema = z.enum([
   "topic", "concept", "step", "product-design",
   "viewpoint", "question", "case", "tool", "ability",
   "project", "practice", "summary", "relation",
-  "dispute", "exercise",
+  "dispute", "exercise", "report", "guide",
 ]);
 
 export const RichnessLevelSchema = z.union([

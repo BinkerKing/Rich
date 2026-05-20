@@ -26,7 +26,7 @@ ${text}
 {
   "topic": "3-12 字的简短中文短语 — 用作元的标题；要凝练、像目录条目，不要复述用户原文、不要标点结尾、不要 emoji",
   "keywords": ["3-6 个 2-6 字的中文 / 英文关键词，覆盖主题、概念、动作、领域；不要重复同义词；从用户输入里直接抓"],
-  "type": "topic | concept | practice | project | step | exercise | product-design 之一",
+  "type": "topic | concept | step | exercise | product-design 之一（禁止 practice / project，这两类只能用户手动建）",
   "intent": "一句话（不超过 30 字）描述用户想做什么，例如：『学习一个旅行规划方法』『落地一段实战项目』『理解一个概念』"
 }
 \`\`\`
@@ -34,7 +34,7 @@ ${text}
 类型判断参考：
 - topic：用户想从零开始建一棵全新主题（"泰国旅游攻略"、"认知心理学"）。
 - concept：一个独立概念 / 方法 / 原理（"光合作用"、"State Hoisting"、"3 天游法"）。
-- practice / project：一段可落地的实战 / 项目目标（"做一个 ai 内容生成器"）。
+- ~~practice / project~~：**这两类禁止 AI 创建**，遇到"做一个 / 落地"类目标也归类为 concept 或 topic，让用户自己手动改类型。
 - step / exercise：明确的"步骤"或"练习题"。
 - product-design：产品 / 系统 / 工具设计相关。
 

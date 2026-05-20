@@ -2,8 +2,13 @@ import { create } from "zustand";
 import type { Element, Relation, LearningPath, ElementId, PathKind, RichnessLevel } from "@ke/domain";
 import { api, type Model } from "../api/client.js";
 import { createDemoLargeTree } from "../data/demoLargeTree.js";
+import type { SystemPanelMode } from "../components/SystemPanel.js";
 
-export type OpKind = "generate" | "refine" | "expand" | "extend" | "feedback" | "path" | "hydrate";
+export type OpKind = "generate" | "refine" | "expand" | "extend" | "feedback" | "path" | "hydrate" | "daily-news" | "ai-search";
+
+/** Top-level app views. Switched via the SystemPanel "视图系统" mode.
+ *  "tree" auto-falls-back to the home picker (InputView) when no rootId is set. */
+export type AppView = "tree" | "admin" | "news";
 
 export interface InflightOp {
   kind: OpKind;
@@ -32,6 +37,25 @@ export interface TaskRecord {
   elementId?: string;
   /** Optional summary for done state (e.g. new children count). */
   summary?: string;
+  /** Whether the user has clicked this task to navigate after completion.
+   *  Done tasks that aren't yet viewed get a gold "unread" highlight. */
+  viewed?: boolean;
+  /** Soft-delete flag — task stays in the store + on-disk record, but the
+   *  embedded task list hides it. Allows "history" recovery later. */
+  hidden?: boolean;
+  /** For kind === "ai-search": id of the corresponding homeAnalyses session.
+   *  Clicking the task opens the home view and activates that tab. */
+  analysisId?: string;
+  /** Serialized arguments needed to retry this op. Shape depends on `kind`:
+   *   generate    → { topic, richness }
+   *   refine      → { elementId, targetRichness, direction? }
+   *   expand      → { elementId, count?, direction? }
+   *   extend      → { elementId, direction, count? }
+   *   feedback    → { elementId, feedback }
+   *   daily-news  → { date }
+   *  Missing for tasks created before this field existed; retry button is
+   *  hidden in that case. */
+  retryArgs?: Record<string, unknown>;
 }
 
 const TASK_HISTORY_MAX = 20;
@@ -57,6 +81,37 @@ interface AppState {
   lastCenterId: ElementId | null;
   /** Newest-first log of AI ops shown in the task panel. */
   tasks: TaskRecord[];
+  /** Current top-level view — switched via the right-side 视图系统 panel. */
+  appView: AppView;
+  /** Which system panel is shown on the right side (search / view / map / notice). */
+  systemMode: SystemPanelMode;
+  /** True when user jumped to tree view from a news card's "深入了解" button.
+   *  ESC in tree view + a topbar pill use this to return to the news view. */
+  cameFromNews: boolean;
+  /** AI 解析结果 sessions on the home page. Each submission adds a tab here;
+   *  tabs persist until user closes them or accepts an option from that tab.
+   *  Survives view switches. */
+  homeAnalyses: Array<{
+    id: string;
+    analyzedText: string;
+    analysis: import("../api/client.js").AnalyzeInputResult | null;
+    collapsed?: boolean;
+    /** Lifecycle: "running" while codex is fetching, "done" when result is in,
+     *  "error" if fetch failed. Drives tab visual (charging / gold / red). */
+    status?: "running" | "done" | "error";
+    /** Whether the user has clicked this tab since it completed. Done sessions
+     *  start unviewed (gold). Clicking marks viewed → falls back to normal color. */
+    viewed?: boolean;
+    /** Error message when status === "error". */
+    error?: string;
+  }>;
+  /** Id of the currently-shown analysis tab, or null when none. */
+  homeActiveAnalysisId: string | null;
+  /** Favorite elements (the "收藏夹" pool). Persisted to localStorage. */
+  favorites: string[];
+  /** Quick-nav pinned shortcuts on the home left rail. Subset curated by the
+   *  user by dragging from 收藏夹. Persisted to localStorage. */
+  quickNav: string[];
 
   // ----- read actions -----
   hydrate(): Promise<void>;
@@ -66,6 +121,50 @@ interface AppState {
   enterAtElement(elementId: ElementId): Promise<void>;
   /** Return to InputView (without losing elements/relations cache). */
   exitToHome(): void;
+  /** Switch the top-level app view. */
+  setAppView(view: AppView): void;
+  /** Switch which system panel is shown on the right. Also switches to tree view
+   *  when called from admin, so the panel is actually visible to the user. */
+  setSystemMode(mode: SystemPanelMode): void;
+  /** Start a new analysis session — creates a new tab, sets as active.
+   *  Returns the session id so the caller can fill in `analysis` later. */
+  startHomeAnalysis(analyzedText: string): string;
+  /** Set the analysis result on a specific session — also marks status=done. */
+  setHomeAnalysisResult(id: string, analysis: import("../api/client.js").AnalyzeInputResult): void;
+  /** Mark session as failed with an error message. */
+  setHomeAnalysisError(id: string, message: string): void;
+  /** Mark session as viewed (clears the gold "unread" tab highlight). */
+  markHomeAnalysisViewed(id: string): void;
+  /** Close a tab by id (× button or chooseOption). */
+  closeHomeAnalysis(id: string): void;
+  /** Switch which tab is shown. */
+  setActiveHomeAnalysis(id: string | null): void;
+  /** Toggle the collapsed state of a specific analysis tab. */
+  toggleHomeAnalysisCollapsed(id: string): void;
+  /** Open the home view and activate the given analysis tab. Used when the
+   *  user clicks an ai-search task from anywhere. */
+  openHomeAnalysisTab(id: string): void;
+  /** Mark a task as viewed (clears the gold "unread" highlight). */
+  markTaskViewed(taskId: string): void;
+  /** Hide a task from the embedded task list (soft-delete). The record is
+   *  preserved in store + localStorage so it can be recovered or audited
+   *  later. Doesn't cancel any running server-side work. */
+  removeTask(taskId: string): void;
+  /** Re-run a failed task using its stored retryArgs. No-op if the task has
+   *  no retryArgs (created before retry support). */
+  retryTask(taskId: string): Promise<void>;
+  /** Toggle / add / remove / reorder favorites. All variants persist to localStorage. */
+  toggleFavorite(id: ElementId): void;
+  setFavorites(list: ElementId[]): void;
+  /** Quick-nav helpers — separate list, populated by dragging from favorites. */
+  setQuickNav(list: ElementId[]): void;
+  /** Enter tree view focused on a news element so the user can edit / extend /
+   *  refine it. Sets `cameFromNews` so ESC + the topbar pill can return. */
+  enterFromNews(elementId: ElementId): Promise<void>;
+  /** Trigger AI generation of today's (or a given date's) AI 早报. Streams
+   *  progress as a task; on success refreshes the local element cache so the
+   *  news view picks up the new roundup + items. */
+  generateDailyNews(date?: string): Promise<void>;
 
   // ----- AI actions (streaming) -----
   generate(topic: string, opts?: { model?: Model; richness?: RichnessLevel }): Promise<void>;
@@ -76,6 +175,14 @@ interface AppState {
   /** Section-scoped feedback. AI only touches that one section; server merges
    *  the new section JSON back into element.content.sections by id. */
   sectionFeedback(elementId: ElementId, sectionId: string, feedback: string, model?: Model): Promise<void>;
+  /** Strict-attach: create exactly 1 leaf or a vertical chain under a parent. */
+  attachUnder(parentId: ElementId, args: { mode: "leaf"|"chain"; leafTitle?: string; chain?: string[]; fullIntent: string; richness?: RichnessLevel }, model?: Model): Promise<void>;
+  /** Update user-editable surface fields (title / subtitle). */
+  editElement(id: ElementId, patch: { title?: string; subtitle?: string; type?: string; difficulty?: "low" | "mid" | "high" | null }): Promise<void>;
+  /** Manually create an empty topic element with just a title. Returns its id. */
+  createManualElement(title: string, type?: string): Promise<ElementId>;
+  /** Manually create an empty child element under a parent. Returns its id. */
+  createChildElement(parentId: ElementId, title: string, type?: string): Promise<ElementId>;
   /** Re-fetch one element and merge it; used after side-channel writes (e.g. analyze-mark). */
   refreshElement(elementId: ElementId): Promise<void>;
   /** Delete an element and its entire descendant subtree. */
@@ -188,6 +295,30 @@ function loadTasks(): TaskRecord[] {
   }
 }
 
+/** Pull the text between the first `「…」` pair in a string, used to recover
+ *  a generate-task's topic from its display title for old tasks that have no
+ *  retryArgs field. */
+function extractQuoted(s: string | undefined): string | null {
+  if (!s) return null;
+  const m = s.match(/「([^」]+)」/);
+  return m ? m[1] : null;
+}
+
+/** Generic localStorage string-list helpers used by favorites + quickNav. */
+function loadStringList(key: string): string[] {
+  if (typeof localStorage === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
+  } catch { return []; }
+}
+function saveStringList(key: string, ids: string[]): void {
+  if (typeof localStorage === "undefined") return;
+  try { localStorage.setItem(key, JSON.stringify(ids)); } catch { /* ignore */ }
+}
+
 function mergeElements(
   cur: Map<ElementId, Element>,
   incoming: Element[],
@@ -229,6 +360,13 @@ export const useStore = create<AppState>((set, get) => ({
   availableTopics: [],
   tasks: loadTasks(),
   lastCenterId: null,
+  appView: "tree",
+  systemMode: "view",
+  cameFromNews: false,
+  favorites: loadStringList("ke.favorites.v1"),
+  quickNav: loadStringList("ke.quickNav.v1"),
+  homeAnalyses: [],
+  homeActiveAnalysisId: null,
 
   async hydrate() {
     set({ loading: true, error: null });
@@ -239,7 +377,13 @@ export const useStore = create<AppState>((set, get) => ({
         api.getCenterState().catch(() => ({ current: null, updatedAt: null, recent: [] })),
       ]);
       const elementMap = new Map(elements.map(e => [e.id, e] as const));
-      const topics = elements.filter(e => e.type === "topic");
+      // Home shows ALL true root elements — anything without an incoming
+      // `child` relation, regardless of type. Type is reflected in the card
+      // color, not in whether it shows.
+      const childIds = new Set(
+        relations.filter(r => r.kind === "child").map(r => r.to),
+      );
+      const topics = elements.filter(e => !childIds.has(e.id));
       set({
         elements: elementMap,
         relations,
@@ -281,7 +425,7 @@ export const useStore = create<AppState>((set, get) => ({
         pathsByCenter.set(rootId, paths);
       }
     } catch { /* missing paths file is fine */ }
-    set({ rootId, centerId: center, pathsByCenter, error: null });
+    set({ rootId, centerId: center, pathsByCenter, error: null, appView: "tree", cameFromNews: false });
     api.setCenterState(center).catch(() => undefined);
   },
 
@@ -318,13 +462,255 @@ export const useStore = create<AppState>((set, get) => ({
         pathsByCenter.set(rootId, paths);
       }
     } catch { /* ignore */ }
-    set({ rootId, centerId: elementId, pathsByCenter, error: null });
+    set({ rootId, centerId: elementId, pathsByCenter, error: null, appView: "tree" });
     api.setCenterState(elementId).catch(() => undefined);
   },
 
   exitToHome() {
-    set({ rootId: null });
-    // keep elements/relations/topics so the home page still shows them
+    // Snapshot the current centerId as lastCenterId so the home page's
+    // "继续学习" reflects where the user actually was just now — not the
+    // server value loaded at initial hydrate.
+    set(s => ({
+      rootId: null, appView: "tree", cameFromNews: false,
+      lastCenterId: s.centerId ?? s.lastCenterId,
+    }));
+    // keep elements/relations/topics so the home page still shows them.
+    // appView stays "tree" — TreeView auto-falls back to InputView when rootId is null.
+  },
+
+  setAppView(view) {
+    // Clear "came from news" whenever we leave the tree view, so a later return
+    // doesn't get the news pill / ESC behavior unexpectedly.
+    set(s => ({ appView: view, cameFromNews: view === "tree" ? s.cameFromNews : false }));
+  },
+
+  setSystemMode(mode) {
+    set({ systemMode: mode });
+  },
+
+  startHomeAnalysis(analyzedText) {
+    const id = `an-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4).toString(36)}`;
+    const taskId = nextTaskId();
+    const shortText = analyzedText.slice(0, 32) + (analyzedText.length > 32 ? "…" : "");
+    set(s => ({
+      homeAnalyses: [...s.homeAnalyses, { id, analyzedText, analysis: null, status: "running" }],
+      homeActiveAnalysisId: id,
+      tasks: pushTask(s, {
+        id: taskId,
+        kind: "ai-search",
+        title: `AI 搜索「${shortText}」`,
+        status: "running",
+        startedAt: Date.now(),
+        analysisId: id,
+        retryArgs: { text: analyzedText },
+      }),
+    }));
+    return id;
+  },
+  setHomeAnalysisResult(id, analysis) {
+    set(s => ({
+      homeAnalyses: s.homeAnalyses.map(a =>
+        a.id === id ? { ...a, analysis, status: "done", viewed: false } : a,
+      ),
+      tasks: s.tasks.map(t =>
+        t.kind === "ai-search" && t.analysisId === id
+          ? { ...t, status: "done" as const, finishedAt: Date.now(), viewed: false, summary: `${analysis.options.length} 个挂载选项` }
+          : t,
+      ),
+    }));
+    // Mirror the new tasks list to localStorage so refreshes don't lose it.
+    saveTasks(get().tasks);
+  },
+  setHomeAnalysisError(id, message) {
+    set(s => ({
+      homeAnalyses: s.homeAnalyses.map(a =>
+        a.id === id ? { ...a, status: "error", error: message } : a,
+      ),
+      tasks: s.tasks.map(t =>
+        t.kind === "ai-search" && t.analysisId === id
+          ? { ...t, status: "error" as const, error: message, finishedAt: Date.now() }
+          : t,
+      ),
+    }));
+    saveTasks(get().tasks);
+  },
+  markHomeAnalysisViewed(id) {
+    set(s => ({
+      homeAnalyses: s.homeAnalyses.map(a => a.id === id ? { ...a, viewed: true } : a),
+    }));
+  },
+  closeHomeAnalysis(id) {
+    set(s => {
+      const next = s.homeAnalyses.filter(a => a.id !== id);
+      const nextActive = s.homeActiveAnalysisId === id
+        ? (next[next.length - 1]?.id ?? null)
+        : s.homeActiveAnalysisId;
+      return { homeAnalyses: next, homeActiveAnalysisId: nextActive };
+    });
+  },
+  setActiveHomeAnalysis(id) {
+    set({ homeActiveAnalysisId: id });
+  },
+
+  toggleHomeAnalysisCollapsed(id) {
+    set(s => ({
+      homeAnalyses: s.homeAnalyses.map(a => a.id === id ? { ...a, collapsed: !a.collapsed } : a),
+    }));
+  },
+
+  openHomeAnalysisTab(id) {
+    // Switch to home (tree view + no rootId = InputView) and activate the tab.
+    set({ rootId: null, appView: "tree", cameFromNews: false, homeActiveAnalysisId: id });
+  },
+
+  markTaskViewed(taskId) {
+    set(s => ({ tasks: updateTask(s, taskId, { viewed: true }) }));
+  },
+
+  removeTask(taskId) {
+    // Soft-delete only: flip `hidden: true`. Keeps the record intact for
+    // history / undo / audit; the embedded list just filters hidden ones out.
+    set(s => ({ tasks: updateTask(s, taskId, { hidden: true }) }));
+  },
+
+  async retryTask(taskId) {
+    const task = get().tasks.find(t => t.id === taskId);
+    if (!task) return;
+    // Hide the old failed task so it doesn't clutter the list — the new
+    // attempt creates a fresh task record.
+    set(s => ({ tasks: updateTask(s, taskId, { hidden: true }) }));
+    const a = (task.retryArgs ?? {}) as Record<string, unknown>;
+    const api = get();
+    switch (task.kind) {
+      case "generate": {
+        // Fallback: parse the topic from the title like "生成知识树「拉萨」".
+        const topic = String(a.topic ?? extractQuoted(task.title) ?? "");
+        if (!topic) return; // can't retry without a topic
+        await api.generate(
+          topic,
+          {
+            model: (a.model as Model | undefined) ?? "codex",
+            richness: (a.richness as RichnessLevel | undefined) ?? 3,
+          },
+        );
+        return;
+      }
+      case "refine": {
+        const elementId = String(a.elementId ?? task.elementId ?? "");
+        if (!elementId) return;
+        await api.refine(
+          elementId,
+          (a.targetRichness as RichnessLevel | undefined) ?? 3,
+          a.direction as string | undefined,
+          a.model as Model | undefined,
+        );
+        return;
+      }
+      case "expand": {
+        const elementId = String(a.elementId ?? task.elementId ?? "");
+        if (!elementId) return;
+        await api.expand(
+          elementId,
+          a.count as number | undefined,
+          a.direction as string | undefined,
+          a.model as Model | undefined,
+        );
+        return;
+      }
+      case "extend": {
+        const elementId = String(a.elementId ?? task.elementId ?? "");
+        if (!elementId) return;
+        await api.extend(
+          elementId,
+          String(a.direction ?? ""),
+          a.count as number | undefined,
+          a.model as Model | undefined,
+        );
+        return;
+      }
+      case "feedback": {
+        const elementId = String(a.elementId ?? task.elementId ?? "");
+        const feedback = String(a.feedback ?? "");
+        if (!elementId || !feedback) return;
+        await api.feedback(elementId, feedback, a.model as Model | undefined);
+        return;
+      }
+      case "daily-news":
+        await api.generateDailyNews(a.date as string | undefined);
+        return;
+    }
+  },
+
+  toggleFavorite(id) {
+    set(s => {
+      const next = s.favorites.includes(id)
+        ? s.favorites.filter(x => x !== id)
+        : [...s.favorites, id];
+      saveStringList("ke.favorites.v1", next);
+      // Favorites and quickNav are independent — un-favoriting does NOT
+      // remove from quickNav.
+      return { favorites: next };
+    });
+  },
+  setFavorites(list) {
+    saveStringList("ke.favorites.v1", list);
+    set({ favorites: list });
+  },
+  setQuickNav(list) {
+    saveStringList("ke.quickNav.v1", list);
+    set({ quickNav: list });
+  },
+
+  async enterFromNews(elementId) {
+    await get().enterAtElement(elementId);
+    set({ cameFromNews: true });
+  },
+
+  async generateDailyNews(date) {
+    const targetDate = date ?? new Date().toISOString().slice(0, 10);
+    const taskId = nextTaskId();
+    set(s => ({
+      tasks: pushTask(s, {
+        id: taskId,
+        kind: "daily-news",
+        title: `生成 ${targetDate} AI 早报`,
+        retryArgs: { date: targetDate },
+        status: "running",
+        startedAt: Date.now(),
+      }),
+    }));
+    try {
+      for await (const ev of api.generateDailyNewsStream(targetDate, "codex")) {
+        if (ev.type === "error") {
+          set(s => ({
+            tasks: updateTask(s, taskId, { status: "error", error: ev.message, finishedAt: Date.now() }),
+            error: `早报生成失败：${ev.message}`,
+          }));
+          return;
+        }
+        if (ev.type === "done") {
+          // Server emits "done" then a separate "materialized" event after it
+          // writes elements + relations. We rely on a fresh hydrate to pick
+          // them up — simpler than racing the materialized event over SSE.
+          continue;
+        }
+      }
+      // Refetch everything so the news view shows the new roundup + children.
+      await get().hydrate();
+      set(s => ({
+        tasks: updateTask(s, taskId, {
+          status: "done",
+          finishedAt: Date.now(),
+          elementId: `ai-news.${targetDate}`,
+          summary: "已写入 ai-news 树",
+        }),
+      }));
+    } catch (e) {
+      set(s => ({
+        tasks: updateTask(s, taskId, { status: "error", error: String(e), finishedAt: Date.now() }),
+        error: `早报生成失败：${String(e)}`,
+      }));
+    }
   },
 
   async generate(topic, opts) {
@@ -338,6 +724,7 @@ export const useStore = create<AppState>((set, get) => ({
         title: `生成知识树「${topic.slice(0, 32)}${topic.length > 32 ? "…" : ""}」`,
         status: "running",
         startedAt: Date.now(),
+        retryArgs: { topic, model: opts?.model, richness: opts?.richness },
       }),
     }));
     try {
@@ -366,9 +753,12 @@ export const useStore = create<AppState>((set, get) => ({
             for (const r of next.relations) if (!have.has(r.id)) mergedRelations.push(r);
             const mergedPaths = new Map(s.pathsByCenter);
             for (const [k, v] of next.pathsByCenter) mergedPaths.set(k, v);
+            const newChildIds = new Set(
+              mergedRelations.filter(r => r.kind === "child").map(r => r.to),
+            );
             const newTopics = [
               ...s.availableTopics.filter(t => !next.elements.has(t.id)),
-              ...Array.from(next.elements.values()).filter(el => el.type === "topic"),
+              ...Array.from(next.elements.values()).filter(el => !newChildIds.has(el.id)),
             ];
             return {
               elements: mergedElements,
@@ -407,7 +797,7 @@ export const useStore = create<AppState>((set, get) => ({
     set(s => ({
       inflight: withInflightStart(s, "refine", elementId),
       error: null,
-      tasks: pushTask(s, { id: taskId, kind: "refine", title: taskTitle, status: "running", startedAt: Date.now(), elementId }),
+      tasks: pushTask(s, { id: taskId, kind: "refine", title: taskTitle, status: "running", startedAt: Date.now(), elementId, retryArgs: { elementId, targetRichness, direction, model } }),
     }));
     try {
       for await (const ev of api.refineStream(elementId, targetRichness, direction, model)) {
@@ -447,7 +837,7 @@ export const useStore = create<AppState>((set, get) => ({
     set(s => ({
       inflight: withInflightStart(s, "expand", elementId),
       error: null,
-      tasks: pushTask(s, { id: taskId, kind: "expand", title: taskTitle, status: "running", startedAt: Date.now(), elementId }),
+      tasks: pushTask(s, { id: taskId, kind: "expand", title: taskTitle, status: "running", startedAt: Date.now(), elementId, retryArgs: { elementId, count, direction, model } }),
     }));
     try {
       for await (const ev of api.expandStream(elementId, count, direction, model)) {
@@ -479,13 +869,134 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
+  async attachUnder(parentId, args, model) {
+    const title = get().elements.get(parentId)?.title ?? parentId;
+    const taskId = nextTaskId();
+    const label = args.mode === "leaf"
+      ? `挂载「${args.leafTitle ?? ""}」到「${title}」下`
+      : `链式挂载「${(args.chain ?? []).join(" → ")}」到「${title}」下`;
+    set(s => ({
+      inflight: withInflightStart(s, "expand", parentId),
+      error: null,
+      tasks: pushTask(s, { id: taskId, kind: "expand", title: label, status: "running", startedAt: Date.now(), elementId: parentId }),
+    }));
+    try {
+      for await (const ev of api.attachUnderStream(parentId, args, model)) {
+        if (ev.type === "delta") {
+          set(s => ({ inflight: withInflightDelta(s, "expand", parentId, ev.text) }));
+        } else if (ev.type === "error") {
+          set(s => ({
+            error: `挂载失败：${ev.message}`,
+            inflight: withInflightDone(s, "expand", parentId),
+            tasks: updateTask(s, taskId, { status: "error", error: ev.message, finishedAt: Date.now() }),
+          }));
+          return;
+        } else if (ev.type === "done") {
+          const deepest = ev.result.elements[ev.result.elements.length - 1];
+          set(s => ({
+            elements: mergeElements(s.elements, ev.result.elements),
+            relations: mergeRelations(s.relations, ev.result.relations),
+            inflight: withInflightDone(s, "expand", parentId),
+            tasks: updateTask(s, taskId, {
+              status: "done", finishedAt: Date.now(),
+              summary: `新增 ${ev.result.elements.length} 个元`,
+              elementId: deepest?.id ?? parentId,
+            }),
+          }));
+          return;
+        }
+      }
+    } catch (e) {
+      set(s => ({
+        error: `挂载失败：${String(e)}`,
+        inflight: withInflightDone(s, "expand", parentId),
+        tasks: updateTask(s, taskId, { status: "error", error: String(e), finishedAt: Date.now() }),
+      }));
+    }
+  },
+
+  async createManualElement(title, type) {
+    const taskId = nextTaskId();
+    const trimmed = title.trim();
+    set(s => ({
+      tasks: pushTask(s, {
+        id: taskId, kind: "generate",
+        title: `手动创建「${trimmed}」`,
+        status: "running", startedAt: Date.now(),
+      }),
+    }));
+    try {
+      const { element: el } = await api.createElement({ title: trimmed, type });
+      set(s => ({
+        elements: mergeElements(s.elements, [el]),
+        availableTopics: el.type === "topic"
+          ? [el, ...s.availableTopics.filter(t => t.id !== el.id)]
+          : s.availableTopics,
+        tasks: updateTask(s, taskId, {
+          status: "done", finishedAt: Date.now(),
+          rootId: el.id, elementId: el.id,
+          summary: "已创建空元",
+        }),
+      }));
+      return el.id;
+    } catch (e) {
+      set(s => ({
+        error: `创建失败：${String(e)}`,
+        tasks: updateTask(s, taskId, { status: "error", error: String(e), finishedAt: Date.now() }),
+      }));
+      throw e;
+    }
+  },
+
+  async createChildElement(parentId, title, type) {
+    const trimmed = title.trim();
+    const parentTitle = get().elements.get(parentId)?.title ?? parentId;
+    const taskId = nextTaskId();
+    set(s => ({
+      tasks: pushTask(s, {
+        id: taskId, kind: "expand",
+        title: `新增下级元「${trimmed}」（挂在「${parentTitle}」下）`,
+        status: "running", startedAt: Date.now(), elementId: parentId,
+      }),
+    }));
+    try {
+      const { element: el, relation } = await api.createElement({ title: trimmed, type, parentId });
+      set(s => ({
+        elements: mergeElements(s.elements, [el]),
+        relations: relation ? mergeRelations(s.relations, [relation]) : s.relations,
+        tasks: updateTask(s, taskId, {
+          status: "done", finishedAt: Date.now(),
+          elementId: el.id,
+          summary: "已创建下级元",
+        }),
+      }));
+      return el.id;
+    } catch (e) {
+      set(s => ({
+        error: `创建失败：${String(e)}`,
+        tasks: updateTask(s, taskId, { status: "error", error: String(e), finishedAt: Date.now() }),
+      }));
+      throw e;
+    }
+  },
+
+  async editElement(id, patch) {
+    try {
+      const next = await api.patchElement(id, patch);
+      set(s => ({ elements: mergeElements(s.elements, [next]), error: null }));
+    } catch (e) {
+      set({ error: `修改失败：${e instanceof Error ? e.message : String(e)}` });
+      throw e;
+    }
+  },
+
   async extend(elementId, direction, count, model) {
     const title = get().elements.get(elementId)?.title ?? elementId;
     const taskId = nextTaskId();
     set(s => ({
       inflight: withInflightStart(s, "extend", elementId),
       error: null,
-      tasks: pushTask(s, { id: taskId, kind: "extend", title: `延伸「${title}」→ ${direction}`, status: "running", startedAt: Date.now(), elementId }),
+      tasks: pushTask(s, { id: taskId, kind: "extend", title: `延伸「${title}」→ ${direction}`, status: "running", startedAt: Date.now(), elementId, retryArgs: { elementId, direction, count, model } }),
     }));
     try {
       for await (const ev of api.extendStream(elementId, direction, count, model)) {
@@ -601,6 +1112,7 @@ export const useStore = create<AppState>((set, get) => ({
         id: taskId, kind: "feedback",
         title: `反馈整改「${title}」· ${shortFb}`,
         status: "running", startedAt: Date.now(), elementId,
+        retryArgs: { elementId, feedback, model },
       }),
     }));
     try {
@@ -701,7 +1213,9 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   setCenter(id) {
-    set({ centerId: id });
+    // Track every center change locally so home page's 继续学习 stays accurate
+    // even if user never goes home — e.g. after a refresh.
+    set({ centerId: id, lastCenterId: id });
     // Fire-and-forget — UI must not block on this.
     api.setCenterState(id).catch(() => undefined);
   },

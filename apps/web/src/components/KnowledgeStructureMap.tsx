@@ -22,6 +22,12 @@ interface Props {
   onSetCenter: (id: string) => void;
   /** Called when a card is HTML5-dragged onto another card (= reparent). */
   onDropOnto?: (sourceId: string, targetId: string) => void;
+  /** When true, the map is in "fullscreen within tv-main" mode (panel hidden). */
+  expanded?: boolean;
+  /** Toggle the expanded mode. */
+  onToggleExpand?: () => void;
+  /** Open the element detail page in fullscreen for the given element id. */
+  onOpenDetail?: (elementId: string) => void;
 }
 
 interface TreeContextTarget {
@@ -81,14 +87,20 @@ export function KnowledgeStructureMap({
   onSelect,
   onSetCenter,
   onDropOnto,
+  expanded,
+  onToggleExpand,
+  onOpenDetail,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [contextTarget, setContextTarget] = useState<TreeContextTarget | null>(null);
   const [lastAction, setLastAction] = useState<string | null>(null);
+  const favorites = useStore(s => s.favorites);
+  const isFav = (id: string) => favorites.includes(id);
   const refine = useStore(s => s.refine);
   const expand = useStore(s => s.expand);
   const extend = useStore(s => s.extend);
   const generatePaths = useStore(s => s.generatePaths);
+  const createChildElement = useStore(s => s.createChildElement);
   const inflight = useStore(s => s.inflight);
   const selected = elements.get(selectedId) ?? view.center;
   const root = view.center;
@@ -122,7 +134,7 @@ export function KnowledgeStructureMap({
     let cy: number;
     if (selected.id === root.id) {
       cx = layout.rootX;
-      cy = layout.rootTop + 46;
+      cy = layout.rootTop + 37;
     } else {
       const row = layout.rows.find(r => r.positions.has(selected.id));
       if (!row) return;
@@ -158,6 +170,10 @@ export function KnowledgeStructureMap({
     onSelect(element.id);
 
     switch (action) {
+      case "打开":
+        onOpenDetail?.(element.id);
+        setLastAction(`打开 · ${element.title}`);
+        return;
       case "设为中心":
         onSetCenter(element.id);
         setLastAction(`设为中心 · ${element.title}`);
@@ -188,6 +204,42 @@ export function KnowledgeStructureMap({
         await generatePaths(element.id);
         setLastAction(`路径已生成 · ${element.title}`);
         return;
+      case "新增下级元": {
+        const title = window.prompt(`在「${element.title}」下新增一个空的下级元，标题：`, "");
+        const t = title?.trim();
+        if (!t) return;
+        setLastAction(`已新增「${t}」 · 挂在 ${element.title} 下`);
+        try { await createChildElement(element.id, t); }
+        catch (e) { setLastAction(`新增失败：${e instanceof Error ? e.message : String(e)}`); }
+        return;
+      }
+      case "展开线路": {
+        // Center the tree on the ROOT of the element's chain so all ancestors
+        // — and the clicked element itself — are visible as a top-down path
+        // from root down to it. TreeView's useEffect resets selectedId to
+        // centerId on every center change, so we must re-select after that
+        // effect runs (next tick) to keep the clicked element highlighted.
+        let cur = element.id;
+        const seen = new Set<string>();
+        while (!seen.has(cur)) {
+          seen.add(cur);
+          const parent = relations.find(r => r.kind === "child" && r.to === cur)?.from;
+          if (!parent) break;
+          cur = parent;
+        }
+        if (cur === element.id) {
+          // Already at root — nothing to expand upward.
+          setLastAction(`「${element.title}」已是根，没有上层可展开`);
+          return;
+        }
+        onSetCenter(cur);
+        // Re-select the original (now deep) element AFTER the centerId-change
+        // useEffect has run; that effect would otherwise reset selectedId to
+        // the new center (the root).
+        window.setTimeout(() => onSelect(element.id), 0);
+        setLastAction(`展开线路 · 顶到 ${elements.get(cur)?.title ?? cur}`);
+        return;
+      }
       default:
         setLastAction(`${action} · ${element.title}`);
     }
@@ -212,6 +264,16 @@ export function KnowledgeStructureMap({
             <strong>{contextTarget.element.title}</strong>
             <span>{contextTarget.element.type}</span>
           </div>
+          {onOpenDetail && (
+            <button
+              type="button"
+              role="menuitem"
+              className="knowledge-context-menu__open"
+              onClick={() => void runNodeAction("打开")}
+            >
+              打开 · 查看详情页
+            </button>
+          )}
           {["细化", "展开下层", "延伸", "生成路径"].map(action => (
             <button
               key={action}
@@ -226,6 +288,21 @@ export function KnowledgeStructureMap({
           <button
             type="button"
             role="menuitem"
+            onClick={() => void runNodeAction("新增下级元")}
+          >
+            新增下级元
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => void runNodeAction("展开线路")}
+            title="把该元向上的全部父元显示出来（root 变成中心）"
+          >
+            展开线路
+          </button>
+          <button
+            type="button"
+            role="menuitem"
             disabled={contextTarget.element.id === view.center.id}
             onClick={() => void runNodeAction("设为中心")}
           >
@@ -237,8 +314,19 @@ export function KnowledgeStructureMap({
     : null;
 
   return (
-    <section className="structure-map">
+    <section className={`structure-map${expanded ? " structure-map--expanded" : ""}`}>
       <div className="structure-map__ambient" aria-hidden="true" />
+      {onToggleExpand && (
+        <button
+          type="button"
+          className="structure-map__expand"
+          title={expanded ? "还原 · 显示元详情" : "展开知识树 · 隐藏元详情"}
+          aria-label={expanded ? "还原" : "展开"}
+          onClick={onToggleExpand}
+        >
+          <Icon name="expand" />
+        </button>
+      )}
       <div className="tree-canvas-scroll" aria-label="知识地图" ref={scrollRef}>
         <div className="tree-canvas" style={{ width: layout.canvasWidth, height: layout.canvasHeight }}>
           <svg
@@ -274,7 +362,15 @@ export function KnowledgeStructureMap({
                   key={`${row.parent.id}-${index}`}
                   className={`tree-line ${index === 0 ? "tree-line--root" : "tree-line--child"}`}
                   stroke={index === 0 ? "url(#l2-line-gradient)" : "url(#l3-line-gradient)"}
-                  d={rootToChildrenPath(sourceX, row.centers, layout.parentBottoms[index], row.top - 34, row.top)}
+                  d={rootToChildrenPath(
+                    sourceX,
+                    row.centers,
+                    layout.parentBottoms[index],
+                    // Bus line sits midway between the parent's bottom edge
+                    // and the child's top edge — works for any row gap.
+                    (layout.parentBottoms[index] + row.top) / 2,
+                    row.top,
+                  )}
                 />
               );
             })}
@@ -283,9 +379,11 @@ export function KnowledgeStructureMap({
           <CenterDropButton
             root={root}
             selected={selected.id === root.id}
+            favorited={isFav(root.id)}
             style={{ left: layout.rootLeft, top: layout.rootTop }}
             onSelect={onSelect}
             onSetCenter={onSetCenter}
+            onOpenDetail={onOpenDetail}
             onContextMenu={event => openNodeMenu(event, root)}
             onDropOnto={onDropOnto}
           >
@@ -312,18 +410,22 @@ export function KnowledgeStructureMap({
                     <ChildCard
                       el={node}
                       selected={selected.id === node.id}
+                      favorited={isFav(node.id)}
                       onPaths={pathsForElement(node.id)}
                       onSelect={() => onSelect(node.id)}
                       onSetCenter={() => { onSelect(node.id); onSetCenter(node.id); }}
+                      onOpenDetail={() => onOpenDetail?.(node.id)}
                       onDropOnto={onDropOnto}
                     />
                   ) : (
                     <GrandPill
                       el={node}
                       selected={selected.id === node.id}
+                      favorited={isFav(node.id)}
                       onPaths={pathsForElement(node.id)}
                       onSelect={() => onSelect(node.id)}
                       onSetCenter={() => { onSelect(node.id); onSetCenter(node.id); }}
+                      onOpenDetail={() => onOpenDetail?.(node.id)}
                       onDropOnto={onDropOnto}
                     />
                   )}
@@ -346,26 +448,29 @@ export function KnowledgeStructureMap({
 }
 
 function CenterDropButton({
-  root, selected, style, onSelect, onSetCenter, onContextMenu, onDropOnto, children,
+  root, selected, favorited, style, onSelect, onSetCenter, onOpenDetail, onContextMenu, onDropOnto, children,
 }: {
   root: Element;
   selected: boolean;
+  favorited?: boolean;
   style: React.CSSProperties;
   onSelect: (id: string) => void;
   onSetCenter: (id: string) => void;
+  onOpenDetail?: (id: string) => void;
   onContextMenu: (e: MouseEvent<HTMLElement>) => void;
   onDropOnto?: (sourceId: string, targetId: string) => void;
   children: React.ReactNode;
 }) {
   const drop = useDropTarget(root.id, src => onDropOnto?.(src, root.id));
+  void onSetCenter;
   return (
     <button
-      className={`structure-chain-card ${elementTypeClass(root.type)} ${selected ? "is-selected" : ""}${drop.isOver ? " is-drop-over" : ""}`}
+      className={`structure-chain-card ${elementTypeClass(root.type)} ${selected ? "is-selected" : ""}${favorited ? " is-favorited" : ""}${drop.isOver ? " is-drop-over" : ""}`}
       type="button"
-      title="单击查看 · 双击设为中心 · 拖到这里 = 设为新父元"
+      title="单击查看 · 双击打开详情页 · 拖到这里 = 设为新父元 · 右键更多操作"
       style={style}
       onClick={() => onSelect(root.id)}
-      onDoubleClick={() => { onSelect(root.id); onSetCenter(root.id); }}
+      onDoubleClick={() => { onSelect(root.id); onOpenDetail?.(root.id); }}
       onContextMenu={onContextMenu}
       {...elementDragProps(root.id)}
       {...drop.bind}
@@ -412,8 +517,13 @@ function relativeLineageFor(
 
 function treeLayout(rows: MapRow[]) {
   const rootWidth = 450;
+  // IMPORTANT: these must match the rendered card heights in components.css
+  //   .structure-chain-card { height: 92px }
+  //   .tree-element-card    { height: 86px }
+  // The connector bus is computed as the midpoint between parent bottom and
+  // child top, so wrong values here put the bus visually off-center.
   const rootHeight = 92;
-  const rootTop = 34;
+  const rootTop = 18;
   const margin = 32;
   const wide = { width: 220, height: 86, gap: 12 };
   const pill = { width: 220, height: 86, gap: 12 };
@@ -441,7 +551,7 @@ function treeLayout(rows: MapRow[]) {
 
   rows.forEach((row, index) => {
     const size = row.kind === "wide" ? wide : pill;
-    const top = index === 0 ? rootTop + rootHeight + 72 : previousTop + previousHeight + 76;
+    const top = index === 0 ? rootTop + rootHeight + 40 : previousTop + previousHeight + 42;
     const rowWidth = row.nodes.length * size.width + Math.max(0, row.nodes.length - 1) * size.gap;
     const selectedIndex = row.selectedId
       ? row.nodes.findIndex(node => node.id === row.selectedId)
@@ -468,7 +578,7 @@ function treeLayout(rows: MapRow[]) {
     previousHeight = size.height;
   });
 
-  const canvasHeight = Math.max(620, previousTop + previousHeight + 80);
+  const canvasHeight = Math.max(420, previousTop + previousHeight + 48);
 
   return {
     canvasWidth,
@@ -481,6 +591,14 @@ function treeLayout(rows: MapRow[]) {
   };
 }
 
+/**
+ * Right-angle tree connector: parent center drops down to a horizontal
+ * "bus" line, the bus spans the leftmost-to-rightmost child x, and each
+ * child gets its own vertical drop from the bus to its top edge.
+ *
+ * The 4th param `busY` is computed by the caller as the vertical midpoint
+ * of the gap, so the bus sits cleanly between parent and children.
+ */
 function rootToChildrenPath(rootX: number, childCenters: number[], rootY: number, busY: number, childY: number) {
   if (childCenters.length === 0) return "";
   const first = childCenters[0];

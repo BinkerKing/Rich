@@ -3,7 +3,7 @@ import { create } from "zustand";
 export type ThemeId = "cyber" | "brutal" | "blueprint" | "duotone" | "fabric" | "editorial" | "ghibli";
 
 export const THEMES: { id: ThemeId; label: string; description: string }[] = [
-  { id: "cyber", label: "未来青光", description: "深色 · 青绿辉光 · 玻璃感" },
+  { id: "cyber", label: "星际霓虹", description: "深空 · 清晰层级 · 多彩高光" },
   { id: "brutal", label: "野兽派", description: "硬边 · 实色块 · 偏移黑影" },
   { id: "blueprint", label: "蓝图工程", description: "靛蓝纸 · 细线 · 制图字体" },
   { id: "duotone", label: "双色编辑", description: "荧光柠绿 · 深墨 · 电光粉" },

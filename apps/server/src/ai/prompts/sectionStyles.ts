@@ -41,10 +41,9 @@ export const SECTION_STYLE_CATALOG = `
 - "day-schedule" { days: [{ label, summary?, items: [{ time?, what, note? }] }] } —— 按日的行程表（旅游、训练计划、活动安排）。
 - "budget-table" { lines: [{ item, qty?, cost, note? }], total? } —— 预算 / 费用清单。
 
-辅助：
-- "image" { src, alt, caption? } —— 真实图片。**你应当主动调用 image_gen 工具**（按 imagegen skill）生成图片并把工具返回的绝对路径填入 src（如 "/Users/binkerking/.codex/generated_images/<sid>/ig_xxx.png"）。后端会把这个文件复制到 /api/images/<elementId>/<file> 并自动改写 src。每次生成图片必须给 alt（无障碍描述）和 caption（图片下方一行说明）。
-- "image-placeholder" { alt, caption? } —— 仅当用户明确说不要图片或 image_gen 不可用时才用，否则一律用 "image"。
-- **图片生成质量门槛**：调用 image_gen 前先在心里列出 prompt 关键词（主体、构图、光线、季节、风格），保证生成出来的是高质量配图而不是抽象草稿。
+辅助（图片）：
+- "image-placeholder" { alt, caption?, imagePrompt? } —— **请用这个**，不要在生成内容时调用 image_gen 工具出图。后端有独立的图像引擎会在你写完文本后自动给每个 placeholder 配图。你的任务是写好 \`alt\`（无障碍描述）+ \`caption\`（图片下方一行说明）+ 可选的 \`imagePrompt\`（**英文**的图像生成提示词，主体/构图/光线/风格关键词，留空则图像引擎会基于 alt+caption+周围正文自行造提示词）。
+- "image" { src, alt, caption? } —— 由后端图像引擎填，**你不要直接产出**。
 - **图片数量建议**：每个元 1-3 张关键图（不要每节都塞），优先给"地标 / 食物 / 装备 / 路线地图 / 风景"这类有视觉价值的内容配图。
 
 **组合规则：**

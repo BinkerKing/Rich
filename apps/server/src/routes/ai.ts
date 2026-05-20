@@ -13,6 +13,7 @@ import { pickAdapter } from "../ai/pickAdapter.js";
 import { recordSignal } from "../ai/signalRecorder.js";
 import { RICHNESS_SPECS } from "../ai/prompts/generateTree.js";
 import { adoptImagesInContent } from "../lib/imageAssets.js";
+import { imageQueue } from "../ai/imageQueue.js";
 import {
   generateTreeFor,
   refineElement,
@@ -24,6 +25,9 @@ import {
   analyzeMark,
   extractKeywords,
   analyzeAttachment,
+  attachUnder,
+  generateDailyNews,
+  type DailyNewsItem,
 } from "../ai/operations.js";
 import { shortlistByKeywords } from "../lib/elementShortlist.js";
 import { KeyedLock } from "../lib/KeyedLock.js";
@@ -59,14 +63,28 @@ function resumableSessionFor(element: Element, adapterName: string): string | un
 }
 
 /**
+ * User-only types. AI cannot create these — they must be set manually. Any
+ * `practice` or `project` emitted by AI gets coerced to `concept` at the
+ * server boundary, so the rule holds even if a prompt slips through.
+ */
+const USER_ONLY_TYPES = new Set(["practice", "project"]);
+function coerceType<T extends string>(t: T): T {
+  return (USER_ONLY_TYPES.has(t) ? "concept" : t) as T;
+}
+
+/**
  * AI sometimes copies example timestamps verbatim (e.g. "2026-05-17T00:00:00.000Z").
  * Always stamp newly-generated elements with the actual server time, preserving
  * any user-supplied richness and other metadata fields.
+ *
+ * Also coerces user-only types (practice / project) to concept — those types
+ * are reserved for manual creation.
  */
 function stampNewElement(el: Element, adapterName: string): Element {
   const now = new Date().toISOString();
   return {
     ...el,
+    type: coerceType(el.type),
     metadata: {
       ...el.metadata,
       createdAt: now,
@@ -75,6 +93,18 @@ function stampNewElement(el: Element, adapterName: string): Element {
       aiModel: adapterName,
     },
   };
+}
+
+/** Lowercase-kebab a string for use as the suffix of a news element id.
+ *  Strips most non-alnum; preserves CJK. Falls back to a short timestamp if
+ *  nothing useful remains (e.g. an emoji-only title). */
+function slugify(s: string): string {
+  const base = s.toLowerCase()
+    .replace(/[^a-z0-9一-鿿]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  if (!base) return `n${Date.now().toString(36).slice(-6)}`;
+  return base;
 }
 
 function elementMetadataWithSession(
@@ -209,6 +239,8 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
           for (const [centerId, list] of grouped) {
             await deps.paths.putForCenter(centerId, list);
           }
+          // Hand off image-placeholder blocks to the background image engine.
+          for (const el of ev.result.elements) void imageQueue.scheduleForElement(el.id);
           log.info("ai.op.done", { reqId, durationMs: Date.now() - t0, deltas, bytes, elements: ev.result.elements.length });
           await recordSignal(deps.signals, {
             ts: new Date().toISOString(), type: "op.completed", manual: "knowledge",
@@ -253,6 +285,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
           sessionId, adapter.name,
           { richness: targetRichness },
         ));
+        void imageQueue.scheduleForElement(elementId);
         await recordSignal(deps.signals, {
           ts: new Date().toISOString(), type: "op.completed", manual: "knowledge",
           op: "refine", adapter: adapter.name, elementId,
@@ -310,6 +343,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
           sessionId, adapter.name,
           { richness: targetRichness },
         ));
+        void imageQueue.scheduleForElement(elementId);
         await recordSignal(deps.signals, {
           ts: new Date().toISOString(), type: "op.completed", manual: "knowledge",
           op: "feedback", adapter: adapter.name, elementId,
@@ -388,6 +422,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
           { ...element, content: nextContent },
           sessionId, adapter.name,
         ));
+        void imageQueue.scheduleForElement(elementId);
         await recordSignal(deps.signals, {
           ts: new Date().toISOString(), type: "op.completed", manual: "knowledge",
           op: "section-feedback", adapter: adapter.name, elementId,
@@ -399,6 +434,62 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
           ts: new Date().toISOString(), type: "op.failed", manual: "knowledge",
           op: "section-feedback", adapter: adapter.name, elementId,
           data: { sectionId, feedback, message },
+        });
+      },
+    });
+  });
+
+  // ----- attach-under: strict attach for the home-page input flow -----
+  // Body: { parentId, mode: "leaf"|"chain", leafTitle?, chain?, fullIntent }
+  // Creates exactly 1 leaf, or a vertical chain of N elements, under the
+  // chosen parent. NO horizontal siblings, NO intermediate classifier, NO
+  // auto-grandchildren. Streams elements & relations like /expand.
+  r.post("/attach-under", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const parentId = String(body.parentId ?? "");
+    const mode = body.mode === "chain" ? "chain" as const : "leaf" as const;
+    const leafTitle = typeof body.leafTitle === "string" ? body.leafTitle.trim() : undefined;
+    const chainRaw = Array.isArray(body.chain) ? body.chain : [];
+    const chain = chainRaw.map((s: unknown) => String(s).trim()).filter(Boolean);
+    const fullIntent = typeof body.fullIntent === "string" ? body.fullIntent.trim() : "";
+    const model = body.model as "claude-code" | "codex" | undefined;
+    const richness = typeof body.richness === "number" && body.richness >= 1 && body.richness <= 5
+      ? body.richness as RichnessLevel
+      : undefined;
+    if (!parentId) return c.json({ error: "parentId required" }, 400);
+    if (mode === "leaf" && !leafTitle) return c.json({ error: "leafTitle required for leaf mode" }, 400);
+    if (mode === "chain" && chain.length === 0) return c.json({ error: "chain required for chain mode" }, 400);
+    const parent = await deps.elements.get(parentId);
+    if (!parent) return c.json({ error: "parent not found" }, 404);
+
+    const adapter = pickAdapter(deps.adapters, model);
+    const sig = c.req.raw.signal;
+    const reqId = newReqId();
+    const logCtx = { reqId, op: c.req.path, elementId: parentId, adapter: adapter.name };
+    log.info("ai.op.start", { ...logCtx, mode, leafTitle, chain });
+    return streamElementOp({
+      logger: log, logCtx,
+      c, lock, element: parent,
+      operation: attachUnder(adapter, {
+        parent, mode, leafTitle, chain, fullIntent, richness,
+        sessionId: resumableSessionFor(parent, adapter.name),
+        signal: sig,
+        manual: await knowledgeManualFragment(deps.aiDir),
+      }),
+      onDone: async (result) => {
+        for (const el of result.elements) await deps.elements.put(stampNewElement(el, adapter.name));
+        await deps.relations.append(result.relations);
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.completed", manual: "knowledge",
+          op: "attach-under", adapter: adapter.name, elementId: parentId,
+          data: { mode, leafTitle, chain, addedCount: result.elements.length },
+        });
+      },
+      onError: async (message) => {
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.failed", manual: "knowledge",
+          op: "attach-under", adapter: adapter.name, elementId: parentId,
+          data: { mode, leafTitle, chain, message },
         });
       },
     });
@@ -741,6 +832,121 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     const ok = await deps.qa.remove(id);
     if (!ok) return c.json({ error: "not found" }, 404);
     return c.body(null, 204);
+  });
+
+  // ----- AI 早报 (daily news generation) -----
+  // POST /api/ai/news/generate-daily { date?: "YYYY-MM-DD", model? }
+  // Streams SSE deltas while codex fetches & writes; on done, materializes
+  // a date-roundup parent element + N child news elements under `ai-news`.
+  r.post("/news/generate-daily", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const dateRaw = typeof body.date === "string" ? body.date.trim() : "";
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(dateRaw)
+      ? dateRaw
+      : new Date().toISOString().slice(0, 10);
+    const model = body.model as "claude-code" | "codex" | undefined;
+    // Make sure the ai-news parent topic exists; refuse otherwise (someone
+    // could have deleted the topic root). Don't auto-create — that's an
+    // editorial choice the user should make.
+    const parent = await deps.elements.get("ai-news");
+    if (!parent) return c.json({ error: "ai-news topic not found; create it first" }, 404);
+    const adapter = pickAdapter(deps.adapters, model);
+    const signal = c.req.raw.signal;
+    const reqId = newReqId();
+    const t0 = Date.now();
+    log.info("ai.op.start", { reqId, op: "/api/ai/news/generate-daily", date, adapter: adapter.name });
+
+    const dailyRoundupId = `ai-news.${date}`;
+
+    return streamSSE(c, async (stream) => {
+      let deltas = 0;
+      try {
+        for await (const ev of generateDailyNews(adapter, { date, signal })) {
+          if (ev.type === "delta") { deltas++; }
+          if (ev.type === "error") {
+            log.error("ai.op.error", { reqId, durationMs: Date.now() - t0, deltas, message: ev.message });
+            await recordSignal(deps.signals, {
+              ts: new Date().toISOString(), type: "op.failed", manual: "knowledge",
+              op: "generate-daily-news", adapter: adapter.name,
+              data: { date, durationMs: Date.now() - t0, message: ev.message },
+            });
+          }
+          await stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) });
+          if (ev.type !== "done") continue;
+
+          // Materialize: build daily-roundup parent + child news elements.
+          const result = ev.result;
+          const now = new Date().toISOString();
+          const roundup: Element = {
+            id: dailyRoundupId,
+            type: "report",
+            title: `${date} AI 早报`,
+            subtitle: result.editorNote.split(/[\n。]/).find(s => s.trim()) ?? `${date} 当日 AI 进展速览`,
+            tags: ["ai-news", `date:${date}`, "daily-roundup"],
+            content: {
+              sections: [{
+                id: "editor-note",
+                title: "编辑按语",
+                blocks: [{ style: "prose", text: result.editorNote }],
+              }],
+            },
+            metadata: {
+              createdAt: now, updatedAt: now,
+              generatedBy: "ai", aiModel: adapter.name,
+              richness: 2,
+            },
+          };
+          await deps.elements.put(roundup);
+          await deps.relations.append([{
+            id: `rel.ai-news-child-${dailyRoundupId}`,
+            kind: "child", from: "ai-news", to: dailyRoundupId, createdAt: now,
+          }]);
+
+          const childRelations: Array<{ id: string; kind: "child"; from: string; to: string; createdAt: string }> = [];
+          for (let i = 0; i < result.items.length; i++) {
+            const item: DailyNewsItem = result.items[i];
+            const slug = slugify(item.title) || `item-${i + 1}`;
+            const childId = `${dailyRoundupId}.${slug}`;
+            const child: Element = {
+              id: childId,
+              type: "report",
+              title: item.title,
+              subtitle: item.subtitle,
+              tags: ["ai-news", `category:${item.category}`, `impact:${item.impact}`, `date:${date}`],
+              content: { sections: item.sections },
+              metadata: {
+                createdAt: now, updatedAt: now,
+                generatedBy: "ai", aiModel: adapter.name,
+                richness: 2,
+              },
+            };
+            await deps.elements.put(child);
+            childRelations.push({
+              id: `rel.${dailyRoundupId}-child-${childId}`,
+              kind: "child", from: dailyRoundupId, to: childId, createdAt: now,
+            });
+            // Hand off image-placeholders inside the news item to the image engine.
+            void imageQueue.scheduleForElement(childId);
+          }
+          await deps.relations.append(childRelations);
+
+          log.info("ai.op.done", { reqId, durationMs: Date.now() - t0, deltas, items: result.items.length });
+          await recordSignal(deps.signals, {
+            ts: new Date().toISOString(), type: "op.completed", manual: "knowledge",
+            op: "generate-daily-news", adapter: adapter.name, elementId: dailyRoundupId,
+            data: { date, durationMs: Date.now() - t0, itemCount: result.items.length },
+          });
+          await stream.writeSSE({
+            event: "materialized",
+            data: JSON.stringify({ roundupId: dailyRoundupId, itemCount: result.items.length }),
+          });
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        log.error("ai.op.error", { reqId, durationMs: Date.now() - t0, message: msg });
+        await stream.writeSSE({ event: "error", data: JSON.stringify({ type: "error", message: msg }) });
+      }
+    });
   });
 
   return r;

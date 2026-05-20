@@ -54,6 +54,27 @@ button {
   font-size: 22px;
 }
 
+/* Clickable variant used in the element detail header. Default uses the
+ * element's type icon and inherits center-accent tint. When favorited, the
+ * icon becomes a gold star and the surrounding glyph gets a warm gold ring. */
+.node-glyph--favoritable {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: transform .15s ease, filter .15s ease;
+}
+.node-glyph--favoritable:hover {
+  transform: scale(1.06);
+  filter: drop-shadow(0 0 12px var(--center-glow, rgba(61, 213, 205, .42))) brightness(1.2);
+}
+.node-glyph--favoritable.is-favorited {
+  color: #ffc94d;
+  filter: drop-shadow(0 0 14px rgba(255, 201, 77, .55));
+}
+.node-glyph--favoritable.is-favorited .ke-icon {
+  color: #ffc94d;
+}
+
 .node-glyph--large {
   width: 54px;
   height: 54px;
@@ -322,11 +343,40 @@ button {
   font-size: 16px;
 }
 
+/* Expand button (top-right of the knowledge map) — toggles tree fullscreen */
+.structure-map__expand {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: rgba(15, 29, 46, .6);
+  color: var(--soft);
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease, transform .12s ease;
+}
+.structure-map__expand:hover {
+  border-color: var(--teal-line);
+  color: var(--teal);
+  background: var(--teal-soft);
+  transform: translateY(-1px);
+}
+.structure-map--expanded .structure-map__expand {
+  border-color: var(--teal-line);
+  color: var(--teal);
+  background: var(--teal-soft);
+}
+
 .structure-map {
   position: relative;
   min-height: 0;
   overflow: auto;
-  padding: 16px 18px 14px;
+  padding: 10px 18px 10px;
   border: 1px solid var(--center-line, rgba(61, 213, 205, .20));
   border-radius: 12px;
   background:
@@ -678,6 +728,61 @@ button {
   --element-soft: rgba(167, 139, 250, .12);
 }
 
+.element-type--report {
+  --element-accent: #4ade80;
+  --element-glow: rgba(74, 222, 128, .24);
+  --element-soft: rgba(74, 222, 128, .12);
+}
+
+.element-type--project {
+  --element-accent: #6366f1;
+  --element-glow: rgba(99, 102, 241, .26);
+  --element-soft: rgba(99, 102, 241, .14);
+}
+
+.element-type--guide {
+  --element-accent: #f472b6;
+  --element-glow: rgba(244, 114, 182, .26);
+  --element-soft: rgba(244, 114, 182, .14);
+}
+
+/* Favorited elements in the knowledge tree get a gold frame + gold-tinted
+ * background — visible across element types (overrides the per-type accent
+ * for emphasis since being favorited is a stronger signal than its type). */
+.tree-element-card.is-favorited,
+.structure-chain-card.is-favorited {
+  --gold: #ffc94d;
+  border-color: var(--gold) !important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 201, 77, .22), transparent 52%),
+    linear-gradient(180deg, rgba(40, 30, 8, .82), rgba(20, 14, 4, .82)) !important;
+  box-shadow:
+    0 0 22px rgba(255, 201, 77, .28),
+    inset 0 0 0 1px rgba(255, 201, 77, .14) !important;
+}
+.tree-element-card.is-favorited.is-selected,
+.structure-chain-card.is-favorited.is-selected {
+  /* Combined favorited + currently-selected = stronger gold border + glow. */
+  box-shadow:
+    0 0 0 1px var(--gold),
+    0 0 30px rgba(255, 201, 77, .45),
+    inset 0 0 0 1px rgba(255, 201, 77, .22) !important;
+}
+.tree-element-card.is-favorited::after,
+.structure-chain-card.is-favorited::after {
+  /* Small gold star marker top-right so favorited status is visible from
+   * across the canvas, not just by border color. */
+  content: "✦";
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 11px;
+  color: var(--gold);
+  text-shadow: 0 0 6px rgba(255, 201, 77, .6);
+  pointer-events: none;
+  z-index: 2;
+}
+
 .tree-element-card__line {
   min-width: 0;
   display: grid;
@@ -934,6 +1039,72 @@ button {
   gap: 12px;
 }
 
+/* Inline edit for title + subtitle — non-intrusive: the h2/p keep their
+   original styling (font-size / weight / family / theme overrides). Only a
+   small pencil button is added next to the text. */
+.editable-title.is-empty,
+.editable-subtitle.is-empty {
+  color: var(--muted);
+  font-style: italic;
+  opacity: .85;
+}
+.editable-pencil {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity .15s ease, color .15s ease, background .15s ease;
+  display: inline-grid;
+  place-items: center;
+  vertical-align: middle;
+}
+.editable-pencil .ke-icon { width: 13px; height: 13px; }
+.element-title-row:hover .editable-pencil--title,
+.element-head-main:hover .editable-pencil--subtitle,
+.editable-pencil:focus-visible { opacity: .8; }
+.editable-pencil:hover {
+  color: var(--center-accent, var(--teal));
+  background: var(--center-soft, var(--teal-soft));
+  opacity: 1 !important;
+}
+/* Subtitle pencil sits inline at the end of the paragraph; small left margin */
+.editable-pencil--subtitle { margin-left: 6px; }
+
+/* Editing inputs — match the original element's font so the size doesn't jump */
+.editable-title-input {
+  font: inherit;
+  font-size: clamp(21px, 1.7vw, 28px);
+  font-weight: 700;
+  color: var(--text);
+  background: rgba(255,255,255,.05);
+  border: 1.5px solid var(--center-line, var(--teal-line));
+  border-radius: 6px;
+  padding: 4px 8px;
+  min-width: 280px;
+  max-width: 100%;
+}
+.editable-title-input:focus { outline: 0; border-color: var(--center-accent, var(--teal)); }
+
+.editable-subtitle-input {
+  display: block;
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  background: rgba(255,255,255,.05);
+  border: 1.5px solid var(--center-line, var(--teal-line));
+  border-radius: 6px;
+  padding: 6px 10px;
+  resize: vertical;
+  min-height: 44px;
+  margin-top: 4px;
+}
+.editable-subtitle-input:focus { outline: 0; border-color: var(--center-accent, var(--teal)); }
+
 .element-title-row h2 {
   margin: 0;
   font-size: clamp(21px, 1.7vw, 28px);
@@ -990,12 +1161,72 @@ button {
 }
 .meta-chip--type.type-topic { color: #ffc977; border-color: rgba(255, 201, 119, .45); background: rgba(255, 201, 119, .08); }
 .meta-chip--type.type-step  { color: #9b7cff; border-color: rgba(155, 124, 255, .45); background: rgba(155, 124, 255, .08); }
-.meta-chip--type.type-practice,
-.meta-chip--type.type-project { color: #ff8fb5; border-color: rgba(255, 143, 181, .45); background: rgba(255, 143, 181, .08); }
+.meta-chip--type.type-practice { color: #ff8fb5; border-color: rgba(255, 143, 181, .45); background: rgba(255, 143, 181, .08); }
+.meta-chip--type.type-project  { color: #8b8eff; border-color: rgba(99, 102, 241, .50); background: rgba(99, 102, 241, .10); }
+.meta-chip--type.type-report   { color: #4ade80; border-color: rgba(74, 222, 128, .45); background: rgba(74, 222, 128, .10); }
+.meta-chip--type.type-guide    { color: #f472b6; border-color: rgba(244, 114, 182, .50); background: rgba(244, 114, 182, .10); }
 
 .meta-chip--difficulty { color: var(--amber, #ffc977); border-color: rgba(255, 201, 119, .35); }
 .meta-chip--domain { color: var(--soft); }
 .meta-chip--tag { color: var(--muted); font-size: 10px; }
+
+/* Editable chip — type & difficulty. Button reset + hover state + caret. */
+.meta-chip-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.meta-chip--editable {
+  cursor: pointer;
+  gap: 4px;
+}
+.meta-chip--editable:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 0 8px rgba(255, 255, 255, .08);
+}
+.meta-chip__caret {
+  font-size: 9px;
+  font-style: normal;
+  opacity: 0.6;
+  line-height: 1;
+}
+
+/* Horizontal options picker that pops below the chip. */
+.meta-picker {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--line-2);
+  background: rgba(10, 22, 38, .96);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .42);
+  backdrop-filter: blur(12px);
+  white-space: nowrap;
+}
+.meta-picker__opt {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  color: var(--soft);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.meta-picker__opt:hover {
+  background: rgba(255, 255, 255, .06);
+  color: var(--text);
+}
+.meta-picker__opt.is-current {
+  background: rgba(56, 242, 230, .12);
+  border-color: var(--teal-line);
+  color: var(--teal);
+}
 
 .meta-time {
   font-size: 11px;
@@ -2337,6 +2568,14 @@ p.knowledge-actionable {
   font-size: 12px;
 }
 
+/* Primary "打开" action — sits above the AI ops to read as the default click. */
+.knowledge-context-menu__open {
+  font-weight: 700 !important;
+  color: var(--center-accent, var(--teal)) !important;
+  border-bottom: 1px dashed var(--line) !important;
+  margin-bottom: 4px;
+}
+
 .knowledge-context-menu button {
   width: 100%;
   height: 34px;
@@ -2807,6 +3046,87 @@ p.knowledge-actionable {
   width: 30px;
   height: 30px;
   color: var(--center-accent, var(--teal));
+}
+
+/* View System — top-level app navigation (主页 / 知识树 / 后台). */
+.view-system .view-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.view-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px 16px;
+  min-height: 180px;
+  border-radius: 12px;
+  border: 1px dashed var(--line-2);
+  background: rgba(7, 16, 29, .42);
+  color: inherit;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color .15s, background .15s, transform .12s;
+}
+.view-card:hover:not(:disabled) {
+  border-color: var(--center-accent, var(--teal));
+  background: rgba(56, 242, 230, .06);
+}
+.view-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.view-card.is-active {
+  border-color: var(--center-accent, var(--teal));
+  background: rgba(56, 242, 230, .1);
+}
+.view-card__icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--element-soft, rgba(56, 242, 230, .12));
+  color: var(--center-accent, var(--teal));
+}
+.view-card__icon .ke-icon { width: 28px; height: 28px; }
+.view-card__main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  gap: 4px;
+}
+.view-card__main strong {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.view-card__main em {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: normal;
+  line-height: 1.4;
+  /* Clamp to 2 lines so longer descriptions don't push card height up. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.view-card__badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--center-accent, var(--teal));
+  color: #06121e;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 @media (max-width: 1400px) {

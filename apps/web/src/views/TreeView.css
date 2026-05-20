@@ -1,3 +1,19 @@
+.tv-back-to-news {
+  margin-right: 8px;
+  padding: 4px 12px;
+  background: rgba(56, 242, 230, .1);
+  border: 1px solid rgba(56, 242, 230, .4);
+  border-radius: 6px;
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.tv-back-to-news:hover {
+  background: rgba(56, 242, 230, .2);
+  border-color: var(--teal);
+}
+
 .tree-view {
   position: relative;
   height: 100vh;
@@ -216,6 +232,22 @@
   border-radius: 10px;
   padding: 10px;
   overflow: hidden;
+}
+
+/* Wrap around ElementContentPanel so we can hide it in expanded mode without
+   unmounting (its openSignal listener and any in-flight state stay alive). */
+.tv-main__panel-slot {
+  min-height: 0;
+  display: contents;
+}
+.tv-main__panel-slot[data-hidden="true"] {
+  display: none;
+}
+
+/* Expanded tree map: knowledge map fills the entire tv-main, element panel
+   is hidden (slot collapsed) — only one row in the grid. */
+.tv-main--tree-expanded {
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .tv-footer {

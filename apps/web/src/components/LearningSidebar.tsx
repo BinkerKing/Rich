@@ -15,6 +15,8 @@ interface Props {
   scene: LearningScene;
   onSelect: (id: string) => void;
   onSetCenter: (id: string) => void;
+  /** Double-click on a sibling / child node = open detail page. */
+  onOpenDetail?: (id: string) => void;
   onSceneChange: (scene: LearningScene) => void;
   onDropOnto?: (sourceId: string, targetId: string) => void;
   /** Compact mode: hide 推荐学习路径 and 页面场景, keep only hierarchical nav.
@@ -31,6 +33,7 @@ export function LearningSidebar({
   scene,
   onSelect,
   onSetCenter,
+  onOpenDetail,
   onSceneChange,
   onDropOnto,
   compact = false,
@@ -84,6 +87,7 @@ export function LearningSidebar({
                   active={selectedId === child.id}
                   onSelect={onSelect}
                   onSetCenter={onSetCenter}
+                  onOpenDetail={onOpenDetail}
                   onDropOnto={onDropOnto}
                 />
               ))}
@@ -102,6 +106,7 @@ export function LearningSidebar({
                   active={selectedId === child.id}
                   onSelect={onSelect}
                   onSetCenter={onSetCenter}
+                  onOpenDetail={onOpenDetail}
                   onDropOnto={onDropOnto}
                 />
               ))}
@@ -231,24 +236,27 @@ function SidebarItem({
   active,
   onSelect,
   onSetCenter,
+  onOpenDetail,
   onDropOnto,
 }: {
   element: Element;
   active: boolean;
   onSelect: (id: string) => void;
   onSetCenter?: (id: string) => void;
+  onOpenDetail?: (id: string) => void;
   onDropOnto?: (sourceId: string, targetId: string) => void;
 }) {
   const drop = useDropTarget(element.id, src => onDropOnto?.(src, element.id));
+  void onSetCenter;
   return (
     <button
       className={`sidebar-node ${active ? "is-active" : ""}${drop.isOver ? " is-drop-over" : ""}`}
       type="button"
-      title="单击查看 · 双击设为中心元 · 可拖动 · 拖到这里 = 设为新父元"
+      title="单击查看 · 双击打开详情页 · 可拖动 · 拖到这里 = 设为新父元"
       onClick={() => onSelect(element.id)}
       onDoubleClick={() => {
         onSelect(element.id);
-        onSetCenter?.(element.id);
+        onOpenDetail?.(element.id);
       }}
       {...elementDragProps(element.id)}
       {...drop.bind}

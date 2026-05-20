@@ -1,0 +1,848 @@
+/* Cyber / Interstellar Neon theme.
+   Activated by html[data-theme="cyber"]. This is the default theme, but it is
+   kept scoped so the more expressive themes can override freely. */
+
+html[data-theme="cyber"] {
+  color-scheme: dark;
+  --bg: #020713;
+  --bg-2: #07152a;
+  --panel: rgba(7, 19, 38, .84);
+  --panel-2: rgba(10, 28, 54, .90);
+  --line: rgba(124, 247, 255, .12);
+  --line-2: rgba(255, 79, 216, .22);
+  --text: #f4fbff;
+  --soft: #cfe8f8;
+  --muted: #8fb3ca;
+  --dim: #5c7a92;
+  --teal: #39f6e8;
+  --teal-2: #8ffef7;
+  --teal-soft: rgba(57, 246, 232, .10);
+  --teal-line: rgba(57, 246, 232, .30);
+  --blue: #5f8dff;
+  --violet: #a96bff;
+  --amber: #ffd86b;
+  --pink: #ff4fd8;
+  --green: #63ff9f;
+  --orange: #ff7a3d;
+  --radius: 12px;
+  --cyber-void: #020713;
+  --cyber-panel: rgba(5, 18, 36, .82);
+  --cyber-panel-strong: rgba(8, 25, 50, .94);
+  --cyber-glass: rgba(10, 31, 58, .64);
+  --cyber-edge: rgba(124, 247, 255, .15);
+  --cyber-edge-hot: rgba(57, 246, 232, .42);
+  --cyber-glow: rgba(57, 246, 232, .20);
+  --cyber-blue-glow: rgba(95, 141, 255, .18);
+  --cyber-violet-glow: rgba(169, 107, 255, .16);
+  --cyber-amber-glow: rgba(255, 216, 107, .12);
+  --cyber-pink-glow: rgba(255, 79, 216, .14);
+  --cyber-shadow: 0 18px 54px rgba(0, 0, 0, .34), 0 0 24px rgba(57, 246, 232, .025);
+  --cyber-inset: inset 0 1px 0 rgba(255, 255, 255, .07), inset 0 0 0 1px rgba(255, 255, 255, .018);
+}
+
+html[data-theme="cyber"] body {
+  background:
+    radial-gradient(ellipse 980px 620px at 16% -8%, rgba(57, 246, 232, .10), transparent 62%),
+    radial-gradient(ellipse 760px 520px at 96% 4%, rgba(95, 141, 255, .10), transparent 58%),
+    radial-gradient(ellipse 780px 600px at 72% 104%, rgba(169, 107, 255, .08), transparent 62%),
+    radial-gradient(ellipse 620px 420px at 18% 92%, rgba(255, 79, 216, .055), transparent 60%),
+    radial-gradient(ellipse 520px 360px at 86% 82%, rgba(255, 216, 107, .040), transparent 60%),
+    linear-gradient(145deg, #020713 0%, #07162c 46%, #050716 100%);
+}
+
+html[data-theme="cyber"] body::before,
+html[data-theme="cyber"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
+html[data-theme="cyber"] body::before {
+  opacity: .34;
+  background:
+    linear-gradient(rgba(105, 217, 255, .046) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(105, 217, 255, .034) 1px, transparent 1px),
+    radial-gradient(circle at 30% 24%, rgba(57, 246, 232, .10), transparent 18%),
+    radial-gradient(circle at 82% 72%, rgba(95, 141, 255, .10), transparent 22%),
+    radial-gradient(circle at 14% 74%, rgba(255, 79, 216, .08), transparent 18%),
+    radial-gradient(circle at 58% 86%, rgba(255, 216, 107, .08), transparent 20%);
+  background-size: 72px 72px, 72px 72px, auto, auto;
+  mask-image: radial-gradient(circle at 50% 42%, black, transparent 78%);
+  animation: cyberGridFlow 26s linear infinite;
+}
+
+html[data-theme="cyber"] body::after {
+  opacity: .24;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(255,255,255,.018) 3px 4px),
+    linear-gradient(115deg, transparent 0%, rgba(57, 246, 232, .055) 36%, rgba(255, 79, 216, .055) 47%, rgba(255, 216, 107, .036) 54%, transparent 62%);
+  mix-blend-mode: screen;
+}
+
+html[data-theme="cyber"] .tree-view::before {
+  background:
+    radial-gradient(circle at 10% 10%, color-mix(in srgb, var(--center-accent) 36%, transparent), transparent 22%),
+    radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--center-accent-2) 24%, transparent), transparent 24%),
+    radial-gradient(circle at 82% 92%, color-mix(in srgb, var(--center-warm) 16%, transparent), transparent 26%),
+    linear-gradient(135deg, rgba(2, 7, 19, .98), rgba(6, 20, 36, .96) 54%, rgba(3, 8, 20, .98));
+}
+
+html[data-theme="cyber"] .tree-view::after {
+  opacity: .38;
+  background:
+    linear-gradient(rgba(118, 236, 255, .058) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 247, 255, .040) 1px, transparent 1px),
+    radial-gradient(circle, rgba(255, 79, 216, .10) 1px, transparent 1.5px);
+  background-size: 76px 76px, 76px 76px, 22px 22px;
+}
+
+html[data-theme="cyber"] .tv-topbar,
+html[data-theme="cyber"] .tv-main,
+html[data-theme="cyber"] .tv-footer,
+html[data-theme="cyber"] .element-content,
+html[data-theme="cyber"] .context-rail,
+html[data-theme="cyber"] .three-col-context,
+html[data-theme="cyber"] .admin-shell {
+  border-color: var(--cyber-edge);
+  background:
+    linear-gradient(180deg, rgba(9, 28, 52, .86), rgba(3, 10, 23, .90)),
+    linear-gradient(120deg, rgba(57, 246, 232, .036), transparent 34%, rgba(95, 141, 255, .034) 62%, rgba(255, 79, 216, .026) 82%);
+  box-shadow: var(--cyber-shadow), var(--cyber-inset);
+  backdrop-filter: blur(24px) saturate(1.28);
+}
+
+html[data-theme="cyber"] .tv-topbar,
+html[data-theme="cyber"] .tv-footer {
+  position: relative;
+  overflow: hidden;
+}
+
+html[data-theme="cyber"] .tv-topbar::after,
+html[data-theme="cyber"] .tv-footer::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--center-accent, var(--teal)), var(--blue), transparent);
+  opacity: .72;
+  box-shadow: 0 0 12px var(--center-glow, var(--cyber-glow));
+}
+
+html[data-theme="cyber"] .tv-topbar::before {
+  opacity: .56;
+  background:
+    linear-gradient(90deg, transparent, rgba(57, 246, 232, .20), rgba(95, 141, 255, .18), rgba(255, 79, 216, .16), rgba(255, 216, 107, .10), transparent);
+  animation: cyberScan 6.8s cubic-bezier(.45, 0, .2, 1) infinite;
+}
+
+html[data-theme="cyber"] .tv-logo,
+html[data-theme="cyber"] .brand .logo {
+  border-color: color-mix(in srgb, var(--center-accent, var(--teal)) 70%, transparent);
+  background:
+    radial-gradient(circle at 38% 32%, rgba(255, 255, 255, .9), transparent 8%),
+    radial-gradient(circle at 52% 52%, var(--center-accent, var(--teal)) 0 24%, color-mix(in srgb, var(--center-accent-2, var(--blue)) 52%, #061426) 48%, #020713 72%);
+  box-shadow:
+    0 0 12px color-mix(in srgb, var(--center-accent, var(--teal)) 36%, transparent),
+    0 0 28px color-mix(in srgb, var(--center-accent-2, var(--blue)) 16%, transparent),
+    inset 0 0 18px rgba(255,255,255,.08),
+    inset 0 0 26px rgba(0,0,0,.78);
+}
+
+html[data-theme="cyber"] .tv-logo::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--center-accent, var(--teal)) 34%, transparent);
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  animation: cyberOrbit 7s linear infinite;
+}
+
+html[data-theme="cyber"] .tv-logo::after {
+  border-color: color-mix(in srgb, var(--center-accent, var(--teal)) 42%, transparent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--center-accent, var(--teal)) 26%, transparent);
+}
+
+html[data-theme="cyber"] .tv-crumb,
+html[data-theme="cyber"] .system-search-box,
+html[data-theme="cyber"] .home-form input,
+html[data-theme="cyber"] .home-segmented,
+html[data-theme="cyber"] .home-mode__btn,
+html[data-theme="cyber"] .home-richness button,
+html[data-theme="cyber"] .home-spec,
+html[data-theme="cyber"] .home-analysis,
+html[data-theme="cyber"] .action-input {
+  border-color: rgba(124, 247, 255, .18);
+  background:
+    linear-gradient(180deg, rgba(8, 26, 48, .86), rgba(2, 9, 22, .78)),
+    radial-gradient(circle at 18% 0%, rgba(57, 246, 232, .050), transparent 42%),
+    radial-gradient(circle at 92% 12%, rgba(255, 79, 216, .040), transparent 38%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.055), inset 0 0 28px rgba(0,0,0,.18);
+}
+
+html[data-theme="cyber"] .tv-crumb {
+  height: 46px;
+  border-radius: 13px;
+}
+
+html[data-theme="cyber"] .tv-crumb .now,
+html[data-theme="cyber"] .tv-crumb button:not(:last-child)::after,
+html[data-theme="cyber"] .home-streaming__status,
+html[data-theme="cyber"] .system-panel__head h2,
+html[data-theme="cyber"] .learning-sidebar h2 {
+  color: var(--center-accent, var(--teal));
+  text-shadow: 0 0 16px var(--center-glow, var(--cyber-glow));
+}
+
+html[data-theme="cyber"] .tv-tools button,
+html[data-theme="cyber"] .tv-tools span,
+html[data-theme="cyber"] .theme-switch > button,
+html[data-theme="cyber"] .quiet-button,
+html[data-theme="cyber"] .element-content__actions button,
+html[data-theme="cyber"] .footer-actions button {
+  border-color: rgba(124, 247, 255, .13);
+  background: linear-gradient(180deg, rgba(12, 34, 58, .72), rgba(3, 11, 24, .60));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+html[data-theme="cyber"] .tv-tools button:hover,
+html[data-theme="cyber"] .tv-tools button.is-active,
+html[data-theme="cyber"] .theme-switch > button:hover,
+html[data-theme="cyber"] .theme-switch > button.is-active,
+html[data-theme="cyber"] .quiet-button:hover,
+html[data-theme="cyber"] .element-content__actions button:hover,
+html[data-theme="cyber"] .footer-actions button:hover {
+  border-color: var(--center-line, var(--teal-line));
+  color: var(--center-accent, var(--teal));
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--center-glow, var(--cyber-glow)) 62%, transparent), transparent 76%),
+    linear-gradient(180deg, rgba(18, 60, 82, .76), rgba(5, 16, 31, .74));
+  box-shadow: 0 0 14px var(--center-glow, var(--cyber-glow)), inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+html[data-theme="cyber"] .home-hero {
+  position: relative;
+  padding: 18px;
+}
+
+html[data-theme="cyber"] .home-cockpit {
+  border-color: rgba(124, 247, 255, .15);
+  background:
+    radial-gradient(ellipse at 50% -8%, rgba(57, 246, 232, .10), transparent 45%),
+    radial-gradient(ellipse at 92% 26%, rgba(95, 141, 255, .08), transparent 34%),
+    radial-gradient(ellipse at 12% 92%, rgba(255, 79, 216, .050), transparent 34%),
+    radial-gradient(ellipse at 76% 88%, rgba(255, 216, 107, .040), transparent 32%),
+    linear-gradient(rgba(88, 188, 255, .026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 247, 255, .020) 1px, transparent 1px),
+    rgba(2, 9, 21, .56);
+  background-size: auto, auto, 64px 64px, 64px 64px, auto;
+  box-shadow:
+    inset 0 0 78px rgba(57, 246, 232, .026),
+    inset 0 0 40px rgba(255, 79, 216, .014),
+    inset 0 1px 0 rgba(255,255,255,.045);
+}
+
+html[data-theme="cyber"] .home-cockpit::before {
+  border-color: rgba(124, 247, 255, .11);
+  box-shadow: inset 0 0 46px rgba(57, 246, 232, .036);
+}
+
+html[data-theme="cyber"] .home-cockpit__head,
+html[data-theme="cyber"] .home-topic-dock,
+html[data-theme="cyber"] .home-command-deck,
+html[data-theme="cyber"] .home-resume-deck,
+html[data-theme="cyber"] .home-rail-status,
+html[data-theme="cyber"] .home-rail-actions button,
+html[data-theme="cyber"] .home-rail-metrics div,
+html[data-theme="cyber"] .home-topic-card {
+  border-color: rgba(124, 247, 255, .14);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.045), transparent 34%),
+    linear-gradient(180deg, rgba(13, 35, 62, .78), rgba(3, 12, 26, .76));
+  box-shadow:
+    0 12px 38px rgba(0,0,0,.18),
+    inset 0 1px 0 rgba(255,255,255,.055);
+}
+
+html[data-theme="cyber"] .home-cockpit__head {
+  padding: 16px;
+  border: 1px solid rgba(124, 247, 255, .13);
+  border-radius: 14px;
+}
+
+html[data-theme="cyber"] .home-command-deck {
+  box-shadow:
+    0 0 22px rgba(57, 246, 232, .045),
+    0 0 26px rgba(255, 79, 216, .025),
+    inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+html[data-theme="cyber"] .home-resume-deck {
+  background:
+    radial-gradient(circle at 12% 50%, rgba(57, 246, 232, .12), transparent 36%),
+    radial-gradient(circle at 72% 22%, rgba(255, 79, 216, .075), transparent 32%),
+    radial-gradient(circle at 92% 18%, rgba(255, 216, 107, .060), transparent 32%),
+    linear-gradient(90deg, rgba(57, 246, 232, .080), rgba(95, 141, 255, .065), rgba(255, 79, 216, .050)),
+    rgba(3, 12, 26, .82);
+}
+
+html[data-theme="cyber"] .home-topic-card:hover,
+html[data-theme="cyber"] .home-resume-deck:hover,
+html[data-theme="cyber"] .home-rail-actions button:hover,
+html[data-theme="cyber"] .home-rail-actions button.is-active {
+  border-color: var(--center-accent, var(--teal));
+  box-shadow:
+    0 0 18px rgba(57, 246, 232, .08),
+    0 0 22px rgba(255, 79, 216, .045),
+    inset 0 1px 0 rgba(255,255,255,.075);
+}
+
+html[data-theme="cyber"] .home-hero::before {
+  content: "";
+  position: absolute;
+  inset: -42px -24px;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 36%, rgba(57, 246, 232, .09), transparent 48%),
+    radial-gradient(ellipse at 64% 24%, rgba(95, 141, 255, .08), transparent 40%),
+    radial-gradient(ellipse at 24% 70%, rgba(255, 79, 216, .052), transparent 38%),
+    radial-gradient(ellipse at 78% 62%, rgba(255, 216, 107, .036), transparent 34%);
+  filter: blur(4px);
+}
+
+html[data-theme="cyber"] .home-hero h1 {
+  font-size: clamp(34px, 4vw, 54px);
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0;
+  background: linear-gradient(90deg, #f6fdff 0%, #8ffef7 26%, #7ea2ff 50%, #ff68dd 72%, #ffd86b 90%, #fff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 24px rgba(57, 246, 232, .11), 0 0 20px rgba(255, 79, 216, .08);
+}
+
+html[data-theme="cyber"] .home-form {
+  padding: 6px;
+  border: 1px solid rgba(124, 247, 255, .18);
+  border-radius: 16px;
+  background:
+    linear-gradient(90deg, rgba(57, 246, 232, .060), rgba(95, 141, 255, .046), rgba(255, 79, 216, .038), rgba(255, 216, 107, .025)),
+    rgba(2, 9, 21, .72);
+  box-shadow: 0 0 22px rgba(57, 246, 232, .050), 0 0 18px rgba(255, 79, 216, .024), inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+html[data-theme="cyber"] .home-form input {
+  height: 54px;
+  border-radius: 12px;
+}
+
+html[data-theme="cyber"] .home-form input:focus,
+html[data-theme="cyber"] .system-search-box:focus-within,
+html[data-theme="cyber"] .action-input:focus-within {
+  border-color: var(--center-accent, var(--teal));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--center-accent, var(--teal)) 22%, transparent),
+    0 0 18px var(--center-glow, rgba(57,246,232,.12)),
+    inset 0 0 28px rgba(0,0,0,.20);
+}
+
+html[data-theme="cyber"] .home-form button,
+html[data-theme="cyber"] .cta-button,
+html[data-theme="cyber"] .home-segmented button.is-active,
+html[data-theme="cyber"] .home-mode__btn.is-active,
+html[data-theme="cyber"] .home-richness button.is-active {
+  border-color: color-mix(in srgb, var(--center-accent, var(--teal)) 62%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--center-accent, var(--teal)) 90%, #ffffff 8%), color-mix(in srgb, var(--center-accent-2, var(--blue)) 76%, var(--center-accent, var(--teal)) 24%));
+  color: #021018;
+  box-shadow:
+    0 0 22px color-mix(in srgb, var(--center-accent, var(--teal)) 30%, transparent),
+    0 0 26px color-mix(in srgb, var(--center-accent-2, var(--blue)) 12%, transparent),
+    inset 0 1px 0 rgba(255,255,255,.42);
+}
+
+html[data-theme="cyber"] .home-form button {
+  height: 54px;
+  border-radius: 12px;
+}
+
+html[data-theme="cyber"] .home-form button:hover:not(:disabled),
+html[data-theme="cyber"] .cta-button:hover {
+  transform: translateY(-2px);
+  filter: saturate(1.08) brightness(1.04);
+}
+
+html[data-theme="cyber"] .structure-map {
+  border-color: rgba(124, 247, 255, .16);
+  background:
+    radial-gradient(circle at 45% 18%, var(--center-glow, rgba(57,246,232,.14)), transparent 28%),
+    linear-gradient(rgba(88, 188, 255, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(88, 188, 255, .034) 1px, transparent 1px),
+    rgba(1, 8, 19, .58);
+  background-size: auto, 68px 68px, 68px 68px, auto;
+  box-shadow: inset 0 0 72px rgba(57, 246, 232, .030);
+}
+
+html[data-theme="cyber"] .tree-line {
+  filter:
+    drop-shadow(0 0 3px color-mix(in srgb, var(--center-accent, var(--teal)) 66%, transparent))
+    drop-shadow(0 0 14px color-mix(in srgb, var(--center-accent, var(--teal)) 30%, transparent));
+}
+
+html[data-theme="cyber"] .structure-chain-card,
+html[data-theme="cyber"] .tree-element-card,
+html[data-theme="cyber"] .path-card,
+html[data-theme="cyber"] .scene-list button,
+html[data-theme="cyber"] .search-result-list button,
+html[data-theme="cyber"] .rail-paths > li,
+html[data-theme="cyber"] .rail-lateral > li,
+html[data-theme="cyber"] .embedded-task,
+html[data-theme="cyber"] .section-block,
+html[data-theme="cyber"] .body-section,
+html[data-theme="cyber"] .body-toc,
+html[data-theme="cyber"] .context-block,
+html[data-theme="cyber"] .inline-qa,
+html[data-theme="cyber"] .ke-annotation-analysis {
+  border-color: rgba(124, 247, 255, .16);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.045), transparent 34%),
+    linear-gradient(180deg, rgba(13, 35, 57, .72), rgba(3, 12, 26, .74));
+  box-shadow:
+    0 12px 40px rgba(0,0,0,.20),
+    inset 0 1px 0 rgba(255,255,255,.055);
+}
+
+html[data-theme="cyber"] .structure-chain-card:hover,
+html[data-theme="cyber"] .tree-element-card:hover,
+html[data-theme="cyber"] .path-card:hover,
+html[data-theme="cyber"] .scene-list button:hover,
+html[data-theme="cyber"] .search-result-list button:hover,
+html[data-theme="cyber"] .rail-paths > li:hover,
+html[data-theme="cyber"] .rail-lateral > li:hover {
+  border-color: color-mix(in srgb, var(--center-accent, var(--teal)) 46%, transparent);
+  box-shadow:
+    0 14px 42px rgba(0,0,0,.22),
+    0 0 26px color-mix(in srgb, var(--center-accent, var(--teal)) 14%, transparent),
+    inset 0 1px 0 rgba(255,255,255,.075);
+}
+
+html[data-theme="cyber"] .structure-chain-card.is-selected,
+html[data-theme="cyber"] .tree-element-card.is-selected,
+html[data-theme="cyber"] .sidebar-node.is-active,
+html[data-theme="cyber"] .ancestor-list button.is-center {
+  border-color: color-mix(in srgb, var(--element-accent, var(--center-accent, var(--teal))) 74%, transparent);
+  background:
+    radial-gradient(circle at 22% 0%, var(--element-glow, var(--center-glow, rgba(57,246,232,.26))), transparent 58%),
+    linear-gradient(145deg, rgba(26, 84, 104, .72), rgba(4, 17, 31, .88));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--element-accent, var(--center-accent, var(--teal))) 28%, transparent),
+    0 0 18px var(--element-glow, var(--center-glow, rgba(57,246,232,.18))),
+    inset 0 1px 0 rgba(255,255,255,.10);
+}
+
+html[data-theme="cyber"] .tree-element-card__type,
+html[data-theme="cyber"] .structure-chain-card__badge,
+html[data-theme="cyber"] .meta-chip,
+html[data-theme="cyber"] .sidebar-label__count,
+html[data-theme="cyber"] .search-result-list b {
+  border-color: color-mix(in srgb, currentColor 26%, transparent);
+  background:
+    linear-gradient(180deg, rgba(57, 246, 232, .10), rgba(95, 141, 255, .06), rgba(255, 79, 216, .035));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+html[data-theme="cyber"] .element-content {
+  background:
+    radial-gradient(circle at 8% 6%, var(--center-glow, rgba(57,246,232,.16)), transparent 24%),
+    radial-gradient(circle at 94% 10%, rgba(102,167,255,.11), transparent 24%),
+    linear-gradient(180deg, rgba(8, 24, 42, .82), rgba(2, 9, 21, .86));
+}
+
+html[data-theme="cyber"] .element-content__head {
+  background:
+    linear-gradient(90deg, rgba(57, 246, 232, .060), transparent 42%, rgba(255, 79, 216, .040)),
+    rgba(3, 12, 26, .40);
+  border-bottom-color: rgba(124, 247, 255, .14);
+}
+
+html[data-theme="cyber"] .element-title-row h2,
+html[data-theme="cyber"] .section-block h2,
+html[data-theme="cyber"] .section-block h3,
+html[data-theme="cyber"] .body-section-h,
+html[data-theme="cyber"] .home-analysis__title strong {
+  color: #f6fdff;
+  text-shadow: 0 0 24px rgba(57,246,232,.10);
+}
+
+html[data-theme="cyber"] .callout,
+html[data-theme="cyber"] .warn-card,
+html[data-theme="cyber"] .example-item,
+html[data-theme="cyber"] .decision-item,
+html[data-theme="cyber"] .module-card,
+html[data-theme="cyber"] .mvp-card,
+html[data-theme="cyber"] .phase-item {
+  border-color: rgba(124, 247, 255, .15);
+  background:
+    linear-gradient(135deg, rgba(57,246,232,.075), transparent 38%),
+    rgba(6, 20, 35, .58);
+}
+
+html[data-theme="cyber"] table,
+html[data-theme="cyber"] .kv-table,
+html[data-theme="cyber"] .competitor-table,
+html[data-theme="cyber"] .budget-table {
+  border-color: rgba(124, 247, 255, .15);
+  background: rgba(2, 10, 22, .42);
+}
+
+html[data-theme="cyber"] th {
+  background: linear-gradient(90deg, rgba(57, 246, 232, .075), rgba(95, 141, 255, .050), rgba(255, 79, 216, .032));
+  color: var(--teal-2);
+}
+
+html[data-theme="cyber"] td,
+html[data-theme="cyber"] th {
+  border-color: rgba(124, 247, 255, .10);
+}
+
+html[data-theme="cyber"] .theme-switch-popover {
+  border-color: rgba(124, 247, 255, .20);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(57, 246, 232, .09), transparent 36%),
+    radial-gradient(circle at 86% 20%, rgba(255, 79, 216, .06), transparent 34%),
+    linear-gradient(180deg, rgba(8, 26, 48, .97), rgba(2, 9, 21, .97));
+  box-shadow: 0 22px 58px rgba(0,0,0,.46), 0 0 18px rgba(57,246,232,.06);
+}
+
+html[data-theme="cyber"] .theme-switch-card {
+  border-color: rgba(124, 247, 255, .13);
+  background: rgba(4, 15, 29, .72);
+}
+
+html[data-theme="cyber"] .theme-switch-card:hover,
+html[data-theme="cyber"] .theme-switch-card.is-active {
+  border-color: var(--teal-line);
+  background: linear-gradient(135deg, rgba(57, 246, 232, .10), rgba(95, 141, 255, .055), rgba(255, 79, 216, .035));
+}
+
+html[data-theme="cyber"] * {
+  scrollbar-color: rgba(57,246,232,.48) rgba(2,9,21,.64);
+}
+
+html[data-theme="cyber"] *::-webkit-scrollbar-track {
+  background: rgba(2,9,21,.64);
+}
+
+html[data-theme="cyber"] *::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(57,246,232,.68), rgba(102,167,255,.52));
+  border-color: rgba(2,9,21,.86);
+  box-shadow: 0 0 14px rgba(57,246,232,.18);
+}
+
+@keyframes cyberGridFlow {
+  from { background-position: 0 0, 0 0, 0 0, 0 0; }
+  to { background-position: 72px 72px, 72px 72px, 0 0, 0 0; }
+}
+
+@keyframes cyberScan {
+  0%, 58% { transform: translateX(-110%); }
+  100% { transform: translateX(110%); }
+}
+
+@keyframes cyberOrbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================================
+ * Cyber v2 — polish overrides for sci-fi feel without visual fatigue.
+ *
+ * Design goals:
+ *   1. Multi-hue: panels balanced between teal / violet / blue / amber instead
+ *      of teal-everywhere. Each role gets a distinct color.
+ *   2. Information clarity: stronger text contrast, calmer ambient effects,
+ *      sharper interactive boundaries.
+ *   3. Semantic roles:
+ *        teal   = primary brand / nav default
+ *        violet = AI ops in flight (running tasks, breadcrumb of news flow)
+ *        amber  = warnings & system hints
+ *        pink   = emphasis chips / "重大" markers
+ *        green  = success
+ *        blue   = info / neutral inactive
+ *   4. Reduce ambient noise: dim background grid + slow down scans so eyes
+ *      can rest on content.
+ * ========================================================================= */
+
+html[data-theme="cyber"] {
+  --text: #f8fcff;                              /* brighter (was #f4fbff) */
+  --soft: #d8eafc;
+  --muted: #97b8cf;                             /* slight cool-warm balance */
+  /* Role colors (kept additive — don't break existing teal usage). */
+  --role-action: #39f6e8;                       /* teal — primary nav */
+  --role-running: #b07cff;                      /* violet — AI in flight */
+  --role-warn: #ffc44d;                         /* amber — warnings */
+  --role-emphasis: #ff5ed4;                     /* pink — chips */
+  --role-success: #5eff95;                      /* green */
+  --role-info: #6fa3ff;                         /* blue — neutral */
+}
+
+/* ---- Tame background ambient ---- */
+
+/* Significantly reduce the body grid pattern opacity (.34 → .14) and the
+   scan-line overlay (.24 → .10). Keeps the sci-fi atmosphere but removes
+   the busy "always-moving" feel that drives fatigue. */
+html[data-theme="cyber"] body::before { opacity: .14 !important; }
+html[data-theme="cyber"] body::after  { opacity: .10 !important; }
+html[data-theme="cyber"] .tree-view::after { opacity: .20 !important; }
+
+/* Slow the orbit / scan animations so they feel ambient, not urgent. */
+html[data-theme="cyber"] .tv-topbar::before { animation-duration: 14s !important; }
+html[data-theme="cyber"] .tv-logo::before   { animation-duration: 14s !important; }
+
+/* ---- Stronger text contrast on panels ---- */
+
+html[data-theme="cyber"] .tv-main,
+html[data-theme="cyber"] .element-content,
+html[data-theme="cyber"] .news-card,
+html[data-theme="cyber"] .embedded-task {
+  color: var(--text);
+}
+
+/* Body prose / lead — brighter ink so reading isn't a strain. */
+html[data-theme="cyber"] .body-prose,
+html[data-theme="cyber"] .body-lead,
+html[data-theme="cyber"] .news-modal__body,
+html[data-theme="cyber"] .news-card__title {
+  color: #f4f9ff;
+}
+html[data-theme="cyber"] .body-prose { color: #e8f0f8; }
+html[data-theme="cyber"] .news-card__sub,
+html[data-theme="cyber"] .news-modal__sub {
+  color: #b6c8db;
+}
+
+/* (Removed) Multi-hue panel backgrounds — they overrode the per-element-type
+ * tinting (topic = teal, practice = orange, step = amber, etc.) that injects
+ * --center-accent / --center-glow via the .tree-view inline style. Keeping
+ * panel backgrounds inheritor-friendly so the active element's color hue can
+ * subtly tint the whole detail page, which is the original design. */
+
+/* ---- Semantic role coloring on actionable elements ---- */
+
+/* AI task panel — running tasks get violet (the AI is busy), done tasks
+   stay neutral, errors red. The previous version made every task teal which
+   conflicted with "active = clickable" semantics. */
+html[data-theme="cyber"] .embedded-task--running {
+  border-color: color-mix(in srgb, var(--role-running) 50%, transparent) !important;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--role-running) 8%, transparent),
+    rgba(15, 29, 46, .42)) !important;
+}
+html[data-theme="cyber"] .embedded-task--running .embedded-task__dot {
+  background: var(--role-running);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--role-running) 50%, transparent);
+}
+
+/* News "🔥 重大" stays pink — emphasis role. */
+html[data-theme="cyber"] .news-card__impact { color: var(--role-emphasis); }
+
+/* Warning callout uses amber + a clear left rule (instead of teal-y orange). */
+html[data-theme="cyber"] .callout--warning {
+  border-left: 3px solid var(--role-warn);
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--role-warn) 10%, transparent),
+    rgba(8, 19, 34, .42) 40%) !important;
+}
+html[data-theme="cyber"] .callout--tip,
+html[data-theme="cyber"] .callout--insight {
+  border-left: 3px solid var(--role-action);
+}
+html[data-theme="cyber"] .callout--example { border-left: 3px solid var(--role-success); }
+html[data-theme="cyber"] .callout--info    { border-left: 3px solid var(--role-info); }
+
+/* Category chips in the news card — pull from the role palette so they're
+   easier to distinguish at a glance. */
+html[data-theme="cyber"] .news-card__cat[data-category="能力突破"]   { color: var(--role-success); background: color-mix(in srgb, var(--role-success) 14%, transparent); }
+html[data-theme="cyber"] .news-card__cat[data-category="应用产品"]   { color: var(--role-warn);    background: color-mix(in srgb, var(--role-warn) 14%, transparent); }
+html[data-theme="cyber"] .news-card__cat[data-category="大模型"]     { color: var(--role-info);    background: color-mix(in srgb, var(--role-info) 14%, transparent); }
+html[data-theme="cyber"] .news-card__cat[data-category="工具与开源"] { color: var(--role-running); background: color-mix(in srgb, var(--role-running) 14%, transparent); }
+html[data-theme="cyber"] .news-card__cat[data-category="研究论文"]   { color: var(--role-action);  background: color-mix(in srgb, var(--role-action) 12%, transparent); }
+html[data-theme="cyber"] .news-card__cat[data-category="政策与安全"] { color: var(--role-emphasis); background: color-mix(in srgb, var(--role-emphasis) 12%, transparent); }
+html[data-theme="cyber"] .news-card__cat[data-category="投融资"]     { color: var(--role-warn);    background: color-mix(in srgb, var(--role-warn) 10%, transparent); }
+html[data-theme="cyber"] .news-card__cat[data-category="国内动态"]   { color: var(--role-emphasis); background: color-mix(in srgb, var(--role-emphasis) 10%, transparent); }
+
+/* ---- Sharpen interactive boundaries ---- */
+
+/* Topbar icon buttons (search / view / map / bell) use neutral blue-gray at
+ * rest, teal on hover/active — clearer affordance, less noisy at idle.
+ * IMPORTANT: this block must NOT match `.quiet-button` — the action buttons
+ * (细化 / 展开 / 延伸 / 反馈 / ×) carry per-action color modifiers
+ * (.quiet-button--refine / --expand / --extend / --feedback / --delete) that
+ * make each action visually distinct. Overriding them flat-neutral kills that
+ * affordance. */
+html[data-theme="cyber"] .tv-tools button {
+  border-color: rgba(160, 184, 220, .14) !important;
+  background: linear-gradient(180deg, rgba(14, 26, 48, .60), rgba(4, 12, 24, .50)) !important;
+  color: #cdd9e9;
+}
+html[data-theme="cyber"] .tv-tools button:hover,
+html[data-theme="cyber"] .tv-tools button.is-active {
+  border-color: var(--role-action) !important;
+  color: var(--role-action) !important;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--role-action) 26%, transparent);
+}
+
+/* Sidebar headers — slightly less glow so they don't drown out the items. */
+html[data-theme="cyber"] .learning-sidebar h2 {
+  text-shadow: 0 0 8px color-mix(in srgb, var(--center-glow, var(--cyber-glow)) 56%, transparent) !important;
+}
+
+/* Active sidebar item gets a violet accent (instead of teal) — pairs better
+   with the teal topbar buttons and helps distinguish "selected page" vs
+   "clickable action". */
+html[data-theme="cyber"] .sidebar-node.is-active,
+html[data-theme="cyber"] .news-cat.is-active {
+  border-color: color-mix(in srgb, var(--role-running) 55%, transparent) !important;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--role-running) 10%, transparent),
+    rgba(15, 22, 50, .42)) !important;
+  color: var(--role-running) !important;
+}
+html[data-theme="cyber"] .news-cat.is-active .news-cat__count {
+  background: var(--role-running) !important;
+  color: #0a0820 !important;
+}
+
+/* View system cards — make selected card pop in violet too. */
+html[data-theme="cyber"] .view-card.is-active {
+  border-color: color-mix(in srgb, var(--role-running) 55%, transparent) !important;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--role-running) 10%, transparent),
+    rgba(15, 22, 50, .42)) !important;
+}
+html[data-theme="cyber"] .view-card.is-active .view-card__badge {
+  background: var(--role-running);
+  color: #0a0820;
+}
+html[data-theme="cyber"] .view-card__icon {
+  background: color-mix(in srgb, var(--role-action) 14%, transparent);
+  color: var(--role-action);
+}
+
+/* Calmer scrollbar — desaturate the bright cyan thumb. */
+html[data-theme="cyber"] *::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(176, 124, 255, .42), rgba(57, 246, 232, .32)) !important;
+  box-shadow: 0 0 8px rgba(176, 124, 255, .14) !important;
+}
+
+/* ============================================================================
+ * Per-element-type tinting restoration.
+ *
+ * The cyber theme's base rule (top of file) lumps .element-content into a
+ * blanket "all panels get the same teal/blue/pink gradient" override, which
+ * defeats centerStyleFor's per-element CSS vars (--center-accent, --center-
+ * warm, --center-glow). When the user clicks a 实战元 (red) vs a 概念元
+ * (teal) vs a "感知" topic (blue), the element detail card should pick up
+ * those vars and visibly shift hue.
+ *
+ * This rule re-injects center-accent tinting on the element detail panel
+ * specifically (both inline and fullscreen), while keeping the surrounding
+ * chrome calm.
+ * ========================================================================= */
+
+html[data-theme="cyber"] .element-content {
+  border-color: color-mix(in srgb, var(--center-accent, var(--teal)) 36%, var(--cyber-edge)) !important;
+  background:
+    radial-gradient(circle at 7% 8%, color-mix(in srgb, var(--center-accent, var(--teal)) 18%, transparent), transparent 32%),
+    radial-gradient(circle at 94% 18%, color-mix(in srgb, var(--center-accent-2, var(--blue)) 14%, transparent), transparent 28%),
+    radial-gradient(circle at 80% 92%, color-mix(in srgb, var(--center-warm, var(--amber)) 11%, transparent), transparent 28%),
+    linear-gradient(180deg, rgba(9, 28, 52, .82), rgba(3, 10, 23, .90)) !important;
+  box-shadow:
+    0 0 24px color-mix(in srgb, var(--center-glow, var(--cyber-glow)) 38%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, .04) !important;
+}
+
+html[data-theme="cyber"] .element-content.is-fullscreen {
+  border-color: color-mix(in srgb, var(--center-accent, var(--teal)) 48%, transparent) !important;
+  background:
+    radial-gradient(circle at 9% 8%, var(--center-glow, var(--cyber-glow)), transparent 28%),
+    radial-gradient(circle at 86% 15%, color-mix(in srgb, var(--center-accent-2, var(--blue)) 24%, transparent), transparent 28%),
+    radial-gradient(circle at 76% 88%, color-mix(in srgb, var(--center-warm, var(--amber)) 18%, transparent), transparent 28%),
+    linear-gradient(135deg, rgba(5, 15, 29, .98), rgba(7, 20, 35, .97)) !important;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--center-accent, var(--teal)) 22%, transparent),
+    0 28px 90px rgba(0, 0, 0, .58),
+    0 0 80px var(--center-glow, var(--cyber-glow)),
+    inset 0 1px 0 rgba(255, 255, 255, .06) !important;
+}
+
+/* The TreeView ambient halos behind the canvas — make them stronger so the
+ * page itself shifts hue when you switch centers. (The original was at .36/.24
+ * but the dampened body backgrounds I added earlier washed them out.) */
+html[data-theme="cyber"] .tree-view::before {
+  background:
+    radial-gradient(circle at 8% 6%, color-mix(in srgb, var(--center-accent, var(--teal)) 48%, transparent), transparent 28%),
+    radial-gradient(circle at 90% 14%, color-mix(in srgb, var(--center-accent-2, var(--blue)) 34%, transparent), transparent 30%),
+    radial-gradient(circle at 84% 92%, color-mix(in srgb, var(--center-warm, var(--amber)) 24%, transparent), transparent 32%),
+    linear-gradient(135deg, rgba(2, 7, 19, .98), rgba(6, 20, 36, .96) 54%, rgba(3, 8, 20, .98)) !important;
+}
+
+/* ============================================================================
+ * Whole-page per-element tinting.
+ *
+ * The original cyber blanket rule (lines ~101-117) hard-codes panel
+ * backgrounds, so only `.tree-view::before` picked up centerStyleFor's vars.
+ * That made the per-element color shift feel localized.
+ *
+ * Re-tint the surrounding chrome (topbar / sidebar / main / system panel /
+ * footer) with a SUBTLE center-accent overlay. Subtle enough that the page
+ * still feels cohesive across element types — just enough that switching
+ * centers visibly shifts the room's hue.
+ * ========================================================================= */
+
+html[data-theme="cyber"] .tv-topbar,
+html[data-theme="cyber"] .tv-main,
+html[data-theme="cyber"] .tv-footer {
+  /* Note: `.system-panel` AND `.learning-sidebar` excluded — both side rails
+   * stay transparent across themes for a flat side-rail look. The per-element
+   * accent overlay still applies to topbar / main / footer. */
+  background:
+    /* Strong corner glows in accent / accent-2 / warm — each panel wears the
+     * current element's hue visibly. Percentages tuned high (32/24/18) so the
+     * shift is unmistakable when you switch elements. */
+    radial-gradient(ellipse at 8% -10%, color-mix(in srgb, var(--center-accent, var(--teal)) 32%, transparent), transparent 50%),
+    radial-gradient(ellipse at 98% 90%, color-mix(in srgb, var(--center-accent-2, var(--blue)) 24%, transparent), transparent 48%),
+    radial-gradient(ellipse at 50% 110%, color-mix(in srgb, var(--center-warm, var(--amber)) 18%, transparent), transparent 44%),
+    linear-gradient(180deg, rgba(9, 28, 52, .82), rgba(3, 10, 23, .90)) !important;
+  border-color: color-mix(in srgb, var(--center-accent, var(--teal)) 32%, var(--cyber-edge)) !important;
+  box-shadow:
+    0 0 32px color-mix(in srgb, var(--center-glow, var(--cyber-glow)) 60%, transparent),
+    var(--cyber-inset) !important;
+}
+
+/* Ambient body wash also picks up center-accent, so the entire viewport (even
+ * the bleed margins around the tree-view grid) feels tinted. */
+html[data-theme="cyber"] body {
+  background:
+    radial-gradient(ellipse 1100px 700px at 14% -6%, color-mix(in srgb, var(--center-accent, var(--teal)) 22%, transparent), transparent 62%),
+    radial-gradient(ellipse 900px 600px at 92% 8%, color-mix(in srgb, var(--center-accent-2, var(--blue)) 18%, transparent), transparent 58%),
+    radial-gradient(ellipse 860px 640px at 76% 104%, color-mix(in srgb, var(--center-warm, var(--amber)) 16%, transparent), transparent 60%),
+    linear-gradient(145deg, #020713 0%, #07162c 46%, #050716 100%) !important;
+}
+
+/* Tree-view ambient halo strengthened too — the canvas behind the knowledge
+ * map should clearly wear the active element's hue. */
+html[data-theme="cyber"] .tree-view::before {
+  background:
+    radial-gradient(circle at 6% 4%, color-mix(in srgb, var(--center-accent, var(--teal)) 62%, transparent), transparent 32%),
+    radial-gradient(circle at 92% 14%, color-mix(in srgb, var(--center-accent-2, var(--blue)) 44%, transparent), transparent 36%),
+    radial-gradient(circle at 86% 94%, color-mix(in srgb, var(--center-warm, var(--amber)) 32%, transparent), transparent 36%),
+    linear-gradient(135deg, rgba(2, 7, 19, .96), rgba(6, 20, 36, .92) 54%, rgba(3, 8, 20, .96)) !important;
+}
