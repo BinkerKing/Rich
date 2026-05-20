@@ -1,0 +1,337 @@
+/* Mindmap PPT player — ported from agegr/mindmap-ppt's styles.css.
+ * All selectors are scoped under .mmp-shell so they don't leak globally.
+ * Decorative page-background orbits from the upstream are dropped — the
+ * host view (MindmapView) supplies its own backdrop. */
+
+.mmp-shell {
+  --mmp-node-thumb-w: 340px;
+  --mmp-node-thumb-h: 220px;
+  --mmp-node-expanded-w: 437px;
+  --mmp-node-expanded-h: 600px;
+  --active-node-scale: 1.5;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  color: #172033;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.mmp-shell * { box-sizing: border-box; }
+.mmp-shell button { font: inherit; }
+
+.mmp-frame {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(226, 236, 242, 0.28) 0%, rgba(226, 236, 242, 0.14) 18%, rgba(255, 255, 255, 0) 34%),
+    radial-gradient(circle at 82% 78%, rgba(247, 231, 213, 0.24) 0%, rgba(247, 231, 213, 0.11) 16%, rgba(255, 255, 255, 0) 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.992), rgba(251, 251, 247, 0.972));
+}
+
+.mmp-shell #mindmap {
+  display: block;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overscroll-behavior: contain;
+  touch-action: none;
+}
+
+.mmp-shell .mmp-map-layer,
+.mmp-shell .mmp-node-layer,
+.mmp-shell .mmp-link-layer {
+  position: absolute; top: 0; left: 0; transform-origin: 0 0;
+}
+.mmp-shell .mmp-map-layer { transition: transform 640ms cubic-bezier(0.22,1,0.36,1); will-change: transform; }
+.mmp-shell .mmp-node-layer,
+.mmp-shell .mmp-link-layer { width: 100%; height: 100%; }
+.mmp-shell .mmp-link-layer { overflow: visible; pointer-events: none; }
+
+/* Floating overlay (title + controls) */
+.mmp-floating-ui {
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 18px; padding: 24px; pointer-events: none;
+}
+.mmp-glass {
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.52), rgba(255,250,243,0.24));
+  box-shadow: 0 22px 46px rgba(40, 51, 46, 0.12), inset 0 1px 0 rgba(255,255,255,0.72);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+}
+.mmp-title-panel, .mmp-controls { pointer-events: auto; }
+.mmp-title-panel {
+  max-width: min(34rem, calc(100% - 80px));
+  padding: 18px 22px 19px;
+}
+.mmp-eyebrow {
+  margin: 0 0 5px;
+  color: #6b745d; font-size: 0.78rem; font-weight: 800; letter-spacing: 0; text-transform: uppercase;
+}
+.mmp-title-panel h1 {
+  margin: 0; color: #182033;
+  font-size: clamp(1.6rem, 2.4vw, 2.7rem); line-height: 1.04; white-space: pre-line;
+}
+
+.mmp-controls {
+  position: relative; display: grid; grid-template-columns: minmax(0,1fr); align-items: stretch;
+  width: min(820px, 66%); min-width: min(680px, 60%);
+  padding: 12px;
+}
+.mmp-control-main {
+  --slider-readout-gap: 14px; --slider-readout-width: 72px;
+  --zoom-control-pad-x: 12px; --control-readout-right: 42px;
+  display: grid; grid-template-rows: 34px auto; gap: 8px; min-width: 0;
+}
+
+.mmp-scrubber {
+  display: grid; grid-template-columns: minmax(0,1fr) var(--slider-readout-width);
+  align-items: center; gap: var(--slider-readout-gap); min-width: 0; height: 34px;
+  padding-right: var(--control-readout-right);
+}
+.mmp-scrubber input {
+  --slider-progress: 0%;
+  appearance: none; width: 100%; height: 28px; margin: 0; border-radius: 999px; background: transparent; cursor: pointer;
+}
+.mmp-scrubber input::-webkit-slider-runnable-track {
+  height: 8px; border: 1px solid rgba(31,52,56,0.12); border-radius: 999px;
+  background: linear-gradient(90deg, #183a4a 0 var(--slider-progress), rgba(224,231,224,0.9) var(--slider-progress) 100%);
+}
+.mmp-scrubber input::-webkit-slider-thumb {
+  appearance: none; width: 20px; height: 20px; margin-top: -7px;
+  border: 3px solid #ffffff; border-radius: 999px; background: #d8894f;
+  box-shadow: 0 4px 12px rgba(24,36,42,0.2), 0 0 0 1px rgba(161,86,43,0.26);
+}
+.mmp-counter {
+  min-width: var(--slider-readout-width); color: #515d66;
+  font-size: 0.94rem; font-weight: 800; text-align: right;
+}
+
+.mmp-readout {
+  display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; min-width: 0;
+}
+.mmp-readout-card, .mmp-zoom {
+  min-width: 0; border: 1px solid rgba(255,255,255,0.24); border-radius: 8px;
+  background: rgba(255,255,255,0.28);
+}
+.mmp-readout-card {
+  display: flex; align-items: stretch; min-height: 68px; padding: 0; overflow: hidden;
+  background: rgba(255,255,255,0.3); border-color: rgba(255,255,255,0.2);
+}
+.mmp-readout-icon {
+  display: grid; flex: 0 0 56px; place-items: center; padding: 10px 0;
+  border-right: 1px solid rgba(24,58,74,0.08);
+  background: linear-gradient(180deg, rgba(255,255,255,0.3), rgba(247,248,245,0.16));
+  color: #7d8775; font-size: 0.7rem; font-weight: 900; letter-spacing: 0.06em;
+}
+.mmp-readout-card .mmp-node-content {
+  flex: 1 1 auto; min-width: 0; min-height: 100%;
+  padding: 11px 18px 13px; border: 0; border-radius: 0; background: transparent; box-shadow: none;
+  text-align: left; white-space: normal; place-items: start; align-content: center; transform: none;
+}
+.mmp-readout-card .mmp-node-subtitle,
+.mmp-readout-card .mmp-node-title {
+  display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mmp-readout-card .mmp-node-title { font-size: 1rem; line-height: 1.28; }
+
+.mmp-zoom {
+  display: grid; grid-template-columns: 32px minmax(0,1fr); align-items: center;
+  gap: var(--slider-readout-gap); min-height: 68px;
+  padding: 0 var(--control-readout-right) 0 var(--zoom-control-pad-x);
+}
+.mmp-zoom-icon {
+  display: grid; align-self: stretch; place-items: center;
+  color: #7d8775; font-size: 0.7rem; font-weight: 900;
+}
+.mmp-zoom-fields { display: grid; gap: 6px; min-width: 0; }
+.mmp-zoom-row {
+  display: grid; grid-template-columns: minmax(120px, 1fr) minmax(5ch, 6ch);
+  align-items: center; gap: 9px; min-width: 0;
+}
+.mmp-zoom-row input {
+  appearance: none; width: 100%; height: 22px; margin: 0; background: transparent; cursor: pointer;
+}
+.mmp-zoom-row input::-webkit-slider-runnable-track {
+  height: 7px; border: 1px solid rgba(31,52,56,0.12); border-radius: 999px; background: rgba(224,231,224,0.9);
+}
+.mmp-zoom-row input::-webkit-slider-thumb {
+  appearance: none; width: 17px; height: 17px; margin-top: -6px;
+  border: 3px solid #ffffff; border-radius: 999px; background: #183a4a;
+}
+.mmp-zoom-row strong {
+  min-width: 4.5ch; color: #172033; font-size: 0.95rem; font-weight: 850;
+  font-variant-numeric: tabular-nums; text-align: right;
+}
+
+.mmp-hint {
+  margin: 8px 0 0; padding-right: 42px;
+  color: rgba(81,93,102,0.78); font-size: 0.78rem; font-weight: 750; line-height: 1.25; text-align: right;
+}
+
+/* Nodes & links */
+.mmp-node-measurer { position: fixed; top: -10000px; left: -10000px; visibility: hidden; pointer-events: none; }
+.mmp-node-measurer .mmp-node-content { width: max-content; }
+
+.mmp-node {
+  position: absolute; top: 0; left: 0; display: grid; place-items: center; opacity: 1;
+  transform-origin: center; cursor: pointer;
+  filter: drop-shadow(0 10px 18px rgba(24,38,44,0.1));
+  transition: width 860ms cubic-bezier(0.22,1,0.36,1),
+              height 860ms cubic-bezier(0.22,1,0.36,1),
+              transform 820ms cubic-bezier(0.22,1,0.36,1),
+              opacity 420ms ease;
+}
+.mmp-node:focus-visible { outline: none; }
+.mmp-node:focus-visible .mmp-node-content,
+.mmp-node:hover .mmp-node-content {
+  box-shadow: 0 0 0 3px rgba(216,137,79,0.16), inset 0 1px 0 rgba(255,255,255,0.94);
+}
+.mmp-node.camera-target .mmp-node-content {
+  box-shadow: 0 0 0 3px rgba(24,58,74,0.12), inset 0 1px 0 rgba(255,255,255,0.94);
+}
+.mmp-node.entering { opacity: 1; }
+.mmp-node.leaving { opacity: 0; }
+
+.mmp-node-content {
+  display: grid; grid-auto-rows: max-content; place-items: center; gap: 3px;
+  width: 100%; min-width: 146px; min-height: 57px; padding: 10px 23px 13px;
+  border: 2px solid rgba(26,42,49,0.18); border-radius: 8px;
+  color: #172033; background: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.94);
+  line-height: 1.25; text-align: center; white-space: nowrap;
+  transform-origin: center; transform: scale(1); opacity: 1;
+  transition: transform 920ms cubic-bezier(0.18,1.08,0.32,1),
+              opacity 480ms ease,
+              background-color 620ms ease,
+              border-color 620ms ease,
+              border-width 620ms ease,
+              color 620ms ease,
+              box-shadow 620ms ease;
+}
+/* Layout: big title (.mmp-node-title) on TOP, small subtitle on BOTTOM.
+ * Upstream's HTML order is subtitle-then-title (source order); we keep that
+ * but flip the visual stacking with grid `order` so the prominent name
+ * always sits above its description. */
+.mmp-node-subtitle {
+  order: 2;
+  color: #6b745d; font-size: 14px; font-weight: 700; line-height: 1.1;
+  margin-top: 2px;
+}
+.mmp-node-content:not(.has-subtitle) .mmp-node-subtitle { display: none; }
+.mmp-node-title {
+  order: 1;
+  color: inherit; font-size: 21px; font-weight: 800; line-height: 1.25;
+}
+
+.mmp-node-image {
+  order: 3; /* always below title + subtitle, regardless of source order */
+  --mmp-img-w: var(--mmp-node-thumb-w);
+  --mmp-img-h: var(--mmp-node-thumb-h);
+  appearance: none; display: block; width: fit-content; height: auto;
+  min-width: 42px; min-height: 0; max-width: var(--mmp-img-w); max-height: var(--mmp-img-h);
+  margin-top: 4px; padding: 0; overflow: hidden;
+  border: 1px solid rgba(31,52,56,0.12); border-radius: 7px;
+  background: rgba(255,255,255,0.7); cursor: zoom-in;
+}
+.mmp-node-image:hover, .mmp-node-image:focus-visible {
+  border-color: rgba(216,137,79,0.58); background: rgba(255,255,255,0.86);
+}
+.mmp-node-content:not(.has-node-image) .mmp-node-image { display: none; }
+.mmp-node-content.image-expanded .mmp-node-image {
+  --mmp-img-w: min(70vw, var(--mmp-node-expanded-w));
+  --mmp-img-h: var(--mmp-node-expanded-h);
+  margin-top: 8px;
+}
+.mmp-node-content:not(.image-expanded) .mmp-node-image {
+  width: var(--mmp-node-thumb-w); height: var(--mmp-node-thumb-h);
+  max-width: var(--mmp-node-thumb-w); max-height: var(--mmp-node-thumb-h);
+}
+.mmp-node-image img {
+  display: block; width: var(--mmp-img-w); height: auto;
+  max-width: var(--mmp-img-w); max-height: var(--mmp-img-h);
+  object-fit: contain;
+}
+.mmp-node-content:not(.image-expanded) .mmp-node-image img {
+  height: var(--mmp-node-thumb-h); object-fit: cover; transform: scale(0.96);
+}
+
+.mmp-node.active .mmp-node-content { transform: scale(var(--active-node-scale)); }
+.mmp-node.entering .mmp-node-content { opacity: 0; transform: scale(0.58); }
+.mmp-node.path-node .mmp-node-content { border-color: rgba(38,77,92,0.34); background: #fffdf8; }
+.mmp-node.complete-node .mmp-node-content { border-color: rgba(37,126,103,0.35); background: #eef7f3; }
+.mmp-node.active .mmp-node-content {
+  border-color: #d8894f; border-width: 3px; color: #ffffff; background: #183a4a;
+  box-shadow: 0 0 14px rgba(216,137,79,0.42), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.mmp-node.active .mmp-node-subtitle { color: rgba(255,255,255,0.72); }
+
+
+/* When the active node has an expanded image, drop the dark card background.
+ * The colored card looks fine around a text-only node but turns into a wide
+ * horizontal bar framing the image, which doesn't read as a slide. Let the
+ * text + image float naturally on the page background instead. */
+.mmp-node.active .mmp-node-content.image-expanded {
+  border: none;
+  border-width: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #172033;
+  padding: 6px 8px 8px;
+}
+.mmp-node.active .mmp-node-content.image-expanded .mmp-node-subtitle { color: #6b745d; }
+.mmp-node.active .mmp-node-content.image-expanded .mmp-node-title { color: #182033; }
+.mmp-node:focus-visible .mmp-node-content.image-expanded,
+.mmp-node:hover .mmp-node-content.image-expanded { box-shadow: none; }
+
+.mmp-link {
+  fill: none; stroke: rgba(42,55,68,0.3); stroke-width: 3; stroke-linecap: round; opacity: 1;
+  transition: d 520ms cubic-bezier(0.22,1,0.36,1), opacity 220ms ease, stroke 240ms ease, stroke-width 240ms ease;
+}
+.mmp-link.leaving { opacity: 0; }
+.mmp-link.entering { animation: mmp-link-draw 920ms cubic-bezier(0.22,1,0.36,1) both; }
+.mmp-link.path-link { stroke: rgba(24,58,74,0.74); stroke-width: 4; }
+@keyframes mmp-link-draw {
+  0% { opacity: 0; stroke-dasharray: 0 1; stroke-dashoffset: 1; }
+  20% { opacity: 1; }
+  100% { opacity: 1; stroke-dasharray: 1 1; stroke-dashoffset: 0; }
+}
+
+/* Image viewer overlay */
+.mmp-image-viewer {
+  position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+  padding: clamp(18px, 4vw, 54px);
+  background: rgba(18,29,35,0.68); opacity: 0; pointer-events: none; cursor: zoom-out;
+  backdrop-filter: blur(6px); transition: opacity 240ms ease;
+}
+.mmp-image-viewer.open { opacity: 1; pointer-events: auto; }
+.mmp-image-viewer-frame {
+  position: relative; display: grid; place-items: center;
+  width: fit-content; max-width: min(92vw, 1280px); max-height: min(84vh, 900px);
+  padding: clamp(12px, 2vw, 22px);
+  border: 1px solid rgba(255,255,255,0.42); border-radius: 8px;
+  background: rgba(255,253,248,0.96);
+  box-shadow: 0 28px 80px rgba(5,12,16,0.36);
+  transform: scale(0.965); transition: transform 260ms cubic-bezier(0.22,1,0.36,1);
+}
+.mmp-image-viewer.open .mmp-image-viewer-frame { transform: scale(1); }
+.mmp-image-viewer-img {
+  display: block; width: auto; height: auto;
+  max-width: min(88vw, 1220px); max-height: min(80vh, 840px); object-fit: contain;
+}
+body.mmp-image-viewer-open { overflow: hidden; }
+
+@media (max-width: 720px) {
+  .mmp-floating-ui { display: grid; grid-template-columns: 1fr; padding: 14px; gap: 14px; }
+  .mmp-controls { width: 100%; min-width: 0; }
+  .mmp-readout { grid-template-columns: minmax(0,1fr); }
+  .mmp-title-panel { max-width: none; padding: 16px 18px 17px; }
+}

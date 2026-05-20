@@ -4,11 +4,11 @@ import { api, type Model } from "../api/client.js";
 import { createDemoLargeTree } from "../data/demoLargeTree.js";
 import type { SystemPanelMode } from "../components/SystemPanel.js";
 
-export type OpKind = "generate" | "refine" | "expand" | "extend" | "feedback" | "path" | "hydrate" | "daily-news" | "ai-search";
+export type OpKind = "generate" | "refine" | "expand" | "extend" | "feedback" | "path" | "hydrate" | "daily-news" | "ai-search" | "mindmap";
 
 /** Top-level app views. Switched via the SystemPanel "视图系统" mode.
  *  "tree" auto-falls-back to the home picker (InputView) when no rootId is set. */
-export type AppView = "tree" | "admin" | "news";
+export type AppView = "tree" | "admin" | "news" | "mindmap";
 
 export interface InflightOp {
   kind: OpKind;
@@ -112,6 +112,12 @@ interface AppState {
   /** Quick-nav pinned shortcuts on the home left rail. Subset curated by the
    *  user by dragging from 收藏夹. Persisted to localStorage. */
   quickNav: string[];
+  /** Currently-open mindmap deck (when appView === "mindmap"). null shows list. */
+  mindmapDeckId: string | null;
+  /** Open a specific mindmap deck (switches appView to "mindmap"). */
+  openMindmap(deckId: string): void;
+  /** Close the open deck and return to the mindmap list. */
+  closeMindmap(): void;
 
   // ----- read actions -----
   hydrate(): Promise<void>;
@@ -367,6 +373,7 @@ export const useStore = create<AppState>((set, get) => ({
   quickNav: loadStringList("ke.quickNav.v1"),
   homeAnalyses: [],
   homeActiveAnalysisId: null,
+  mindmapDeckId: null,
 
   async hydrate() {
     set({ loading: true, error: null });
@@ -486,6 +493,13 @@ export const useStore = create<AppState>((set, get) => ({
 
   setSystemMode(mode) {
     set({ systemMode: mode });
+  },
+
+  openMindmap(deckId) {
+    set({ appView: "mindmap", mindmapDeckId: deckId, cameFromNews: false });
+  },
+  closeMindmap() {
+    set({ mindmapDeckId: null });
   },
 
   startHomeAnalysis(analyzedText) {

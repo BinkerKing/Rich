@@ -80,6 +80,7 @@ function ViewSystem() {
   const views: Array<{ id: AppView; label: string; desc: string; icon: "branch" | "gear" | "spark"; onClick: () => void }> = [
     { id: "tree", label: "知识树", desc: "回到知识树首页选择 / 新建", icon: "branch", onClick: exitToHome },
     { id: "news", label: "AI 早报", desc: "每日 AI 能力进展与应用速览", icon: "spark", onClick: () => setAppView("news") },
+    { id: "mindmap", label: "导图 PPT", desc: "把元 / 文稿一键拆成可播放导图", icon: "branch", onClick: () => setAppView("mindmap") },
     { id: "admin", label: "后台", desc: "AI 引擎 · 操作日志 · 提示词", icon: "gear", onClick: () => setAppView("admin") },
   ];
 

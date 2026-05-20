@@ -18,6 +18,7 @@ import { buildAnalyzeAttachmentPrompt, type CandidateElement } from "./prompts/a
 import { buildAttachUnderPrompt } from "./prompts/attachUnder.js";
 import { buildGenerateDailyNewsPrompt } from "./prompts/generateDailyNews.js";
 import { buildGenerateImagePrompt } from "./prompts/generateImage.js";
+import { buildGenerateMindmapPrompt } from "./prompts/generateMindmap.js";
 import type { AIManual } from "./manuals.js";
 import type { Signal } from "@ke/domain";
 
@@ -152,6 +153,20 @@ const GenerateImageResultSchema = z.object({
   caption: z.string().optional().default(""),
 });
 export type GenerateImageResult = z.infer<typeof GenerateImageResultSchema>;
+
+// Mindmap PPT generation — see prompts/generateMindmap.ts
+const MindmapImagePromptSchema = z.object({
+  path: z.string().min(1),
+  alt: z.string().optional().default(""),
+  imagePrompt: z.string().optional().default(""),
+});
+const GenerateMindmapResultSchema = z.object({
+  title: z.string().min(1).max(80),
+  subtitle: z.string().max(160).optional().default(""),
+  source: z.string().min(10),
+  images: z.array(MindmapImagePromptSchema).max(20).optional().default([]),
+});
+export type GenerateMindmapResult = z.infer<typeof GenerateMindmapResultSchema>;
 // Used by NewsSource discriminator above — keep schema referenced.
 void NewsSourceSchema;
 
@@ -379,6 +394,35 @@ export function generateDailyNews(
     prompt, signal: args.signal,
     validate: zodValidator(GenerateDailyNewsResultSchema),
     opLog: { op: "generate-daily-news", model: adapter.name, scope: { date: args.date } },
+  });
+}
+
+/** Mindmap PPT generation. Takes prose (article / report / notes) and returns
+ *  a Markdown indented tree + optional image placeholder list. The route
+ *  materializes the result into a MindmapDeck and hands placeholders to the
+ *  image queue. */
+export function generateMindmap(
+  adapter: AIAdapter,
+  args: {
+    prose: string;
+    titleHint?: string;
+    audience?: string;
+    withImages?: boolean;
+  } & SharedOpArgs,
+): AsyncIterable<StructuredEvent<GenerateMindmapResult>> {
+  const prompt = buildGenerateMindmapPrompt({
+    prose: args.prose,
+    titleHint: args.titleHint,
+    audience: args.audience,
+    withImages: args.withImages,
+  });
+  return runStructuredAI(adapter, {
+    prompt, signal: args.signal,
+    validate: zodValidator(GenerateMindmapResultSchema),
+    opLog: {
+      op: "generate-mindmap", model: adapter.name,
+      scope: { titleHint: args.titleHint, audience: args.audience, withImages: args.withImages, proseLength: args.prose.length },
+    },
   });
 }
 

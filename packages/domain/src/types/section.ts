@@ -149,6 +149,64 @@ export interface ImagePlaceholderBlock {
   error?: string;
 }
 
+/**
+ * Mindmap PPT embed. Marks the element as having a "导图 PPT" view and
+ * embeds a preview inline. The actual mindmap tree IS the element's subtree
+ * — this block just declares "render this element as a mindmap" + carries
+ * a snapshot of when the PPT was generated.
+ *
+ * Conventional section id: `mindmap-ppt`. Conventional section title:
+ * `PPT 展示图`. Both auto-applied when a PPT is generated.
+ */
+export interface MindmapEmbedBlock {
+  style: "mindmap-embed";
+  /** Element id of the deck-root this embed belongs to. When `deckRootId`
+   *  equals the element's OWN id, this element is the root of that deck;
+   *  otherwise it's a node inside someone else's deck. A single element can
+   *  carry multiple embed blocks — one per deck it participates in — and
+   *  each carries its own cover / disable flags. */
+  deckRootId: string;
+  /** Source of this PPT card. `child-of-deck` means the element is a node
+   *  inside someone else's deck — it shows the same embed UI but doesn't
+   *  appear in the top-level mindmap list. */
+  origin: "from-element" | "ai-from-prose" | "child-of-deck";
+  /** ISO time the PPT was (re-)generated. */
+  generatedAt: string;
+  /** Adapter that generated it, when AI-driven. */
+  aiModel?: string;
+  /** Optional one-line summary for the embed card (audience / hint / etc.). */
+  caption?: string;
+  /** Deck-root only: when true, the deck is hidden from the mindmap list
+   *  view. The element keeps its "PPT 展示图" section so the user can
+   *  unhide later. */
+  hidden?: boolean;
+  /** When true, this node renders without text in the deck identified by
+   *  deckRootId. Per-deck — different decks can have different settings. */
+  textDisabled?: boolean;
+  /** When true, this node renders without image in the deck identified by
+   *  deckRootId. Per-deck — different decks can have different settings. */
+  imageDisabled?: boolean;
+  /** Per-deck cover image / placeholder. Lives inline on the embed so two
+   *  embeds in the same section don't compete for which image is "theirs".
+   *  Absent = no cover, no image generation queued. Present with status
+   *  "pending"/"generating" = imageQueue is or will be working on it. */
+  cover?: MindmapEmbedCover;
+}
+
+export interface MindmapEmbedCover {
+  status: "pending" | "generating" | "ready" | "failed";
+  /** Public URL when status === "ready". */
+  src?: string;
+  /** Alt text passed into the image-gen prompt; also used as fallback caption. */
+  alt?: string;
+  caption?: string;
+  /** Optional English prompt; codex falls back to deriving one from alt + alt
+   *  context when missing. */
+  imagePrompt?: string;
+  /** Last error message when status === "failed". */
+  error?: string;
+}
+
 /** Real image: either an AI-generated file (codex image tool) or external URL. */
 export interface ImageBlock {
   style: "image";
@@ -180,7 +238,8 @@ export type StyleBlock =
   | BudgetTableBlock
   | ChecklistGroupedBlock
   | ImagePlaceholderBlock
-  | ImageBlock;
+  | ImageBlock
+  | MindmapEmbedBlock;
 
 export interface DynamicSection {
   /** Short kebab-case id for the TOC anchor. */

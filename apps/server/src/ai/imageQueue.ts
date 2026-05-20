@@ -4,17 +4,31 @@ import { generateImageFor } from "./operations.js";
 import { adoptImageIfLocal } from "../lib/imageAssets.js";
 import { noopLogger, type Logger } from "../lib/logger.js";
 
-interface PlaceholderJob {
-  elementId: string;
-  /** Index of the section in element.content.sections that holds the placeholder. */
-  sectionIndex: number;
-  /** Index of the block within that section. */
-  blockIndex: number;
-  alt: string;
-  caption?: string;
-  imagePrompt?: string;
-  surroundingText: string;
-}
+/** Two job shapes:
+ *   - "placeholder": legacy image-placeholder block becomes image block on done
+ *   - "embed-cover": mindmap-embed block's inline cover transitions through
+ *     pending → generating → ready (with src) or failed (with error) */
+type Job =
+  | {
+      kind: "placeholder";
+      elementId: string;
+      sectionIndex: number;
+      blockIndex: number;
+      alt: string;
+      caption?: string;
+      imagePrompt?: string;
+      surroundingText: string;
+    }
+  | {
+      kind: "embed-cover";
+      elementId: string;
+      sectionIndex: number;
+      blockIndex: number;
+      alt: string;
+      caption?: string;
+      imagePrompt?: string;
+      surroundingText: string;
+    };
 
 /**
  * Tiny in-process background queue for image generation. Concurrency=1 keeps
@@ -36,7 +50,7 @@ interface PlaceholderJob {
  * follow-up could persist them to disk; not needed for MVP).
  */
 class ImageQueue {
-  private jobs: PlaceholderJob[] = [];
+  private jobs: Job[] = [];
   private running = false;
   private adapter: AIAdapter | null = null;
   private elements: ElementsRepo | null = null;
@@ -58,31 +72,45 @@ class ImageQueue {
     const sections = content?.sections;
     if (!Array.isArray(sections)) return 0;
 
-    const newJobs: PlaceholderJob[] = [];
+    const newJobs: Job[] = [];
     for (let s = 0; s < sections.length; s++) {
       const blocks = sections[s].blocks;
       if (!Array.isArray(blocks)) continue;
-      // Collect surrounding text for this section once (used by all placeholders
-      // in the section when imagePrompt is missing).
       const surroundingText = sectionContextText(sections[s]);
       for (let b = 0; b < blocks.length; b++) {
         const block = blocks[b];
-        if (!block || block.style !== "image-placeholder") continue;
-        // Skip already-pending / already-generating / already-failed — only
-        // pick up brand new placeholders.
-        if (block.status === "pending" || block.status === "generating") continue;
-        const alt = typeof block.alt === "string" ? block.alt : "";
-        if (!alt) continue;
-        block.status = "pending";
-        newJobs.push({
-          elementId,
-          sectionIndex: s,
-          blockIndex: b,
-          alt,
-          caption: typeof block.caption === "string" ? block.caption : undefined,
-          imagePrompt: typeof block.imagePrompt === "string" ? block.imagePrompt : undefined,
-          surroundingText,
-        });
+        if (!block) continue;
+
+        // Path 1: legacy image-placeholder blocks (article content images).
+        if (block.style === "image-placeholder") {
+          if (block.status === "pending" || block.status === "generating") continue;
+          const alt = typeof block.alt === "string" ? block.alt : "";
+          if (!alt) continue;
+          block.status = "pending";
+          newJobs.push({
+            kind: "placeholder",
+            elementId, sectionIndex: s, blockIndex: b, alt,
+            caption: typeof block.caption === "string" ? block.caption : undefined,
+            imagePrompt: typeof block.imagePrompt === "string" ? block.imagePrompt : undefined,
+            surroundingText,
+          });
+          continue;
+        }
+
+        // Path 2: mindmap-embed blocks with a pending inline cover.
+        if (block.style === "mindmap-embed") {
+          const cover = (block as Record<string, unknown>).cover as Record<string, unknown> | undefined;
+          if (!cover || cover.status !== "pending") continue;
+          const alt = typeof cover.alt === "string" ? cover.alt : "";
+          if (!alt) continue;
+          newJobs.push({
+            kind: "embed-cover",
+            elementId, sectionIndex: s, blockIndex: b, alt,
+            caption: typeof cover.caption === "string" ? cover.caption : undefined,
+            imagePrompt: typeof cover.imagePrompt === "string" ? cover.imagePrompt : undefined,
+            surroundingText,
+          });
+        }
       }
     }
 
@@ -111,17 +139,26 @@ class ImageQueue {
     }
   }
 
-  private async processOne(job: PlaceholderJob): Promise<void> {
+  private async processOne(job: Job): Promise<void> {
     if (!this.adapter || !this.elements) return;
-    // Re-read the element each time so we don't clobber concurrent edits.
+    // Mark "generating" + persist so the frontend can show the right state.
     const el = await this.elements.get(job.elementId);
     if (!el) return;
     const content = el.content as { sections?: Array<{ id: string; blocks: Array<Record<string, unknown>> }> };
     const block = content?.sections?.[job.sectionIndex]?.blocks?.[job.blockIndex];
-    if (!block || block.style !== "image-placeholder") return;
-    block.status = "generating";
+    if (!block) return;
+    if (job.kind === "placeholder") {
+      if (block.style !== "image-placeholder") return;
+      block.status = "generating";
+    } else {
+      if (block.style !== "mindmap-embed") return;
+      const cover = (block as Record<string, unknown>).cover as Record<string, unknown> | undefined;
+      if (!cover) return;
+      cover.status = "generating";
+    }
     await this.elements.put({ ...el, content: content as unknown as typeof el.content });
 
+    // Call codex.
     let resultSrc: string | null = null;
     let resultCaption = job.caption ?? "";
     try {
@@ -140,37 +177,66 @@ class ImageQueue {
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      // Re-read and mark failed.
-      const el2 = await this.elements.get(job.elementId);
-      if (!el2) return;
-      const content2 = el2.content as { sections?: Array<{ blocks: Array<Record<string, unknown>> }> };
-      const b2 = content2?.sections?.[job.sectionIndex]?.blocks?.[job.blockIndex];
-      if (b2 && b2.style === "image-placeholder") {
-        b2.status = "failed";
-        b2.error = msg.slice(0, 200);
-      }
-      await this.elements.put({ ...el2, content: content2 as unknown as typeof el2.content });
+      await this.markFailed(job, msg);
       return;
     }
 
     if (!resultSrc) return;
-    // Adopt the local file into our served images dir.
     const publicUrl = await adoptImageIfLocal(job.elementId, resultSrc);
-    // Re-read once more and swap the block from image-placeholder → image.
-    const el3 = await this.elements.get(job.elementId);
-    if (!el3) return;
-    const content3 = el3.content as { sections?: Array<{ blocks: Array<Record<string, unknown>> }> };
-    const blocks = content3?.sections?.[job.sectionIndex]?.blocks;
-    const b3 = blocks?.[job.blockIndex];
-    if (!blocks || !b3 || b3.style !== "image-placeholder") return;
-    blocks[job.blockIndex] = {
-      style: "image",
-      src: publicUrl,
-      alt: job.alt,
-      caption: resultCaption,
-    };
-    await this.elements.put({ ...el3, content: content3 as unknown as typeof el3.content });
-    this.logger.info("image-queue.job.done", { elementId: job.elementId, sectionIndex: job.sectionIndex, blockIndex: job.blockIndex });
+    await this.markDone(job, publicUrl, resultCaption);
+    this.logger.info("image-queue.job.done", {
+      kind: job.kind, elementId: job.elementId,
+      sectionIndex: job.sectionIndex, blockIndex: job.blockIndex,
+    });
+  }
+
+  private async markFailed(job: Job, msg: string): Promise<void> {
+    if (!this.elements) return;
+    const el = await this.elements.get(job.elementId);
+    if (!el) return;
+    const content = el.content as { sections?: Array<{ blocks: Array<Record<string, unknown>> }> };
+    const b = content?.sections?.[job.sectionIndex]?.blocks?.[job.blockIndex];
+    if (!b) return;
+    const trimmedErr = msg.slice(0, 200);
+    if (job.kind === "placeholder" && b.style === "image-placeholder") {
+      b.status = "failed";
+      b.error = trimmedErr;
+    } else if (job.kind === "embed-cover" && b.style === "mindmap-embed") {
+      const cover = (b as Record<string, unknown>).cover as Record<string, unknown> | undefined;
+      if (cover) {
+        cover.status = "failed";
+        cover.error = trimmedErr;
+      }
+    }
+    await this.elements.put({ ...el, content: content as unknown as typeof el.content });
+  }
+
+  private async markDone(job: Job, publicUrl: string, caption: string): Promise<void> {
+    if (!this.elements) return;
+    const el = await this.elements.get(job.elementId);
+    if (!el) return;
+    const content = el.content as { sections?: Array<{ blocks: Array<Record<string, unknown>> }> };
+    const blocks = content?.sections?.[job.sectionIndex]?.blocks;
+    const b = blocks?.[job.blockIndex];
+    if (!blocks || !b) return;
+    if (job.kind === "placeholder" && b.style === "image-placeholder") {
+      // Swap to image block.
+      blocks[job.blockIndex] = {
+        style: "image",
+        src: publicUrl,
+        alt: job.alt,
+        caption,
+      };
+    } else if (job.kind === "embed-cover" && b.style === "mindmap-embed") {
+      // Update the inline cover field on the embed in place.
+      const cover = ((b as Record<string, unknown>).cover ??= {}) as Record<string, unknown>;
+      cover.status = "ready";
+      cover.src = publicUrl;
+      cover.alt = job.alt;
+      cover.caption = caption;
+      delete cover.error;
+    }
+    await this.elements.put({ ...el, content: content as unknown as typeof el.content });
   }
 }
 

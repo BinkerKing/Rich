@@ -1,7 +1,12 @@
 import type { ReactNode } from "react";
 import type { StyleBlock, DynamicSection, Source, SourcedItem } from "@ke/domain";
 import { MermaidDiagram } from "./MermaidDiagram.js";
+import { MindmapEmbedCard } from "./MindmapEmbedCard.js";
 import "./SectionRenderer.css";
+
+/** Per-render context threaded into renderBlock so style-specific blocks
+ *  can interact with the host element (open the PPT player, etc). */
+interface RenderCtx { elementId?: string }
 
 // ---- source citation ----
 
@@ -67,7 +72,7 @@ function Callout({ kind, title, children }: { kind: CalloutKind; title?: string;
 
 // ---- block dispatcher ----
 
-function renderBlock(block: StyleBlock, key: number): ReactNode {
+function renderBlock(block: StyleBlock, key: number, ctx: RenderCtx = {}): ReactNode {
   switch (block.style) {
     case "lead":
       return (
@@ -325,6 +330,11 @@ function renderBlock(block: StyleBlock, key: number): ReactNode {
           {block.caption && <figcaption>{block.caption}</figcaption>}
         </figure>
       );
+    case "mindmap-embed":
+      // Should never reach here — `renderSectionBlocks` fuses the embed block
+      // with its cover image and emits a single MindmapEmbedCard for the
+      // whole PPT section. Render an empty fragment defensively.
+      return null;
     default: {
       // Unknown style — surface as a small warning so users can spot it.
       const k = (block as { style?: string }).style ?? "unknown";
@@ -345,8 +355,23 @@ function renderBlock(block: StyleBlock, key: number): ReactNode {
  *  (lead/prose/callout/check-list/dot-list/kv-table) gets paired into a 2-column
  *  grid (image left, text right), so the panel never leaves giant empty gutters
  *  next to a small image. */
-export function renderSectionBlocks(section: DynamicSection): ReactNode {
+export function renderSectionBlocks(section: DynamicSection, elementId?: string): ReactNode {
   const blocks = section.blocks;
+  const ctx: RenderCtx = { elementId };
+
+  // PPT 展示图 section can contain MULTIPLE mindmap-embed blocks — one per
+  // deck this element participates in. Each embed carries its own inline
+  // cover (cover.src / cover.status), per-deck disable flags, etc. Emit one
+  // card per embed; image/image-placeholder blocks (legacy or from the
+  // image queue) are NOT rendered separately to avoid a duplicate big image.
+  if (section.id === "mindmap-ppt") {
+    const embeds = blocks.filter(b => b.style === "mindmap-embed") as Array<Extract<StyleBlock, { style: "mindmap-embed" }>>;
+    if (embeds.length === 0) return [];
+    return embeds.map((embed, i) => (
+      <MindmapEmbedCard key={`embed-${embed.deckRootId ?? i}`} block={embed} elementId={elementId} />
+    ));
+  }
+
   const out: ReactNode[] = [];
   const isText = (s?: string) => s === "lead" || s === "prose" || s === "callout"
     || s === "check-list" || s === "dot-list" || s === "kv-table";
@@ -354,23 +379,22 @@ export function renderSectionBlocks(section: DynamicSection): ReactNode {
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
     if (b.style === "image" && isText(blocks[i + 1]?.style)) {
-      // Collect up to 3 consecutive text blocks to pair with the image.
       const partners: StyleBlock[] = [];
       while (partners.length < 3 && isText(blocks[i + 1 + partners.length]?.style)) {
         partners.push(blocks[i + 1 + partners.length]);
       }
       out.push(
         <div key={`pair-${i}`} className="sec-image-pair">
-          <div className="sec-image-pair__media">{renderBlock(b, i)}</div>
+          <div className="sec-image-pair__media">{renderBlock(b, i, ctx)}</div>
           <div className="sec-image-pair__text">
-            {partners.map((p, j) => renderBlock(p, i + 1 + j))}
+            {partners.map((p, j) => renderBlock(p, i + 1 + j, ctx))}
           </div>
         </div>,
       );
       i += partners.length;
       continue;
     }
-    out.push(renderBlock(b, i));
+    out.push(renderBlock(b, i, ctx));
   }
   return out;
 }

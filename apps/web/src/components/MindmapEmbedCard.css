@@ -1,0 +1,186 @@
+/* Long-bar embed card for the "PPT 展示图" section. */
+
+.mm-embed {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 18px;
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, #6366f1 38%, transparent);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, #6366f1 8%, transparent), transparent 60%),
+    rgba(15, 29, 46, 0.42);
+}
+.mm-embed--hidden { opacity: 0.7; border-style: dashed; }
+
+.mm-embed__visual {
+  position: relative;
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 30% 50%, color-mix(in srgb, #6366f1 22%, transparent), transparent 60%),
+    rgba(8, 16, 28, 0.6);
+  overflow: hidden;
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Actual generated cover image — fills the slot. */
+.mm-embed__cover {
+  width: 100%;
+  height: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  display: block;
+}
+
+/* In-flight / failed placeholder state. */
+.mm-embed__placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+.mm-embed__placeholder span { font-size: 22px; }
+.mm-embed__placeholder em { font-style: normal; color: var(--text); font-weight: 600; font-size: 12px; }
+.mm-embed__placeholder small { font-size: 10px; opacity: 0.7; word-break: break-word; }
+.mm-embed__placeholder--generating em,
+.mm-embed__placeholder--pending em { color: var(--teal); }
+.mm-embed__placeholder--failed em { color: var(--pink, #ff5ed4); }
+.mm-embed__placeholder--generating span,
+.mm-embed__placeholder--pending span {
+  animation: mm-pulse 1.4s ease-in-out infinite;
+}
+@keyframes mm-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.96); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+/* Decorative fallback nodes (only shown when no cover block at all). */
+.mm-embed__nodes { position: absolute; inset: 0; }
+.mm-embed__node {
+  position: absolute;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.mm-embed__node--root {
+  left: 14%; top: 50%; transform: translateY(-50%);
+  width: 60px; height: 32px; background: #183a4a;
+  border: 2px solid #d8894f;
+}
+.mm-embed__node--c1 { left: 56%; top: 22%; width: 44px; height: 22px; background: #eef7f3; }
+.mm-embed__node--c2 { left: 56%; top: 52%; width: 44px; height: 22px; background: #fffdf8; }
+.mm-embed__node--c3 { left: 56%; top: 76%; width: 44px; height: 22px; background: #eef7f3; }
+
+.mm-embed__body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mm-embed__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 11px; }
+.mm-embed__chip {
+  padding: 2px 8px; border-radius: 999px;
+  color: #818cf8; background: color-mix(in srgb, #6366f1 16%, transparent);
+}
+.mm-embed__date, .mm-embed__model { color: var(--muted); }
+.mm-embed__hidden-tag {
+  padding: 2px 8px; border-radius: 999px;
+  color: var(--amber, #ffc44d);
+  background: color-mix(in srgb, var(--amber, #ffc44d) 14%, transparent);
+}
+
+.mm-embed__title { font-size: 16px; font-weight: 700; color: var(--text); }
+.mm-embed__caption { color: var(--muted); font-size: 13px; }
+.mm-embed__hint { color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+.mm-embed__actions { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.mm-embed__primary {
+  padding: 8px 16px; border-radius: 8px;
+  background: #6366f1; color: #fff; font-weight: 700; font-size: 13px;
+  border: 1px solid #6366f1; cursor: pointer;
+}
+.mm-embed__primary:hover { filter: brightness(1.1); }
+.mm-embed__primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.mm-embed__secondary {
+  padding: 8px 14px; border-radius: 8px;
+  background: transparent; color: var(--muted); font-size: 12px;
+  border: 1px solid var(--line); cursor: pointer;
+}
+.mm-embed__secondary:hover { color: var(--teal); border-color: var(--teal); }
+.mm-embed__secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Toggle buttons (禁用图片 / 禁用文字) — visually distinct from secondaries.
+ * Default (enabled): subtle outline. is-off: filled amber to signal "this
+ * content type is currently hidden in the PPT". */
+.mm-embed__toggle {
+  padding: 8px 14px; border-radius: 8px;
+  background: transparent; color: var(--muted); font-size: 12px;
+  border: 1px solid var(--line); cursor: pointer;
+}
+.mm-embed__toggle:hover { color: var(--text); border-color: var(--muted); }
+.mm-embed__toggle.is-off {
+  color: var(--amber, #ffc44d);
+  border-color: color-mix(in srgb, var(--amber, #ffc44d) 50%, transparent);
+  background: color-mix(in srgb, var(--amber, #ffc44d) 12%, transparent);
+}
+.mm-embed__toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* When the visual slot is empty (no image yet), show small decorative nodes
+ * plus a short hint text. */
+.mm-embed__nodes--decorative {
+  position: relative;
+  width: 100%;
+  height: 70px;
+  margin-bottom: 4px;
+}
+.mm-embed__placeholder-text { font-size: 11px; }
+
+@media (max-width: 720px) {
+  .mm-embed { grid-template-columns: 1fr; }
+  .mm-embed__visual { min-height: 100px; }
+}
+
+/* Retry modal */
+.mm-retry-modal {
+  position: fixed; inset: 0; z-index: 2300;
+  background: rgba(2, 8, 18, 0.68); backdrop-filter: blur(8px);
+  display: flex; align-items: flex-start; justify-content: center; padding: 14vh 24px 0;
+}
+.mm-retry-modal__panel {
+  width: min(520px, 100%); display: flex; flex-direction: column;
+  border: 1px solid var(--line-2); border-radius: 14px;
+  background: rgba(10, 22, 38, 0.96); box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+  overflow: hidden;
+}
+.mm-retry-modal__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--line); color: var(--text);
+}
+.mm-retry-modal__close {
+  background: none; border: 1px solid var(--line); color: var(--muted);
+  width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font-size: 14px; line-height: 1;
+}
+.mm-retry-modal__body { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.mm-retry-modal__hint { margin: 0; color: var(--muted); font-size: 12px; }
+.mm-retry-modal__examples {
+  margin: 0; padding-left: 18px; color: var(--muted); font-size: 11px; line-height: 1.6;
+}
+.mm-retry-modal__body textarea {
+  padding: 8px 12px; border-radius: 6px;
+  border: 1px solid var(--line); background: rgba(15, 29, 46, 0.6);
+  color: var(--text); font-size: 13px; font-family: inherit; resize: vertical;
+}
+.mm-retry-modal__actions { display: flex; gap: 8px; justify-content: flex-end; }
+.mm-retry-modal__actions button {
+  padding: 7px 14px; border-radius: 6px;
+  border: 1px solid var(--line); background: transparent; color: var(--text);
+  font-size: 13px; cursor: pointer;
+}
+.mm-retry-modal__primary {
+  background: var(--teal) !important; color: #06121e !important;
+  border-color: var(--teal) !important; font-weight: 700;
+}
+.mm-retry-modal__primary:disabled { opacity: 0.5; cursor: not-allowed; }

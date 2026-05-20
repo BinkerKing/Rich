@@ -18,6 +18,7 @@ import { JsonQARepo } from "./repos/JsonQARepo.js";
 import { JsonAnnotationsRepo } from "./repos/JsonAnnotationsRepo.js";
 import { annotationsRoutes } from "./routes/annotations.js";
 import { imagesRoutes } from "./routes/images.js";
+import { mindmapsRoutes } from "./routes/mindmaps.js";
 import { JsonStateRepo } from "./repos/JsonStateRepo.js";
 import { CachedElementsRepo } from "./repos/CachedElementsRepo.js";
 import { CachedRelationsRepo } from "./repos/CachedRelationsRepo.js";
@@ -112,6 +113,11 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     aiDir: manualsDir, logger: log,
   }));
   app.route("/api/admin", adminRoutes({ signals, aiDir: manualsDir, adapters: ai }));
+  // Mindmap PPT decks — element-backed. Every deck IS the root element of
+  // a subtree that carries a `mindmap-embed` section. No separate storage.
+  app.route("/api/mindmaps", mindmapsRoutes({
+    adapters: ai, elements, relations, signals, logger: log,
+  }));
 
   app.get("/api/health", async (c) => {
     const adapterChecks = await Promise.all(ai.map(async (a) => ({

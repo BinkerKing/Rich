@@ -538,7 +538,7 @@ function SectionsBody({ element, childrenCount, onOpenChildren, onSelectChild }:
     <BodyShell sections={tocSections} elementId={element.id} contentVersion={element.metadata.updatedAt}>
       {sections.map((s, i) => (
         <SectionBlock key={s.id} id={s.id} num={i + 1} title={s.title}>
-          {renderSectionBlocks(s)}
+          {renderSectionBlocks(s, element.id)}
         </SectionBlock>
       ))}
       {childrenCount > 0 && (

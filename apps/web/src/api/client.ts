@@ -1,5 +1,5 @@
 import type {
-  Element, Relation, LearningPath, PathKind, RichnessLevel, Signal, QARecord, Annotation, AnnotationKind,
+  Element, Relation, LearningPath, PathKind, RichnessLevel, Signal, QARecord, Annotation, AnnotationKind, MindmapDeckView,
 } from "@ke/domain";
 
 // ---------- shared SSE plumbing ----------
@@ -111,6 +111,87 @@ export const api = {
     richness?: RichnessLevel;
   }, model?: Model) {
     return sseStream<ElementsAndRelationsResult>("/ai/attach-under", { parentId, ...args, model });
+  },
+  // ----- Mindmap PPT decks (element-backed) -----
+  // Every deck IS an element with a `mindmap-embed` section. The list and
+  // detail endpoints reconstruct the deck view (incl. indented markdown
+  // source) from the element subtree on every call, so PPTs auto-reflect
+  // edits to the underlying elements.
+  async listMindmaps(): Promise<MindmapDeckView[]> {
+    const r = await fetch("/api/mindmaps");
+    if (!r.ok) throw new Error(`list mindmaps failed: ${r.status}`);
+    return await r.json() as MindmapDeckView[];
+  },
+  async getMindmap(elementId: string): Promise<MindmapDeckView> {
+    const r = await fetch(`/api/mindmaps/${encodeURIComponent(elementId)}`);
+    if (!r.ok) throw new Error(`get mindmap failed: ${r.status}`);
+    return await r.json() as MindmapDeckView;
+  },
+  /** Attach the PPT section to an existing element. Returns the deck view. */
+  async attachMindmap(elementId: string, caption?: string): Promise<MindmapDeckView> {
+    const r = await fetch("/api/mindmaps/attach", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ elementId, caption }),
+    });
+    if (!r.ok) throw new Error(`attach mindmap failed: ${r.status}`);
+    return await r.json() as MindmapDeckView;
+  },
+  /** Re-trigger image generation for the PPT cover on the embed identified by
+   *  (elementId, deckRootId). Optional `hint` is a free-form description that
+   *  gets injected into the image prompt at top priority. */
+  async retryMindmapCover(elementId: string, deckRootId: string, hint?: string): Promise<void> {
+    const r = await fetch(`/api/mindmaps/${encodeURIComponent(elementId)}/retry-cover`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deckRootId, hint: hint?.trim() || undefined }),
+    });
+    if (!r.ok) throw new Error(`retry mindmap cover failed: ${r.status}`);
+  },
+  /** Toggle whether this deck appears in the mindmap list view. Per-deck. */
+  async toggleMindmapHidden(elementId: string, deckRootId: string): Promise<{ hidden: boolean }> {
+    const r = await fetch(`/api/mindmaps/${encodeURIComponent(elementId)}/toggle-hidden`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deckRootId }),
+    });
+    if (!r.ok) throw new Error(`toggle mindmap hidden failed: ${r.status}`);
+    return await r.json() as { hidden: boolean };
+  },
+  /** Toggle "image disabled" for this element in the given deck. */
+  async toggleMindmapImageDisabled(elementId: string, deckRootId: string): Promise<{ imageDisabled: boolean }> {
+    const r = await fetch(`/api/mindmaps/${encodeURIComponent(elementId)}/toggle-image-disabled`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deckRootId }),
+    });
+    if (!r.ok) throw new Error(`toggle mindmap image-disabled failed: ${r.status}`);
+    return await r.json() as { imageDisabled: boolean };
+  },
+  /** Toggle "text disabled" for this element in the given deck. */
+  async toggleMindmapTextDisabled(elementId: string, deckRootId: string): Promise<{ textDisabled: boolean }> {
+    const r = await fetch(`/api/mindmaps/${encodeURIComponent(elementId)}/toggle-text-disabled`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deckRootId }),
+    });
+    if (!r.ok) throw new Error(`toggle mindmap text-disabled failed: ${r.status}`);
+    return await r.json() as { textDisabled: boolean };
+  },
+  /** Detach this element from the given deck. When elementId === deckRootId,
+   *  also removes the deck's embeds from every descendant. */
+  async detachMindmap(elementId: string, deckRootId: string): Promise<void> {
+    const r = await fetch(`/api/mindmaps/${encodeURIComponent(elementId)}/detach`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deckRootId }),
+    });
+    if (!r.ok && r.status !== 404) throw new Error(`detach mindmap failed: ${r.status}`);
+  },
+  /** Prose → AI → new element tree + PPT section. Server streams progress;
+   *  on `materialized` event the new tree is committed and `rootElementId`
+   *  is returned via the wrapped done payload. */
+  generateMindmapStream(args: {
+    prose: string; titleHint?: string; audience?: string; model?: Model;
+  }) {
+    return sseStream<{ title: string; subtitle?: string; source: string; images: unknown[] }>(
+      "/mindmaps/generate", args,
+    );
   },
   // ----- AI 早报 daily news generation -----
   // Streams progress; "materialized" event on success carries the new roundup id.

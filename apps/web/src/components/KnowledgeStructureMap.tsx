@@ -102,6 +102,8 @@ export function KnowledgeStructureMap({
   const generatePaths = useStore(s => s.generatePaths);
   const createChildElement = useStore(s => s.createChildElement);
   const inflight = useStore(s => s.inflight);
+  const openMindmap = useStore(s => s.openMindmap);
+  const hydrate = useStore(s => s.hydrate);
   const selected = elements.get(selectedId) ?? view.center;
   const root = view.center;
   const lineage = relativeLineageFor(root.id, selected.id, relations, elements);
@@ -213,6 +215,20 @@ export function KnowledgeStructureMap({
         catch (e) { setLastAction(`新增失败：${e instanceof Error ? e.message : String(e)}`); }
         return;
       }
+      case "生成导图 PPT": {
+        // Attach the PPT section to this element. Server then derives the
+        // indented markdown from its subtree on read. No AI call.
+        try {
+          const { api } = await import("../api/client.js");
+          const deck = await api.attachMindmap(element.id);
+          await hydrate();
+          openMindmap(deck.id);
+          setLastAction(`已生成导图 · ${element.title}`);
+        } catch (e) {
+          setLastAction(`导图生成失败：${e instanceof Error ? e.message : String(e)}`);
+        }
+        return;
+      }
       case "展开线路": {
         // Center the tree on the ROOT of the element's chain so all ancestors
         // — and the clicked element itself — are visible as a top-down path
@@ -299,6 +315,14 @@ export function KnowledgeStructureMap({
             title="把该元向上的全部父元显示出来（root 变成中心）"
           >
             展开线路
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => void runNodeAction("生成导图 PPT")}
+            title="把该元的子树转成可播放的导图 PPT"
+          >
+            生成导图 PPT
           </button>
           <button
             type="button"

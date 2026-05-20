@@ -4,6 +4,7 @@ import { InputView } from "./views/InputView.js";
 import { TreeView } from "./views/TreeView.js";
 import { AdminView } from "./views/AdminView.js";
 import { NewsView } from "./views/NewsView.js";
+import { MindmapView } from "./views/MindmapView.js";
 import { Lightbox } from "./components/Lightbox.js";
 import { CommandPalette } from "./components/CommandPalette.js";
 
@@ -17,6 +18,7 @@ export function App() {
     <>
       {appView === "admin" && <AdminView />}
       {appView === "news" && <NewsView />}
+      {appView === "mindmap" && <MindmapView />}
       {appView === "tree" && (rootId ? <TreeView /> : <InputView />)}
       <Lightbox />
       <CommandPalette />
