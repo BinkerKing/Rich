@@ -1,6 +1,6 @@
 // apps/web/src/views/PlanDetailView.tsx
 import { useMemo, useState, type ReactNode, type Dispatch, type SetStateAction } from "react";
-import { computePlanProgress } from "@ke/domain";
+import { computePlanProgress, computeGoalProgress } from "@ke/domain";
 import type { Plan } from "@ke/domain";
 import { GoalModal } from "./GreatMeView.js";
 import "./PlanDetailView.css";
@@ -26,7 +26,12 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
   /** 父过滤：点 X 父目标的"↓ N 个子目标"后，子 scope tab 只显示这棵子树 */
   const [filterParentId, setFilterParentId] = useState<string | null>(null);
 
-  const progress = useMemo(() => computePlanProgress(plan.id, state.goals as Parameters<typeof computePlanProgress>[1]), [plan.id, state.goals]);
+  // 实时进度：把 tasks 传进来，让百分比跟随 task 完成度动起来（递归从 task 算到 week→month→year→plan）
+  const progress = useMemo(() => computePlanProgress(
+    plan.id,
+    state.goals as Parameters<typeof computePlanProgress>[1],
+    state.tasks as Parameters<typeof computePlanProgress>[2],
+  ), [plan.id, state.goals, state.tasks]);
 
   const planGoals = state.goals.filter(g => g.planId === plan.id);
   const planTasks = state.tasks.filter(t => planGoals.some(g => g.id === t.goalId));
@@ -209,10 +214,14 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
 
     const scopeLabel = goal.scope === "year" ? "年" : goal.scope === "month" ? "月" : "周";
 
+    // 实时算的进度（任务完成度 → 周 → 月 → 年），覆盖存储的静态 goal.progress
+    const dynProgress = computeGoalProgress(goal.id, planGoals as Parameters<typeof computeGoalProgress>[1], planTasks as Parameters<typeof computeGoalProgress>[2]);
+
     // 汇总文案：周 = 任务完成数；月/年 = 子目标完成数
     let summary = "";
     if (children.length > 0) {
-      const doneKids = children.filter(c => c.progress >= 100).length;
+      // 用动态算的进度判断子目标是否完成
+      const doneKids = children.filter(c => computeGoalProgress(c.id, planGoals as Parameters<typeof computeGoalProgress>[1], planTasks as Parameters<typeof computeGoalProgress>[2]) >= 100).length;
       const childWord = children[0].scope === "month" ? "月" : children[0].scope === "week" ? "周" : "目标";
       summary = `${doneKids} / ${children.length} 个${childWord}完成`;
     } else if (goalTasks.length > 0) {
@@ -253,8 +262,8 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
           <span className={`pd-tree-scope pd-tree-scope--${goal.scope}`}>{scopeLabel}</span>
           <span className="pd-tree-title is-clickable" title="点击编辑"
             onClick={() => openEditGoal(goal)}>{goal.title}</span>
-          <div className="pd-tree-bar"><span style={{ width: `${goal.progress}%` }} /></div>
-          <span className="pd-tree-pct">{goal.progress}%</span>
+          <div className="pd-tree-bar"><span style={{ width: `${dynProgress}%` }} /></div>
+          <span className="pd-tree-pct">{dynProgress}%</span>
           {summary && <span className="pd-tree-summary">{summary}</span>}
           {/* S5：hover actions */}
           <div className="pd-tree-actions">
@@ -333,15 +342,18 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
     if (filterParentId && scope === "week") {
       scoped = scoped.filter(g => g.parentId === filterParentId);
     }
-    const planned = scoped.filter(g => g.progress === 0);
-    const active  = scoped.filter(g => g.progress > 0 && g.progress < 100);
-    const done    = scoped.filter(g => g.progress >= 100);
+    // 用动态算的进度（task 完成度递归得来）来分桶看板列
+    const dynP = (g: Goal): number => computeGoalProgress(g.id, planGoals as Parameters<typeof computeGoalProgress>[1], planTasks as Parameters<typeof computeGoalProgress>[2]);
+    const planned = scoped.filter(g => dynP(g) === 0);
+    const active  = scoped.filter(g => { const p = dynP(g); return p > 0 && p < 100; });
+    const done    = scoped.filter(g => dynP(g) >= 100);
     const childScope: "month"|"week"|null = scope === "month" ? "week" : null;
 
     const card = (g: Goal): ReactNode => {
       const parent = g.parentId ? planGoals.find(x => x.id === g.parentId) : null;
       const kidCount = childScope ? childCount(g.id, childScope) : 0;
       const tc = taskCount(g.id);
+      const p = dynP(g);
       return (
         <div key={g.id} className="pd-kanban-card">
           {parent && (
@@ -355,7 +367,7 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
             onClick={() => openEditGoal(g)}>
             {g.title}
           </div>
-          <div className="pd-kanban-card__bar"><span style={{ width: `${g.progress}%` }} /></div>
+          <div className="pd-kanban-card__bar"><span style={{ width: `${p}%` }} /></div>
           <div className="pd-kanban-card__foot">
             <div className="pd-kanban-card__links">
               {childScope && kidCount > 0 && (
@@ -379,7 +391,7 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
                 </span>
               )}
             </div>
-            <span className="pd-kanban-card__pct">{g.progress}%</span>
+            <span className="pd-kanban-card__pct">{p}%</span>
           </div>
         </div>
       );
