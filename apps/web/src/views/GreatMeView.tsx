@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSPropertie
 import { api } from "../api/client.js";
 import { migrateLegacyGoals } from "@ke/domain";
 import type { Plan, Metric } from "@ke/domain";
+import { NewPlanModal } from "../components/NewPlanModal.js";
+import { PlanDetailView } from "./PlanDetailView.js";
 import "./GreatMeView.css";
 
 /* =============================================================
@@ -122,6 +124,8 @@ export function GreatMeView(): ReactNode {
   const [state, setState] = useState<GreatMeState>(DEFAULT_STATE);
   const [loaded, setLoaded] = useState(false);
   const [breathOpen, setBreathOpen] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [newPlanOpen, setNewPlanOpen] = useState(false);
   const saveRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -169,15 +173,40 @@ export function GreatMeView(): ReactNode {
 
       <div className="gm-main">
         <div className="gm-section">
-          {state.activeSection === "home" && <HomeSection state={state} setState={setState} />}
-          {state.activeSection === "goals" && <GoalsSection state={state} setState={setState} />}
-          {state.activeSection === "events" && <EventsSection state={state} setState={setState} />}
-          {state.activeSection === "analytics" && <AnalyticsSection state={state} />}
-          {state.activeSection === "weekly_review" && <WeeklyReviewSection state={state} setState={setState} />}
-          {state.activeSection === "mission_control" && <MissionControlSection state={state} setState={setState} />}
-          {state.activeSection === "settings" && <SettingsSection state={state} setState={setState} />}
+          {selectedPlanId ? (() => {
+            const plan = state.plans.find(p => p.id === selectedPlanId);
+            if (!plan) { setSelectedPlanId(null); return null; }
+            return (
+              <PlanDetailView
+                plan={plan}
+                state={state}
+                setState={setState}
+                onBack={() => setSelectedPlanId(null)} />
+            );
+          })() : (
+            <>
+              {state.activeSection === "home" && <HomeSection state={state} setState={setState} onPickPlan={setSelectedPlanId} onNewPlan={() => setNewPlanOpen(true)} />}
+              {state.activeSection === "goals" && <GoalsSection state={state} setState={setState} />}
+              {state.activeSection === "events" && <EventsSection state={state} setState={setState} />}
+              {state.activeSection === "analytics" && <AnalyticsSection state={state} />}
+              {state.activeSection === "weekly_review" && <WeeklyReviewSection state={state} setState={setState} />}
+              {state.activeSection === "mission_control" && <MissionControlSection state={state} setState={setState} />}
+              {state.activeSection === "settings" && <SettingsSection state={state} setState={setState} />}
+            </>
+          )}
         </div>
       </div>
+
+      {newPlanOpen && (
+        <NewPlanModal
+          onCreate={p => {
+            const newId = `plan-${Date.now().toString(36)}`;
+            setState(prev => ({ ...prev, plans: [...prev.plans, { ...p, id: newId, createdAt: Date.now() }] }));
+            setNewPlanOpen(false);
+            setSelectedPlanId(newId);
+          }}
+          onCancel={() => setNewPlanOpen(false)} />
+      )}
 
       {breathOpen && <BreathOverlay soundOn={state.soundOn} onClose={() => setBreathOpen(false)} />}
     </div>
@@ -189,7 +218,7 @@ export function GreatMeView(): ReactNode {
 // =================================================================
 interface SectionProps { state: GreatMeState; setState: React.Dispatch<React.SetStateAction<GreatMeState>> }
 
-function HomeSection({ state, setState }: SectionProps): ReactNode {
+function HomeSection({ state, setState, onPickPlan, onNewPlan }: SectionProps & { onPickPlan: (id: string) => void; onNewPlan: () => void }): ReactNode {
   const today = useMemo(() => new Date(), []);
   const weekDays = useMemo(() => getWeekDays(today, state.profile.weekStart), [today, state.profile.weekStart]);
   const wk = weekNumber(today);
@@ -427,6 +456,25 @@ function HomeSection({ state, setState }: SectionProps): ReactNode {
       <div className="gm-home-grid">
         {/* === 左列：根据 scope 切换 — 周→今日任务 / 月→周报总结 / 年→年度故事线 === */}
         <div className="gm-col">
+          {/* 我的计划卡 — 跨 scope 都显示 */}
+          <div className="gm-card gm-plans-card">
+            <div className="gm-card__head">
+              <div className="gm-card__title">我的计划</div>
+              <button className="gm-chip" onClick={onNewPlan} title="新建计划">+ 新建</button>
+            </div>
+            {state.plans.filter(p => p.status === "active").length === 0 ? (
+              <div className="gm-empty" style={{ padding: 12, fontSize: 12 }}>还没有计划。点上方 + 新建 来开始。</div>
+            ) : (
+              <div className="gm-plans-list">
+                {state.plans.filter(p => p.status === "active").map(p => (
+                  <button key={p.id} className="gm-plans-item" onClick={() => onPickPlan(p.id)}>
+                    <span className="gm-plans-item__title">{p.title}</span>
+                    <span className="gm-plans-item__arrow">→</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {scope === "month" ? (
             <div className="gm-card gm-flex-1" style={{ display: "flex", flexDirection: "column" }}>
               <div className="gm-card__head">
