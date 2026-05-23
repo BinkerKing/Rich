@@ -618,7 +618,7 @@ function HomeSection({ state, setState, onPickPlan, onNewPlan, onAIDecompose }: 
       {/* === 顶部窄条：问候 + 日期 + 今日完成度 === */}
       <div className="gm-home-v3__top">
         <div className="gm-home-v3__top-left">
-          <span className="gm-home-v3__hello">{greeting}，{state.profile.codename || "Rich"}</span>
+          <span className="gm-home-v3__hello">{greeting}，{state.profile.codename || "大斌哥"}</span>
           <span className="gm-home-v3__date">{dateLabel} · 第 {wk} 周</span>
         </div>
         <div className="gm-home-v3__top-right">
