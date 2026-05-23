@@ -2050,3 +2050,16 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* S7：home today item 上的 plan 名标签（跨计划区分） */
+.gm-todayitem__plan {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(217, 154, 62, 0.14);
+  color: #e6b25a;
+  border: 1px solid rgba(217, 154, 62, 0.32);
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}

@@ -284,10 +284,27 @@ function HomeSection({ state, setState, onPickPlan, onNewPlan }: SectionProps & 
     setEditingGoalOpen(false);
   };
 
+  /** S8：智能挂目标。建任务时如果用户没选 goal，自动挑一个候选：
+   *  优先 active plan 下的"正在进行"的周目标；没有就选第一个周目标；最后 fallback 空。
+   */
+  const suggestGoalIdForNewTask = (): string => {
+    const activePlanIds = new Set(state.plans.filter(p => p.status === "active").map(p => p.id));
+    const candidateWeekGoals = state.goals.filter(g =>
+      g.scope === "week" && (g.planId ? activePlanIds.has(g.planId) : true)
+    );
+    // 优先 progress 0<p<100 的（正在进行）
+    const inProgress = candidateWeekGoals.find(g => g.progress > 0 && g.progress < 100);
+    if (inProgress) return inProgress.id;
+    const planned = candidateWeekGoals.find(g => g.progress === 0);
+    if (planned) return planned.id;
+    return "";
+  };
+
   const addTask = (): void => {
     const t = taskInput.trim();
     if (!t) return;
-    setState(prev => ({ ...prev, tasks: [...prev.tasks, { id: uid(), title: t, done: false, date: selectedDate, badge: "", goalId: "", note: "" }] }));
+    const goalId = suggestGoalIdForNewTask();
+    setState(prev => ({ ...prev, tasks: [...prev.tasks, { id: uid(), title: t, done: false, date: selectedDate, badge: "", goalId, note: "" }] }));
     setTaskInput("");
   };
   const toggleTask = (id: string): void => setState(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === id ? { ...t, done: !t.done } : t) }));
@@ -543,6 +560,17 @@ function HomeSection({ state, setState, onPickPlan, onNewPlan }: SectionProps & 
                             onClick={() => startEditTask(t.id, t.title)}
                             title="点击编辑">{t.title}</span>
                         )}
+                        {/* S7：plan 标签（跨计划区分用） */}
+                        {goal?.planId && (() => {
+                          const plan = state.plans.find(p => p.id === goal.planId);
+                          if (!plan) return null;
+                          const planLabel = plan.title.length > 8 ? plan.title.slice(0, 8) + "…" : plan.title;
+                          return (
+                            <span className="gm-todayitem__plan" title={`所属计划：${plan.title}`}>
+                              ◷ {planLabel}
+                            </span>
+                          );
+                        })()}
                         <div className="gm-todayitem__goal-wrap">
                           <button className={`gm-todayitem__goal ${goal ? "is-set" : ""}`}
                             onClick={e => { e.stopPropagation(); setAssignPopupTaskId(assignPopupTaskId === t.id ? null : t.id); }}
