@@ -307,10 +307,10 @@ UI 渲染"建议变更"，用户点"全部采用 / 单条选择 / 拒绝"。
 
 ### Stage 2 · 数据层 + 单计划详情（1-2 天）
 
-- [ ] Plan 表 + Goal/Task parentId/planId 字段
-- [ ] 数据迁移（旧 goals → 兜底 plan）
-- [ ] 单计划详情页（hero + 4 tab）
-- [ ] 「+ 新建计划」弹窗（仅手动模式）
+- [x] Plan 表 + Goal/Task parentId/planId 字段
+- [x] 数据迁移（旧 goals → 兜底 plan）
+- [x] 单计划详情页（hero + 4 tab）
+- [x] 「+ 新建计划」弹窗（仅手动模式）
 
 ### Stage 3 · AI 拆解（2-3 天）
 
