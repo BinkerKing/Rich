@@ -24,6 +24,7 @@ export function MindmapView() {
 
   const [decks, setDecks] = useState<MindmapDeckView[]>([]);
   const [activeDeck, setActiveDeck] = useState<MindmapDeckView | null>(null);
+  const [loadingDecks, setLoadingDecks] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -31,11 +32,15 @@ export function MindmapView() {
     if (deckId) return;
     let cancelled = false;
     void (async () => {
+      setLoadingDecks(true);
+      setLoadError(null);
       try {
         const list = await api.listMindmaps();
         if (!cancelled) setDecks(list);
       } catch (e) {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!cancelled) setLoadingDecks(false);
       }
     })();
     return () => { cancelled = true; };
@@ -82,7 +87,9 @@ export function MindmapView() {
       <TopBar breadcrumb={null} />
       <main className="tv-main mindmap-main">
         {loadError && <div className="mindmap-error">加载失败：{loadError}</div>}
-        {decks.length === 0 ? (
+        {loadingDecks ? (
+          <div className="mindmap-empty">正在加载导图 PPT…</div>
+        ) : decks.length === 0 ? (
           <div className="mindmap-empty">
             还没有导图。可在元右键选择「生成导图 PPT」生成。
           </div>
