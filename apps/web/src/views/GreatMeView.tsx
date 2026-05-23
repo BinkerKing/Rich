@@ -3,6 +3,7 @@ import { api } from "../api/client.js";
 import { migrateLegacyGoals } from "@ke/domain";
 import type { Plan, Metric } from "@ke/domain";
 import { NewPlanModal } from "../components/NewPlanModal.js";
+import { AIDecomposeModal, type DecomposePreview } from "../components/AIDecomposeModal.js";
 import { PlanDetailView } from "./PlanDetailView.js";
 import "./GreatMeView.css";
 
@@ -124,12 +125,102 @@ function getWeekDays(today: Date, weekStart: number): Date[] {
   });
 }
 
+/**
+ * Stage 3c: 把 AI 拆解出来的预览树落到 state。
+ * - 过滤掉用户在预览里勾掉的目标 / 任务
+ * - 级联过滤：如果父目标被勾掉，子目标和挂在它下的任务也跳过
+ * - tempId → 真实 id 映射（先分配 id，再 build 对象，避免父子顺序问题）
+ * - source 字段如实标记 "ai" / "user"（用户在预览里加的）
+ * 返回新 plan 的 id 供路由切到详情页。
+ */
+function persistDecompose(
+  preview: DecomposePreview,
+  setState: React.Dispatch<React.SetStateAction<GreatMeState>>,
+): string {
+  const now = Date.now();
+  const newPlanId = `plan-${now.toString(36)}`;
+
+  // 判断目标是否被级联排除（自己或祖先 excluded）
+  const isExcluded = (tempId: string): boolean => {
+    const seen = new Set<string>();
+    let cursor: string | undefined = tempId;
+    while (cursor && !seen.has(cursor)) {
+      seen.add(cursor);
+      const g = preview.goals.find(x => x.tempId === cursor);
+      if (!g) return true;
+      if (g.excluded) return true;
+      cursor = g.parentTempId;
+    }
+    return false;
+  };
+
+  // 通过的目标 tempIds
+  const keptGoals = preview.goals.filter(g => !isExcluded(g.tempId));
+
+  // 先分配新 id（避免父在数组中出现晚于子时取不到）
+  const goalIdMap = new Map<string, string>();
+  keptGoals.forEach((g, i) => {
+    goalIdMap.set(g.tempId, `g-${now.toString(36)}-${i}`);
+  });
+
+  const goalsToAdd: Goal[] = keptGoals.map(g => ({
+    id: goalIdMap.get(g.tempId)!,
+    scope: g.scope,
+    title: g.title.trim() || "(未命名目标)",
+    detail: g.detail,
+    phase: "execute",
+    due: g.due,
+    progress: 0,
+    createdAt: now,
+    planId: newPlanId,
+    parentId: g.parentTempId ? goalIdMap.get(g.parentTempId) : undefined,
+    source: g.userAdded ? "user" : "ai",
+    metric: g.metric,
+  }));
+
+  const tasksToAdd: Task[] = preview.tasks
+    .filter(t => !t.excluded)
+    .filter(t => !t.goalTempId || goalIdMap.has(t.goalTempId))  // 父目标若被排除则任务也跳过
+    .map((t, i) => ({
+      id: `t-${now.toString(36)}-${i}`,
+      title: t.title.trim() || "(未命名任务)",
+      done: false,
+      date: t.date,
+      badge: t.badge,
+      goalId: t.goalTempId ? goalIdMap.get(t.goalTempId) ?? "" : "",
+      note: t.note,
+      source: t.userAdded ? "user" : "ai",
+    }));
+
+  const newPlan: Plan = {
+    id: newPlanId,
+    title: preview.plan.title.trim() || "(未命名计划)",
+    detail: preview.plan.detail,
+    start: preview.plan.start,
+    end: preview.plan.end,
+    scopes: preview.plan.scopes,
+    status: "active",
+    source: "ai-decompose",
+    createdAt: now,
+  };
+
+  setState(prev => ({
+    ...prev,
+    plans: [...prev.plans, newPlan],
+    goals: [...prev.goals, ...goalsToAdd],
+    tasks: [...prev.tasks, ...tasksToAdd],
+  }));
+
+  return newPlanId;
+}
+
 export function GreatMeView(): ReactNode {
   const [state, setState] = useState<GreatMeState>(DEFAULT_STATE);
   const [loaded, setLoaded] = useState(false);
   const [breathOpen, setBreathOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [newPlanOpen, setNewPlanOpen] = useState(false);
+  const [aiDecomposeOpen, setAiDecomposeOpen] = useState(false);
   const saveRef = useRef<number | null>(null);
   /** 最近一次"和服务端一致"的 state 快照（JSON 字符串）。
    *  用于：① save 前自检，无变化就不发 PUT；② focus refetch 后避免回写循环。 */
@@ -256,7 +347,7 @@ export function GreatMeView(): ReactNode {
             );
           })() : (
             <>
-              {state.activeSection === "home" && <HomeSection state={state} setState={setState} onPickPlan={setSelectedPlanId} onNewPlan={() => setNewPlanOpen(true)} />}
+              {state.activeSection === "home" && <HomeSection state={state} setState={setState} onPickPlan={setSelectedPlanId} onNewPlan={() => setNewPlanOpen(true)} onAIDecompose={() => setAiDecomposeOpen(true)} />}
               {state.activeSection === "goals" && <GoalsSection state={state} setState={setState} />}
               {state.activeSection === "events" && <EventsSection state={state} setState={setState} />}
               {state.activeSection === "analytics" && <AnalyticsSection state={state} />}
@@ -279,6 +370,16 @@ export function GreatMeView(): ReactNode {
           onCancel={() => setNewPlanOpen(false)} />
       )}
 
+      {aiDecomposeOpen && (
+        <AIDecomposeModal
+          onCancel={() => setAiDecomposeOpen(false)}
+          onAccept={(preview) => {
+            const newPlanId = persistDecompose(preview, setState);
+            setAiDecomposeOpen(false);
+            setSelectedPlanId(newPlanId);
+          }} />
+      )}
+
       {breathOpen && <BreathOverlay soundOn={state.soundOn} onClose={() => setBreathOpen(false)} />}
     </div>
   );
@@ -289,7 +390,7 @@ export function GreatMeView(): ReactNode {
 // =================================================================
 interface SectionProps { state: GreatMeState; setState: React.Dispatch<React.SetStateAction<GreatMeState>> }
 
-function HomeSection({ state, setState, onPickPlan, onNewPlan }: SectionProps & { onPickPlan: (id: string) => void; onNewPlan: () => void }): ReactNode {
+function HomeSection({ state, setState, onPickPlan, onNewPlan, onAIDecompose }: SectionProps & { onPickPlan: (id: string) => void; onNewPlan: () => void; onAIDecompose: () => void }): ReactNode {
   const today = useMemo(() => new Date(), []);
   const weekDays = useMemo(() => getWeekDays(today, state.profile.weekStart), [today, state.profile.weekStart]);
   const wk = weekNumber(today);
@@ -548,7 +649,10 @@ function HomeSection({ state, setState, onPickPlan, onNewPlan }: SectionProps & 
           <div className="gm-card gm-plans-card">
             <div className="gm-card__head">
               <div className="gm-card__title">我的计划</div>
-              <button className="gm-chip" onClick={onNewPlan} title="新建计划">+ 新建</button>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button className="gm-chip" onClick={onAIDecompose} title="AI 帮我把意图拆成计划树">🪄 AI 拆解</button>
+                <button className="gm-chip" onClick={onNewPlan} title="新建空计划">+ 新建</button>
+              </div>
             </div>
             {state.plans.filter(p => p.status === "active").length === 0 ? (
               <div className="gm-empty" style={{ padding: 12, fontSize: 12 }}>还没有计划。点上方 + 新建 来开始。</div>
