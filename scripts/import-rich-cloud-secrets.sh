@@ -52,5 +52,5 @@ echo "  $HOME/.ssh/rich-aliyun-ecs"
 echo
 echo "Next:"
 echo "  source ~/.rich-cloud-postgres.env"
-echo "  ssh -i \"\$RICH_DB_SSH_KEY\" -o ExitOnForwardFailure=yes -f -N -L \"\${RICH_DB_PORT}:\${RICH_DB_HOST}:5432\" \"\${RICH_DB_SSH_USER}@\${RICH_DB_SSH_HOST}\""
+echo "  ssh -i \"\$RICH_DB_SSH_KEY\" -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -f -N -L \"\${RICH_DB_PORT}:\${RICH_DB_HOST}:5432\" \"\${RICH_DB_SSH_USER}@\${RICH_DB_SSH_HOST}\""
 echo "  KE_STORAGE=postgres DATABASE_URL=\"\$RICH_DB_URL\" pnpm --filter @ke/desktop dev"

@@ -19,6 +19,8 @@ REMOTE_SSH_KEY="${RICH_DB_SSH_KEY:?missing RICH_DB_SSH_KEY}"
 exec ssh \
   -i "$REMOTE_SSH_KEY" \
   -o ExitOnForwardFailure=yes \
+  -o ServerAliveInterval=30 \
+  -o ServerAliveCountMax=3 \
   -N \
   -L "${LOCAL_PORT}:${REMOTE_HOST}:5432" \
   "${REMOTE_SSH_USER}@${REMOTE_SSH_HOST}"
