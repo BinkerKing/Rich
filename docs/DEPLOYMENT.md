@@ -47,92 +47,219 @@ pnpm install            # 装所有 workspace 依赖
 
 ### 3.1 云端 Postgres（必需）
 
-Rich 的所有用户数据（计划/目标/任务/对话/复盘）都存在一个 key/value `state` 表里 —— 任何 Postgres 实例都行，要求：
+Rich 把所有用户数据（profile / plans / goals / tasks / daily / events / conversations）序列化成 JSON，存进 `state` 表的一行 key/value 里。任何 Postgres 14+ 实例都行，要求：
 
 - Postgres 14+
-- 公网可访问（或部署机能访问的内网）
-- 可创建表的权限（启动时会自动 `CREATE TABLE IF NOT EXISTS`）
+- 部署机能访问（公网或同 VPC）
+- 可 `CREATE TABLE IF NOT EXISTS` 的权限（Rich 启动时自动建表，见附录 B）
 
-**推荐方案**：
+下面三个候选挑一个，逐步走完即可拿到 `DATABASE_URL`。
 
-| 服务 | 免费额度 | 特点 |
-|---|---|---|
-| [Supabase](https://supabase.com) | 500 MB | 一键开 Postgres，UI 友好 |
-| [Neon](https://neon.tech) | 3 GB | Serverless Postgres，按使用计费 |
-| 自建 | — | docker `postgres:16` 跑本机 |
+---
 
-拿到 connection string（`postgresql://user:pass@host:5432/dbname`）后**记下来**，下一步要用。
+#### 选项 A · Supabase（最快，推荐新手）
+
+1. 开浏览器到 https://supabase.com → Sign in（GitHub OAuth 最快）
+2. 顶部 **New project** → 填：
+   - **Name**: `rich`
+   - **Database password**: 自己想一个长随机串，**立刻复制保存**（页面关掉就拿不回来）
+   - **Region**: 选离你最近的（亚洲一般 Singapore 或 Tokyo）
+3. 点 **Create new project**，等 2 分钟 provisioning
+4. 控制台左侧 ⚙ **Project Settings** → **Database** → 看 **Connection string** 区
+5. **Connection type 选 `URI`**，**Mode 选 `Session`**（不要选 Transaction，Rich 用 connection pool 自带）
+6. 拷贝出形如：
+   ```
+   postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+   ```
+   （把 `<password>` 那段换成你刚才记的真实密码）
+7. **验证连接**：本机装 `psql`（`brew install libpq && brew link --force libpq`），然后：
+   ```bash
+   psql 'postgresql://...你的 URI...' -c 'SELECT version();'
+   ```
+   能输出 `PostgreSQL 15.x ...` 就通了。
+
+> Supabase 免费额度：500 MB 存储 + 2 GB 流量/月。Rich 单用户一年都用不到 50 MB。
+
+---
+
+#### 选项 B · Neon（serverless，免费额度更大）
+
+1. 浏览器到 https://neon.tech → Sign in
+2. **Create project** → Name `rich`，Region 选最近，Postgres version 选 16
+3. 创建完进控制台，左侧 **Connection Details** → Copy 那个 connection string（默认就是 pooled，可以直接用）
+4. 同样的 `psql -c 'SELECT version();'` 验证
+
+> Neon 免费额度：3 GB 存储 + 191.9 compute hours/月，serverless 闲置不收费。
+
+---
+
+#### 选项 C · 本地 docker postgres（不想用云）
+
+```bash
+# 拉镜像 + 起容器（数据持久化到 ~/rich-pg-data）
+docker run -d \
+  --name rich-pg \
+  -p 5432:5432 \
+  -e POSTGRES_PASSWORD=rich_local_dev \
+  -e POSTGRES_DB=rich \
+  -v ~/rich-pg-data:/var/lib/postgresql/data \
+  postgres:16
+
+# 验证
+docker exec rich-pg psql -U postgres -d rich -c 'SELECT version();'
+```
+
+连接串就是 `postgresql://postgres:rich_local_dev@127.0.0.1:5432/rich`。
+
+> ⚠️ 本地 docker 模式失去多机同步价值——只适合单机测试 / 离线开发。
+
+---
+
+无论用哪一个，**最终产物**：一个 `postgresql://...` 字符串，下面 §4 写进 `.env`。
+
+---
 
 ### 3.2 Hermes Agent（必需）
 
-Rich 的 AI 大脑是 [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)。它本地跑，对外暴露 OpenAI 兼容的 `/v1/chat/completions` 接口，背后接 Codex 或别的 provider。
+Rich 调用 LLM 的默认通道是 **Hermes** —— 一个 OpenAI 兼容的本地 HTTP 服务（`/v1/chat/completions`），背后用你已有的 Codex OAuth 当 provider。Rich 通过它做：知识树生成、计划拆解（Stage 3）、对话、复盘草稿等。
 
-**装 Hermes**：
+**Rich 对 Hermes 的硬要求**（这些不会变）：
+
+| 项 | 要求 |
+|---|---|
+| 监听地址 | 默认 `http://127.0.0.1:8642`（可以通过 `HERMES_BASE_URL` 改）|
+| API 协议 | OpenAI Chat Completions v1（`POST /v1/chat/completions` 流式 SSE）|
+| `/v1/models` | Rich 启动时 `GET` 这个端点做可达性探测（2 秒超时）|
+| MCP 配置 | `~/.hermes/config.yaml` 里要把 `rich` 加进 `mcp_servers`，url 指向 Rich 的 MCP 端点 |
+
+#### 步骤一：装 Hermes 二进制
+
+> ⚠️ **我没有验证过的统一安装命令**。Hermes 来自 [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)（也可能更新到了别处）；上游的发布方式会变。**请按上游仓库当前 README 的指引装**，目标是终端里能跑出 `hermes serve --port 8642` 或等效命令。
+>
+> 常见三种发布形态，按上游公告对照：
+> - **Homebrew tap**：`brew tap NousResearch/hermes && brew install hermes`
+> - **pip**：`pip install hermes-agent` 然后 `hermes serve --port 8642`
+> - **源码**：`git clone https://github.com/NousResearch/hermes-agent && cd hermes-agent && <按 README>`
+>
+> 装完后随便挑一个目录跑 `hermes --help`，能输出帮助即装好。
+
+#### 步骤二：建配置文件 `~/.hermes/config.yaml`
 
 ```bash
-brew install hermes-agent     # 如果有 tap；否则按 GitHub 仓库 README
-# 或：
-pip install hermes-agent      # Python 版本
-```
+mkdir -p ~/.hermes
+cat > ~/.hermes/config.yaml <<'EOF'
+provider: codex                 # 用 Codex OAuth 作为底层 LLM
+default: codex
 
-**配置 `~/.hermes/config.yaml`**（让 Hermes 用你已经登录的 Codex 账号）：
-
-```yaml
-provider: codex
-default_model: hermes
 mcp_servers:
   rich:
-    url: http://127.0.0.1:31515/mcp   # Rich 自己的 MCP server，Hermes 通过它回调 Rich 的工具
+    url: http://127.0.0.1:31515/mcp
+EOF
 ```
 
-**启动**：
+> 31515 是 Rich.app 启动时的首选端口。如果你机器上这个端口已被占用，Rich 会自动上移；启动后真实的 MCP url 写在 `~/Library/Application Support/Rich/data/.mcp-url`。Hermes 配置文件里写的就是个**期望值**，可以等 Rich 跑起来再 `cat` 那个文件验证。
+
+#### 步骤三：起 Hermes 服务
 
 ```bash
+# 前台跑（debug 用）：
 hermes serve --port 8642
-# 或者用 launchd 让它开机自启（见附录 A）
+
+# 后台自启（推荐）：见本文档附录 A 的 launchd plist
 ```
 
-**验证**：
+#### 步骤四：三项验证（**全部必须通过**）
 
 ```bash
-curl http://127.0.0.1:8642/v1/models
-# 期望：JSON 列出可用模型，含 "hermes"
+# 1. /v1/models 能 200（Rich 用这个判断 Hermes 可达）
+curl -i http://127.0.0.1:8642/v1/models
+# 期望：HTTP/1.1 200 OK，body 是 JSON 列出模型
+
+# 2. /v1/chat/completions 能流式返回（Rich 实际调用的端点）
+curl -N http://127.0.0.1:8642/v1/chat/completions \
+  -H 'content-type: application/json' \
+  -d '{"model":"hermes","messages":[{"role":"user","content":"say hello in 5 words"}],"stream":true}'
+# 期望：陆续吐 data: {...} 行，最后一个是 data: [DONE]
+
+# 3. Hermes 真的连上 Codex 了
+# 看 hermes 的日志（前台跑的话直接看终端；launchd 看 /tmp/hermes.log）
+# 第一次请求应出现 "loaded codex provider" 之类字样
 ```
+
+任何一步过不去就**别继续装 Rich**——肯定 Hermes 自己没配好。
+
+---
 
 ### 3.3 Codex CLI（必需）
 
-Rich 也支持直接调用 Codex CLI（不经 Hermes）。Hermes 用的也是同一个 Codex 后端。
+Codex 是 Rich 实际调用的 LLM 后端（Hermes 转发给它，Rich 也会直接 spawn 它跑某些图片生成任务）。它是 OpenAI 的 ChatGPT Codex 桌面产品。
 
-**装法**：
+**Rich 对 Codex 的硬要求**：
 
+| 项 | 要求 |
+|---|---|
+| 可执行文件路径 | 一个能跑 `codex` 子命令的 binary |
+| 探测顺序 | (1) 环境变量 `KE_CODEX_BIN` (2) `which codex` (3) `/Applications/Codex.app/Contents/Resources/codex` |
+| 登录态 | 已经 `codex auth login` 过，凭据存在 `~/.codex/` |
+
+#### 步骤一：装 Codex.app（推荐）
+
+1. 浏览器到 ChatGPT 的 Codex 下载页（搜「ChatGPT Codex download」，URL 可能随产品更新而变）
+2. 下载 macOS arm64 版本的 `.dmg` 或 `.zip`
+3. 把 `Codex.app` 拖进 `/Applications`
+4. 第一次打开右键 → 打开 → 同意 Gatekeeper 警告
+
+验证文件存在：
 ```bash
-# 方案一（推荐）：装 Codex 桌面 app
-# 从 https://chatgpt.com/codex/installation 下载 Codex.app 拖进 /Applications
-
-# 方案二：装命令行版
-brew install codex     # 如果有 tap
-# 或 npm/pip 装，看 Codex 当前的发布方式
+ls -la /Applications/Codex.app/Contents/Resources/codex
+# 期望：能列出来这个文件
 ```
 
-**首次登录**：
+#### 步骤二：登录
 
+打开 Codex.app（图形界面），里面应该有 "Sign in" 之类的按钮，跳浏览器走 OAuth。
+登录态写到 `~/.codex/`，Hermes 自动复用同一份。
+
+或者从命令行：
 ```bash
 /Applications/Codex.app/Contents/Resources/codex auth login
-# 或：
-codex auth login
+# 按提示跳浏览器完成
 ```
 
-按提示跳浏览器完成 OAuth。登录态保存到 `~/.codex/`，Hermes 复用这份。
+#### 步骤三：让命令行也能找到 codex
 
-**验证**：
+Rich 的 macOS 主进程通过 [`ensureUserShellPath`](apps/desktop/src/main.ts) 重新加载 PATH，但更省心的做法是直接给个软链：
 
 ```bash
-which codex                        # 应能找到，或
-ls /Applications/Codex.app/Contents/Resources/codex   # 文件存在
-codex --version                    # 能输出版本
+sudo ln -sf /Applications/Codex.app/Contents/Resources/codex /usr/local/bin/codex
 ```
 
-> ⚠️ Rich 的 server 启动时会通过 `ensureUserShellPath()` 重新加载 PATH —— macOS 的 GUI 进程不继承终端 PATH，需要这步否则 GUI 启动的 Rich.app 找不到 codex。代码已经处理了这个；你只要保证终端能 `which codex` 即可。
+或者把那段路径加进你的 `~/.zshrc`：
+```bash
+echo 'export PATH="/Applications/Codex.app/Contents/Resources:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+#### 步骤四：验证
+
+```bash
+# 1. 路径存在
+which codex
+# 或：ls -la /Applications/Codex.app/Contents/Resources/codex
+
+# 2. 能跑
+codex --version
+# 期望：能输出某个版本号
+
+# 3. 已登录
+codex auth status   # 子命令名可能因版本不同
+# 或：尝试 codex 跑一句简单对话；登录态正确就不会报 401
+```
+
+> 如果以上都通过，但是 Rich.app GUI 启动后报 "codex CLI not found"，说明 GUI 进程的 PATH 没有 Codex.app 的路径。**最稳的修复**：在 `.env` 里直接写死：
+> ```
+> KE_CODEX_BIN=/Applications/Codex.app/Contents/Resources/codex
+> ```
 
 ---
 
