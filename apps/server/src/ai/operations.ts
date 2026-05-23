@@ -20,6 +20,7 @@ import { buildGenerateDailyNewsPrompt } from "./prompts/generateDailyNews.js";
 import { buildGenerateImagePrompt } from "./prompts/generateImage.js";
 import { buildGenerateMindmapPrompt } from "./prompts/generateMindmap.js";
 import { buildGreatMePrompt, type GreatMeMode } from "./prompts/greatMe.js";
+import { buildDecomposePlanPrompt } from "./prompts/decomposePlan.js";
 import type { AIManual } from "./manuals.js";
 import type { Signal } from "@ke/domain";
 
@@ -487,6 +488,70 @@ export function runGreatMeBrain(
       op: "great-me",
       model: adapter.name,
       scope: { mode: args.mode, input: args.input.slice(0, 120) },
+    },
+  });
+}
+
+// ----- Plan decomposition (Stage 3) -----
+// AI receives an intent + today + optional target end date, and emits a
+// plan → goals → tasks tree with tempIds that the client converts to UIDs.
+
+const ISO_DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD");
+const PlanScopeSchema = z.enum(["year", "month", "week", "day"]);
+const PlanMetricSchema = z.object({
+  unit: z.string().min(1).max(20),
+  target: z.number(),
+}).optional();
+
+const DecomposePlanResultSchema = z.object({
+  plan: z.object({
+    title: z.string().min(1).max(200),
+    detail: z.string().max(800).default(""),
+    start: ISO_DATE,
+    end: ISO_DATE,
+    scopes: z.array(PlanScopeSchema).min(1).max(4),
+  }),
+  goals: z.array(z.object({
+    tempId: z.string().min(1).max(40),
+    scope: z.enum(["year", "month", "week"]),
+    title: z.string().min(1).max(280),
+    detail: z.string().max(800).default(""),
+    due: ISO_DATE,
+    parentTempId: z.string().max(40).optional(),
+    metric: PlanMetricSchema,
+  })).max(100),
+  tasks: z.array(z.object({
+    title: z.string().min(1).max(280),
+    date: ISO_DATE,
+    goalTempId: z.string().max(40).optional(),
+    badge: z.string().max(20).default(""),
+    note: z.string().max(400).default(""),
+  })).max(200),
+  reasoning: z.string().max(800).default(""),
+});
+export type DecomposePlanResult = z.infer<typeof DecomposePlanResultSchema>;
+
+export function runDecomposePlan(
+  adapter: AIAdapter,
+  args: {
+    intent: string;
+    today: string;
+    targetEnd?: string;
+  } & SharedOpArgs,
+): AsyncIterable<StructuredEvent<DecomposePlanResult>> {
+  const prompt = buildDecomposePlanPrompt({
+    intent: args.intent,
+    today: args.today,
+    targetEnd: args.targetEnd,
+  });
+  return runStructuredAI(adapter, {
+    prompt,
+    signal: args.signal,
+    validate: zodValidator(DecomposePlanResultSchema),
+    opLog: {
+      op: "decompose-plan",
+      model: adapter.name,
+      scope: { intent: args.intent.slice(0, 120), targetEnd: args.targetEnd },
     },
   });
 }

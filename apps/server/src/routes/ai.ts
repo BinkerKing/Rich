@@ -30,6 +30,7 @@ import {
   attachUnder,
   generateDailyNews,
   runGreatMeBrain,
+  runDecomposePlan,
   type DailyNewsItem,
 } from "../ai/operations.js";
 import { shortlistByKeywords } from "../lib/elementShortlist.js";
@@ -215,6 +216,69 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     await recordSignal(deps.signals, {
       ts: new Date().toISOString(), type: "op.failed", manual: "great-me",
       op: "great-me", adapter: adapter.name, data: { mode, durationMs: Date.now() - t0, message },
+    });
+    return c.json({ error: message, adapter: adapter.name }, 500);
+  });
+
+  // ----- decompose-plan: AI 把意图拆成 plan/goal/task 树 (Stage 3) -----
+  // 用户说"我想 3 个月减 10 斤"，Hermes 返回结构化树（带 tempId 供客户端落库时映射）。
+  // AI 自己判断要不要 year/month/week/day 全套层级；scopes 字段如实反映。
+  const DecomposePlanBodySchema = z.object({
+    intent: z.string().min(2).max(500),
+    targetEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+  });
+  r.post("/decompose-plan", async (c) => {
+    const raw = await c.req.json().catch(() => null);
+    if (raw == null) return c.json({ error: "invalid JSON body" }, 400);
+    const parsed = DecomposePlanBodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
+    }
+    const { intent, targetEnd, model } = parsed.data;
+    const today = new Date().toISOString().slice(0, 10);
+    const adapter = pickAdapter(deps.adapters, model);
+    const reqId = newReqId();
+    const t0 = Date.now();
+    log.info("ai.op.start", { reqId, op: "/api/ai/decompose-plan", adapter: adapter.name });
+
+    if (!(await adapter.available())) {
+      const message = `${adapter.name} unavailable`;
+      await recordSignal(deps.signals, {
+        ts: new Date().toISOString(), type: "op.failed", manual: "decompose-plan",
+        op: "decompose-plan", adapter: adapter.name, data: { intent: intent.slice(0, 120), message },
+      });
+      return c.json({ error: message, adapter: adapter.name }, 503);
+    }
+
+    let finalResult: unknown = null;
+    let lastError = "";
+    for await (const ev of runDecomposePlan(adapter, {
+      intent, today, targetEnd, signal: c.req.raw.signal,
+    })) {
+      if (ev.type === "error") { lastError = ev.message; break; }
+      if (ev.type === "done") {
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.completed", manual: "decompose-plan",
+          op: "decompose-plan", adapter: adapter.name,
+          data: {
+            intent: intent.slice(0, 120),
+            durationMs: Date.now() - t0,
+            goalCount: ev.result.goals.length,
+            taskCount: ev.result.tasks.length,
+            scopes: ev.result.plan.scopes,
+          },
+        });
+        finalResult = ev.result;
+        break;
+      }
+    }
+    if (finalResult) return c.json({ adapter: adapter.name, result: finalResult });
+    const message = lastError || "decompose-plan failed";
+    await recordSignal(deps.signals, {
+      ts: new Date().toISOString(), type: "op.failed", manual: "decompose-plan",
+      op: "decompose-plan", adapter: adapter.name,
+      data: { intent: intent.slice(0, 120), durationMs: Date.now() - t0, message },
     });
     return c.json({ error: message, adapter: adapter.name }, 500);
   });
