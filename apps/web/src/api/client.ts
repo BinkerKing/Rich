@@ -156,17 +156,30 @@ export const api = {
     const body = await r.json() as { state: T | null };
     return body.state;
   },
-  /** Save the GreatMe cockpit state. Server validates shape + size cap. */
-  async saveGreatMeState(state: unknown): Promise<void> {
+  /** Save the GreatMe cockpit state. Server validates shape + size cap.
+   *  Phase 1 (多设备并发安全): server returns 409 when client's `version`
+   *  field doesn't match server's stored version. Caller should refetch
+   *  + reconcile. Returns `{ ok: true, version }` on success or
+   *  `{ conflict: true, current, currentVersion }` on 409. */
+  async saveGreatMeState(state: unknown): Promise<
+    | { ok: true; version: number }
+    | { conflict: true; current: unknown; currentVersion: number }
+  > {
     const r = await fetch("/api/great-me/state", {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(state),
     });
+    if (r.status === 409) {
+      const body = await r.json().catch(() => ({})) as { current?: unknown; currentVersion?: number };
+      return { conflict: true, current: body.current ?? null, currentVersion: body.currentVersion ?? 0 };
+    }
     if (!r.ok) {
       const body = await r.json().catch(() => ({})) as { error?: string };
       throw new Error(body.error ?? `save great-me state failed: ${r.status}`);
     }
+    const body = await r.json().catch(() => ({})) as { ok?: true; version?: number };
+    return { ok: true, version: body.version ?? 0 };
   },
 
   // ----- per-element ops -----

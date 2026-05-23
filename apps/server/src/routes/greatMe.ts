@@ -153,6 +153,10 @@ const GreatMeStateSchema = z.object({
   activeSection: SectionId.default("home"),
   activeRange: RangeId.default("week"),
   soundOn: z.boolean().default(true),
+  // === Phase 1: 多设备并发安全 ===
+  // 每次 PUT 成功后服务端递增。客户端必须回传它读到的值；不匹配即返回 409
+  // 让客户端先 refetch 再合并，避免另一台机器的旧 React state 把整树覆盖空。
+  version: z.number().int().min(0).default(0),
 });
 
 export type GreatMeStatePayload = z.infer<typeof GreatMeStateSchema>;
@@ -184,8 +188,22 @@ export function greatMeRoutes(repo: GreatMeRepo): Hono {
     if (!parsed.success) {
       return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
     }
-    await repo.put(parsed.data);
-    return c.json({ ok: true });
+    // === Phase 1: version 锁 ===
+    // 客户端在 body.version 里回传它读到的值；服务端比对自己存的版本。
+    // 不匹配 → 409 + 返回最新 state，让客户端先 refetch 再决定要不要重写。
+    const stored = await repo.get();
+    const storedParsed = stored == null ? null : GreatMeStateSchema.safeParse(stored);
+    const currentVersion = storedParsed && storedParsed.success ? storedParsed.data.version : 0;
+    if (parsed.data.version !== currentVersion) {
+      return c.json({
+        error: "version conflict",
+        current: storedParsed && storedParsed.success ? storedParsed.data : null,
+        currentVersion,
+      }, 409);
+    }
+    const next = { ...parsed.data, version: currentVersion + 1 };
+    await repo.put(next);
+    return c.json({ ok: true, version: next.version });
   });
 
   return r;

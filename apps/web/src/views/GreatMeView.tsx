@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import { api } from "../api/client.js";
 import { migrateLegacyGoals } from "@ke/domain";
 import type { Plan, Metric } from "@ke/domain";
@@ -60,6 +60,9 @@ interface GreatMeState {
   compounding: { score: number; trend: number[]; topAssets: string[]; topBlockers: string[] };
   conversations: Conversation[];
   activeSection: SectionId; activeRange: RangeId; soundOn: boolean;
+  /** 多设备并发安全：每次成功 PUT 后服务端递增；客户端必须回传读到的值。
+   *  不匹配 → 服务端 409 → 客户端 refetch + 重试。 */
+  version: number;
 }
 
 const DEFAULT_STATE: GreatMeState = {
@@ -70,6 +73,7 @@ const DEFAULT_STATE: GreatMeState = {
   compounding: { score: 0, trend: [], topAssets: [], topBlockers: [] },
   conversations: [],
   activeSection: "home", activeRange: "week", soundOn: true,
+  version: 0,
 };
 
 const SECTION_LABELS: Record<SectionId, string> = {
@@ -127,28 +131,95 @@ export function GreatMeView(): ReactNode {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [newPlanOpen, setNewPlanOpen] = useState(false);
   const saveRef = useRef<number | null>(null);
+  /** 最近一次"和服务端一致"的 state 快照（JSON 字符串）。
+   *  用于：① save 前自检，无变化就不发 PUT；② focus refetch 后避免回写循环。 */
+  const lastSyncedJsonRef = useRef<string | null>(null);
+  /** Phase 1: 焦点回到窗口时触发 refetch（多设备并发的第一道屏障） */
+  const hydratingRef = useRef(false);
+  /** focus 监听里读的是 stale closure 的 state；用 ref 同步最新 state。 */
+  const stateRef = useRef<GreatMeState>(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
 
-  useEffect(() => {
-    api.getGreatMeState<GreatMeState>()
-      .then(s => {
-        if (s) {
-          const merged = { ...DEFAULT_STATE, ...s };
-          const migrated = migrateLegacyGoals(merged);
-          setState(migrated as GreatMeState);
-        }
-      })
-      .catch(err => console.warn("GreatMe load failed", err))
-      .finally(() => setLoaded(true));
+  const hydrate = useCallback(async (): Promise<void> => {
+    if (hydratingRef.current) return;
+    hydratingRef.current = true;
+    try {
+      const s = await api.getGreatMeState<GreatMeState>();
+      if (s) {
+        const merged = { ...DEFAULT_STATE, ...s };
+        const migrated = migrateLegacyGoals(merged) as GreatMeState;
+        setState(migrated);
+        lastSyncedJsonRef.current = JSON.stringify(migrated);
+      } else {
+        lastSyncedJsonRef.current = JSON.stringify(DEFAULT_STATE);
+      }
+    } catch (err) {
+      console.warn("GreatMe load failed", err);
+    } finally {
+      setLoaded(true);
+      hydratingRef.current = false;
+    }
   }, []);
+
+  useEffect(() => { void hydrate(); }, [hydrate]);
 
   useEffect(() => {
     if (!loaded) return;
+    const json = JSON.stringify(state);
+    // 没真变化就不写（refetch / 服务器回传 version 触发的 setState 也会落这里）
+    if (json === lastSyncedJsonRef.current) return;
     if (saveRef.current) window.clearTimeout(saveRef.current);
-    saveRef.current = window.setTimeout(() => {
-      api.saveGreatMeState(state).catch(err => console.warn("GreatMe save failed", err));
+    saveRef.current = window.setTimeout(async () => {
+      saveRef.current = null;
+      try {
+        const res = await api.saveGreatMeState(state);
+        if ("conflict" in res) {
+          // 服务端比本地新 → 用服务端值覆盖本地（用户没在编辑时，安静地拿到最新）
+          console.warn("GreatMe save conflict; server ahead, refetching", res.currentVersion);
+          if (res.current) {
+            const merged = { ...DEFAULT_STATE, ...(res.current as Partial<GreatMeState>) } as GreatMeState;
+            lastSyncedJsonRef.current = JSON.stringify(merged);
+            setState(merged);
+          } else {
+            await hydrate();
+          }
+        } else {
+          // 成功 → 拿服务端递增后的 version 回写本地，并把新 JSON 当作 last-synced
+          const synced: GreatMeState = { ...state, version: res.version };
+          lastSyncedJsonRef.current = JSON.stringify(synced);
+          setState(prev => prev.version === res.version ? prev : { ...prev, version: res.version });
+        }
+      } catch (err) {
+        console.warn("GreatMe save failed", err);
+      }
     }, 800);
     return () => { if (saveRef.current) window.clearTimeout(saveRef.current); };
-  }, [state, loaded]);
+  }, [state, loaded, hydrate]);
+
+  // Phase 1: 窗口聚焦 / 标签可见时重新拉取（用户没在输入框里时才动）
+  useEffect(() => {
+    const isTyping = (): boolean => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el) return false;
+      const tag = el.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
+    };
+    const onWake = (): void => {
+      if (document.hidden) return;
+      if (isTyping()) return;                      // 别打断用户正在敲的字
+      if (!loaded) return;
+      if (saveRef.current !== null) return;        // 有 debounce 中的 save 待发，让 save 先跑
+      // 本地还有未同步的改动 → 不能用服务端值覆盖本地；让 save effect 把它推上去再说
+      if (JSON.stringify(stateRef.current) !== lastSyncedJsonRef.current) return;
+      void hydrate();
+    };
+    window.addEventListener("focus", onWake);
+    document.addEventListener("visibilitychange", onWake);
+    return () => {
+      window.removeEventListener("focus", onWake);
+      document.removeEventListener("visibilitychange", onWake);
+    };
+  }, [hydrate, loaded]);
 
   useEffect(() => {
     const handler = (): void => setBreathOpen(true);
