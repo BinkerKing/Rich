@@ -6,6 +6,7 @@ export * from "./types/qa.js";
 export * from "./types/annotation.js";
 export * from "./types/section.js";
 export * from "./types/mindmap.js";
+export * from "./types/plan.js";
 export * from "./elementTypes/concept.js";
 export * from "./elementTypes/topic.js";
 export * from "./elementTypes/step.js";
