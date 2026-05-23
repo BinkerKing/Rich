@@ -47,6 +47,7 @@ import { SqliteQARepo } from "./repos/SqliteQARepo.js";
 import { SqliteAnnotationsRepo } from "./repos/SqliteAnnotationsRepo.js";
 import { SqliteStateRepo } from "./repos/SqliteStateRepo.js";
 import { openDb } from "./db/sqlite.js";
+import { openPostgresPool } from "./db/postgres.js";
 import type { ElementsRepo } from "./repos/ElementsRepo.js";
 import type { RelationsRepo } from "./repos/RelationsRepo.js";
 import type { PathsRepo } from "./repos/PathsRepo.js";
@@ -78,6 +79,14 @@ import { mascotRoutes } from "./routes/mascot.js";
 import { SqliteGreatMeRepo } from "./repos/SqliteGreatMeRepo.js";
 import { JsonGreatMeRepo } from "./repos/JsonGreatMeRepo.js";
 import type { GreatMeRepo } from "./repos/GreatMeRepo.js";
+import { PostgresElementsRepo } from "./repos/PostgresElementsRepo.js";
+import { PostgresRelationsRepo } from "./repos/PostgresRelationsRepo.js";
+import { PostgresPathsRepo } from "./repos/PostgresPathsRepo.js";
+import { PostgresSignalsRepo } from "./repos/PostgresSignalsRepo.js";
+import { PostgresQARepo } from "./repos/PostgresQARepo.js";
+import { PostgresAnnotationsRepo } from "./repos/PostgresAnnotationsRepo.js";
+import { PostgresStateRepo } from "./repos/PostgresStateRepo.js";
+import { PostgresGreatMeRepo } from "./repos/PostgresGreatMeRepo.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -88,6 +97,7 @@ export interface BuildAppOptions {
 
 export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, opts: BuildAppOptions = {}) {
   // Storage backend selection. SQLite by default; legacy JSON files via KE_STORAGE=json.
+  // For multi-machine Rich nodes, KE_STORAGE=postgres uses DATABASE_URL / KE_DATABASE_URL.
   const storage = (process.env.KE_STORAGE ?? "sqlite").toLowerCase();
   let elements: ElementsRepo;
   let relations: RelationsRepo;
@@ -108,6 +118,20 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     annotations = new JsonAnnotationsRepo(root);
     state = new JsonStateRepo(root);
     greatMe = new JsonGreatMeRepo(root);
+  } else if (storage === "postgres") {
+    const connectionString = process.env.DATABASE_URL ?? process.env.KE_DATABASE_URL;
+    if (!connectionString) {
+      throw new Error("KE_STORAGE=postgres requires DATABASE_URL or KE_DATABASE_URL");
+    }
+    const pg = openPostgresPool(connectionString);
+    elements = new PostgresElementsRepo(pg);
+    relations = new PostgresRelationsRepo(pg);
+    paths = new PostgresPathsRepo(pg);
+    signals = new PostgresSignalsRepo(pg);
+    qa = new PostgresQARepo(pg);
+    annotations = new PostgresAnnotationsRepo(pg);
+    state = new PostgresStateRepo(pg);
+    greatMe = new PostgresGreatMeRepo(pg);
   } else {
     const dbPath = process.env.KE_SQLITE_PATH ?? join(root, "ke.db");
     const db = openDb(dbPath);
