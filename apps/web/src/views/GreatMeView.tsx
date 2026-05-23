@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import { api } from "../api/client.js";
+import type { Plan, Metric } from "@ke/domain";
 import "./GreatMeView.css";
 
 /* =============================================================
@@ -13,8 +14,33 @@ type RangeId = "week" | "month" | "year" | "all" | "custom";
 type Phase = "calibrate" | "execute" | "review" | "close";
 type HQPersonality = "nova" | "strict" | "warm" | "custom";
 
-interface Goal { id: string; scope: "year" | "month" | "week"; title: string; detail: string; phase: Phase; due: string; progress: number; createdAt: number }
-interface Task { id: string; title: string; done: boolean; date: string; badge: string; goalId: string; note: string }
+interface Goal {
+  id: string;
+  scope: "year" | "month" | "week";
+  title: string;
+  detail: string;
+  phase: Phase;
+  due: string;
+  progress: number;
+  createdAt: number;
+  /** Plan 归属。老数据可能没有；migrate 后会补齐 */
+  planId?: string;
+  parentId?: string;
+  source?: "user" | "ai" | "ai-confirmed";
+  metric?: Metric;
+}
+interface Task {
+  id: string;
+  title: string;
+  done: boolean;
+  date: string;
+  badge: string;
+  goalId: string;
+  note: string;
+  source?: "user" | "ai" | "ai-template";
+  metric?: Metric;
+  archived?: boolean;
+}
 interface EventItem { id: string; title: string; heat: number; category: string; updatedAt: number; notes: { at: number; text: string }[] }
 interface Daily { date: string; tomorrowPlan: string; doingToday: string; meditation: string; victoryBlocker: string; nightReport: string }
 interface Review { id: string; weekOf: string; score: number; victory: string[]; blocker: string[]; planning: string[]; summary: string; createdAt: number }
@@ -25,6 +51,7 @@ interface Profile { codename: string; city: string; mbti: string; background: st
 
 interface GreatMeState {
   profile: Profile;
+  plans: Plan[];
   goals: Goal[]; tasks: Task[]; events: EventItem[]; daily: Daily[]; reviews: Review[];
   ability: Ability;
   compounding: { score: number; trend: number[]; topAssets: string[]; topBlockers: string[] };
@@ -34,6 +61,7 @@ interface GreatMeState {
 
 const DEFAULT_STATE: GreatMeState = {
   profile: { codename: "", city: "", mbti: "", background: "", hqPersonality: "nova", weekStart: 1 },
+  plans: [],
   goals: [], tasks: [], events: [], daily: [], reviews: [],
   ability: { execution: 0, focus: 0, rhythm: 0, review: 0, recovery: 0, evidence: 0 },
   compounding: { score: 0, trend: [], topAssets: [], topBlockers: [] },
