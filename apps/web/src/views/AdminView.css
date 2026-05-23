@@ -943,6 +943,49 @@ html[data-theme="cyber"] .admin-adapter-list li {
 }
 .imp-card__actions button.imp-ghost:hover { color: #ff7a8e; }
 
+/* Agent 认领相关：徽章 + 按钮 */
+.imp-assignee {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .04);
+  color: rgba(255, 255, 255, .62);
+  border: 1px solid rgba(255, 255, 255, .1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+.imp-assignee.is-mine {
+  background: linear-gradient(135deg, rgba(114, 246, 182, .14), rgba(66, 247, 240, .14));
+  border-color: rgba(114, 246, 182, .45);
+  color: #c8ffe8;
+}
+.imp-assignee.is-mine em { color: rgba(255, 255, 255, .85); font-style: normal; font-weight: 600; }
+.imp-assignee--free {
+  background: transparent;
+  border-style: dashed;
+  color: rgba(255, 255, 255, .3);
+}
+.imp-card__actions button.imp-claim {
+  background: linear-gradient(135deg, rgba(255, 200, 120, .22), rgba(255, 153, 102, .22));
+  border-color: rgba(255, 200, 120, .55);
+  color: #ffd9a8;
+}
+.imp-card__actions button.imp-claim:hover {
+  background: linear-gradient(135deg, rgba(255, 200, 120, .35), rgba(255, 153, 102, .35));
+  color: #fff;
+}
+.imp-card__actions button.imp-release {
+  background: transparent;
+  border-color: rgba(255, 255, 255, .25);
+  color: rgba(255, 255, 255, .55);
+}
+.imp-card__actions button.imp-release:hover {
+  border-color: rgba(255, 122, 142, .55);
+  color: #ff7a8e;
+}
+
 button.imp-primary {
   background: linear-gradient(135deg, #7aa7ff, #a98bff);
   border: none;

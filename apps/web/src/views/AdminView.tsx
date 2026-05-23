@@ -771,6 +771,9 @@ interface Improvement {
   verifications: Array<{ ts: string; result: "pass" | "fail"; notes?: string }>;
   requestedAt: string;
   updatedAt: string;
+  /** 当前接管人 agent-id；undefined = 未认领 */
+  assignedAgentId?: string;
+  assignedAt?: string;
 }
 
 const STATUS_LABEL: Record<ImpStatus, string> = {
@@ -791,6 +794,20 @@ function ImprovementsTab() {
   const [newReason, setNewReason] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newPriority, setNewPriority] = useState<ImpPriority>("medium");
+  /** 本机 Rich.app 的 agent-id（点"认领"时默认用它）；启动时从 /api/agent-id 拉一次。 */
+  const [myAgentId, setMyAgentId] = useState<string>("");
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const r = await fetch("/api/agent-id");
+        if (r.ok) {
+          const { agentId } = await r.json() as { agentId: string };
+          setMyAgentId(agentId);
+        }
+      } catch { /* 失败就让按钮 disabled，下面会处理 */ }
+    })();
+  }, []);
 
   async function load() {
     setLoading(true);
@@ -824,6 +841,38 @@ function ImprovementsTab() {
   async function removeItem(id: string) {
     if (!confirm("确定删除？审计痕迹会丢失，更建议把状态改成已验证或未通过。")) return;
     await fetch(`/api/improvements/${id}`, { method: "DELETE" });
+    await load();
+  }
+
+  /** 认领：抢到了就刷新；被别人占着就弹 toast 提示。 */
+  async function claimItem(id: string) {
+    if (!myAgentId) { alert("还没拿到本机 agent-id，刷新一下页面再试"); return; }
+    const r = await fetch(`/api/improvements/${id}/claim`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ agentId: myAgentId }),
+    });
+    if (r.status === 409) {
+      const { conflict } = await r.json() as { conflict?: { currentAgentId: string; assignedAt: string } };
+      alert(`已被「${conflict?.currentAgentId ?? "未知"}」认领\n时间：${conflict?.assignedAt ?? "—"}`);
+    } else if (!r.ok) {
+      const { error: err } = await r.json().catch(() => ({ error: r.statusText }));
+      alert(`认领失败：${err}`);
+    }
+    await load();
+  }
+
+  /** 释放：用户主动放弃自己持有的认领。 */
+  async function releaseItem(id: string, currentAssignee: string | undefined) {
+    if (!myAgentId) { alert("还没拿到本机 agent-id"); return; }
+    // 如果不是自己持有的，问一下要不要强制释放（用于其它机器 crash 卡住时手动 unstick）
+    const force = currentAssignee !== myAgentId;
+    if (force && !confirm(`这条任务现在被「${currentAssignee}」认领，确定要强制释放吗？\n（一般只在对方机器卡死时用）`)) return;
+    await fetch(`/api/improvements/${id}/release`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(force ? { force: true } : { agentId: myAgentId }),
+    });
     await load();
   }
 
@@ -937,6 +986,17 @@ function ImprovementsTab() {
                 {item.priority && <span className={`imp-prio imp-prio--${item.priority}`}>P · {item.priority}</span>}
                 {item.category && <span className="imp-cat">{item.category}</span>}
                 <span className="imp-by">由 {item.createdBy === "hermes" ? "Hermes" : "你"} 发起</span>
+                {item.assignedAgentId ? (
+                  <span
+                    className={`imp-assignee${item.assignedAgentId === myAgentId ? " is-mine" : ""}`}
+                    title={`认领时间：${item.assignedAt ? formatTs(item.assignedAt) : "—"}`}
+                  >
+                    🔒 接管人：{item.assignedAgentId}
+                    {item.assignedAgentId === myAgentId && <em> · 本机</em>}
+                  </span>
+                ) : (
+                  <span className="imp-assignee imp-assignee--free">🔓 未认领</span>
+                )}
               </div>
             </header>
 
@@ -981,6 +1041,17 @@ function ImprovementsTab() {
                 创建 {formatTs(item.requestedAt)} · 更新 {formatTs(item.updatedAt)} · ID {item.id}
               </div>
               <div className="imp-card__actions">
+                {/* Agent 认领 / 释放：跨机 Agent 互斥用 */}
+                {!item.assignedAgentId && (
+                  <button type="button" className="imp-claim" onClick={() => void claimItem(item.id)}>
+                    认领
+                  </button>
+                )}
+                {item.assignedAgentId && (
+                  <button type="button" className="imp-release" onClick={() => void releaseItem(item.id, item.assignedAgentId)}>
+                    {item.assignedAgentId === myAgentId ? "释放" : "强制释放"}
+                  </button>
+                )}
                 {item.status === "pending" && (
                   <button type="button" onClick={() => void patchStatus(item.id, "ready_to_verify")}>
                     标记已改造

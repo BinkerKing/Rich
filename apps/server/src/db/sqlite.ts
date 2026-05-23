@@ -152,9 +152,13 @@ function applySchema(db: Database.Database) {
       related_files TEXT,
       verifications_json TEXT NOT NULL DEFAULT '[]',
       requested_at  TEXT NOT NULL,
-      updated_at    TEXT NOT NULL
+      updated_at    TEXT NOT NULL,
+      -- Agent claim：哪个 agent 抢到了这条任务（null = 未认领）
+      assigned_agent_id TEXT,
+      assigned_at   TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_improvement_tasks_status ON improvement_tasks(status, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_improvement_tasks_assigned ON improvement_tasks(assigned_agent_id);
 
     -- Toolbox: log of every tool invocation (manual UI button + Hermes via MCP).
     -- args_json + result are TEXT; scheduled_for lets a tool defer to a future
@@ -178,6 +182,8 @@ function applySchema(db: Database.Database) {
 
   // Idempotent column additions for older DBs created before these fields existed.
   ensureColumn(db, "qa", "anchor", "TEXT");
+  ensureColumn(db, "improvement_tasks", "assigned_agent_id", "TEXT");
+  ensureColumn(db, "improvement_tasks", "assigned_at", "TEXT");
 }
 
 function ensureColumn(db: Database.Database, table: string, column: string, type: string) {

@@ -44,7 +44,16 @@ export interface ImprovementTask {
   verifications: VerificationEntry[];
   requestedAt: string;
   updatedAt: string;
+  /** 哪个 agent 抢到了这条任务（null/undefined = 未认领，谁先 claim 谁拿走）。 */
+  assignedAgentId?: string;
+  /** ISO 时间戳，认领发生的时刻；释放时清空。 */
+  assignedAt?: string;
 }
+
+/** 认领结果。ok=true 时给出新版 task；ok=false 时返回当前占用者，供客户端报错文案使用。 */
+export type ClaimResult =
+  | { ok: true; task: ImprovementTask }
+  | { ok: false; conflict: { currentAgentId: string; assignedAt: string } };
 
 export interface CreateImprovementInput {
   title: string;
@@ -78,6 +87,16 @@ export interface ImprovementsStore {
   update(id: string, patch: UpdateImprovementInput): MaybePromise<ImprovementTask | null>;
   remove(id: string): MaybePromise<boolean>;
   countByStatus(): MaybePromise<Record<string, number>>;
+  /**
+   * 原子地把任务认领给指定 agent。当前未认领（或被同一个 agent 重复认领）→ 成功。
+   * 已被别人认领 → 返回 conflict，调用方应跳过。
+   */
+  claim(id: string, agentId: string): MaybePromise<ClaimResult>;
+  /**
+   * 释放认领。agentId 为 null = 强制释放（admin UI 用，不校验归属）。
+   * 任务不存在返 null。
+   */
+  release(id: string, agentId: string | null): MaybePromise<ImprovementTask | null>;
 }
 
 interface Row {
@@ -93,6 +112,8 @@ interface Row {
   verifications_json: string;
   requested_at: string;
   updated_at: string;
+  assigned_agent_id: string | null;
+  assigned_at: string | null;
 }
 
 export class ImprovementsRepo implements ImprovementsStore {
@@ -122,6 +143,8 @@ export class ImprovementsRepo implements ImprovementsStore {
       verifications,
       requestedAt: row.requested_at,
       updatedAt: row.updated_at,
+      assignedAgentId: row.assigned_agent_id ?? undefined,
+      assignedAt: row.assigned_at ?? undefined,
     };
   }
 
@@ -222,5 +245,50 @@ export class ImprovementsRepo implements ImprovementsStore {
     const out: Record<string, number> = { pending: 0, ready_to_verify: 0, verified: 0, rejected: 0 };
     for (const r of rows) out[r.status] = r.n;
     return out;
+  }
+
+  claim(id: string, agentId: string): ClaimResult {
+    // 原子写：仅在 assigned_agent_id 为空（未认领）或已是同一 agent（重入幂等）时 UPDATE。
+    const now = new Date().toISOString();
+    const result = this.db.prepare(`
+      UPDATE improvement_tasks
+      SET assigned_agent_id = ?, assigned_at = ?, updated_at = ?
+      WHERE id = ?
+        AND (assigned_agent_id IS NULL OR assigned_agent_id = ?)
+    `).run(agentId, now, now, id, agentId);
+    if (result.changes > 0) {
+      const task = this.get(id);
+      if (task) return { ok: true, task };
+    }
+    // 没抢到。查一下当前是谁占着，返回 conflict 信息。
+    const row = this.db.prepare(
+      "SELECT assigned_agent_id, assigned_at FROM improvement_tasks WHERE id = ?",
+    ).get(id) as { assigned_agent_id: string | null; assigned_at: string | null } | undefined;
+    return {
+      ok: false,
+      conflict: {
+        currentAgentId: row?.assigned_agent_id ?? "(unknown)",
+        assignedAt: row?.assigned_at ?? "",
+      },
+    };
+  }
+
+  release(id: string, agentId: string | null): ImprovementTask | null {
+    const now = new Date().toISOString();
+    // agentId == null = 强制释放（admin UI 用，不校验归属）；否则只释放自己持有的。
+    if (agentId === null) {
+      this.db.prepare(`
+        UPDATE improvement_tasks
+        SET assigned_agent_id = NULL, assigned_at = NULL, updated_at = ?
+        WHERE id = ?
+      `).run(now, id);
+    } else {
+      this.db.prepare(`
+        UPDATE improvement_tasks
+        SET assigned_agent_id = NULL, assigned_at = NULL, updated_at = ?
+        WHERE id = ? AND assigned_agent_id = ?
+      `).run(now, id, agentId);
+    }
+    return this.get(id);
   }
 }

@@ -89,6 +89,7 @@ import { PostgresStateRepo } from "./repos/PostgresStateRepo.js";
 import { PostgresGreatMeRepo } from "./repos/PostgresGreatMeRepo.js";
 import { PostgresInvocationsRepo } from "./repos/PostgresInvocationsRepo.js";
 import { PostgresImprovementsRepo } from "./repos/PostgresImprovementsRepo.js";
+import { getAgentId } from "./lib/agentId.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -249,6 +250,11 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     elements, relations, paths, signals, qa, annotations,
     adapters: ai, aiDir: manualsDir, improvements,
     toolRuntime,
+  });
+
+  // Agent-id endpoint：前端读这个值在 admin UI 默认填进 claim 表单。
+  app.get("/api/agent-id", (c) => {
+    return c.json({ agentId: getAgentId() });
   });
 
   // Health endpoint registered BEFORE the SPA catch-all so it actually matches.

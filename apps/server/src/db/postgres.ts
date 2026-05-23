@@ -132,9 +132,16 @@ async function applySchema(pool: Pool): Promise<void> {
       related_files TEXT,
       verifications_json TEXT NOT NULL DEFAULT '[]',
       requested_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      updated_at TEXT NOT NULL,
+      -- Agent claim：哪个 agent 抢到了这条任务，null = 未认领
+      assigned_agent_id TEXT,
+      assigned_at TEXT
     );
+    -- 对老库幂等加列（CREATE TABLE 已建表时不会触发，新增字段必须 ALTER）
+    ALTER TABLE improvement_tasks ADD COLUMN IF NOT EXISTS assigned_agent_id TEXT;
+    ALTER TABLE improvement_tasks ADD COLUMN IF NOT EXISTS assigned_at TEXT;
     CREATE INDEX IF NOT EXISTS idx_improvement_tasks_status ON improvement_tasks(status, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_improvement_tasks_assigned ON improvement_tasks(assigned_agent_id);
 
     CREATE TABLE IF NOT EXISTS center_history (
       id BIGSERIAL PRIMARY KEY,

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { PgPool } from "../db/postgres.js";
 import type {
+  ClaimResult,
   CreateImprovementInput,
   ImprovementPriority,
   ImprovementStatus,
@@ -23,6 +24,8 @@ interface Row {
   verifications_json: string;
   requested_at: string;
   updated_at: string;
+  assigned_agent_id: string | null;
+  assigned_at: string | null;
 }
 
 export class PostgresImprovementsRepo implements ImprovementsStore {
@@ -52,6 +55,8 @@ export class PostgresImprovementsRepo implements ImprovementsStore {
       verifications,
       requestedAt: row.requested_at,
       updatedAt: row.updated_at,
+      assignedAgentId: row.assigned_agent_id ?? undefined,
+      assignedAt: row.assigned_at ?? undefined,
     };
   }
 
@@ -159,5 +164,54 @@ export class PostgresImprovementsRepo implements ImprovementsStore {
     const out: Record<string, number> = { pending: 0, ready_to_verify: 0, verified: 0, rejected: 0 };
     for (const r of rows) out[r.status] = Number(r.n);
     return out;
+  }
+
+  async claim(id: string, agentId: string): Promise<ClaimResult> {
+    await this.pg.ready;
+    // 原子 UPDATE：仅在未认领或已是同一 agent（重入幂等）时改。RETURNING 让我们一次回拿数据。
+    const now = new Date().toISOString();
+    const { rows } = await this.pg.query<Row>(`
+      UPDATE improvement_tasks
+      SET assigned_agent_id = $1, assigned_at = $2, updated_at = $3
+      WHERE id = $4
+        AND (assigned_agent_id IS NULL OR assigned_agent_id = $1)
+      RETURNING *
+    `, [agentId, now, now, id]);
+    if (rows.length > 0) {
+      return { ok: true, task: this.hydrate(rows[0]) };
+    }
+    // 没改到行 = 任务被别人占着。查一下是谁。
+    const { rows: peek } = await this.pg.query<{ assigned_agent_id: string | null; assigned_at: string | null }>(
+      "SELECT assigned_agent_id, assigned_at FROM improvement_tasks WHERE id = $1",
+      [id],
+    );
+    return {
+      ok: false,
+      conflict: {
+        currentAgentId: peek[0]?.assigned_agent_id ?? "(unknown)",
+        assignedAt: peek[0]?.assigned_at ?? "",
+      },
+    };
+  }
+
+  async release(id: string, agentId: string | null): Promise<ImprovementTask | null> {
+    await this.pg.ready;
+    const now = new Date().toISOString();
+    if (agentId === null) {
+      // 强制释放（admin UI 用）
+      await this.pg.query(`
+        UPDATE improvement_tasks
+        SET assigned_agent_id = NULL, assigned_at = NULL, updated_at = $1
+        WHERE id = $2
+      `, [now, id]);
+    } else {
+      // 校验归属：只释放自己持有的
+      await this.pg.query(`
+        UPDATE improvement_tasks
+        SET assigned_agent_id = NULL, assigned_at = NULL, updated_at = $1
+        WHERE id = $2 AND assigned_agent_id = $3
+      `, [now, id, agentId]);
+    }
+    return this.get(id);
   }
 }

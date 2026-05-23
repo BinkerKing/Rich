@@ -94,6 +94,55 @@ export function improvementsRoutes(repo: ImprovementsStore): Hono {
     return c.json({ ok: true });
   });
 
+  /**
+   * 认领：原子标记 assigned_agent_id。其他 agent 同时打这个接口会收到 409。
+   *
+   *   POST /api/improvements/:id/claim
+   *   body: { agentId: "mac-mini.local-hermes" }
+   *
+   *   200 { task }  → 抢到（或同一 agent 重入幂等）
+   *   409 { error, conflict: { currentAgentId, assignedAt } } → 别人已占
+   *   404 { error: "not found" }
+   */
+  r.post("/:id/claim", async (c) => {
+    const id = c.req.param("id");
+    const body = await c.req.json().catch(() => null) as { agentId?: unknown } | null;
+    const agentId = typeof body?.agentId === "string" ? body.agentId.trim() : "";
+    if (!agentId) return c.json({ error: "agentId required" }, 400);
+    if (agentId.length > 120) return c.json({ error: "agentId too long" }, 400);
+    const existing = await repo.get(id);
+    if (!existing) return c.json({ error: "not found" }, 404);
+    const result = await repo.claim(id, agentId);
+    if (result.ok) {
+      eventBus.publish("improvement.changed", { source: "route", detail: { op: "claim", id, agentId } });
+      return c.json({ task: result.task });
+    }
+    return c.json({
+      error: "already claimed",
+      conflict: result.conflict,
+    }, 409);
+  });
+
+  /**
+   * 释放：清空 assigned_agent_id。
+   *
+   *   POST /api/improvements/:id/release
+   *   body: { agentId: "mac-mini.local-hermes" }   ← 校验归属：只能释放自己持有的
+   *   body: { force: true }                          ← 强制释放（admin UI 用，用于 agent 卡死时手动 unstick）
+   */
+  r.post("/:id/release", async (c) => {
+    const id = c.req.param("id");
+    const body = await c.req.json().catch(() => ({})) as { agentId?: unknown; force?: unknown };
+    const force = body.force === true;
+    const agentId = typeof body.agentId === "string" ? body.agentId.trim() : "";
+    if (!force && !agentId) return c.json({ error: "agentId required (or force=true)" }, 400);
+    const existing = await repo.get(id);
+    if (!existing) return c.json({ error: "not found" }, 404);
+    const released = await repo.release(id, force ? null : agentId);
+    eventBus.publish("improvement.changed", { source: "route", detail: { op: "release", id } });
+    return c.json({ task: released });
+  });
+
   return r;
 }
 
