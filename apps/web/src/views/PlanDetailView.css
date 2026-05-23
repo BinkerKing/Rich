@@ -373,3 +373,109 @@
   color: #6e4c1a;
   flex-shrink: 0;
 }
+
+/* ======================================================
+ * Stage 2.5：可编辑性 UI
+ * ====================================================== */
+
+/* Kanban 列头右侧（count + 新建按钮） */
+.pd-kanban-col__head-right {
+  display: flex; align-items: center; gap: 6px;
+}
+.pd-kanban-col__add {
+  width: 20px; height: 20px;
+  border-radius: 4px;
+  border: 1px solid rgba(217,154,62,0.4);
+  background: rgba(217,154,62,0.1);
+  color: #e6b25a;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: inherit;
+  transition: all 0.12s;
+}
+.pd-kanban-col__add:hover {
+  background: rgba(217,154,62,0.22);
+  border-color: #d99a3e;
+}
+
+/* 卡片标题可点击 */
+.pd-kanban-card__title.is-clickable {
+  cursor: text;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border-radius: 4px;
+  transition: background 0.12s;
+}
+.pd-kanban-card__title.is-clickable:hover {
+  background: rgba(217,154,62,0.08);
+}
+
+/* 月卡里的"+ 新建周计划"快捷按钮 */
+.pd-kanban-card__quick-add {
+  background: rgba(217,154,62,0.05);
+  border: 1px dashed rgba(217,154,62,0.35);
+  color: #a87526;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: all 0.12s;
+}
+.pd-kanban-card__quick-add:hover {
+  background: rgba(217,154,62,0.14);
+  border-style: solid;
+  color: #e6b25a;
+}
+
+/* 今日 tab 顶部的 inline 加任务条 */
+.pd-today-add {
+  display: flex; gap: 8px; align-items: center;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: rgba(217,154,62,0.04);
+  border: 1px solid rgba(217,154,62,0.25);
+}
+.pd-today-add__input {
+  flex: 1; min-width: 0;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(217,154,62,0.18);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: #e6b25a;
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+}
+.pd-today-add__input:focus { border-color: #d99a3e; }
+.pd-today-add__input::placeholder { color: #6e4c1a; }
+.pd-today-add__goal {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(217,154,62,0.18);
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: #e6b25a;
+  font-size: 11px;
+  outline: none;
+  font-family: inherit;
+  max-width: 220px;
+}
+.pd-today-add__btn {
+  background: #d99a3e;
+  color: #1a1208;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s;
+}
+.pd-today-add__btn:hover { background: #e6b25a; }
+.pd-today-add__btn:disabled { opacity: 0.35; cursor: not-allowed; }

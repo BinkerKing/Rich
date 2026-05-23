@@ -2023,3 +2023,30 @@
 .gm-plans-item:hover { border-color: #d99a3e; background: rgba(217,154,62,0.12); }
 .gm-plans-item__title { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gm-plans-item__arrow { color: #a87526; font-size: 12px; }
+
+/* Stage 2.5：GoalModal 内的"归属计划/父目标"只读信息块 */
+.gm-goal-modal__locks {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px 12px;
+  margin-top: 10px;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  background: rgba(217, 154, 62, 0.06);
+  border: 1px solid rgba(217, 154, 62, 0.2);
+}
+.gm-goal-modal__lock {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px;
+}
+.gm-goal-modal__lock-label {
+  color: #a87526;
+  min-width: 56px;
+}
+.gm-goal-modal__lock-value {
+  color: #e6b25a;
+  font-weight: 600;
+  flex: 1; min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

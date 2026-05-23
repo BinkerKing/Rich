@@ -2,11 +2,15 @@
 import { useMemo, useState, type ReactNode, type Dispatch, type SetStateAction } from "react";
 import { computePlanProgress } from "@ke/domain";
 import type { Plan } from "@ke/domain";
+import { GoalModal } from "./GreatMeView.js";
 import "./PlanDetailView.css";
 
-interface Goal { id: string; scope: "year"|"month"|"week"; title: string; progress: number; planId?: string; parentId?: string; createdAt: number; detail: string; phase: string; due: string }
+interface Goal { id: string; scope: "year"|"month"|"week"; title: string; progress: number; planId?: string; parentId?: string; createdAt: number; detail: string; phase: "calibrate" | "execute" | "review" | "close"; due: string }
 interface Task { id: string; title: string; done: boolean; date: string; goalId: string; badge: string; note: string }
 interface PartialState { plans: Plan[]; goals: Goal[]; tasks: Task[] }
+
+const uid = (): string => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+const todayIso = (): string => new Date().toISOString().slice(0, 10);
 
 type TabId = "overview" | "month" | "week" | "today";
 
@@ -48,6 +52,79 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
     ...prev,
     tasks: prev.tasks.filter(t => t.id !== id),
   } as S));
+
+  // === Stage 2.5：可编辑性。GoalModal 状态 + 任务 inline 新建 ===
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [newGoalScope, setNewGoalScope] = useState<"month" | "week" | null>(null);
+  const [newGoalParentId, setNewGoalParentId] = useState<string | null>(null);
+  const [newTaskDraft, setNewTaskDraft] = useState("");
+  /** 给"新建任务"选哪个 goal 当容器：默认本计划最新的 active 周目标。 */
+  const defaultNewTaskGoalId = useMemo(() => {
+    const week = planGoals.find(g => g.scope === "week" && g.progress > 0 && g.progress < 100);
+    return week?.id ?? planGoals.find(g => g.scope === "week")?.id ?? "";
+  }, [planGoals]);
+  const [newTaskGoalId, setNewTaskGoalId] = useState<string>(defaultNewTaskGoalId);
+
+  const openNewGoal = (scope: "month" | "week", parentId?: string): void => {
+    setEditingGoal(null);
+    setNewGoalScope(scope);
+    setNewGoalParentId(parentId ?? null);
+  };
+  const openEditGoal = (g: Goal): void => {
+    setEditingGoal(g);
+    setNewGoalScope(null);
+    setNewGoalParentId(null);
+  };
+  const closeGoalModal = (): void => {
+    setEditingGoal(null);
+    setNewGoalScope(null);
+    setNewGoalParentId(null);
+  };
+
+  const handleGoalSave = (g: Omit<Goal, "id" | "createdAt"> & { planId?: string; parentId?: string }): void => {
+    if (editingGoal) {
+      // 编辑：合并字段
+      const id = editingGoal.id;
+      setState(prev => ({
+        ...prev,
+        goals: prev.goals.map(x => x.id === id ? { ...x, ...g } : x),
+      } as S));
+    } else {
+      // 新建：生成 id + createdAt，强制带上 plan.id（保险：以防 lockedPlanId 没传进来）
+      setState(prev => ({
+        ...prev,
+        goals: [...prev.goals, {
+          ...g,
+          id: uid(),
+          createdAt: Date.now(),
+          planId: g.planId ?? plan.id,
+        }],
+      } as S));
+    }
+    closeGoalModal();
+  };
+
+  const addInlineTask = (): void => {
+    const title = newTaskDraft.trim();
+    if (!title) return;
+    setState(prev => ({
+      ...prev,
+      tasks: [...prev.tasks, {
+        id: uid(),
+        title,
+        done: false,
+        date: todayIso(),
+        goalId: newTaskGoalId,
+        badge: "",
+        note: "",
+      }],
+    } as S));
+    setNewTaskDraft("");
+  };
+
+  const modalOpen = editingGoal !== null || newGoalScope !== null;
+  const modalScope: "year" | "month" | "week" = editingGoal?.scope ?? newGoalScope ?? "week";
+  const modalParent = newGoalParentId ? planGoals.find(g => g.id === newGoalParentId) : null;
 
   /** 递归渲染单个目标节点 + 子目标 + 关联任务。深度决定缩进。 */
   const renderTreeNode = (goal: Goal, depth: number): ReactNode => {
@@ -162,7 +239,12 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
               ↑ {parent.title}
             </div>
           )}
-          <div className="pd-kanban-card__title">{g.title}</div>
+          {/* 点标题进编辑 */}
+          <div className="pd-kanban-card__title is-clickable"
+            title="点击编辑此目标"
+            onClick={() => openEditGoal(g)}>
+            {g.title}
+          </div>
           <div className="pd-kanban-card__bar"><span style={{ width: `${g.progress}%` }} /></div>
           <div className="pd-kanban-card__foot">
             <div className="pd-kanban-card__links">
@@ -171,6 +253,14 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
                   title={`查看下属 ${kidCount} 个周计划`}
                   onClick={() => drillToChildren(g.id, childScope)}>
                   ↓ {kidCount} 个周计划
+                </button>
+              )}
+              {/* 月卡：加"+ 新建周计划"快捷按钮，自动锁父 */}
+              {scope === "month" && (
+                <button className="pd-kanban-card__quick-add"
+                  title="在此月目标下新建周计划"
+                  onClick={() => openNewGoal("week", g.id)}>
+                  + 新建周计划
                 </button>
               )}
               {tc.total > 0 && (
@@ -189,7 +279,17 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
       <div className="pd-kanban-col">
         <div className="pd-kanban-col__head">
           <span className="pd-kanban-col__title">{title}</span>
-          <span className="pd-kanban-col__count">{list.length}</span>
+          <div className="pd-kanban-col__head-right">
+            <span className="pd-kanban-col__count">{list.length}</span>
+            {/* 只在"计划中"列显示 +，避免 3 列各一个噪太多；新建后默认 progress=0 也确实进计划中列 */}
+            {title === "计划中" && (
+              <button className="pd-kanban-col__add"
+                title={`+ 新建${scope === "month" ? "月" : "周"}目标`}
+                onClick={() => openNewGoal(scope, scope === "week" ? (filterParentId ?? undefined) : undefined)}>
+                +
+              </button>
+            )}
+          </div>
         </div>
         {list.length === 0 ? (
           <div className="pd-empty" style={{ padding: 24, fontSize: 12 }}>暂无</div>
@@ -285,10 +385,38 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
         {tab === "month" && renderKanban("month")}
         {tab === "week"  && renderKanban("week")}
         {tab === "today" && (
-          todayTasks.length === 0 ? (
+          <>
+            {/* Stage 2.5：inline 新建任务条 */}
+            <div className="pd-today-add">
+              <input className="pd-today-add__input"
+                placeholder="加一条今日任务..."
+                value={newTaskDraft}
+                onChange={e => setNewTaskDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") addInlineTask(); }} />
+              <select className="pd-today-add__goal"
+                value={newTaskGoalId}
+                onChange={e => setNewTaskGoalId(e.target.value)}
+                title="挂到哪个目标">
+                {planGoals.length === 0 ? (
+                  <option value="">(本计划无目标)</option>
+                ) : (
+                  planGoals.map(g => (
+                    <option key={g.id} value={g.id}>
+                      [{g.scope === "year" ? "年" : g.scope === "month" ? "月" : "周"}] {g.title.length > 24 ? g.title.slice(0, 24) + "…" : g.title}
+                    </option>
+                  ))
+                )}
+              </select>
+              <button className="pd-today-add__btn"
+                disabled={!newTaskDraft.trim() || !newTaskGoalId}
+                onClick={addInlineTask}>
+                + 加入
+              </button>
+            </div>
+          {todayTasks.length === 0 ? (
             <div className="pd-empty">
               <div className="pd-empty__title">今日任务</div>
-              <div className="pd-empty__sub">该计划下今天还没有具体任务。</div>
+              <div className="pd-empty__sub">该计划下今天还没有具体任务，从上方加一条。</div>
             </div>
           ) : (
             <div className="pd-today">
@@ -312,9 +440,23 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
                 );
               })}
             </div>
-          )
+          )}
+          </>
         )}
       </div>
+
+      {/* Stage 2.5：GoalModal — 新建 / 编辑目标共用 */}
+      {modalOpen && (
+        <GoalModal
+          defaultScope={modalScope}
+          editing={editingGoal ?? undefined}
+          lockedPlanId={plan.id}
+          lockedPlanTitle={plan.title}
+          lockedParentId={modalParent?.id}
+          lockedParentTitle={modalParent?.title}
+          onSave={handleGoalSave}
+          onCancel={closeGoalModal} />
+      )}
     </div>
   );
 }

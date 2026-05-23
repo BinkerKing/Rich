@@ -1295,10 +1295,16 @@ function PyramidGlyph({ levels, highlight, onPick }: {
   );
 }
 
-function GoalModal({ defaultScope, editing, onSave, onCancel }: {
+export function GoalModal({ defaultScope, editing, lockedPlanId, lockedPlanTitle, lockedParentId, lockedParentTitle, onSave, onCancel }: {
   defaultScope: "year" | "month" | "week";
   /** 传入则进入编辑态：标题变 "编辑目标"，按钮变 "保存"，预填字段。 */
   editing?: Goal;
+  /** 锁定归属：从 PlanDetailView 调起时传 plan.id；用户看到只读"归属：<plan title>"行，不能改归属。 */
+  lockedPlanId?: string;
+  lockedPlanTitle?: string;
+  /** 锁定父目标：例如从月度卡的"+ 新建周计划"调起时传 month.id；保存的 goal.parentId 就是它。 */
+  lockedParentId?: string;
+  lockedParentTitle?: string;
   onSave: (g: Omit<Goal, "id" | "createdAt">) => void;
   onCancel: () => void;
 }): ReactNode {
@@ -1375,6 +1381,8 @@ function GoalModal({ defaultScope, editing, onSave, onCancel }: {
     if (!text) return;
     const firstLine = text.split(/\n+/)[0].slice(0, 80);
     const rest = text.length > firstLine.length ? text.slice(firstLine.length).trim() : "";
+    const planId = lockedPlanId ?? editing?.planId;
+    const parentId = lockedParentId ?? editing?.parentId;
     onSave({
       title: firstLine,
       scope,
@@ -1382,6 +1390,8 @@ function GoalModal({ defaultScope, editing, onSave, onCancel }: {
       phase: progress >= 100 ? "close" : progress > 0 ? "execute" : "calibrate",
       due: dueIso,
       progress,
+      ...(planId ? { planId } : {}),
+      ...(parentId ? { parentId } : {}),
     });
   };
 
@@ -1412,6 +1422,24 @@ function GoalModal({ defaultScope, editing, onSave, onCancel }: {
             </button>
           ))}
         </div>
+
+        {/* 归属计划 / 父目标 只读信息（来自 PlanDetailView 调用时锁定）*/}
+        {(lockedPlanTitle || lockedParentTitle) && (
+          <div className="gm-goal-modal__locks">
+            {lockedPlanTitle && (
+              <div className="gm-goal-modal__lock">
+                <span className="gm-goal-modal__lock-label">归属计划</span>
+                <span className="gm-goal-modal__lock-value">{lockedPlanTitle}</span>
+              </div>
+            )}
+            {lockedParentTitle && (
+              <div className="gm-goal-modal__lock">
+                <span className="gm-goal-modal__lock-label">父目标</span>
+                <span className="gm-goal-modal__lock-value">{lockedParentTitle}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 周期选择器 */}
         <div className="gm-goal-modal__period">
