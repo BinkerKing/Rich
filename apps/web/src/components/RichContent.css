@@ -1,0 +1,36 @@
+/* RichContent — inline jump buttons embedded in assistant replies. */
+
+.rich-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 2px;
+  padding: 3px 10px 3px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.3;
+  background: rgba(122, 167, 255, .10);
+  border: 1px solid rgba(122, 167, 255, .35);
+  border-radius: 999px;
+  color: #b4d0ff;
+  cursor: pointer;
+  vertical-align: baseline;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease, transform 80ms ease;
+}
+.rich-jump:hover {
+  background: rgba(122, 167, 255, .22);
+  border-color: #7aa7ff;
+  color: #fff;
+  transform: translateY(-1px);
+}
+.rich-jump:active {
+  transform: translateY(0);
+}
+.rich-jump__arrow {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: rgba(255, 255, 255, .55);
+  font-size: 11px;
+}
+.rich-jump:hover .rich-jump__arrow {
+  color: #fff;
+}

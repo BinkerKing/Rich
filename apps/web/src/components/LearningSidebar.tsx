@@ -18,7 +18,7 @@ interface Props {
   /** Double-click on a sibling / child node = open detail page. */
   onOpenDetail?: (id: string) => void;
   onSceneChange: (scene: LearningScene) => void;
-  onDropOnto?: (sourceId: string, targetId: string) => void;
+  onDropOnto?: (sourceId: string, targetId: string, side: import("../lib/elementDnd.js").DropSide) => void;
   /** Compact mode: hide 推荐学习路径 and 页面场景, keep only hierarchical nav.
    *  Used when embedded inside the fullscreen element-content panel. */
   compact?: boolean;
@@ -244,9 +244,9 @@ function SidebarItem({
   onSelect: (id: string) => void;
   onSetCenter?: (id: string) => void;
   onOpenDetail?: (id: string) => void;
-  onDropOnto?: (sourceId: string, targetId: string) => void;
+  onDropOnto?: (sourceId: string, targetId: string, side: import("../lib/elementDnd.js").DropSide) => void;
 }) {
-  const drop = useDropTarget(element.id, src => onDropOnto?.(src, element.id));
+  const drop = useDropTarget(element.id, (src, side) => onDropOnto?.(src, element.id, side));
   void onSetCenter;
   return (
     <button

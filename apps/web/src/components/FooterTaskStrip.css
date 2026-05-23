@@ -68,6 +68,8 @@
 .footer-task--kind-hydrate      { --kind-color: #8fb3ca; }
 .footer-task--kind-daily-news   { --kind-color: #4ade80; }
 .footer-task--kind-ai-search    { --kind-color: #8ffef7; }
+.footer-task--kind-mindmap      { --kind-color: #818cf8; }
+.footer-task--kind-image-gen    { --kind-color: #f472b6; }
 
 /* Running ("charging") — shimmer wash + breathing border glow. */
 .footer-task--running {

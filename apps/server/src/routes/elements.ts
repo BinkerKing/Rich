@@ -6,6 +6,7 @@ import type { QARepo } from "../repos/QARepo.js";
 import type { AnnotationsRepo } from "../repos/AnnotationsRepo.js";
 import type { SignalsRepo } from "../repos/SignalsRepo.js";
 import { recordSignal } from "../ai/signalRecorder.js";
+import { migrateLegacyContentToSections } from "../lib/legacyContentMigration.js";
 
 export interface ElementsRoutesDeps {
   elements: ElementsRepo;
@@ -138,6 +139,71 @@ export function elementsRoutes(deps: ElementsRoutesDeps): Hono {
         elementId: id, data: { fields: Object.keys(patch) },
       });
     }
+    return c.json(next);
+  });
+
+  // User-driven section editing. Replaces (or auto-migrates legacy → )
+  // content.sections with an arbitrary array. Each entry must look like
+  // { id, title, blocks[] } with a string `style` on each block. Other
+  // content fields stay untouched so legacy elements keep their oneSentence
+  // / coreExplain / ... around as the previous safety net.
+  r.put("/:id/sections", async (c) => {
+    const id = c.req.param("id");
+    const el = await repo.get(id);
+    if (!el) return c.json({ error: "not found" }, 404);
+    const body = await c.req.json().catch(() => ({}));
+    const incoming = body.sections;
+    if (!Array.isArray(incoming)) return c.json({ error: "sections must be an array" }, 400);
+    // Minimal shape check; we don't validate per-style schemas here — the
+    // frontend editor only emits the shapes it knows. AI ops have their
+    // own zod validation.
+    for (const s of incoming) {
+      if (!s || typeof s !== "object") return c.json({ error: "section must be object" }, 400);
+      const sec = s as Record<string, unknown>;
+      if (typeof sec.id !== "string" || !sec.id) return c.json({ error: "section.id required" }, 400);
+      if (typeof sec.title !== "string") return c.json({ error: "section.title required" }, 400);
+      if (!Array.isArray(sec.blocks)) return c.json({ error: "section.blocks must be array" }, 400);
+      for (const b of sec.blocks) {
+        if (!b || typeof b !== "object") return c.json({ error: "block must be object" }, 400);
+        if (typeof (b as { style?: unknown }).style !== "string") {
+          return c.json({ error: "block.style must be string" }, 400);
+        }
+      }
+    }
+    const content = (el.content && typeof el.content === "object")
+      ? { ...(el.content as Record<string, unknown>), sections: incoming }
+      : { sections: incoming };
+    const next = {
+      ...el,
+      content: content as typeof el.content,
+      metadata: { ...el.metadata, updatedAt: new Date().toISOString() },
+    };
+    await repo.put(next);
+    if (signals) {
+      await recordSignal(signals, {
+        ts: new Date().toISOString(), type: "user.edited", manual: "knowledge",
+        elementId: id, data: { fields: ["content.sections"], sectionCount: incoming.length },
+      });
+    }
+    return c.json(next);
+  });
+
+  // One-shot migration: convert legacy concept fields (oneSentence, ...)
+  // into a sections[] array on first edit. Returns the updated element.
+  // Idempotent — if sections already cover those ids, only the missing
+  // ones get appended.
+  r.post("/:id/sections/migrate", async (c) => {
+    const id = c.req.param("id");
+    const el = await repo.get(id);
+    if (!el) return c.json({ error: "not found" }, 404);
+    const migrated = migrateLegacyContentToSections(el.content);
+    if (migrated === el.content) return c.json(el); // nothing to do
+    const next = {
+      ...el,
+      content: migrated as typeof el.content,
+      metadata: { ...el.metadata, updatedAt: new Date().toISOString() },
+    };
+    await repo.put(next);
     return c.json(next);
   });
 

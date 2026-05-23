@@ -31,7 +31,7 @@ export function buildAnalyzeMarkPrompt({ element, markedText, contextBefore, con
     : "";
   const hintBlock = hint?.trim() ? `\n用户的额外要求：「${hint.trim()}」` : "";
 
-  return `你是 Know Everything 系统的知识深度分析师。直接输出 JSON，不要任何前后文。
+  return `你是 Rich——我的私人 AI 助理。本次任务你担任知识深度分析师。直接输出 JSON，不要任何前后文。
 
 任务：用户在当前元的正文中标记了下面这段文字，希望你结合当前元的语境，对**这一句**做精确、深入的展开分析（不是泛泛复述整个元）。
 

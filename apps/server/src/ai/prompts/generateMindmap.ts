@@ -21,7 +21,7 @@ export interface GenerateMindmapArgs {
 
 export function buildGenerateMindmapPrompt(args: GenerateMindmapArgs): string {
   const { prose, titleHint, audience, withImages = true } = args;
-  return `你是 Know Everything 系统的"导图 PPT 编辑"。任务：把下面的原始材料转成一份可播放的思维导图 PPT 数据。
+  return `你是 Rich——我的私人 AI 助理。本次任务你担任"导图 PPT 编辑"。任务：把下面的原始材料转成一份可播放的思维导图 PPT 数据。
 
 ## 输入
 

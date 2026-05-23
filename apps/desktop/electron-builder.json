@@ -1,0 +1,37 @@
+{
+  "appId": "com.rich.assistant",
+  "productName": "Rich",
+  "directories": {
+    "output": "release",
+    "buildResources": "build"
+  },
+  "files": [
+    "dist/**/*",
+    "package.json",
+    "node_modules/better-sqlite3/**/*"
+  ],
+  "extraResources": [
+    { "from": "../web/dist", "to": "web-dist" },
+    { "from": "../../ai", "to": "ai" },
+    { "from": "assets/tray", "to": "tray-frames" }
+  ],
+  "asar": true,
+  "asarUnpack": [
+    "**/*.node",
+    "**/better-sqlite3/**"
+  ],
+  "mac": {
+    "category": "public.app-category.productivity",
+    "target": [
+      { "target": "dir", "arch": ["arm64"] }
+    ],
+    "hardenedRuntime": false,
+    "gatekeeperAssess": false,
+    "identity": null,
+    "extendInfo": {
+      "LSUIElement": false,
+      "NSHumanReadableCopyright": "© Rich · 我的私人 AI 助理 · 仅供本地使用"
+    }
+  },
+  "npmRebuild": false
+}

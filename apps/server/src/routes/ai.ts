@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { streamSSE } from "hono/streaming";
 import type { Element, PathKind, RichnessLevel } from "@ke/domain";
 import type { AIAdapter } from "../ai/adapter.js";
@@ -13,6 +14,7 @@ import { pickAdapter } from "../ai/pickAdapter.js";
 import { recordSignal } from "../ai/signalRecorder.js";
 import { RICHNESS_SPECS } from "../ai/prompts/generateTree.js";
 import { adoptImagesInContent } from "../lib/imageAssets.js";
+import { migrateLegacyContentToSections } from "../lib/legacyContentMigration.js";
 import { imageQueue } from "../ai/imageQueue.js";
 import {
   generateTreeFor,
@@ -27,6 +29,7 @@ import {
   analyzeAttachment,
   attachUnder,
   generateDailyNews,
+  runGreatMeBrain,
   type DailyNewsItem,
 } from "../ai/operations.js";
 import { shortlistByKeywords } from "../lib/elementShortlist.js";
@@ -144,6 +147,77 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
 
   // Public spec for richness tiers — used by InputView to render the standard.
   r.get("/richness-spec", (c) => c.json(RICHNESS_SPECS));
+
+  // ----- great-me: Hermes-backed personal cockpit brain -----
+  // This is intentionally a single JSON endpoint instead of SSE: the GreatMe
+  // UI needs a compact decision packet (missions, PDCA, axis adjustments)
+  // rather than token-by-token prose. By default pickAdapter() selects Hermes,
+  // because Hermes is adapters[0] in buildApp().
+  // Input schema. `state` is an opaque snapshot of the GreatMe cockpit —
+  // its shape is owned by the view; we don't reparse it here, but we do
+  // cap its serialised size so a runaway client can't blow up the prompt.
+  const GreatMeBodySchema = z.object({
+    mode: z.enum(["goal", "mission", "review", "week-simulation"]),
+    input: z.string().max(2000).default(""),
+    state: z.unknown().optional(),
+    model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+  });
+  const GREAT_ME_STATE_MAX_BYTES = 64 * 1024;
+  r.post("/great-me", async (c) => {
+    const raw = await c.req.json().catch(() => null);
+    if (raw == null) return c.json({ error: "invalid JSON body" }, 400);
+    const parsed = GreatMeBodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
+    }
+    const { mode, model } = parsed.data;
+    const input = parsed.data.input.trim();
+    const state = parsed.data.state ?? {};
+    // Size cap on the snapshot so prompt construction stays bounded.
+    if (JSON.stringify(state).length > GREAT_ME_STATE_MAX_BYTES) {
+      return c.json({ error: `state too large (>${GREAT_ME_STATE_MAX_BYTES} bytes)` }, 413);
+    }
+    const adapter = pickAdapter(deps.adapters, model);
+    const reqId = newReqId();
+    const t0 = Date.now();
+    log.info("ai.op.start", { reqId, op: "/api/ai/great-me", mode, adapter: adapter.name });
+
+    if (!(await adapter.available())) {
+      const message = `${adapter.name} unavailable`;
+      await recordSignal(deps.signals, {
+        ts: new Date().toISOString(), type: "op.failed", manual: "great-me",
+        op: "great-me", adapter: adapter.name, data: { mode, message },
+      });
+      return c.json({ error: message, adapter: adapter.name }, 503);
+    }
+
+    let finalResult: unknown = null;
+    let lastError = "";
+    for await (const ev of runGreatMeBrain(adapter, {
+      mode, input, state, signal: c.req.raw.signal,
+    })) {
+      if (ev.type === "error") {
+        lastError = ev.message;
+        break;
+      }
+      if (ev.type === "done") {
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.completed", manual: "great-me",
+          op: "great-me", adapter: adapter.name,
+          data: { mode, durationMs: Date.now() - t0, missionCount: ev.result.missions.length },
+        });
+        finalResult = ev.result;
+        break;
+      }
+    }
+    if (finalResult) return c.json({ adapter: adapter.name, result: finalResult });
+    const message = lastError || "Hermes brain failed";
+    await recordSignal(deps.signals, {
+      ts: new Date().toISOString(), type: "op.failed", manual: "great-me",
+      op: "great-me", adapter: adapter.name, data: { mode, durationMs: Date.now() - t0, message },
+    });
+    return c.json({ error: message, adapter: adapter.name }, 500);
+  });
 
   // ----- analyze-input: AI 解析引擎 -----
   // Two-pass routing for the home-page input box:
@@ -375,15 +449,35 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     const model = body.model as "claude-code" | "codex" | undefined;
     if (!feedback) return c.json({ error: "feedback required" }, 400);
     if (!sectionId) return c.json({ error: "sectionId required" }, 400);
-    const element = await deps.elements.get(elementId);
+    let element = await deps.elements.get(elementId);
     if (!element) return c.json({ error: "element not found" }, 404);
 
     // Find the targeted section in the existing content.sections array.
-    const content = (element.content ?? {}) as Record<string, unknown>;
-    const sectionsRaw = Array.isArray(content.sections) ? (content.sections as unknown[]) : [];
-    const sectionIndex = sectionsRaw.findIndex(s =>
+    // Legacy concept-style content has no sections[] yet — the frontend
+    // synthesizes virtual sections from oneSentence / coreExplain / ... To
+    // make section-feedback work for those elements WITHOUT destructively
+    // rewriting the whole content via refineElement, we materialize the
+    // virtual sections in place (deterministically, no AI), persist them,
+    // then proceed as if the element had always had sections[].
+    let content = (element.content ?? {}) as Record<string, unknown>;
+    let sectionsRaw = Array.isArray(content.sections) ? (content.sections as unknown[]) : [];
+    let sectionIndex = sectionsRaw.findIndex(s =>
       s && typeof s === "object" && (s as Record<string, unknown>).id === sectionId,
     );
+    if (sectionIndex < 0) {
+      const migrated = migrateLegacyContentToSections(content) as Record<string, unknown>;
+      if (migrated !== content && Array.isArray(migrated.sections)) {
+        const migratedEl = { ...element, content: migrated as typeof element.content,
+          metadata: { ...element.metadata, updatedAt: new Date().toISOString() } };
+        await deps.elements.put(migratedEl);
+        element = migratedEl;
+        content = migrated;
+        sectionsRaw = migrated.sections as unknown[];
+        sectionIndex = sectionsRaw.findIndex(s =>
+          s && typeof s === "object" && (s as Record<string, unknown>).id === sectionId,
+        );
+      }
+    }
     if (sectionIndex < 0) return c.json({ error: "section not found in this element" }, 404);
     const targetSection = sectionsRaw[sectionIndex] as { id: string; title: string; blocks: unknown[] };
 

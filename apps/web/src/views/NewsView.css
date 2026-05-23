@@ -318,3 +318,97 @@
   font-size: 16px;
   line-height: 1.8;
 }
+
+/* ─── Per-card state overlays (favorite / refining) ──────────────────── */
+
+/* Gold border for cards the user has favorited. Lower priority than
+ * .is-refining so an "in-progress refine on a favorited card" still
+ * shows the red signal (state > affinity). */
+.news-card.is-favorite {
+  border-color: #ffd166 !important;
+  box-shadow: 0 0 20px rgba(255, 209, 102, .20);
+}
+.news-card.is-favorite::after {
+  content: "★";
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  color: #ffd166;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+/* Red border (2px, thick enough to read at a glance) + breathing glow
+ * while a refine task is running for this element. No separate text badge:
+ * the entire border IS the signal — overlapping the existing 🔥重大 chip
+ * would just clutter the corner. Wins over .is-favorite because "AI is
+ * working" needs to grab attention first. */
+.news-card.is-refining {
+  border: 2px solid #ff6b6b !important;
+  /* Compensate for the +1px border so the inside content doesn't shift. */
+  padding: 15px 17px !important;
+  box-shadow: 0 0 28px rgba(255, 107, 107, .42);
+  animation: news-card-refine-pulse 1.6s ease-in-out infinite;
+}
+@keyframes news-card-refine-pulse {
+  0%, 100% {
+    box-shadow: 0 0 18px rgba(255, 107, 107, .28);
+    border-color: #ff6b6b;
+  }
+  50% {
+    box-shadow: 0 0 38px rgba(255, 107, 107, .60);
+    border-color: #ff9a9a;
+  }
+}
+
+/* Favorite badge stays in the corner ONLY when not refining. */
+.news-card.is-refining::after { display: none; }
+
+.news-card { position: relative; }
+
+/* ─── Modal footer buttons (favorite + deep-dive + edit-element) ─────── */
+
+.news-modal__footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.news-modal__fav,
+.news-modal__deep-dive {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.news-modal__fav {
+  background: rgba(255, 209, 102, .08);
+  border: 1px solid rgba(255, 209, 102, .35);
+  color: #ffd166;
+}
+.news-modal__fav:hover {
+  background: rgba(255, 209, 102, .14);
+  border-color: #ffd166;
+}
+.news-modal__fav.is-on {
+  background: rgba(255, 209, 102, .22);
+  color: #ffe28a;
+}
+.news-modal__deep-dive {
+  background: rgba(255, 107, 107, .08);
+  border: 1px solid rgba(255, 107, 107, .35);
+  color: #ff8a8a;
+}
+.news-modal__deep-dive:hover:not(:disabled) {
+  background: rgba(255, 107, 107, .16);
+  border-color: #ff7a8e;
+  color: #ff9a9a;
+}
+.news-modal__deep-dive:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+  animation: news-card-refine-pulse 1.8s ease-in-out infinite;
+}

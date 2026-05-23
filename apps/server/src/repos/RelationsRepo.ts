@@ -9,4 +9,9 @@ export interface RelationsRepo {
   removeForElements(ids: ElementId[]): Promise<void>;
   /** Replace the parent edge for `childId`. If newParentId is null, remove the parent edge entirely. */
   reparent(childId: ElementId, newParentId: ElementId | null): Promise<void>;
+  /** Reorder the direct child relations under `parentId`. `childIds` is the
+   *  desired full list of direct children in display order. Any existing
+   *  children not in the list are appended at the end in their original order.
+   *  Other relations (cross-parent, non-child kinds) are untouched. */
+  reorderChildren(parentId: ElementId, childIds: ElementId[]): Promise<void>;
 }

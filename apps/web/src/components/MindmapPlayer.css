@@ -67,7 +67,7 @@
   backdrop-filter: blur(22px) saturate(140%);
   -webkit-backdrop-filter: blur(22px) saturate(140%);
 }
-.mmp-title-panel, .mmp-controls { pointer-events: auto; }
+.mmp-title-panel, .mmp-control-dock, .mmp-controls { pointer-events: auto; }
 .mmp-title-panel {
   max-width: min(34rem, calc(100% - 80px));
   padding: 18px 22px 19px;
@@ -81,10 +81,77 @@
   font-size: clamp(1.6rem, 2.4vw, 2.7rem); line-height: 1.04; white-space: pre-line;
 }
 
-.mmp-controls {
-  position: relative; display: grid; grid-template-columns: minmax(0,1fr); align-items: stretch;
+.mmp-control-dock {
+  position: relative;
   width: min(820px, 66%); min-width: min(680px, 60%);
+  display: grid; justify-items: end; align-content: start; gap: 10px;
+  pointer-events: auto;
+}
+.mmp-controls-toggle,
+.mmp-controls-close {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, .34);
+  background: rgba(0, 0, 0, .92);
+  color: #fff;
+  border-radius: 999px;
+  font-weight: 850;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.mmp-controls-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 34px; padding: 6px 13px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.04), 0 12px 28px rgba(0,0,0,.32);
+}
+.mmp-controls-toggle span {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 10px rgba(255,255,255,.55);
+}
+.mmp-controls-toggle:hover,
+.mmp-controls-toggle[aria-expanded="true"] {
+  border-color: rgba(255,255,255,.72);
+}
+.mmp-controls-close {
+  position: absolute; top: 8px; right: 10px;
+  height: 24px; padding: 2px 9px;
+  font-size: .68rem;
+  color: rgba(255,255,255,.74);
+}
+.mmp-controls-close:hover {
+  border-color: rgba(255,255,255,.72);
+  color: #fff;
+}
+.mmp-controls {
+  position: absolute; top: calc(100% + 10px); right: 0;
+  display: grid; grid-template-columns: minmax(0,1fr); align-items: stretch;
+  width: 100%;
   padding: 12px;
+  overflow: hidden;
+  transform-origin: top right;
+  transition:
+    opacity 180ms ease,
+    visibility 180ms ease,
+    transform 220ms cubic-bezier(.2, .8, .2, 1),
+    max-height 220ms cubic-bezier(.2, .8, .2, 1),
+    padding 220ms cubic-bezier(.2, .8, .2, 1),
+    border-color 180ms ease;
+}
+.mmp-floating-ui.controls-collapsed .mmp-controls {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-color: transparent;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px) scale(.98);
+}
+.mmp-floating-ui.controls-open .mmp-controls {
+  max-height: 260px;
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
 }
 .mmp-control-main {
   --slider-readout-gap: 14px; --slider-readout-width: 72px;
@@ -329,8 +396,222 @@
 }
 body.mmp-image-viewer-open { overflow: hidden; }
 
+/* Black presentation mode.
+ * The PPT player should read as a pure stage: black canvas, white typography,
+ * and white-outline geometry. Keep these overrides scoped to .mmp-shell so the
+ * rest of Know Everything can keep its own theme. */
+.mmp-shell {
+  color: #fff;
+}
+
+.mmp-frame {
+  background: #000;
+}
+
+.mmp-glass {
+  border-color: rgba(255, 255, 255, .46);
+  background: #000;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.mmp-floating-ui {
+  padding: 18px;
+}
+
+.mmp-control-dock {
+  width: min(820px, 66%);
+  min-width: min(680px, 60%);
+}
+
+.mmp-controls {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 12px;
+  transform-origin: top right;
+}
+
+.mmp-control-main {
+  --slider-readout-gap: 8px;
+  --slider-readout-width: 54px;
+  --zoom-control-pad-x: 8px;
+  --control-readout-right: 20px;
+  grid-template-rows: 24px auto;
+  gap: 5px;
+}
+
+.mmp-scrubber {
+  height: 24px;
+}
+
+.mmp-scrubber input {
+  height: 22px;
+}
+
+.mmp-readout {
+  gap: 5px;
+}
+
+.mmp-readout-card,
+.mmp-zoom {
+  min-height: 46px;
+  border-radius: 7px;
+}
+
+.mmp-readout-icon {
+  flex-basis: 44px;
+  font-size: .58rem;
+}
+
+.mmp-readout-card .mmp-node-content {
+  padding: 8px 12px;
+}
+
+.mmp-readout-card .mmp-node-title {
+  font-size: .82rem;
+}
+
+.mmp-zoom {
+  grid-template-columns: 28px minmax(0,1fr);
+}
+
+.mmp-zoom-icon {
+  font-size: .58rem;
+}
+
+.mmp-zoom-fields {
+  gap: 4px;
+}
+
+.mmp-zoom-row {
+  gap: 7px;
+}
+
+.mmp-zoom-row strong {
+  font-size: .8rem;
+}
+
+.mmp-hint {
+  margin-top: 5px;
+  padding-right: 20px;
+  font-size: .66rem;
+}
+
+.mmp-eyebrow,
+.mmp-counter,
+.mmp-zoom-icon,
+.mmp-readout-icon,
+.mmp-hint {
+  color: rgba(255, 255, 255, .66);
+}
+
+.mmp-title-panel h1,
+.mmp-zoom-row strong {
+  color: #fff;
+}
+
+.mmp-scrubber input::-webkit-slider-runnable-track,
+.mmp-zoom-row input::-webkit-slider-runnable-track {
+  border-color: rgba(255, 255, 255, .34);
+  background: linear-gradient(
+    90deg,
+    #fff 0 var(--slider-progress, 0%),
+    rgba(255, 255, 255, .22) var(--slider-progress, 0%) 100%
+  );
+}
+
+.mmp-scrubber input::-webkit-slider-thumb,
+.mmp-zoom-row input::-webkit-slider-thumb {
+  border-color: #000;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .52);
+}
+
+.mmp-readout-card,
+.mmp-zoom,
+.mmp-readout-card .mmp-node-content {
+  border-color: rgba(255, 255, 255, .34);
+  background: #000;
+  color: #fff;
+}
+
+.mmp-readout-icon {
+  border-right-color: rgba(255, 255, 255, .22);
+  background: #000;
+}
+
+.mmp-node {
+  filter: none;
+}
+
+.mmp-node-content,
+.mmp-node.path-node .mmp-node-content,
+.mmp-node.complete-node .mmp-node-content,
+.mmp-node.active .mmp-node-content {
+  border-color: rgba(255, 255, 255, .72);
+  background: #000;
+  color: #fff;
+  box-shadow: none;
+}
+
+.mmp-node.active .mmp-node-content {
+  border-color: #fff;
+  border-width: 3px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .22);
+}
+
+.mmp-node-subtitle,
+.mmp-node.active .mmp-node-subtitle,
+.mmp-node.active .mmp-node-content.image-expanded .mmp-node-subtitle {
+  color: rgba(255, 255, 255, .68);
+}
+
+.mmp-node.active .mmp-node-content.image-expanded {
+  border: 1px solid rgba(255, 255, 255, .42);
+  background: #000;
+  color: #fff;
+  box-shadow: none;
+}
+
+.mmp-node.active .mmp-node-content.image-expanded .mmp-node-title {
+  color: #fff;
+}
+
+.mmp-node:focus-visible .mmp-node-content,
+.mmp-node:hover .mmp-node-content,
+.mmp-node.camera-target .mmp-node-content,
+.mmp-node:focus-visible .mmp-node-content.image-expanded,
+.mmp-node:hover .mmp-node-content.image-expanded {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .28);
+}
+
+.mmp-node-image,
+.mmp-node-image:hover,
+.mmp-node-image:focus-visible {
+  border-color: rgba(255, 255, 255, .52);
+  background: #000;
+}
+
+.mmp-link,
+.mmp-link.path-link {
+  stroke: rgba(255, 255, 255, .74);
+}
+
+.mmp-image-viewer {
+  background: rgba(0, 0, 0, .86);
+}
+
+.mmp-image-viewer-frame {
+  border-color: rgba(255, 255, 255, .62);
+  background: #000;
+  box-shadow: none;
+}
+
 @media (max-width: 720px) {
   .mmp-floating-ui { display: grid; grid-template-columns: 1fr; padding: 14px; gap: 14px; }
+  .mmp-control-dock { width: 100%; min-width: 0; }
   .mmp-controls { width: 100%; min-width: 0; }
   .mmp-readout { grid-template-columns: minmax(0,1fr); }
   .mmp-title-panel { max-width: none; padding: 16px 18px 17px; }

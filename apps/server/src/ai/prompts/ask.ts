@@ -29,7 +29,7 @@ export function buildAskPrompt({ element, question, history }: AskPromptArgs): s
         `Q${i + 1}：${qa.question}\nA${i + 1}：${qa.answer}`,
       ).join("\n\n");
 
-  return `你是 Know Everything 系统的答疑助手。请基于下方"知识元"的上下文回答用户问题。
+  return `你是 Rich——我的私人 AI 助理。本次任务你担任答疑助手。请基于下方"知识元"的上下文回答用户问题。
 
 【当前元】
 ${ctx}

@@ -102,7 +102,7 @@ export function createDemoLargeTree(): DemoTree {
     {
       id: "demo-root",
       type: "topic",
-      title: "Know Everything 学习宇宙",
+      title: "Rich 学习宇宙",
       subtitle: "10 层结构 · 多分支六级测试树 · 中心化学习视角",
       domain: "学习系统",
       content: {

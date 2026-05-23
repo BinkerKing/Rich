@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./MindmapPlayer.css";
 
 interface Props {
@@ -62,6 +62,7 @@ const swipeNavigation = { intentDistance: 10, minDistance: 56, dominanceRatio: 1
  * happen inside a single useEffect so we don't fight React's render cycle.
  */
 export function MindmapPlayer({ source, resolveImage }: Props) {
+  const [controlsOpen, setControlsOpen] = useState(false);
   const mindmapRef = useRef<HTMLDivElement | null>(null);
   const mapLayerRef = useRef<HTMLDivElement | null>(null);
   const linkLayerRef = useRef<SVGSVGElement | null>(null);
@@ -636,40 +637,53 @@ export function MindmapPlayer({ source, resolveImage }: Props) {
             <div className="mmp-node-layer" ref={nodeLayerRef} />
           </div>
         </div>
-        <section className="mmp-floating-ui" aria-label="Presentation controls">
+        <section className={`mmp-floating-ui ${controlsOpen ? "controls-open" : "controls-collapsed"}`} aria-label="Presentation controls">
           <div className="mmp-title-panel mmp-glass">
             <p className="mmp-eyebrow" ref={deckSubtitleRef}>Mindmap</p>
             <h1 ref={deckTitleRef}>root</h1>
           </div>
-          <div className="mmp-controls mmp-glass" aria-label="节点演示操作区">
-            <div className="mmp-control-main">
-              <label className="mmp-scrubber">
-                <input ref={nodeSliderRef} type="range" min={0} max={0} defaultValue={0} aria-label="快速定位节点" />
-                <span className="mmp-counter" ref={counterRef}>1 / 1</span>
-              </label>
-              <div className="mmp-readout" aria-live="polite">
-                <div className="mmp-readout-card">
-                  <div className="mmp-readout-icon" aria-hidden="true">NEXT</div>
-                  <div className="mmp-node-content has-subtitle" ref={nextPreviewRef}>
-                    <span className="mmp-node-subtitle" ref={nextSubtitleRef}>即将进入</span>
-                    <span className="mmp-node-title" ref={nextTitleRef}>root</span>
+          <div className="mmp-control-dock">
+            <button
+              type="button"
+              className="mmp-controls-toggle"
+              aria-expanded={controlsOpen}
+              aria-controls="mmp-controls-panel"
+              onClick={() => setControlsOpen(open => !open)}
+            >
+              <span aria-hidden="true" />
+              控制
+            </button>
+            <div id="mmp-controls-panel" className="mmp-controls mmp-glass" aria-label="节点演示操作区" aria-hidden={!controlsOpen}>
+              <button type="button" className="mmp-controls-close" onClick={() => setControlsOpen(false)}>收起</button>
+              <div className="mmp-control-main">
+                <label className="mmp-scrubber">
+                  <input ref={nodeSliderRef} type="range" min={0} max={0} defaultValue={0} aria-label="快速定位节点" />
+                  <span className="mmp-counter" ref={counterRef}>1 / 1</span>
+                </label>
+                <div className="mmp-readout" aria-live="polite">
+                  <div className="mmp-readout-card">
+                    <div className="mmp-readout-icon" aria-hidden="true">NEXT</div>
+                    <div className="mmp-node-content has-subtitle" ref={nextPreviewRef}>
+                      <span className="mmp-node-subtitle" ref={nextSubtitleRef}>即将进入</span>
+                      <span className="mmp-node-title" ref={nextTitleRef}>root</span>
+                    </div>
+                  </div>
+                  <div className="mmp-zoom" aria-label="缩放设置">
+                    <span className="mmp-zoom-icon" aria-hidden="true">ZOOM</span>
+                    <div className="mmp-zoom-fields">
+                      <label className="mmp-zoom-row">
+                        <input ref={zoomSliderRef} type="range" min={70} max={140} defaultValue={100} aria-label="调整整体大小" />
+                        <strong ref={zoomValueRef as React.RefObject<HTMLElement>}>100%</strong>
+                      </label>
+                      <label className="mmp-zoom-row">
+                        <input ref={activeScaleSliderRef} type="range" min={100} max={200} step={5} defaultValue={150} aria-label="调整选中节点放大倍率" />
+                        <strong ref={activeScaleValueRef as React.RefObject<HTMLElement>}>1.50x</strong>
+                      </label>
+                    </div>
                   </div>
                 </div>
-                <div className="mmp-zoom" aria-label="缩放设置">
-                  <span className="mmp-zoom-icon" aria-hidden="true">ZOOM</span>
-                  <div className="mmp-zoom-fields">
-                    <label className="mmp-zoom-row">
-                      <input ref={zoomSliderRef} type="range" min={70} max={140} defaultValue={100} aria-label="调整整体大小" />
-                      <strong ref={zoomValueRef as React.RefObject<HTMLElement>}>100%</strong>
-                    </label>
-                    <label className="mmp-zoom-row">
-                      <input ref={activeScaleSliderRef} type="range" min={100} max={200} step={5} defaultValue={150} aria-label="调整选中节点放大倍率" />
-                      <strong ref={activeScaleValueRef as React.RefObject<HTMLElement>}>1.50x</strong>
-                    </label>
-                  </div>
-                </div>
+                <p className="mmp-hint">翻页：↑ ↓、Page Up / Page Down、滚轮或上划/下划</p>
               </div>
-              <p className="mmp-hint">翻页：↑ ↓、Page Up / Page Down、滚轮或上划/下划</p>
             </div>
           </div>
         </section>

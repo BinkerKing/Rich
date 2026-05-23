@@ -68,6 +68,11 @@ export class CachedRelationsRepo implements RelationsRepo {
     this.invalidate();
   }
 
+  async reorderChildren(parentId: ElementId, childIds: ElementId[]): Promise<void> {
+    await this.inner.reorderChildren(parentId, childIds);
+    this.invalidate();
+  }
+
   invalidate(): void {
     this.all = null;
     this.byFromIdx.clear();

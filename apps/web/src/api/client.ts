@@ -85,12 +85,88 @@ export interface PathResult {
 
 // ---------- AI ops ----------
 
-export type Model = "claude-code" | "codex";
+export type Model = "hermes" | "claude-code" | "codex";
+
+export type GreatMeMode = "goal" | "mission" | "review" | "week-simulation";
+
+export interface GreatMeBrainResult {
+  mode: GreatMeMode;
+  title: string;
+  summary: string;
+  focus: string;
+  risks: string[];
+  nextActions: string[];
+  missions: Array<{
+    title: string;
+    lane: string;
+    impact: number;
+    effort: number;
+    reason?: string;
+  }>;
+  pdca: Partial<Record<"plan" | "do" | "check" | "act", string>>;
+  axisAdjustments: Array<{
+    axis: "body" | "mind" | "wealth" | "craft" | "relations" | "creation";
+    delta: number;
+    reason: string;
+  }>;
+  weekSimulation: Array<{
+    day: number;
+    theme: string;
+    mission: string;
+    evidence: string;
+    review: string;
+  }>;
+}
 
 export const api = {
   // ----- generate-tree -----
   generateTreeStream(topic: string, model?: Model, richness?: RichnessLevel) {
     return sseStream<GenerateTreeResult>("/ai/generate-tree", { topic, model, richness });
+  },
+
+  async greatMeBrain(input: {
+    mode: GreatMeMode;
+    text?: string;
+    state: unknown;
+    model?: Model;
+  }): Promise<{ adapter: string; result: GreatMeBrainResult }> {
+    const r = await fetch("/api/ai/great-me", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        mode: input.mode,
+        input: input.text ?? "",
+        state: input.state,
+        model: input.model,
+      }),
+    });
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({})) as { error?: string; adapter?: string };
+      throw new Error(body.error ?? `great-me failed: ${r.status}`);
+    }
+    return await r.json() as { adapter: string; result: GreatMeBrainResult };
+  },
+
+  // ----- great-me persisted state -----
+  /** Load the persisted GreatMe cockpit state. Returns null if nothing saved
+   *  server-side yet (first run / fresh install). */
+  async getGreatMeState<T>(): Promise<T | null> {
+    const r = await fetch("/api/great-me/state");
+    if (!r.ok) throw new Error(`get great-me state failed: ${r.status}`);
+    const body = await r.json() as { state: T | null };
+    return body.state;
+  },
+  /** Save the GreatMe cockpit state. Server validates shape + size cap. */
+  async saveGreatMeState(state: unknown): Promise<void> {
+    const r = await fetch("/api/great-me/state", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(state),
+    });
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(body.error ?? `save great-me state failed: ${r.status}`);
+    }
   },
 
   // ----- per-element ops -----
@@ -277,6 +353,74 @@ export const api = {
       throw new Error(`patchElement ${r.status}: ${t}`);
     }
     return r.json();
+  },
+  /** Replace element.content.sections with the given array. Other content
+   *  fields and metadata are preserved (server only touches sections). */
+  async putElementSections(id: string, sections: unknown[]): Promise<Element> {
+    const r = await fetch(`/api/elements/${encodeURIComponent(id)}/sections`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sections }),
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      throw new Error(`putElementSections ${r.status}: ${t}`);
+    }
+    return r.json();
+  },
+  /** Upload one or more files as attachments of an element. Server saves
+   *  them under `data/attachments/<elementId>/` and returns the list of
+   *  served URLs. The caller is responsible for splicing the result into
+   *  the AttachmentsBlock and persisting the element sections. */
+  async uploadAttachments(elementId: string, files: File[]): Promise<Array<{ name: string; src: string; size: number }>> {
+    if (files.length === 0) return [];
+    const form = new FormData();
+    for (const f of files) form.append("files", f, f.name);
+    const r = await fetch(`/api/attachments/${encodeURIComponent(elementId)}`, {
+      method: "POST",
+      body: form,
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      throw new Error(`uploadAttachments ${r.status}: ${t}`);
+    }
+    const json = await r.json() as { files: Array<{ name: string; src: string; size: number }> };
+    return json.files;
+  },
+  /** Remove a previously uploaded attachment. */
+  async deleteAttachment(elementId: string, filename: string): Promise<void> {
+    const r = await fetch(`/api/attachments/${encodeURIComponent(elementId)}/${encodeURIComponent(filename)}`, {
+      method: "DELETE",
+    });
+    if (!r.ok && r.status !== 404) {
+      const t = await r.text().catch(() => "");
+      throw new Error(`deleteAttachment ${r.status}: ${t}`);
+    }
+  },
+  /** Trigger one-shot legacy → sections[] migration on the server. Idempotent. */
+  async migrateElementToSections(id: string): Promise<Element> {
+    const r = await fetch(`/api/elements/${encodeURIComponent(id)}/sections/migrate`, {
+      method: "POST",
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      throw new Error(`migrateElementToSections ${r.status}: ${t}`);
+    }
+    return r.json();
+  },
+  /** Reorder direct children under a parent. The list is the desired full
+   *  display order. Children omitted from the list keep their relative order
+   *  and get appended at the end (defensive). */
+  async reorderChildren(parentId: string, childIds: string[]): Promise<void> {
+    const r = await fetch("/api/relations/reorder-children", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ parentId, childIds }),
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      throw new Error(`reorderChildren ${r.status}: ${t}`);
+    }
   },
   async listRelations(opts: { from?: string; to?: string } = {}): Promise<Relation[]> {
     const qs = new URLSearchParams();

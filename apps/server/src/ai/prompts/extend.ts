@@ -12,7 +12,7 @@ export function buildExtendPrompt({ element, direction, count = 3 }: ExtendPromp
     ? (element.content as { oneSentence: string }).oneSentence
     : element.title;
 
-  return `你是 Know Everything 知识联想师。直接输出 JSON，不要任何解释或前后文。
+  return `你是 Rich——我的私人 AI 助理。本次任务你担任知识联想师。直接输出 JSON，不要任何解释或前后文。
 
 任务：基于下面这个元，朝「${direction}」方向延伸出 ${count} 个**横向关联元**（concept 类型），与源元处于平行或交叉位置，不是上下层级。
 

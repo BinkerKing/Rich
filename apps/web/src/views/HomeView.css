@@ -1,0 +1,873 @@
+/* HomeView — black-canvas cinematic landing for Rich. */
+
+.home-view {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  color: #f5f7ff;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  display: grid;
+  /* Stage (top half) / input (auto, sits on midline) / reply (bottom half). */
+  grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+/* ─── Window drag region ─────────────────────────────────────────── */
+
+/* Transparent strip across the top of the window. Tall enough to clear
+ * the macOS traffic lights and give the user comfortable drag area; the
+ * region is invisible (no background, no content) so the cinematic
+ * black canvas above remains unbroken visually. Double-clicking this
+ * strip triggers the native zoom (Cmd+Option+M / green button equivalent). */
+.home-drag-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 36px;
+  -webkit-app-region: drag;
+  z-index: 1;
+}
+
+/* ─── Quick-jump (top right, doesn't compete with the stage) ─────── */
+
+.home-quick {
+  position: absolute;
+  top: 18px;
+  right: 24px;
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+  /* Sits over the drag strip — make sure clicks land on the buttons,
+   * not the drag region underneath. */
+  -webkit-app-region: no-drag;
+}
+.home-quick button {
+  padding: 5px 12px;
+  font-size: 11.5px;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(255, 255, 255, .10);
+  color: rgba(255, 255, 255, .56);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: .02em;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.home-quick button:hover {
+  background: rgba(122, 167, 255, .08);
+  border-color: rgba(122, 167, 255, .35);
+  color: #fff;
+}
+
+/* ─── Top stage: mascot + scan grid ─────────────────────────────── */
+
+.home-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 32px 24px 24px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Faint sci-fi grid behind the mascot — subtle, mostly to give the dark
+ * canvas some depth. Not a real radar, just a vibe. */
+.home-scan-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 70% at 50% 60%, rgba(122, 167, 255, .12), transparent 70%),
+    radial-gradient(ellipse 30% 40% at 50% 90%, rgba(66, 247, 240, .08), transparent 60%),
+    linear-gradient(to right, rgba(255, 255, 255, .035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, .035) 1px, transparent 1px);
+  background-size: auto, auto, 48px 48px, 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 100% at 50% 60%, #000 30%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 100% at 50% 60%, #000 30%, transparent 80%);
+  animation: home-grid-drift 30s linear infinite;
+}
+@keyframes home-grid-drift {
+  0%   { background-position: 0 0, 0 0, 0 0, 0 0; }
+  100% { background-position: 0 0, 0 0, 48px 48px, 0 48px; }
+}
+
+.home-mascot-wrap {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: home-mascot-enter 700ms cubic-bezier(.16, 1, .3, 1);
+}
+@keyframes home-mascot-enter {
+  from { opacity: 0; transform: translateY(20px) scale(.85); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.home-mascot-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 60%,
+    rgba(66, 247, 240, .35),
+    rgba(122, 167, 255, .18) 35%,
+    transparent 70%);
+  filter: blur(20px);
+  animation: home-mascot-breath 3.2s ease-in-out infinite;
+  z-index: 0;
+}
+@keyframes home-mascot-breath {
+  0%, 100% { opacity: .7; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.08); }
+}
+
+.home-mascot-sprite {
+  position: relative;
+  z-index: 1;
+  width: 180px;
+  height: auto;
+  image-rendering: pixelated;
+  /* Soft bob to suggest motion even on the same-frame moments of the cycle. */
+  animation: home-mascot-bob 420ms cubic-bezier(.5, 0, .5, 1) infinite alternate;
+  filter: drop-shadow(0 8px 16px rgba(66, 247, 240, .35));
+}
+@keyframes home-mascot-bob {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-3px); }
+}
+
+.home-mascot-shadow {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  width: 100px;
+  height: 12px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse, rgba(66, 247, 240, .35), transparent 70%);
+  filter: blur(3px);
+  z-index: 0;
+  animation: home-mascot-shadow-pulse 420ms ease-in-out infinite alternate;
+}
+@keyframes home-mascot-shadow-pulse {
+  from { opacity: .8; transform: translateX(-50%) scaleX(1); }
+  to   { opacity: .55; transform: translateX(-50%) scaleX(.85); }
+}
+
+/* ─── Middle equator: minimal input ─────────────────────────────── */
+
+/* Just a single thin underline — no frame, no glow, no leading symbol.
+ * The white caret is the only signal of "type here". Hairline brightens
+ * subtly on focus. */
+.home-input {
+  display: block;                    /* single column — no button track */
+  width: min(640px, calc(100vw - 64px));
+  margin: 0 auto;
+  padding: 6px 0 10px;
+  /* No underline — the blinking ▸ caret is the only visible chrome. */
+  position: relative;                /* anchor for measure span + pet caret */
+  z-index: 5;
+}
+
+/* Hidden measurement span — same typography as the textarea so its
+ * rendered width equals the cursor's left offset in the typed text.
+ * Positioned offscreen via visibility:hidden + absolute so it doesn't
+ * take layout space. */
+.home-input-measure {
+  position: absolute;
+  visibility: hidden;
+  white-space: pre;                  /* preserve spaces, ignore wrap */
+  font-family: inherit;
+  font-size: 18px;
+  line-height: 1.45;
+  letter-spacing: .01em;
+  font-weight: 400;
+  /* Match textarea horizontal padding so widths align pixel-perfect. */
+  padding: 0;
+  pointer-events: none;
+  top: 0;
+  left: 0;
+}
+
+/* The blinking pet that replaces the native caret. Hidden when the
+ * input isn't focused so the empty homepage stays minimal. */
+.home-input-pet {
+  position: absolute;
+  /* Caret glyph sits roughly at the text baseline. The triangle (▸) is a
+   * Unicode arrow rendered in the system font — at 36px its visual mass
+   * is centered, so a small downward offset aligns its center with the
+   * text baseline. Multi-line tracking via translateY (in JSX). */
+  top: 2px;
+  left: 0;
+  /* Width 0 so transform translateX places the LEFT edge of the emoji
+   * exactly at the cursor position; the emoji itself overflows visibly. */
+  width: 0;
+  height: 1em;
+  /* 2× the textarea text size — caret reads as a distinct flame next to
+   * what you type, not a foreign sticker but not lost either. */
+  font-size: 36px;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  /* Slight offset so the emoji's visible shape sits next to text, not
+   * underneath the last character. */
+  margin-left: 2px;
+  z-index: 1;
+  display: none;
+}
+.home-input:focus-within .home-input-pet {
+  display: inline-block;
+  animation: home-pet-blink 700ms steps(2, end) infinite;
+}
+@keyframes home-pet-blink {
+  0%, 60%   { opacity: 1; }
+  100%      { opacity: .25; }
+}
+.home-input textarea {
+  resize: none;
+  font-family: inherit;
+  font-size: 18px;
+  line-height: 1.45;
+  color: #fff;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 4px 0;
+  min-height: 28px;
+  max-height: 200px;
+  font-weight: 400;
+  /* Hide the native vertical bar — the blinking 🐶 (.home-input-pet)
+   * replaces it visually. We still need the caret to function (for click
+   * positioning, selection, etc), so caret-color: transparent keeps the
+   * behavior but kills the pixels. */
+  caret-color: transparent;
+  letter-spacing: .01em;
+  width: 100%;
+  display: block;
+  /* Kill the textarea scrollbar entirely — when content exceeds max-height
+   * we let it overflow internally without showing the gutter. Hidden until
+   * we genuinely need scrolling. */
+  overflow: hidden;
+}
+.home-input textarea:focus { overflow-y: auto; }
+.home-input textarea::-webkit-scrollbar { width: 0; height: 0; }
+.home-input textarea { scrollbar-width: none; }
+.home-input textarea::placeholder {
+  color: rgba(255, 255, 255, .22);
+}
+/* Hidden submit — exists only so Enter inside the textarea triggers
+ * form onSubmit. Pulled offscreen with display:none would break that
+ * in some browsers; visually-hidden but functional is the right shape. */
+.home-input button {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ─── Bottom half: reply stream ─────────────────────────────────── */
+
+.home-reply {
+  padding: 24px 24px 40px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scroll-behavior: smooth;
+}
+.home-reply::-webkit-scrollbar { width: 6px; }
+.home-reply::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, .08);
+  border-radius: 3px;
+}
+
+.home-reply-empty {
+  width: min(560px, calc(100vw - 48px));
+  margin: 16px auto 0;
+  padding: 20px;
+  border: 1px dashed rgba(255, 255, 255, .12);
+  border-radius: 10px;
+  text-align: center;
+  background: rgba(255, 255, 255, .02);
+}
+.home-reply-empty p {
+  margin: 0 0 12px;
+  color: rgba(255, 255, 255, .54);
+  font-size: 13px;
+  letter-spacing: .04em;
+}
+.home-reply-empty ul {
+  list-style: none;
+  margin: 0; padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, .68);
+}
+.home-reply-empty li {
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, .03);
+  border-radius: 6px;
+  font-style: italic;
+}
+
+/* ─── Per-turn rendering ──────────────────────────────────────── */
+
+.home-turn {
+  width: min(720px, calc(100vw - 48px));
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 14px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.home-turn-role {
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding-top: 4px;
+  text-align: right;
+}
+.home-turn--user .home-turn-role { color: rgba(255, 255, 255, .72); }
+.home-turn--assistant .home-turn-role { color: #42f7f0; }
+.home-turn.has-error .home-turn-role { color: #ff7a8e; }
+
+.home-turn-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.home-turn-content {
+  color: #fff;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.home-turn--user .home-turn-content { color: rgba(255, 255, 255, .88); }
+.home-turn-thinking {
+  color: rgba(255, 255, 255, .42);
+  font-style: italic;
+  font-size: 13px;
+}
+.home-turn-error {
+  color: #ff7a8e;
+  font-size: 12.5px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 122, 142, .30);
+  border-radius: 6px;
+  background: rgba(255, 122, 142, .06);
+}
+.home-cursor {
+  display: inline-block;
+  margin-left: 1px;
+  color: #42f7f0;
+  animation: home-blink 900ms steps(2, end) infinite;
+}
+@keyframes home-blink { 50% { opacity: 0; } }
+
+/* ─── Tool calls ─────────────────────────────────────────────── */
+
+.home-turn-tools {
+  list-style: none;
+  margin: 0; padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+}
+.home-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 10px;
+  border: 1px solid rgba(255, 255, 255, .06);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, .02);
+  width: fit-content;
+}
+.home-tool--running {
+  border-color: rgba(255, 209, 102, .30);
+  background: rgba(255, 209, 102, .04);
+}
+.home-tool--running .home-tool-icon {
+  color: #ffd166;
+  animation: home-tool-spin 1.2s ease-in-out infinite;
+}
+@keyframes home-tool-spin {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .5; transform: scale(.85); }
+}
+.home-tool--completed {
+  border-color: rgba(114, 246, 182, .30);
+  background: rgba(114, 246, 182, .04);
+}
+.home-tool--completed .home-tool-icon { color: #72f6b6; }
+.home-tool-name { color: rgba(255, 255, 255, .82); }
+
+/* ─── Responsive — tighten on narrow windows ────────────────── */
+
+@media (max-width: 720px) {
+  .home-quick { flex-wrap: wrap; max-width: 60vw; }
+  .home-mascot-wrap { width: 160px; height: 160px; }
+  .home-mascot-sprite { width: 140px; }
+}
+
+/* ─── Per-animation overrides — keyed off `home-mascot--<name>` ─────── */
+/* Defaults (walk) live above. Each block below tweaks: glow color, bob
+ * amplitude/speed, scale, optional particle layer.                       */
+
+/* idle — minimal motion, still alive */
+.home-mascot--idle .home-mascot-sprite { animation: home-mascot-bob 1200ms ease-in-out infinite alternate; }
+.home-mascot--idle .home-mascot-glow {
+  background: radial-gradient(circle at 50% 60%, rgba(255, 255, 255, .18), transparent 70%);
+  animation-duration: 5s;
+}
+
+/* celebrate — gold, big bounce, sparkle (one-shot) */
+.home-mascot--celebrate .home-mascot-sprite {
+  animation: home-mascot-celebrate 600ms ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 18px rgba(255, 209, 102, .75));
+}
+.home-mascot--celebrate .home-mascot-glow {
+  background: radial-gradient(circle at 50% 60%,
+    rgba(255, 209, 102, .55), rgba(255, 170, 60, .25) 40%, transparent 70%);
+  animation-duration: 1.2s;
+}
+.home-mascot--celebrate .home-mascot-particles {
+  background:
+    radial-gradient(circle at 20% 20%, #ffd166 2px, transparent 2.5px),
+    radial-gradient(circle at 80% 30%, #ff9a9a 2px, transparent 2.5px),
+    radial-gradient(circle at 30% 80%, #42f7f0 2px, transparent 2.5px),
+    radial-gradient(circle at 70% 75%, #a98bff 2px, transparent 2.5px);
+  background-size: 100% 100%;
+  opacity: 1;
+  animation: home-particles-rise 1.6s ease-out infinite;
+}
+@keyframes home-mascot-celebrate {
+  from { transform: translateY(0) scale(1); }
+  to   { transform: translateY(-14px) scale(1.08); }
+}
+@keyframes home-particles-rise {
+  0%   { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-40px); opacity: 0; }
+}
+
+/* think — blue, slow, question-mark particle */
+.home-mascot--think .home-mascot-sprite {
+  animation: home-mascot-bob 800ms ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 14px rgba(122, 167, 255, .55));
+}
+.home-mascot--think .home-mascot-glow {
+  background: radial-gradient(circle at 50% 60%,
+    rgba(122, 167, 255, .42), rgba(122, 167, 255, .15) 45%, transparent 70%);
+  animation-duration: 4.5s;
+}
+.home-mascot--think .home-mascot-particles::after {
+  content: "?";
+  position: absolute;
+  top: -8px;
+  right: -2px;
+  font-size: 22px;
+  font-weight: 800;
+  color: #7aa7ff;
+  text-shadow: 0 0 10px rgba(122, 167, 255, .8);
+  animation: home-question-pulse 1.6s ease-in-out infinite;
+}
+@keyframes home-question-pulse {
+  0%, 100% { opacity: 1; transform: translateY(0); }
+  50%      { opacity: .4; transform: translateY(-4px); }
+}
+
+/* happy — green, springy */
+.home-mascot--happy .home-mascot-sprite {
+  animation: home-mascot-happy 360ms cubic-bezier(.4, 0, .2, 1) infinite alternate;
+  filter: drop-shadow(0 0 14px rgba(114, 246, 182, .60));
+}
+.home-mascot--happy .home-mascot-glow {
+  background: radial-gradient(circle at 50% 60%,
+    rgba(114, 246, 182, .45), rgba(66, 247, 240, .18) 40%, transparent 70%);
+  animation-duration: 2s;
+}
+@keyframes home-mascot-happy {
+  from { transform: translateY(0) scale(1); }
+  to   { transform: translateY(-8px) scale(1.02); }
+}
+
+/* sad — grey, slow */
+.home-mascot--sad .home-mascot-sprite {
+  animation: home-mascot-bob 1500ms ease-in-out infinite alternate;
+  filter: grayscale(.7) drop-shadow(0 4px 8px rgba(120, 130, 150, .3));
+  opacity: .8;
+}
+.home-mascot--sad .home-mascot-glow {
+  background: radial-gradient(circle at 50% 60%, rgba(150, 150, 150, .20), transparent 70%);
+  animation-duration: 8s;
+}
+
+/* alert — red, jitter */
+.home-mascot--alert .home-mascot-sprite {
+  animation: home-mascot-alert 80ms steps(3, end) infinite;
+  filter: drop-shadow(0 0 16px rgba(255, 107, 107, .75));
+}
+.home-mascot--alert .home-mascot-glow {
+  background: radial-gradient(circle at 50% 60%,
+    rgba(255, 107, 107, .55), rgba(255, 122, 142, .22) 40%, transparent 70%);
+  animation-duration: 1.4s;
+}
+@keyframes home-mascot-alert {
+  0%   { transform: translate(0, 0); }
+  33%  { transform: translate(-2px, 1px); }
+  66%  { transform: translate(2px, -1px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* sleep — deep blue, near-static, Z particles */
+.home-mascot--sleep .home-mascot-sprite {
+  animation: home-mascot-bob 4000ms ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 8px rgba(74, 90, 122, .4));
+  opacity: .75;
+}
+.home-mascot--sleep .home-mascot-glow {
+  background: radial-gradient(circle at 50% 60%, rgba(74, 90, 122, .25), transparent 70%);
+  animation-duration: 10s;
+}
+.home-mascot--sleep .home-mascot-particles::after {
+  content: "z";
+  position: absolute;
+  top: -16px;
+  right: 12px;
+  font-size: 18px;
+  font-family: serif;
+  font-style: italic;
+  color: rgba(122, 167, 255, .65);
+  animation: home-zzz 2.4s ease-in-out infinite;
+}
+@keyframes home-zzz {
+  0%   { opacity: 0; transform: translate(0, 6px) rotate(0deg); }
+  30%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(8px, -28px) rotate(15deg); }
+}
+
+/* dance — rainbow glow, fast cycle */
+.home-mascot--dance .home-mascot-sprite {
+  animation: home-mascot-dance 320ms cubic-bezier(.4, 0, .2, 1) infinite alternate;
+  filter: drop-shadow(0 0 18px rgba(255, 122, 182, .65));
+}
+.home-mascot--dance .home-mascot-glow {
+  background: conic-gradient(from 0deg,
+    #ff7ab6, #ffd166, #72f6b6, #42f7f0, #7aa7ff, #a98bff, #ff7ab6);
+  animation: home-dance-spin 2s linear infinite;
+  filter: blur(28px);
+  opacity: .55;
+}
+@keyframes home-mascot-dance {
+  from { transform: translateY(0) rotate(-3deg); }
+  to   { transform: translateY(-12px) rotate(3deg); }
+}
+@keyframes home-dance-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* wave — single arm-raise gesture, one-shot */
+.home-mascot--wave .home-mascot-sprite {
+  animation: home-mascot-wave 600ms ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 14px rgba(66, 247, 240, .55));
+}
+@keyframes home-mascot-wave {
+  from { transform: rotate(-6deg) translateY(0); }
+  to   { transform: rotate(6deg) translateY(-4px); }
+}
+
+/* transform — scale-pulse + flash, one-shot */
+.home-mascot--transform .home-mascot-sprite {
+  animation: home-mascot-transform 500ms ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 24px rgba(255, 255, 255, .85))
+          drop-shadow(0 0 8px rgba(66, 247, 240, .8));
+}
+.home-mascot--transform .home-mascot-glow {
+  background: radial-gradient(circle at 50% 60%,
+    rgba(255, 255, 255, .8), rgba(66, 247, 240, .35) 40%, transparent 70%);
+  animation-duration: .6s;
+}
+@keyframes home-mascot-transform {
+  from { transform: scale(.85) rotate(-180deg); opacity: .6; }
+  to   { transform: scale(1.15) rotate(0deg);   opacity: 1; }
+}
+
+/* Particle layer — present on all animations but mostly empty until an
+ * animation defines its own ::after / background. Sits over the mascot. */
+.home-mascot-particles {
+  position: absolute;
+  inset: -8px;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ * Iron Man — 30-second cinematic sequence rendered into .home-stage.
+ *
+ * Timeline (% of 30s):
+ *   0-13%   armor pieces fly in / assemble / flash (4s)
+ *   13-27%  stand, reactor charges, thrusters ignite (4s)
+ *   27-73%  flight in upper-half figure-8 / spiral (14s)
+ *   73-87%  hover → dive (4s)
+ *   87-100% three-point landing + impact ring + dust (4s)
+ * ──────────────────────────────────────────────────────────────────── */
+
+/* The wrapper covers the whole stage so flight has room. */
+.ironman {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  perspective: 800px;
+}
+.ironman-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* Hide the normal mascot during the Iron Man sequence — we own the stage. */
+.home-mascot--ironman.home-mascot-wrap { display: none; }
+/* Tagline still visible for context */
+
+/* ────── Armor pieces (assemble phase, 0–13%) ────── */
+.ironman-armor {
+  position: absolute;
+  left: 50%;
+  bottom: 20%;
+  width: 36px;
+  height: 12px;
+  background: linear-gradient(135deg, #ffe082, #d62828 60%, #5b0a0a);
+  border-radius: 3px;
+  box-shadow: 0 0 12px rgba(255, 200, 80, .6);
+  opacity: 0;
+  transform: translate(-50%, 0) rotate(0deg) scale(0);
+  animation: ironman-armor-fly 30s linear forwards;
+}
+@keyframes ironman-armor-fly {
+  0%   { opacity: 0; transform: translate(var(--from-x, -300px), var(--from-y, -200px)) rotate(0deg) scale(1.2); }
+  10%  { opacity: 1; transform: translate(-50%, 0) rotate(360deg) scale(.5); }
+  13%, 100% { opacity: 0; transform: translate(-50%, 0) scale(0); }
+}
+.ironman-armor--top-l { --from-x: -45vw; --from-y: -45vh; animation-delay: 0s;   }
+.ironman-armor--top-r { --from-x:  45vw; --from-y: -45vh; animation-delay: .15s; }
+.ironman-armor--mid-l { --from-x: -50vw; --from-y:   0px; animation-delay: .3s;  }
+.ironman-armor--mid-r { --from-x:  50vw; --from-y:   0px; animation-delay: .45s; }
+.ironman-armor--bot-l { --from-x: -40vw; --from-y:  40vh; animation-delay: .6s;  }
+.ironman-armor--bot-r { --from-x:  40vw; --from-y:  40vh; animation-delay: .75s; }
+
+/* ────── Assembly flash (white burst at ~13%) ────── */
+.ironman-flash {
+  position: absolute;
+  left: 50%;
+  bottom: 20%;
+  width: 200px;
+  height: 200px;
+  margin-left: -100px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff, rgba(255, 230, 130, .8) 30%, transparent 70%);
+  opacity: 0;
+  transform: scale(0);
+  filter: blur(2px);
+  animation: ironman-flash 30s linear forwards;
+}
+@keyframes ironman-flash {
+  0%, 11% { opacity: 0; transform: scale(0); }
+  13%     { opacity: 1; transform: scale(1.6); }
+  17%     { opacity: 0; transform: scale(2); }
+  100%    { opacity: 0; }
+}
+
+/* ────── The figure (visible from 13% onward) ────── */
+.ironman-figure {
+  position: absolute;
+  left: 50%;
+  bottom: 20%;
+  margin-left: -60px;
+  width: 120px;
+  height: 160px;
+  opacity: 0;
+  /* Compound transform: translation (flight path) + rotation (banking).
+   * Each phase below sets these via the master keyframe. */
+  transform: translate(0, 0) rotate(0deg) scale(1);
+  transform-origin: 50% 50%;
+  animation: ironman-flight 30s cubic-bezier(.4, 0, .6, 1) forwards;
+  filter: drop-shadow(0 0 14px rgba(255, 80, 80, .35));
+}
+.ironman-svg { width: 100%; height: 100%; }
+
+@keyframes ironman-flight {
+  /* 0–13%: invisible while armor assembles */
+  0%, 13%   { opacity: 0; transform: translate(0, 0) rotate(0deg) scale(.85); }
+  /* 13–17%: appears in place, reactor charging */
+  17%       { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+  /* 22%: pre-takeoff crouch */
+  22%       { opacity: 1; transform: translate(0, 10px) rotate(0deg) scale(.95); }
+  /* 27%: takeoff — launch straight up */
+  27%       { opacity: 1; transform: translate(0, -10vh) rotate(0deg) scale(.95); }
+  /* 30–70%: figure-8 flight in upper half. -y goes UP (into stage area). */
+  35%       { transform: translate(-22vw, -28vh) rotate(-22deg) scale(.85); }
+  42%       { transform: translate(-8vw,  -40vh) rotate(8deg)   scale(.7);  }
+  50%       { transform: translate( 18vw, -32vh) rotate(28deg)  scale(.78); }
+  57%       { transform: translate( 26vw, -18vh) rotate(-8deg)  scale(.82); }
+  64%       { transform: translate( 8vw,  -36vh) rotate(-18deg) scale(.72); }
+  70%       { transform: translate(-12vw, -28vh) rotate(20deg)  scale(.8);  }
+  /* 73%: hover front-center, face camera */
+  73%       { transform: translate(0, -22vh) rotate(0deg) scale(.92); }
+  /* 78%: brief hold */
+  78%       { transform: translate(0, -22vh) rotate(0deg) scale(.92); }
+  /* 87%: dive down to landing pose position */
+  87%       { transform: translate(0, 0) rotate(0deg) scale(1); }
+  /* 92%: classic three-point landing — body lowered, slight forward tilt */
+  92%       { transform: translate(0, 30px) rotate(8deg) scale(1.05); }
+  /* 96–100%: hold the pose */
+  96%, 100% { transform: translate(0, 30px) rotate(8deg) scale(1.05); }
+}
+
+/* ────── Arc reactor pulse (subtle throughout the figure-on phase) ────── */
+.ironman-reactor {
+  filter: drop-shadow(0 0 6px #9ff0ff);
+  animation: ironman-reactor-pulse 30s ease-in-out forwards;
+  transform-origin: 60px 78px;
+}
+@keyframes ironman-reactor-pulse {
+  0%, 13%   { opacity: 0; }
+  16%       { opacity: 1; transform: scale(.5); }
+  20%       { opacity: 1; transform: scale(1.4); }
+  22%       { opacity: 1; transform: scale(1); }
+  /* faint breathing through flight + landing */
+  100%      { opacity: 1; transform: scale(1.1); }
+}
+
+/* ────── Repulsor glows (palms + boots) — visible during flight ────── */
+.ironman-glow {
+  filter: blur(2px);
+  opacity: 0;
+  animation: ironman-glow-pulse 30s linear forwards;
+}
+@keyframes ironman-glow-pulse {
+  0%, 22%   { opacity: 0; }
+  27%       { opacity: .95; }
+  73%       { opacity: .95; }
+  87%       { opacity: .6; }
+  92%, 100% { opacity: 0; }
+}
+.ironman-glow--palm-l, .ironman-glow--palm-r { animation-delay: 0s; }
+.ironman-glow--boot-l, .ironman-glow--boot-r { animation-delay: 0s; }
+
+/* ────── Thruster flames under feet ────── */
+.ironman-flame {
+  position: absolute;
+  bottom: -16px;
+  width: 28px;
+  height: 70px;
+  border-radius: 50%;
+  background: linear-gradient(180deg,
+    rgba(159, 240, 255, .9) 0%,
+    rgba(120, 200, 255, .7) 30%,
+    rgba(140, 100, 255, .4) 70%,
+    transparent 100%);
+  filter: blur(4px);
+  opacity: 0;
+  transform-origin: 50% 0;
+  animation: ironman-flame 30s linear forwards;
+}
+.ironman-flame--l { left: 18%; }
+.ironman-flame--r { right: 18%; }
+@keyframes ironman-flame {
+  0%, 22%   { opacity: 0; transform: scaleY(0); }
+  25%       { opacity: 1; transform: scaleY(.5); }   /* ignition */
+  27%       { opacity: 1; transform: scaleY(1.1); }
+  /* steady flicker through flight */
+  35%       { opacity: .9; transform: scaleY(1); }
+  50%       { opacity: 1; transform: scaleY(1.15); }
+  65%       { opacity: .85; transform: scaleY(.95); }
+  73%       { opacity: 1; transform: scaleY(1.1); }
+  85%       { opacity: 1; transform: scaleY(1.3); }   /* boost burn before landing */
+  90%       { opacity: .6; transform: scaleY(.4); }
+  92%, 100% { opacity: 0; transform: scaleY(0); }
+}
+
+/* ────── Trail (motion blur ghost behind the figure during flight) ────── */
+.ironman-trail {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%,
+    rgba(255, 100, 100, .25),
+    transparent 70%);
+  filter: blur(14px);
+  opacity: 0;
+  animation: ironman-trail 30s linear forwards;
+}
+@keyframes ironman-trail {
+  0%, 27%   { opacity: 0; }
+  35%       { opacity: .9; }
+  70%       { opacity: .85; }
+  87%       { opacity: .4; }
+  92%, 100% { opacity: 0; }
+}
+
+/* ────── Landing impact ring (87–96%) ────── */
+.ironman-impact {
+  position: absolute;
+  left: 50%;
+  bottom: 12%;
+  width: 60px;
+  height: 60px;
+  margin-left: -30px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 200, 80, .8);
+  opacity: 0;
+  transform: scale(0);
+  animation: ironman-impact 30s linear forwards;
+}
+@keyframes ironman-impact {
+  0%, 89%   { opacity: 0; transform: scale(0); }
+  91%       { opacity: 1; transform: scale(1); }
+  96%       { opacity: 0; transform: scale(8); border-color: rgba(255, 200, 80, 0); }
+  100%      { opacity: 0; }
+}
+
+/* ────── Dust clouds at landing ────── */
+.ironman-dust {
+  position: absolute;
+  bottom: 10%;
+  width: 70px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(200, 200, 200, .7), transparent 70%);
+  filter: blur(3px);
+  opacity: 0;
+  animation: ironman-dust 30s linear forwards;
+}
+.ironman-dust--l { left: 35%; }
+.ironman-dust--c { left: 50%; margin-left: -35px; }
+.ironman-dust--r { right: 35%; }
+@keyframes ironman-dust {
+  0%, 89%   { opacity: 0; transform: translateY(0) scaleX(.4); }
+  91%       { opacity: 1; transform: translateY(0) scaleX(1); }
+  96%       { opacity: .6; transform: translateY(-12px) scaleX(1.8); }
+  100%      { opacity: 0; transform: translateY(-24px) scaleX(2.2); }
+}
+.ironman-dust--c { animation-delay: .1s; }
+.ironman-dust--r { animation-delay: .2s; }

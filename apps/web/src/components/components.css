@@ -287,13 +287,46 @@ button {
   box-shadow: 0 0 24px var(--center-glow, rgba(61, 213, 205, .10));
 }
 
-/* Drop-target highlight (applies to sidebar nodes + tree cards + center). */
+/* Drop-target highlight (applies to sidebar nodes + tree cards + center).
+ * Three flavors:
+ *   .is-drop-over   = cursor on the middle of a card → reparent on drop
+ *   .is-drop-before = cursor on left third → insert source before this card
+ *   .is-drop-after  = cursor on right third → insert source after this card */
 .sidebar-node.is-drop-over,
 .tree-element-card.is-drop-over,
 .structure-chain-card.is-drop-over {
   border-color: #ffd84d !important;
   box-shadow: 0 0 0 2px rgba(255, 216, 77, .8), 0 0 24px rgba(255, 216, 77, .4) !important;
   background-image: linear-gradient(135deg, rgba(255, 216, 77, .14), transparent 50%) !important;
+}
+.tree-element-card.is-drop-before,
+.tree-element-card.is-drop-after,
+.structure-chain-card.is-drop-before,
+.structure-chain-card.is-drop-after {
+  position: relative;
+}
+.tree-element-card.is-drop-before::before,
+.structure-chain-card.is-drop-before::before,
+.tree-element-card.is-drop-after::after,
+.structure-chain-card.is-drop-after::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 4px;
+  border-radius: 2px;
+  background: #38f2e6;
+  box-shadow: 0 0 12px rgba(56, 242, 230, .8);
+  pointer-events: none;
+  animation: drop-pulse 1.2s ease-in-out infinite;
+}
+.tree-element-card.is-drop-before::before,
+.structure-chain-card.is-drop-before::before { left: -7px; }
+.tree-element-card.is-drop-after::after,
+.structure-chain-card.is-drop-after::after { right: -7px; }
+@keyframes drop-pulse {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
 }
 
 .sidebar-node--center {
@@ -2359,8 +2392,10 @@ button {
 .element-content--type-concept  { --center-accent: #3dd5cd; --center-soft: rgba(61, 213, 205, .10); --center-line: rgba(61, 213, 205, .35); }
 .element-content--type-step,
 .element-content--type-exercise { --center-accent: #9b7cff; --center-soft: rgba(155, 124, 255, .10); --center-line: rgba(155, 124, 255, .40); }
-.element-content--type-practice,
-.element-content--type-project  { --center-accent: #ff8fb5; --center-soft: rgba(255, 143, 181, .10); --center-line: rgba(255, 143, 181, .40); }
+.element-content--type-practice { --center-accent: #ff6f5f; --center-accent-2: #ffc977; --center-warm: #ff8fb5; --center-soft: rgba(255, 111, 95, .13); --center-line: rgba(255, 111, 95, .36); --center-glow: rgba(255, 111, 95, .24); }
+.element-content--type-project  { --center-accent: #6366f1; --center-accent-2: #8b8eff; --center-warm: #ffb6e2; --center-soft: rgba(99, 102, 241, .13); --center-line: rgba(99, 102, 241, .38); --center-glow: rgba(99, 102, 241, .26); }
+.element-content--type-report   { --center-accent: #4ade80; --center-accent-2: #74e5b0; --center-warm: #ffd86b; --center-soft: rgba(74, 222, 128, .13); --center-line: rgba(74, 222, 128, .36); --center-glow: rgba(74, 222, 128, .24); }
+.element-content--type-guide    { --center-accent: #f472b6; --center-accent-2: #fb7185; --center-warm: #ffd28d; --center-soft: rgba(244, 114, 182, .13); --center-line: rgba(244, 114, 182, .40); --center-glow: rgba(244, 114, 182, .26); }
 .element-content--type-product-design { --center-accent: #ffa86b; --center-soft: rgba(255, 168, 107, .10); --center-line: rgba(255, 168, 107, .40); }
 
 /* ── Misconceptions: vertical stack, no 4-up squeeze ── */

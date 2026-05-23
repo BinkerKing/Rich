@@ -1,0 +1,172 @@
+/* Floating task dock — anchored to the bottom-right corner of the
+ * window. The column uses flex-direction: column-reverse so newer
+ * tasks (which are first in the array) render at the BOTTOM of the
+ * stack, pushing older tasks visually upward. */
+.floating-task-dock {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 48;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 6px;
+  max-height: 60vh;
+  overflow: hidden;          /* hide overflow at the TOP, newest is always pinned at bottom */
+  pointer-events: none;       /* let clicks through empty space */
+  -webkit-app-region: no-drag;
+}
+
+.floating-task {
+  pointer-events: auto;
+  /* Card chrome — matches EmbeddedTaskList:
+   *   - Semi-transparent dark base + soft kind-tinted gradient
+   *   - Kind-colored full outline (stronger than just a left bar)
+   *   - Title text inherits kind color
+   * The base values below are the "fallback" for cards without a kind
+   * class (shouldn't happen in practice, kept defensive). */
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--kind-color, #9ba0a6) 14%, transparent),
+      transparent 70%),
+    rgba(10, 18, 30, .55);
+  border: 1px solid color-mix(in srgb, var(--kind-color, currentColor) 45%, rgba(255, 255, 255, .12));
+  border-radius: 8px;
+  padding: 6px 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 220px;
+  max-width: 340px;
+  color: var(--kind-color, #c8c8c8);
+  font-size: 12px;
+  text-align: left;
+  cursor: default;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition:
+    background .15s ease,
+    border-color .15s ease,
+    transform .15s ease,
+    opacity .25s ease;
+  animation: floatingTaskIn .26s cubic-bezier(.2, .8, .2, 1);
+}
+.floating-task.is-navigable {
+  cursor: pointer;
+}
+.floating-task.is-navigable:hover {
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--kind-color, #9ba0a6) 22%, transparent),
+      transparent 70%),
+    rgba(10, 18, 30, .65);
+  border-color: color-mix(in srgb, var(--kind-color, currentColor) 65%, transparent);
+  transform: translateY(-1px);
+}
+.floating-task[disabled] {
+  opacity: .82;
+}
+
+/* Per-kind palette — same values as EmbeddedTaskList.css so both surfaces
+ * speak the same color language. Each --kind-color binds a single
+ * semantic role (color-coding by what the task DOES, not what it's
+ * doing). Status overrides for running/unread/error live below. */
+.floating-task--kind-generate      { --kind-color: #38f2e6; }
+.floating-task--kind-refine        { --kind-color: #3dd5cd; }
+.floating-task--kind-expand        { --kind-color: #6aa8ff; }
+.floating-task--kind-extend        { --kind-color: #b9a3ff; }
+.floating-task--kind-feedback      { --kind-color: #ffa86b; }
+.floating-task--kind-path          { --kind-color: #74e5b0; }
+.floating-task--kind-daily-news    { --kind-color: #4ade80; }
+.floating-task--kind-ai-search     { --kind-color: #8ffef7; }
+.floating-task--kind-mindmap       { --kind-color: #818cf8; }
+.floating-task--kind-image-gen     { --kind-color: #f472b6; }
+.floating-task--kind-greatme-brain { --kind-color: #ffd166; }
+
+/* Kind chip — carries the type color first, status only overrides when
+ * the task is running/unread/error (those need extra attention). */
+.floating-task__kind {
+  font-family: var(--mono, monospace);
+  font-size: 10px;
+  letter-spacing: .06em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--kind-color, currentColor);
+  color: var(--kind-color, var(--soft, #9ba0a6));
+  background: color-mix(in srgb, var(--kind-color, transparent) 14%, transparent);
+}
+
+/* The full outline + tinted background now carries the kind signal —
+ * no separate left bar needed (the EmbeddedTaskList variant keeps a bar
+ * because its cards are wider; the dock cards are compact). */
+
+/* Status overrides — these win over per-kind because they communicate
+ * actionable state (work in progress / needs review / failed). */
+.floating-task--running .floating-task__kind {
+  color: #39f6e8;
+  border-color: #39f6e8;
+  background: color-mix(in srgb, #39f6e8 16%, transparent);
+}
+.floating-task--done.is-unread .floating-task__kind {
+  color: #ffc94d;
+  border-color: #ffc94d;
+  background: color-mix(in srgb, #ffc94d 18%, transparent);
+}
+.floating-task--error .floating-task__kind {
+  color: #ff7a8e;
+  border-color: #ff7a8e;
+  background: color-mix(in srgb, #ff7a8e 14%, transparent);
+}
+
+.floating-task__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Inherit the kind color but soften it so it's readable as primary
+   * text rather than a chip. Falls back to a neutral light grey when
+   * --kind-color isn't set. */
+  color: color-mix(in srgb, var(--kind-color, #d8d8d8) 75%, #f5f5f5);
+}
+
+.floating-task__elapsed {
+  font-family: var(--mono, monospace);
+  font-size: 10px;
+  /* Match title's color family — dimmer so it doesn't compete. */
+  color: color-mix(in srgb, var(--kind-color, #7a7a7a) 45%, #7a7a7a);
+}
+
+/* Subtle pulse for running tasks so the user can spot live work without
+ * the card becoming a distraction. */
+.floating-task--running {
+  border-color: rgba(57, 246, 232, .42);
+  animation:
+    floatingTaskIn .26s cubic-bezier(.2, .8, .2, 1),
+    floatingTaskPulse 2s ease-in-out infinite;
+}
+@keyframes floatingTaskPulse {
+  0%, 100% { border-color: rgba(57, 246, 232, .32); }
+  50%      { border-color: rgba(57, 246, 232, .72); }
+}
+
+/* Gold breath for unread-done tasks — they want attention. */
+.floating-task--done.is-unread {
+  border-color: rgba(255, 201, 77, .52);
+  animation:
+    floatingTaskIn .26s cubic-bezier(.2, .8, .2, 1),
+    floatingTaskUnreadPulse 2.4s ease-in-out infinite;
+}
+@keyframes floatingTaskUnreadPulse {
+  0%, 100% { border-color: rgba(255, 201, 77, .35); }
+  50%      { border-color: rgba(255, 201, 77, .80); }
+}
+
+@keyframes floatingTaskIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

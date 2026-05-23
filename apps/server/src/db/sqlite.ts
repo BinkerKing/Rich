@@ -134,6 +134,46 @@ function applySchema(db: Database.Database) {
       dwell_ms INTEGER
     );
     CREATE INDEX IF NOT EXISTS idx_center_history_ts ON center_history(id DESC);
+
+    -- System-improvement task board. Used by the workflow:
+    --   Hermes hits a missing capability → INSERT row with status='pending'
+    --   Developer ships the fix → UPDATE status='ready_to_verify'
+    --   Hermes verifies → UPDATE status='verified' or 'rejected' + verification note
+    -- verifications_json is a JSON array of {ts, result, notes} audit entries.
+    CREATE TABLE IF NOT EXISTS improvement_tasks (
+      id            TEXT PRIMARY KEY,
+      title         TEXT NOT NULL,
+      description   TEXT NOT NULL DEFAULT '',
+      reason        TEXT NOT NULL DEFAULT '',
+      status        TEXT NOT NULL DEFAULT 'pending',
+      priority      TEXT,
+      category      TEXT,
+      created_by    TEXT NOT NULL DEFAULT 'hermes',
+      related_files TEXT,
+      verifications_json TEXT NOT NULL DEFAULT '[]',
+      requested_at  TEXT NOT NULL,
+      updated_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_improvement_tasks_status ON improvement_tasks(status, updated_at DESC);
+
+    -- Toolbox: log of every tool invocation (manual UI button + Hermes via MCP).
+    -- args_json + result are TEXT; scheduled_for lets a tool defer to a future
+    -- time (cancellable from UI before it fires).
+    CREATE TABLE IF NOT EXISTS tool_invocations (
+      id            TEXT PRIMARY KEY,
+      tool_name     TEXT NOT NULL,
+      args_json     TEXT NOT NULL DEFAULT '{}',
+      status        TEXT NOT NULL,          -- scheduled | running | completed | failed | cancelled
+      created_by    TEXT NOT NULL,          -- hermes | user
+      scheduled_for TEXT,
+      started_at    TEXT,
+      finished_at   TEXT,
+      result        TEXT,
+      error         TEXT,
+      created_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_tool_invocations_status_ts ON tool_invocations(status, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_tool_invocations_tool ON tool_invocations(tool_name, created_at DESC);
   `);
 
   // Idempotent column additions for older DBs created before these fields existed.

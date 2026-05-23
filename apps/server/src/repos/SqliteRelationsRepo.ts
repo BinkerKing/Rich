@@ -29,12 +29,14 @@ export class SqliteRelationsRepo implements RelationsRepo {
   constructor(private db: Database.Database) {}
 
   async list(): Promise<Relation[]> {
-    const rows = this.db.prepare("SELECT * FROM relations").all() as RelationRow[];
+    // Explicit rowid ordering: child-relation reordering re-inserts rows so
+    // the visual order under each parent matches the insertion order.
+    const rows = this.db.prepare("SELECT * FROM relations ORDER BY rowid").all() as RelationRow[];
     return rows.map(rowToRelation);
   }
 
   async byFrom(id: ElementId): Promise<Relation[]> {
-    const rows = this.db.prepare("SELECT * FROM relations WHERE from_id = ?").all(id) as RelationRow[];
+    const rows = this.db.prepare("SELECT * FROM relations WHERE from_id = ? ORDER BY rowid").all(id) as RelationRow[];
     return rows.map(rowToRelation);
   }
 
@@ -48,6 +50,36 @@ export class SqliteRelationsRepo implements RelationsRepo {
     const placeholders = ids.map(() => "?").join(",");
     this.db.prepare(`DELETE FROM relations WHERE from_id IN (${placeholders}) OR to_id IN (${placeholders})`)
       .run(...ids, ...ids);
+  }
+
+  async reorderChildren(parentId: ElementId, childIds: ElementId[]): Promise<void> {
+    const tx = this.db.transaction(() => {
+      const rows = this.db.prepare(
+        "SELECT * FROM relations WHERE kind = 'child' AND from_id = ? ORDER BY rowid",
+      ).all(parentId) as RelationRow[];
+      if (rows.length === 0) return;
+      const byTo = new Map(rows.map(r => [r.to_id, r]));
+      this.db.prepare("DELETE FROM relations WHERE kind = 'child' AND from_id = ?").run(parentId);
+      const insert = this.db.prepare(`
+        INSERT INTO relations (id, from_id, to_id, kind, strength, reason, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+      const seen = new Set<string>();
+      for (const cid of childIds) {
+        const r = byTo.get(cid);
+        if (!r) continue;
+        seen.add(cid);
+        insert.run(r.id, r.from_id, r.to_id, r.kind, r.strength, r.reason, r.created_at);
+      }
+      // Defensive: re-append any child rows the client didn't list (shouldn't
+      // happen if the frontend sends the full set, but we keep their data).
+      for (const r of rows) {
+        if (!seen.has(r.to_id)) {
+          insert.run(r.id, r.from_id, r.to_id, r.kind, r.strength, r.reason, r.created_at);
+        }
+      }
+    });
+    tx();
   }
 
   async reparent(childId: ElementId, newParentId: ElementId | null): Promise<void> {

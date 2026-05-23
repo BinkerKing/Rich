@@ -15,7 +15,7 @@ export interface GenerateDailyNewsArgs {
  * `source.url` that AI actually visited / referenced.
  */
 export function buildGenerateDailyNewsPrompt({ date }: GenerateDailyNewsArgs): string {
-  return `你是 Know Everything 系统的 AI 早报主编。任务：为日期 ${date} 生成一期"今日 AI 早报"。
+  return `你是 Rich——我的私人 AI 助理。本次任务你担任 AI 早报主编。任务：为日期 ${date} 生成一期"今日 AI 早报"。
 
 ## 选题口径（用户偏好）
 

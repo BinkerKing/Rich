@@ -10,9 +10,11 @@ const KIND_LABEL: Record<string, string> = {
   extend: "延伸",
   feedback: "反馈",
   path: "路径",
-  hydrate: "加载",
   "daily-news": "早报",
   "ai-search": "AI 搜索",
+  mindmap: "导图",
+  "image-gen": "封面",
+  "greatme-brain": "计划管理",
 };
 
 function elapsed(t: TaskRecord): string {

@@ -1,0 +1,142 @@
+/* Attachments block editor — used inside EditableBody and (read-only) inside
+ * SectionRenderer. Layout: mode toggle on top, then either a drop zone or a
+ * folder-link control, then the file/dir tree, then a meta footer. */
+
+.att-editor { display: flex; flex-direction: column; gap: 8px; }
+
+.att-mode { display: flex; gap: 4px; }
+.att-mode button {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.att-mode button:hover { color: var(--text); border-color: var(--muted); }
+.att-mode button.is-active {
+  color: var(--teal);
+  border-color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 10%, transparent);
+}
+.att-mode button:disabled { opacity: 0.5; cursor: wait; }
+
+.att-dropzone {
+  padding: 14px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: rgba(8, 16, 28, 0.4);
+  transition: background .12s, border-color .12s;
+}
+.att-dropzone.is-over {
+  border-color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 8%, transparent);
+}
+.att-dropzone--folder { background: rgba(99, 102, 241, 0.05); border-color: color-mix(in srgb, #6366f1 30%, var(--line)); }
+.att-dropzone__hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.att-dropzone__hint code {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.3);
+  color: var(--text);
+  font-size: 11px;
+}
+.att-link {
+  display: inline-block;
+  margin: 0 4px;
+  padding: 2px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--teal);
+  background: color-mix(in srgb, var(--teal) 12%, transparent);
+  color: var(--teal);
+  font-size: 12px;
+  cursor: pointer;
+}
+.att-link:hover { background: color-mix(in srgb, var(--teal) 22%, transparent); }
+.att-link:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Tree rows */
+.att-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(0,0,0,0.18);
+  overflow: hidden;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.att-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  width: 100%;
+  text-align: left;
+  cursor: default;
+}
+.att-row--dir { cursor: pointer; }
+.att-row--dir:hover { background: rgba(255,255,255,0.04); }
+.att-row__icon { flex-shrink: 0; font-size: 12px; opacity: 0.85; }
+.att-row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  text-decoration: none;
+}
+.att-row__name--dir { font-weight: 600; }
+.att-row__name--local { color: var(--muted); }
+a.att-row__name:hover { color: var(--teal); text-decoration: underline; }
+.att-row__meta {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.att-row__delete {
+  flex-shrink: 0;
+  width: 20px; height: 20px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+.att-row__delete:hover {
+  color: var(--pink, #ff5ed4);
+  border-color: var(--pink, #ff5ed4);
+}
+
+.att-meta {
+  color: var(--muted);
+  font-size: 11px;
+  padding: 0 4px;
+}
+
+.att-error {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--pink, #ff5ed4) 40%, transparent);
+  background: color-mix(in srgb, var(--pink, #ff5ed4) 14%, transparent);
+  color: var(--pink, #ff5ed4);
+  font-size: 11px;
+}

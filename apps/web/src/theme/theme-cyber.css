@@ -2,83 +2,74 @@
    Activated by html[data-theme="cyber"]. This is the default theme, but it is
    kept scoped so the more expressive themes can override freely. */
 
+/* Claude-desktop styled "暗夜极简": pure-black canvas + bright accent
+ * palette retained for icons / status / role coloring. The old cyber
+ * neon decoration (radial glows, animated grid, scanlines) is stripped
+ * out below — kept the data-theme="cyber" id so existing localStorage
+ * preferences continue to map here. */
 html[data-theme="cyber"] {
   color-scheme: dark;
-  --bg: #020713;
-  --bg-2: #07152a;
-  --panel: rgba(7, 19, 38, .84);
-  --panel-2: rgba(10, 28, 54, .90);
-  --line: rgba(124, 247, 255, .12);
-  --line-2: rgba(255, 79, 216, .22);
-  --text: #f4fbff;
-  --soft: #cfe8f8;
-  --muted: #8fb3ca;
-  --dim: #5c7a92;
+  /* Backgrounds — flat near-black, very slight warm tint so OLED doesn't
+     look "dead". No gradients. */
+  --bg: #0b0b0d;
+  --bg-2: #121215;
+  --panel: #16161b;
+  --panel-2: #1c1c22;
+  /* Borders barely visible, neutral gray instead of cyan-tinted. */
+  --line: rgba(255, 255, 255, .06);
+  --line-2: rgba(255, 255, 255, .10);
+  /* Warm off-white text instead of cool blue-white. */
+  --text: #ececec;
+  --soft: #c8c8c8;
+  --muted: #8a8a8a;
+  --dim: #5a5a5a;
+  /* Accent palette stays vivid — semantic role coloring depends on it.
+     These light up on icons / status pills / role chips against the
+     black canvas. */
   --teal: #39f6e8;
   --teal-2: #8ffef7;
-  --teal-soft: rgba(57, 246, 232, .10);
-  --teal-line: rgba(57, 246, 232, .30);
+  --teal-soft: rgba(57, 246, 232, .12);
+  --teal-line: rgba(57, 246, 232, .34);
   --blue: #5f8dff;
   --violet: #a96bff;
   --amber: #ffd86b;
   --pink: #ff4fd8;
   --green: #63ff9f;
   --orange: #ff7a3d;
-  --radius: 12px;
-  --cyber-void: #020713;
-  --cyber-panel: rgba(5, 18, 36, .82);
-  --cyber-panel-strong: rgba(8, 25, 50, .94);
-  --cyber-glass: rgba(10, 31, 58, .64);
-  --cyber-edge: rgba(124, 247, 255, .15);
-  --cyber-edge-hot: rgba(57, 246, 232, .42);
-  --cyber-glow: rgba(57, 246, 232, .20);
-  --cyber-blue-glow: rgba(95, 141, 255, .18);
-  --cyber-violet-glow: rgba(169, 107, 255, .16);
-  --cyber-amber-glow: rgba(255, 216, 107, .12);
-  --cyber-pink-glow: rgba(255, 79, 216, .14);
-  --cyber-shadow: 0 18px 54px rgba(0, 0, 0, .34), 0 0 24px rgba(57, 246, 232, .025);
-  --cyber-inset: inset 0 1px 0 rgba(255, 255, 255, .07), inset 0 0 0 1px rgba(255, 255, 255, .018);
+  --radius: 10px;
+  /* Legacy --cyber-* vars kept so old components still resolve; now
+     pointing at flat surfaces. */
+  --cyber-void: #0b0b0d;
+  --cyber-panel: #16161b;
+  --cyber-panel-strong: #1c1c22;
+  --cyber-glass: rgba(28, 28, 34, .72);
+  --cyber-edge: rgba(255, 255, 255, .08);
+  --cyber-edge-hot: rgba(57, 246, 232, .40);
+  --cyber-glow: rgba(57, 246, 232, .14);
+  --cyber-blue-glow: rgba(95, 141, 255, .12);
+  --cyber-violet-glow: rgba(169, 107, 255, .12);
+  --cyber-amber-glow: rgba(255, 216, 107, .10);
+  --cyber-pink-glow: rgba(255, 79, 216, .10);
+  --cyber-shadow: 0 12px 36px rgba(0, 0, 0, .48);
+  --cyber-inset: inset 0 1px 0 rgba(255, 255, 255, .04);
 }
 
+/* Flat near-black canvas — no gradients, no animated grid, no scanlines.
+ * The previous cyber theme stacked 5 radial gradients + an animated grid
+ * + scanlines for the "neon" look; all stripped here so the UI reads
+ * the way Claude Desktop does: solid dark backdrop, bright icons. */
 html[data-theme="cyber"] body {
-  background:
-    radial-gradient(ellipse 980px 620px at 16% -8%, rgba(57, 246, 232, .10), transparent 62%),
-    radial-gradient(ellipse 760px 520px at 96% 4%, rgba(95, 141, 255, .10), transparent 58%),
-    radial-gradient(ellipse 780px 600px at 72% 104%, rgba(169, 107, 255, .08), transparent 62%),
-    radial-gradient(ellipse 620px 420px at 18% 92%, rgba(255, 79, 216, .055), transparent 60%),
-    radial-gradient(ellipse 520px 360px at 86% 82%, rgba(255, 216, 107, .040), transparent 60%),
-    linear-gradient(145deg, #020713 0%, #07162c 46%, #050716 100%);
+  background: var(--bg);
 }
 
+/* Neutralize the decorative pseudo-elements. Keep them in the box model
+ * so any rule still referencing them doesn't error, but make them
+ * invisible. */
 html[data-theme="cyber"] body::before,
 html[data-theme="cyber"] body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-}
-
-html[data-theme="cyber"] body::before {
-  opacity: .34;
-  background:
-    linear-gradient(rgba(105, 217, 255, .046) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(105, 217, 255, .034) 1px, transparent 1px),
-    radial-gradient(circle at 30% 24%, rgba(57, 246, 232, .10), transparent 18%),
-    radial-gradient(circle at 82% 72%, rgba(95, 141, 255, .10), transparent 22%),
-    radial-gradient(circle at 14% 74%, rgba(255, 79, 216, .08), transparent 18%),
-    radial-gradient(circle at 58% 86%, rgba(255, 216, 107, .08), transparent 20%);
-  background-size: 72px 72px, 72px 72px, auto, auto;
-  mask-image: radial-gradient(circle at 50% 42%, black, transparent 78%);
-  animation: cyberGridFlow 26s linear infinite;
-}
-
-html[data-theme="cyber"] body::after {
-  opacity: .24;
-  background:
-    repeating-linear-gradient(0deg, transparent 0 3px, rgba(255,255,255,.018) 3px 4px),
-    linear-gradient(115deg, transparent 0%, rgba(57, 246, 232, .055) 36%, rgba(255, 79, 216, .055) 47%, rgba(255, 216, 107, .036) 54%, transparent 62%);
-  mix-blend-mode: screen;
+  content: none;
+  background: none;
+  animation: none;
 }
 
 html[data-theme="cyber"] .tree-view::before {
@@ -845,4 +836,1379 @@ html[data-theme="cyber"] .tree-view::before {
     radial-gradient(circle at 92% 14%, color-mix(in srgb, var(--center-accent-2, var(--blue)) 44%, transparent), transparent 36%),
     radial-gradient(circle at 86% 94%, color-mix(in srgb, var(--center-warm, var(--amber)) 32%, transparent), transparent 36%),
     linear-gradient(135deg, rgba(2, 7, 19, .96), rgba(6, 20, 36, .92) 54%, rgba(3, 8, 20, .96)) !important;
+}
+
+/* ============================================================================
+ * Black Obsidian Client — final pass.
+ *
+ * The earlier cyber rules still contained a lot of sci-fi decoration. This
+ * final layer intentionally makes the default client theme closer to Claude
+ * Desktop: black canvas, white readable text, charcoal panes, quiet borders.
+ * Differentiation is handled by bright text/icon/chip accents, not glowing
+ * backgrounds.
+ * ========================================================================= */
+
+html[data-theme="cyber"] {
+  color-scheme: dark;
+  --bg: #09090a;
+  --bg-2: #0f0f11;
+  --panel: #151517;
+  --panel-2: #1c1c1f;
+  --panel-3: #242428;
+  --line: rgba(255, 255, 255, .075);
+  --line-2: rgba(255, 255, 255, .13);
+  --text: #f4f4f5;
+  --soft: #d7d7db;
+  --muted: #9b9ba3;
+  --dim: #686872;
+  --teal: #40e7dc;
+  --teal-2: #8dfbf4;
+  --blue: #7aa7ff;
+  --violet: #b187ff;
+  --amber: #ffd166;
+  --pink: #ff6bd6;
+  --green: #72f2a4;
+  --orange: #ff9666;
+  --teal-soft: rgba(64, 231, 220, .10);
+  --teal-line: rgba(64, 231, 220, .30);
+  --cyber-void: var(--bg);
+  --cyber-panel: var(--panel);
+  --cyber-panel-strong: var(--panel-2);
+  --cyber-glass: rgba(21, 21, 23, .86);
+  --cyber-edge: var(--line);
+  --cyber-edge-hot: rgba(64, 231, 220, .30);
+  --cyber-glow: rgba(64, 231, 220, .12);
+  --cyber-shadow: 0 16px 48px rgba(0, 0, 0, .36);
+  --cyber-inset: inset 0 1px 0 rgba(255, 255, 255, .035);
+  --role-action: var(--teal);
+  --role-running: var(--violet);
+  --role-warn: var(--amber);
+  --role-emphasis: var(--pink);
+  --role-success: var(--green);
+  --role-info: var(--blue);
+}
+
+html[data-theme="cyber"] body {
+  background: #09090a !important;
+  color: var(--text) !important;
+}
+
+html[data-theme="cyber"] body::before,
+html[data-theme="cyber"] body::after,
+html[data-theme="cyber"] .tree-view::before,
+html[data-theme="cyber"] .tree-view::after,
+html[data-theme="cyber"] .tv-topbar::before,
+html[data-theme="cyber"] .tv-topbar::after,
+html[data-theme="cyber"] .tv-footer::after,
+html[data-theme="cyber"] .home-cockpit::before,
+html[data-theme="cyber"] .home-cockpit::after,
+html[data-theme="cyber"] .home-cockpit__halo,
+html[data-theme="cyber"] .home-command-deck__rings,
+html[data-theme="cyber"] .home-hero::before,
+html[data-theme="cyber"] .tv-logo::before,
+html[data-theme="cyber"] .tv-logo::after {
+  content: none !important;
+  display: none !important;
+  animation: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="cyber"] .tree-view {
+  background: #09090a !important;
+}
+
+html[data-theme="cyber"] .tv-topbar,
+html[data-theme="cyber"] .learning-sidebar,
+html[data-theme="cyber"] .tv-main,
+html[data-theme="cyber"] .system-panel,
+html[data-theme="cyber"] .tv-footer,
+html[data-theme="cyber"] .element-content,
+html[data-theme="cyber"] .context-rail,
+html[data-theme="cyber"] .three-col-context,
+html[data-theme="cyber"] .admin-shell,
+html[data-theme="cyber"] .home-cockpit,
+html[data-theme="cyber"] .home-command-deck,
+html[data-theme="cyber"] .home-topic-dock,
+html[data-theme="cyber"] .home-resume-deck,
+html[data-theme="cyber"] .home-left-stats div,
+html[data-theme="cyber"] .theme-switch-popover,
+html[data-theme="cyber"] .news-modal,
+html[data-theme="cyber"] .mindmap-player,
+html[data-theme="cyber"] .mm-embed {
+  border-color: var(--line) !important;
+  background: var(--panel) !important;
+  color: var(--text) !important;
+  box-shadow: var(--cyber-shadow), var(--cyber-inset) !important;
+  backdrop-filter: none !important;
+}
+
+html[data-theme="cyber"] .tv-topbar,
+html[data-theme="cyber"] .tv-footer,
+html[data-theme="cyber"] .learning-sidebar,
+html[data-theme="cyber"] .system-panel {
+  background: #101012 !important;
+}
+
+html[data-theme="cyber"] .tv-main,
+html[data-theme="cyber"] .home-cockpit {
+  background: #0c0c0e !important;
+}
+
+html[data-theme="cyber"] .tv-brand strong,
+html[data-theme="cyber"] .element-title-row h2,
+html[data-theme="cyber"] .home-topic-dock h2,
+html[data-theme="cyber"] .system-panel__head h2,
+html[data-theme="cyber"] .learning-sidebar h2,
+html[data-theme="cyber"] .section-block h2,
+html[data-theme="cyber"] .section-block h3,
+html[data-theme="cyber"] .body-section-h,
+html[data-theme="cyber"] .news-card__title,
+html[data-theme="cyber"] .news-modal__title,
+html[data-theme="cyber"] .mindmap-title {
+  color: #fafafa !important;
+  text-shadow: none !important;
+}
+
+html[data-theme="cyber"] .tv-logo,
+html[data-theme="cyber"] .brand .logo {
+  border-color: var(--line-2) !important;
+  background:
+    radial-gradient(circle at 50% 48%, var(--teal) 0 18%, transparent 19%),
+    #18181b !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .035) !important;
+  animation: none !important;
+}
+
+html[data-theme="cyber"] .tv-crumb,
+html[data-theme="cyber"] .system-search-box,
+html[data-theme="cyber"] .home-form,
+html[data-theme="cyber"] .home-form input,
+html[data-theme="cyber"] .home-mode__btn,
+html[data-theme="cyber"] .home-richness button,
+html[data-theme="cyber"] .home-analysis,
+html[data-theme="cyber"] .home-spec,
+html[data-theme="cyber"] .action-input,
+html[data-theme="cyber"] .theme-switch-card,
+html[data-theme="cyber"] .view-card,
+html[data-theme="cyber"] .search-result-list button,
+html[data-theme="cyber"] .embedded-task,
+html[data-theme="cyber"] .section-block,
+html[data-theme="cyber"] .body-section,
+html[data-theme="cyber"] .body-toc,
+html[data-theme="cyber"] .context-block,
+html[data-theme="cyber"] .inline-qa,
+html[data-theme="cyber"] .ke-annotation-analysis,
+html[data-theme="cyber"] .callout,
+html[data-theme="cyber"] .warn-card,
+html[data-theme="cyber"] .example-item,
+html[data-theme="cyber"] .decision-item,
+html[data-theme="cyber"] .module-card,
+html[data-theme="cyber"] .mvp-card,
+html[data-theme="cyber"] .phase-item,
+html[data-theme="cyber"] .news-card {
+  border-color: var(--line) !important;
+  background: var(--panel-2) !important;
+  color: var(--text) !important;
+  box-shadow: var(--cyber-inset) !important;
+}
+
+html[data-theme="cyber"] .structure-map {
+  border-color: var(--line) !important;
+  background: #0b0b0d !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .02) !important;
+}
+
+html[data-theme="cyber"] .structure-chain-card,
+html[data-theme="cyber"] .tree-element-card,
+html[data-theme="cyber"] .path-card,
+html[data-theme="cyber"] .scene-list button,
+html[data-theme="cyber"] .rail-paths > li,
+html[data-theme="cyber"] .rail-lateral > li,
+html[data-theme="cyber"] .home-topic-card,
+html[data-theme="cyber"] .home-fav-card,
+html[data-theme="cyber"] .home-search-card {
+  border-color: color-mix(in srgb, var(--element-accent, var(--center-accent, var(--teal))) 22%, var(--line)) !important;
+  background: #18181b !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="cyber"] .structure-chain-card:hover,
+html[data-theme="cyber"] .tree-element-card:hover,
+html[data-theme="cyber"] .path-card:hover,
+html[data-theme="cyber"] .scene-list button:hover,
+html[data-theme="cyber"] .search-result-list button:hover,
+html[data-theme="cyber"] .rail-paths > li:hover,
+html[data-theme="cyber"] .rail-lateral > li:hover,
+html[data-theme="cyber"] .home-topic-card:hover {
+  border-color: color-mix(in srgb, var(--element-accent, var(--center-accent, var(--teal))) 54%, var(--line)) !important;
+  background: #202024 !important;
+  transform: translateY(-1px);
+}
+
+html[data-theme="cyber"] .structure-chain-card.is-selected,
+html[data-theme="cyber"] .tree-element-card.is-selected,
+html[data-theme="cyber"] .sidebar-node.is-active,
+html[data-theme="cyber"] .ancestor-list button.is-center,
+html[data-theme="cyber"] .view-card.is-active,
+html[data-theme="cyber"] .news-cat.is-active {
+  border-color: color-mix(in srgb, var(--element-accent, var(--center-accent, var(--teal))) 72%, var(--line)) !important;
+  background: color-mix(in srgb, var(--element-accent, var(--center-accent, var(--teal))) 12%, #18181b) !important;
+  color: #fff !important;
+  box-shadow: inset 3px 0 0 var(--element-accent, var(--center-accent, var(--teal))) !important;
+}
+
+html[data-theme="cyber"] .tv-tools button,
+html[data-theme="cyber"] .tv-tools span,
+html[data-theme="cyber"] .theme-switch > button,
+html[data-theme="cyber"] .quiet-button,
+html[data-theme="cyber"] .element-content__actions button,
+html[data-theme="cyber"] .footer-actions button,
+html[data-theme="cyber"] .home-form button,
+html[data-theme="cyber"] .cta-button {
+  border-color: var(--line) !important;
+  background: #1f1f23 !important;
+  color: var(--soft) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="cyber"] .tv-tools button:hover,
+html[data-theme="cyber"] .tv-tools button.is-active,
+html[data-theme="cyber"] .theme-switch > button:hover,
+html[data-theme="cyber"] .theme-switch > button.is-active,
+html[data-theme="cyber"] .quiet-button:hover,
+html[data-theme="cyber"] .element-content__actions button:hover,
+html[data-theme="cyber"] .footer-actions button:hover,
+html[data-theme="cyber"] .home-form button:hover:not(:disabled),
+html[data-theme="cyber"] .cta-button:hover,
+html[data-theme="cyber"] .home-mode__btn.is-active,
+html[data-theme="cyber"] .home-richness button.is-active {
+  border-color: color-mix(in srgb, var(--center-accent, var(--teal)) 50%, var(--line)) !important;
+  background: color-mix(in srgb, var(--center-accent, var(--teal)) 12%, #232327) !important;
+  color: var(--center-accent, var(--teal)) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="cyber"] .home-form button,
+html[data-theme="cyber"] .cta-button {
+  color: #09090a !important;
+  background: var(--center-accent, var(--teal)) !important;
+  border-color: transparent !important;
+}
+
+html[data-theme="cyber"] .home-form input {
+  height: 42px !important;
+  color: #fff !important;
+  background: #111113 !important;
+}
+
+html[data-theme="cyber"] .home-form button {
+  height: 42px !important;
+}
+
+html[data-theme="cyber"] .home-mode__label,
+html[data-theme="cyber"] .sidebar-label,
+html[data-theme="cyber"] .home-kicker,
+html[data-theme="cyber"] .home-topic-card__index,
+html[data-theme="cyber"] .level-badge,
+html[data-theme="cyber"] .tree-element-card__type,
+html[data-theme="cyber"] .structure-chain-card__badge,
+html[data-theme="cyber"] .meta-chip,
+html[data-theme="cyber"] .sidebar-label__count,
+html[data-theme="cyber"] .search-result-list b,
+html[data-theme="cyber"] .sec-source__tag,
+html[data-theme="cyber"] .task-panel__badge,
+html[data-theme="cyber"] .embedded-tasks__badge,
+html[data-theme="cyber"] .view-card__badge {
+  border-color: color-mix(in srgb, currentColor 26%, transparent) !important;
+  background: color-mix(in srgb, currentColor 12%, transparent) !important;
+  color: var(--center-accent, var(--teal)) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="cyber"] .ke-icon,
+html[data-theme="cyber"] .tree-element-card__icon,
+html[data-theme="cyber"] .structure-chain-card .ke-icon,
+html[data-theme="cyber"] .view-card__icon,
+html[data-theme="cyber"] .system-placeholder .ke-icon,
+html[data-theme="cyber"] .search-status .ke-icon,
+html[data-theme="cyber"] .action-mark .ke-icon {
+  color: var(--element-accent, var(--center-accent, var(--teal))) !important;
+  filter: none !important;
+}
+
+/* Favorite indicator in the element-detail header — the bulk .ke-icon
+ * rule above forces every icon to the element-accent color with
+ * !important, which would silently steal the gold from .is-favorited.
+ * Re-assert gold here with !important so the click feedback actually
+ * shows. Without this, toggleFavorite() ran fine but no visual changed —
+ * giving the impression "click does nothing". */
+html[data-theme="cyber"] .node-glyph--favoritable.is-favorited,
+html[data-theme="cyber"] .node-glyph--favoritable.is-favorited .ke-icon {
+  color: #ffc94d !important;
+  filter: drop-shadow(0 0 14px rgba(255, 201, 77, .55)) !important;
+}
+
+html[data-theme="cyber"] .element-type--topic       { --element-accent: #ffd166; }
+html[data-theme="cyber"] .element-type--concept     { --element-accent: #7aa7ff; }
+html[data-theme="cyber"] .element-type--practice    { --element-accent: #ff9666; }
+html[data-theme="cyber"] .element-type--step        { --element-accent: #b187ff; }
+html[data-theme="cyber"] .element-type--knowledge   { --element-accent: #40e7dc; }
+html[data-theme="cyber"] .element-type--report      { --element-accent: #72f2a4; }
+html[data-theme="cyber"] .element-type--project     { --element-accent: #8b8eff; }
+html[data-theme="cyber"] .element-type--guide       { --element-accent: #ff6bd6; }
+html[data-theme="cyber"] .element-type--product-design { --element-accent: #ffb86b; }
+
+html[data-theme="cyber"] .body-prose,
+html[data-theme="cyber"] .body-lead,
+html[data-theme="cyber"] .news-modal__body,
+html[data-theme="cyber"] .element-content p,
+html[data-theme="cyber"] .section-block p,
+html[data-theme="cyber"] .markdown-view {
+  color: #e7e7ea !important;
+}
+
+html[data-theme="cyber"] .home-hero__sub,
+html[data-theme="cyber"] .news-card__sub,
+html[data-theme="cyber"] .news-modal__sub,
+html[data-theme="cyber"] .body-section-sub,
+html[data-theme="cyber"] .tree-element-card p,
+html[data-theme="cyber"] .structure-chain-card p,
+html[data-theme="cyber"] .home-topic-card em,
+html[data-theme="cyber"] .home-topic-card small {
+  color: var(--muted) !important;
+}
+
+html[data-theme="cyber"] table,
+html[data-theme="cyber"] .kv-table,
+html[data-theme="cyber"] .competitor-table,
+html[data-theme="cyber"] .budget-table {
+  border-color: var(--line) !important;
+  background: #111113 !important;
+}
+
+html[data-theme="cyber"] th {
+  background: #202024 !important;
+  color: var(--center-accent, var(--teal)) !important;
+}
+
+html[data-theme="cyber"] td,
+html[data-theme="cyber"] th {
+  border-color: var(--line) !important;
+}
+
+html[data-theme="cyber"] .tree-line {
+  filter: none !important;
+}
+
+html[data-theme="cyber"] .tree-line path,
+html[data-theme="cyber"] .tree-link,
+html[data-theme="cyber"] .tree-connector {
+  stroke: color-mix(in srgb, var(--center-accent, var(--teal)) 64%, #ffffff) !important;
+}
+
+html[data-theme="cyber"] ::selection {
+  background: color-mix(in srgb, var(--center-accent, var(--teal)) 30%, transparent);
+  color: #fff;
+}
+
+html[data-theme="cyber"] * {
+  scrollbar-color: rgba(255, 255, 255, .22) rgba(255, 255, 255, .06) !important;
+}
+
+html[data-theme="cyber"] *::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, .05) !important;
+}
+
+html[data-theme="cyber"] *::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, .20) !important;
+  border-color: #09090a !important;
+  box-shadow: none !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Chromeless TopBar — Claude-desktop flavor
+ *
+ * The old TopBar was a "floating panel": its own border, blur,
+ * shadow, and a 220px brand column with an animated Rich logo + text.
+ * For the desktop wrapper we want a single seamless top surface that
+ * blends with the content below — no panel chrome, no brand mark,
+ * minimal height, just the breadcrumb and the tools.
+ *
+ * Everything below uses !important so it wins over the per-theme
+ * topbar overrides scattered above (lines 92, 107, 801, 921, 946).
+ * ───────────────────────────────────────────────────────────────── */
+
+/* 1. Hide the brand block entirely (logo + "Rich" text + animations).
+ *    Setting display:none also kills the pulse/halo animations since
+ *    they're on .tv-logo / .tv-logo::after. */
+html[data-theme="cyber"] .tv-brand,
+html[data-theme="cyber"] .tv-logo {
+  display: none !important;
+}
+
+/* 2. Collapse the now-empty brand column. Layout becomes
+ *    [crumb (1fr)] [tools (auto)] only. */
+html[data-theme="cyber"] .tv-topbar {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 10px !important;
+  /* Flatten chrome — blend with content. */
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  /* Slim height. Padding controls effective height since contents are
+   * 28px and align-items: center.
+   *
+   * Note: padding-left is intentionally NOT set here. The Electron main
+   * process injects `padding-left: 80px` at runtime to reserve space for
+   * the macOS traffic lights. If we set padding (shorthand) here, our
+   * higher specificity (html[data-theme] > class-only) would steal that
+   * left padding even though both are !important — leaving the traffic
+   * lights overlapping the breadcrumb. */
+  padding-top: 4px !important;
+  padding-right: 10px !important;
+  padding-bottom: 4px !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+/* Kill the decorative scan-line / glow pseudos on the topbar so the
+ * flattened look stays clean. */
+html[data-theme="cyber"] .tv-topbar::before,
+html[data-theme="cyber"] .tv-topbar::after {
+  display: none !important;
+  animation: none !important;
+}
+
+/* 3. Slim the breadcrumb. Was 44px tall pill with inset shadow; now
+ *    a 28px inline strip with no border, transparent background. */
+html[data-theme="cyber"] .tv-crumb {
+  height: 28px !important;
+  padding: 0 8px !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  font-size: 13px !important;
+}
+
+/* 4. Slim the tool buttons. 34px → 28px square. */
+html[data-theme="cyber"] .tv-tools button,
+html[data-theme="cyber"] .tv-tools span {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 8px !important;
+}
+
+/* 5. The "K" home-button keeps the round avatar look from the old <span>
+ *    but is now an actual clickable button that returns to the home page. */
+html[data-theme="cyber"] .tv-home-key {
+  border-radius: 50% !important;
+  background: rgba(57, 246, 232, .10) !important;
+  border: 1px solid rgba(57, 246, 232, .28) !important;
+  color: #39f6e8 !important;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .12s ease, transform .12s ease;
+}
+html[data-theme="cyber"] .tv-home-key:hover {
+  background: rgba(57, 246, 232, .20) !important;
+  transform: translateY(-1px);
+}
+html[data-theme="cyber"] .tv-home-key:active {
+  transform: translateY(0);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Left rail fused with the macOS traffic-light region — Claude-style
+ *
+ * Default TreeView grid:
+ *   rows: [60px topbar] [1fr content] [54px footer]
+ *   cols: [250px L-rail] [1fr center] [250px R-panel]
+ *   topbar + footer span ALL cols → left rail is sandwiched in row 2 only.
+ *
+ * For the desktop window we want the left rail to extend ALL the way up
+ * so the macOS traffic lights sit on top of it (one continuous dark
+ * column), and the breadcrumb / footer move to live only over cols 2–3.
+ *
+ * Specificity html[data-theme] beats the base TreeView.css rules.
+ * ───────────────────────────────────────────────────────────────── */
+
+/* Move TopBar + Footer to cols 2..end — leaves col 1 free for the rail. */
+html[data-theme="cyber"] .tv-topbar,
+html[data-theme="cyber"] .tv-footer,
+html[data-theme="cyber"] .home-shell .tv-topbar,
+html[data-theme="cyber"] .home-shell .tv-footer {
+  grid-column: 2 / -1 !important;
+}
+
+/* Make the left rail span full height (row 1 → after row 3 == 4). Reserve
+ * top padding so the rail clears the macOS traffic lights AND aligns
+ * with the right side's first content row (TopBar + grid gap). See the
+ * grid-template-rows override below — they're tuned together so:
+ *   left content top  = 12px grid padding + 46px rail padding-top   = 58px
+ *   right content top = 12px grid padding + 36px topbar + 10px gap  = 58px
+ * Also strip the floating-panel chrome (border, gradient, shadow, blur,
+ * rounded corners) so it reads as a flat dark column fused with the
+ * window chrome rather than a card sitting in space. */
+/* Direct-child selector (`.tree-view > .learning-sidebar`) limits this to
+ * the TOP-LEVEL rail. When the same .learning-sidebar component is
+ * rendered nested inside the element-detail panel's three-column layout
+ * (`.three-col-nav .learning-sidebar`) it must NOT receive the 46px
+ * traffic-light padding — there are no traffic lights to clear inside
+ * the panel, and the padding would mis-align it with the middle column's
+ * TOC. */
+html[data-theme="cyber"] .tree-view > .learning-sidebar,
+html[data-theme="cyber"] .home-shell > .home-left-rail {
+  grid-row: 1 / 4 !important;
+  grid-column: 1 !important;
+  padding-top: 46px !important;
+  /* Pure black — was transparent, but ambient layers bleed through the
+   * cyber `.tree-view` background giving the rail a subtle tint against
+   * the rest of the canvas. Just paint it #000. */
+  background: #000 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Whole left rail acts as a window-drag handle. Interactive children
+ * (buttons, links, inputs, draggable items) opt out via the no-drag rule
+ * injected from the Electron main process. */
+html[data-theme="cyber"] .learning-sidebar {
+  -webkit-app-region: drag !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Right-side SystemPanel — collapse / expand mode
+ *
+ * Default state: SystemPanel.tsx returns null when closed, so there is
+ * no `.system-panel` element in the DOM. We detect that with `:has()`
+ * and shrink the grid to 2 columns — the center .tv-main expands to
+ * fill the reclaimed 250 px.
+ *
+ * Open state: SystemPanel mounts back into col 3 with its original
+ * 250 px width and the base grid styling. No overlay, no animation
+ * smear — it just appears in place.
+ * ───────────────────────────────────────────────────────────────── */
+
+/* When the drawer is closed there's no `.system-panel` child → drop col 3. */
+html[data-theme="cyber"] .tree-view:not(:has(.system-panel)),
+html[data-theme="cyber"] .home-shell:not(:has(.system-panel)) {
+  grid-template-columns: 250px minmax(0, 1fr) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Home page (InputView) — remove the redundant outer frame
+ *
+ * `.tv-main--home` inherits the shared panel-chrome (border, gradient
+ * background, shadow, backdrop blur, border-radius, 14px padding) from
+ * the rule at TreeView.css L67. But on the home page, its children
+ * (resume deck, command deck, existing-universes card, favorites card)
+ * are ALREADY individually framed sections. So the outer frame just
+ * wraps frames-of-frames — visually noisy, and steals padding twice.
+ *
+ * We strip the chrome only on .tv-main--home so TreeView's center area
+ * keeps its panel look. Padding goes too so the home-cockpit's own
+ * 14px sits directly against the rail / window edge.
+ * ───────────────────────────────────────────────────────────────── */
+/* The .tv-main--home special handling is now covered by the universal
+ * .tv-main rule below; keep this block for the extra padding override
+ * (home should hug the edges; other views keep their default padding). */
+html[data-theme="cyber"] .tv-main--home {
+  padding: 0 !important;
+}
+
+/* …and one more layer in: the .home-cockpit itself has a 1px cyan border,
+ * radial-gradient background, plus ::before (inner crosshair grid) and
+ * ::after (top accent line). Strip all of that so it's a transparent
+ * scroll container that just lays out its children. Padding stays for
+ * breathing room between content and sidebar. */
+html[data-theme="cyber"] .home-cockpit {
+  border: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+html[data-theme="cyber"] .home-cockpit::before,
+html[data-theme="cyber"] .home-cockpit::after {
+  display: none !important;
+}
+
+/* Hide the big "已有主题 / 收藏夹" + kicker headers — the per-card grid
+ * speaks for itself; the row of right-side actions (count + multi-select)
+ * is in the SECOND child of <header> and stays visible. */
+html[data-theme="cyber"] .home-topic-dock > header > div:first-child {
+  display: none !important;
+}
+
+/* Section containers on the home page (`9 个主题` grid, `收藏夹` grid).
+ * Was a dark navy gradient; user wants them as just a thin border on top
+ * of the global black canvas. */
+html[data-theme="cyber"] .home-topic-dock {
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, .08) !important;
+  box-shadow: none !important;
+}
+
+/* Hide the "快速导航 N" label at the top of the home left rail. The empty
+ * state card below ("把常用主题拖到这里") already explains the rail; with
+ * pinned items the cards speak for themselves. Scoped to .home-quick-rail
+ * so other sidebar-label usages (TreeView learning sidebar) are unaffected. */
+html[data-theme="cyber"] .home-quick-rail > section > .sidebar-label {
+  display: none !important;
+}
+
+/* TreeView LearningSidebar — hide the "学习导航" title BUT keep its layout
+ * space so the下级元/推荐学习路径/页面场景 sections don't shift up. Using
+ * visibility: hidden (not display: none) preserves the box.
+ *
+ * Scoped to TOP-LEVEL only (`.tree-view > ...`). When the sidebar lives
+ * inside the element-detail panel's three-col layout, the h2 should
+ * disappear entirely (display: none) so 下级元 starts at the top of the
+ * column and aligns with the middle 本元目录 list. */
+html[data-theme="cyber"] .tree-view > .learning-sidebar > section > h2 {
+  visibility: hidden !important;
+}
+html[data-theme="cyber"] .three-col-nav .learning-sidebar > section > h2 {
+  display: none !important;
+}
+
+/* The sidebar section labels (下级元 / 推荐学习路径 / 页面场景) were styled
+ * as chips by the bulk rule earlier in this file — they got border + tinted
+ * background + teal text. Strip the background and border so they read as
+ * plain headers; keep the teal color for visual hierarchy. */
+html[data-theme="cyber"] .sidebar-label {
+  background: transparent !important;
+  border-color: transparent !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Universal flatten — apply the home treatment to every view
+ *
+ * Base TreeView.css L67 gives `.tv-main` and `.tv-footer` border +
+ * gradient background + shadow + backdrop-filter + radius (the old
+ * "floating panel" aesthetic). Strip it so views read as flat surfaces.
+ *
+ * Footer goes away entirely — the user explicitly doesn't want it. The
+ * grid still reserves a 54px row for it (TreeView.css L29), so we also
+ * collapse that row to 0 to reclaim the bottom space. Running AI tasks
+ * stay visible via the 🔔 notice button in the TopBar (opens the
+ * SystemPanel drawer with EmbeddedTaskList).
+ * ───────────────────────────────────────────────────────────────── */
+html[data-theme="cyber"] .tv-main {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  border-radius: 0 !important;
+}
+html[data-theme="cyber"] .tv-footer {
+  display: none !important;
+}
+/* Topbar row shrunk 60 → 36 (matches the chromeless topbar's actual
+ * content height: ~28px contents + 4+4 padding). Footer row collapsed
+ * to 0 since `.tv-footer { display: none }` above. Net effect:
+ * right-side main content moves UP, aligning with the left rail's
+ * raised content (padding-top: 46) ↑ both land at y ≈ 58 from window. */
+html[data-theme="cyber"] .tree-view,
+html[data-theme="cyber"] .home-shell {
+  grid-template-rows: 36px minmax(0, 1fr) 0 !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Black-canvas pass — strip colored fills from major cards / panels
+ *
+ * The cyber theme historically painted big tinted gradients (teal /
+ * blue / radial halos) on every card and section to push the
+ * "interstellar" vibe. Per user request: collapse them to a flat
+ * near-black (#15151a, slightly raised from window #0b0b0d so cards
+ * still pop). Decorative animated overlays (halo, rings) get killed
+ * outright since they only existed to add color.
+ *
+ * Things deliberately KEPT:
+ *   - The 3-px left-edge accent stripe on .home-topic-card (type color)
+ *   - The is-selected / is-active tinted backgrounds (signal state)
+ *   - Small functional badges (news-card category fills, etc.)
+ *   - The left learning-rail's #0d0d10 background (already flat)
+ * ───────────────────────────────────────────────────────────────── */
+
+/* Big "deck" cards: transparent. They sit directly on the window canvas;
+ * only the 1px border carries the card boundary. (Earlier passes used
+ * a flat #15151a fill — user requested fully transparent.) */
+html[data-theme="cyber"] .home-resume-deck,
+html[data-theme="cyber"] .home-command-deck,
+html[data-theme="cyber"] .home-topic-card,
+html[data-theme="cyber"] .structure-chain-card,
+html[data-theme="cyber"] .tree-element-card,
+html[data-theme="cyber"] .view-card {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Favorited tree cards — restore the gold frame + glow that the base
+ * rule (.structure-chain-card.is-favorited) sets but loses to the
+ * higher-specificity transparent override above. Higher specificity
+ * (0,3,1 vs 0,2,1) flips the cascade back. */
+html[data-theme="cyber"] .structure-chain-card.is-favorited,
+html[data-theme="cyber"] .tree-element-card.is-favorited {
+  --gold: #ffc94d;
+  border-color: var(--gold) !important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 201, 77, .22), transparent 52%),
+    linear-gradient(180deg, rgba(40, 30, 8, .82), rgba(20, 14, 4, .82)) !important;
+  box-shadow:
+    0 0 22px rgba(255, 201, 77, .28),
+    inset 0 0 0 1px rgba(255, 201, 77, .14) !important;
+}
+html[data-theme="cyber"] .structure-chain-card.is-favorited.is-selected,
+html[data-theme="cyber"] .tree-element-card.is-favorited.is-selected {
+  box-shadow:
+    0 0 0 1px var(--gold),
+    0 0 30px rgba(255, 201, 77, .45),
+    inset 0 0 0 1px rgba(255, 201, 77, .22) !important;
+}
+
+/* Hover state: very faint white wash so the user can still tell which card
+ * is hovered without restoring a heavy fill. */
+html[data-theme="cyber"] .home-resume-deck:hover,
+html[data-theme="cyber"] .home-topic-card:hover,
+html[data-theme="cyber"] .structure-chain-card:hover,
+html[data-theme="cyber"] .tree-element-card:hover,
+html[data-theme="cyber"] .view-card:hover {
+  background: rgba(255, 255, 255, .03) !important;
+  box-shadow: none !important;
+}
+
+/* Decorative overlays — purely cosmetic colored auras. Remove. */
+html[data-theme="cyber"] .home-cockpit__halo,
+html[data-theme="cyber"] .home-command-deck__rings,
+html[data-theme="cyber"] .structure-map__ambient {
+  display: none !important;
+}
+
+/* Home input — transparent fill with a bright teal-tinted border so the
+ * primary CTA reads clearly on the otherwise empty home canvas. Focus
+ * state adds a glow ring for the "active typing" affordance. */
+html[data-theme="cyber"] .home-form,
+html[data-theme="cyber"] .home-form input {
+  background: transparent !important;
+  border: 1px solid rgba(57, 246, 232, .42) !important;
+  box-shadow: 0 0 18px rgba(57, 246, 232, .14) !important;
+  transition: border-color .15s ease, box-shadow .15s ease !important;
+}
+html[data-theme="cyber"] .home-form:hover,
+html[data-theme="cyber"] .home-form:focus-within,
+html[data-theme="cyber"] .home-form input:focus {
+  border-color: rgba(57, 246, 232, .72) !important;
+  box-shadow: 0 0 24px rgba(57, 246, 232, .26) !important;
+}
+
+/* News view cards (AI 早报 — `news-card`, `news-cat`, `news-feed > section`,
+ * `news-page-head`). Same treatment as the home deck — transparent, only
+ * borders survive. */
+html[data-theme="cyber"] .news-card,
+html[data-theme="cyber"] .news-cat,
+html[data-theme="cyber"] .news-feed > section,
+html[data-theme="cyber"] .news-page-head {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+html[data-theme="cyber"] .news-card:hover,
+html[data-theme="cyber"] .news-cat:hover {
+  background: rgba(255, 255, 255, .03) !important;
+}
+
+html[data-theme="cyber"] .news-cat {
+  border-color: rgba(255, 255, 255, .10) !important;
+  background: #000 !important;
+}
+
+html[data-theme="cyber"] .news-cat.is-active {
+  border-color: rgba(64, 231, 220, .76) !important;
+  background: #000 !important;
+  color: #f4f4f5 !important;
+  box-shadow:
+    inset 3px 0 0 rgba(64, 231, 220, .92),
+    0 0 16px rgba(64, 231, 220, .12) !important;
+}
+
+html[data-theme="cyber"] .news-cat__count,
+html[data-theme="cyber"] .news-feed__group-count {
+  min-width: 28px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, .14) !important;
+  background: #000 !important;
+  color: rgba(244, 244, 245, .72) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="cyber"] .news-cat.is-active .news-cat__count {
+  border-color: rgba(169, 107, 255, .66) !important;
+  background: #000 !important;
+  color: #c9a7ff !important;
+  box-shadow: 0 0 12px rgba(169, 107, 255, .18) !important;
+}
+
+html[data-theme="cyber"] .news-generate-btn {
+  background: #000 !important;
+  border: 1px solid rgba(64, 231, 220, .56) !important;
+  color: #8dfbf4 !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="cyber"] .news-generate-btn:hover:not(:disabled) {
+  background: rgba(64, 231, 220, .08) !important;
+  border-color: rgba(64, 231, 220, .78) !important;
+  color: #b8fff9 !important;
+  filter: none !important;
+}
+
+html[data-theme="cyber"] .news-generate-btn:disabled {
+  background: #000 !important;
+  border-color: rgba(64, 231, 220, .26) !important;
+  color: rgba(141, 251, 244, .62) !important;
+}
+
+/* SystemPanel drawer (when opened via TopBar tool buttons) — strip its
+ * floating gradient panel chrome too. */
+html[data-theme="cyber"] .system-panel {
+  background: #15151a !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, .5) !important;
+}
+
+/* Element detail panel — keep the black client surface, but use the same
+ * center/type accent as the structure map above. This prevents project nodes
+ * from reading purple in the tree and pink/blue in the detail panel. */
+html[data-theme="cyber"] .element-content,
+html[data-theme="cyber"] .element-content.is-fullscreen {
+  border-color: color-mix(in srgb, var(--center-accent, var(--teal)) 42%, rgba(255, 255, 255, .08)) !important;
+  background:
+    radial-gradient(circle at 9% 0%, color-mix(in srgb, var(--center-accent, var(--teal)) 13%, transparent), transparent 36%),
+    radial-gradient(circle at 96% 6%, color-mix(in srgb, var(--center-accent-2, var(--blue)) 11%, transparent), transparent 34%),
+    #15151a !important;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--center-accent, var(--teal)) 10%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, .035) !important;
+}
+
+html[data-theme="cyber"] .element-content__head {
+  border-bottom-color: color-mix(in srgb, var(--center-accent, var(--teal)) 24%, var(--line)) !important;
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--center-accent, var(--teal)) 10%, #15151a),
+      color-mix(in srgb, var(--center-accent-2, var(--blue)) 8%, #15151a) 58%,
+      #15151a) !important;
+}
+
+html[data-theme="cyber"] .element-title-row span,
+html[data-theme="cyber"] .level-badge,
+html[data-theme="cyber"] .element-content .meta-chip {
+  color: var(--center-accent, var(--teal)) !important;
+  border-color: color-mix(in srgb, var(--center-accent, var(--teal)) 36%, transparent) !important;
+  background: color-mix(in srgb, var(--center-accent, var(--teal)) 10%, transparent) !important;
+}
+
+html[data-theme="cyber"] .element-content .meta-chip--type.type-practice {
+  color: #ff6f5f !important;
+  border-color: rgba(255, 111, 95, .42) !important;
+  background: rgba(255, 111, 95, .10) !important;
+}
+
+html[data-theme="cyber"] .element-content .meta-chip--type.type-project {
+  color: #8b8eff !important;
+  border-color: rgba(139, 142, 255, .44) !important;
+  background: rgba(99, 102, 241, .12) !important;
+}
+
+html[data-theme="cyber"] .element-content .cta-button,
+html[data-theme="cyber"] .children-cta-list__center button {
+  color: color-mix(in srgb, var(--center-accent, var(--teal)) 78%, #ffffff 22%) !important;
+  border-color: color-mix(in srgb, var(--center-accent, var(--teal)) 46%, rgba(255, 255, 255, .10)) !important;
+  background: #000 !important;
+  /* No outer glow — keep CTA as a black outlined control instead of a solid
+   * peach/blue slab that steals attention from the learning content. */
+  box-shadow: none !important;
+}
+
+html[data-theme="cyber"] .element-content .cta-button:hover,
+html[data-theme="cyber"] .element-content .cta-button.is-open,
+html[data-theme="cyber"] .children-cta-list__center button:hover {
+  color: color-mix(in srgb, var(--center-accent, var(--teal)) 68%, #ffffff 32%) !important;
+  border-color: color-mix(in srgb, var(--center-accent, var(--teal)) 68%, rgba(255, 255, 255, .12)) !important;
+  background: color-mix(in srgb, var(--center-accent, var(--teal)) 8%, #000) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--center-accent, var(--teal)) 10%, transparent) !important;
+}
+
+/* Danger menu item styling (used by the new 删除 entry in the tree
+ * right-click menu). Lower-key red so it doesn't shout — only turns
+ * bright on hover to make sure the user means it. */
+html[data-theme="cyber"] .knowledge-context-menu__danger {
+  color: #ff7a8e !important;
+}
+html[data-theme="cyber"] .knowledge-context-menu__danger:hover {
+  background: rgba(255, 79, 95, .14) !important;
+  color: #ff95a7 !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Element detail page — final overrides
+ *
+ * There are TWO earlier rules in this file that paint .element-content:
+ *   - L751:  border + faint background tint
+ *   - L1579: radial-gradient color spots + #15151a base
+ * Both use !important. Since this block is later in source order at
+ * EQUAL specificity, source order tie-break makes these wins. We force
+ * a pure-black canvas (#000) and strip every tint that earlier passes
+ * tried to keep. The two side rails (left TOC, right context) become
+ * fully transparent — they "float" on the black surface.
+ * ───────────────────────────────────────────────────────────────── */
+/* The `body` element in the selector chain is NOT decorative — Vite's
+ * CSS minifier (lightningcss) sometimes strips `html[data-theme="cyber"]`
+ * from grouped selector lists when it thinks the prefix is redundant.
+ * Adding `body` raises the specificity to (0,2,2) and prevents the
+ * minifier from rewriting it; otherwise the earlier (0,2,1) gradient
+ * rules would win. */
+html[data-theme="cyber"] body .element-content,
+html[data-theme="cyber"] body .element-content.is-fullscreen {
+  background: #000 !important;
+  border-color: rgba(255, 255, 255, .08) !important;
+  box-shadow: none !important;
+}
+
+/* Left TOC rail (`本元目录`) — transparent. */
+html[data-theme="cyber"] body .body-toc {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Hide TopBar right-side tools entirely. The MascotDock + Cmd+Esc cover
+ * view switching and home navigation; the bell / map / theme / K buttons
+ * were redundant clutter. The .tv-crumb breadcrumb on the left side
+ * stays. */
+html[data-theme="cyber"] body .tv-tools {
+  display: none !important;
+}
+
+/* Hide the "首页" breadcrumb on the home page itself — there's no path
+ * to display when you're already at the root. Scoped to .home-shell so
+ * TreeView's breadcrumb (which carries useful path info) survives. */
+html[data-theme="cyber"] body .home-shell .tv-crumb {
+  display: none !important;
+}
+
+/* Hide the LearningSidebar's "页面场景" section (the learning scenes
+ * picker: 学习树 / 知识阅读 / AI 接枝 / 实战元 / 任务中心). The
+ * `:has(.scene-list)` selector identifies the section by its scene
+ * children — robust to reordering. */
+html[data-theme="cyber"] body .learning-sidebar > section:has(.scene-list) {
+  display: none !important;
+}
+
+/* Hide the right-side context rail in the detail panel. Task list moves
+ * to the floating bottom-right dock (FloatingTaskDock). The
+ * `本元参与的学习路径` / `横向关联元` info also goes away — the user
+ * doesn't want any right-rail content. */
+html[data-theme="cyber"] body .three-col-context {
+  display: none !important;
+}
+/* Re-balance the three-col grid now that the right context column is
+ * hidden. Two cases:
+ *   - `.has-nav` (only in fullscreen): nav + body, no context →
+ *     `240px 1fr`
+ *   - default (inline mode): no nav, no context → just body, `1fr`
+ * The previous fixed `200px 1fr` rule squished the body to 200px in
+ * inline mode because nav wasn't rendered, leaving body in col 1. */
+html[data-theme="cyber"] body .element-content__three-col.has-nav {
+  grid-template-columns: 240px minmax(0, 1fr) !important;
+}
+html[data-theme="cyber"] body .element-content__three-col:not(.has-nav) {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+/* Left-side fullscreen nav container (`.three-col-nav`) ships with a
+ * `linear-gradient(180deg, rgba(8,19,35,.25), transparent 60%)` background
+ * + a right border. Both tint the "下级元" area. Strip them. */
+html[data-theme="cyber"] body .three-col-nav {
+  background: transparent !important;
+  border-right: none !important;
+}
+
+/* Detail-page header strip (`.element-content__head`) had a linear
+ * gradient with a `#15151a` base + type-color tints, making it read
+ * lighter than the rest of the now-pure-black panel. Force it to the
+ * same #000 so the header blends in. Border-bottom keeps the structural
+ * line between header and content. */
+html[data-theme="cyber"] body .element-content__head {
+  background: #000 !important;
+  border-bottom-color: rgba(255, 255, 255, .08) !important;
+}
+
+/* The fullscreen detail panel paints a full-viewport radial-gradient
+ * ambient behind itself via `.element-content.is-fullscreen::before`
+ * (z-index: -1, fixed inset 0, cyan glow + backdrop blur). That's where
+ * the pink/cyan haze in the lower section comes from. Kill it. */
+html[data-theme="cyber"] body .element-content.is-fullscreen::before {
+  display: none !important;
+  background: none !important;
+  backdrop-filter: none !important;
+}
+html[data-theme="cyber"] .body-toc::before {
+  border-bottom-color: rgba(255, 255, 255, .05) !important;
+}
+
+/* Right context rail (`本元参与的学习路径` + 任务列表) — transparent. */
+html[data-theme="cyber"] .context-rail {
+  background: transparent !important;
+  border: none !important;
+  border-top: none !important;
+  box-shadow: none !important;
+}
+
+/* Right column container itself (`.three-col-context`) had its own
+ * gradient background + left border. Strip both — only the cards inside
+ * should carry any chrome. */
+html[data-theme="cyber"] .three-col-context {
+  background: transparent !important;
+  border-left: none !important;
+}
+
+/* Drop the empty-state hint inside the embedded task list — the user
+ * doesn't want the placeholder copy `点 细化 / 展开 / ...` shown when
+ * no tasks are pending. */
+html[data-theme="cyber"] .embedded-tasks__empty {
+  display: none !important;
+}
+
+/* Hide the count badge in rail-block headers (`本元参与的学习路径 1`). The
+ * header strong text stays — only the trailing <span> number disappears. */
+html[data-theme="cyber"] .rail-block > header span {
+  display: none !important;
+}
+
+/* Restore per-action button colors in the element-detail header.
+ *
+ * The bulk `.quiet-button` cyber rule earlier in this file paints every
+ * quiet button gray (`#1f1f23` bg, `var(--line)` border, `var(--soft)`
+ * text). That stole the original per-action accent colors:
+ *   细化  · refine    teal    #3dd5cd
+ *   展开  · expand    blue    #6aa8ff
+ *   延伸  · extend    violet  #b9a3ff
+ *   反馈  · feedback  orange  #ffa86b
+ *   编辑  · edit      pink    #ff8fb5 (was uncolored before; pink fits the
+ *                              palette gap between feedback & delete)
+ *
+ * We re-apply each color with !important + higher specificity so they
+ * win the cascade. */
+html[data-theme="cyber"] .element-content__actions .quiet-button--refine {
+  border-color: rgba(61, 213, 205, .48) !important;
+  background: transparent !important;
+  color: #3dd5cd !important;
+}
+html[data-theme="cyber"] .element-content__actions .quiet-button--refine:hover,
+html[data-theme="cyber"] .element-content__actions .quiet-button--refine.is-active {
+  background: rgba(61, 213, 205, .16) !important;
+  border-color: rgba(61, 213, 205, .72) !important;
+  color: #5fe5dd !important;
+}
+
+html[data-theme="cyber"] .element-content__actions .quiet-button--expand {
+  border-color: rgba(106, 168, 255, .48) !important;
+  background: transparent !important;
+  color: #6aa8ff !important;
+}
+html[data-theme="cyber"] .element-content__actions .quiet-button--expand:hover,
+html[data-theme="cyber"] .element-content__actions .quiet-button--expand.is-active {
+  background: rgba(106, 168, 255, .16) !important;
+  border-color: rgba(106, 168, 255, .72) !important;
+  color: #8dbcff !important;
+}
+
+html[data-theme="cyber"] .element-content__actions .quiet-button--extend {
+  border-color: rgba(155, 124, 255, .48) !important;
+  background: transparent !important;
+  color: #b9a3ff !important;
+}
+html[data-theme="cyber"] .element-content__actions .quiet-button--extend:hover,
+html[data-theme="cyber"] .element-content__actions .quiet-button--extend.is-active {
+  background: rgba(155, 124, 255, .18) !important;
+  border-color: rgba(155, 124, 255, .72) !important;
+  color: #d3c3ff !important;
+}
+
+html[data-theme="cyber"] .element-content__actions .quiet-button--feedback {
+  border-color: rgba(255, 168, 107, .48) !important;
+  background: transparent !important;
+  color: #ffa86b !important;
+}
+html[data-theme="cyber"] .element-content__actions .quiet-button--feedback:hover,
+html[data-theme="cyber"] .element-content__actions .quiet-button--feedback.is-active {
+  background: rgba(255, 168, 107, .16) !important;
+  border-color: rgba(255, 168, 107, .72) !important;
+  color: #ffbe8b !important;
+}
+
+html[data-theme="cyber"] .element-content__actions .quiet-button--edit {
+  border-color: rgba(255, 143, 181, .48) !important;
+  background: transparent !important;
+  color: #ff8fb5 !important;
+}
+html[data-theme="cyber"] .element-content__actions .quiet-button--edit:hover,
+html[data-theme="cyber"] .element-content__actions .quiet-button--edit.is-active {
+  background: rgba(255, 143, 181, .16) !important;
+  border-color: rgba(255, 143, 181, .72) !important;
+  color: #ffa9c4 !important;
+}
+
+/* Section blocks in the middle column — was painted `--panel-2` (gray)
+ * by an earlier bulk rule (L995). Force pure black + a faint border so
+ * each section reads as a distinct card against the #000 panel canvas.
+ * `body` in the chain is anti-minifier scaffolding — see element-content
+ * override above for the explanation. */
+html[data-theme="cyber"] body .body-section,
+html[data-theme="cyber"] body .section-block,
+html[data-theme="cyber"] body .context-block,
+html[data-theme="cyber"] body .inline-qa,
+html[data-theme="cyber"] body .ke-annotation-analysis,
+html[data-theme="cyber"] body .callout,
+html[data-theme="cyber"] body .warn-card,
+html[data-theme="cyber"] body .example-item,
+html[data-theme="cyber"] body .decision-item,
+html[data-theme="cyber"] body .module-card,
+html[data-theme="cyber"] body .mvp-card,
+html[data-theme="cyber"] body .phase-item {
+  background: #000 !important;
+  border: 1px solid rgba(255, 255, 255, .08) !important;
+  box-shadow: none !important;
+}
+
+/* LearningSidebar nav items (上级元 / 同级元 / 下级元 lists) — same
+ * treatment. They were `rgba(15, 29, 46, .52)` (dark navy tint). */
+html[data-theme="cyber"] .sidebar-node,
+html[data-theme="cyber"] .ancestor-list button,
+html[data-theme="cyber"] .upstream-list button {
+  background: #000 !important;
+  border-color: rgba(255, 255, 255, .08) !important;
+}
+html[data-theme="cyber"] .sidebar-node:hover,
+html[data-theme="cyber"] .ancestor-list button:hover,
+html[data-theme="cyber"] .upstream-list button:hover {
+  background: rgba(255, 255, 255, .04) !important;
+  border-color: rgba(255, 255, 255, .14) !important;
+}
+
+/* Right-rail cards (`本元参与的学习路径` 项 + `横向关联元` 项) — both
+ * had a dark navy tint base. Force pure black + the same faint border
+ * so they match the section blocks in the middle column. */
+html[data-theme="cyber"] .path-card,
+html[data-theme="cyber"] .rail-lateral button,
+html[data-theme="cyber"] .action-list button {
+  background: #000 !important;
+  border-color: rgba(255, 255, 255, .08) !important;
+}
+html[data-theme="cyber"] .path-card:hover,
+html[data-theme="cyber"] .rail-lateral button:hover,
+html[data-theme="cyber"] .action-list button:hover {
+  background: rgba(255, 255, 255, .04) !important;
+  border-color: rgba(255, 255, 255, .14) !important;
+}
+
+/* Mindmap PPT player — once the user enters the PPT, use a pure black
+ * presentation stage. Keep borders visible in white and remove the app-level
+ * cyber glow/gradient chrome for this mode only. */
+html[data-theme="cyber"] .mindmap-shell--player,
+html[data-theme="cyber"] .mindmap-shell--player .tv-topbar,
+html[data-theme="cyber"] .mindmap-shell--player .tv-main,
+html[data-theme="cyber"] .mindmap-shell--player .tv-footer,
+html[data-theme="cyber"] .mindmap-shell--player .mindmap-player-wrap {
+  background: #000 !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="cyber"] .mindmap-shell--player::before,
+html[data-theme="cyber"] .mindmap-shell--player::after,
+html[data-theme="cyber"] .mindmap-shell--player .tv-topbar::before,
+html[data-theme="cyber"] .mindmap-shell--player .tv-topbar::after,
+html[data-theme="cyber"] .mindmap-shell--player .tv-footer::after {
+  content: none !important;
+  background: none !important;
+  animation: none !important;
+}
+
+html[data-theme="cyber"] .mindmap-shell--player .tv-topbar,
+html[data-theme="cyber"] .mindmap-shell--player .tv-footer,
+html[data-theme="cyber"] .mindmap-shell--player .mindmap-player-wrap,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-glass,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-node-content,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-readout-card,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-zoom,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-node-image {
+  border-color: rgba(255, 255, 255, .42) !important;
+}
+
+html[data-theme="cyber"] .mindmap-shell--player .mmp-frame,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-glass,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-node-content,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-readout-card,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-zoom,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-readout-icon,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-node-image,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-image-viewer-frame {
+  background: #000 !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="cyber"] .mindmap-shell--player .mmp-title-panel h1,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-node-title,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-zoom-row strong {
+  color: #fff !important;
+}
+
+html[data-theme="cyber"] .mindmap-shell--player .mmp-eyebrow,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-node-subtitle,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-counter,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-hint,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-readout-icon,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-zoom-icon {
+  color: rgba(255, 255, 255, .68) !important;
+}
+
+html[data-theme="cyber"] .mindmap-shell--player .mmp-link,
+html[data-theme="cyber"] .mindmap-shell--player .mmp-link.path-link {
+  stroke: rgba(255, 255, 255, .78) !important;
+}
+
+/* Admin backend — absolute black surface.
+ * Keep the backend diagnostic and quiet: no gray panels, no theme glows,
+ * no ambient gradients. Borders remain visible so tables and cards still
+ * have structure. This block sits at the end of the theme file on purpose:
+ * earlier cyber rules paint .tree-view / .tv-main / sidebars charcoal. */
+html[data-theme="cyber"] body:has(.admin-shell) {
+  background: #000 !important;
+}
+
+html[data-theme="cyber"] body .admin-shell,
+html[data-theme="cyber"] body .admin-shell.tree-view,
+html[data-theme="cyber"] body .admin-shell .tv-topbar,
+html[data-theme="cyber"] body .admin-shell .tv-main,
+html[data-theme="cyber"] body .admin-shell .admin-main,
+html[data-theme="cyber"] body .admin-shell .learning-sidebar,
+html[data-theme="cyber"] body .admin-shell .admin-sidebar,
+html[data-theme="cyber"] body .admin-shell .admin-pane,
+html[data-theme="cyber"] body .admin-shell .admin-engine,
+html[data-theme="cyber"] body .admin-shell .admin-split,
+html[data-theme="cyber"] body .admin-shell .admin-manuals {
+  background: #000 !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-theme="cyber"] body .admin-shell::before,
+html[data-theme="cyber"] body .admin-shell::after,
+html[data-theme="cyber"] body .admin-shell .tv-topbar::before,
+html[data-theme="cyber"] body .admin-shell .tv-topbar::after,
+html[data-theme="cyber"] body .admin-shell .tv-footer::before,
+html[data-theme="cyber"] body .admin-shell .tv-footer::after {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+  animation: none !important;
+}
+
+html[data-theme="cyber"] body .admin-shell .admin-engine-card,
+html[data-theme="cyber"] body .admin-shell .admin-table-wrap,
+html[data-theme="cyber"] body .admin-shell .admin-detail,
+html[data-theme="cyber"] body .admin-shell .admin-manual-detail,
+html[data-theme="cyber"] body .admin-shell .admin-manuals-list,
+html[data-theme="cyber"] body .admin-shell .admin-pre,
+html[data-theme="cyber"] body .admin-shell .admin-empty,
+html[data-theme="cyber"] body .admin-shell .admin-loading,
+html[data-theme="cyber"] body .admin-shell .sidebar-node,
+html[data-theme="cyber"] body .admin-shell .admin-filters select,
+html[data-theme="cyber"] body .admin-shell .admin-filters button,
+html[data-theme="cyber"] body .admin-shell .admin-detail__meta code,
+html[data-theme="cyber"] body .admin-shell .admin-adapter-list li {
+  background: #000 !important;
+  background-image: none !important;
+  border-color: rgba(255, 255, 255, .10) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="cyber"] body .admin-shell .admin-engine-card > header,
+html[data-theme="cyber"] body .admin-shell .admin-pane__head,
+html[data-theme="cyber"] body .admin-shell .admin-detail__head,
+html[data-theme="cyber"] body .admin-shell .admin-manual-detail > header,
+html[data-theme="cyber"] body .admin-shell .admin-table th,
+html[data-theme="cyber"] body .admin-shell .admin-table td,
+html[data-theme="cyber"] body .admin-shell .admin-table tbody tr {
+  background: #000 !important;
+  background-image: none !important;
+  border-color: rgba(255, 255, 255, .08) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="cyber"] body .admin-shell .admin-table tbody tr:hover,
+html[data-theme="cyber"] body .admin-shell .admin-table tbody tr.is-active,
+html[data-theme="cyber"] body .admin-shell .sidebar-node:hover,
+html[data-theme="cyber"] body .admin-shell .sidebar-node.is-active {
+  background: #050505 !important;
+  background-image: none !important;
+}
+
+/* Fullscreen element-detail left navigation.
+ * The 上级元 / 同级元 / 下级元 rail should be pure black in the same way as
+ * the article canvas. Earlier theme passes give active/center rows cyan or
+ * violet fills; this final scoped layer keeps only borders and text accents. */
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav,
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .learning-sidebar,
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .learning-sidebar section,
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .sidebar-list,
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .ancestor-list,
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .upstream-list {
+  background: #000 !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .sidebar-node,
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .ancestor-list button,
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .upstream-list button {
+  background: #000 !important;
+  background-image: none !important;
+  border-color: rgba(255, 255, 255, .10) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .sidebar-node:hover,
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .sidebar-node.is-active,
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .ancestor-list button:hover,
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .ancestor-list button.is-center,
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .upstream-list button:hover {
+  background: #000 !important;
+  background-image: none !important;
+  border-color: color-mix(in srgb, var(--element-accent, var(--center-accent, var(--teal))) 60%, rgba(255, 255, 255, .18)) !important;
+  color: var(--element-accent, var(--center-accent, var(--teal))) !important;
+  box-shadow: inset 2px 0 0 var(--element-accent, var(--center-accent, var(--teal))) !important;
+}
+
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .mini-icon,
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .ancestor-list button .mini-icon,
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .sidebar-node em,
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .ancestor-list em,
+html[data-theme="cyber"] body .element-content.is-fullscreen .three-col-nav .upstream-list em {
+  background: #000 !important;
+  background-image: none !important;
+  border-color: rgba(255, 255, 255, .10) !important;
+  box-shadow: none !important;
 }

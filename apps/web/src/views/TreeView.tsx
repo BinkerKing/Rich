@@ -6,7 +6,6 @@ import { LearningSidebar } from "../components/LearningSidebar.js";
 import { ElementContentPanel } from "../components/ElementContentPanel.js";
 import { Icon } from "../components/Icon.js";
 import { LearningScenes, type LearningScene } from "../components/LearningScenes.js";
-import { SystemPanel } from "../components/SystemPanel.js";
 import { TopBar } from "../components/TopBar.js";
 import { FooterTaskStrip } from "../components/FooterTaskStrip.js";
 import { centerStyleFor } from "../theme/centerStyle.js";
@@ -21,11 +20,11 @@ export function TreeView() {
   const setCenter = useStore(s => s.setCenter);
   const exitToHome = useStore(s => s.exitToHome);
   const moveElement = useStore(s => s.moveElement);
+  const reorderChildren = useStore(s => s.reorderChildren);
   const cameFromNews = useStore(s => s.cameFromNews);
   const setAppView = useStore(s => s.setAppView);
   const [selectedId, setSelectedId] = useState(centerId);
   const [scene, setScene] = useState<LearningScene>("tree");
-  const systemMode = useStore(s => s.systemMode);
   const [treeExpanded, setTreeExpanded] = useState(false);
   const [detailOpenSignal, setDetailOpenSignal] = useState(0);
 
@@ -78,13 +77,40 @@ export function TreeView() {
     return () => window.removeEventListener("keydown", onKey);
   }, [cameFromNews, setAppView]);
 
-  // Shared handler for HTML5 drag-drop reparent. Confirms with the user,
-  // then asks the store to call the backend move endpoint.
-  const handleDropOnto = (sourceId: string, targetId: string) => {
+  // Shared handler for HTML5 drag-drop. Behavior depends on whether source
+  // and target share a parent, and where on the target card the cursor
+  // landed:
+  //   * Siblings (same parent) → reorder source before/after target. No
+  //     confirm dialog — this is a cheap visual reshuffle, instantly
+  //     reversible. Dropping onto the center third also reorders (places
+  //     source just before target).
+  //   * Different parents → reparent (existing behavior, with confirm).
+  const handleDropOnto = (sourceId: string, targetId: string, side: import("../lib/elementDnd.js").DropSide) => {
     if (sourceId === targetId) return;
     const src = elements.get(sourceId);
     const tgt = elements.get(targetId);
     if (!src || !tgt) return;
+
+    const parentOf = (id: string) => relations.find(r => r.kind === "child" && r.to === id)?.from;
+    const srcParent = parentOf(sourceId);
+    const tgtParent = parentOf(targetId);
+
+    if (srcParent && srcParent === tgtParent) {
+      // Reorder among siblings.
+      const siblingIds = relations
+        .filter(r => r.kind === "child" && r.from === srcParent)
+        .map(r => r.to);
+      const without = siblingIds.filter(id => id !== sourceId);
+      const targetIdx = without.indexOf(targetId);
+      if (targetIdx < 0) return;
+      const insertAt = side === "after" ? targetIdx + 1 : targetIdx;
+      const next = [...without.slice(0, insertAt), sourceId, ...without.slice(insertAt)];
+      void reorderChildren(srcParent, next).catch(err => {
+        window.alert(`换位置失败：${err instanceof Error ? err.message : String(err)}`);
+      });
+      return;
+    }
+    // Cross-parent → reparent. Confirm because it changes hierarchy.
     if (!window.confirm(`把「${src.title}」移到「${tgt.title}」下？`)) return;
     void moveElement(sourceId, targetId).catch(err => {
       window.alert(`移动失败：${err instanceof Error ? err.message : String(err)}`);
@@ -224,13 +250,6 @@ export function TreeView() {
           onOpenChildren={() => setCenter(selected.id)}
         />
       )}
-
-      <SystemPanel
-        mode={systemMode}
-        selected={selected}
-        elements={elements}
-        onSelect={setSelectedId}
-      />
 
       <footer className="tv-footer">
         <div>当前路径：{selectedPath.map(item => item.title).join("  >  ")}</div>

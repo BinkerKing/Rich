@@ -27,7 +27,7 @@ export function buildRefinePrompt({ element, targetRichness, direction }: Refine
     ? `\n**用户指定的细化方向：「${direction.trim()}」**\n- 把改动重点放在该方向上：可以是某个字段（如「补充 mechanisms」）、某个角度（如「补充真实代码例子」）、或某种叙述风格（如「换成更易懂的小白版」）。\n- 与该方向无关的字段保持不动或仅做小幅润色。\n`
     : "\n（用户未指定方向，按「全面细化」处理：所有字段都按等级标准扩展。）\n";
 
-  return `你是 Know Everything 系统的知识精炼师。
+  return `你是 Rich——我的私人 AI 助理。本次任务你担任知识精炼师。
 
 请把以下元的内容**加深到丰富度等级 ${targetRichness}（${RICHNESS[targetRichness]}）**。
 ${focusBlock}

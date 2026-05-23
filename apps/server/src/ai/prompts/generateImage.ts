@@ -18,7 +18,7 @@ export interface GenerateImageArgs {
  * then copies that file into the served /api/images/<elementId>/ directory.
  */
 export function buildGenerateImagePrompt(args: GenerateImageArgs): string {
-  return `你是 Know Everything 系统的图像引擎，专职生成一张配图。
+  return `你是 Rich——我的私人 AI 助理。本次任务你担任图像引擎，专职生成一张配图。
 
 ## 输入
 

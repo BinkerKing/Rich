@@ -2,7 +2,9 @@ import type { ReactNode } from "react";
 import type { StyleBlock, DynamicSection, Source, SourcedItem } from "@ke/domain";
 import { MermaidDiagram } from "./MermaidDiagram.js";
 import { MindmapEmbedCard } from "./MindmapEmbedCard.js";
+import { MarkdownView } from "./MarkdownView.js";
 import "./SectionRenderer.css";
+import "./AttachmentsEditor.css";
 
 /** Per-render context threaded into renderBlock so style-specific blocks
  *  can interact with the host element (open the PPT player, etc). */
@@ -335,6 +337,10 @@ function renderBlock(block: StyleBlock, key: number, ctx: RenderCtx = {}): React
       // with its cover image and emits a single MindmapEmbedCard for the
       // whole PPT section. Render an empty fragment defensively.
       return null;
+    case "attachments":
+      return <AttachmentsView key={key} block={block} />;
+    case "markdown":
+      return <MarkdownView key={key} text={block.text} title={block.title} />;
     default: {
       // Unknown style — surface as a small warning so users can spot it.
       const k = (block as { style?: string }).style ?? "unknown";
@@ -397,4 +403,69 @@ export function renderSectionBlocks(section: DynamicSection, elementId?: string)
     out.push(renderBlock(b, i, ctx));
   }
   return out;
+}
+
+/** Read-only rendering of an AttachmentsBlock. Reuses the same tree row
+ *  styling as the editor; no upload / delete controls. */
+function AttachmentsView({ block }: { block: import("@ke/domain").AttachmentsBlock }) {
+  const items = block.items ?? [];
+  return (
+    <div className="sec-attachments att-editor">
+      <div className="att-meta">
+        {block.source === "linked-folder"
+          ? <>📁 链接文件夹{block.folderName ? <> · <strong>{block.folderName}</strong></> : null}</>
+          : <>📎 上传附件</>}
+        {items.length > 0 && <> · 共 {countAttachmentFiles(items)} 个文件</>}
+        {block.scannedAt && <> · 更新于 {block.scannedAt.slice(0, 19).replace("T", " ")}</>}
+      </div>
+      {items.length === 0 ? (
+        <div className="att-meta" style={{ padding: "8px 0", opacity: 0.6 }}>(空)</div>
+      ) : (
+        <div className="att-tree">
+          {items.map((node, i) => <AttachmentViewRow key={i} node={node} depth={0} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+function AttachmentViewRow({ node, depth }: { node: import("@ke/domain").AttachmentNode; depth: number }) {
+  if (node.kind === "file") {
+    return (
+      <div className="att-row att-row--file" style={{ paddingLeft: 8 + depth * 16 }}>
+        <span className="att-row__icon" aria-hidden="true">📄</span>
+        {node.src ? (
+          <a className="att-row__name" href={node.src} download={node.name} title="点击下载">{node.name}</a>
+        ) : (
+          <span className="att-row__name att-row__name--local" title="本地文件,未上传">{node.name}</span>
+        )}
+        {typeof node.size === "number" && (
+          <span className="att-row__meta">
+            {node.size < 1024 ? `${node.size} B`
+              : node.size < 1024 * 1024 ? `${(node.size / 1024).toFixed(1)} KB`
+              : node.size < 1024 * 1024 * 1024 ? `${(node.size / (1024 * 1024)).toFixed(1)} MB`
+              : `${(node.size / (1024 * 1024 * 1024)).toFixed(2)} GB`}
+          </span>
+        )}
+      </div>
+    );
+  }
+  return (
+    <>
+      <div className="att-row att-row--dir" style={{ paddingLeft: 8 + depth * 16 }}>
+        <span className="att-row__icon" aria-hidden="true">▾</span>
+        <span className="att-row__icon" aria-hidden="true">📁</span>
+        <span className="att-row__name att-row__name--dir">{node.name}</span>
+        <span className="att-row__meta">{countAttachmentFiles(node.children)} 个文件</span>
+      </div>
+      {node.children.map((c, i) => <AttachmentViewRow key={i} node={c} depth={depth + 1} />)}
+    </>
+  );
+}
+function countAttachmentFiles(nodes: import("@ke/domain").AttachmentNode[]): number {
+  let n = 0;
+  for (const node of nodes) {
+    if (node.kind === "file") n++;
+    else n += countAttachmentFiles(node.children);
+  }
+  return n;
 }

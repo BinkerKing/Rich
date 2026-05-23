@@ -42,6 +42,38 @@ export class JsonRelationsRepo implements RelationsRepo {
     await this.writeAll(kept);
   }
 
+  async reorderChildren(parentId: ElementId, childIds: ElementId[]): Promise<void> {
+    const all = await this.list();
+    // Slots = indices in `all` where this parent's child relations live.
+    const slots: number[] = [];
+    const childRels: Relation[] = [];
+    for (let i = 0; i < all.length; i++) {
+      const r = all[i];
+      if (r.kind === "child" && r.from === parentId) {
+        slots.push(i);
+        childRels.push(r);
+      }
+    }
+    if (slots.length === 0) return;
+    const byTo = new Map(childRels.map(r => [r.to, r]));
+    const reordered: Relation[] = [];
+    const seen = new Set<string>();
+    for (const cid of childIds) {
+      const r = byTo.get(cid);
+      if (!r) continue;
+      seen.add(cid);
+      reordered.push(r);
+    }
+    for (const r of childRels) {
+      if (!seen.has(r.to)) reordered.push(r);
+    }
+    // Write back into the original slots so relations with other parents
+    // (interleaved in the file) stay where they are.
+    const next = all.slice();
+    for (let i = 0; i < slots.length; i++) next[slots[i]] = reordered[i];
+    await this.writeAll(next);
+  }
+
   async reparent(childId: ElementId, newParentId: ElementId | null): Promise<void> {
     const all = await this.list();
     const kept = all.filter(r => !(r.kind === "child" && r.to === childId));

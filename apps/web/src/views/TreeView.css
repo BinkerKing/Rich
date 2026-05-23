@@ -22,7 +22,7 @@
   /* Standard layout: learning sidebar | main | system rail.
      When the element panel is fullscreen, the sidebar is also rendered INSIDE
      that overlay (the overlay floats above everything else anyway). */
-  grid-template-columns: 250px minmax(0, 1fr) 250px;
+  grid-template-columns: 250px minmax(0, 1fr);
   grid-template-rows: 60px minmax(0, 1fr) 54px;
   gap: 10px;
   padding: 12px;

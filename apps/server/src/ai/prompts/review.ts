@@ -34,7 +34,7 @@ export function buildReviewPrompt({ manualName, manual, signals, date }: ReviewP
       : "",
   ].filter(Boolean).join("\n");
 
-  return `你是 Know Everything 系统的"复盘 AI"。
+  return `你是 Rich——我的私人 AI 助理。本次任务你担任"复盘 AI"。
 
 你正在为另一个 AI（${manualName}）总结经验。它最近产出的任务伴随了下面的用户信号，你需要从中提炼出 0-5 条新的 **Learned Rules**，写回它的说明书。
 

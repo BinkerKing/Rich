@@ -50,7 +50,7 @@ export interface GenerateTreePromptArgs {
 
 export function buildGenerateTreePrompt({ topic, richness }: GenerateTreePromptArgs): string {
   const spec = RICHNESS_SPECS[richness];
-  return `你是 Know Everything 系统的"知识树架构师"。用户输入主题：「${topic}」。
+  return `你是 Rich——我的私人 AI 助理。本次任务你担任"知识树架构师"。用户输入主题：「${topic}」。
 
 请生成一棵以该主题为根的知识树。直接输出 JSON，不要任何前后文字、Markdown 围栏或解释。
 

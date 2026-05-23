@@ -3,7 +3,6 @@ import type { MindmapDeckView } from "@ke/domain";
 import { useStore } from "../state/store.js";
 import { api } from "../api/client.js";
 import { TopBar } from "../components/TopBar.js";
-import { SystemPanel } from "../components/SystemPanel.js";
 import { FooterTaskStrip } from "../components/FooterTaskStrip.js";
 import { MindmapPlayer } from "../components/MindmapPlayer.js";
 import "./MindmapView.css";
@@ -19,12 +18,9 @@ import "./MindmapView.css";
  *   • from prose — AI generates the element tree, then attaches the section
  */
 export function MindmapView() {
-  const systemMode = useStore(s => s.systemMode);
-  const elements = useStore(s => s.elements);
   const deckId = useStore(s => s.mindmapDeckId);
   const openMindmap = useStore(s => s.openMindmap);
   const closeMindmap = useStore(s => s.closeMindmap);
-  const enterAtElement = useStore(s => s.enterAtElement);
 
   const [decks, setDecks] = useState<MindmapDeckView[]>([]);
   const [activeDeck, setActiveDeck] = useState<MindmapDeckView | null>(null);
@@ -69,24 +65,10 @@ export function MindmapView() {
   if (deckId && activeDeck) {
     return (
       <div className="tree-view mindmap-shell mindmap-shell--player">
-        <TopBar
-          breadcrumb={
-            <>
-              <button type="button" className="mindmap-back" onClick={closeMindmap}>← 导图列表</button>
-              <span>{activeDeck.title}</span>
-              {activeDeck.subtitle && <span className="now">{activeDeck.subtitle}</span>}
-              <button
-                type="button" className="mindmap-back" style={{ marginLeft: "auto" }}
-                onClick={() => { closeMindmap(); void enterAtElement(activeDeck.rootElementId); }}
-                title="跳转到对应元的详情页"
-              >查看源元 →</button>
-            </>
-          }
-        />
+        <header className="tv-topbar mindmap-player-topbar" aria-label="导图 PPT 顶栏" />
         <main className="mindmap-player-wrap">
           <MindmapPlayer source={activeDeck.source} />
         </main>
-        <SystemPanel mode={systemMode} elements={elements} onSelect={() => undefined} />
         <footer className="tv-footer">
           <div>{activeDeck.title} · 来源 {originLabel(activeDeck.origin)}{activeDeck.aiModel ? ` · ${activeDeck.aiModel}` : ""} · 共 {activeDeck.childCount} 个子元 · 按 ESC 返回</div>
           <FooterTaskStrip />
@@ -97,17 +79,12 @@ export function MindmapView() {
 
   return (
     <div className="tree-view mindmap-shell">
-      <TopBar breadcrumb={<><span>导图 PPT</span><span className="now">{decks.length} 份</span></>} />
+      <TopBar breadcrumb={null} />
       <main className="tv-main mindmap-main">
-        <header className="mindmap-head">
-          <h1>导图 PPT</h1>
-          <span className="mindmap-head__sub">PPT 的素材来自元 · 改元自动改 PPT</span>
-          <button type="button" className="mindmap-create" onClick={() => setCreating(true)}>+ 新建导图</button>
-        </header>
         {loadError && <div className="mindmap-error">加载失败：{loadError}</div>}
         {decks.length === 0 ? (
           <div className="mindmap-empty">
-            还没有导图。点击「新建导图」从已有元/文稿生成,或在元右键选「生成导图 PPT」。
+            还没有导图。可在元右键选择「生成导图 PPT」生成。
           </div>
         ) : (
           <div className="mindmap-grid">
@@ -125,7 +102,6 @@ export function MindmapView() {
           </div>
         )}
       </main>
-      <SystemPanel mode={systemMode} elements={elements} onSelect={() => undefined} />
       <footer className="tv-footer">
         <div>导图 PPT · 共 {decks.length} 份</div>
         <FooterTaskStrip />

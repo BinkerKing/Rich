@@ -10,7 +10,7 @@ export interface GenerateArgs {
 }
 
 export interface AIAdapter {
-  readonly name: "claude-code" | "codex";
+  readonly name: "claude-code" | "codex" | "hermes";
   available(): Promise<boolean>;
   stream(args: GenerateArgs): AsyncIterable<StreamEvent>;
 }

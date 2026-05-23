@@ -10,6 +10,8 @@ import "./theme/theme-duotone.css";
 import "./theme/theme-fabric.css";
 import "./theme/theme-editorial.css";
 import "./theme/theme-ghibli.css";
+import "./views/OverlayTaskView.css";
+import "./views/ChatOverlay.css";
 
 installNavigationSwipeGuard();
 

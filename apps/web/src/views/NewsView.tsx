@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import type { Element } from "@ke/domain";
 import { useStore } from "../state/store.js";
 import { TopBar } from "../components/TopBar.js";
-import { SystemPanel } from "../components/SystemPanel.js";
 import { FooterTaskStrip } from "../components/FooterTaskStrip.js";
 import { renderSectionBlocks } from "../components/SectionRenderer.js";
 import "./NewsView.css";
@@ -16,12 +15,15 @@ const CATEGORIES: Category[] = [
   { id: "应用产品", label: "应用产品" },
   { id: "大模型", label: "大模型" },
   { id: "工具与开源", label: "工具与开源" },
+  { id: "热门 SKILL", label: "热门 SKILL" },
   { id: "研究论文", label: "研究论文" },
   { id: "政策与安全", label: "政策与安全" },
   { id: "投融资", label: "投融资" },
 ];
 
-const TODAY_ISO = "2026-05-19";
+// Today, as ISO yyyy-mm-dd. Evaluated once on module load — fine for a
+// single browsing session; refresh the page to advance past midnight.
+const TODAY_ISO = new Date().toISOString().slice(0, 10);
 
 function tagValue(el: Element, prefix: string): string | undefined {
   return el.tags?.find(t => t.startsWith(prefix))?.slice(prefix.length);
@@ -51,7 +53,6 @@ function dateGroupParts(iso: string): { label: string; iso: string } {
 
 export function NewsView() {
   const elements = useStore(s => s.elements);
-  const systemMode = useStore(s => s.systemMode);
   const [activeCategory, setActiveCategory] = useState<string>("_today");
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -120,18 +121,10 @@ export function NewsView() {
 
   return (
     <div className="tree-view news-shell">
-      <TopBar
-        breadcrumb={
-          <>
-            <span>AI 早报</span>
-            <span className="now">{activeLabel}</span>
-          </>
-        }
-      />
+      <TopBar breadcrumb={null} />
 
       <aside className="learning-sidebar news-sidebar" aria-label="新闻分类">
         <section>
-          <div className="sidebar-label">新闻分类</div>
           <div className="sidebar-list">
             {CATEGORIES.map(cat => (
               <button
@@ -191,8 +184,6 @@ export function NewsView() {
         )}
       </main>
 
-      <SystemPanel mode={systemMode} elements={elements} onSelect={() => undefined} />
-
       <footer className="tv-footer">
         <div>共 {allNews.length} 条 · 当前分类 {filtered.length} 条 · 按 ESC 关闭详情</div>
         <FooterTaskStrip />
@@ -221,12 +212,24 @@ function GenerateTodayButton() {
 }
 
 function NewsCard({ item, onOpen }: { item: Element; onOpen: () => void }) {
+  // News-card visual badges:
+  //   - Gold ring when this element is in favorites
+  //   - Red ring + pulse when a refine task is currently running for it
+  // Both pull straight from the global store so the card updates live
+  // (refine kicks off → red ring within ~1 SSE tick; refine done → ring fades).
+  const isFavorite = useStore(s => s.favorites.includes(item.id));
+  const isRefining = useStore(s => s.tasks.some(
+    t => t.kind === "refine" && t.elementId === item.id && t.status === "running",
+  ));
+  const stateClass =
+    (isRefining ? " is-refining" : "") +
+    (isFavorite ? " is-favorite" : "");
   const category = tagValue(item, "category:") ?? "未分类";
   const impact = tagValue(item, "impact:");
   const source = primarySource(item);
   const date = dateOf(item);
   return (
-    <article className="news-card" onClick={onOpen}>
+    <article className={`news-card${stateClass}`} onClick={onOpen}>
       <header className="news-card__head">
         <span className="news-card__cat" data-category={category}>{category}</span>
         {impact === "major" && <span className="news-card__impact">🔥 重大</span>}
@@ -243,11 +246,35 @@ function NewsCard({ item, onOpen }: { item: Element; onOpen: () => void }) {
 
 function NewsModal({ item, onClose }: { item: Element; onClose: () => void }) {
   const enterFromNews = useStore(s => s.enterFromNews);
+  const refine = useStore(s => s.refine);
+  const toggleFavorite = useStore(s => s.toggleFavorite);
+  const isFavorite = useStore(s => s.favorites.includes(item.id));
+  const isRefining = useStore(s => s.tasks.some(
+    t => t.kind === "refine" && t.elementId === item.id && t.status === "running",
+  ));
   const content = item.content as { sections?: Array<{ id: string; title: string; blocks: unknown[] }> };
   const sections = content?.sections ?? [];
   const category = tagValue(item, "category:") ?? "未分类";
   const impact = tagValue(item, "impact:");
   const date = dateOf(item);
+
+  // "深入了解" → fire a refine task and close the modal. The card outside
+  // immediately shows the red "is-refining" ring, so the user sees Rich
+  // is working without staring at a spinner inside the modal.
+  function onDeepDive() {
+    onClose();
+    void refine(item.id);
+  }
+  // "编辑元" → existing flow: enter the element in TreeView for full editing.
+  function onEditElement() {
+    onClose();
+    void enterFromNews(item.id);
+  }
+  // "收藏" → toggle favorite. Card outside gets the gold border immediately
+  // via the store-derived isFavorite flag.
+  function onToggleFavorite() {
+    toggleFavorite(item.id);
+  }
 
   return (
     <div className="news-modal" onClick={onClose} role="dialog" aria-modal="true">
@@ -273,10 +300,28 @@ function NewsModal({ item, onClose }: { item: Element; onClose: () => void }) {
         <div className="news-modal__footer">
           <button
             type="button"
-            className="news-modal__deep"
-            onClick={() => { onClose(); void enterFromNews(item.id); }}
+            className={`news-modal__fav${isFavorite ? " is-on" : ""}`}
+            onClick={onToggleFavorite}
+            title={isFavorite ? "取消收藏" : "收藏这条早报"}
           >
-            深入了解 / 编辑元 →
+            {isFavorite ? "★ 已收藏" : "☆ 收藏"}
+          </button>
+          <button
+            type="button"
+            className="news-modal__deep-dive"
+            onClick={onDeepDive}
+            disabled={isRefining}
+            title="触发细化任务，让 AI 把这条新闻挖深一层"
+          >
+            {isRefining ? "细化中…" : "深入了解"}
+          </button>
+          <button
+            type="button"
+            className="news-modal__deep"
+            onClick={onEditElement}
+            title="进入这条新闻对应的元，进行编辑 / 展开 / 标注"
+          >
+            编辑元 →
           </button>
         </div>
       </div>

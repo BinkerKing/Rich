@@ -16,7 +16,7 @@ export interface SectionRefinePromptArgs {
  * fields, nothing else can be touched. The server merges it back by id.
  */
 export function buildSectionRefinePrompt({ element, section, direction }: SectionRefinePromptArgs): string {
-  return `你是 Know Everything 系统的章节编辑器。
+  return `你是 Rich——我的私人 AI 助理。本次任务你担任章节编辑器。
 
 任务：根据用户反馈，**只修改下面这一个章节**的内容。其它章节、其它字段、元的标题/类型/标签等等，你都看不到，也无权改动 —— 程序会在你输出之后做 id 替换。
 

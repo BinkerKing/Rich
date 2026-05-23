@@ -2,7 +2,7 @@ import type { AIAdapter } from "./adapter.js";
 
 export function pickAdapter(
   adapters: AIAdapter[],
-  preference?: "claude-code" | "codex",
+  preference?: AIAdapter["name"],
 ): AIAdapter {
   if (preference) {
     const found = adapters.find(a => a.name === preference);

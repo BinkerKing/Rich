@@ -20,7 +20,7 @@ export function buildPathPrompt({ center, availableElements, kinds }: PathPrompt
     : availableElements.map(e => `  - ${e.id}: ${e.title}`).join("\n");
   const kindList = kinds.map(k => `  - ${k}: ${KIND_DESC[k]}`).join("\n");
 
-  return `你是 Know Everything 系统的学习路径规划师。
+  return `你是 Rich——我的私人 AI 助理。本次任务你担任学习路径规划师。
 
 请为下面这个中心元规划 ${kinds.length} 条不同侧重的**学习路径**。
 每条路径是从中心元出发的有序学习步骤，每步引用一个具体的元 ID。

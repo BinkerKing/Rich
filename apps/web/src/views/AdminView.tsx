@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../components/Icon.js";
 import { TopBar } from "../components/TopBar.js";
-import { SystemPanel } from "../components/SystemPanel.js";
 import { FooterTaskStrip } from "../components/FooterTaskStrip.js";
 import { useStore } from "../state/store.js";
 import "./AdminView.css";
 
-type Tab = "engine" | "ops" | "signals" | "manuals";
+type Tab = "engine" | "ops" | "signals" | "manuals" | "cron" | "improvements";
 
 interface OpListItem {
   id: string;
@@ -51,15 +50,12 @@ const OP_FILTERS = ["", "generate", "refine", "section-refine", "expand", "exten
 
 export function AdminView() {
   const [tab, setTab] = useState<Tab>("engine");
-  const systemMode = useStore(s => s.systemMode);
-  const elements = useStore(s => s.elements);
   return (
     <div className="tree-view admin-shell">
-      <TopBar breadcrumb={<span className="now">后台</span>} />
+      <TopBar breadcrumb={null} />
 
       <aside className="learning-sidebar admin-sidebar" aria-label="后台分区">
         <section>
-          <div className="sidebar-label">后台分区</div>
           <div className="sidebar-list">
             <button
               type="button"
@@ -89,6 +85,20 @@ export function AdminView() {
             >
               <span className="sidebar-node__title">知识手册 · 反思</span>
             </button>
+            <button
+              type="button"
+              className={`sidebar-node ${tab === "cron" ? "is-active" : ""}`}
+              onClick={() => setTab("cron")}
+            >
+              <span className="sidebar-node__title">定时任务监控</span>
+            </button>
+            <button
+              type="button"
+              className={`sidebar-node ${tab === "improvements" ? "is-active" : ""}`}
+              onClick={() => setTab("improvements")}
+            >
+              <span className="sidebar-node__title">系统改造任务</span>
+            </button>
           </div>
         </section>
       </aside>
@@ -98,9 +108,9 @@ export function AdminView() {
         {tab === "ops" && <OpsTab />}
         {tab === "signals" && <SignalsTab />}
         {tab === "manuals" && <ManualsTab />}
+        {tab === "cron" && <CronTab />}
+        {tab === "improvements" && <ImprovementsTab />}
       </main>
-
-      <SystemPanel mode={systemMode} elements={elements} onSelect={() => undefined} />
 
       <footer className="tv-footer">
         <div>后台管理 · 仅用于观察系统运行</div>
@@ -584,6 +594,430 @@ function summarizeScope(scope: Record<string, unknown>): string {
   if ("sectionId" in scope && scope.sectionId) pieces.push(`section=${scope.sectionId}`);
   if ("targetRichness" in scope && scope.targetRichness) pieces.push(`r=${scope.targetRichness}`);
   return pieces.length > 0 ? ` · ${pieces.join(" · ")}` : "";
+}
+
+/* -------------------------------- Cron Tab -------------------------------- */
+
+interface CronJob {
+  id: string;
+  name: string;
+  prompt_preview: string;
+  schedule: string;
+  repeat: string | null;
+  state: "scheduled" | "paused" | "unknown";
+  enabled: boolean;
+  next_run_at: string | null;
+  last_run_at: string | null;
+  last_status: string | null;
+  last_delivery_error: string | null;
+  deliver: string;
+  skills: string[];
+  model: string | null;
+  provider: string | null;
+}
+
+function CronTab() {
+  const [jobs, setJobs] = useState<CronJob[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastLoaded, setLastLoaded] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await fetch("/api/cron/jobs");
+      const j = await r.json() as { ok: boolean; jobs: CronJob[]; error?: string };
+      if (!j.ok) throw new Error(j.error ?? "未知错误");
+      setJobs(j.jobs);
+      setLastLoaded(new Date().toLocaleString("zh-CN", { hour12: false }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const t = window.setInterval(() => { void load(); }, 30_000);
+    return () => window.clearInterval(t);
+  }, [autoRefresh]);
+
+  return (
+    <div className="admin-pane">
+      <header className="admin-pane__head">
+        <h1>定时任务监控</h1>
+        <div className="admin-filters">
+          <span className="admin-meta">{lastLoaded ? `更新于 ${lastLoaded}` : ""}</span>
+          <label>
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={e => setAutoRefresh(e.target.checked)}
+            /> 自动刷新（30s）
+          </label>
+          <button type="button" onClick={() => void load()} disabled={loading}>
+            {loading ? "加载中…" : "立即刷新"}
+          </button>
+        </div>
+      </header>
+
+      <p className="admin-pane__desc">
+        Hermes 的定时任务清单（读自 <code>~/.hermes/cron/jobs.json</code>）。要新增 / 暂停 / 删除任务，
+        请按 <kbd>⌘⇧Space</kbd> 唤起 Hermes 对话，比如：
+        <em>「帮我每天早上 10 点生成当天的 AI 早报」</em>。
+      </p>
+
+      {error && <div className="admin-error">⚠ {error}</div>}
+
+      {jobs.length === 0 && !loading && !error && (
+        <div className="admin-empty">
+          目前没有任何定时任务。<br />
+          可以在 Hermes 对话框里说一句话来添加，例如「每周一晚上 22 点给我生成本周复盘」。
+        </div>
+      )}
+
+      <div className="cron-list">
+        {jobs.map(job => (
+          <article key={job.id} className={`cron-card cron-card--${job.state}`}>
+            <header className="cron-card__head">
+              <div className="cron-card__title">
+                <strong>{job.name}</strong>
+                <span className={`cron-card__state cron-card__state--${job.state}`}>
+                  {job.state === "scheduled" ? "运行中" : job.state === "paused" ? "已暂停" : "未知"}
+                </span>
+              </div>
+              <div className="cron-card__schedule">
+                <span className="cron-card__schedule-icon" aria-hidden="true">⏰</span>
+                {job.schedule}
+                {job.repeat && <span className="cron-card__repeat"> · {job.repeat}</span>}
+              </div>
+            </header>
+
+            {job.prompt_preview && (
+              <div className="cron-card__prompt">
+                <span className="cron-card__label">指令</span>
+                <p>{job.prompt_preview}</p>
+              </div>
+            )}
+
+            <div className="cron-card__meta">
+              <div>
+                <span className="cron-card__label">下次执行</span>
+                <em>{job.next_run_at ? formatTs(job.next_run_at) : "—"}</em>
+              </div>
+              <div>
+                <span className="cron-card__label">上次执行</span>
+                <em>{job.last_run_at ? formatTs(job.last_run_at) : "—"}</em>
+              </div>
+              <div>
+                <span className="cron-card__label">上次结果</span>
+                <em className={job.last_status === "error" ? "is-error" : ""}>
+                  {job.last_status ?? "—"}
+                </em>
+              </div>
+              <div>
+                <span className="cron-card__label">输出去向</span>
+                <em>{job.deliver}</em>
+              </div>
+            </div>
+
+            {(job.skills.length > 0 || job.model) && (
+              <footer className="cron-card__footer">
+                {job.skills.length > 0 && (
+                  <div className="cron-card__skills">
+                    <span className="cron-card__label">挂载技能</span>
+                    {job.skills.map(s => <span key={s} className="cron-card__chip">{s}</span>)}
+                  </div>
+                )}
+                {job.model && (
+                  <div className="cron-card__model">
+                    <span className="cron-card__label">模型</span>
+                    <em>{job.provider ? `${job.provider} · ` : ""}{job.model}</em>
+                  </div>
+                )}
+              </footer>
+            )}
+
+            {job.last_delivery_error && (
+              <div className="cron-card__error">⚠ 投递失败：{job.last_delivery_error}</div>
+            )}
+
+            <div className="cron-card__id" title={job.id}>ID: {job.id.slice(0, 16)}</div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------- Improvements Tab ---------------------------- */
+
+type ImpStatus = "pending" | "ready_to_verify" | "verified" | "rejected";
+type ImpPriority = "low" | "medium" | "high";
+
+interface Improvement {
+  id: string;
+  title: string;
+  description: string;
+  reason: string;
+  status: ImpStatus;
+  priority?: ImpPriority;
+  category?: string;
+  createdBy: "hermes" | "user";
+  relatedFiles?: string[];
+  verifications: Array<{ ts: string; result: "pass" | "fail"; notes?: string }>;
+  requestedAt: string;
+  updatedAt: string;
+}
+
+const STATUS_LABEL: Record<ImpStatus, string> = {
+  pending: "待改造",
+  ready_to_verify: "已改造 · 待验证",
+  verified: "已验证",
+  rejected: "验证未通过",
+};
+
+function ImprovementsTab() {
+  const [items, setItems] = useState<Improvement[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [statusFilter, setStatusFilter] = useState<ImpStatus | "all">("all");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showNew, setShowNew] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newReason, setNewReason] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newPriority, setNewPriority] = useState<ImpPriority>("medium");
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      const qs = statusFilter === "all" ? "" : `?status=${statusFilter}`;
+      const r = await fetch(`/api/improvements${qs}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = await r.json() as { items: Improvement[]; counts: Record<string, number> };
+      setItems(j.items);
+      setCounts(j.counts);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => { void load(); }, [statusFilter]);
+
+  async function patchStatus(id: string, status: ImpStatus, notes?: string) {
+    const body: Record<string, unknown> = { status };
+    if (notes) body.verificationNotes = notes;
+    await fetch(`/api/improvements/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    await load();
+  }
+
+  async function removeItem(id: string) {
+    if (!confirm("确定删除？审计痕迹会丢失，更建议把状态改成已验证或未通过。")) return;
+    await fetch(`/api/improvements/${id}`, { method: "DELETE" });
+    await load();
+  }
+
+  async function submitNew() {
+    if (!newTitle.trim()) return;
+    await fetch("/api/improvements", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        title: newTitle.trim(),
+        reason: newReason.trim() || undefined,
+        description: newDescription.trim() || undefined,
+        priority: newPriority,
+        createdBy: "user",
+      }),
+    });
+    setNewTitle("");
+    setNewReason("");
+    setNewDescription("");
+    setShowNew(false);
+    await load();
+  }
+
+  return (
+    <div className="admin-pane">
+      <header className="admin-pane__head">
+        <h1>系统改造任务</h1>
+        <div className="admin-filters">
+          <button type="button" onClick={() => setShowNew(s => !s)}>
+            {showNew ? "取消" : "+ 新建"}
+          </button>
+          <button type="button" onClick={() => void load()} disabled={loading}>
+            {loading ? "加载中…" : "刷新"}
+          </button>
+        </div>
+      </header>
+
+      <p className="admin-pane__desc">
+        当 Hermes 想做某事但发现 Rich 缺能力时，会通过 MCP 工具 <code>create_improvement</code> 在这里
+        建一条「待改造」。你改完后点「已改造」按钮，Hermes 下次会自己来验证（或你直接跟 Hermes 说
+        <em>「id=imp-xxx 改好了帮我验证」</em>）。
+      </p>
+
+      <nav className="imp-filters">
+        {(["all", "pending", "ready_to_verify", "verified", "rejected"] as const).map(s => (
+          <button
+            key={s}
+            type="button"
+            className={`imp-filter${statusFilter === s ? " is-active" : ""}`}
+            onClick={() => setStatusFilter(s)}
+          >
+            {s === "all" ? "全部" : STATUS_LABEL[s]}
+            {s !== "all" && counts[s] != null && <span className="imp-filter__count">{counts[s]}</span>}
+          </button>
+        ))}
+      </nav>
+
+      {showNew && (
+        <div className="imp-new">
+          <input
+            value={newTitle}
+            onChange={e => setNewTitle(e.target.value)}
+            placeholder="任务标题，例如：新增 attach_mindmap MCP 工具"
+          />
+          <textarea
+            value={newReason}
+            onChange={e => setNewReason(e.target.value)}
+            placeholder="为什么需要这个改造？缺什么能力 / 受阻于什么？"
+            rows={2}
+          />
+          <textarea
+            value={newDescription}
+            onChange={e => setNewDescription(e.target.value)}
+            placeholder="详细描述（可选）"
+            rows={3}
+          />
+          <div className="imp-new-row">
+            <label>
+              优先级
+              <select value={newPriority} onChange={e => setNewPriority(e.target.value as ImpPriority)}>
+                <option value="low">低</option>
+                <option value="medium">中</option>
+                <option value="high">高</option>
+              </select>
+            </label>
+            <button type="button" className="imp-primary" onClick={() => void submitNew()} disabled={!newTitle.trim()}>
+              建立任务
+            </button>
+          </div>
+        </div>
+      )}
+
+      {error && <div className="admin-error">⚠ {error}</div>}
+
+      {items.length === 0 && !loading && !error && (
+        <div className="admin-empty">
+          目前没有改造任务。<br />
+          Hermes 在 chat 里碰到能力缺口时会自动建一条。或者点上面「+ 新建」手动建。
+        </div>
+      )}
+
+      <div className="imp-list">
+        {items.map(item => (
+          <article key={item.id} className={`imp-card imp-card--${item.status}`}>
+            <header className="imp-card__head">
+              <div className="imp-card__title">
+                <strong>{item.title}</strong>
+                <span className={`imp-status imp-status--${item.status}`}>{STATUS_LABEL[item.status]}</span>
+              </div>
+              <div className="imp-card__meta">
+                {item.priority && <span className={`imp-prio imp-prio--${item.priority}`}>P · {item.priority}</span>}
+                {item.category && <span className="imp-cat">{item.category}</span>}
+                <span className="imp-by">由 {item.createdBy === "hermes" ? "Hermes" : "你"} 发起</span>
+              </div>
+            </header>
+
+            {item.reason && (
+              <div className="imp-card__section">
+                <span className="imp-card__label">原因</span>
+                <p>{item.reason}</p>
+              </div>
+            )}
+            {item.description && (
+              <div className="imp-card__section">
+                <span className="imp-card__label">描述</span>
+                <p>{item.description}</p>
+              </div>
+            )}
+            {item.relatedFiles && item.relatedFiles.length > 0 && (
+              <div className="imp-card__section">
+                <span className="imp-card__label">相关文件</span>
+                <ul className="imp-files">
+                  {item.relatedFiles.map(f => <li key={f}><code>{f}</code></li>)}
+                </ul>
+              </div>
+            )}
+
+            {item.verifications.length > 0 && (
+              <div className="imp-card__section">
+                <span className="imp-card__label">验证记录</span>
+                <ul className="imp-verifs">
+                  {item.verifications.map((v, i) => (
+                    <li key={i} className={`imp-verif imp-verif--${v.result}`}>
+                      <span className="imp-verif__ts">{formatTs(v.ts)}</span>
+                      <span className="imp-verif__result">{v.result === "pass" ? "✓ 通过" : "✗ 未通过"}</span>
+                      {v.notes && <span className="imp-verif__notes">{v.notes}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <footer className="imp-card__footer">
+              <div className="imp-card__times">
+                创建 {formatTs(item.requestedAt)} · 更新 {formatTs(item.updatedAt)} · ID {item.id}
+              </div>
+              <div className="imp-card__actions">
+                {item.status === "pending" && (
+                  <button type="button" onClick={() => void patchStatus(item.id, "ready_to_verify")}>
+                    标记已改造
+                  </button>
+                )}
+                {item.status === "ready_to_verify" && (
+                  <>
+                    <button type="button" className="imp-primary" onClick={() => {
+                      const notes = prompt("验证通过的说明（可选）", "");
+                      void patchStatus(item.id, "verified", notes ?? undefined);
+                    }}>
+                      验证通过
+                    </button>
+                    <button type="button" className="imp-danger" onClick={() => {
+                      const notes = prompt("验证不通过的原因 / 还差什么", "");
+                      if (notes == null) return;
+                      void patchStatus(item.id, "rejected", notes);
+                    }}>
+                      不通过
+                    </button>
+                  </>
+                )}
+                {(item.status === "verified" || item.status === "rejected") && (
+                  <button type="button" onClick={() => void patchStatus(item.id, "ready_to_verify")}>
+                    重新待验证
+                  </button>
+                )}
+                <button type="button" className="imp-ghost" onClick={() => void removeItem(item.id)}>
+                  删除
+                </button>
+              </div>
+            </footer>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // satisfy lint

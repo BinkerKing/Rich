@@ -3,7 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Know Everything</title>
+    <title>Rich</title>
+    <script>
+      if (window.location.hash === "#overlay") {
+        document.documentElement.classList.add("is-overlay-window");
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,0 +1,140 @@
+/* Bottom-left mascot dock + horizontal flyout.
+ *
+ * Layout: fixed to the bottom-left of the window so it stays put regardless
+ * of which view is mounted. Sits ON TOP of the LearningSidebar's bottom
+ * region (z-index: 50). The flyout slides out to the right on hover/focus
+ * — its width animates from 0 → contents so it doesn't reserve space when
+ * collapsed. */
+.mascot-dock {
+  position: fixed;
+  /* Bumped from (8, 12) → (20, 20) so the dock clears the macOS window's
+   * rounded bottom-left corner clip (radius ~10px). */
+  left: 20px;
+  bottom: 20px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  /* App-region drag on the left rail interferes with hover/click — opt out. */
+  -webkit-app-region: no-drag;
+}
+
+/* The mascot itself — a 40×40 button rendering the pixel-art sprite at 2×
+ * with `pixelated` rendering so the chunky retro look is preserved.
+ * A subtle visible background ring makes the mascot findable BEFORE hover
+ * (without it, against the dark sidebar, only the tiny silhouette shows). */
+.mascot-dock__mascot {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 12px;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background .15s ease, border-color .15s ease, transform .15s ease;
+}
+.mascot-dock__mascot:hover,
+.mascot-dock:focus-within .mascot-dock__mascot {
+  background: rgba(57, 246, 232, .12);
+  border-color: rgba(57, 246, 232, .32);
+  transform: translateY(-2px);
+}
+
+.mascot-dock__sprite {
+  width: 32px;
+  height: 32px;
+  /* The source PNG is black + alpha (drawn for the macOS menu-bar template
+   * image system). Against a dark sidebar it would be invisible — so we
+   * invert(1) to flip black → white, then hue-rotate to teal.
+   *   invert(1)   → black pixels become white
+   *   sepia(1)    → adds warm tone (gives the hue-rotate a chroma anchor)
+   *   hue-rotate  → shift warm tone to cyan/teal
+   *   saturate    → boost the result so it pops against #0d0d10
+   * `image-rendering: pixelated` keeps the chunky 22-px upscaled look. */
+  filter:
+    invert(1)
+    sepia(1)
+    hue-rotate(140deg)
+    saturate(4);
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* Horizontal flyout — collapsed (zero width, fully transparent) by default.
+ * On dock hover OR child focus, expand to fit contents and fade in. The
+ * `width: 0 → max-content` works in Chromium (Electron) ≥ 91. */
+.mascot-dock__flyout {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  margin-left: 0;
+  background: #15151a;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  overflow: hidden;
+  max-width: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-8px);
+  transition:
+    max-width .25s cubic-bezier(.2, .8, .2, 1),
+    opacity .18s ease,
+    transform .25s cubic-bezier(.2, .8, .2, 1),
+    margin-left .25s cubic-bezier(.2, .8, .2, 1),
+    padding .25s cubic-bezier(.2, .8, .2, 1),
+    border-color .18s ease;
+}
+.mascot-dock:hover .mascot-dock__flyout,
+.mascot-dock:focus-within .mascot-dock__flyout {
+  max-width: 600px;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+  margin-left: 8px;
+  padding: 4px 6px;
+  border-color: rgba(255, 255, 255, .08);
+}
+
+.mascot-dock__item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: #c8c8c8;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s ease, color .12s ease;
+}
+.mascot-dock__item:hover {
+  background: rgba(255, 255, 255, .06);
+  color: #ececec;
+}
+.mascot-dock__item.is-active {
+  color: #39f6e8;
+  background: rgba(57, 246, 232, .10);
+}
+.mascot-dock__item .ke-icon {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  flex: 0 0 auto;
+}
+.mascot-dock__active-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #39f6e8;
+  margin-left: 4px;
+}

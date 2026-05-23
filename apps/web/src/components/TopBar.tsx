@@ -17,32 +17,35 @@ interface Props {
  * of them from any view produces consistent results.
  */
 export function TopBar({ breadcrumb, onBrandClick }: Props) {
-  const appView = useStore(s => s.appView);
-  const systemMode = useStore(s => s.systemMode);
-  const setSystemMode = useStore(s => s.setSystemMode);
   const exitToHome = useStore(s => s.exitToHome);
+  const setAppView = useStore(s => s.setAppView);
   const handleBrand = onBrandClick ?? exitToHome;
-  const inTree = appView === "tree";
-  // Tool buttons are "active" only when the matching panel is actually visible,
-  // i.e. the user is in the tree view. From admin the same click triggers
-  // navigation back to tree, but until that lands we don't highlight.
-  const activeOf = (m: string) => inTree && systemMode === m ? " is-active" : "";
+  // Mirror the Cmd+Esc global hotkey: snap to tree view + clear rootId so
+  // the InputView home screen renders regardless of which app view we're in.
+  const goHome = () => { setAppView("tree"); exitToHome(); };
 
   return (
     <header className="tv-topbar">
       <div className="tv-brand">
         <button type="button" className="tv-home-button" title="首页" aria-label="首页" onClick={handleBrand}>
           <span className="tv-logo" />
-          <strong>Know Everything</strong>
+          <strong>Rich</strong>
         </button>
       </div>
       <nav className="tv-crumb" aria-label="当前位置">{breadcrumb}</nav>
       <div className="tv-tools">
-        <button className={activeOf("view")} type="button" aria-label="视图" title="视图系统" onClick={() => setSystemMode("view")}><Icon name="grid" /></button>
-        <button className={activeOf("map")} type="button" aria-label="知识地图" title="知识地图" onClick={() => setSystemMode("map")}><Icon name="map" /></button>
-        <button className={activeOf("notice")} type="button" aria-label="通知" title="通知" onClick={() => setSystemMode("notice")}><Icon name="bell" /></button>
+        {/* View switching now lives entirely in the bottom-left MascotDock.
+         *  Search / map / notice buttons were removed with the SystemPanel. */}
         <ThemeSwitch />
-        <span>K</span>
+        <button
+          type="button"
+          className="tv-home-key"
+          aria-label="返回首页"
+          title="返回首页（⌘ + Esc）"
+          onClick={goHome}
+        >
+          K
+        </button>
       </div>
     </header>
   );

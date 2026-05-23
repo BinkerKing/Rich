@@ -1,0 +1,141 @@
+.ac-modal {
+  position: fixed; inset: 0; z-index: 2200;
+  background: rgba(2, 8, 18, 0.68); backdrop-filter: blur(8px);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 8vh 24px 0;
+}
+.ac-modal__panel {
+  width: min(620px, 100%); max-height: 80vh;
+  display: flex; flex-direction: column;
+  border: 1px solid var(--line-2); border-radius: 14px;
+  background: rgba(10, 22, 38, 0.96);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+.ac-modal__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.ac-modal__head strong { color: var(--text); font-size: 15px; }
+.ac-modal__head em {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-style: normal;
+  font-size: 12px;
+}
+.ac-modal__close {
+  background: none; border: 1px solid var(--line); color: var(--muted);
+  width: 28px; height: 28px; border-radius: 6px;
+  cursor: pointer; font-size: 16px; line-height: 1;
+}
+
+.ac-modal__tabs {
+  display: flex; gap: 0;
+  border-bottom: 1px solid var(--line);
+}
+.ac-modal__tabs button {
+  flex: 1; padding: 10px 0;
+  background: none; border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted); font-size: 13px;
+  cursor: pointer;
+}
+.ac-modal__tabs button.is-active {
+  color: var(--teal);
+  border-bottom-color: var(--teal);
+}
+
+.ac-modal__body {
+  padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 12px;
+  overflow: hidden;
+  min-height: 0;
+}
+.ac-modal__hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.ac-modal__body input {
+  padding: 8px 12px; border-radius: 6px;
+  border: 1px solid var(--line);
+  background: rgba(15, 29, 46, 0.6);
+  color: var(--text); font-size: 13px;
+}
+.ac-modal__body input:focus { outline: none; border-color: var(--teal); }
+
+.ac-modal__results {
+  display: flex; flex-direction: column; gap: 4px;
+  overflow-y: auto;
+  max-height: 46vh;
+  padding-right: 4px;
+}
+.ac-modal__empty {
+  padding: 24px 16px; text-align: center;
+  color: var(--muted); font-size: 12px;
+  border: 1px dashed var(--line); border-radius: 8px;
+}
+.ac-modal__candidate {
+  --card-accent: var(--element-accent, var(--teal));
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 12px;
+  padding-right: 80px;
+  border: 1px solid transparent;
+  border-left: 3px solid var(--card-accent);
+  border-radius: 6px;
+  background: rgba(15, 29, 46, 0.42);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  position: relative;
+  transition: background .12s, border-color .12s;
+}
+.ac-modal__candidate:hover {
+  background: rgba(15, 35, 58, 0.82);
+  border-color: color-mix(in srgb, var(--card-accent) 50%, transparent);
+}
+.ac-modal__candidate:disabled { opacity: 0.5; cursor: wait; }
+.ac-modal__candidate strong {
+  font-size: 14px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ac-modal__candidate em {
+  font-size: 11px; font-style: normal; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ac-modal__candidate-type {
+  position: absolute;
+  top: 8px; right: 8px;
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  color: var(--card-accent);
+  background: color-mix(in srgb, var(--card-accent) 14%, transparent);
+}
+
+.ac-modal__actions {
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+.ac-modal__actions button {
+  padding: 7px 14px; border-radius: 6px;
+  border: 1px solid var(--line); background: transparent;
+  color: var(--text); font-size: 13px; cursor: pointer;
+}
+.ac-modal__primary {
+  background: var(--teal) !important;
+  color: #06121e !important;
+  border-color: var(--teal) !important;
+  font-weight: 700;
+}
+.ac-modal__primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ac-modal__error {
+  margin: 0 18px 16px;
+  padding: 8px 12px; border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--pink, #ff5ed4) 40%, transparent);
+  background: color-mix(in srgb, var(--pink, #ff5ed4) 14%, transparent);
+  color: var(--pink, #ff5ed4); font-size: 12px;
+}

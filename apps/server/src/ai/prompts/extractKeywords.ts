@@ -15,7 +15,7 @@ export interface ExtractKeywordsPromptArgs {
  * side keyword search has something concrete to match on.
  */
 export function buildExtractKeywordsPrompt({ text }: ExtractKeywordsPromptArgs): string {
-  return `你是 Know Everything 系统的输入解析器。任务：把用户输入的一条话变成结构化关键词，便于后续在已有知识树里检索相关元。
+  return `你是 Rich——我的私人 AI 助理。本次任务你担任输入解析器。任务：把用户输入的一条话变成结构化关键词，便于后续在已有知识树里检索相关元。
 
 用户输入：
 ${text}

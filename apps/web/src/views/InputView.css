@@ -652,11 +652,14 @@
 .home-form button:hover:not(:disabled) { transform: translateY(-1px); }
 .home-form button:disabled { opacity: .45; cursor: not-allowed; }
 
-/* Mode picker (手动 / AI 搜索 / 5 档丰富度) — replaces old richness picker */
+/* Mode picker (手动 / AI 搜索 / 5 档丰富度) — replaces old richness picker.
+ * Buttons hug the label on the LEFT instead of being pushed to the right
+ * edge. The empty space at the right is intentional so the row reads as
+ * "label: options" left-to-right rather than "label ............ options". */
 .home-mode {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
   margin-top: 0;
   flex-wrap: wrap;
@@ -674,8 +677,8 @@
 .home-mode__buttons {
   display: flex;
   gap: 6px;
-  flex: 1;
-  justify-content: flex-end;
+  flex: 0 1 auto;
+  justify-content: flex-start;
   flex-wrap: wrap;
 }
 .home-mode__btn {

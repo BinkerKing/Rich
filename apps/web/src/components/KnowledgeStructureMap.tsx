@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import type { CenterView, Element, LearningPath, Relation } from "@ke/domain";
 import { ChildCard } from "./ChildCard.js";
+import { AddChildModal } from "./AddChildModal.js";
 import { elementDragProps, useDropTarget } from "../lib/elementDnd.js";
 import { elementTypeClass, elementTypeLabel } from "./elementLabels.js";
 import { GrandPill } from "./GrandPill.js";
@@ -20,8 +21,11 @@ interface Props {
   pathsForElement: (id: string) => LearningPath[];
   onSelect: (id: string) => void;
   onSetCenter: (id: string) => void;
-  /** Called when a card is HTML5-dragged onto another card (= reparent). */
-  onDropOnto?: (sourceId: string, targetId: string) => void;
+  /** Called when a card is HTML5-dragged onto another card.
+   *  `side` reports which third of the target card the cursor was over —
+   *  callers use it to choose reorder (before/after a sibling) vs reparent
+   *  (drop onto center / non-sibling). */
+  onDropOnto?: (sourceId: string, targetId: string, side: import("../lib/elementDnd.js").DropSide) => void;
   /** When true, the map is in "fullscreen within tv-main" mode (panel hidden). */
   expanded?: boolean;
   /** Toggle the expanded mode. */
@@ -101,9 +105,12 @@ export function KnowledgeStructureMap({
   const extend = useStore(s => s.extend);
   const generatePaths = useStore(s => s.generatePaths);
   const createChildElement = useStore(s => s.createChildElement);
+  const moveElement = useStore(s => s.moveElement);
   const inflight = useStore(s => s.inflight);
   const openMindmap = useStore(s => s.openMindmap);
   const hydrate = useStore(s => s.hydrate);
+  const deleteElement = useStore(s => s.deleteElement);
+  const [addChildTarget, setAddChildTarget] = useState<Element | null>(null);
   const selected = elements.get(selectedId) ?? view.center;
   const root = view.center;
   const lineage = relativeLineageFor(root.id, selected.id, relations, elements);
@@ -207,12 +214,10 @@ export function KnowledgeStructureMap({
         setLastAction(`路径已生成 · ${element.title}`);
         return;
       case "新增下级元": {
-        const title = window.prompt(`在「${element.title}」下新增一个空的下级元，标题：`, "");
-        const t = title?.trim();
-        if (!t) return;
-        setLastAction(`已新增「${t}」 · 挂在 ${element.title} 下`);
-        try { await createChildElement(element.id, t); }
-        catch (e) { setLastAction(`新增失败：${e instanceof Error ? e.message : String(e)}`); }
+        // Open the dual-mode modal: 新建 (create empty) | 绑定 (search top-
+        // level elements and attach). The modal handles both flows itself —
+        // we just provide it with the parent and the store actions.
+        setAddChildTarget(element);
         return;
       }
       case "生成导图 PPT": {
@@ -256,6 +261,39 @@ export function KnowledgeStructureMap({
         setLastAction(`展开线路 · 顶到 ${elements.get(cur)?.title ?? cur}`);
         return;
       }
+      case "删除": {
+        // Count descendants so the confirm dialog tells the user what's at
+        // stake. We index relations locally because the server delete is
+        // recursive — the warning has to match that scope.
+        const childIndex = new Map<string, string[]>();
+        for (const r of relations) {
+          if (r.kind !== "child") continue;
+          const list = childIndex.get(r.from) ?? [];
+          list.push(r.to);
+          childIndex.set(r.from, list);
+        }
+        const subtree = new Set<string>();
+        const queue = [element.id];
+        while (queue.length > 0) {
+          const cur = queue.shift()!;
+          if (subtree.has(cur)) continue;
+          subtree.add(cur);
+          for (const c of childIndex.get(cur) ?? []) queue.push(c);
+        }
+        const descCount = subtree.size - 1;
+        const msg = descCount > 0
+          ? `删除「${element.title}」及其 ${descCount} 个后代元？\n此操作不可撤销。`
+          : `删除「${element.title}」？\n此操作不可撤销。`;
+        if (!window.confirm(msg)) return;
+        try {
+          await deleteElement(element.id);
+          setLastAction(`已删除 · ${element.title}`);
+        } catch (e) {
+          setLastAction(`删除失败：${e instanceof Error ? e.message : String(e)}`);
+          window.alert(`删除失败：${e instanceof Error ? e.message : String(e)}`);
+        }
+        return;
+      }
       default:
         setLastAction(`${action} · ${element.title}`);
     }
@@ -290,7 +328,9 @@ export function KnowledgeStructureMap({
               打开 · 查看详情页
             </button>
           )}
-          {["细化", "展开下层", "延伸", "生成路径"].map(action => (
+          {/* 细化 / 展开 / 延伸 移到元详情页里执行 —— 知识树右键容易误触
+              这些会触发 AI 调用的重操作。保留低风险 + 导航类条目。 */}
+          {["生成路径"].map(action => (
             <button
               key={action}
               type="button"
@@ -332,25 +372,35 @@ export function KnowledgeStructureMap({
           >
             {contextTarget.element.id === view.center.id ? "已是中心" : "设为中心"}
           </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="knowledge-context-menu__danger"
+            onClick={() => void runNodeAction("删除")}
+            title="删除该元（连同所有后代元，不可撤销）"
+          >
+            删除
+          </button>
         </div>,
         document.body,
       )
     : null;
 
   return (
-    <section className={`structure-map${expanded ? " structure-map--expanded" : ""}`}>
+    <section
+      className={`structure-map${expanded ? " structure-map--expanded" : ""}`}
+      onDoubleClick={(e) => {
+        // Double-click on empty canvas toggles expand. We skip the event
+        // if it originated on a card / pill / button / context menu so
+        // those interactive elements keep their own behavior.
+        if (!onToggleExpand) return;
+        const t = e.target as HTMLElement;
+        if (t.closest("button, .structure-chain-card, .tree-node-wrap, .knowledge-context-menu")) return;
+        onToggleExpand();
+      }}
+      title={onToggleExpand ? (expanded ? "双击空白处还原" : "双击空白处展开") : undefined}
+    >
       <div className="structure-map__ambient" aria-hidden="true" />
-      {onToggleExpand && (
-        <button
-          type="button"
-          className="structure-map__expand"
-          title={expanded ? "还原 · 显示元详情" : "展开知识树 · 隐藏元详情"}
-          aria-label={expanded ? "还原" : "展开"}
-          onClick={onToggleExpand}
-        >
-          <Icon name="expand" />
-        </button>
-      )}
       <div className="tree-canvas-scroll" aria-label="知识地图" ref={scrollRef}>
         <div className="tree-canvas" style={{ width: layout.canvasWidth, height: layout.canvasHeight }}>
           <svg
@@ -465,6 +515,33 @@ export function KnowledgeStructureMap({
           {lastAction && typeof document !== "undefined"
             ? createPortal(<div className="knowledge-action-toast">{lastAction}</div>, document.body)
             : null}
+          {addChildTarget && (
+            <AddChildModal
+              parent={addChildTarget}
+              elements={elements}
+              relations={relations}
+              onClose={() => setAddChildTarget(null)}
+              onCreate={async (title) => {
+                try {
+                  await createChildElement(addChildTarget.id, title);
+                  setLastAction(`已新增「${title}」 · 挂在 ${addChildTarget.title} 下`);
+                } catch (e) {
+                  setLastAction(`新增失败：${e instanceof Error ? e.message : String(e)}`);
+                  throw e;
+                }
+              }}
+              onBind={async (elementId) => {
+                try {
+                  await moveElement(elementId, addChildTarget.id);
+                  const movedTitle = elements.get(elementId)?.title ?? elementId;
+                  setLastAction(`已绑定「${movedTitle}」 · 现在挂在 ${addChildTarget.title} 下`);
+                } catch (e) {
+                  setLastAction(`绑定失败：${e instanceof Error ? e.message : String(e)}`);
+                  throw e;
+                }
+              }}
+            />
+          )}
         </div>
       </div>
     </section>
@@ -482,10 +559,10 @@ function CenterDropButton({
   onSetCenter: (id: string) => void;
   onOpenDetail?: (id: string) => void;
   onContextMenu: (e: MouseEvent<HTMLElement>) => void;
-  onDropOnto?: (sourceId: string, targetId: string) => void;
+  onDropOnto?: (sourceId: string, targetId: string, side: import("../lib/elementDnd.js").DropSide) => void;
   children: React.ReactNode;
 }) {
-  const drop = useDropTarget(root.id, src => onDropOnto?.(src, root.id));
+  const drop = useDropTarget(root.id, (src, side) => onDropOnto?.(src, root.id, side));
   void onSetCenter;
   return (
     <button

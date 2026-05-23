@@ -10,6 +10,7 @@ import { AskPopup } from "./AskPopup.js";
 import { EmbeddedTaskList } from "./EmbeddedTaskList.js";
 import { MermaidDiagram } from "./MermaidDiagram.js";
 import { renderSectionBlocks } from "./SectionRenderer.js";
+import { EditableBody } from "./EditableBody.js";
 import type { DynamicSection } from "@ke/domain";
 import { useStore } from "../state/store.js";
 import { api } from "../api/client.js";
@@ -1155,6 +1156,7 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
     if (typeof openSignal === "number" && openSignal > 0) setIsFullscreen(true);
   }, [openSignal]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null);
   const [lastAction, setLastAction] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<ActionKind | null>(null);
@@ -1322,6 +1324,13 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
     const hasStep = asText(c.goal) !== null || asObjectList(c.steps).length > 0;
     const props = { element, childrenCount, onOpenChildren, onSelectChild: onSelect };
 
+    // Edit mode overrides ALL renderers — including the sections[]
+    // shortcut below. Must come first so users in edit mode actually see
+    // the editor.
+    if (editMode) {
+      return <EditableBody key={element.id} element={element} onExit={() => setEditMode(false)} />;
+    }
+
     // Dynamic sections take priority: if AI emitted a `sections[]` array,
     // use it verbatim and ignore the per-type layout. Lets travel / fitness /
     // recipe / other non-canonical elements be rendered properly.
@@ -1408,22 +1417,17 @@ export function ElementContentPanel({ element, childrenCount, currentLevel, onOp
             >{name}</button>
           ))}
           <button
-            aria-label="删除元"
-            title="删除该元（连同所有子元）"
-            className="quiet-button quiet-button--icon quiet-button--delete"
             type="button"
-            onClick={() => void handleDelete()}
-          >×</button>
-          {!hideFullscreenToggle && (
-            <button
-              aria-label={fullscreen ? "还原" : "放大"}
-              className="quiet-button quiet-button--icon"
-              type="button"
-              onClick={() => setIsFullscreen(v => !v)}
-            >
-              <Icon name="expand" />
-            </button>
-          )}
+            className={`quiet-button quiet-button--edit${editMode ? " is-active" : ""}`}
+            onClick={() => setEditMode(v => !v)}
+            title={editMode ? "退出自定义编辑" : "打开自定义编辑 · 手动调整章节和模块"}
+          >
+            {editMode ? "✓ 编辑中" : "✎ 编辑"}
+          </button>
+          {/* Delete moved to the knowledge-tree right-click menu — the
+           *  detail header now only carries non-destructive actions. */}
+           {/* Manual fullscreen toggle removed — fullscreen still opens via
+           *  the openSignal prop (programmatic) and Esc closes it. */}
         </div>
       </header>
 

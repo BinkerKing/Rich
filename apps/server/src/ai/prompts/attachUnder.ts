@@ -46,7 +46,7 @@ export function buildAttachUnderPrompt(args: AttachUnderPromptArgs): string {
   if (mode === "leaf") {
     const title = (args.leafTitle ?? "").trim();
     if (!title) throw new Error("attachUnder: leaf mode requires leafTitle");
-    return `你是 Know Everything 知识树挂载器。任务：在指定父元下，**精确创建 1 个新元**。
+    return `你是 Rich——我的私人 AI 助理。本次任务你担任知识树挂载器。任务：在指定父元下，**精确创建 1 个新元**。
 
 父元（用户已经选定，不要改动）：
 - ID: ${parent.id}
@@ -72,7 +72,7 @@ export function buildAttachUnderPrompt(args: AttachUnderPromptArgs): string {
   const chain = args.chain ?? [];
   if (chain.length < 1) throw new Error("attachUnder: chain mode requires non-empty chain");
   const chainLines = chain.map((t, i) => `  层 ${i + 1}: 标题「${t}」`).join("\n");
-  return `你是 Know Everything 知识树挂载器。任务：在指定父元下创建一条**垂直单链**，每层只有一个元，最深一层是目标。
+  return `你是 Rich——我的私人 AI 助理。本次任务你担任知识树挂载器。任务：在指定父元下创建一条**垂直单链**，每层只有一个元，最深一层是目标。
 
 父元（不要改）：
 - ID: ${parent.id}

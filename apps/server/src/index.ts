@@ -9,7 +9,23 @@ import { signalsRoutes } from "./routes/signals.js";
 import { stateRoutes } from "./routes/state.js";
 import { aiRoutes } from "./routes/ai.js";
 import { adminRoutes } from "./routes/admin.js";
-import { join } from "node:path";
+import { join, resolve as pathResolve, join as pathJoin, extname as pathExtname } from "node:path";
+import { readFile as fsReadFile, stat as fsStat } from "node:fs/promises";
+
+const STATIC_MIMES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js":   "text/javascript; charset=utf-8",
+  ".css":  "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg":  "image/svg+xml",
+  ".png":  "image/png",
+  ".jpg":  "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".ico":  "image/x-icon",
+  ".woff2": "font/woff2",
+  ".woff": "font/woff",
+};
 import { JsonElementsRepo } from "./repos/JsonElementsRepo.js";
 import { JsonRelationsRepo } from "./repos/JsonRelationsRepo.js";
 import { JsonPathsRepo } from "./repos/JsonPathsRepo.js";
@@ -18,6 +34,7 @@ import { JsonQARepo } from "./repos/JsonQARepo.js";
 import { JsonAnnotationsRepo } from "./repos/JsonAnnotationsRepo.js";
 import { annotationsRoutes } from "./routes/annotations.js";
 import { imagesRoutes } from "./routes/images.js";
+import { attachmentsRoutes } from "./routes/attachments.js";
 import { mindmapsRoutes } from "./routes/mindmaps.js";
 import { JsonStateRepo } from "./repos/JsonStateRepo.js";
 import { CachedElementsRepo } from "./repos/CachedElementsRepo.js";
@@ -40,11 +57,27 @@ import type { StateRepo } from "./repos/StateRepo.js";
 import { dataDir, aiDir } from "./lib/paths.js";
 import { ClaudeAdapter } from "./ai/claude.js";
 import { CodexAdapter } from "./ai/codex.js";
-import { configureOpLog } from "./ai/aiOpLog.js";
+import { HermesAdapter } from "./ai/hermes.js";
+import { configureOpLog, healStaleRunningOps } from "./ai/aiOpLog.js";
 import { imageQueue } from "./ai/imageQueue.js";
 import type { AIAdapter } from "./ai/adapter.js";
 import { createLogger, noopLogger, type Logger } from "./lib/logger.js";
 import { installShutdownHandlers, childRegistry } from "./lib/childRegistry.js";
+import { mountMcp } from "./mcp/transport.js";
+import { eventsRoute } from "./routes/events.js";
+import { greatMeRoutes } from "./routes/greatMe.js";
+import { chatRoutes } from "./routes/chat.js";
+import { cronRoutes } from "./routes/cron.js";
+import { ImprovementsRepo } from "./repos/ImprovementsRepo.js";
+import { improvementsRoutes } from "./routes/improvements.js";
+import { InvocationsRepo } from "./repos/InvocationsRepo.js";
+import { ToolRuntime } from "./tools/runtime.js";
+import { lockScreenTool } from "./tools/lockScreen.js";
+import { toolboxRoutes } from "./routes/toolbox.js";
+import { mascotRoutes } from "./routes/mascot.js";
+import { SqliteGreatMeRepo } from "./repos/SqliteGreatMeRepo.js";
+import { JsonGreatMeRepo } from "./repos/JsonGreatMeRepo.js";
+import type { GreatMeRepo } from "./repos/GreatMeRepo.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -63,6 +96,9 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let qa: QARepo;
   let annotations: AnnotationsRepo;
   let state: StateRepo;
+  let greatMe: GreatMeRepo;
+  let improvements: ImprovementsRepo | null = null;
+  let invocations: InvocationsRepo | null = null;
   if (storage === "json") {
     elements = new CachedElementsRepo(new JsonElementsRepo(root));
     relations = new CachedRelationsRepo(new JsonRelationsRepo(root));
@@ -71,6 +107,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     qa = new JsonQARepo(root);
     annotations = new JsonAnnotationsRepo(root);
     state = new JsonStateRepo(root);
+    greatMe = new JsonGreatMeRepo(root);
   } else {
     const dbPath = process.env.KE_SQLITE_PATH ?? join(root, "ke.db");
     const db = openDb(dbPath);
@@ -81,19 +118,57 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     qa = new SqliteQARepo(db);
     annotations = new SqliteAnnotationsRepo(db);
     state = new SqliteStateRepo(db);
+    greatMe = new SqliteGreatMeRepo(db);
+    improvements = new ImprovementsRepo(db);
+    invocations = new InvocationsRepo(db);
   }
+
+  // Toolbox runtime constructed below (after `log` is defined).
   // Order matters: pickAdapter() returns adapters[0] when no preference is given.
   // Codex first because Claude SDK 401s when the server is launched inside a
   // Claude Code session (no OAuth refresh available in the subprocess).
-  const ai = adapters ?? opts.adapters ?? [new CodexAdapter(), new ClaudeAdapter()];
+  // Default adapter order (per Plan B migration):
+  //   1. Hermes — the new brain. Speaks OpenAI-compatible HTTP API and
+  //      uses Codex internally via your existing OAuth. Routes that
+  //      need an agent-style LLM should pick this.
+  //   2. Codex — direct subprocess. Preserved for fallback while Plan B
+  //      migration is in progress; pickAdapter() returns adapters[0] by
+  //      default so codex is only used when explicitly requested via the
+  //      `model` param.
+  //   3. Claude Code — legacy SDK path; only used if explicitly named.
+  const ai = adapters ?? opts.adapters ?? [
+    new HermesAdapter(),
+    new CodexAdapter(),
+    new ClaudeAdapter(),
+  ];
   const log = logger ?? opts.logger ?? noopLogger;
   const manualsDir = opts.aiDir ?? aiDir();
+  // ─── Toolbox runtime (gracefully no-op if SQLite repo missing) ──
+  const toolRuntime = invocations ? new ToolRuntime(invocations) : null;
+  if (toolRuntime) {
+    toolRuntime.register(lockScreenTool);
+    // Re-schedule any deferred invocations that survived the previous crash.
+    const rehydrated = toolRuntime.rehydrate();
+    if (rehydrated.rescheduled + rehydrated.cancelled > 0) {
+      log.info("toolbox.rehydrated", rehydrated);
+    }
+  }
   // Persist every AI op prompt + output to data/ai-ops.jsonl for the admin UI.
   configureOpLog(root);
-  // Image generation runs in a separate AI op from text generation. The text
-  // op emits image-placeholder blocks; this background queue processes them.
-  // pickAdapter() returns adapters[0] when no preference — Codex first.
-  imageQueue.configure(ai[0], elements, log);
+  // Self-heal: any op stuck in "running" from a previous crash / pkill / OOM
+  // gets a synthetic error terminal line, so the admin UI doesn't show
+  // dead-but-still-running entries indefinitely. Fire-and-forget.
+  void healStaleRunningOps().then(n => {
+    if (n > 0) log.info("ai.ops.healed", { stale_running_marked_error: n });
+  });
+  // Image generation runs in a separate AI op from text generation. The
+  // text op emits image-placeholder blocks; this background queue processes
+  // them. Hermes's OpenAI-compat endpoint can't produce image files (it's
+  // text-only), so the image queue specifically targets the Codex adapter
+  // instead of pickAdapter's default. Falls back to whichever adapter is
+  // first if Codex isn't configured.
+  const codexForImages = ai.find(a => a.name === "codex") ?? ai[0];
+  imageQueue.configure(codexForImages, elements, log);
   const app = new Hono();
   app.use("*", async (c, next) => {
     c.header("access-control-allow-origin", "*");
@@ -107,7 +182,20 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/signals", signalsRoutes(signals));
   app.route("/api/annotations", annotationsRoutes(annotations));
   app.route("/api/images", imagesRoutes());
+  app.route("/api/attachments", attachmentsRoutes());
   app.route("/api/state", stateRoutes(state, elements, signals));
+  app.route("/api/great-me", greatMeRoutes(greatMe));
+  app.route("/api/chat", chatRoutes());
+  app.route("/api/cron", cronRoutes());
+  if (improvements) {
+    // Only mounted in SQLite mode (the only storage backend with a repo).
+    // JSON-mode users get 404s here, which is fine — the feature is opt-in.
+    app.route("/api/improvements", improvementsRoutes(improvements));
+  }
+  if (toolRuntime && invocations) {
+    app.route("/api/toolbox", toolboxRoutes(toolRuntime, invocations));
+  }
+  app.route("/api/mascot", mascotRoutes());
   app.route("/api/ai", aiRoutes({
     adapters: ai, elements, relations, paths, signals, qa, annotations,
     aiDir: manualsDir, logger: log,
@@ -119,6 +207,24 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     adapters: ai, elements, relations, signals, logger: log,
   }));
 
+  // SSE channel for UIs to receive change notifications. Backend code
+  // calls `eventBus.publish("element.changed", ...)` whenever it writes
+  // data; this route forwards those events to every connected tab so
+  // they re-hydrate without polling.
+  app.route("/api/events", eventsRoute());
+
+  // MCP server — exposes Rich's data + AI ops as MCP tools so external
+  // agents (Hermes / Claude Desktop / Cursor / Codex / etc.) can drive
+  // the knowledge tree. Mounted at /mcp. Shares the same repos and AI
+  // adapters as the rest of this Hono app, so an agent edit lands in
+  // the same SQLite the Rich UI is reading from.
+  mountMcp(app, {
+    elements, relations, paths, signals, qa, annotations,
+    adapters: ai, aiDir: manualsDir, improvements,
+    toolRuntime,
+  });
+
+  // Health endpoint registered BEFORE the SPA catch-all so it actually matches.
   app.get("/api/health", async (c) => {
     const adapterChecks = await Promise.all(ai.map(async (a) => ({
       name: a.name,
@@ -134,15 +240,73 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     });
   });
 
+  // In desktop / standalone mode, serve the prebuilt web bundle from the
+  // same server so the Electron BrowserWindow can load http://localhost:<p>/
+  // without a separate vite dev server. Activated when KE_WEB_DIST points
+  // at the apps/web/dist/ directory.
+  const webDist = process.env.KE_WEB_DIST;
+  if (webDist) {
+    const ROOT = pathResolve(webDist);
+    app.get("/*", async (c) => {
+      // Skip /api/* — those are mounted earlier and would have matched.
+      if (c.req.path.startsWith("/api/")) return c.notFound();
+      let p = c.req.path.replace(/^\/+/, "");
+      if (!p || p.endsWith("/")) p = pathJoin(p, "index.html");
+      const target = pathResolve(pathJoin(ROOT, p));
+      if (!target.startsWith(ROOT)) return c.notFound();
+      // SPA fallback: any path not matching a real file falls back to
+      // index.html so the React app can render the right view.
+      const fallback = pathResolve(pathJoin(ROOT, "index.html"));
+      try {
+        const s = await fsStat(target);
+        if (!s.isFile()) {
+          const buf = await fsReadFile(fallback);
+          return c.body(new Uint8Array(buf), 200, { "content-type": "text/html; charset=utf-8" });
+        }
+      } catch {
+        try {
+          const buf = await fsReadFile(fallback);
+          return c.body(new Uint8Array(buf), 200, { "content-type": "text/html; charset=utf-8" });
+        } catch { return c.notFound(); }
+      }
+      const ct = STATIC_MIMES[pathExtname(target).toLowerCase()] ?? "application/octet-stream";
+      const buf = await fsReadFile(target);
+      return c.body(new Uint8Array(buf), 200, { "content-type": ct, "cache-control": "private, max-age=60" });
+    });
+  }
+
   return app;
 }
 
-if (fileURLToPath(import.meta.url) === realpathSync(process.argv[1])) {
+function isMainModule(): boolean {
+  // ESM detection (works when running via tsx / node loader).
+  try {
+    return fileURLToPath(import.meta.url) === realpathSync(process.argv[1]);
+  } catch { return false; }
+}
+
+if (isMainModule() || process.env.KE_AUTO_START === "1") {
   const port = Number(process.env.PORT ?? 3001);
   const log = createLogger({ bound: { app: "ke-server" } });
   const app = buildApp(dataDir(), undefined, log);
   serve({ fetch: app.fetch, port });
   log.info("server.started", { port, url: `http://localhost:${port}` });
+
+  // Publish the MCP URL to a known location so external agent configs
+  // (Hermes, Claude Desktop, ...) can read it without guessing the port.
+  // Re-written on every boot — port can shift if 31515 is taken.
+  void (async () => {
+    try {
+      const fs = await import("node:fs/promises");
+      const path = await import("node:path");
+      const url = `http://127.0.0.1:${port}/mcp`;
+      await fs.writeFile(path.join(dataDir(), ".mcp-url"), url + "\n", "utf8");
+      log.info("mcp.url.published", { url });
+    } catch (e) {
+      log.warn("mcp.url.publish_failed", { error: e instanceof Error ? e.message : String(e) });
+    }
+  })();
+
   installShutdownHandlers({
     onShutdown: () => log.info("server.shutdown", { childProcesses: childRegistry.size() }),
   });

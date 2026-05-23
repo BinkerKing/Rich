@@ -19,6 +19,7 @@ import { buildAttachUnderPrompt } from "./prompts/attachUnder.js";
 import { buildGenerateDailyNewsPrompt } from "./prompts/generateDailyNews.js";
 import { buildGenerateImagePrompt } from "./prompts/generateImage.js";
 import { buildGenerateMindmapPrompt } from "./prompts/generateMindmap.js";
+import { buildGreatMePrompt, type GreatMeMode } from "./prompts/greatMe.js";
 import type { AIManual } from "./manuals.js";
 import type { Signal } from "@ke/domain";
 
@@ -167,6 +168,45 @@ const GenerateMindmapResultSchema = z.object({
   images: z.array(MindmapImagePromptSchema).max(20).optional().default([]),
 });
 export type GenerateMindmapResult = z.infer<typeof GenerateMindmapResultSchema>;
+
+const GreatMeModeSchema = z.enum(["goal", "mission", "review", "week-simulation"]);
+const GreatMeLaneSchema = z.enum(["主线任务", "能力突破", "健康能量", "关系连接", "财富系统", "创造输出"]);
+const GreatMeAxisSchema = z.enum(["body", "mind", "wealth", "craft", "relations", "creation"]);
+const GreatMePdcaSchema = z.object({
+  plan: z.string().optional().default(""),
+  do: z.string().optional().default(""),
+  check: z.string().optional().default(""),
+  act: z.string().optional().default(""),
+}).partial().default({});
+const GreatMeBrainResultSchema = z.object({
+  mode: GreatMeModeSchema,
+  title: z.string().min(1).max(48),
+  summary: z.string().min(1).max(500),
+  focus: z.string().min(1).max(160),
+  risks: z.array(z.string().min(1).max(140)).max(6).default([]),
+  nextActions: z.array(z.string().min(1).max(140)).max(8).default([]),
+  missions: z.array(z.object({
+    title: z.string().min(1).max(120),
+    lane: GreatMeLaneSchema.default("主线任务"),
+    impact: z.number().int().min(0).max(100).default(70),
+    effort: z.number().int().min(0).max(100).default(35),
+    reason: z.string().max(180).optional().default(""),
+  })).max(8).default([]),
+  pdca: GreatMePdcaSchema,
+  axisAdjustments: z.array(z.object({
+    axis: GreatMeAxisSchema,
+    delta: z.number().int().min(-10).max(10),
+    reason: z.string().min(1).max(140),
+  })).max(6).default([]),
+  weekSimulation: z.array(z.object({
+    day: z.number().int().min(1).max(7),
+    theme: z.string().min(1).max(80),
+    mission: z.string().min(1).max(140),
+    evidence: z.string().min(1).max(140),
+    review: z.string().min(1).max(180),
+  })).max(7).default([]),
+});
+export type GreatMeBrainResult = z.infer<typeof GreatMeBrainResultSchema>;
 // Used by NewsSource discriminator above — keep schema referenced.
 void NewsSourceSchema;
 
@@ -422,6 +462,31 @@ export function generateMindmap(
     opLog: {
       op: "generate-mindmap", model: adapter.name,
       scope: { titleHint: args.titleHint, audience: args.audience, withImages: args.withImages, proseLength: args.prose.length },
+    },
+  });
+}
+
+export function runGreatMeBrain(
+  adapter: AIAdapter,
+  args: {
+    mode: GreatMeMode;
+    input: string;
+    state: unknown;
+  } & SharedOpArgs,
+): AsyncIterable<StructuredEvent<GreatMeBrainResult>> {
+  const prompt = buildGreatMePrompt({
+    mode: args.mode,
+    input: args.input,
+    state: args.state,
+  });
+  return runStructuredAI(adapter, {
+    prompt,
+    signal: args.signal,
+    validate: zodValidator(GreatMeBrainResultSchema),
+    opLog: {
+      op: "great-me",
+      model: adapter.name,
+      scope: { mode: args.mode, input: args.input.slice(0, 120) },
     },
   });
 }

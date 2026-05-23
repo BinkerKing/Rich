@@ -215,15 +215,21 @@ html .embedded-task--running .embedded-task__kind::after {
 /* Per-kind coloring — the ENTIRE card frame + background carries the type
  * color, not just the left edge. Border is full type-color outline; the
  * background is a soft type-tinted wash that keeps text readable. */
-.embedded-task--kind-generate     { --kind-color: #38f2e6; }
-.embedded-task--kind-refine       { --kind-color: #3dd5cd; }
-.embedded-task--kind-expand       { --kind-color: #6aa8ff; }
-.embedded-task--kind-extend       { --kind-color: #b9a3ff; }
-.embedded-task--kind-feedback     { --kind-color: #ffa86b; }
-.embedded-task--kind-path         { --kind-color: #74e5b0; }
-.embedded-task--kind-hydrate      { --kind-color: #8fb3ca; }
-.embedded-task--kind-daily-news   { --kind-color: #4ade80; }
-.embedded-task--kind-ai-search    { --kind-color: #8ffef7; }
+/* Per-kind palette. Each color binds to one semantic role — generate is
+ * the "tree creation" anchor, refine/expand/extend share the cool-blue
+ * family for element-level edits, feedback / image / mindmap use warm
+ * accents for output ops, greatme-brain gets gold as the "personal" lane. */
+.embedded-task--kind-generate      { --kind-color: #38f2e6; }
+.embedded-task--kind-refine        { --kind-color: #3dd5cd; }
+.embedded-task--kind-expand        { --kind-color: #6aa8ff; }
+.embedded-task--kind-extend        { --kind-color: #b9a3ff; }
+.embedded-task--kind-feedback      { --kind-color: #ffa86b; }
+.embedded-task--kind-path          { --kind-color: #74e5b0; }
+.embedded-task--kind-daily-news    { --kind-color: #4ade80; }
+.embedded-task--kind-ai-search     { --kind-color: #8ffef7; }
+.embedded-task--kind-mindmap       { --kind-color: #818cf8; }
+.embedded-task--kind-image-gen     { --kind-color: #f472b6; }
+.embedded-task--kind-greatme-brain { --kind-color: #ffd166; }
 .embedded-task[class*="embedded-task--kind-"] {
   position: relative;
   /* Subtle outline + soft type tint, but the prominent left-edge bar (below)

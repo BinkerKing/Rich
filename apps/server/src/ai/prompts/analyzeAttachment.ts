@@ -35,7 +35,7 @@ export function buildAnalyzeAttachmentPrompt({
     ? "（候选清单为空 — 系统里没有命中关键词的已有元。)"
     : candidates.map((c, i) => `${i + 1}. id="${c.id}" title="${c.title}" type=${c.type}${c.subtitle ? ` subtitle="${c.subtitle}"` : ""} path=[${c.parentPath.join(" > ") || "(root)"}]${c.tags && c.tags.length ? ` tags=${c.tags.join(",")}` : ""}`).join("\n");
 
-  return `你是 Know Everything 系统的"挂载分析器"。
+  return `你是 Rich——我的私人 AI 助理。本次任务你担任"挂载分析器"。
 
 任务：根据用户输入 + 候选元清单，给出 1-3 个可行的挂载方案，由用户最终决定怎么落地。**不要做最终决定，列方案。**
 

@@ -148,3 +148,34 @@ export function reduceToFinal(records: AIOpRecord[]): AIOpRecord[] {
   for (const r of records) byId.set(r.id, r);
   return Array.from(byId.values()).sort((a, b) => b.ts.localeCompare(a.ts));
 }
+
+/**
+ * Self-heal stale "running" records on server startup. If the process was
+ * killed mid-op (pkill -9, OOM, crash), the matching `done`/`error` line
+ * never got written, leaving the op in perpetual "running" state — which
+ * the admin UI then shows as "still running" forever.
+ *
+ * Threshold: anything older than `staleAfterMs` (default 15 minutes) that
+ * is still `running` gets a synthetic `error` line appended.
+ *
+ * Returns the count of records healed so callers can log it.
+ */
+export async function healStaleRunningOps(staleAfterMs: number = 15 * 60 * 1000): Promise<number> {
+  if (!LOG_PATH) return 0;
+  const records = await readAllOpRecords();
+  const final = reduceToFinal(records);
+  const cutoff = Date.now() - staleAfterMs;
+  const stuck = final.filter(r =>
+    r.status === "running" && new Date(r.ts).getTime() < cutoff,
+  );
+  if (stuck.length === 0) return 0;
+  for (const r of stuck) {
+    await appendLine({
+      ...r,
+      status: "error",
+      durationMs: Date.now() - new Date(r.ts).getTime(),
+      error: "进程在执行中被强制中断（pkill / 崩溃 / 重启），状态由启动自愈机制置为失败",
+    });
+  }
+  return stuck.length;
+}

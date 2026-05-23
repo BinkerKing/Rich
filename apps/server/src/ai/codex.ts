@@ -56,9 +56,15 @@ export class CodexAdapter implements AIAdapter {
       return;
     }
 
+    // --skip-git-repo-check: codex's default "trusted directory" guard fires
+    // when the cwd isn't inside a git repo (or an explicitly trusted folder).
+    // The packaged Rich.app runs with cwd = "/" so the guard blocks every
+    // invocation with "Not inside a trusted directory and --skip-git-repo-check
+    // was not specified". We're using codex strictly as an LLM API here — no
+    // file edits — so skipping the check is safe.
     const childArgs = args.sessionId
-      ? ["exec", "--json", "resume", args.sessionId, "-"]
-      : ["exec", "--json", "-"];
+      ? ["exec", "--skip-git-repo-check", "--json", "resume", args.sessionId, "-"]
+      : ["exec", "--skip-git-repo-check", "--json", "-"];
 
     const child = spawn(binary, childArgs, { stdio: ["pipe", "pipe", "pipe"] });
     const unregister = childRegistry.register(child);

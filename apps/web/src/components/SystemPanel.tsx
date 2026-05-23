@@ -17,6 +17,12 @@ interface Props {
 }
 
 export function SystemPanel({ mode, selected, elements, onSelect }: Props) {
+  // Drawer-mode rendering: only mount when the user explicitly opens it via
+  // the TopBar tool buttons. Default state is closed so the main content
+  // area gets the full window width.
+  const open = useStore(s => s.systemPanelOpen);
+  if (!open) return null;
+
   if (mode === "search") {
     if (!selected) {
       return (
@@ -77,10 +83,12 @@ function ViewSystem() {
 
   // Click 知识树 → always land on the InputView home page (clears rootId).
   // Picking / continuing a specific tree happens from that page.
-  const views: Array<{ id: AppView; label: string; desc: string; icon: "branch" | "gear" | "spark"; onClick: () => void }> = [
+  const views: Array<{ id: AppView; label: string; desc: string; icon: "branch" | "gear" | "spark" | "target"; onClick: () => void }> = [
     { id: "tree", label: "知识树", desc: "回到知识树首页选择 / 新建", icon: "branch", onClick: exitToHome },
     { id: "news", label: "AI 早报", desc: "每日 AI 能力进展与应用速览", icon: "spark", onClick: () => setAppView("news") },
     { id: "mindmap", label: "导图 PPT", desc: "把元 / 文稿一键拆成可播放导图", icon: "branch", onClick: () => setAppView("mindmap") },
+    { id: "greatme", label: "计划管理", desc: "AI 拆解 · 目标跟进 · 日报反馈", icon: "target", onClick: () => setAppView("greatme") },
+    { id: "toolbox", label: "工具箱", desc: "锁屏 · 定时器 · 其它小工具", icon: "gear", onClick: () => setAppView("toolbox") },
     { id: "admin", label: "后台", desc: "AI 引擎 · 操作日志 · 提示词", icon: "gear", onClick: () => setAppView("admin") },
   ];
 

@@ -1,0 +1,479 @@
+/* Edit-mode body — replaces the read-only renderer when the user toggles
+ * "编辑" in the element detail head. Designed to be visually distinct from
+ * the read mode so the user always knows they're editing. */
+
+.eb-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 14px;
+}
+
+.eb-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--amber, #ffc44d) 50%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--amber, #ffc44d) 8%, transparent);
+}
+.eb-toolbar__title {
+  font-weight: 700;
+  color: var(--amber, #ffc44d);
+  font-size: 13px;
+}
+.eb-toolbar__exit {
+  margin-left: auto;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--teal);
+  background: color-mix(in srgb, var(--teal) 12%, transparent);
+  color: var(--teal);
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+}
+.eb-toolbar__exit:hover { background: color-mix(in srgb, var(--teal) 22%, transparent); }
+.eb-toolbar__hint {
+  margin: -8px 4px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.eb-save {
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+.eb-save--idle    { color: var(--muted); background: rgba(255,255,255,0.06); }
+.eb-save--saving  { color: var(--teal); background: color-mix(in srgb, var(--teal) 12%, transparent); }
+.eb-save--saved   { color: #4ade80; background: color-mix(in srgb, #4ade80 12%, transparent); }
+.eb-save--error   { color: var(--pink, #ff5ed4); background: color-mix(in srgb, var(--pink, #ff5ed4) 14%, transparent); }
+
+.eb-empty {
+  padding: 28px 16px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.eb-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ---- Section ---- */
+
+.eb-section {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(15, 29, 46, 0.42);
+  padding: 12px 14px 14px;
+}
+.eb-section__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.eb-section__title {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: rgba(8, 16, 28, 0.6);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+.eb-section__title:focus {
+  outline: none;
+  border-color: var(--teal);
+}
+.eb-section__controls {
+  display: flex;
+  gap: 4px;
+}
+.eb-section__controls button {
+  width: 28px; height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.eb-section__controls button:hover { color: var(--text); border-color: var(--muted); }
+.eb-section__controls button:disabled { opacity: 0.35; cursor: not-allowed; }
+.eb-section__delete:hover { color: var(--pink, #ff5ed4) !important; border-color: var(--pink, #ff5ed4) !important; }
+
+/* ---- Blocks ---- */
+
+.eb-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.eb-blocks__empty {
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.eb-block {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(8, 16, 28, 0.5);
+  padding: 8px 12px 10px;
+}
+.eb-block--readonly { border-style: dashed; opacity: 0.85; }
+.eb-block__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.eb-block__style {
+  font-size: 11px;
+  color: var(--teal);
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--teal) 12%, transparent);
+}
+.eb-block__delete {
+  margin-left: auto;
+  width: 22px; height: 22px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+.eb-block__delete:hover {
+  color: var(--pink, #ff5ed4);
+  border-color: var(--pink, #ff5ed4);
+}
+.eb-block__readonly em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+}
+.eb-block__readonly pre {
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.3);
+  color: var(--muted);
+  font-size: 11px;
+  overflow-x: auto;
+  max-height: 180px;
+}
+
+/* ---- Editors ---- */
+
+.eb-text, .eb-callout textarea, .eb-callout input, .eb-callout select,
+.eb-list input {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: rgba(15, 29, 46, 0.6);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+.eb-text { resize: vertical; min-height: 60px; line-height: 1.5; }
+.eb-text:focus, .eb-callout textarea:focus, .eb-callout input:focus, .eb-callout select:focus,
+.eb-list input:focus {
+  outline: none; border-color: var(--teal);
+}
+
+.eb-callout { display: flex; flex-direction: column; gap: 6px; }
+.eb-callout__head { display: flex; gap: 6px; }
+.eb-callout__head select { width: 100px; flex-shrink: 0; }
+.eb-callout__head input { flex: 1; }
+
+.eb-list { display: flex; flex-direction: column; gap: 4px; }
+.eb-list__row { display: flex; gap: 4px; }
+.eb-list__row input { flex: 1; }
+.eb-list__row button {
+  width: 28px; padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent; color: var(--muted);
+  cursor: pointer;
+}
+.eb-list__row button:hover { color: var(--pink, #ff5ed4); border-color: var(--pink, #ff5ed4); }
+.eb-list__add {
+  align-self: flex-start;
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px dashed var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+.eb-list__add:hover { color: var(--teal); border-color: var(--teal); }
+
+/* Multi-column rows editor (kv-table, mechanism-flow, decision-list, etc.) */
+.eb-rows { display: flex; flex-direction: column; gap: 6px; }
+.eb-rows__row {
+  display: grid;
+  gap: 6px;
+  align-items: start;
+}
+.eb-rows__row input, .eb-rows__row textarea {
+  padding: 5px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: rgba(15, 29, 46, 0.6);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+}
+.eb-rows__row textarea { resize: vertical; min-height: 32px; line-height: 1.4; }
+.eb-rows__row input:focus, .eb-rows__row textarea:focus {
+  outline: none; border-color: var(--teal);
+}
+.eb-rows__row > button {
+  width: 24px; height: 28px; padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent; color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+}
+.eb-rows__row > button:hover { color: var(--pink, #ff5ed4); border-color: var(--pink, #ff5ed4); }
+
+.eb-grouped {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  background: rgba(0,0,0,0.18);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.eb-grouped__head { display: flex; gap: 4px; }
+.eb-grouped__head input { flex: 1; padding: 5px 8px; border-radius: 4px; border: 1px solid var(--line); background: rgba(15,29,46,0.6); color: var(--text); font-size: 12px; font-weight: 700; }
+.eb-grouped__head button { width: 24px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; }
+.eb-grouped__head button:hover { color: var(--pink, #ff5ed4); border-color: var(--pink, #ff5ed4); }
+
+/* Image preview */
+.eb-image-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 180px;
+  margin-top: 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  object-fit: contain;
+  background: rgba(0,0,0,0.3);
+}
+
+/* Mermaid code block — monospace + larger area */
+.eb-text.eb-mono {
+  font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Markdown block — split editor: source on top, live preview below */
+.eb-markdown { display: flex; flex-direction: column; gap: 6px; }
+.eb-markdown > input {
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: rgba(15, 29, 46, 0.6);
+  color: var(--text);
+  font-size: 12px;
+}
+.eb-markdown > input:focus { outline: none; border-color: var(--teal); }
+.eb-markdown__preview-label {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+/* Markdown quick-format toolbar */
+.eb-md-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px 6px 0 0;
+  background: rgba(0, 0, 0, 0.25);
+}
+.eb-md-toolbar > button {
+  width: 26px; height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.eb-md-toolbar > button:hover { background: rgba(255,255,255,0.06); border-color: var(--line); }
+.eb-md-toolbar > button.is-active,
+.eb-md-toolbar__group > button.is-active {
+  background: color-mix(in srgb, var(--teal) 18%, transparent);
+  border-color: var(--teal);
+  color: var(--teal);
+}
+.eb-md-toolbar__mono { font-family: ui-monospace, monospace; font-size: 14px !important; }
+.eb-md-toolbar__sep {
+  width: 1px;
+  height: 18px;
+  background: var(--line);
+  margin: 0 4px;
+}
+/* Pop-up sub-menu (colors / sizes) */
+.eb-md-toolbar__group { position: relative; }
+.eb-md-toolbar__group > button {
+  width: 30px; height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+}
+.eb-md-toolbar__group > button:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: var(--line);
+}
+.eb-md-toolbar__pop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: rgba(8, 16, 28, 0.96);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  width: max-content;
+}
+.eb-md-toolbar__swatch {
+  width: 22px; height: 22px;
+  padding: 0;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.eb-md-toolbar__swatch:hover { transform: scale(1.1); }
+.eb-md-toolbar__size {
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+}
+.eb-md-toolbar__size:hover { border-color: var(--teal); color: var(--teal); }
+.eb-md-toolbar__custom {
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+/* The textarea sits right under the toolbar — square top corners for visual
+ * continuity. */
+.eb-markdown > .eb-text { border-top-left-radius: 0; border-top-right-radius: 0; }
+
+/* ---- Add block / section ---- */
+
+.eb-block-adder { margin-top: 10px; }
+.eb-block-adder__trigger {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px dashed var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.eb-block-adder__trigger:hover { color: var(--teal); border-color: var(--teal); }
+.eb-block-adder__menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(8, 16, 28, 0.8);
+}
+.eb-block-adder__choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.eb-block-adder__choice strong { font-size: 13px; }
+.eb-block-adder__choice em { font-size: 11px; font-style: normal; color: var(--muted); }
+.eb-block-adder__choice:hover {
+  background: rgba(15, 35, 58, 0.78);
+  border-color: color-mix(in srgb, var(--teal) 40%, transparent);
+}
+.eb-block-adder__cancel {
+  margin-top: 4px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  align-self: flex-end;
+}
+
+.eb-add-section {
+  align-self: stretch;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px dashed var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.eb-add-section:hover {
+  color: var(--teal);
+  border-color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 6%, transparent);
+}

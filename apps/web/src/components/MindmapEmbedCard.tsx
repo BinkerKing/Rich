@@ -22,6 +22,7 @@ export function MindmapEmbedCard({ block, elementId }: Props) {
   const openMindmap = useStore(s => s.openMindmap);
   const hydrate = useStore(s => s.hydrate);
   const elements = useStore(s => s.elements);
+  const startImageGenTask = useStore(s => s.startImageGenTask);
   const [retryOpen, setRetryOpen] = useState(false);
   const [retryHint, setRetryHint] = useState("");
   const [busy, setBusy] = useState(false);
@@ -72,7 +73,16 @@ export function MindmapEmbedCard({ block, elementId }: Props) {
     if (!elementId) return;
     setBusy(true);
     try {
+      // Kick off the image gen.
       await api.retryMindmapCover(elementId, deckRootId, retryHint);
+      // Mirror it as a task so the user can watch progress in the task list
+      // / footer strip just like other AI ops.
+      const elTitle = elements.get(elementId)?.title ?? elementId;
+      const deckTitle = elements.get(deckRootId)?.title ?? deckRootId;
+      const taskTitle = elementId === deckRootId
+        ? `生成封面 · ${elTitle}`
+        : `生成封面 · ${elTitle}(${deckTitle} PPT)`;
+      startImageGenTask({ elementId, deckRootId, title: taskTitle, hint: retryHint });
       await hydrate();
       setRetryOpen(false);
       setRetryHint("");

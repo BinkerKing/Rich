@@ -4,7 +4,6 @@ import { useStore } from "../state/store.js";
 import { api, type AnalyzeInputResult, type AttachOption } from "../api/client.js";
 import { Icon } from "../components/Icon.js";
 import { TopBar } from "../components/TopBar.js";
-import { SystemPanel } from "../components/SystemPanel.js";
 import { FooterTaskStrip } from "../components/FooterTaskStrip.js";
 import { elementTypeClass, elementTypeLabel } from "../components/elementLabels.js";
 import { elementDragProps, useDropTarget } from "../lib/elementDnd.js";
@@ -161,7 +160,6 @@ export function InputView() {
   const deleteElement = useStore(s => s.deleteElement);
   const loading = useStore(s => s.loading);
   const error = useStore(s => s.error);
-  const systemMode = useStore(s => s.systemMode);
   const deltaText = useStore(s => s.inflight.get("generate:_")?.delta ?? "");
   const availableTopics = useStore(s => s.availableTopics);
   const lastCenterId = useStore(s => s.lastCenterId);
@@ -328,7 +326,7 @@ export function InputView() {
 
   return (
     <div className="tree-view home-shell" data-loading={loading ? "true" : undefined}>
-      <TopBar breadcrumb={<span className="now">首页</span>} />
+      <TopBar breadcrumb={null} />
 
       <aside
         className={`learning-sidebar home-left-rail home-quick-rail${quickDragOverId === "__rail__" ? " is-drop-over" : ""}`}
@@ -485,14 +483,13 @@ export function InputView() {
                 value={topic}
                 onChange={e => setTopic(e.target.value)}
                 placeholder={
-                  mode === "manual" ? "输入标题，将直接建一个空的元"
-                  : mode === "ai-search" ? "输入主题、概念、实战目标，或一个想法 — AI 会先帮你判断该挂在哪里"
-                  : "输入主题，AI 直接按所选丰富度新建一棵树"
+                  mode === "manual" ? "输入标题，将直接建一个空的元 · 回车创建"
+                  : mode === "ai-search" ? "输入主题、概念、实战目标，或一个想法 · 回车让 AI 定位"
+                  : "输入主题 · 回车由 AI 按丰富度新建一棵树"
                 }
               />
-              <button type="submit" disabled={!topic.trim()}>
-                {mode === "manual" ? "创建" : mode === "ai-search" ? "AI 定位" : "生成"}
-              </button>
+              {/* Submit button removed — Enter on the input already fires the
+               *  form's onSubmit (submit() returns early on empty input). */}
             </form>
 
             <div className="home-mode" aria-label="处理方式">
@@ -834,12 +831,6 @@ export function InputView() {
           </section>
         </div>
       </main>
-
-      <SystemPanel
-        mode={systemMode}
-        elements={elements}
-        onSelect={() => undefined}
-      />
 
       {topicMenu && (
         <div

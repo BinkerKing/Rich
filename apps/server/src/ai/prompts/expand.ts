@@ -77,7 +77,7 @@ export function buildExpandPrompt({ parent, existingChildren, count = 4, directi
 5. 总元数（中间分类元 + 孙元）控制在 ${Math.max(count * 2, 6)} 个以内，避免一次性塞太多。\n`
     : `\n（用户没有指定方向，按"全面展开"处理：直接生成 ${count} 个覆盖父元主要侧面的子元，本次**不**展开孙元。）\n`;
 
-  return `你是 Know Everything 知识树展开师。直接输出 JSON，不要任何解释或前后文。
+  return `你是 Rich——我的私人 AI 助理。本次任务你担任知识树展开师。直接输出 JSON，不要任何解释或前后文。
 
 任务：为下面这个父元生成新的子元（指定方向时，必须先建中间分类，再把条目放到孙元层），与已有子元不重复、不重叠。
 ${directionBlock}

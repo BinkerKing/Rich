@@ -1,0 +1,337 @@
+/* Toolbox view — small utility tools the user defines, Hermes-invokable. */
+
+.toolbox-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: var(--bg, #04060c);
+  color: var(--text, #f5f7ff);
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.toolbox-main {
+  padding: 28px 32px 64px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.toolbox-head h1 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 600;
+}
+.toolbox-head p {
+  margin: 0 0 12px;
+  color: rgba(255, 255, 255, .56);
+  font-size: 13px;
+}
+.toolbox-head code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .06);
+  color: #42f7f0;
+}
+.toolbox-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.toolbox-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(255, 255, 255, .08);
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, .68);
+}
+.toolbox-stat strong {
+  font-family: ui-monospace, monospace;
+  color: #fff;
+}
+.toolbox-stat--running { border-color: rgba(66, 247, 240, .35); color: #42f7f0; }
+.toolbox-stat--scheduled { border-color: rgba(122, 167, 255, .35); color: #7aa7ff; }
+.toolbox-stat--failed { border-color: rgba(255, 122, 142, .35); color: #ff7a8e; }
+.toolbox-stats button {
+  margin-left: auto;
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .12);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ─── Grid of tool cards ─────────────────────────────────────────────── */
+
+.toolbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.tool-card {
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 12px;
+  padding: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .03), rgba(255, 255, 255, .005)),
+    rgba(15, 19, 28, .55);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tool-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.tool-card__head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.tool-card__category {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(169, 139, 255, .14);
+  color: #a98bff;
+  font-size: 10.5px;
+  font-family: ui-monospace, monospace;
+}
+.tool-card__desc {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, .65);
+}
+
+/* ─── Auto-generated form ────────────────────────────────────────────── */
+
+.tool-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tool-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, .54);
+}
+.tool-field span {
+  letter-spacing: .03em;
+}
+.tool-field input[type="text"],
+.tool-field input[type="number"],
+.tool-field select {
+  background: rgba(0, 0, 0, .35);
+  border: 1px solid rgba(255, 255, 255, .10);
+  color: #fff;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.tool-field--bool {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, .82);
+  font-size: 12.5px;
+}
+
+.tool-form__submit {
+  margin-top: 4px;
+  background: linear-gradient(135deg, #7aa7ff, #a98bff);
+  border: none;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  align-self: flex-start;
+}
+.tool-form__submit:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.tool-form__submit:disabled {
+  background: rgba(255, 255, 255, .06);
+  color: rgba(255, 255, 255, .35);
+  cursor: not-allowed;
+}
+
+/* ─── Per-card scheduled + recent ────────────────────────────────────── */
+
+.tool-card__sublabel {
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .42);
+}
+.tool-card__scheduled,
+.tool-card__recent {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, .08);
+}
+.tool-scheduled {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(122, 167, 255, .08);
+  border: 1px solid rgba(122, 167, 255, .25);
+  color: #7aa7ff;
+  font-family: ui-monospace, monospace;
+}
+.tool-scheduled button {
+  background: rgba(255, 122, 142, .14);
+  border: 1px solid rgba(255, 122, 142, .35);
+  color: #ff7a8e;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.tool-card__recent ul {
+  list-style: none;
+  margin: 0; padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+}
+.tool-recent {
+  display: grid;
+  grid-template-columns: 70px 1fr auto;
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .02);
+  font-family: ui-monospace, monospace;
+}
+.tool-recent--completed { color: #72f6b6; }
+.tool-recent--failed { color: #ff7a8e; }
+.tool-recent--scheduled { color: #7aa7ff; }
+.tool-recent--running { color: #42f7f0; }
+.tool-recent--cancelled { color: rgba(255, 255, 255, .38); }
+.tool-recent em { font-style: normal; color: rgba(255, 255, 255, .56); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ─── Bottom timeline (全部调用记录) ─────────────────────────────────── */
+
+.toolbox-history {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.toolbox-history h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.toolbox-empty {
+  color: rgba(255, 255, 255, .46);
+  font-size: 13px;
+  padding: 16px;
+  border: 1px dashed rgba(255, 255, 255, .12);
+  border-radius: 10px;
+}
+.toolbox-history-list {
+  list-style: none;
+  margin: 0; padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toolbox-history-item {
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-left: 3px solid rgba(255, 255, 255, .08);
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: rgba(15, 19, 28, .35);
+}
+.toolbox-history-item--scheduled { border-left-color: #7aa7ff; }
+.toolbox-history-item--running { border-left-color: #42f7f0; }
+.toolbox-history-item--completed { border-left-color: #72f6b6; }
+.toolbox-history-item--failed { border-left-color: #ff7a8e; }
+.toolbox-history-item--cancelled { border-left-color: rgba(255, 255, 255, .25); opacity: .6; }
+
+.toolbox-history-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.toolbox-history-tool {
+  font-family: ui-monospace, monospace;
+  font-weight: 600;
+  color: #fff;
+}
+.toolbox-history-status {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .06);
+  font-size: 10.5px;
+}
+.toolbox-history-by {
+  color: rgba(255, 255, 255, .42);
+  font-size: 11px;
+}
+.toolbox-history-ts {
+  margin-left: auto;
+  color: rgba(255, 255, 255, .35);
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+.toolbox-cancel {
+  background: rgba(255, 122, 142, .14);
+  border: 1px solid rgba(255, 122, 142, .35);
+  color: #ff7a8e;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.toolbox-history-meta {
+  margin-top: 4px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 11px;
+  color: rgba(255, 255, 255, .54);
+}
+.toolbox-history-args {
+  font-family: ui-monospace, monospace;
+  padding: 1px 6px;
+  background: rgba(0, 0, 0, .25);
+  border-radius: 4px;
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, .68);
+}
+.toolbox-history-result {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #72f6b6;
+}
+.toolbox-history-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #ff7a8e;
+}

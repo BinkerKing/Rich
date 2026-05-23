@@ -207,6 +207,44 @@ export interface MindmapEmbedCover {
   error?: string;
 }
 
+/** Attachment node — either a file (with optional served URL for uploaded
+ *  files) or a directory (with nested children). Used by AttachmentsBlock to
+ *  represent both drag-uploaded files (flat list of file nodes) and externally
+ *  scanned folders (nested tree). */
+export type AttachmentNode =
+  | { kind: "file"; name: string; src?: string; size?: number; relPath?: string }
+  | { kind: "dir"; name: string; children: AttachmentNode[] };
+
+export interface AttachmentsBlock {
+  style: "attachments";
+  /** How the listing was populated:
+   *   - "uploaded":     user drag-dropped files; the server stored them under
+   *                     data/attachments/<elementId>/, items[*].src points at
+   *                     the served URL.
+   *   - "linked-folder": user picked an external folder; we snapshotted the
+   *                     file tree at link time. Files have no `src` because
+   *                     they live outside the project. */
+  source: "uploaded" | "linked-folder";
+  /** Display label for linked-folder mode (the folder's own name). */
+  folderName?: string;
+  /** ISO timestamp of the most recent scan / upload. */
+  scannedAt?: string;
+  /** Tree of nodes. For "uploaded", this is a flat list of file nodes at the
+   *  root level. For "linked-folder", it can be arbitrarily nested. */
+  items: AttachmentNode[];
+}
+
+/** Free-form Markdown block — the source is stored verbatim; the frontend
+ *  parses it at render time with `marked`. Supports headings, bold/italic,
+ *  inline + fenced code, links, lists, blockquotes, hr, tables, etc. */
+export interface MarkdownBlock {
+  style: "markdown";
+  /** Markdown source. Persisted as-is. */
+  text: string;
+  /** Optional eyebrow title shown above the rendered content. */
+  title?: string;
+}
+
 /** Real image: either an AI-generated file (codex image tool) or external URL. */
 export interface ImageBlock {
   style: "image";
@@ -239,7 +277,9 @@ export type StyleBlock =
   | ChecklistGroupedBlock
   | ImagePlaceholderBlock
   | ImageBlock
-  | MindmapEmbedBlock;
+  | MindmapEmbedBlock
+  | AttachmentsBlock
+  | MarkdownBlock;
 
 export interface DynamicSection {
   /** Short kebab-case id for the TOC anchor. */
