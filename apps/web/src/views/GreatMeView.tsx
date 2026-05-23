@@ -5,6 +5,11 @@ import type { Plan, Metric } from "@ke/domain";
 import { NewPlanModal } from "../components/NewPlanModal.js";
 import { AIDecomposeModal, type DecomposePreview } from "../components/AIDecomposeModal.js";
 import { PlanDetailView } from "./PlanDetailView.js";
+import {
+  computeOverallKPIs, computePlanHealth,
+  findOverdueTasks, findStuckGoals, findGoalsWithoutTasks, findOrphanTasks,
+  type PlanHealth, type PlanHealthStatus,
+} from "../lib/analytics.js";
 import "./GreatMeView.css";
 
 /* =============================================================
@@ -1891,12 +1896,32 @@ function EventsSection({ state, setState }: SectionProps): ReactNode {
 // 数据分析（P5）
 // =================================================================
 function AnalyticsSection({ state }: { state: GreatMeState }): ReactNode {
-  const totalTasks = state.tasks.length;
-  const doneTasks = state.tasks.filter(t => t.done).length;
-  const completion = totalTasks === 0 ? 0 : Math.round(doneTasks / totalTasks * 100);
-  const activeDays = new Set(state.tasks.map(t => t.date).filter(Boolean)).size;
-  const streak = computeStreak(state.tasks);
+  // —— Phase A: 可视化 + 卡点识别（纯计算，无 AI 调用） ——
+  const kpis = useMemo(() => computeOverallKPIs(
+    state.plans as Parameters<typeof computeOverallKPIs>[0],
+    state.goals as Parameters<typeof computeOverallKPIs>[1],
+    state.tasks as Parameters<typeof computeOverallKPIs>[2],
+  ), [state.plans, state.goals, state.tasks]);
 
+  const planHealths = useMemo(() => {
+    const active = state.plans.filter(p => p.status === "active");
+    return active.map(p => computePlanHealth(
+      p as Parameters<typeof computePlanHealth>[0],
+      state.goals as Parameters<typeof computePlanHealth>[1],
+      state.tasks as Parameters<typeof computePlanHealth>[2],
+    )).sort((a, b) => {
+      // 排序：critical > behind > healthy > completed > no-time
+      const order = { critical: 0, behind: 1, healthy: 2, "no-time": 3, completed: 4 };
+      return order[a.status] - order[b.status];
+    });
+  }, [state.plans, state.goals, state.tasks]);
+
+  const overdueTasks = useMemo(() => findOverdueTasks(state.tasks as Parameters<typeof findOverdueTasks>[0]), [state.tasks]);
+  const stuckGoals = useMemo(() => findStuckGoals(state.goals as Parameters<typeof findStuckGoals>[0], state.tasks as Parameters<typeof findStuckGoals>[1]), [state.goals, state.tasks]);
+  const goalsWithoutTasks = useMemo(() => findGoalsWithoutTasks(state.goals as Parameters<typeof findGoalsWithoutTasks>[0], state.tasks as Parameters<typeof findGoalsWithoutTasks>[1]), [state.goals, state.tasks]);
+  const orphanTasks = useMemo(() => findOrphanTasks(state.tasks as Parameters<typeof findOrphanTasks>[0], state.goals as Parameters<typeof findOrphanTasks>[1]), [state.tasks, state.goals]);
+
+  // 14 天完成率趋势
   const trend = useMemo(() => {
     const days: number[] = [];
     const today = new Date();
@@ -1909,6 +1934,7 @@ function AnalyticsSection({ state }: { state: GreatMeState }): ReactNode {
     return days;
   }, [state.tasks]);
 
+  // 26 周贡献格子
   const contrib = useMemo(() => {
     const days: { date: string; level: number }[] = [];
     const today = new Date();
@@ -1923,19 +1949,163 @@ function AnalyticsSection({ state }: { state: GreatMeState }): ReactNode {
     return days;
   }, [state.tasks]);
 
+  // 辅助：goal/plan 标题
+  const goalById = (id: string): { title: string; planTitle: string } | null => {
+    const g = state.goals.find(x => x.id === id);
+    if (!g) return null;
+    const p = g.planId ? state.plans.find(x => x.id === g.planId) : null;
+    return { title: g.title, planTitle: p?.title ?? "" };
+  };
+
+  const statusLabel: Record<PlanHealthStatus, { text: string; cls: string; icon: string }> = {
+    healthy:   { text: "进度健康",       cls: "is-healthy",  icon: "🟢" },
+    behind:    { text: "略落后",         cls: "is-behind",   icon: "🟡" },
+    critical:  { text: "严重落后",       cls: "is-critical", icon: "🔴" },
+    completed: { text: "已完成",         cls: "is-completed", icon: "✅" },
+    "no-time": { text: "未设起止时间",    cls: "is-no-time",  icon: "⚪" },
+  };
+
   return (
-    <>
-      <div className="gm-card__title">数据概览</div>
-      <div className="gm-analytics-overview">
-        <div className="gm-kpi"><div className="gm-kpi__num">{totalTasks}</div><div className="gm-kpi__label">总任务数</div></div>
-        <div className="gm-kpi"><div className="gm-kpi__num">{completion}%</div><div className="gm-kpi__label">平均完成率</div></div>
-        <div className="gm-kpi"><div className="gm-kpi__num">{streak}</div><div className="gm-kpi__label">最长连续</div></div>
-        <div className="gm-kpi"><div className="gm-kpi__num">{activeDays}</div><div className="gm-kpi__label">累计天数</div></div>
+    <div className="gm-analytics-v3">
+      {/* 顶部 4 KPI */}
+      <div className="gm-analytics-v3__kpis">
+        <div className="gm-kpi">
+          <div className="gm-kpi__num">{kpis.activePlans}</div>
+          <div className="gm-kpi__label">活跃计划</div>
+        </div>
+        <div className="gm-kpi">
+          <div className="gm-kpi__num">{kpis.weekDone}/{kpis.weekTotal}</div>
+          <div className="gm-kpi__label">本周完成</div>
+        </div>
+        <div className="gm-kpi">
+          <div className="gm-kpi__num">{kpis.overallProgress}%</div>
+          <div className="gm-kpi__label">整体进度</div>
+        </div>
+        <div className="gm-kpi">
+          <div className="gm-kpi__num">{kpis.streak}</div>
+          <div className="gm-kpi__label">连续打卡</div>
+        </div>
       </div>
 
+      {/* 中部双栏：左 健康度 / 右 卡点 */}
+      <div className="gm-analytics-v3__main">
+        {/* —— 左：计划推进总览 —— */}
+        <div className="gm-card gm-analytics-v3__col">
+          <div className="gm-card__head">
+            <div className="gm-card__title">计划推进总览</div>
+            <div className="gm-card__sub">按健康度排序</div>
+          </div>
+          <div className="gm-analytics-v3__plans">
+            {planHealths.length === 0 && (
+              <div className="gm-empty" style={{ padding: 20, fontSize: 12 }}>
+                还没有活跃计划。去首页新建一个开始。
+              </div>
+            )}
+            {planHealths.map(h => {
+              const sl = statusLabel[h.status];
+              return (
+                <div key={h.plan.id} className={`gm-analytics-v3__plan ${sl.cls}`}>
+                  <div className="gm-analytics-v3__plan-head">
+                    <span className="gm-analytics-v3__plan-status" title={sl.text}>{sl.icon}</span>
+                    <span className="gm-analytics-v3__plan-title">{h.plan.title}</span>
+                    <span className="gm-analytics-v3__plan-pct">{h.progress}%</span>
+                  </div>
+                  <div className="gm-analytics-v3__plan-bar">
+                    <span className="gm-analytics-v3__plan-bar-progress" style={{ width: `${h.progress}%` }} />
+                    {h.status !== "no-time" && (
+                      <span className="gm-analytics-v3__plan-bar-time" style={{ left: `${h.timeProgress}%` }} title={`时间已过 ${h.timeProgress}%`} />
+                    )}
+                  </div>
+                  <div className="gm-analytics-v3__plan-meta">
+                    {h.status === "no-time" ? (
+                      <span>未设起止时间，无法对比时间进度</span>
+                    ) : (
+                      <>
+                        <span>时间已过 {h.timeProgress}% · {h.delta >= 0 ? `提前 ${h.delta}%` : `落后 ${-h.delta}%`}</span>
+                        <span>本周 {h.weekDone}/{h.weekTotal} 任务</span>
+                        {h.daysLeft >= 0 ? <span>还剩 {h.daysLeft} 天</span> : <span style={{ color: "#ff9a8a" }}>已过期 {-h.daysLeft} 天</span>}
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* —— 右：卡点 & 风险 —— */}
+        <div className="gm-card gm-analytics-v3__col">
+          <div className="gm-card__head">
+            <div className="gm-card__title">卡点 & 风险</div>
+            <div className="gm-card__sub">自动识别</div>
+          </div>
+          <div className="gm-analytics-v3__blockers">
+
+            <BlockerGroup
+              icon="🔴"
+              title="逾期未完成"
+              count={overdueTasks.length}
+              empty="没有逾期任务"
+              items={overdueTasks.slice(0, 8).map(t => {
+                const g = goalById(t.goalId);
+                return {
+                  key: t.id,
+                  primary: t.title,
+                  secondary: `${t.date} · ${g ? `${g.planTitle} · ${g.title}` : "无目标"}`,
+                };
+              })}
+              moreCount={Math.max(0, overdueTasks.length - 8)} />
+
+            <BlockerGroup
+              icon="🟡"
+              title="长时间未推进的目标（14天）"
+              count={stuckGoals.length}
+              empty="所有目标都在推进"
+              items={stuckGoals.slice(0, 8).map(g => {
+                const p = g.planId ? state.plans.find(x => x.id === g.planId) : null;
+                return {
+                  key: g.id,
+                  primary: g.title,
+                  secondary: p ? `计划: ${p.title}` : "无所属计划",
+                };
+              })}
+              moreCount={Math.max(0, stuckGoals.length - 8)} />
+
+            <BlockerGroup
+              icon="⚠️"
+              title="无任务的目标（永远 0%）"
+              count={goalsWithoutTasks.length}
+              empty="所有叶目标都有任务"
+              items={goalsWithoutTasks.slice(0, 8).map(g => {
+                const p = g.planId ? state.plans.find(x => x.id === g.planId) : null;
+                return {
+                  key: g.id,
+                  primary: g.title,
+                  secondary: p ? `计划: ${p.title} · 给它加任务才能推进` : "无所属计划",
+                };
+              })}
+              moreCount={Math.max(0, goalsWithoutTasks.length - 8)} />
+
+            <BlockerGroup
+              icon="📌"
+              title="没挂目标的任务（不计入进度）"
+              count={orphanTasks.length}
+              empty="所有任务都挂到了目标"
+              items={orphanTasks.slice(0, 8).map(t => ({
+                key: t.id,
+                primary: t.title,
+                secondary: `${t.date || "未设日期"} · 去任务详情挂到一个目标`,
+              }))}
+              moreCount={Math.max(0, orphanTasks.length - 8)} />
+
+          </div>
+        </div>
+      </div>
+
+      {/* 趋势 + 贡献格 */}
       <div className="gm-card">
         <div className="gm-card__head">
-          <div className="gm-card__title">任务完成率趋势</div>
+          <div className="gm-card__title">完成率趋势</div>
           <div className="gm-card__sub">近 14 天</div>
         </div>
         <TrendLine values={trend} />
@@ -1943,51 +2113,189 @@ function AnalyticsSection({ state }: { state: GreatMeState }): ReactNode {
 
       <div className="gm-card">
         <div className="gm-card__head">
-          <div className="gm-card__title">贡献格子</div>
+          <div className="gm-card__title">贡献格</div>
           <div className="gm-card__sub">近 26 周</div>
         </div>
         <div className="gm-contrib">
-          {contrib.map(c => <div key={c.date} className="gm-contrib__cell" data-level={c.level} title={`${c.date} · ${c.level}`} />)}
+          {contrib.map(c => <div key={c.date} className="gm-contrib__cell" data-level={c.level} title={`${c.date} · 等级 ${c.level}`} />)}
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 14 }}>
-        <div className="gm-card">
-          <div className="gm-card__title">特工能力图</div>
-          <div className="gm-radar"><RadarChart ability={state.ability} /></div>
-        </div>
-        <div className="gm-card">
-          <div className="gm-card__title">MBTI 趋势</div>
-          <div className="gm-empty">{state.profile.mbti ? `当前 MBTI · ${state.profile.mbti}` : "在「设置 → 身份」填入 MBTI"}</div>
-        </div>
-      </div>
-
-      <div className="gm-card">
-        <div className="gm-card__head">
-          <div className="gm-card__title">AI 洞察总结</div>
-          <div className="gm-card__sub">建议聚焦</div>
-        </div>
-        <div className="gm-empty">
-          {totalTasks === 0
-            ? "还没有足够数据形成 AI 洞察。先在「首页」加几条任务。"
-            : `完成率 ${completion}%，最长连续 ${streak} 天。${completion < 50 ? "建议把未完成任务收束成下周的一条主线。" : "保持节奏。"}`}
-        </div>
-      </div>
-    </>
+      {/* —— Phase B 占位：AI 推进建议 —— */}
+      <ProgressAIPanel state={state} planHealths={planHealths}
+        overdueCount={overdueTasks.length}
+        stuckCount={stuckGoals.length}
+        emptyGoalCount={goalsWithoutTasks.length}
+        orphanTaskCount={orphanTasks.length} />
+    </div>
   );
 }
 
-function computeStreak(tasks: Task[]): number {
-  const dates = new Set(tasks.filter(t => t.done).map(t => t.date));
-  if (dates.size === 0) return 0;
-  let streak = 0;
-  const d = new Date();
-  for (let i = 0; i < 365; i++) {
-    if (dates.has(ymd(d))) streak++;
-    else if (i > 0) break;
-    d.setDate(d.getDate() - 1);
+// 一个卡点分组的子组件
+interface BlockerItem { key: string; primary: string; secondary: string }
+function BlockerGroup({ icon, title, count, empty, items, moreCount }: {
+  icon: string;
+  title: string;
+  count: number;
+  empty: string;
+  items: BlockerItem[];
+  moreCount: number;
+}): ReactNode {
+  return (
+    <div className={`gm-analytics-v3__blocker-group ${count === 0 ? "is-empty" : ""}`}>
+      <div className="gm-analytics-v3__blocker-head">
+        <span>{icon} {title}</span>
+        <span className="gm-analytics-v3__blocker-count">{count}</span>
+      </div>
+      {count === 0 ? (
+        <div className="gm-analytics-v3__blocker-empty">{empty} ✓</div>
+      ) : (
+        <>
+          {items.map(it => (
+            <div key={it.key} className="gm-analytics-v3__blocker-item">
+              <div className="gm-analytics-v3__blocker-primary">{it.primary}</div>
+              <div className="gm-analytics-v3__blocker-secondary">{it.secondary}</div>
+            </div>
+          ))}
+          {moreCount > 0 && (
+            <div className="gm-analytics-v3__blocker-more">还有 {moreCount} 条 …</div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// Phase B：AI 推进建议
+// 调用 /api/ai/analyze-progress 拿到 { keyInsight, blockers, pushActions, priorityTasks }
+function ProgressAIPanel({ state, planHealths, overdueCount, stuckCount, emptyGoalCount, orphanTaskCount }: {
+  state: GreatMeState;
+  planHealths: PlanHealth[];
+  overdueCount: number;
+  stuckCount: number;
+  emptyGoalCount: number;
+  orphanTaskCount: number;
+}): ReactNode {
+  interface AnalyzeResult {
+    keyInsight: string;
+    blockers: string[];
+    pushActions: string[];
+    priorityTasks: { title: string; reason: string }[];
   }
-  return streak;
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<AnalyzeResult | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const analyze = async (): Promise<void> => {
+    setLoading(true);
+    setError("");
+    abortRef.current = new AbortController();
+    try {
+      const r = await fetch("/api/ai/analyze-progress", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          state: {
+            plans: state.plans,
+            goals: state.goals,
+            tasks: state.tasks,
+          },
+          metrics: {
+            planHealthList: planHealths.map(h => ({
+              title: h.plan.title,
+              progress: h.progress,
+              timeProgress: h.timeProgress,
+              delta: h.delta,
+              status: h.status,
+              weekDone: h.weekDone,
+              weekTotal: h.weekTotal,
+            })),
+            overdueCount, stuckCount, emptyGoalCount, orphanTaskCount,
+          },
+        }),
+        signal: abortRef.current.signal,
+      });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? `HTTP ${r.status}`);
+      }
+      const body = await r.json() as { result: AnalyzeResult };
+      setResult(body.result);
+    } catch (err) {
+      const e = err as { name?: string; message?: string };
+      if (e.name === "AbortError") { setLoading(false); return; }
+      setError(e.message ?? String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="gm-card gm-analytics-v3__ai">
+      <div className="gm-card__head">
+        <div className="gm-card__title">🪄 AI 推进建议</div>
+        <div className="gm-card__sub">由 Hermes 分析当前推进状况</div>
+      </div>
+      <div className="gm-analytics-v3__ai-body">
+        {!result && !loading && !error && (
+          <div className="gm-analytics-v3__ai-empty">
+            点下方按钮，让 Rich 看一眼你的卡点 + 给出可执行的推进建议。
+          </div>
+        )}
+        {loading && (
+          <div className="gm-analytics-v3__ai-loading">
+            <div className="ai-dec-spinner" />
+            Hermes 正在分析（30-60 秒）…
+            <button className="gm-chip" onClick={() => abortRef.current?.abort()}>取消</button>
+          </div>
+        )}
+        {error && (
+          <div className="gm-analytics-v3__ai-error">
+            分析失败：{error}
+          </div>
+        )}
+        {result && (
+          <div className="gm-analytics-v3__ai-result">
+            <div className="gm-analytics-v3__ai-insight">
+              <div className="gm-analytics-v3__ai-section-title">核心判断</div>
+              <div>{result.keyInsight}</div>
+            </div>
+            {result.blockers.length > 0 && (
+              <div className="gm-analytics-v3__ai-block">
+                <div className="gm-analytics-v3__ai-section-title">🚧 主要卡点</div>
+                <ul>{result.blockers.map((b, i) => <li key={i}>{b}</li>)}</ul>
+              </div>
+            )}
+            {result.pushActions.length > 0 && (
+              <div className="gm-analytics-v3__ai-block">
+                <div className="gm-analytics-v3__ai-section-title">🚀 推进办法</div>
+                <ul>{result.pushActions.map((a, i) => <li key={i}>{a}</li>)}</ul>
+              </div>
+            )}
+            {result.priorityTasks.length > 0 && (
+              <div className="gm-analytics-v3__ai-block">
+                <div className="gm-analytics-v3__ai-section-title">⭐ 这周优先做的</div>
+                {result.priorityTasks.map((p, i) => (
+                  <div key={i} className="gm-analytics-v3__ai-priority">
+                    <div className="gm-analytics-v3__ai-priority-title">{p.title}</div>
+                    <div className="gm-analytics-v3__ai-priority-reason">{p.reason}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="gm-analytics-v3__ai-foot">
+        <button className="gm-chip"
+          disabled={loading}
+          onClick={() => void analyze()}>
+          {result ? "↻ 重新分析" : "让 Rich 分析推进策略"}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 // =================================================================

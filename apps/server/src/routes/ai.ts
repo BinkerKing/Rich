@@ -31,6 +31,7 @@ import {
   generateDailyNews,
   runGreatMeBrain,
   runDecomposePlan,
+  runAnalyzeProgress,
   type DailyNewsItem,
 } from "../ai/operations.js";
 import { shortlistByKeywords } from "../lib/elementShortlist.js";
@@ -279,6 +280,67 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       ts: new Date().toISOString(), type: "op.failed", manual: "decompose-plan",
       op: "decompose-plan", adapter: adapter.name,
       data: { intent: intent.slice(0, 120), durationMs: Date.now() - t0, message },
+    });
+    return c.json({ error: message, adapter: adapter.name }, 500);
+  });
+
+  // ----- analyze-progress: AI 分析任务推进卡点 + 给推进策略 -----
+  // 客户端预先计算好健康度指标，传过来；Hermes 基于 state + metrics 输出可执行建议。
+  const AnalyzeProgressBodySchema = z.object({
+    state: z.unknown(),
+    metrics: z.unknown(),
+    model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+  });
+  const ANALYZE_PROGRESS_BODY_MAX = 256 * 1024;
+  r.post("/analyze-progress", async (c) => {
+    const text = await c.req.text();
+    if (text.length > ANALYZE_PROGRESS_BODY_MAX) {
+      return c.json({ error: `body too large (>${ANALYZE_PROGRESS_BODY_MAX} bytes)` }, 413);
+    }
+    let raw: unknown;
+    try { raw = JSON.parse(text); }
+    catch { return c.json({ error: "invalid JSON" }, 400); }
+    const parsed = AnalyzeProgressBodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
+    }
+    const { state, metrics, model } = parsed.data;
+    const adapter = pickAdapter(deps.adapters, model);
+    const reqId = newReqId();
+    const t0 = Date.now();
+    log.info("ai.op.start", { reqId, op: "/api/ai/analyze-progress", adapter: adapter.name });
+
+    if (!(await adapter.available())) {
+      const message = `${adapter.name} unavailable`;
+      await recordSignal(deps.signals, {
+        ts: new Date().toISOString(), type: "op.failed", manual: "analyze-progress",
+        op: "analyze-progress", adapter: adapter.name, data: { message },
+      });
+      return c.json({ error: message, adapter: adapter.name }, 503);
+    }
+
+    let finalResult: unknown = null;
+    let lastError = "";
+    for await (const ev of runAnalyzeProgress(adapter, {
+      state, metrics, signal: c.req.raw.signal,
+    })) {
+      if (ev.type === "error") { lastError = ev.message; break; }
+      if (ev.type === "done") {
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.completed", manual: "analyze-progress",
+          op: "analyze-progress", adapter: adapter.name,
+          data: { durationMs: Date.now() - t0, blockerCount: ev.result.blockers.length },
+        });
+        finalResult = ev.result;
+        break;
+      }
+    }
+    if (finalResult) return c.json({ adapter: adapter.name, result: finalResult });
+    const message = lastError || "analyze-progress failed";
+    await recordSignal(deps.signals, {
+      ts: new Date().toISOString(), type: "op.failed", manual: "analyze-progress",
+      op: "analyze-progress", adapter: adapter.name,
+      data: { durationMs: Date.now() - t0, message },
     });
     return c.json({ error: message, adapter: adapter.name }, 500);
   });

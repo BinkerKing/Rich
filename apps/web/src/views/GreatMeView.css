@@ -2518,3 +2518,234 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
+
+/* =============================================================
+ * 数据分析 v3 — 推进情况 + 卡点 + AI 建议
+ * ============================================================= */
+.gm-section > .gm-analytics-v3 { flex: 1; min-height: 0; overflow-y: auto; }
+.gm-analytics-v3 {
+  display: flex; flex-direction: column;
+  gap: 14px;
+  padding-right: 4px;
+}
+.gm-analytics-v3__kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  flex: 0 0 auto;
+}
+.gm-analytics-v3__main {
+  display: grid;
+  grid-template-columns: 55% 45%;
+  gap: 14px;
+}
+.gm-analytics-v3__col {
+  display: flex; flex-direction: column;
+  min-height: 0;
+  max-height: 540px;
+  overflow: hidden;
+}
+
+/* —— 左：计划推进总览 —— */
+.gm-analytics-v3__plans {
+  flex: 1 1 0; min-height: 0;
+  overflow-y: auto;
+  padding: 8px 14px 14px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.gm-analytics-v3__plan {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(217, 154, 62, 0.18);
+}
+.gm-analytics-v3__plan.is-healthy {
+  border-color: rgba(135, 200, 122, 0.32);
+}
+.gm-analytics-v3__plan.is-behind {
+  border-color: rgba(245, 198, 91, 0.4);
+  background: rgba(245, 198, 91, 0.04);
+}
+.gm-analytics-v3__plan.is-critical {
+  border-color: rgba(255, 110, 110, 0.4);
+  background: rgba(255, 110, 110, 0.05);
+}
+.gm-analytics-v3__plan.is-completed {
+  border-color: rgba(135, 200, 122, 0.5);
+  background: rgba(135, 200, 122, 0.06);
+  opacity: 0.78;
+}
+.gm-analytics-v3__plan.is-no-time { opacity: 0.6; }
+.gm-analytics-v3__plan-head {
+  display: flex; gap: 10px; align-items: center;
+  margin-bottom: 8px;
+}
+.gm-analytics-v3__plan-status { font-size: 14px; }
+.gm-analytics-v3__plan-title {
+  flex: 1;
+  font-size: 13px; font-weight: 600; color: #e6b25a;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gm-analytics-v3__plan-pct {
+  font-size: 13px; font-weight: 700; color: #d99a3e;
+}
+.gm-analytics-v3__plan-bar {
+  position: relative;
+  height: 8px; border-radius: 4px;
+  background: rgba(255,255,255,0.05);
+  overflow: visible;
+  margin-bottom: 8px;
+}
+.gm-analytics-v3__plan-bar-progress {
+  display: block; height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, #d99a3e, #e6b25a);
+  position: relative; z-index: 1;
+}
+.gm-analytics-v3__plan-bar-time {
+  position: absolute; top: -2px; bottom: -2px;
+  width: 2px;
+  background: #87c87a;
+  z-index: 2;
+  border-radius: 1px;
+}
+.gm-analytics-v3__plan-bar-time::after {
+  content: "时间";
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  color: #87c87a;
+  white-space: nowrap;
+}
+.gm-analytics-v3__plan-meta {
+  display: flex; gap: 14px;
+  font-size: 11px; color: #a87526;
+  flex-wrap: wrap;
+}
+
+/* —— 右：卡点 —— */
+.gm-analytics-v3__blockers {
+  flex: 1 1 0; min-height: 0;
+  overflow-y: auto;
+  padding: 8px 14px 14px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.gm-analytics-v3__blocker-group {
+  border-radius: 8px;
+  border: 1px solid rgba(217, 154, 62, 0.18);
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.02);
+}
+.gm-analytics-v3__blocker-group.is-empty {
+  opacity: 0.55;
+  border-color: rgba(135, 200, 122, 0.25);
+  background: rgba(135, 200, 122, 0.03);
+}
+.gm-analytics-v3__blocker-head {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; font-weight: 600; color: #e6b25a;
+  margin-bottom: 8px;
+}
+.gm-analytics-v3__blocker-count {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: rgba(217, 154, 62, 0.18);
+  color: #d99a3e;
+}
+.gm-analytics-v3__blocker-group.is-empty .gm-analytics-v3__blocker-count {
+  background: rgba(135, 200, 122, 0.18);
+  color: #87c87a;
+}
+.gm-analytics-v3__blocker-empty {
+  font-size: 11px; color: #6a4f1a;
+  padding: 4px 0;
+}
+.gm-analytics-v3__blocker-item {
+  padding: 6px 0 6px;
+  border-bottom: 1px dashed rgba(217, 154, 62, 0.1);
+}
+.gm-analytics-v3__blocker-item:last-child { border-bottom: none; }
+.gm-analytics-v3__blocker-primary {
+  font-size: 12px; color: #e6b25a;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gm-analytics-v3__blocker-secondary {
+  font-size: 10px; color: #8a6520; margin-top: 2px;
+}
+.gm-analytics-v3__blocker-more {
+  font-size: 11px; color: #6a4f1a;
+  padding: 6px 0 0;
+  text-align: center;
+}
+
+/* —— AI 推进建议 —— */
+.gm-analytics-v3__ai {
+  border-color: rgba(217, 154, 62, 0.4);
+  background: linear-gradient(180deg, rgba(217,154,62,0.06), rgba(217,154,62,0.02));
+}
+.gm-analytics-v3__ai-body {
+  min-height: 60px;
+  padding: 12px 14px;
+}
+.gm-analytics-v3__ai-empty {
+  font-size: 12px; color: #a87526;
+  text-align: center; padding: 14px;
+}
+.gm-analytics-v3__ai-loading {
+  display: flex; align-items: center; gap: 14px;
+  font-size: 12px; color: #d99a3e;
+  padding: 10px;
+}
+.gm-analytics-v3__ai-error {
+  font-size: 12px; color: #ff9a8a;
+  padding: 10px 14px;
+  background: rgba(255, 80, 80, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 80, 80, 0.3);
+}
+.gm-analytics-v3__ai-result {
+  display: flex; flex-direction: column; gap: 14px;
+}
+.gm-analytics-v3__ai-section-title {
+  font-size: 12px; font-weight: 600; color: #e6b25a;
+  margin-bottom: 6px;
+}
+.gm-analytics-v3__ai-insight {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(217, 154, 62, 0.08);
+  border-left: 3px solid #d99a3e;
+  font-size: 12px; line-height: 1.7; color: #e6b25a;
+}
+.gm-analytics-v3__ai-block ul {
+  list-style: none; padding: 0; margin: 0;
+}
+.gm-analytics-v3__ai-block li {
+  padding: 6px 10px 6px 22px;
+  font-size: 12px; line-height: 1.6; color: #c9a96a;
+  position: relative;
+}
+.gm-analytics-v3__ai-block li::before {
+  content: "·";
+  position: absolute; left: 10px;
+  color: #d99a3e;
+  font-weight: 700;
+}
+.gm-analytics-v3__ai-priority {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(217, 154, 62, 0.05);
+  margin-bottom: 6px;
+}
+.gm-analytics-v3__ai-priority-title {
+  font-size: 12px; font-weight: 600; color: #e6b25a;
+}
+.gm-analytics-v3__ai-priority-reason {
+  font-size: 11px; color: #8a6520; margin-top: 2px;
+}
+.gm-analytics-v3__ai-foot {
+  display: flex; justify-content: flex-end;
+  padding: 8px 14px 12px;
+}

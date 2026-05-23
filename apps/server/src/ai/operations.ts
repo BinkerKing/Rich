@@ -21,6 +21,7 @@ import { buildGenerateImagePrompt } from "./prompts/generateImage.js";
 import { buildGenerateMindmapPrompt } from "./prompts/generateMindmap.js";
 import { buildGreatMePrompt, type GreatMeMode } from "./prompts/greatMe.js";
 import { buildDecomposePlanPrompt } from "./prompts/decomposePlan.js";
+import { buildAnalyzeProgressPrompt } from "./prompts/analyzeProgress.js";
 import type { AIManual } from "./manuals.js";
 import type { Signal } from "@ke/domain";
 
@@ -552,6 +553,41 @@ export function runDecomposePlan(
       op: "decompose-plan",
       model: adapter.name,
       scope: { intent: args.intent.slice(0, 120), targetEnd: args.targetEnd },
+    },
+  });
+}
+
+// ----- Progress analysis (任务推进卡点 + 推进策略) -----
+const AnalyzeProgressResultSchema = z.object({
+  keyInsight: z.string().min(1).max(400),
+  blockers: z.array(z.string().min(1).max(280)).max(8).default([]),
+  pushActions: z.array(z.string().min(1).max(280)).max(8).default([]),
+  priorityTasks: z.array(z.object({
+    title: z.string().min(1).max(160),
+    reason: z.string().max(280).default(""),
+  })).max(5).default([]),
+});
+export type AnalyzeProgressResult = z.infer<typeof AnalyzeProgressResultSchema>;
+
+export function runAnalyzeProgress(
+  adapter: AIAdapter,
+  args: {
+    state: unknown;
+    metrics: unknown;
+  } & SharedOpArgs,
+): AsyncIterable<StructuredEvent<AnalyzeProgressResult>> {
+  const prompt = buildAnalyzeProgressPrompt({
+    state: args.state,
+    metrics: args.metrics as Parameters<typeof buildAnalyzeProgressPrompt>[0]["metrics"],
+  });
+  return runStructuredAI(adapter, {
+    prompt,
+    signal: args.signal,
+    validate: zodValidator(AnalyzeProgressResultSchema),
+    opLog: {
+      op: "analyze-progress",
+      model: adapter.name,
+      scope: {},
     },
   });
 }
