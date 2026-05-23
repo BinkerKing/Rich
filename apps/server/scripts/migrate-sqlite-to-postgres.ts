@@ -45,6 +45,10 @@ async function main() {
   counts.state = await copyTable(pg, "state", [
     "key", "value", "updated_at",
   ], "key");
+  counts.improvement_tasks = await copyTable(pg, "improvement_tasks", [
+    "id", "title", "description", "reason", "status", "priority", "category",
+    "created_by", "related_files", "verifications_json", "requested_at", "updated_at",
+  ], "id");
   counts.center_history = await copyAppendOnly(pg, "center_history", [
     "ts", "from_id", "to_id", "dwell_ms",
   ]);
@@ -68,6 +72,7 @@ async function resetPostgres(pg: PgPool): Promise<void> {
       annotations,
       center_history,
       tool_invocations,
+      improvement_tasks,
       state,
       elements
     RESTART IDENTITY CASCADE

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import type {
-  ImprovementsRepo, ImprovementStatus, ImprovementPriority,
+  ImprovementsStore, ImprovementStatus, ImprovementPriority,
 } from "../repos/ImprovementsRepo.js";
 import { eventBus } from "../lib/eventBus.js";
 
@@ -42,7 +42,7 @@ const UpdateSchema = z.object({
   verificationNotes: z.string().max(2000).optional(),
 });
 
-export function improvementsRoutes(repo: ImprovementsRepo): Hono {
+export function improvementsRoutes(repo: ImprovementsStore): Hono {
   const r = new Hono();
 
   r.get("/", async (c) => {
@@ -51,13 +51,13 @@ export function improvementsRoutes(repo: ImprovementsRepo): Hono {
     const status = statusQ && (["pending", "ready_to_verify", "verified", "rejected"] as const).includes(statusQ as ImprovementStatus)
       ? statusQ as ImprovementStatus : undefined;
     const limit = limitQ ? Math.min(500, Math.max(1, Number(limitQ))) : 200;
-    const items = repo.list({ status, limit });
-    const counts = repo.countByStatus();
+    const items = await repo.list({ status, limit });
+    const counts = await repo.countByStatus();
     return c.json({ items, counts });
   });
 
   r.get("/:id", async (c) => {
-    const item = repo.get(c.req.param("id"));
+    const item = await repo.get(c.req.param("id"));
     if (!item) return c.json({ error: "not found" }, 404);
     return c.json(item);
   });
@@ -68,7 +68,7 @@ export function improvementsRoutes(repo: ImprovementsRepo): Hono {
     if (!parsed.success) {
       return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
     }
-    const created = repo.create(parsed.data);
+    const created = await repo.create(parsed.data);
     eventBus.publish("improvement.changed", { source: "route", detail: { op: "create", id: created.id } });
     return c.json(created, 201);
   });
@@ -80,7 +80,7 @@ export function improvementsRoutes(repo: ImprovementsRepo): Hono {
     if (!parsed.success) {
       return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
     }
-    const updated = repo.update(id, parsed.data);
+    const updated = await repo.update(id, parsed.data);
     if (!updated) return c.json({ error: "not found" }, 404);
     eventBus.publish("improvement.changed", { source: "route", detail: { op: "update", id } });
     return c.json(updated);
@@ -88,7 +88,7 @@ export function improvementsRoutes(repo: ImprovementsRepo): Hono {
 
   r.delete("/:id", async (c) => {
     const id = c.req.param("id");
-    const ok = repo.remove(id);
+    const ok = await repo.remove(id);
     if (!ok) return c.json({ error: "not found" }, 404);
     eventBus.publish("improvement.changed", { source: "route", detail: { op: "delete", id } });
     return c.json({ ok: true });

@@ -69,7 +69,7 @@ import { eventsRoute } from "./routes/events.js";
 import { greatMeRoutes } from "./routes/greatMe.js";
 import { chatRoutes } from "./routes/chat.js";
 import { cronRoutes } from "./routes/cron.js";
-import { ImprovementsRepo } from "./repos/ImprovementsRepo.js";
+import { ImprovementsRepo, type ImprovementsStore } from "./repos/ImprovementsRepo.js";
 import { improvementsRoutes } from "./routes/improvements.js";
 import { InvocationsRepo, type InvocationsStore } from "./repos/InvocationsRepo.js";
 import { ToolRuntime } from "./tools/runtime.js";
@@ -88,6 +88,7 @@ import { PostgresAnnotationsRepo } from "./repos/PostgresAnnotationsRepo.js";
 import { PostgresStateRepo } from "./repos/PostgresStateRepo.js";
 import { PostgresGreatMeRepo } from "./repos/PostgresGreatMeRepo.js";
 import { PostgresInvocationsRepo } from "./repos/PostgresInvocationsRepo.js";
+import { PostgresImprovementsRepo } from "./repos/PostgresImprovementsRepo.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -108,7 +109,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let annotations: AnnotationsRepo;
   let state: StateRepo;
   let greatMe: GreatMeRepo;
-  let improvements: ImprovementsRepo | null = null;
+  let improvements: ImprovementsStore | null = null;
   let invocations: InvocationsStore | null = null;
   if (storage === "json") {
     elements = new CachedElementsRepo(new JsonElementsRepo(root));
@@ -134,6 +135,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     state = new PostgresStateRepo(pg);
     greatMe = new PostgresGreatMeRepo(pg);
     invocations = new PostgresInvocationsRepo(pg);
+    improvements = new PostgresImprovementsRepo(pg);
   } else {
     const dbPath = process.env.KE_SQLITE_PATH ?? join(root, "ke.db");
     const db = openDb(dbPath);
@@ -215,8 +217,6 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/chat", chatRoutes());
   app.route("/api/cron", cronRoutes());
   if (improvements) {
-    // Only mounted in SQLite mode (the only storage backend with a repo).
-    // JSON-mode users get 404s here, which is fine — the feature is opt-in.
     app.route("/api/improvements", improvementsRoutes(improvements));
   }
   if (toolRuntime && invocations) {

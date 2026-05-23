@@ -69,9 +69,7 @@ export interface BuildMcpDeps {
   annotations: AnnotationsRepo;
   adapters: AIAdapter[];
   aiDir: string;
-  /** Optional — only present in SQLite mode. When null, the improvement-task
-   *  tools (list/create/update/delete improvement) are not registered. */
-  improvements?: import("../repos/ImprovementsRepo.js").ImprovementsRepo | null;
+  improvements?: import("../repos/ImprovementsRepo.js").ImprovementsStore | null;
   /** Optional — Toolbox runtime, gives Hermes access to user-defined small
    *  utility tools (lock screen, etc) via a generic invoke entry-point. */
   toolRuntime?: import("../tools/runtime.js").ToolRuntime | null;
@@ -1011,8 +1009,8 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
         limit: z.number().int().min(1).max(200).default(50),
       },
       async ({ status, limit }) => {
-        const items = improvements.list({ status, limit });
-        const counts = improvements.countByStatus();
+        const items = await improvements.list({ status, limit });
+        const counts = await improvements.countByStatus();
         return { content: [{ type: "text", text: JSON.stringify({ counts, items }) }] };
       },
     );
@@ -1033,7 +1031,7 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
           .describe("Optional code-path hints for the dev — files likely to need editing"),
       },
       async ({ title, description, reason, priority, category, related_files }) => {
-        const created = improvements.create({
+        const created = await improvements.create({
           title,
           description,
           reason,
@@ -1062,7 +1060,7 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
           .describe("When transitioning to verified/rejected: explain what you tested and the outcome. Stored in the audit trail."),
       },
       async ({ id, title, description, reason, status, priority, category, verification_notes }) => {
-        const updated = improvements.update(id, {
+        const updated = await improvements.update(id, {
           title, description, reason, status, priority, category,
           verificationNotes: verification_notes,
         });
@@ -1079,7 +1077,7 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
       "Permanently delete an improvement task. Only use this when the user explicitly says 'remove that task'. Prefer status updates over deletion so the audit trail survives.",
       { id: z.string().min(1) },
       async ({ id }) => {
-        const ok = improvements.remove(id);
+        const ok = await improvements.remove(id);
         if (!ok) {
           return { isError: true, content: [{ type: "text", text: `Improvement ${id} not found` }] };
         }

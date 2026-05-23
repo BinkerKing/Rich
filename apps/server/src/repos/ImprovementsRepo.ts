@@ -69,6 +69,17 @@ export interface UpdateImprovementInput {
   verificationNotes?: string;
 }
 
+type MaybePromise<T> = T | Promise<T>;
+
+export interface ImprovementsStore {
+  list(filter?: { status?: ImprovementStatus; limit?: number }): MaybePromise<ImprovementTask[]>;
+  get(id: string): MaybePromise<ImprovementTask | null>;
+  create(input: CreateImprovementInput): MaybePromise<ImprovementTask>;
+  update(id: string, patch: UpdateImprovementInput): MaybePromise<ImprovementTask | null>;
+  remove(id: string): MaybePromise<boolean>;
+  countByStatus(): MaybePromise<Record<string, number>>;
+}
+
 interface Row {
   id: string;
   title: string;
@@ -84,7 +95,7 @@ interface Row {
   updated_at: string;
 }
 
-export class ImprovementsRepo {
+export class ImprovementsRepo implements ImprovementsStore {
   constructor(private db: Database.Database) {}
 
   private hydrate(row: Row): ImprovementTask {

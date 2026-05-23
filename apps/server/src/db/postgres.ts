@@ -120,6 +120,22 @@ async function applySchema(pool: Pool): Promise<void> {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS improvement_tasks (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      reason TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending',
+      priority TEXT,
+      category TEXT,
+      created_by TEXT NOT NULL DEFAULT 'hermes',
+      related_files TEXT,
+      verifications_json TEXT NOT NULL DEFAULT '[]',
+      requested_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_improvement_tasks_status ON improvement_tasks(status, updated_at DESC);
+
     CREATE TABLE IF NOT EXISTS center_history (
       id BIGSERIAL PRIMARY KEY,
       ts TEXT NOT NULL,
