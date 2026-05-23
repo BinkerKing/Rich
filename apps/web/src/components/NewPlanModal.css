@@ -1,0 +1,61 @@
+/* apps/web/src/components/NewPlanModal.css */
+.np-back {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+}
+.np-modal {
+  background: #0a0604;
+  border: 1px solid rgba(217,154,62,0.65);
+  border-radius: 16px;
+  padding: 22px 24px;
+  width: 460px; max-width: 90vw;
+  box-shadow: 0 0 0 1px rgba(217,154,62,0.4), 0 0 40px rgba(217,154,62,0.18);
+  color: #e6b25a;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+}
+.np-modal__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.np-modal__title { font-size: 16px; font-weight: 700; color: #e6b25a; }
+.np-modal__close {
+  width: 26px; height: 26px; border-radius: 50%; border: none;
+  background: rgba(255,255,255,0.08); color: #a87526; cursor: pointer; font-size: 16px;
+}
+.np-modal__close:hover { background: rgba(255,255,255,0.16); color: #e6b25a; }
+
+.np-field { display: block; margin-bottom: 12px; }
+.np-field--half { flex: 1; margin-bottom: 0; }
+.np-field__label { display: block; font-size: 11px; color: #a87526; margin-bottom: 6px; }
+.np-field__input {
+  width: 100%; padding: 10px 12px; border-radius: 8px;
+  background: rgba(0,0,0,0.4); border: 1px solid rgba(217,154,62,0.3);
+  color: #e6b25a; font-size: 13px; outline: none; font-family: inherit;
+}
+.np-field__input:focus { border-color: #d99a3e; }
+
+.np-row { display: flex; gap: 10px; margin-bottom: 12px; }
+
+.np-modes { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.np-mode {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 12px; border-radius: 10px;
+  border: 1px solid rgba(217,154,62,0.3);
+  cursor: pointer; transition: all 0.15s;
+}
+.np-mode:hover { border-color: rgba(217,154,62,0.65); }
+.np-mode.is-active { border-color: #d99a3e; background: rgba(217,154,62,0.06); }
+.np-mode input[type=radio] { margin-top: 3px; accent-color: #d99a3e; }
+.np-mode__title { font-size: 13px; font-weight: 600; color: #e6b25a; }
+.np-mode__sub { font-size: 11px; color: #a87526; margin-top: 2px; }
+
+.np-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+.np-btn {
+  padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px;
+  background: transparent; border: 1px solid rgba(217,154,62,0.3); color: #a87526;
+  font-family: inherit;
+}
+.np-btn:hover { color: #e6b25a; border-color: rgba(217,154,62,0.65); }
+.np-btn.is-primary { background: #d99a3e; color: #1a1208; border-color: #d99a3e; font-weight: 600; }
+.np-btn.is-primary:hover { background: #e6b25a; }
+.np-btn:disabled { opacity: 0.35; cursor: not-allowed; }
