@@ -338,6 +338,7 @@ async function buildDeckView(
   elementsRepo: ElementsRepo,
   relations: Relation[],
   includeHidden = false,
+  allElements?: Element[],
 ): Promise<MindmapDeckView | null> {
   // Only "root-style" embeds (deckRootId === el.id, origin not child-of-deck).
   const selfEmbed = embedsOf(rootEl).find(
@@ -345,7 +346,7 @@ async function buildDeckView(
   );
   if (!selfEmbed) return null;
   if (!includeHidden && selfEmbed.embed.hidden) return null;
-  const all = await elementsRepo.list();
+  const all = allElements ?? await elementsRepo.list();
   const byId = new Map(all.map(e => [e.id, e]));
   const source = buildMindmapSource(rootEl.id, byId, relations);
   const childCount = countDescendants(rootEl.id, relations);
@@ -421,7 +422,7 @@ export function mindmapsRoutes(deps: MindmapsRoutesDeps): Hono {
     const relations = await loadAllRelations(deps.relations);
     const decks: MindmapDeckView[] = [];
     for (const el of els) {
-      const view = await buildDeckView(el, deps.elements, relations);
+      const view = await buildDeckView(el, deps.elements, relations, false, els);
       if (view) decks.push(view);
     }
     decks.sort((a, b) => b.generatedAt.localeCompare(a.generatedAt));
