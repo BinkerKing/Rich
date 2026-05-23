@@ -392,9 +392,14 @@ interface SectionProps { state: GreatMeState; setState: React.Dispatch<React.Set
 
 function HomeSection({ state, setState, onPickPlan, onNewPlan, onAIDecompose }: SectionProps & { onPickPlan: (id: string) => void; onNewPlan: () => void; onAIDecompose: () => void }): ReactNode {
   const today = useMemo(() => new Date(), []);
-  const weekDays = useMemo(() => getWeekDays(today, state.profile.weekStart), [today, state.profile.weekStart]);
   const wk = weekNumber(today);
   const [selectedDate, setSelectedDate] = useState<string>(todayYmd());
+  // 周选择器：weekAnchor 决定当前显示的是哪一周（默认本周）；点 ← / → 翻周
+  const [weekAnchor, setWeekAnchor] = useState<Date>(today);
+  const weekDays = useMemo(() => getWeekDays(weekAnchor, state.profile.weekStart), [weekAnchor, state.profile.weekStart]);
+  const goPrevWeek = (): void => setWeekAnchor(prev => { const d = new Date(prev); d.setDate(d.getDate() - 7); return d; });
+  const goNextWeek = (): void => setWeekAnchor(prev => { const d = new Date(prev); d.setDate(d.getDate() + 7); return d; });
+  const goToday = (): void => { setWeekAnchor(new Date()); setSelectedDate(todayYmd()); };
   const [taskInput, setTaskInput] = useState("");
   const [heroEditing, setHeroEditing] = useState(false);
   const [heroDraft, setHeroDraft] = useState("");
@@ -573,7 +578,19 @@ function HomeSection({ state, setState, onPickPlan, onNewPlan, onAIDecompose }: 
     return "晚上好";
   })();
   const dayOfWeek = ["日","一","二","三","四","五","六"][today.getDay()];
-  const dateLabel = `${today.getMonth() + 1} 月 ${today.getDate()} 日 周${dayOfWeek}`;
+  // 顶部窄条用今天的日期（这是问候上下文）
+  const todayDateLabel = `${today.getMonth() + 1} 月 ${today.getDate()} 日 周${dayOfWeek}`;
+  // 今日任务卡里的日期跟随 selectedDate（看哪天就显示哪天）
+  const selectedDateObj = useMemo(() => {
+    const [y, m, d] = selectedDate.split("-").map(Number);
+    return new Date(y, (m ?? 1) - 1, d ?? 1);
+  }, [selectedDate]);
+  const selectedDateLabel = (() => {
+    const isToday = selectedDate === todayYmd();
+    const dow = ["日","一","二","三","四","五","六"][selectedDateObj.getDay()];
+    const base = `${selectedDateObj.getMonth() + 1} 月 ${selectedDateObj.getDate()} 日 周${dow}`;
+    return isToday ? `${base} · 今天` : base;
+  })();
 
   // 今日任务按 plan 分组 + 孤儿任务
   const planMap = new Map(state.plans.map(p => [p.id, p]));
@@ -619,7 +636,7 @@ function HomeSection({ state, setState, onPickPlan, onNewPlan, onAIDecompose }: 
       <div className="gm-home-v3__top">
         <div className="gm-home-v3__top-left">
           <span className="gm-home-v3__hello">{greeting}，{state.profile.codename || "大斌哥"}</span>
-          <span className="gm-home-v3__date">{dateLabel} · 第 {wk} 周</span>
+          <span className="gm-home-v3__date">{todayDateLabel} · 第 {wk} 周</span>
         </div>
         <div className="gm-home-v3__top-right">
           <div className="gm-home-v3__top-num">{completion}%</div>
@@ -636,18 +653,55 @@ function HomeSection({ state, setState, onPickPlan, onNewPlan, onAIDecompose }: 
         <div className="gm-home-v3__col gm-home-v3__col--tasks">
           <div className="gm-home-v3__card-head">
             <div className="gm-home-v3__card-head-lead">
-              <div className="gm-home-v3__card-title">今日任务</div>
-              <div className="gm-home-v3__card-date">{dateLabel}</div>
+              <div className="gm-home-v3__card-title">
+                {selectedDate === todayYmd() ? "今日任务" : "任务列表"}
+              </div>
+              <div className="gm-home-v3__card-date">{selectedDateLabel}</div>
             </div>
             {todayTasks.length > 0 && (
               <span className="gm-home-v3__card-sub">{doneToday}/{todayTasks.length} 已完成</span>
             )}
           </div>
 
+          {/* 周选择条：可切换看其他天的任务 */}
+          <div className="gm-home-v3__week">
+            <button className="gm-home-v3__week-nav" title="上一周" onClick={goPrevWeek}>‹</button>
+            <div className="gm-home-v3__week-days">
+              {weekDays.map(d => {
+                const k = ymd(d);
+                const dayTasks = state.tasks.filter(t => t.date === k);
+                const doneCount = dayTasks.filter(t => t.done).length;
+                const isSelected = k === selectedDate;
+                const isToday = k === todayYmd();
+                const dow = ["日","一","二","三","四","五","六"][d.getDay()];
+                return (
+                  <button key={k}
+                    className={`gm-home-v3__day ${isSelected ? "is-selected" : ""} ${isToday ? "is-today" : ""}`}
+                    title={k}
+                    onClick={() => setSelectedDate(k)}>
+                    <span className="gm-home-v3__day-dow">周{dow}</span>
+                    <span className="gm-home-v3__day-num">{d.getDate()}</span>
+                    {dayTasks.length > 0 && (
+                      <span className="gm-home-v3__day-dots" title={`${doneCount}/${dayTasks.length}`}>
+                        <span className={`gm-home-v3__day-bar`} style={{ width: `${dayTasks.length === 0 ? 0 : Math.round(doneCount / dayTasks.length * 100)}%` }} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <button className="gm-home-v3__week-nav" title="下一周" onClick={goNextWeek}>›</button>
+            {selectedDate !== todayYmd() && (
+              <button className="gm-home-v3__week-today" onClick={goToday}>今天</button>
+            )}
+          </div>
+
           <div className="gm-home-v3__input-bar">
             <input
               className="gm-home-v3__input"
-              placeholder="+ 加一条今日任务（按回车，自动挂到正在进行的周目标）"
+              placeholder={selectedDate === todayYmd()
+                ? "+ 加一条今日任务（按回车，自动挂到正在进行的周目标）"
+                : `+ 加一条 ${selectedDateObj.getMonth() + 1}/${selectedDateObj.getDate()} 的任务`}
               value={taskInput}
               onChange={e => setTaskInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") addTask(); }} />

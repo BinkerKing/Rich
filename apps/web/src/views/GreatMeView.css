@@ -2167,6 +2167,94 @@
 .gm-home-v3__card-sub { font-size: 11px; color: #a87526; }
 .gm-home-v3__card-actions { display: flex; gap: 6px; }
 
+/* ----- 周选择条 ----- */
+.gm-home-v3__week {
+  display: flex; align-items: stretch; gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(217, 154, 62, 0.1);
+  flex: 0 0 auto;
+}
+.gm-home-v3__week-nav {
+  width: 26px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(217, 154, 62, 0.2);
+  color: #a87526;
+  font-size: 16px;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1;
+}
+.gm-home-v3__week-nav:hover {
+  color: #e6b25a; border-color: rgba(217, 154, 62, 0.5);
+}
+.gm-home-v3__week-days {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.gm-home-v3__day {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 2px;
+  padding: 6px 4px 5px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid rgba(217, 154, 62, 0.15);
+  color: #a87526;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.gm-home-v3__day:hover {
+  background: rgba(217, 154, 62, 0.06);
+  border-color: rgba(217, 154, 62, 0.35);
+  color: #e6b25a;
+}
+.gm-home-v3__day.is-today {
+  border-color: rgba(217, 154, 62, 0.45);
+  color: #e6b25a;
+}
+.gm-home-v3__day.is-selected {
+  background: linear-gradient(135deg, rgba(217,154,62,0.18), rgba(217,154,62,0.08));
+  border-color: #d99a3e;
+  color: #f0c070;
+  box-shadow: 0 0 0 1px rgba(217, 154, 62, 0.25);
+}
+.gm-home-v3__day-dow {
+  font-size: 10px; letter-spacing: 0.04em;
+}
+.gm-home-v3__day-num {
+  font-size: 16px; font-weight: 700; line-height: 1;
+}
+.gm-home-v3__day-dots {
+  width: 90%; height: 3px; border-radius: 2px;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+  margin-top: 2px;
+}
+.gm-home-v3__day-bar {
+  display: block; height: 100%;
+  background: linear-gradient(90deg, #d99a3e, #e6b25a);
+}
+.gm-home-v3__week-today {
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: rgba(217, 154, 62, 0.1);
+  border: 1px solid rgba(217, 154, 62, 0.4);
+  color: #d99a3e;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  align-self: center;
+}
+.gm-home-v3__week-today:hover {
+  background: rgba(217, 154, 62, 0.18);
+  color: #e6b25a;
+}
+
 /* ----- 任务区 ----- */
 .gm-home-v3__input-bar {
   display: flex; gap: 8px;
