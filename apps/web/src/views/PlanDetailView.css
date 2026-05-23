@@ -137,3 +137,17 @@
   background: linear-gradient(90deg, #d99a3e, #e6b25a);
 }
 .pd-kanban-card__pct { font-size: 10px; color: #a87526; margin-top: 4px; text-align: right; }
+
+.pd-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.pd-kpi {
+  padding: 22px 14px; border-radius: 10px;
+  background: rgba(217,154,62,0.04);
+  border: 1px solid rgba(217,154,62,0.25);
+  text-align: center;
+}
+.pd-kpi__num { font-size: 24px; font-weight: 700; color: #e6b25a; }
+.pd-kpi__label { font-size: 11px; color: #a87526; margin-top: 4px; }

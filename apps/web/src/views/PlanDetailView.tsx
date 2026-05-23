@@ -94,10 +94,30 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
 
       <div className="pd-body">
         {tab === "overview" && (
-          <div className="pd-empty">
-            <div className="pd-empty__title">总览（待开发）</div>
-            <div className="pd-empty__sub">这里以后会显示里程碑节点、跨月趋势、关联事件。</div>
-            <div className="pd-empty__stats">月目标 {planGoals.filter(g => g.scope === "month").length} · 周目标 {planGoals.filter(g => g.scope === "week").length} · 今日任务 {todayTasks.length}</div>
+          <div className="pd-overview">
+            <div className="pd-kpi">
+              <div className="pd-kpi__num">{planGoals.length}</div>
+              <div className="pd-kpi__label">计划下目标数</div>
+            </div>
+            <div className="pd-kpi">
+              <div className="pd-kpi__num">{planTasks.filter(t => t.done).length} / {planTasks.length}</div>
+              <div className="pd-kpi__label">任务完成数</div>
+            </div>
+            <div className="pd-kpi">
+              <div className="pd-kpi__num">
+                {(() => {
+                  if (!plan.end) return "—";
+                  const d = (Date.parse(plan.end) - Date.now()) / 86400000;
+                  if (d < 0) return "已过期";
+                  return `${Math.ceil(d)} 天`;
+                })()}
+              </div>
+              <div className="pd-kpi__label">距离截止</div>
+            </div>
+            <div className="pd-kpi">
+              <div className="pd-kpi__num">{progress}%</div>
+              <div className="pd-kpi__label">整体进度</div>
+            </div>
           </div>
         )}
         {tab === "month" && renderKanban("month")}
