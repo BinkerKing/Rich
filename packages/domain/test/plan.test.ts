@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { migrateLegacyGoals } from "../src/plan.js";
+import { migrateLegacyGoals, computePlanProgress } from "../src/plan.js";
 
 interface MinState {
   plans?: Array<{ id: string; title: string; status: string }>;
@@ -58,5 +58,48 @@ describe("migrateLegacyGoals", () => {
     const after = migrateLegacyGoals(before);
     expect(after.plans).toEqual([]);
     expect(after.goals).toEqual([]);
+  });
+});
+
+describe("computePlanProgress", () => {
+  const G = (id: string, planId: string, scope: "year"|"month"|"week", progress: number) =>
+    ({ id, planId, scope, progress });
+
+  it("returns 0 for plan with no goals", () => {
+    expect(computePlanProgress("p1", [])).toBe(0);
+  });
+
+  it("averages week-scope goals when present", () => {
+    const goals = [
+      G("g1", "p1", "week", 80),
+      G("g2", "p1", "week", 40),
+      G("g3", "p1", "month", 100), // 忽略
+    ];
+    expect(computePlanProgress("p1", goals)).toBe(60);
+  });
+
+  it("falls back to month-scope when no week goals", () => {
+    const goals = [
+      G("g1", "p1", "month", 50),
+      G("g2", "p1", "month", 70),
+    ];
+    expect(computePlanProgress("p1", goals)).toBe(60);
+  });
+
+  it("ignores goals from other plans", () => {
+    const goals = [
+      G("g1", "p1", "week", 100),
+      G("g2", "p2", "week", 0),
+    ];
+    expect(computePlanProgress("p1", goals)).toBe(100);
+  });
+
+  it("returns rounded integer", () => {
+    const goals = [
+      G("g1", "p1", "week", 33),
+      G("g2", "p1", "week", 34),
+      G("g3", "p1", "week", 34),
+    ];
+    expect(computePlanProgress("p1", goals)).toBe(34); // (33+34+34)/3 = 33.67 → 34
   });
 });

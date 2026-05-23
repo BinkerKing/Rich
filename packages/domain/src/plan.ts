@@ -43,9 +43,25 @@ export function migrateLegacyGoals<S extends StateLike>(state: S): S {
   return { ...state, plans, goals };
 }
 
-/** 占位实现，下一个 task 才真正实现 */
-export function computePlanProgress(_planId: string, _goals: GoalLike[]): number {
-  return 0;
+interface ScopedGoal { id: string; planId?: string; scope: "year"|"month"|"week"; progress: number }
+
+/**
+ * 计算某个 plan 的进度：取最细一层有 goal 的 scope，对所有 goal.progress 求平均（四舍五入）。
+ * - week 有 goal → 平均 week 的 progress
+ * - 否则 month → 平均 month
+ * - 否则 year → 平均 year
+ * - 都没有 → 0
+ */
+export function computePlanProgress(planId: string, goals: ScopedGoal[]): number {
+  const mine = goals.filter(g => g.planId === planId);
+  if (mine.length === 0) return 0;
+  const byScope = (s: "year"|"month"|"week"): ScopedGoal[] => mine.filter(g => g.scope === s);
+  const pick = byScope("week").length > 0 ? byScope("week")
+             : byScope("month").length > 0 ? byScope("month")
+             : byScope("year");
+  if (pick.length === 0) return 0;
+  const sum = pick.reduce((acc, g) => acc + g.progress, 0);
+  return Math.round(sum / pick.length);
 }
 
 /** 一个月按多少天近似计算。v1 简化处理，不做日历感知 */
