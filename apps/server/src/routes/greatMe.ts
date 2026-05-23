@@ -27,6 +27,12 @@ const ProfileSchema = z.object({
   codename: "", city: "", mbti: "", background: "", hqPersonality: "nova" as const, weekStart: 1,
 }));
 
+const MetricSchema = z.object({
+  unit: z.string().max(20),
+  target: z.number(),
+  actual: z.number().optional(),
+});
+
 const GoalSchema = z.object({
   id: z.string().min(1).max(80),
   scope: z.enum(["year", "month", "week"]),
@@ -36,6 +42,11 @@ const GoalSchema = z.object({
   due: z.string().max(20).default(""),  // ISO date
   progress: z.number().min(0).max(100).default(0),
   createdAt: z.number(),
+  // === 新增（全部 optional 以保兼容） ===
+  planId: z.string().max(80).optional(),
+  parentId: z.string().max(80).optional(),
+  source: z.enum(["user", "ai", "ai-confirmed"]).optional(),
+  metric: MetricSchema.optional(),
 });
 
 const TaskSchema = z.object({
@@ -46,6 +57,28 @@ const TaskSchema = z.object({
   badge: z.string().max(20).default(""),  // 每日 / 可选 / ""
   goalId: z.string().max(80).default(""),
   note: z.string().max(400).default(""),
+  // === 新增 ===
+  source: z.enum(["user", "ai", "ai-template"]).optional(),
+  metric: MetricSchema.optional(),
+  archived: z.boolean().optional(),
+});
+
+const PlanSchema = z.object({
+  id: z.string().min(1).max(80),
+  title: z.string().min(1).max(200),
+  detail: z.string().max(800).optional(),
+  start: z.string().max(20).default(""),
+  end: z.string().max(20).default(""),
+  scopes: z.array(z.enum(["year","month","week","day"])).max(4).default(["month","week","day"]),
+  status: z.enum(["active","archived","completed"]).default("active"),
+  source: z.enum(["user","ai-decompose"]).default("user"),
+  createdAt: z.number(),
+  archivedAt: z.number().optional(),
+  aiTrace: z.object({
+    messageId: z.string().max(120),
+    conversationId: z.string().max(120),
+    decomposedAt: z.number(),
+  }).optional(),
 });
 
 const EventSchema = z.object({
@@ -103,6 +136,7 @@ const ConversationSchema = z.object({
 
 const GreatMeStateSchema = z.object({
   profile: ProfileSchema,
+  plans: z.array(PlanSchema).max(50).default([]),  // ← 新增这一行
   goals: z.array(GoalSchema).max(200).default([]),
   tasks: z.array(TaskSchema).max(500).default([]),
   events: z.array(EventSchema).max(200).default([]),
