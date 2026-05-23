@@ -49,6 +49,96 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
     tasks: prev.tasks.filter(t => t.id !== id),
   } as S));
 
+  /** 递归渲染单个目标节点 + 子目标 + 关联任务。深度决定缩进。 */
+  const renderTreeNode = (goal: Goal, depth: number): ReactNode => {
+    const children = planGoals
+      .filter(g => g.parentId === goal.id)
+      .sort((a, b) => a.due.localeCompare(b.due));
+    const goalTasks = planTasks
+      .filter(t => t.goalId === goal.id)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const scopeLabel = goal.scope === "year" ? "年" : goal.scope === "month" ? "月" : "周";
+
+    // 汇总文案：周 = 任务完成数；月/年 = 子目标完成数
+    let summary = "";
+    if (children.length > 0) {
+      const doneKids = children.filter(c => c.progress >= 100).length;
+      const childWord = children[0].scope === "month" ? "月" : children[0].scope === "week" ? "周" : "目标";
+      summary = `${doneKids} / ${children.length} 个${childWord}完成`;
+    } else if (goalTasks.length > 0) {
+      const doneT = goalTasks.filter(t => t.done).length;
+      summary = `${doneT} / ${goalTasks.length} 任务完成`;
+    }
+
+    return (
+      <div key={goal.id} className="pd-tree-node">
+        <div className="pd-tree-row" style={{ paddingLeft: depth * 22 }}>
+          {depth > 0 && <span className="pd-tree-edge" aria-hidden>└─</span>}
+          <span className={`pd-tree-scope pd-tree-scope--${goal.scope}`}>{scopeLabel}</span>
+          <span className="pd-tree-title">{goal.title}</span>
+          <div className="pd-tree-bar"><span style={{ width: `${goal.progress}%` }} /></div>
+          <span className="pd-tree-pct">{goal.progress}%</span>
+          {summary && <span className="pd-tree-summary">{summary}</span>}
+        </div>
+        {children.map(c => renderTreeNode(c, depth + 1))}
+        {goalTasks.length > 0 && goalTasks.map(t => (
+          <div key={t.id} className={`pd-tree-task ${t.done ? "is-done" : ""}`}
+            style={{ paddingLeft: (depth + 1) * 22 }}>
+            <span className="pd-tree-edge" aria-hidden>└─</span>
+            <span className={`pd-tree-task__check ${t.done ? "is-done" : ""}`}>{t.done ? "✓" : ""}</span>
+            <span className="pd-tree-task__title">{t.title}</span>
+            <span className="pd-tree-task__date">{t.date}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  /** 完整层级树：年→月→周→任务 */
+  const renderHierarchyTree = (): ReactNode => {
+    // 根节点：本 plan 下没有 parentId 的目标，按 scope 排序（年→月→周）
+    const scopeOrder = { year: 0, month: 1, week: 2 } as const;
+    const roots = [...planGoals]
+      .filter(g => !g.parentId)
+      .sort((a, b) => {
+        const sd = scopeOrder[a.scope] - scopeOrder[b.scope];
+        return sd !== 0 ? sd : a.due.localeCompare(b.due);
+      });
+    // 也把"孤儿任务"（goalId 不指向本 plan 下任何 goal 的）单列在底部
+    const orphanTasks = planTasks.filter(t => !planGoals.some(g => g.id === t.goalId));
+
+    if (roots.length === 0 && orphanTasks.length === 0) {
+      return (
+        <div className="pd-empty" style={{ padding: 24, fontSize: 12 }}>
+          这个计划下还没有目标 / 任务。
+        </div>
+      );
+    }
+
+    return (
+      <div className="pd-tree">
+        {roots.map(root => renderTreeNode(root, 0))}
+        {orphanTasks.length > 0 && (
+          <div className="pd-tree-node">
+            <div className="pd-tree-row" style={{ paddingLeft: 0, color: "#a87526" }}>
+              <span className="pd-tree-scope">⚠</span>
+              <span className="pd-tree-title">未挂目标的任务（{orphanTasks.length}）</span>
+            </div>
+            {orphanTasks.map(t => (
+              <div key={t.id} className={`pd-tree-task ${t.done ? "is-done" : ""}`} style={{ paddingLeft: 22 }}>
+                <span className="pd-tree-edge" aria-hidden>└─</span>
+                <span className={`pd-tree-task__check ${t.done ? "is-done" : ""}`}>{t.done ? "✓" : ""}</span>
+                <span className="pd-tree-task__title">{t.title}</span>
+                <span className="pd-tree-task__date">{t.date}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderKanban = (scope: "month"|"week"): ReactNode => {
     // 基础列表：本计划下该 scope 的全部目标
     let scoped = planGoals.filter(g => g.scope === scope);
@@ -157,29 +247,38 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
 
       <div className="pd-body">
         {tab === "overview" && (
-          <div className="pd-overview">
-            <div className="pd-kpi">
-              <div className="pd-kpi__num">{planGoals.length}</div>
-              <div className="pd-kpi__label">计划下目标数</div>
-            </div>
-            <div className="pd-kpi">
-              <div className="pd-kpi__num">{planTasks.filter(t => t.done).length} / {planTasks.length}</div>
-              <div className="pd-kpi__label">任务完成数</div>
-            </div>
-            <div className="pd-kpi">
-              <div className="pd-kpi__num">
-                {(() => {
-                  if (!plan.end) return "—";
-                  const d = (Date.parse(plan.end) - Date.now()) / 86400000;
-                  if (d < 0) return "已过期";
-                  return `${Math.ceil(d)} 天`;
-                })()}
+          <div className="pd-overview-v2">
+            <div className="pd-overview-v2__kpis">
+              <div className="pd-kpi">
+                <div className="pd-kpi__num">{planGoals.length}</div>
+                <div className="pd-kpi__label">计划下目标数</div>
               </div>
-              <div className="pd-kpi__label">距离截止</div>
+              <div className="pd-kpi">
+                <div className="pd-kpi__num">{planTasks.filter(t => t.done).length} / {planTasks.length}</div>
+                <div className="pd-kpi__label">任务完成数</div>
+              </div>
+              <div className="pd-kpi">
+                <div className="pd-kpi__num">
+                  {(() => {
+                    if (!plan.end) return "—";
+                    const d = (Date.parse(plan.end) - Date.now()) / 86400000;
+                    if (d < 0) return "已过期";
+                    return `${Math.ceil(d)} 天`;
+                  })()}
+                </div>
+                <div className="pd-kpi__label">距离截止</div>
+              </div>
+              <div className="pd-kpi">
+                <div className="pd-kpi__num">{progress}%</div>
+                <div className="pd-kpi__label">整体进度</div>
+              </div>
             </div>
-            <div className="pd-kpi">
-              <div className="pd-kpi__num">{progress}%</div>
-              <div className="pd-kpi__label">整体进度</div>
+            <div className="pd-overview-v2__tree-card">
+              <div className="pd-overview-v2__tree-head">
+                <span className="pd-overview-v2__tree-title">计划层级结构</span>
+                <span className="pd-overview-v2__tree-hint">年 → 月 → 周 → 日任务</span>
+              </div>
+              {renderHierarchyTree()}
             </div>
           </div>
         )}

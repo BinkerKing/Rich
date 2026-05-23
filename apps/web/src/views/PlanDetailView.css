@@ -216,3 +216,160 @@
 }
 .pd-kpi__num { font-size: 24px; font-weight: 700; color: #e6b25a; }
 .pd-kpi__label { font-size: 11px; color: #a87526; margin-top: 4px; }
+
+/* ======================================================
+ * 总览 tab v2：上面 KPI 行 + 下面层级结构树
+ * ====================================================== */
+.pd-overview-v2 {
+  display: flex; flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+.pd-overview-v2__kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  flex: 0 0 auto;
+}
+.pd-overview-v2__tree-card {
+  flex: 1 1 0;
+  min-height: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(217, 154, 62, 0.25);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.pd-overview-v2__tree-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(217, 154, 62, 0.15);
+  flex: 0 0 auto;
+}
+.pd-overview-v2__tree-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6b25a;
+}
+.pd-overview-v2__tree-hint {
+  font-size: 10px;
+  color: #6e4c1a;
+  letter-spacing: 0.04em;
+}
+
+/* ---- Hierarchy tree ---- */
+.pd-tree {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 14px;
+}
+.pd-tree::-webkit-scrollbar { width: 6px; }
+.pd-tree::-webkit-scrollbar-thumb { background: rgba(217, 154, 62, 0.3); border-radius: 3px; }
+
+.pd-tree-node { margin-bottom: 2px; }
+
+.pd-tree-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: background 0.12s, border-color 0.12s;
+}
+.pd-tree-row:hover {
+  background: rgba(217, 154, 62, 0.04);
+  border-color: rgba(217, 154, 62, 0.2);
+}
+
+.pd-tree-edge {
+  color: #6e4c1a;
+  font-size: 11px;
+  letter-spacing: -0.05em;
+  flex-shrink: 0;
+  margin-right: -4px;
+}
+
+.pd-tree-scope {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.pd-tree-scope--year  { background: rgba(217, 154, 62, 0.22); color: #e6b25a; }
+.pd-tree-scope--month { background: rgba(217, 154, 62, 0.14); color: #e6b25a; }
+.pd-tree-scope--week  { background: rgba(217, 154, 62, 0.08); color: #d99a3e; }
+
+.pd-tree-title {
+  font-size: 13px;
+  color: #e6b25a;
+  flex: 1; min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-tree-bar {
+  width: 120px; height: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.pd-tree-bar > span {
+  display: block; height: 100%;
+  background: linear-gradient(90deg, #d99a3e, #e6b25a);
+}
+
+.pd-tree-pct {
+  font-size: 11px;
+  font-weight: 700;
+  color: #e6b25a;
+  min-width: 38px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.pd-tree-summary {
+  font-size: 10px;
+  color: #a87526;
+  white-space: nowrap;
+  padding: 2px 8px;
+  background: rgba(217, 154, 62, 0.06);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+/* ---- Leaf task row under a week node ---- */
+.pd-tree-task {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: #a87526;
+  border-radius: 4px;
+}
+.pd-tree-task:hover { background: rgba(255, 255, 255, 0.02); }
+.pd-tree-task.is-done .pd-tree-task__title {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+.pd-tree-task__check {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid #d99a3e;
+  background: transparent;
+  color: #1a1208;
+  font-size: 9px;
+  font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.pd-tree-task__check.is-done { background: #d99a3e; }
+.pd-tree-task__title { flex: 1; min-width: 0; color: #e6b25a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pd-tree-task__date {
+  font-size: 10px;
+  color: #6e4c1a;
+  flex-shrink: 0;
+}
