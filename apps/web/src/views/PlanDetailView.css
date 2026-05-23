@@ -479,3 +479,150 @@
 }
 .pd-today-add__btn:hover { background: #e6b25a; }
 .pd-today-add__btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* === S5/S6：树视图折叠 + hover 操作 === */
+.pd-tree-toggle {
+  width: 16px; height: 16px;
+  background: transparent;
+  border: none;
+  color: #a87526;
+  font-size: 10px;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 3px;
+  font-family: inherit;
+  transition: color 0.12s;
+}
+.pd-tree-toggle:hover { color: #e6b25a; background: rgba(217,154,62,0.1); }
+.pd-tree-toggle--leaf {
+  color: #3a2408;
+  cursor: default;
+}
+.pd-tree-toggle--leaf:hover { background: transparent; }
+
+.pd-tree-title.is-clickable {
+  cursor: text;
+  padding: 1px 4px;
+  margin-left: -4px;
+  border-radius: 4px;
+  transition: background 0.12s;
+}
+.pd-tree-title.is-clickable:hover { background: rgba(217,154,62,0.08); }
+
+.pd-tree-actions {
+  display: flex; gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.pd-tree-row:hover .pd-tree-actions { opacity: 1; }
+.pd-tree-action {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #a87526;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1;
+  transition: all 0.1s;
+}
+.pd-tree-action:hover {
+  background: rgba(217,154,62,0.12);
+  border-color: rgba(217,154,62,0.35);
+  color: #e6b25a;
+}
+.pd-tree-action--danger:hover {
+  background: rgba(217,90,90,0.12);
+  border-color: rgba(217,90,90,0.5);
+  color: #d96a5b;
+}
+
+.pd-tree-task__check {
+  background: transparent;
+  cursor: pointer;
+  /* 继承现有 .pd-tree-task__check 颜色 */
+}
+
+/* === S4：今日 task inline 编辑 + 切换归属 === */
+.pd-today-item__title.is-clickable {
+  cursor: text;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border-radius: 4px;
+  transition: background 0.12s;
+}
+.pd-today-item__title.is-clickable:hover { background: rgba(217,154,62,0.08); }
+
+.pd-today-item__edit {
+  flex: 1; min-width: 0;
+  background: rgba(0,0,0,0.45);
+  border: 1px solid #d99a3e;
+  border-radius: 5px;
+  padding: 4px 8px;
+  color: #e6b25a;
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+}
+
+.pd-today-item__goal-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.pd-today-item__goal.is-set { /* 继承现有样式 */ }
+.pd-today-item__goal.is-empty {
+  border-style: dashed;
+  color: #6e4c1a;
+  background: transparent;
+}
+.pd-today-item__goal:hover { border-color: #d99a3e; }
+
+.pd-today-item__reassign-pop {
+  position: absolute;
+  right: 0; top: calc(100% + 4px);
+  z-index: 30;
+  min-width: 240px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: #0a0604;
+  border: 1px solid rgba(217,154,62,0.5);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+}
+.pd-today-item__reassign-row {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  color: #e6b25a;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  font-family: inherit;
+}
+.pd-today-item__reassign-row:hover { background: rgba(217,154,62,0.1); }
+.pd-today-item__reassign-row.is-current {
+  background: rgba(217,154,62,0.15);
+  color: #fff;
+}
+.pd-today-item__reassign-scope {
+  width: 18px; height: 18px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+.pd-today-item__reassign-empty {
+  font-size: 11px;
+  color: #6e4c1a;
+  padding: 8px;
+  text-align: center;
+}

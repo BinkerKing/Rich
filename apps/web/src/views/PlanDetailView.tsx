@@ -58,6 +58,13 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
   const [newGoalScope, setNewGoalScope] = useState<"month" | "week" | null>(null);
   const [newGoalParentId, setNewGoalParentId] = useState<string | null>(null);
   const [newTaskDraft, setNewTaskDraft] = useState("");
+  /** 树节点折叠状态：被加进 Set 的 node id 表示折叠（默认全展开）。 */
+  const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
+  /** 今日 tab 当前在 inline 编辑哪条任务标题。 */
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskTitle, setEditingTaskTitle] = useState("");
+  /** 今日 tab 当前打开了哪条任务的"换目标"小弹窗。 */
+  const [reassignTaskId, setReassignTaskId] = useState<string | null>(null);
   /** 给"新建任务"选哪个 goal 当容器：默认本计划最新的 active 周目标。 */
   const defaultNewTaskGoalId = useMemo(() => {
     const week = planGoals.find(g => g.scope === "week" && g.progress > 0 && g.progress < 100);
@@ -126,6 +133,71 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
   const modalScope: "year" | "month" | "week" = editingGoal?.scope ?? newGoalScope ?? "week";
   const modalParent = newGoalParentId ? planGoals.find(g => g.id === newGoalParentId) : null;
 
+  // === S5/S6：树节点折叠 + 删除 ===
+  const toggleCollapse = (id: string): void => {
+    setCollapsedNodes(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const deleteGoalCascade = (g: Goal): void => {
+    const children = planGoals.filter(x => x.parentId === g.id);
+    const tasksUnder = planTasks.filter(t => t.goalId === g.id);
+    const childCount = children.length;
+    const taskCount = tasksUnder.length;
+    const childWord = childCount > 0 ? `${childCount} 个子目标` : "";
+    const taskWord = taskCount > 0 ? `${taskCount} 条任务` : "";
+    const cascadeNote = childCount + taskCount > 0
+      ? `\n这会同时删除：${[childWord, taskWord].filter(Boolean).join(" + ")}`
+      : "";
+    if (!confirm(`确定删除「${g.title}」？${cascadeNote}`)) return;
+    // 递归收集所有要删的 goal id
+    const toDelete = new Set<string>([g.id]);
+    let added = true;
+    while (added) {
+      added = false;
+      for (const x of planGoals) {
+        if (x.parentId && toDelete.has(x.parentId) && !toDelete.has(x.id)) {
+          toDelete.add(x.id);
+          added = true;
+        }
+      }
+    }
+    setState(prev => ({
+      ...prev,
+      goals: prev.goals.filter(x => !toDelete.has(x.id)),
+      tasks: prev.tasks.filter(t => !toDelete.has(t.goalId)),
+    } as S));
+  };
+
+  // === S4：今日任务 inline 编辑 ===
+  const startEditTask = (t: Task): void => {
+    setEditingTaskId(t.id);
+    setEditingTaskTitle(t.title);
+  };
+  const commitEditTask = (): void => {
+    if (!editingTaskId) return;
+    const trimmed = editingTaskTitle.trim();
+    if (trimmed) {
+      const id = editingTaskId;
+      setState(prev => ({
+        ...prev,
+        tasks: prev.tasks.map(t => t.id === id ? { ...t, title: trimmed } : t),
+      } as S));
+    }
+    setEditingTaskId(null);
+    setEditingTaskTitle("");
+  };
+  const reassignTask = (taskId: string, newGoalId: string): void => {
+    setState(prev => ({
+      ...prev,
+      tasks: prev.tasks.map(t => t.id === taskId ? { ...t, goalId: newGoalId } : t),
+    } as S));
+    setReassignTaskId(null);
+  };
+
   /** 递归渲染单个目标节点 + 子目标 + 关联任务。深度决定缩进。 */
   const renderTreeNode = (goal: Goal, depth: number): ReactNode => {
     const children = planGoals
@@ -148,22 +220,60 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
       summary = `${doneT} / ${goalTasks.length} 任务完成`;
     }
 
+    const hasKids = children.length + goalTasks.length > 0;
+    const collapsed = collapsedNodes.has(goal.id);
+    // 决定子节点的"加目标 / 加任务"快捷按钮的语义：
+    //  year 父 → 加 month 子
+    //  month 父 → 加 week 子
+    //  week 父 → 加 task（这里不是 goal）
+    const addChildLabel = goal.scope === "year" ? "+ 月" : goal.scope === "month" ? "+ 周" : "+ 任务";
+    const addChild = (): void => {
+      if (goal.scope === "year") openNewGoal("month", goal.id);
+      else if (goal.scope === "month") openNewGoal("week", goal.id);
+      else {
+        setNewTaskGoalId(goal.id);
+        // 切到今日 tab 让用户输入
+        setTab("today");
+      }
+    };
+
     return (
       <div key={goal.id} className="pd-tree-node">
         <div className="pd-tree-row" style={{ paddingLeft: depth * 22 }}>
+          {/* 折叠 toggle（只有有子的才显示） */}
+          {hasKids ? (
+            <button className="pd-tree-toggle" title={collapsed ? "展开" : "折叠"}
+              onClick={() => toggleCollapse(goal.id)}>
+              {collapsed ? "▶" : "▼"}
+            </button>
+          ) : (
+            <span className="pd-tree-toggle pd-tree-toggle--leaf" aria-hidden>·</span>
+          )}
           {depth > 0 && <span className="pd-tree-edge" aria-hidden>└─</span>}
           <span className={`pd-tree-scope pd-tree-scope--${goal.scope}`}>{scopeLabel}</span>
-          <span className="pd-tree-title">{goal.title}</span>
+          <span className="pd-tree-title is-clickable" title="点击编辑"
+            onClick={() => openEditGoal(goal)}>{goal.title}</span>
           <div className="pd-tree-bar"><span style={{ width: `${goal.progress}%` }} /></div>
           <span className="pd-tree-pct">{goal.progress}%</span>
           {summary && <span className="pd-tree-summary">{summary}</span>}
+          {/* S5：hover actions */}
+          <div className="pd-tree-actions">
+            <button className="pd-tree-action" title="编辑"
+              onClick={() => openEditGoal(goal)}>✎</button>
+            <button className="pd-tree-action" title={`在此节点下${addChildLabel.slice(2)}`}
+              onClick={addChild}>{addChildLabel}</button>
+            <button className="pd-tree-action pd-tree-action--danger" title="删除"
+              onClick={() => deleteGoalCascade(goal)}>🗑</button>
+          </div>
         </div>
-        {children.map(c => renderTreeNode(c, depth + 1))}
-        {goalTasks.length > 0 && goalTasks.map(t => (
+        {!collapsed && children.map(c => renderTreeNode(c, depth + 1))}
+        {!collapsed && goalTasks.length > 0 && goalTasks.map(t => (
           <div key={t.id} className={`pd-tree-task ${t.done ? "is-done" : ""}`}
             style={{ paddingLeft: (depth + 1) * 22 }}>
             <span className="pd-tree-edge" aria-hidden>└─</span>
-            <span className={`pd-tree-task__check ${t.done ? "is-done" : ""}`}>{t.done ? "✓" : ""}</span>
+            <button className={`pd-tree-task__check ${t.done ? "is-done" : ""}`}
+              onClick={() => toggleTask(t.id)}
+              title={t.done ? "标记未完成" : "标记完成"}>{t.done ? "✓" : ""}</button>
             <span className="pd-tree-task__title">{t.title}</span>
             <span className="pd-tree-task__date">{t.date}</span>
           </div>
@@ -422,6 +532,8 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
             <div className="pd-today">
               {todayTasks.map(t => {
                 const goal = planGoals.find(g => g.id === t.goalId);
+                const isEditingThis = editingTaskId === t.id;
+                const isReassigningThis = reassignTaskId === t.id;
                 return (
                   <div key={t.id} className={`pd-today-item ${t.done ? "is-done" : ""}`}>
                     <button className={`pd-today-item__check ${t.done ? "is-done" : ""}`}
@@ -429,11 +541,50 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
                       title={t.done ? "标记未完成" : "标记完成"}>
                       {t.done ? "✓" : ""}
                     </button>
-                    <span className="pd-today-item__title">{t.title}</span>
-                    {goal && (
-                      <span className="pd-today-item__goal">
-                        {goal.scope === "year" ? "年" : goal.scope === "month" ? "月" : "周"}·{goal.title.length > 10 ? goal.title.slice(0, 10) + "…" : goal.title}
-                      </span>
+                    {isEditingThis ? (
+                      <input className="pd-today-item__edit"
+                        autoFocus
+                        value={editingTaskTitle}
+                        onChange={e => setEditingTaskTitle(e.target.value)}
+                        onBlur={commitEditTask}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") commitEditTask();
+                          if (e.key === "Escape") { setEditingTaskId(null); setEditingTaskTitle(""); }
+                        }} />
+                    ) : (
+                      <span className="pd-today-item__title is-clickable"
+                        title="点击编辑"
+                        onClick={() => startEditTask(t)}>{t.title}</span>
+                    )}
+                    {/* 目标 pill：点击切换归属（只在不编辑时显示） */}
+                    {!isEditingThis && (
+                      <div className="pd-today-item__goal-wrap">
+                        <button className={`pd-today-item__goal ${goal ? "is-set" : "is-empty"}`}
+                          onClick={() => setReassignTaskId(isReassigningThis ? null : t.id)}
+                          title={goal ? `当前归属：${goal.title}（点击切换）` : "未挂目标，点击挂上"}>
+                          {goal
+                            ? `${goal.scope === "year" ? "年" : goal.scope === "month" ? "月" : "周"}·${goal.title.length > 10 ? goal.title.slice(0, 10) + "…" : goal.title}`
+                            : "未挂目标"}
+                        </button>
+                        {isReassigningThis && (
+                          <div className="pd-today-item__reassign-pop">
+                            {planGoals.length === 0 ? (
+                              <div className="pd-today-item__reassign-empty">本计划下还没有目标</div>
+                            ) : (
+                              planGoals.map(g => (
+                                <button key={g.id}
+                                  className={`pd-today-item__reassign-row ${g.id === t.goalId ? "is-current" : ""}`}
+                                  onClick={() => reassignTask(t.id, g.id)}>
+                                  <span className={`pd-today-item__reassign-scope pd-tree-scope--${g.scope}`}>
+                                    {g.scope === "year" ? "年" : g.scope === "month" ? "月" : "周"}
+                                  </span>
+                                  <span>{g.title}</span>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
                     )}
                     <button className="pd-today-item__del" onClick={() => delTask(t.id)} title="删除">×</button>
                   </div>
