@@ -25,7 +25,8 @@ export type EventKind =
   | "signal.changed"
   | "improvement.changed"
   | "tool_invocation.changed"
-  | "mascot.changed";
+  | "mascot.changed"
+  | "greatme.changed";
 
 interface RichEvent {
   kind: EventKind;
@@ -34,7 +35,7 @@ interface RichEvent {
   detail?: Record<string, unknown>;
 }
 
-class RichEventBus extends EventEmitter {
+export class RichEventBus extends EventEmitter {
   publish(kind: EventKind, opts: { source?: RichEvent["source"]; detail?: Record<string, unknown> } = {}) {
     const event: RichEvent = {
       kind,

@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { Element, RichnessLevel, PathKind } from "@ke/domain";
+import type { DynamicSection, Element, MindmapEmbedBlock, MindmapEmbedCover, RichnessLevel, PathKind } from "@ke/domain";
 import { randomUUID } from "node:crypto";
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
 import type { RelationsRepo } from "../repos/RelationsRepo.js";
@@ -22,6 +22,7 @@ import type { StructuredEvent } from "../ai/runStructuredAI.js";
 import { loadManual, manualToPromptFragment } from "../ai/manuals.js";
 import { enqueue, get as getTask, list as listTasks } from "./tasks.js";
 import { eventBus } from "../lib/eventBus.js";
+import { registerPlanTools } from "./planTools.js";
 import {
   listMascotAnimations, playMascotAnimation, getMascotState,
 } from "../lib/mascotState.js";
@@ -73,6 +74,9 @@ export interface BuildMcpDeps {
   /** Optional — Toolbox runtime, gives Hermes access to user-defined small
    *  utility tools (lock screen, etc) via a generic invoke entry-point. */
   toolRuntime?: import("../tools/runtime.js").ToolRuntime | null;
+  /** Optional — when present, exposes plan / goal / task management tools
+   *  for Hermes to control the 计划管理 module via MCP. */
+  greatMe?: import("../repos/GreatMeRepo.js").GreatMeRepo | null;
 }
 
 /** Drain a structured-AI stream to a single Promise. Used by Layer-2
@@ -152,6 +156,111 @@ function findUnsupportedSectionBlockStyle(blocks: unknown[]): string | null {
     if (!SUPPORTED_SECTION_BLOCK_STYLES.has(style)) return style;
   }
   return null;
+}
+
+const MINDMAP_SECTION_ID = "mindmap-ppt";
+const MINDMAP_SECTION_TITLE = "PPT 展示图";
+
+type ContentWithSections = { sections?: DynamicSection[] } & Record<string, unknown>;
+
+function sectionsOf(el: Element): DynamicSection[] {
+  return ((el.content as ContentWithSections | null | undefined)?.sections) ?? [];
+}
+
+function contentObj(el: Element): ContentWithSections {
+  return (el.content && typeof el.content === "object" ? el.content as ContentWithSections : {});
+}
+
+function deckRootIdOf(embed: MindmapEmbedBlock, elementId: string): string | null {
+  if (embed.deckRootId) return embed.deckRootId;
+  return embed.origin === "child-of-deck" ? null : elementId;
+}
+
+interface EmbedRef {
+  embed: MindmapEmbedBlock;
+  deckRootId: string;
+  sectionIndex: number;
+  blockIndex: number;
+}
+
+function embedsOf(el: Element): EmbedRef[] {
+  const out: EmbedRef[] = [];
+  const sections = sectionsOf(el);
+  for (let s = 0; s < sections.length; s++) {
+    const blocks = sections[s].blocks ?? [];
+    for (let b = 0; b < blocks.length; b++) {
+      if ((blocks[b] as { style?: string }).style !== "mindmap-embed") continue;
+      const embed = blocks[b] as unknown as MindmapEmbedBlock;
+      const drid = deckRootIdOf(embed, el.id);
+      if (!drid) continue;
+      out.push({ embed, deckRootId: drid, sectionIndex: s, blockIndex: b });
+    }
+  }
+  return out;
+}
+
+function findEmbedFor(el: Element, deckRootId: string): EmbedRef | null {
+  for (const ref of embedsOf(el)) {
+    if (ref.deckRootId === deckRootId) return ref;
+  }
+  return null;
+}
+
+function withEmbed(
+  el: Element,
+  deckRootId: string,
+  origin: MindmapEmbedBlock["origin"],
+  patch: Partial<MindmapEmbedBlock> = {},
+): Element {
+  if (findEmbedFor(el, deckRootId)) return el;
+
+  const newBlock: MindmapEmbedBlock = {
+    style: "mindmap-embed",
+    deckRootId,
+    origin,
+    generatedAt: new Date().toISOString(),
+    ...patch,
+  };
+  const sections = sectionsOf(el);
+  const next: DynamicSection[] = [];
+  let touched = false;
+  for (const section of sections) {
+    if (section.id === MINDMAP_SECTION_ID) {
+      next.push({ ...section, blocks: [...(section.blocks ?? []), newBlock] });
+      touched = true;
+    } else {
+      next.push(section);
+    }
+  }
+  if (!touched) {
+    next.push({ id: MINDMAP_SECTION_ID, title: MINDMAP_SECTION_TITLE, blocks: [newBlock] });
+  }
+  return {
+    ...el,
+    content: { ...contentObj(el), sections: next } as Element["content"],
+    metadata: { ...el.metadata, updatedAt: new Date().toISOString() },
+  };
+}
+
+function mutateEmbed(
+  el: Element,
+  deckRootId: string,
+  mut: (e: MindmapEmbedBlock) => MindmapEmbedBlock,
+): Element {
+  const ref = findEmbedFor(el, deckRootId);
+  if (!ref) return el;
+  const sections = sectionsOf(el);
+  const nextSection = { ...sections[ref.sectionIndex] };
+  const nextBlocks = [...(nextSection.blocks ?? [])];
+  nextBlocks[ref.blockIndex] = mut(ref.embed);
+  nextSection.blocks = nextBlocks;
+  const nextSections = sections.slice();
+  nextSections[ref.sectionIndex] = nextSection;
+  return {
+    ...el,
+    content: { ...contentObj(el), sections: nextSections } as Element["content"],
+    metadata: { ...el.metadata, updatedAt: new Date().toISOString() },
+  };
 }
 
 export function buildMcpServer(deps: BuildMcpDeps): McpServer {
@@ -249,13 +358,19 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
     "Create a new element in the knowledge tree. If `parent_id` is provided, the new element is attached as a child of that parent; otherwise it becomes a top-level topic. `content` is optional — pass it when you've already generated the sections; otherwise leave empty and the user can refine later.",
     {
       title: z.string().min(1).max(80).describe("Element title (3-12 chars ideal)"),
-      type: z.enum(["topic", "concept", "step", "exercise", "product-design", "summary"]).default("topic"),
+      type: z.enum([
+        "topic", "concept", "step", "product-design",
+        "viewpoint", "question", "case", "tool", "ability",
+        "project", "practice", "summary", "relation",
+        "dispute", "exercise", "report", "guide",
+      ]).default("topic"),
       parent_id: z.string().optional().describe("If set, attach as child of this element"),
       subtitle: z.string().max(120).optional(),
       domain: z.string().max(40).optional(),
+      tags: z.array(z.string().min(1).max(80)).max(20).optional().describe("Optional tags such as ai-news, category:热门 SKILL, date:2026-05-23"),
       content: z.any().optional().describe("Pre-generated content (sections array). Optional."),
     },
-    async ({ title, type, parent_id, subtitle, domain, content }) => {
+    async ({ title, type, parent_id, subtitle, domain, tags, content }) => {
       const id = `el-${randomUUID().slice(0, 8)}`;
       const now = new Date().toISOString();
       const el: Element = {
@@ -264,7 +379,7 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
         title,
         subtitle,
         domain,
-        tags: [],
+        tags: tags ?? [],
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         content: (content ?? { sections: [] }) as any,
         metadata: {
@@ -296,11 +411,18 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
     {
       id: z.string().min(1),
       title: z.string().min(1).max(80).optional(),
+      type: z.enum([
+        "topic", "concept", "step", "product-design",
+        "viewpoint", "question", "case", "tool", "ability",
+        "project", "practice", "summary", "relation",
+        "dispute", "exercise", "report", "guide",
+      ]).optional(),
       subtitle: z.string().max(120).optional(),
       domain: z.string().max(40).optional(),
+      tags: z.array(z.string().min(1).max(80)).max(20).optional(),
       content: z.any().optional().describe("Full sections payload"),
     },
-    async ({ id, title, subtitle, domain, content }) => {
+    async ({ id, title, type, subtitle, domain, tags, content }) => {
       const el = await deps.elements.get(id);
       if (!el) {
         return { isError: true, content: [{ type: "text", text: `Element ${id} not found` }] };
@@ -308,14 +430,64 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
       const next: Element = {
         ...el,
         ...(title !== undefined ? { title } : {}),
+        ...(type !== undefined ? { type } : {}),
         ...(subtitle !== undefined ? { subtitle } : {}),
         ...(domain !== undefined ? { domain } : {}),
+        ...(tags !== undefined ? { tags } : {}),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...(content !== undefined ? { content: content as any } : {}),
+        metadata: { ...el.metadata, updatedAt: new Date().toISOString() },
       };
       await deps.elements.put(next);
       eventBus.publish("element.changed", { source: "mcp", detail: { op: "update_element", id } });
       return { content: [{ type: "text", text: JSON.stringify({ ok: true, id }) }] };
+    },
+  );
+
+  server.tool(
+    "attach_mindmap",
+    "Attach a mindmap/PPT embed card to an element. Use this after creating or identifying a deck root so the element shows the PPT view inline.",
+    {
+      id: z.string().min(1).describe("Element id to update"),
+      deckRootId: z.string().min(1).describe("Deck root element id this embed belongs to"),
+      caption: z.string().max(160).optional(),
+      origin: z.enum(["from-element", "ai-from-prose", "child-of-deck"]).default("from-element"),
+    },
+    async ({ id, deckRootId, caption, origin }) => {
+      const el = await deps.elements.get(id);
+      if (!el) {
+        return { isError: true, content: [{ type: "text", text: `Element ${id} not found` }] };
+      }
+      const next = withEmbed(el, deckRootId, origin ?? "from-element", caption ? { caption } : {});
+      await deps.elements.put(next);
+      eventBus.publish("element.changed", { source: "mcp", detail: { op: "attach_mindmap", id, deckRootId } });
+      return { content: [{ type: "text", text: JSON.stringify({ ok: true, id, deckRootId }) }] };
+    },
+  );
+
+  server.tool(
+    "attach_cover",
+    "Attach a ready cover image to an existing mindmap/PPT embed on an element.",
+    {
+      id: z.string().min(1).describe("Element id to update"),
+      deckRootId: z.string().min(1).describe("Deck root element id whose embed should receive the cover"),
+      src: z.string().min(1).describe("Image URL or served image path"),
+      alt: z.string().max(160).optional(),
+      caption: z.string().max(160).optional(),
+    },
+    async ({ id, deckRootId, src, alt, caption }) => {
+      const el = await deps.elements.get(id);
+      if (!el) {
+        return { isError: true, content: [{ type: "text", text: `Element ${id} not found` }] };
+      }
+      if (!findEmbedFor(el, deckRootId)) {
+        return { isError: true, content: [{ type: "text", text: `Mindmap embed ${deckRootId} not found on element ${id}` }] };
+      }
+      const cover: MindmapEmbedCover = { status: "ready", src, ...(alt !== undefined ? { alt } : {}), ...(caption !== undefined ? { caption } : {}) };
+      const next = mutateEmbed(el, deckRootId, embed => ({ ...embed, cover }));
+      await deps.elements.put(next);
+      eventBus.publish("element.changed", { source: "mcp", detail: { op: "attach_cover", id, deckRootId } });
+      return { content: [{ type: "text", text: JSON.stringify({ ok: true, id, deckRootId, cover }) }] };
     },
   );
 
@@ -1222,6 +1394,15 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
       return { content: [{ type: "text", text: JSON.stringify({ ok: true, state: next }) }] };
     },
   );
+
+  // ───── 计划管理 (Plan / Goal / Task) tools ─────────────────────────
+  // Only mount when the GreatMe repo is wired (always is, in production).
+  // Lets Hermes drive 大斌哥's plan execution: list/create/update/delete
+  // plans/goals/tasks, run the AI decompose flow end-to-end, fetch
+  // analytics blockers, and ask AI for a 推进 strategy.
+  if (deps.greatMe) {
+    registerPlanTools(server, deps.greatMe, deps.adapters, eventBus);
+  }
 
   return server;
 }

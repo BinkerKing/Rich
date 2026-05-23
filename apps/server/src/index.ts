@@ -250,6 +250,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     elements, relations, paths, signals, qa, annotations,
     adapters: ai, aiDir: manualsDir, improvements,
     toolRuntime,
+    greatMe,
   });
 
   // Agent-id endpoint：前端读这个值在 admin UI 默认填进 claim 表单。
