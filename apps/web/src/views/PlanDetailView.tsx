@@ -17,13 +17,22 @@ interface Props<S extends PartialState> {
   onBack: () => void;
 }
 
-export function PlanDetailView<S extends PartialState>({ plan, state, onBack }: Props<S>): ReactNode {
+export function PlanDetailView<S extends PartialState>({ plan, state, setState, onBack }: Props<S>): ReactNode {
   const [tab, setTab] = useState<TabId>("today");
   const progress = useMemo(() => computePlanProgress(plan.id, state.goals as Parameters<typeof computePlanProgress>[1]), [plan.id, state.goals]);
 
   const planGoals = state.goals.filter(g => g.planId === plan.id);
   const planTasks = state.tasks.filter(t => planGoals.some(g => g.id === t.goalId));
   const todayTasks = planTasks.filter(t => t.date === new Date().toISOString().slice(0, 10));
+
+  const toggleTask = (id: string): void => setState(prev => ({
+    ...prev,
+    tasks: prev.tasks.map(t => t.id === id ? { ...t, done: !t.done } : t),
+  } as S));
+  const delTask = (id: string): void => setState(prev => ({
+    ...prev,
+    tasks: prev.tasks.filter(t => t.id !== id),
+  } as S));
 
   return (
     <div className="pd">
@@ -73,10 +82,34 @@ export function PlanDetailView<S extends PartialState>({ plan, state, onBack }: 
           </div>
         )}
         {tab === "today" && (
-          <div className="pd-empty">
-            <div className="pd-empty__title">今日任务</div>
-            <div className="pd-empty__sub">{todayTasks.length} 条。任务列表待接入。</div>
-          </div>
+          todayTasks.length === 0 ? (
+            <div className="pd-empty">
+              <div className="pd-empty__title">今日任务</div>
+              <div className="pd-empty__sub">该计划下今天还没有具体任务。</div>
+            </div>
+          ) : (
+            <div className="pd-today">
+              {todayTasks.map(t => {
+                const goal = planGoals.find(g => g.id === t.goalId);
+                return (
+                  <div key={t.id} className={`pd-today-item ${t.done ? "is-done" : ""}`}>
+                    <button className={`pd-today-item__check ${t.done ? "is-done" : ""}`}
+                      onClick={() => toggleTask(t.id)}
+                      title={t.done ? "标记未完成" : "标记完成"}>
+                      {t.done ? "✓" : ""}
+                    </button>
+                    <span className="pd-today-item__title">{t.title}</span>
+                    {goal && (
+                      <span className="pd-today-item__goal">
+                        {goal.scope === "year" ? "年" : goal.scope === "month" ? "月" : "周"}·{goal.title.length > 10 ? goal.title.slice(0, 10) + "…" : goal.title}
+                      </span>
+                    )}
+                    <button className="pd-today-item__del" onClick={() => delTask(t.id)} title="删除">×</button>
+                  </div>
+                );
+              })}
+            </div>
+          )
         )}
       </div>
     </div>
