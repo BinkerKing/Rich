@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import type { InvocationsRepo } from "../repos/InvocationsRepo.js";
+import type { InvocationsStore } from "../repos/InvocationsRepo.js";
 import type {
   AnyToolDefinition, ToolDefinition, ToolHandlerContext, ToolInvocation,
 } from "./types.js";
@@ -28,7 +28,7 @@ export class ToolRuntime {
   /** Active setTimeout handles, keyed by invocation id, for cancellation. */
   private timers = new Map<string, NodeJS.Timeout>();
 
-  constructor(private repo: InvocationsRepo) {}
+  constructor(private repo: InvocationsStore) {}
 
   register(tool: AnyToolDefinition): void {
     if (this.tools.has(tool.name)) {
@@ -59,8 +59,8 @@ export class ToolRuntime {
 
   /** Re-schedule everything in 'scheduled' status that hasn't fired yet.
    *  Drop overdue ones as cancelled (don't fire stale destructive actions). */
-  rehydrate(): { rescheduled: number; cancelled: number } {
-    const pending = this.repo.listScheduled();
+  async rehydrate(): Promise<{ rescheduled: number; cancelled: number }> {
+    const pending = await this.repo.listScheduled();
     const now = Date.now();
     let rescheduled = 0;
     let cancelled = 0;
@@ -68,7 +68,7 @@ export class ToolRuntime {
       const fireAt = inv.scheduledFor ? new Date(inv.scheduledFor).getTime() : now;
       if (fireAt <= now) {
         // Two interpretations: fire-immediately or skip. Skip is safer.
-        this.repo.markCancelled(inv.id);
+        await this.repo.markCancelled(inv.id);
         cancelled += 1;
         continue;
       }
@@ -92,7 +92,7 @@ export class ToolRuntime {
     const delaySeconds = this.computeDelay(tool, parsed.data);
     const id = `inv-${randomUUID().slice(0, 10)}`;
     if (delaySeconds <= 0) {
-      const inv = this.repo.create({
+      const inv = await this.repo.create({
         id,
         toolName: opts.toolName,
         args: parsed.data as Record<string, unknown>,
@@ -100,13 +100,13 @@ export class ToolRuntime {
         createdBy: opts.createdBy,
       });
       eventBus.publish("tool_invocation.changed", { source: opts.createdBy === "hermes" ? "mcp" : "route" });
-      this.repo.markRunning(id);
+      await this.repo.markRunning(id);
       // Run async — return immediately so the caller doesn't block.
       void this.runHandler(tool, parsed.data, id);
       return inv;
     }
     const scheduledFor = new Date(Date.now() + delaySeconds * 1000).toISOString();
-    const inv = this.repo.create({
+    const inv = await this.repo.create({
       id,
       toolName: opts.toolName,
       args: parsed.data as Record<string, unknown>,
@@ -119,8 +119,8 @@ export class ToolRuntime {
     return inv;
   }
 
-  cancel(id: string): boolean {
-    const inv = this.repo.get(id);
+  async cancel(id: string): Promise<boolean> {
+    const inv = await this.repo.get(id);
     if (!inv) return false;
     if (inv.status !== "scheduled") return false;
     const timer = this.timers.get(id);
@@ -128,7 +128,7 @@ export class ToolRuntime {
       clearTimeout(timer);
       this.timers.delete(id);
     }
-    const ok = this.repo.markCancelled(id);
+    const ok = await this.repo.markCancelled(id);
     if (ok) eventBus.publish("tool_invocation.changed", { source: "route", detail: { op: "cancel", id } });
     return ok;
   }
@@ -148,11 +148,11 @@ export class ToolRuntime {
       this.timers.delete(inv.id);
       const tool = this.tools.get(inv.toolName);
       if (!tool) {
-        this.repo.markFailed(inv.id, `Tool no longer registered: ${inv.toolName}`);
+        void this.repo.markFailed(inv.id, `Tool no longer registered: ${inv.toolName}`);
         eventBus.publish("tool_invocation.changed", { source: "route", detail: { op: "fired", id: inv.id } });
         return;
       }
-      this.repo.markRunning(inv.id);
+      void this.repo.markRunning(inv.id);
       eventBus.publish("tool_invocation.changed", { source: "route", detail: { op: "started", id: inv.id } });
       void this.runHandler(tool, inv.args, inv.id);
     }, ms);
@@ -168,10 +168,10 @@ export class ToolRuntime {
     try {
       const result = await tool.handler(args, ctx);
       const combined = [...logLines, result].filter(Boolean).join("\n");
-      this.repo.markCompleted(id, combined || "ok");
+      await this.repo.markCompleted(id, combined || "ok");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.repo.markFailed(id, msg);
+      await this.repo.markFailed(id, msg);
     } finally {
       eventBus.publish("tool_invocation.changed", { source: "route", detail: { op: "finished", id } });
     }

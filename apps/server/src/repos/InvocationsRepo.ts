@@ -1,12 +1,33 @@
 import type Database from "better-sqlite3";
 import type { ToolInvocation, InvocationStatus } from "../tools/types.js";
 
+type MaybePromise<T> = T | Promise<T>;
+
+export interface InvocationsStore {
+  create(input: {
+    id: string;
+    toolName: string;
+    args: Record<string, unknown>;
+    status: InvocationStatus;
+    createdBy: "hermes" | "user";
+    scheduledFor?: string;
+  }): MaybePromise<ToolInvocation>;
+  get(id: string): MaybePromise<ToolInvocation | null>;
+  list(filter?: { toolName?: string; status?: InvocationStatus; limit?: number }): MaybePromise<ToolInvocation[]>;
+  listScheduled(): MaybePromise<ToolInvocation[]>;
+  markRunning(id: string): MaybePromise<void>;
+  markCompleted(id: string, result: string): MaybePromise<void>;
+  markFailed(id: string, error: string): MaybePromise<void>;
+  markCancelled(id: string): MaybePromise<boolean>;
+  countByStatus(): MaybePromise<Record<string, number>>;
+}
+
 /**
  * Storage for Toolbox tool invocations. One row per invocation; status
  * transitions are updates on the same row (not append-only events) — we
  * don't need a full event log here, just the current state + final result.
  */
-export class InvocationsRepo {
+export class InvocationsRepo implements InvocationsStore {
   constructor(private db: Database.Database) {}
 
   private hydrate(row: {

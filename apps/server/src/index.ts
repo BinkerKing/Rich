@@ -71,7 +71,7 @@ import { chatRoutes } from "./routes/chat.js";
 import { cronRoutes } from "./routes/cron.js";
 import { ImprovementsRepo } from "./repos/ImprovementsRepo.js";
 import { improvementsRoutes } from "./routes/improvements.js";
-import { InvocationsRepo } from "./repos/InvocationsRepo.js";
+import { InvocationsRepo, type InvocationsStore } from "./repos/InvocationsRepo.js";
 import { ToolRuntime } from "./tools/runtime.js";
 import { lockScreenTool } from "./tools/lockScreen.js";
 import { toolboxRoutes } from "./routes/toolbox.js";
@@ -87,6 +87,7 @@ import { PostgresQARepo } from "./repos/PostgresQARepo.js";
 import { PostgresAnnotationsRepo } from "./repos/PostgresAnnotationsRepo.js";
 import { PostgresStateRepo } from "./repos/PostgresStateRepo.js";
 import { PostgresGreatMeRepo } from "./repos/PostgresGreatMeRepo.js";
+import { PostgresInvocationsRepo } from "./repos/PostgresInvocationsRepo.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -108,7 +109,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let state: StateRepo;
   let greatMe: GreatMeRepo;
   let improvements: ImprovementsRepo | null = null;
-  let invocations: InvocationsRepo | null = null;
+  let invocations: InvocationsStore | null = null;
   if (storage === "json") {
     elements = new CachedElementsRepo(new JsonElementsRepo(root));
     relations = new CachedRelationsRepo(new JsonRelationsRepo(root));
@@ -132,6 +133,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     annotations = new PostgresAnnotationsRepo(pg);
     state = new PostgresStateRepo(pg);
     greatMe = new PostgresGreatMeRepo(pg);
+    invocations = new PostgresInvocationsRepo(pg);
   } else {
     const dbPath = process.env.KE_SQLITE_PATH ?? join(root, "ke.db");
     const db = openDb(dbPath);
@@ -172,10 +174,11 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   if (toolRuntime) {
     toolRuntime.register(lockScreenTool);
     // Re-schedule any deferred invocations that survived the previous crash.
-    const rehydrated = toolRuntime.rehydrate();
-    if (rehydrated.rescheduled + rehydrated.cancelled > 0) {
-      log.info("toolbox.rehydrated", rehydrated);
-    }
+    void toolRuntime.rehydrate().then(rehydrated => {
+      if (rehydrated.rescheduled + rehydrated.cancelled > 0) {
+        log.info("toolbox.rehydrated", rehydrated);
+      }
+    });
   }
   // Persist every AI op prompt + output to data/ai-ops.jsonl for the admin UI.
   configureOpLog(root);

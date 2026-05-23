@@ -48,6 +48,10 @@ async function main() {
   counts.center_history = await copyAppendOnly(pg, "center_history", [
     "ts", "from_id", "to_id", "dwell_ms",
   ]);
+  counts.tool_invocations = await copyTable(pg, "tool_invocations", [
+    "id", "tool_name", "args_json", "status", "created_by", "scheduled_for",
+    "started_at", "finished_at", "result", "error", "created_at",
+  ], "id");
 
   await pg.pool.end();
   console.log(JSON.stringify({ ok: true, sqlite: SQLITE_PATH, reset: RESET, counts }, null, 2));
@@ -63,6 +67,7 @@ async function resetPostgres(pg: PgPool): Promise<void> {
       qa,
       annotations,
       center_history,
+      tool_invocations,
       state,
       elements
     RESTART IDENTITY CASCADE

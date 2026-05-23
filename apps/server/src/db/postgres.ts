@@ -128,5 +128,21 @@ async function applySchema(pool: Pool): Promise<void> {
       dwell_ms INTEGER
     );
     CREATE INDEX IF NOT EXISTS idx_center_history_ts ON center_history(id DESC);
+
+    CREATE TABLE IF NOT EXISTS tool_invocations (
+      id TEXT PRIMARY KEY,
+      tool_name TEXT NOT NULL,
+      args_json TEXT NOT NULL DEFAULT '{}',
+      status TEXT NOT NULL,
+      created_by TEXT NOT NULL,
+      scheduled_for TEXT,
+      started_at TEXT,
+      finished_at TEXT,
+      result TEXT,
+      error TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_tool_invocations_status_ts ON tool_invocations(status, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_tool_invocations_tool ON tool_invocations(tool_name, created_at DESC);
   `);
 }
