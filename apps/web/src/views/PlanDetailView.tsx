@@ -34,6 +34,37 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
     tasks: prev.tasks.filter(t => t.id !== id),
   } as S));
 
+  const renderKanban = (scope: "month"|"week"): ReactNode => {
+    const scoped = planGoals.filter(g => g.scope === scope);
+    const planned = scoped.filter(g => g.progress === 0);
+    const active  = scoped.filter(g => g.progress > 0 && g.progress < 100);
+    const done    = scoped.filter(g => g.progress >= 100);
+    const col = (title: string, list: Goal[]): ReactNode => (
+      <div className="pd-kanban-col">
+        <div className="pd-kanban-col__head">
+          <span className="pd-kanban-col__title">{title}</span>
+          <span className="pd-kanban-col__count">{list.length}</span>
+        </div>
+        {list.length === 0 ? (
+          <div className="pd-empty" style={{ padding: 24, fontSize: 12 }}>暂无</div>
+        ) : list.map(g => (
+          <div key={g.id} className="pd-kanban-card">
+            <div className="pd-kanban-card__title">{g.title}</div>
+            <div className="pd-kanban-card__bar"><span style={{ width: `${g.progress}%` }} /></div>
+            <div className="pd-kanban-card__pct">{g.progress}%</div>
+          </div>
+        ))}
+      </div>
+    );
+    return (
+      <div className="pd-kanban">
+        {col("计划中", planned)}
+        {col("正在进行", active)}
+        {col("已完成", done)}
+      </div>
+    );
+  };
+
   return (
     <div className="pd">
       <div className="pd__top">
@@ -69,18 +100,8 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
             <div className="pd-empty__stats">月目标 {planGoals.filter(g => g.scope === "month").length} · 周目标 {planGoals.filter(g => g.scope === "week").length} · 今日任务 {todayTasks.length}</div>
           </div>
         )}
-        {tab === "month" && (
-          <div className="pd-empty">
-            <div className="pd-empty__title">月度目标</div>
-            <div className="pd-empty__sub">{planGoals.filter(g => g.scope === "month").length} 个月目标。Kanban 视图待接入。</div>
-          </div>
-        )}
-        {tab === "week" && (
-          <div className="pd-empty">
-            <div className="pd-empty__title">周度目标</div>
-            <div className="pd-empty__sub">{planGoals.filter(g => g.scope === "week").length} 个周目标。Kanban 视图待接入。</div>
-          </div>
-        )}
+        {tab === "month" && renderKanban("month")}
+        {tab === "week"  && renderKanban("week")}
         {tab === "today" && (
           todayTasks.length === 0 ? (
             <div className="pd-empty">
