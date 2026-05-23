@@ -1085,6 +1085,63 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
         return { content: [{ type: "text", text: JSON.stringify({ ok: true }) }] };
       },
     );
+
+    server.tool(
+      "claim_improvement",
+      "ATOMIC claim — call this BEFORE you start verifying or otherwise working on an improvement task to prevent duplicate work across multiple Hermes / Codex / Claude Code agents that share the same Rich backend. Returns ok=true with the task if you got it, or ok=false with conflict.current_agent_id if someone else already has it (in which case SKIP this task and look at another pending one). Same agent re-calling is idempotent (200). agent_id defaults to '<hostname>-mcp' if omitted, but you should pass your own stable id like '<hostname>-hermes'.",
+      {
+        id: z.string().min(1).describe("Improvement task id, e.g. 'imp-c561511e'"),
+        agent_id: z.string().min(1).max(120).optional()
+          .describe("Stable identifier for the calling agent. Convention: '<hostname>-<provider>' e.g. 'mac-mini.local-hermes'. If omitted, defaults to '<hostname>-mcp'."),
+      },
+      async ({ id, agent_id }) => {
+        const effectiveAgent = agent_id ?? `${(await import("node:os")).hostname()}-mcp`;
+        const existing = await improvements.get(id);
+        if (!existing) {
+          return { isError: true, content: [{ type: "text", text: `Improvement ${id} not found` }] };
+        }
+        const result = await improvements.claim(id, effectiveAgent);
+        if (result.ok) {
+          eventBus.publish("improvement.changed", { source: "mcp", detail: { op: "claim", id, agentId: effectiveAgent } });
+          return { content: [{ type: "text", text: JSON.stringify({ ok: true, id, assigned_agent_id: effectiveAgent }) }] };
+        }
+        // Soft fail — Hermes should detect ok=false and skip to another task.
+        return { content: [{ type: "text", text: JSON.stringify({
+          ok: false,
+          id,
+          conflict: {
+            current_agent_id: result.conflict.currentAgentId,
+            assigned_at: result.conflict.assignedAt,
+          },
+        }) }] };
+      },
+    );
+
+    server.tool(
+      "release_improvement",
+      "Release a previously-claimed improvement. Call after you finish or abandon work so other agents can pick it up if needed. agent_id must match the claimer; pass force=true to override (admin / unstick a crashed peer).",
+      {
+        id: z.string().min(1),
+        agent_id: z.string().min(1).max(120).optional()
+          .describe("Same id you used when claiming. Defaults to '<hostname>-mcp' if omitted."),
+        force: z.boolean().optional()
+          .describe("Force-release regardless of who currently holds it. Use only when a peer agent has crashed and left the claim dangling."),
+      },
+      async ({ id, agent_id, force }) => {
+        const effectiveAgent = agent_id ?? `${(await import("node:os")).hostname()}-mcp`;
+        const existing = await improvements.get(id);
+        if (!existing) {
+          return { isError: true, content: [{ type: "text", text: `Improvement ${id} not found` }] };
+        }
+        const released = await improvements.release(id, force ? null : effectiveAgent);
+        eventBus.publish("improvement.changed", { source: "mcp", detail: { op: "release", id } });
+        return { content: [{ type: "text", text: JSON.stringify({
+          ok: true,
+          id,
+          assigned_agent_id: released?.assignedAgentId ?? null,
+        }) }] };
+      },
+    );
   }
 
   // ───── Toolbox bridge ───────────────────────────────────────────────
