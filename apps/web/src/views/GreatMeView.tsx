@@ -635,7 +635,10 @@ function HomeSection({ state, setState, onPickPlan, onNewPlan, onAIDecompose }: 
         {/* 左栏：今日任务 */}
         <div className="gm-home-v3__col gm-home-v3__col--tasks">
           <div className="gm-home-v3__card-head">
-            <div className="gm-home-v3__card-title">今日任务</div>
+            <div className="gm-home-v3__card-head-lead">
+              <div className="gm-home-v3__card-title">今日任务</div>
+              <div className="gm-home-v3__card-date">{dateLabel}</div>
+            </div>
             {todayTasks.length > 0 && (
               <span className="gm-home-v3__card-sub">{doneToday}/{todayTasks.length} 已完成</span>
             )}

@@ -2158,6 +2158,12 @@
 .gm-home-v3__card-title {
   font-size: 14px; font-weight: 700; color: #e6b25a;
 }
+.gm-home-v3__card-head-lead {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+}
+.gm-home-v3__card-date {
+  font-size: 11px; color: #a87526; letter-spacing: 0.02em;
+}
 .gm-home-v3__card-sub { font-size: 11px; color: #a87526; }
 .gm-home-v3__card-actions { display: flex; gap: 6px; }
 
