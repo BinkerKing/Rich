@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import { api } from "../api/client.js";
-import { migrateLegacyGoals } from "@ke/domain";
+import { migrateLegacyGoals, computePlanProgress } from "@ke/domain";
 import type { Plan, Metric } from "@ke/domain";
 import { NewPlanModal } from "../components/NewPlanModal.js";
 import { AIDecomposeModal, type DecomposePreview } from "../components/AIDecomposeModal.js";
@@ -562,353 +562,238 @@ function HomeSection({ state, setState, onPickPlan, onNewPlan, onAIDecompose }: 
   // 关键动作未完成数（hero 副 meta 用）
   const remainingActions = todayTasks.filter(t => !t.done).length;
 
+  // === v3: today-focused 双栏布局 ===
+  // 问候 + 日期文案
+  const greeting = (() => {
+    const h = today.getHours();
+    if (h < 6) return "凌晨好";
+    if (h < 12) return "早上好";
+    if (h < 14) return "中午好";
+    if (h < 19) return "下午好";
+    return "晚上好";
+  })();
+  const dayOfWeek = ["日","一","二","三","四","五","六"][today.getDay()];
+  const dateLabel = `${today.getMonth() + 1} 月 ${today.getDate()} 日 周${dayOfWeek}`;
+
+  // 今日任务按 plan 分组 + 孤儿任务
+  const planMap = new Map(state.plans.map(p => [p.id, p]));
+  const goalMap = new Map(state.goals.map(g => [g.id, g]));
+  interface GroupedTasks { planId: string; planTitle: string; tasks: typeof todayTasks; goalTitle: Map<string, string> }
+  const groups = new Map<string, GroupedTasks>();
+  const orphans: typeof todayTasks = [];
+  for (const t of todayTasks) {
+    const g = t.goalId ? goalMap.get(t.goalId) : undefined;
+    if (g && g.planId && planMap.has(g.planId)) {
+      const pid = g.planId;
+      if (!groups.has(pid)) {
+        groups.set(pid, { planId: pid, planTitle: planMap.get(pid)!.title, tasks: [], goalTitle: new Map() });
+      }
+      groups.get(pid)!.tasks.push(t);
+      groups.get(pid)!.goalTitle.set(g.id, g.title);
+    } else {
+      orphans.push(t);
+    }
+  }
+  const groupList = Array.from(groups.values());
+
+  // 活跃计划进度 + 距截止
+  const activePlans = state.plans.filter(p => p.status === "active");
+  const daysLeftLabel = (end: string): string => {
+    if (!end) return "未设截止";
+    const d = Math.ceil((Date.parse(end) - Date.now()) / 86400000);
+    if (d < 0) return "已过期";
+    if (d === 0) return "今天截止";
+    return `还剩 ${d} 天`;
+  };
+  const planProgress = (planId: string): number => computePlanProgress(
+    planId,
+    state.goals as Parameters<typeof computePlanProgress>[1],
+    state.tasks as Parameters<typeof computePlanProgress>[2],
+  );
+
+  const doneToday = todayTasks.filter(t => t.done).length;
+
   return (
-    <div className="gm-home-v2">
-      {/* 顶部右侧时间戳 */}
-      <div style={{ position: "absolute", top: 8, right: 22, fontSize: 11, color: "var(--gm-text-dim)" }}>
-        数据更新时间：{today.toLocaleString("zh-CN")}
+    <div className="gm-home-v3">
+      {/* === 顶部窄条：问候 + 日期 + 今日完成度 === */}
+      <div className="gm-home-v3__top">
+        <div className="gm-home-v3__top-left">
+          <span className="gm-home-v3__hello">{greeting}，{state.profile.codename || "Rich"}</span>
+          <span className="gm-home-v3__date">{dateLabel} · 第 {wk} 周</span>
+        </div>
+        <div className="gm-home-v3__top-right">
+          <div className="gm-home-v3__top-num">{completion}%</div>
+          <div className="gm-home-v3__top-meta">
+            <span>今日 {doneToday} / {todayTasks.length}</span>
+            <div className="gm-home-v3__top-bar"><span style={{ width: `${completion}%` }} /></div>
+          </div>
+        </div>
       </div>
 
-      {/* === 顶部 hero row：左大 hero + 右小 里程碑（标题随 scope 变） === */}
-      <div className="gm-home-hero-row">
-        <div className={`gm-card gm-home-hero ${heroEditing ? "is-editing" : ""}`}>
-          <div className="gm-home-hero__top">
-            <div className="gm-row" style={{ gap: 10 }}>
-              <span className="gm-range__week" style={{ fontSize: 12 }}>第{scopeNumber}{scopeUnit}</span>
-              <button className="gm-icon-btn" style={{ width: 22, height: 22, fontSize: 11 }}
-                title={scopeGoal ? "编辑目标" : "新增目标"}
-                onClick={() => setEditingGoalOpen(true)}>✎</button>
-            </div>
-            <div className="gm-row" style={{ gap: 6 }}>
-              {(["week", "month", "year"] as RangeId[]).map(r => (
-                <button key={r} className={`gm-range__chip ${state.activeRange === r ? "is-active" : ""}`}
-                  style={{ padding: "5px 16px" }}
-                  onClick={() => setRange(r)}>
-                  {r === "week" ? "周度" : r === "month" ? "月度" : "年度"}
+      {/* === 主双栏 === */}
+      <div className="gm-home-v3__main">
+        {/* 左栏：今日任务 */}
+        <div className="gm-home-v3__col gm-home-v3__col--tasks">
+          <div className="gm-home-v3__card-head">
+            <div className="gm-home-v3__card-title">今日任务</div>
+            {todayTasks.length > 0 && (
+              <span className="gm-home-v3__card-sub">{doneToday}/{todayTasks.length} 已完成</span>
+            )}
+          </div>
+
+          <div className="gm-home-v3__input-bar">
+            <input
+              className="gm-home-v3__input"
+              placeholder="+ 加一条今日任务（按回车，自动挂到正在进行的周目标）"
+              value={taskInput}
+              onChange={e => setTaskInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") addTask(); }} />
+            <button className="gm-home-v3__input-btn"
+              disabled={!taskInput.trim()}
+              onClick={addTask}>添加</button>
+          </div>
+
+          <div className="gm-home-v3__tasks">
+            {groupList.length === 0 && orphans.length === 0 && (
+              <div className="gm-home-v3__empty">
+                <div className="gm-home-v3__empty-title">今天还没有任务</div>
+                <div className="gm-home-v3__empty-sub">
+                  上面输入框加一条，或者去
+                  <a className="gm-home-v3__empty-link" onClick={onAIDecompose}> 🪄 AI 拆解 </a>
+                  一个意图开始。
+                </div>
+              </div>
+            )}
+            {groupList.map(group => (
+              <div key={group.planId} className="gm-home-v3__task-group">
+                <button className="gm-home-v3__task-group-head"
+                  onClick={() => onPickPlan(group.planId)}
+                  title="打开此计划详情">
+                  ▎{group.planTitle}
+                  <span className="gm-home-v3__task-group-count">{group.tasks.filter(t => t.done).length} / {group.tasks.length}</span>
                 </button>
-              ))}
-            </div>
-          </div>
-
-          {heroEditing && scopeGoal ? (
-            <div className="gm-goal-hero__editor" style={{ marginTop: 12 }}>
-              <textarea className="gm-goal-hero__editor-field"
-                value={heroDraft} autoFocus
-                onChange={e => setHeroDraft(e.target.value)} />
-              <div className="gm-goal-hero__editor-actions">
-                <button className="gm-goal-hero__editor-undo" title="撤销"
-                  onClick={() => setHeroDraft(scopeGoal.title)}>↶</button>
-                <button className="gm-goal-hero__editor-save" title="保存"
-                  onClick={saveHeroInlineEdit}>✓</button>
+                {group.tasks.map(t => {
+                  const isEditing = editingTaskId === t.id;
+                  const goalTitle = t.goalId ? group.goalTitle.get(t.goalId) : null;
+                  return (
+                    <div key={t.id} className={`gm-home-v3__task ${t.done ? "is-done" : ""}`}>
+                      <button className={`gm-home-v3__task-check ${t.done ? "is-done" : ""}`}
+                        onClick={() => toggleTask(t.id)}
+                        title={t.done ? "标记未完成" : "标记完成"}>
+                        {t.done ? "✓" : ""}
+                      </button>
+                      {isEditing ? (
+                        <input className="gm-home-v3__task-edit" autoFocus
+                          value={editingTaskDraft}
+                          onChange={e => setEditingTaskDraft(e.target.value)}
+                          onBlur={saveEditTask}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") saveEditTask();
+                            if (e.key === "Escape") { setEditingTaskId(null); setEditingTaskDraft(""); }
+                          }} />
+                      ) : (
+                        <span className="gm-home-v3__task-title"
+                          onClick={() => startEditTask(t.id, t.title)}
+                          title="点击编辑标题">{t.title}</span>
+                      )}
+                      {goalTitle && (
+                        <span className="gm-home-v3__task-goal" title={goalTitle}>↑ {goalTitle}</span>
+                      )}
+                      <button className="gm-home-v3__task-del" title="删除"
+                        onClick={() => delTask(t.id)}>×</button>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="gm-home-hero__sub" style={{ marginTop: 10 }}>
-                还差 {Math.max(remainingActions, 1)} 个{scopeNoun}关键动作
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="gm-home-hero__title is-clickable"
-                title={scopeGoal ? "点击编辑" : "点击新增目标"}
-                onClick={startHeroInlineEdit}>
-                {scopeGoal?.title ?? `等待填写${scopeNoun}主线任务。`}
-              </div>
-              <div className="gm-home-hero__sub">
-                {scopeGoal ? (scopeGoal.detail || `进度 ${scopeGoal.progress}%`) : `还差 ${Math.max(remainingActions, 1)} 个${scopeNoun}关键动作`}
-              </div>
-              <div className="gm-home__hero-bar" style={{ marginTop: 14 }}>
-                <span style={{ width: `${scopeGoal?.progress ?? 0}%` }} />
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="gm-card gm-milestone-card">
-          <div className="gm-card__head">
-            <div className="gm-card__title">{milestoneLabel}</div>
-            <div className="gm-row" style={{ gap: 8 }}>
-              <button className="gm-icon-btn" style={{ width: 22, height: 22, fontSize: 11 }} title="编辑"
-                onClick={() => setEditingGoalOpen(true)}>✎</button>
-              <span style={{ fontSize: 18, color: "var(--gm-amber-2)", fontWeight: 600 }}>{scopeGoal?.progress ?? 0}%</span>
-            </div>
-          </div>
-          <MilestoneTimeline progress={scopeGoal?.progress ?? 0}
-            nodes={[
-              { label: `${today.getMonth() + 1}月${today.getDate()} 每日任务记录`, active: true },
-              { label: "完成一次今日复盘", active: scopeGoal !== undefined && (scopeGoal?.progress ?? 0) >= 33 },
-              { label: "事件证据", active: scopeGoal !== undefined && (scopeGoal?.progress ?? 0) >= 66 },
-            ]} />
-          <div style={{ fontSize: 10, color: "var(--gm-text-dim)", marginTop: 6 }}>更新时间：{today.toLocaleDateString("zh-CN")} {today.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}</div>
-        </div>
-      </div>
-
-      {/* === 下部 3 列 === */}
-      <div className="gm-home-grid">
-        {/* === 左列：根据 scope 切换 — 周→今日任务 / 月→周报总结 / 年→年度故事线 === */}
-        <div className="gm-col">
-          {/* 我的计划卡 — 跨 scope 都显示 */}
-          <div className="gm-card gm-plans-card">
-            <div className="gm-card__head">
-              <div className="gm-card__title">我的计划</div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <button className="gm-chip" onClick={onAIDecompose} title="AI 帮我把意图拆成计划树">🪄 AI 拆解</button>
-                <button className="gm-chip" onClick={onNewPlan} title="新建空计划">+ 新建</button>
-              </div>
-            </div>
-            {state.plans.filter(p => p.status === "active").length === 0 ? (
-              <div className="gm-empty" style={{ padding: 12, fontSize: 12 }}>还没有计划。点上方 + 新建 来开始。</div>
-            ) : (
-              <div className="gm-plans-list">
-                {state.plans.filter(p => p.status === "active").map(p => (
-                  <button key={p.id} className="gm-plans-item" onClick={() => onPickPlan(p.id)}>
-                    <span className="gm-plans-item__title">{p.title}</span>
-                    <span className="gm-plans-item__arrow">→</span>
-                  </button>
-                ))}
+            ))}
+            {orphans.length > 0 && (
+              <div className="gm-home-v3__task-group">
+                <div className="gm-home-v3__task-group-head gm-home-v3__task-group-head--orphan">
+                  ▎未挂目标
+                  <span className="gm-home-v3__task-group-count">{orphans.filter(t => t.done).length} / {orphans.length}</span>
+                </div>
+                {orphans.map(t => {
+                  const isEditing = editingTaskId === t.id;
+                  return (
+                    <div key={t.id} className={`gm-home-v3__task ${t.done ? "is-done" : ""}`}>
+                      <button className={`gm-home-v3__task-check ${t.done ? "is-done" : ""}`}
+                        onClick={() => toggleTask(t.id)}>{t.done ? "✓" : ""}</button>
+                      {isEditing ? (
+                        <input className="gm-home-v3__task-edit" autoFocus
+                          value={editingTaskDraft}
+                          onChange={e => setEditingTaskDraft(e.target.value)}
+                          onBlur={saveEditTask}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") saveEditTask();
+                            if (e.key === "Escape") { setEditingTaskId(null); setEditingTaskDraft(""); }
+                          }} />
+                      ) : (
+                        <span className="gm-home-v3__task-title"
+                          onClick={() => startEditTask(t.id, t.title)}>{t.title}</span>
+                      )}
+                      <button className="gm-home-v3__task-del" onClick={() => delTask(t.id)}>×</button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
-          {scope === "month" ? (
-            <div className="gm-card gm-flex-1" style={{ display: "flex", flexDirection: "column" }}>
-              <div className="gm-card__head">
-                <div className="gm-card__title">周报总结</div>
-                <div className="gm-card__sub">0 项</div>
+        </div>
+
+        {/* 右栏：我的计划 */}
+        <div className="gm-home-v3__col gm-home-v3__col--plans">
+          <div className="gm-home-v3__card-head">
+            <div className="gm-home-v3__card-title">我的计划</div>
+            <div className="gm-home-v3__card-actions">
+              <button className="gm-chip" onClick={onAIDecompose} title="AI 帮我拆解一个意图">🪄 AI 拆解</button>
+              <button className="gm-chip" onClick={onNewPlan} title="新建空计划">+ 新建</button>
+            </div>
+          </div>
+          <div className="gm-home-v3__plans">
+            {activePlans.length === 0 && (
+              <div className="gm-home-v3__empty">
+                <div className="gm-home-v3__empty-title">还没有计划</div>
+                <div className="gm-home-v3__empty-sub">从 🪄 AI 拆解 或 + 新建 开始。</div>
               </div>
-              <div className="gm-empty" style={{ padding: 16, fontSize: 12 }}>还没有同步到每周总结。</div>
-            </div>
-          ) : scope === "year" ? (
-            <div className="gm-card gm-flex-1" style={{ display: "flex", flexDirection: "column" }}>
-              <div className="gm-card__head">
-                <div className="gm-card__title">年度故事线</div>
-                <div className="gm-card__sub">0 个故事</div>
-              </div>
-              <div className="gm-empty" style={{ padding: 16, fontSize: 12 }}>还没有同步到每月故事。</div>
-            </div>
-          ) : (
-          <div className="gm-card gm-flex-1" style={{ display: "flex", flexDirection: "column" }}>
-            <div className="gm-card__head">
-              <div className="gm-card__title">今日任务</div>
-              <div className="gm-card__sub">{today.getMonth() + 1}月{today.getDate()}日 周{["日","一","二","三","四","五","六"][today.getDay()]}</div>
-            </div>
-            <div className="gm-todaytasks-body">
-            <div className="gm-weekstrip">
-              {weekDays.map(d => {
-                const k = ymd(d);
-                return (
-                  <div key={k} className={`gm-weekstrip__day ${k === selectedDate ? "is-today" : ""}`} onClick={() => setSelectedDate(k)}>
-                    <span style={{ fontSize: 10 }}>周{["日","一","二","三","四","五","六"][d.getDay()]}</span>
-                    <span className="gm-weekstrip__num">{d.getDate()}日</span>
+            )}
+            {activePlans.map(p => {
+              const prog = planProgress(p.id);
+              return (
+                <button key={p.id} className="gm-home-v3__plan"
+                  onClick={() => onPickPlan(p.id)}>
+                  <div className="gm-home-v3__plan-title">{p.title}</div>
+                  <div className="gm-home-v3__plan-bar">
+                    <span style={{ width: `${prog}%` }} />
                   </div>
-                );
-              })}
-            </div>
-
-            {/* === 今日具体任务列表（Stage 1.5）=== */}
-            <div className="gm-todaylist">
-              <div className="gm-todaylist__head">
-                <span className="gm-todaylist__title">具体任务</span>
-                <span className="gm-todaylist__count">{todayTasks.filter(t => t.done).length} / {todayTasks.length}</span>
-              </div>
-              {todayTasks.length === 0 ? (
-                <div className="gm-todaylist__empty">今天还没有具体任务，从下方加一条。</div>
-              ) : (
-                <div className="gm-todaylist__items">
-                  {todayTasks.map(t => {
-                    const goal = state.goals.find(g => g.id === t.goalId);
-                    const isEditing = editingTaskId === t.id;
-                    return (
-                      <div key={t.id} className={`gm-todayitem ${t.done ? "is-done" : ""}`}>
-                        <button className={`gm-todayitem__check ${t.done ? "is-done" : ""}`}
-                          onClick={() => toggleTask(t.id)}
-                          title={t.done ? "标记未完成" : "标记完成"}>
-                          {t.done ? "✓" : ""}
-                        </button>
-                        {isEditing ? (
-                          <input className="gm-todayitem__edit" autoFocus value={editingTaskDraft}
-                            onChange={e => setEditingTaskDraft(e.target.value)}
-                            onBlur={saveEditTask}
-                            onKeyDown={e => {
-                              if (e.key === "Enter") saveEditTask();
-                              if (e.key === "Escape") { setEditingTaskId(null); setEditingTaskDraft(""); }
-                            }} />
-                        ) : (
-                          <span className="gm-todayitem__title"
-                            onClick={() => startEditTask(t.id, t.title)}
-                            title="点击编辑">{t.title}</span>
-                        )}
-                        {/* S7：plan 标签（跨计划区分用） */}
-                        {goal?.planId && (() => {
-                          const plan = state.plans.find(p => p.id === goal.planId);
-                          if (!plan) return null;
-                          const planLabel = plan.title.length > 8 ? plan.title.slice(0, 8) + "…" : plan.title;
-                          return (
-                            <span className="gm-todayitem__plan" title={`所属计划：${plan.title}`}>
-                              ◷ {planLabel}
-                            </span>
-                          );
-                        })()}
-                        <div className="gm-todayitem__goal-wrap">
-                          <button className={`gm-todayitem__goal ${goal ? "is-set" : ""}`}
-                            onClick={e => { e.stopPropagation(); setAssignPopupTaskId(assignPopupTaskId === t.id ? null : t.id); }}
-                            title={goal ? `挂在：${goal.title}` : "点击挂到目标"}>
-                            {goal
-                              ? `${goal.scope === "year" ? "年" : goal.scope === "month" ? "月" : "周"}·${goal.title.length > 8 ? goal.title.slice(0, 8) + "…" : goal.title}`
-                              : "未挂目标"}
-                          </button>
-                          {assignPopupTaskId === t.id && (
-                            <div className="gm-todayitem__assignpop" onClick={e => e.stopPropagation()}>
-                              <div className="gm-todayitem__assignpop-head">挂到目标</div>
-                              {state.goals.length === 0 ? (
-                                <div className="gm-todayitem__assignpop-empty">还没有目标。先去目标管理建一个。</div>
-                              ) : (
-                                state.goals.map(g => (
-                                  <button key={g.id} className="gm-todayitem__assignpop-item"
-                                    onClick={() => assignTaskGoal(t.id, g.id)}>
-                                    <span className="gm-todayitem__assignpop-scope">
-                                      {g.scope === "year" ? "年" : g.scope === "month" ? "月" : "周"}
-                                    </span>
-                                    <span className="gm-todayitem__assignpop-title">{g.title}</span>
-                                  </button>
-                                ))
-                              )}
-                              <button className="gm-todayitem__assignpop-item is-clear"
-                                onClick={() => assignTaskGoal(t.id, "")}>
-                                <span className="gm-todayitem__assignpop-scope">—</span>
-                                <span className="gm-todayitem__assignpop-title">取消归属</span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        <button className="gm-todayitem__del" onClick={() => delTask(t.id)} title="删除">×</button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* 4 个固定栏目：点击 → 打开各自的模态弹窗 */}
-            <div className="gm-tasks" style={{ gap: 8 }}>
-              {dailySlotsOrder.map(id => {
-                const meta = slotMeta[id];
-                const st = slotState(id);
-                return (
-                  <div key={id} className={`gm-slot ${st.filled ? "is-filled" : ""}`}>
-                    <div className="gm-slot__head" onClick={() => setOpenSlot(id)}>
-                      <div className={`gm-task__check ${st.filled ? "is-done" : ""}`}
-                        style={st.filled ? { background: "var(--gm-amber)" } : {}} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="gm-slot__title">
-                          {meta.title}
-                          <span className={`gm-slot__badge ${st.filled ? "is-filled" : ""}`}>{st.status}</span>
-                        </div>
-                        {st.subtitle ? (
-                          <div className="gm-slot__sub">{st.subtitle}</div>
-                        ) : (
-                          <div className="gm-slot__hint">{meta.hint}</div>
-                        )}
-                      </div>
-                    </div>
+                  <div className="gm-home-v3__plan-meta">
+                    <span className="gm-home-v3__plan-pct">{prog}%</span>
+                    <span className="gm-home-v3__plan-due">{daysLeftLabel(p.end)}</span>
                   </div>
-                );
-              })}
-            </div>
-
-            </div>{/* /.gm-todaytasks-body */}
-
-            <div className="gm-inputbar">
-              <button className="gm-inputbar__plus" onClick={addTask} title="添加">+</button>
-              <input className="gm-inputbar__field" placeholder="说一段或写一段，自动分配到今日任务。"
-                value={taskInput} onChange={e => setTaskInput(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") addTask(); }} />
-            </div>
+                </button>
+              );
+            })}
           </div>
-          )}
         </div>
+      </div>
 
-        {/* === 中列：复利指数 + 战术地图 === */}
-        <div className="gm-col">
-          <div className="gm-card">
-            <div className="gm-card__head">
-              <div className="gm-row" style={{ gap: 6 }}>
-                <div className="gm-card__title">复利指数</div>
-                <span style={{ fontSize: 11, color: "var(--gm-text-dim)" }}>未进行</span>
+      {/* === 底部窄条：4 个今日节奏小格 === */}
+      <div className="gm-home-v3__bottom">
+        {dailySlotsOrder.map(s => {
+          const st = slotState(s);
+          return (
+            <button key={s}
+              className={`gm-home-v3__slot ${st.filled ? "is-filled" : ""}`}
+              onClick={() => setOpenSlot(s)}>
+              <div className="gm-home-v3__slot-head">
+                <span className="gm-home-v3__slot-title">{slotMeta[s].title}</span>
+                <span className="gm-home-v3__slot-status">{st.status}</span>
               </div>
-              <a className="gm-card__actions" style={{ cursor: "pointer", color: "var(--gm-amber-2)" }}
-                onClick={() => setState(p => ({ ...p, activeSection: "weekly_review" }))}>
-                查看完整汇报 →
-              </a>
-            </div>
-            <div style={{ fontSize: 54, fontWeight: 600, color: "var(--gm-amber-2)", lineHeight: 1, marginBottom: 10 }}>
-              {compoundingGrade(state.compounding.score)}
-            </div>
-            <div style={{ fontSize: 11, color: "var(--gm-text-mute)", marginBottom: 6 }}>Top 3 复利资产</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {(state.compounding.topAssets.length > 0
-                ? state.compounding.topAssets.slice(0, 3)
-                : [`${today.getMonth() + 1}月${today.getDate()} 每日任务记录`, "完成一次今日复盘"]
-              ).map((a, i) => (
-                <div key={i} className="gm-row" style={{ gap: 8, fontSize: 12 }}>
-                  <span style={{ width: 20, height: 20, borderRadius: "50%", border: "1px solid var(--gm-amber)",
-                    display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    color: "var(--gm-amber-2)", fontSize: 11 }}>{i + 1}</span>
-                  <span style={{ color: "var(--gm-text)" }}>{a}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="gm-card gm-flex-1" style={{ display: "flex", flexDirection: "column" }}>
-            <div className="gm-card__head">
-              <div className="gm-card__title">{mapLabel}</div>
-              <a className="gm-card__actions" style={{ cursor: "pointer", color: "var(--gm-amber-2)" }}
-                onClick={() => setState(p => ({ ...p, activeSection: "events" }))}>查看全部</a>
-            </div>
-            <div className="gm-pentagon gm-pentagon--big">
-              <BigPentagonGlyph />
-              <div className="gm-pentagon__center-label">笔记工具</div>
-            </div>
-          </div>
-        </div>
-
-        {/* === 右列：KPIs + 完成率 + 能力图 === */}
-        <div className="gm-col">
-          <div className="gm-kpis">
-            <div className="gm-kpi" style={{ padding: "12px 8px" }}>
-              <div className="gm-kpi__num" style={{ fontSize: 22 }}>{completion}%</div>
-              <div className="gm-kpi__label">{kpiDoneLabel}</div>
-            </div>
-            <div className="gm-kpi" style={{ padding: "12px 8px" }}>
-              <div className="gm-kpi__num" style={{ fontSize: 22 }}>{state.goals.filter(g => g.scope === scope).length}</div>
-              <div className="gm-kpi__label">{kpiPendingLabel}</div>
-            </div>
-            <div className="gm-kpi" style={{ padding: "12px 8px" }}>
-              <div className="gm-kpi__num" style={{ fontSize: 16 }}>今天</div>
-              <div className="gm-kpi__label">最新证据</div>
-            </div>
-          </div>
-
-          <div className="gm-card">
-            <div className="gm-card__head">
-              <div>
-                <div className="gm-card__title">{completionLabel}</div>
+              <div className="gm-home-v3__slot-body">
+                {st.subtitle ? st.subtitle.slice(0, 60) : slotMeta[s].hint}
               </div>
-              <span style={{ fontSize: 11, color: "var(--gm-text-mute)" }}>{completion}%</span>
-            </div>
-            <TrendLine values={last7Completion}
-              dayLabels={scope === "year"
-                ? ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"]
-                : scope === "month"
-                ? ["W1","W2","W3","W4","W5"]
-                : ["周一","周二","周三","周四","周五","周六","周日"]} />
-          </div>
-
-          <div className="gm-card gm-flex-1" style={{ display: "flex", flexDirection: "column" }}>
-            <div className="gm-card__head">
-              <div className="gm-card__title">{abilityLabel}</div>
-            </div>
-            <div className="gm-radar gm-radar--big"><HexRadar ability={state.ability} /></div>
-          </div>
-        </div>
+            </button>
+          );
+        })}
       </div>
 
       {openSlot && (
@@ -918,14 +803,6 @@ function HomeSection({ state, setState, onPickPlan, onNewPlan, onAIDecompose }: 
           aiHint={openSlot === "tomorrowPlan" ? aiHintTomorrow : openSlot === "victoryBlocker" ? aiHintVictory : undefined}
           onSave={v => updateDaily({ [openSlot]: v } as Partial<Daily>)}
           onClose={() => setOpenSlot(null)} />
-      )}
-
-      {editingGoalOpen && (
-        <GoalModal
-          defaultScope={scope}
-          editing={scopeGoal}
-          onSave={handleEditingGoalSave}
-          onCancel={() => setEditingGoalOpen(false)} />
       )}
     </div>
   );
