@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import { api } from "../api/client.js";
+import { migrateLegacyGoals } from "@ke/domain";
 import type { Plan, Metric } from "@ke/domain";
 import "./GreatMeView.css";
 
@@ -125,7 +126,13 @@ export function GreatMeView(): ReactNode {
 
   useEffect(() => {
     api.getGreatMeState<GreatMeState>()
-      .then(s => { if (s) setState({ ...DEFAULT_STATE, ...s }); })
+      .then(s => {
+        if (s) {
+          const merged = { ...DEFAULT_STATE, ...s };
+          const migrated = migrateLegacyGoals(merged);
+          setState(migrated as GreatMeState);
+        }
+      })
       .catch(err => console.warn("GreatMe load failed", err))
       .finally(() => setLoaded(true));
   }, []);
