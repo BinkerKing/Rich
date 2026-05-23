@@ -127,7 +127,16 @@
   border-radius: 8px;
   padding: 8px 10px;
 }
-.pd-kanban-card__title { font-size: 12px; color: #e6b25a; margin-bottom: 6px; }
+.pd-kanban-card__parent {
+  font-size: 10px;
+  color: #a87526;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.02em;
+}
+.pd-kanban-card__title { font-size: 12px; color: #e6b25a; margin-bottom: 6px; line-height: 1.4; }
 .pd-kanban-card__bar {
   height: 4px; border-radius: 2px;
   background: rgba(255,255,255,0.08); overflow: hidden;
@@ -136,7 +145,63 @@
   display: block; height: 100%;
   background: linear-gradient(90deg, #d99a3e, #e6b25a);
 }
-.pd-kanban-card__pct { font-size: 10px; color: #a87526; margin-top: 4px; text-align: right; }
+.pd-kanban-card__foot {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  margin-top: 6px;
+}
+.pd-kanban-card__links {
+  display: flex; flex-direction: column; gap: 3px;
+  min-width: 0; flex: 1; align-items: flex-start;
+}
+.pd-kanban-card__drill {
+  background: rgba(217,154,62,0.08);
+  border: 1px solid rgba(217,154,62,0.3);
+  color: #e6b25a;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: all 0.12s;
+}
+.pd-kanban-card__drill:hover {
+  background: rgba(217,154,62,0.18);
+  border-color: #d99a3e;
+}
+.pd-kanban-card__tasks {
+  font-size: 10px;
+  color: #6e4c1a;
+  padding: 0 2px;
+}
+.pd-kanban-card__pct {
+  font-size: 11px;
+  color: #e6b25a;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* 过滤条：点了子目标计数后顶部出现 */
+.pd-filter-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  background: rgba(217,154,62,0.08);
+  border: 1px solid rgba(217,154,62,0.3);
+}
+.pd-filter-bar__label { font-size: 12px; color: #e6b25a; }
+.pd-filter-bar__clear {
+  background: transparent;
+  border: 1px solid rgba(217,154,62,0.3);
+  color: #a87526;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+}
+.pd-filter-bar__clear:hover { color: #e6b25a; border-color: #d99a3e; }
 
 .pd-overview {
   display: grid;
