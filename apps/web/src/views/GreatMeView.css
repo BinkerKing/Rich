@@ -94,8 +94,9 @@
 /* ---- Main column ---- */
 .gm-main {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);   /* 单行铺满 — .gm-section 总是直接吃满父高 */
   overflow: hidden;
+  min-height: 0;
 }
 
 /* ---- Command bar ---- */
@@ -150,6 +151,7 @@
 .gm-section > .gm-kanban    { flex: 1 1 0; min-height: 0; overflow: hidden; }
 .gm-section > .gm-events-v2 { flex: 1; min-height: 0; overflow: hidden; }
 .gm-section > .gm-twocol    { flex: 1; min-height: 0; overflow: hidden; }
+.gm-section > .pd           { flex: 1; min-height: 0; overflow: hidden; }
 .gm-section::-webkit-scrollbar { width: 8px; }
 .gm-section::-webkit-scrollbar-thumb {
   background: var(--gm-line);
