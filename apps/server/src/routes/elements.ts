@@ -7,6 +7,7 @@ import type { AnnotationsRepo } from "../repos/AnnotationsRepo.js";
 import type { SignalsRepo } from "../repos/SignalsRepo.js";
 import { recordSignal } from "../ai/signalRecorder.js";
 import { migrateLegacyContentToSections } from "../lib/legacyContentMigration.js";
+import { eventBus } from "../lib/eventBus.js";
 
 export interface ElementsRoutesDeps {
   elements: ElementsRepo;
@@ -95,6 +96,11 @@ export function elementsRoutes(deps: ElementsRoutesDeps): Hono {
         elementId: id, data: { fields: ["create-manual"], type, parentId: parentId || undefined },
       });
     }
+    // SSE 通知前端 hydrate（之前漏了，导致 REST POST 不刷 UI）
+    eventBus.publish("element.changed", { source: "route", detail: { op: "create", id, type } });
+    if (createdRelation) {
+      eventBus.publish("relation.changed", { source: "route", detail: { op: "create_child", from: parentId, to: id } });
+    }
     return c.json({ element: next, relation: createdRelation });
   });
 
@@ -174,6 +180,7 @@ export function elementsRoutes(deps: ElementsRoutesDeps): Hono {
         elementId: id, data: { fields: Object.keys(patch) },
       });
     }
+    eventBus.publish("element.changed", { source: "route", detail: { op: "patch", id, fields: Object.keys(patch) } });
     return c.json(next);
   });
 
@@ -319,6 +326,8 @@ export function elementsRoutes(deps: ElementsRoutesDeps): Hono {
         data: { op: "delete-subtree", removedIds: toRemove },
       });
     }
+    eventBus.publish("element.changed", { source: "route", detail: { op: "delete", removedIds: toRemove } });
+    eventBus.publish("relation.changed", { source: "route", detail: { op: "delete-cascade", removedIds: toRemove } });
     return c.json({ removed: toRemove });
   });
 
