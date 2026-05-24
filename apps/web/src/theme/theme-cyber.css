@@ -1159,11 +1159,26 @@ html[data-theme="cyber"] .element-type--report      { --element-accent: #72f2a4;
 html[data-theme="cyber"] .element-type--project     { --element-accent: #8b8eff; }
 html[data-theme="cyber"] .element-type--guide       { --element-accent: #ff6bd6; }
 html[data-theme="cyber"] .element-type--product-design { --element-accent: #ffb86b; }
-/* 项目实战专属类型 */
-html[data-theme="cyber"] .element-type--group       { --element-accent: #8a8d96; } /* 灰：容器，弱化突出 */
-html[data-theme="cyber"] .element-type--requirement { --element-accent: #f5a663; } /* 暖橙：调研/痛点 */
-html[data-theme="cyber"] .element-type--prd         { --element-accent: #6dd3ee; } /* 浅蓝：文档 */
-html[data-theme="cyber"] .element-type--dev-task    { --element-accent: #a4e87a; } /* 草绿：行动 */
+/* 项目实战专属类型 — 同时设 --element-accent 和直接给 pill 上色（避免变量级联被覆盖） */
+html[data-theme="cyber"] .element-type--group       { --element-accent: #8a8d96; --element-glow: rgba(138,141,150,.24); --element-soft: rgba(138,141,150,.12); }
+html[data-theme="cyber"] .element-type--requirement { --element-accent: #f5a663; --element-glow: rgba(245,166,99,.24); --element-soft: rgba(245,166,99,.12); }
+html[data-theme="cyber"] .element-type--prd         { --element-accent: #6dd3ee; --element-glow: rgba(109,211,238,.24); --element-soft: rgba(109,211,238,.12); }
+html[data-theme="cyber"] .element-type--dev-task    { --element-accent: #a4e87a; --element-glow: rgba(164,232,122,.24); --element-soft: rgba(164,232,122,.12); }
+
+/* 强制覆盖 pill 颜色 — 高 specificity (attr 1 + class 2 = 21) 直接锁死 */
+html[data-theme="cyber"] .element-type--group       .tree-element-card__type { background: rgba(138,141,150,.16) !important; border-color: rgba(138,141,150,.45) !important; color: #c5c8d0 !important; }
+html[data-theme="cyber"] .element-type--knowledge   .tree-element-card__type { background: rgba(64,231,220,.16) !important; border-color: rgba(64,231,220,.50) !important; color: #6ef0e7 !important; }
+html[data-theme="cyber"] .element-type--requirement .tree-element-card__type { background: rgba(245,166,99,.16) !important; border-color: rgba(245,166,99,.50) !important; color: #f5b97e !important; }
+html[data-theme="cyber"] .element-type--prd         .tree-element-card__type { background: rgba(109,211,238,.16) !important; border-color: rgba(109,211,238,.50) !important; color: #8edcf0 !important; }
+html[data-theme="cyber"] .element-type--dev-task    .tree-element-card__type { background: rgba(164,232,122,.16) !important; border-color: rgba(164,232,122,.50) !important; color: #b6ec8e !important; }
+
+/* 同时给卡片本身的边框也按类型染色 — 现在边框靠 --line-2 一刀切，看不出层级 */
+html[data-theme="cyber"] .child-card.element-type--group       { border-color: rgba(138,141,150,.32) !important; }
+html[data-theme="cyber"] .child-card.element-type--knowledge   { border-color: rgba(64,231,220,.32) !important; }
+html[data-theme="cyber"] .child-card.element-type--requirement { border-color: rgba(245,166,99,.32) !important; }
+html[data-theme="cyber"] .child-card.element-type--prd         { border-color: rgba(109,211,238,.32) !important; }
+html[data-theme="cyber"] .child-card.element-type--dev-task    { border-color: rgba(164,232,122,.32) !important; }
+html[data-theme="cyber"] .child-card.element-type--practice    { border-color: rgba(255,150,102,.40) !important; }
 
 html[data-theme="cyber"] .body-prose,
 html[data-theme="cyber"] .body-lead,
