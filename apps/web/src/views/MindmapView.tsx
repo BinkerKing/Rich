@@ -21,22 +21,29 @@ export function MindmapView() {
   const deckId = useStore(s => s.mindmapDeckId);
   const openMindmap = useStore(s => s.openMindmap);
   const closeMindmap = useStore(s => s.closeMindmap);
+  // 列表 + 单 deck 缓存都从 store 拿，避免每次进视图都重新发请求
+  const cachedDecks = useStore(s => s.mindmapDecks);
+  const cachedDeckById = useStore(s => s.mindmapDeckById);
+  const loadMindmapList = useStore(s => s.loadMindmapList);
+  const loadMindmapDeck = useStore(s => s.loadMindmapDeck);
+  const upsertMindmapDeck = useStore(s => s.upsertMindmapDeck);
 
-  const [decks, setDecks] = useState<MindmapDeckView[]>([]);
+  const decks = cachedDecks;
   const [activeDeck, setActiveDeck] = useState<MindmapDeckView | null>(null);
-  const [loadingDecks, setLoadingDecks] = useState(false);
+  // 只在冷启动（store 空）的第一次显示骨架；之后所有切换都瞬间出
+  const [loadingDecks, setLoadingDecks] = useState(cachedDecks.length === 0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (deckId) return;
+    if (cachedDecks.length > 0) { setLoadingDecks(false); return; }
     let cancelled = false;
     void (async () => {
       setLoadingDecks(true);
       setLoadError(null);
       try {
-        const list = await api.listMindmaps();
-        if (!cancelled) setDecks(list);
+        await loadMindmapList();
       } catch (e) {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -44,21 +51,25 @@ export function MindmapView() {
       }
     })();
     return () => { cancelled = true; };
-  }, [deckId]);
+  }, [deckId, cachedDecks.length, loadMindmapList]);
 
   useEffect(() => {
     if (!deckId) { setActiveDeck(null); return; }
+    // 缓存命中：直接 setState 同步给当前组件，瞬间出图
+    const cached = cachedDeckById.get(deckId);
+    if (cached) { setActiveDeck(cached); return; }
+    // 缓存未命中：拉一次，store 会自动写入
     let cancelled = false;
     void (async () => {
       try {
-        const d = await api.getMindmap(deckId);
-        if (!cancelled) setActiveDeck(d);
+        const d = await loadMindmapDeck(deckId);
+        if (!cancelled && d) setActiveDeck(d);
       } catch (e) {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : String(e));
       }
     })();
     return () => { cancelled = true; };
-  }, [deckId]);
+  }, [deckId, cachedDeckById, loadMindmapDeck]);
 
   useEffect(() => {
     if (!deckId) return;
@@ -116,7 +127,7 @@ export function MindmapView() {
       {creating && (
         <CreateMindmapModal
           onClose={() => setCreating(false)}
-          onCreated={(deck) => { setCreating(false); setDecks(prev => [deck, ...prev.filter(d => d.id !== deck.id)]); openMindmap(deck.id); }}
+          onCreated={(deck) => { setCreating(false); upsertMindmapDeck(deck); openMindmap(deck.id); }}
         />
       )}
     </div>

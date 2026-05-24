@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Element, Relation, LearningPath, ElementId, PathKind, RichnessLevel } from "@ke/domain";
+import type { Element, Relation, LearningPath, ElementId, PathKind, RichnessLevel, MindmapDeckView } from "@ke/domain";
 import { api, type Model, type GreatMeBrainResult, type GreatMeMode } from "../api/client.js";
 import { createDemoLargeTree } from "../data/demoLargeTree.js";
 import type { SystemPanelMode } from "../components/SystemPanel.js";
@@ -133,6 +133,20 @@ interface AppState {
   openMindmap(deckId: string): void;
   /** Close the open deck and return to the mindmap list. */
   closeMindmap(): void;
+
+  /** 缓存：所有 PPT 导图卡片列表（list view 的数据源）。
+   *  跟 elements/relations 一样常驻 store，hydrate 时刷新；
+   *  之前每次 MindmapView mount 都现拉，慢一拍——现在改成 store 缓存。 */
+  mindmapDecks: MindmapDeckView[];
+  /** 缓存：单个 deck 的完整内容（getMindmap 的结果），按 deckId 索引。
+   *  懒加载：进哪个 deck 才填进来；hydrate 时清空（数据可能已变）。 */
+  mindmapDeckById: Map<string, MindmapDeckView>;
+  /** 单次拉取 mindmaps 列表的 in-flight Promise，避免并发重复请求。 */
+  loadMindmapList(): Promise<MindmapDeckView[]>;
+  /** 单次拉某个 deck 的完整内容，缓存命中直接返回。 */
+  loadMindmapDeck(deckId: string): Promise<MindmapDeckView | null>;
+  /** 新建 / 更新一个 deck 后写回缓存（列表头部 + 单 deck 索引）。 */
+  upsertMindmapDeck(deck: MindmapDeckView): void;
   /** Track an in-flight image-gen op as a task. The kick-off API call (e.g.
    *  `api.retryMindmapCover`) is fire-and-forget — this action pushes a
    *  "running" task into the list and polls the element until the embed's
@@ -434,19 +448,22 @@ export const useStore = create<AppState>((set, get) => ({
   homeAnalyses: [],
   homeActiveAnalysisId: null,
   mindmapDeckId: null,
+  mindmapDecks: [],
+  mindmapDeckById: new Map(),
 
   async hydrate() {
     set({ loading: true, error: null });
     try {
-      const [elements, relations, state] = await Promise.all([
+      // 拉 mindmap 列表跟 elements/relations 一起并发 — 启动多 1 个 HTTP，
+      // 但换来 PPT 导图视图首屏即时。listMindmaps 失败不阻塞 hydrate（旧机器/
+      // 没装 mindmap 功能时也能用），降级到空列表。
+      const [elements, relations, state, mindmaps] = await Promise.all([
         api.listElements(),
         api.listRelations(),
         api.getCenterState().catch(() => ({ current: null, updatedAt: null, recent: [] })),
+        api.listMindmaps().catch(() => [] as MindmapDeckView[]),
       ]);
       const elementMap = new Map(elements.map(e => [e.id, e] as const));
-      // Home shows ALL true root elements — anything without an incoming
-      // `child` relation, regardless of type. Type is reflected in the card
-      // color, not in whether it shows.
       const childIds = new Set(
         relations.filter(r => r.kind === "child").map(r => r.to),
       );
@@ -458,6 +475,10 @@ export const useStore = create<AppState>((set, get) => ({
         lastCenterId: state.current && elementMap.has(state.current) ? state.current : null,
         loading: false,
         backendAvailable: true,
+        mindmapDecks: mindmaps,
+        // 单 deck 的内容缓存：hydrate 触发说明数据可能已变，全部失效，
+        // 下次进具体 deck 会重新从服务端拉。开销可控（deck 数量通常 <50）。
+        mindmapDeckById: new Map(),
       });
     } catch (e) {
       set({
@@ -466,6 +487,46 @@ export const useStore = create<AppState>((set, get) => ({
         error: `后端不可用：${String(e)}`,
       });
     }
+  },
+
+  async loadMindmapList() {
+    // 列表视图调用：缓存命中直接给，未命中拉一次后回填。
+    const cached = get().mindmapDecks;
+    if (cached.length > 0) return cached;
+    try {
+      const list = await api.listMindmaps();
+      set({ mindmapDecks: list });
+      return list;
+    } catch {
+      return [];
+    }
+  },
+
+  async loadMindmapDeck(deckId) {
+    // 单 deck 视图调用：缓存命中即刻返回，未命中拉一次后回填。
+    const { mindmapDeckById } = get();
+    const cached = mindmapDeckById.get(deckId);
+    if (cached) return cached;
+    try {
+      const deck = await api.getMindmap(deckId);
+      // 不可变写入：复制一份 Map 再 set，避免共享引用导致 selector 不触发
+      const next = new Map(mindmapDeckById);
+      next.set(deckId, deck);
+      set({ mindmapDeckById: next });
+      return deck;
+    } catch {
+      return null;
+    }
+  },
+
+  upsertMindmapDeck(deck) {
+    const { mindmapDecks, mindmapDeckById } = get();
+    // 列表：把同 id 的旧条目去掉，新条目塞最前
+    const decks = [deck, ...mindmapDecks.filter(d => d.id !== deck.id)];
+    // 单 deck 缓存：同步更新
+    const byId = new Map(mindmapDeckById);
+    byId.set(deck.id, deck);
+    set({ mindmapDecks: decks, mindmapDeckById: byId });
   },
 
   async enterTree(rootId) {
