@@ -87,6 +87,11 @@ const SECTION_LABELS: Record<SectionId, string> = {
   analytics: "数据分析", weekly_review: "每周复盘",
   mission_control: "HQ 对话", settings: "设置",
 };
+/** 侧栏只渲染这几项；goals / events 暂时隐藏（功能已并入首页+计划详情+数据分析）。
+ *  组件代码还在，git history 里也在；以后想再用一行恢复。 */
+const SIDEBAR_SECTIONS: SectionId[] = [
+  "home", "analytics", "weekly_review", "mission_control", "settings",
+];
 const SECTION_SUBTITLES: Record<SectionId, string> = {
   home: "专注当下、持续进化",
   goals: "管理年、月、周目标和今天要推进的任务",
@@ -259,6 +264,15 @@ export function GreatMeView(): ReactNode {
 
   useEffect(() => { void hydrate(); }, [hydrate]);
 
+  // 若 activeSection 指向已隐藏的 section（旧数据 / 另一台机器留下的状态），
+  // 自动回退到 home，避免落到一个看不到侧栏入口的"幽灵页面"。
+  useEffect(() => {
+    if (!loaded) return;
+    if (!SIDEBAR_SECTIONS.includes(state.activeSection)) {
+      setState(prev => ({ ...prev, activeSection: "home" }));
+    }
+  }, [loaded, state.activeSection]);
+
   useEffect(() => {
     if (!loaded) return;
     const json = JSON.stringify(state);
@@ -329,7 +343,7 @@ export function GreatMeView(): ReactNode {
     <div className="gm-app">
       <aside className="gm-side">
         <div className="gm-side__brand">计划管理</div>
-        {(Object.keys(SECTION_LABELS) as SectionId[]).map(id => (
+        {SIDEBAR_SECTIONS.map(id => (
           <button key={id}
             className={`gm-side__item ${state.activeSection === id ? "is-active" : ""}`}
             onClick={() => update({ activeSection: id })}>
