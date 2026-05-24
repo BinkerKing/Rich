@@ -2,7 +2,8 @@
  * 项目实战 列表页
  * ============================================================= */
 .pv {
-  height: 100%;
+  /* fixed inset:0 跟 .gm-app 同款 — 不依赖父链 height:100% 传递，直接锚到 viewport */
+  position: fixed; inset: 0;
   display: flex;
   flex-direction: column;
   padding: 24px 28px;
@@ -10,6 +11,7 @@
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
   background: #050302;
   overflow: hidden;
+  z-index: 10;
 }
 .pv__head {
   display: flex;
@@ -76,12 +78,13 @@
 .pv-card {
   display: flex; flex-direction: column; gap: 8px;
   padding: 14px 16px;
+  min-height: 120px;
   border-radius: 12px;
-  background: rgba(217, 154, 62, .04);
-  border: 1px solid rgba(217, 154, 62, .22);
+  background: rgba(217, 154, 62, .12);
+  border: 1px solid rgba(217, 154, 62, .45);
   cursor: pointer; font-family: inherit; text-align: left;
   transition: background .12s, border-color .12s, transform .12s;
-  color: inherit;
+  color: #e6b25a;
 }
 .pv-card:hover {
   background: rgba(217, 154, 62, .1);
