@@ -2709,6 +2709,13 @@
 .gm-analytics-v3__ai-result {
   display: flex; flex-direction: column; gap: 14px;
 }
+.gm-analytics-v3__ai-meta {
+  font-size: 10px;
+  color: #6a4f1a;
+  letter-spacing: 0.02em;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed rgba(217, 154, 62, 0.15);
+}
 .gm-analytics-v3__ai-section-title {
   font-size: 12px; font-weight: 600; color: #e6b25a;
   margin-bottom: 6px;

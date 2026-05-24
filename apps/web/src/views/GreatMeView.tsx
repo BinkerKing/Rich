@@ -58,6 +58,14 @@ interface ConversationMsg { role: "user" | "assistant"; content: string; at: num
 interface Conversation { id: string; title: string; personality: HQPersonality; createdAt: number; messages: ConversationMsg[] }
 interface Profile { codename: string; city: string; mbti: string; background: string; hqPersonality: HQPersonality; weekStart: number }
 
+interface AIAnalysis {
+  id: string;
+  createdAt: number;
+  keyInsight: string;
+  blockers: string[];
+  pushActions: string[];
+  priorityTasks: { title: string; reason: string }[];
+}
 interface GreatMeState {
   profile: Profile;
   plans: Plan[];
@@ -66,6 +74,8 @@ interface GreatMeState {
   compounding: { score: number; trend: number[]; topAssets: string[]; topBlockers: string[] };
   conversations: Conversation[];
   activeSection: SectionId; activeRange: RangeId; soundOn: boolean;
+  /** 历史 AI 推进建议（最近 20 条，最新在前） */
+  aiAnalyses: AIAnalysis[];
   /** 多设备并发安全：每次成功 PUT 后服务端递增；客户端必须回传读到的值。
    *  不匹配 → 服务端 409 → 客户端 refetch + 重试。 */
   version: number;
@@ -79,6 +89,7 @@ const DEFAULT_STATE: GreatMeState = {
   compounding: { score: 0, trend: [], topAssets: [], topBlockers: [] },
   conversations: [],
   activeSection: "home", activeRange: "week", soundOn: true,
+  aiAnalyses: [],
   version: 0,
 };
 
@@ -372,7 +383,7 @@ export function GreatMeView(): ReactNode {
               {state.activeSection === "home" && <HomeSection state={state} setState={setState} onPickPlan={setSelectedPlanId} onNewPlan={() => setNewPlanOpen(true)} onAIDecompose={() => setAiDecomposeOpen(true)} />}
               {state.activeSection === "goals" && <GoalsSection state={state} setState={setState} />}
               {state.activeSection === "events" && <EventsSection state={state} setState={setState} />}
-              {state.activeSection === "analytics" && <AnalyticsSection state={state} />}
+              {state.activeSection === "analytics" && <AnalyticsSection state={state} setState={setState} />}
               {state.activeSection === "weekly_review" && <WeeklyReviewSection state={state} setState={setState} />}
               {state.activeSection === "mission_control" && <MissionControlSection state={state} setState={setState} />}
               {state.activeSection === "settings" && <SettingsSection state={state} setState={setState} />}
@@ -1912,7 +1923,7 @@ function EventsSection({ state, setState }: SectionProps): ReactNode {
 // =================================================================
 // 数据分析（P5）
 // =================================================================
-function AnalyticsSection({ state }: { state: GreatMeState }): ReactNode {
+function AnalyticsSection({ state, setState }: SectionProps): ReactNode {
   // —— Phase A: 可视化 + 卡点识别（纯计算，无 AI 调用） ——
   const kpis = useMemo(() => computeOverallKPIs(
     state.plans as Parameters<typeof computeOverallKPIs>[0],
@@ -1937,34 +1948,6 @@ function AnalyticsSection({ state }: { state: GreatMeState }): ReactNode {
   const stuckGoals = useMemo(() => findStuckGoals(state.goals as Parameters<typeof findStuckGoals>[0], state.tasks as Parameters<typeof findStuckGoals>[1]), [state.goals, state.tasks]);
   const goalsWithoutTasks = useMemo(() => findGoalsWithoutTasks(state.goals as Parameters<typeof findGoalsWithoutTasks>[0], state.tasks as Parameters<typeof findGoalsWithoutTasks>[1]), [state.goals, state.tasks]);
   const orphanTasks = useMemo(() => findOrphanTasks(state.tasks as Parameters<typeof findOrphanTasks>[0], state.goals as Parameters<typeof findOrphanTasks>[1]), [state.tasks, state.goals]);
-
-  // 14 天完成率趋势
-  const trend = useMemo(() => {
-    const days: number[] = [];
-    const today = new Date();
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date(today); d.setDate(today.getDate() - i);
-      const k = ymd(d);
-      const dayTasks = state.tasks.filter(t => t.date === k);
-      days.push(dayTasks.length === 0 ? 0 : Math.round(dayTasks.filter(t => t.done).length / dayTasks.length * 100));
-    }
-    return days;
-  }, [state.tasks]);
-
-  // 26 周贡献格子
-  const contrib = useMemo(() => {
-    const days: { date: string; level: number }[] = [];
-    const today = new Date();
-    for (let i = 181; i >= 0; i--) {
-      const d = new Date(today); d.setDate(today.getDate() - i);
-      const k = ymd(d);
-      const dayTasks = state.tasks.filter(t => t.date === k);
-      const done = dayTasks.filter(t => t.done).length;
-      const level = done >= 5 ? 4 : done >= 3 ? 3 : done >= 1 ? 2 : dayTasks.length > 0 ? 1 : 0;
-      days.push({ date: k, level });
-    }
-    return days;
-  }, [state.tasks]);
 
   // 辅助：goal/plan 标题
   const goalById = (id: string): { title: string; planTitle: string } | null => {
@@ -2119,27 +2102,8 @@ function AnalyticsSection({ state }: { state: GreatMeState }): ReactNode {
         </div>
       </div>
 
-      {/* 趋势 + 贡献格 */}
-      <div className="gm-card">
-        <div className="gm-card__head">
-          <div className="gm-card__title">完成率趋势</div>
-          <div className="gm-card__sub">近 14 天</div>
-        </div>
-        <TrendLine values={trend} />
-      </div>
-
-      <div className="gm-card">
-        <div className="gm-card__head">
-          <div className="gm-card__title">贡献格</div>
-          <div className="gm-card__sub">近 26 周</div>
-        </div>
-        <div className="gm-contrib">
-          {contrib.map(c => <div key={c.date} className="gm-contrib__cell" data-level={c.level} title={`${c.date} · 等级 ${c.level}`} />)}
-        </div>
-      </div>
-
-      {/* —— Phase B 占位：AI 推进建议 —— */}
-      <ProgressAIPanel state={state} planHealths={planHealths}
+      {/* —— Phase B：AI 推进建议 —— */}
+      <ProgressAIPanel state={state} setState={setState} planHealths={planHealths}
         overdueCount={overdueTasks.length}
         stuckCount={stuckGoals.length}
         emptyGoalCount={goalsWithoutTasks.length}
@@ -2185,24 +2149,32 @@ function BlockerGroup({ icon, title, count, empty, items, moreCount }: {
 
 // Phase B：AI 推进建议
 // 调用 /api/ai/analyze-progress 拿到 { keyInsight, blockers, pushActions, priorityTasks }
-function ProgressAIPanel({ state, planHealths, overdueCount, stuckCount, emptyGoalCount, orphanTaskCount }: {
+// 持久化到 state.aiAnalyses（最新在前，cap 20），切 tab / 重启 / 跨设备都还在。
+function ProgressAIPanel({ state, setState, planHealths, overdueCount, stuckCount, emptyGoalCount, orphanTaskCount }: {
   state: GreatMeState;
+  setState: React.Dispatch<React.SetStateAction<GreatMeState>>;
   planHealths: PlanHealth[];
   overdueCount: number;
   stuckCount: number;
   emptyGoalCount: number;
   orphanTaskCount: number;
 }): ReactNode {
-  interface AnalyzeResult {
-    keyInsight: string;
-    blockers: string[];
-    pushActions: string[];
-    priorityTasks: { title: string; reason: string }[];
-  }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [result, setResult] = useState<AnalyzeResult | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // 直接从 state 读最新的一条；切 tab / 重启不丢
+  const latest: AIAnalysis | null = state.aiAnalyses[0] ?? null;
+  const result = latest;
+
+  // 相对时间文案
+  const fmtAge = (ts: number): string => {
+    const sec = Math.round((Date.now() - ts) / 1000);
+    if (sec < 60) return `${sec} 秒前`;
+    if (sec < 3600) return `${Math.round(sec / 60)} 分钟前`;
+    if (sec < 86400) return `${Math.round(sec / 3600)} 小时前`;
+    return `${Math.round(sec / 86400)} 天前`;
+  };
 
   const analyze = async (): Promise<void> => {
     setLoading(true);
@@ -2237,8 +2209,20 @@ function ProgressAIPanel({ state, planHealths, overdueCount, stuckCount, emptyGo
         const body = await r.json().catch(() => ({})) as { error?: string };
         throw new Error(body.error ?? `HTTP ${r.status}`);
       }
-      const body = await r.json() as { result: AnalyzeResult };
-      setResult(body.result);
+      const body = await r.json() as { result: Omit<AIAnalysis, "id" | "createdAt"> };
+      const newAnalysis: AIAnalysis = {
+        id: `aia-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+        createdAt: Date.now(),
+        keyInsight: body.result.keyInsight,
+        blockers: body.result.blockers,
+        pushActions: body.result.pushActions,
+        priorityTasks: body.result.priorityTasks,
+      };
+      // 写入 state.aiAnalyses：最新在前，最多保 20 条
+      setState(prev => ({
+        ...prev,
+        aiAnalyses: [newAnalysis, ...prev.aiAnalyses].slice(0, 20),
+      }));
     } catch (err) {
       const e = err as { name?: string; message?: string };
       if (e.name === "AbortError") { setLoading(false); return; }
@@ -2272,8 +2256,12 @@ function ProgressAIPanel({ state, planHealths, overdueCount, stuckCount, emptyGo
             分析失败：{error}
           </div>
         )}
-        {result && (
+        {result && !loading && (
           <div className="gm-analytics-v3__ai-result">
+            <div className="gm-analytics-v3__ai-meta">
+              生成于 {fmtAge(result.createdAt)} ({new Date(result.createdAt).toLocaleString("zh-CN")})
+              {state.aiAnalyses.length > 1 && <span style={{ marginLeft: 12 }}>· 历史 {state.aiAnalyses.length} 条</span>}
+            </div>
             <div className="gm-analytics-v3__ai-insight">
               <div className="gm-analytics-v3__ai-section-title">核心判断</div>
               <div>{result.keyInsight}</div>

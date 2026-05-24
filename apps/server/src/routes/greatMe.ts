@@ -134,6 +134,18 @@ const ConversationSchema = z.object({
   })).max(200).default([]),
 });
 
+const AIAnalysisSchema = z.object({
+  id: z.string().min(1).max(80),
+  createdAt: z.number(),
+  keyInsight: z.string().max(400).default(""),
+  blockers: z.array(z.string().max(280)).max(8).default([]),
+  pushActions: z.array(z.string().max(280)).max(8).default([]),
+  priorityTasks: z.array(z.object({
+    title: z.string().max(160),
+    reason: z.string().max(280).default(""),
+  })).max(5).default([]),
+});
+
 const GreatMeStateSchema = z.object({
   profile: ProfileSchema,
   plans: z.array(PlanSchema).max(50).default([]),  // ← 新增这一行
@@ -142,6 +154,8 @@ const GreatMeStateSchema = z.object({
   events: z.array(EventSchema).max(200).default([]),
   daily: z.array(DailyEntrySchema).max(366).default([]),
   reviews: z.array(ReviewSchema).max(200).default([]),
+  /** 历史 AI 推进建议，按 createdAt 倒序存。最多保留 20 条。 */
+  aiAnalyses: z.array(AIAnalysisSchema).max(20).default([]),
   ability: AbilitySchema,
   compounding: z.object({
     score: z.number().min(0).max(100).default(0),
