@@ -33,6 +33,7 @@ import {
   runDecomposePlan,
   runAnalyzeProgress,
   runDraftReview,
+  runDraftPrd,
   type DailyNewsItem,
 } from "../ai/operations.js";
 import { shortlistByKeywords } from "../lib/elementShortlist.js";
@@ -420,6 +421,65 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       data: { weekOf, durationMs: Date.now() - t0, message },
     });
     return c.json({ error: message, adapter: adapter.name }, 500);
+  });
+
+  // ----- draft-prd: AI 起草项目实战 PRD -----
+  const DraftPrdBodySchema = z.object({
+    practice: z.object({
+      title: z.string().min(1).max(280),
+      subtitle: z.string().max(280).optional(),
+      content: z.unknown().optional(),
+    }),
+    children: z.array(z.object({
+      type: z.string().max(40),
+      title: z.string().max(280),
+      subtitle: z.string().max(280).optional(),
+      content: z.unknown().optional(),
+    })).max(100).default([]),
+    extraContext: z.string().max(2000).optional(),
+    model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+  });
+  const DRAFT_PRD_BODY_MAX = 256 * 1024;
+  r.post("/draft-prd", async (c) => {
+    const text = await c.req.text();
+    if (text.length > DRAFT_PRD_BODY_MAX) {
+      return c.json({ error: `body too large (>${DRAFT_PRD_BODY_MAX} bytes)` }, 413);
+    }
+    let raw: unknown;
+    try { raw = JSON.parse(text); }
+    catch { return c.json({ error: "invalid JSON" }, 400); }
+    const parsed = DraftPrdBodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
+    }
+    const { practice, children, extraContext, model } = parsed.data;
+    const adapter = pickAdapter(deps.adapters, model);
+    const reqId = newReqId();
+    const t0 = Date.now();
+    log.info("ai.op.start", { reqId, op: "/api/ai/draft-prd", adapter: adapter.name });
+
+    if (!(await adapter.available())) {
+      return c.json({ error: `${adapter.name} unavailable`, adapter: adapter.name }, 503);
+    }
+
+    let finalResult: unknown = null;
+    let lastError = "";
+    for await (const ev of runDraftPrd(adapter, {
+      practice, children, extraContext, signal: c.req.raw.signal,
+    })) {
+      if (ev.type === "error") { lastError = ev.message; break; }
+      if (ev.type === "done") {
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.completed", manual: "draft-prd",
+          op: "draft-prd", adapter: adapter.name,
+          data: { title: practice.title.slice(0, 120), durationMs: Date.now() - t0 },
+        });
+        finalResult = ev.result;
+        break;
+      }
+    }
+    if (finalResult) return c.json({ adapter: adapter.name, result: finalResult });
+    return c.json({ error: lastError || "draft-prd failed", adapter: adapter.name }, 500);
   });
 
   // ----- analyze-input: AI 解析引擎 -----

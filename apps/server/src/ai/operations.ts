@@ -23,6 +23,7 @@ import { buildGreatMePrompt, type GreatMeMode } from "./prompts/greatMe.js";
 import { buildDecomposePlanPrompt } from "./prompts/decomposePlan.js";
 import { buildAnalyzeProgressPrompt } from "./prompts/analyzeProgress.js";
 import { buildDraftReviewPrompt } from "./prompts/draftReview.js";
+import { buildDraftPrdPrompt } from "./prompts/draftPrd.js";
 import type { AIManual } from "./manuals.js";
 import type { Signal } from "@ke/domain";
 
@@ -634,6 +635,47 @@ export function runDraftReview(
       op: "draft-review",
       model: adapter.name,
       scope: { weekOf: args.weekOf },
+    },
+  });
+}
+
+// ----- Draft PRD (项目实战) -----
+const DraftPrdResultSchema = z.object({
+  title: z.string().min(1).max(200),
+  sections: z.object({
+    overview: z.string().max(800),
+    targetUsers: z.string().max(800),
+    coreFeatures: z.array(z.string().max(280)).min(1).max(10),
+    userStories: z.array(z.string().max(280)).max(10).default([]),
+    acceptance: z.array(z.string().max(280)).max(10).default([]),
+    nonFunctional: z.string().max(800).default(""),
+    outOfScope: z.array(z.string().max(280)).max(10).default([]),
+    risks: z.array(z.string().max(280)).max(10).default([]),
+  }),
+});
+export type DraftPrdResult = z.infer<typeof DraftPrdResultSchema>;
+
+export function runDraftPrd(
+  adapter: AIAdapter,
+  args: {
+    practice: Parameters<typeof buildDraftPrdPrompt>[0]["practice"];
+    children: Parameters<typeof buildDraftPrdPrompt>[0]["children"];
+    extraContext?: string;
+  } & SharedOpArgs,
+): AsyncIterable<StructuredEvent<DraftPrdResult>> {
+  const prompt = buildDraftPrdPrompt({
+    practice: args.practice,
+    children: args.children,
+    extraContext: args.extraContext,
+  });
+  return runStructuredAI(adapter, {
+    prompt,
+    signal: args.signal,
+    validate: zodValidator(DraftPrdResultSchema),
+    opLog: {
+      op: "draft-prd",
+      model: adapter.name,
+      scope: { title: args.practice.title.slice(0, 80) },
     },
   });
 }
