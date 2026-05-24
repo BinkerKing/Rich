@@ -2541,8 +2541,9 @@
 }
 .gm-analytics-v3__col {
   display: flex; flex-direction: column;
-  min-height: 0;
-  max-height: 540px;
+  /* 关键：必须给固定高度，否则里面 flex:1 的 __plans / __blockers 拿不到生长空间，
+   * 整个卡塌到只剩 head（前一版本只设了 max-height，会塌）。 */
+  height: 520px;
   overflow: hidden;
 }
 
