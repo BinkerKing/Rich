@@ -5,6 +5,14 @@ import {
 import { create } from "zustand";
 import { RichContent } from "../components/RichContent.js";
 import "../components/RichContent.css";
+import {
+  CHAT_HISTORY_STORAGE_KEY,
+  CHAT_HISTORY_UPDATED_EVENT,
+  loadChatHistory,
+  saveChatHistory,
+  type ChatHistoryMessage,
+  type ChatToolEvent,
+} from "../lib/chatHistory.js";
 import "./ChatOverlay.css";
 
 /**
@@ -26,20 +34,8 @@ import "./ChatOverlay.css";
  *   └──────────────────────────────────────────────────┘
  */
 
-type Role = "user" | "assistant";
-interface ToolEvent {
-  name: string;
-  status: "running" | "completed";
-  ts: number;
-}
-interface ChatMessage {
-  id: string;
-  role: Role;
-  content: string;
-  tools?: ToolEvent[]; // only on assistant messages
-  pending?: boolean;   // true while assistant is still streaming
-  error?: string;
-}
+type ToolEvent = ChatToolEvent;
+type ChatMessage = ChatHistoryMessage;
 
 interface ChatStore {
   messages: ChatMessage[];
@@ -48,31 +44,19 @@ interface ChatStore {
   patchLast(patch: Partial<ChatMessage>): void;
   pushTool(ev: ToolEvent): void;
   setInflight(b: boolean): void;
+  replaceAll(messages: ChatMessage[]): void;
   reset(): void;
 }
 
 /** Zustand store mounted in this renderer. The chat window stays alive as
  *  long as Electron keeps the renderer alive — so the conversation survives
  *  open/close cycles within a session. localStorage on top for cold-boot. */
-const STORAGE_KEY = "ke.chat.v1";
-function loadMessages(): ChatMessage[] {
-  if (typeof localStorage === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as ChatMessage[];
-    if (!Array.isArray(parsed)) return [];
-    // Any message left pending across reloads is broken — strip its pending flag.
-    return parsed.map(m => ({ ...m, pending: false }));
-  } catch { return []; }
-}
-
 const useChatStore = create<ChatStore>((set, get) => ({
-  messages: loadMessages(),
+  messages: loadChatHistory(),
   inflight: false,
   append: (msg) => set(s => {
     const next = [...s.messages, msg];
-    persistMessages(next);
+    saveChatHistory(next);
     return { messages: next };
   }),
   patchLast: (patch) => set(s => {
@@ -80,7 +64,7 @@ const useChatStore = create<ChatStore>((set, get) => ({
     if (idx < 0) return s;
     const next = s.messages.slice();
     next[idx] = { ...next[idx], ...patch };
-    persistMessages(next);
+    saveChatHistory(next);
     return { messages: next };
   }),
   pushTool: (ev) => set(s => {
@@ -95,25 +79,24 @@ const useChatStore = create<ChatStore>((set, get) => ({
       if (runningIdx >= 0) {
         const realIdx = tools.length - 1 - runningIdx;
         next[idx] = { ...next[idx], tools: tools.map((t, i) => i === realIdx ? ev : t) };
+        saveChatHistory(next);
         return { messages: next };
       }
     }
     next[idx] = { ...next[idx], tools: [...tools, ev] };
+    saveChatHistory(next);
     return { messages: next };
   }),
   setInflight: (b) => set({ inflight: b }),
+  replaceAll: (messages) => set({ messages }),
   reset: () => {
-    persistMessages([]);
+    saveChatHistory([]);
     set({ messages: [], inflight: false });
   },
   // unused initially but exposed for completeness
   ...{} as Record<string, unknown> as Partial<ChatStore>,
   _get: get, // keep for future refactor
 }) as ChatStore);
-
-function persistMessages(msgs: ChatMessage[]): void {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs)); } catch { /* quota */ }
-}
 
 function nextId() {
   return `m-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -126,6 +109,7 @@ export function ChatOverlay() {
   const patchLast = useChatStore(s => s.patchLast);
   const pushTool = useChatStore(s => s.pushTool);
   const setInflight = useChatStore(s => s.setInflight);
+  const replaceAll = useChatStore(s => s.replaceAll);
   const reset = useChatStore(s => s.reset);
 
   const [input, setInput] = useState("");
@@ -148,6 +132,23 @@ export function ChatOverlay() {
     window.addEventListener("focus", focus);
     return () => window.removeEventListener("focus", focus);
   }, []);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (!useChatStore.getState().inflight) replaceAll(loadChatHistory({ preservePending: true }));
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === CHAT_HISTORY_STORAGE_KEY) refresh();
+    };
+    window.addEventListener(CHAT_HISTORY_UPDATED_EVENT, refresh);
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener(CHAT_HISTORY_UPDATED_EVENT, refresh);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [replaceAll]);
 
   // Auto-grow / auto-shrink textarea height based on content. Derived from
   // `input` state so it correctly resets to 1 line after send() clears it.

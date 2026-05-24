@@ -1,6 +1,13 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { RichContent } from "../components/RichContent.js";
 import "../components/RichContent.css";
+import {
+  CHAT_HISTORY_STORAGE_KEY,
+  CHAT_HISTORY_UPDATED_EVENT,
+  loadChatHistory,
+  saveChatHistory,
+  type ChatHistoryMessage,
+} from "../lib/chatHistory.js";
 import { IronManFlight } from "./IronManFlight.js";
 import walk0 from "../assets/mascot/walk-0.png";
 import walk1 from "../assets/mascot/walk-1.png";
@@ -26,8 +33,8 @@ import "./HomeView.css";
  *
  * Input pipes to Hermes via /api/chat/stream — same backend as the global
  * Cmd+Shift+Space chat overlay. Tool calls, text deltas, errors all
- * appear in the bottom half in real time. Session is per-HomeView mount;
- * leaving the home page resets the visible thread.
+ * appear in the bottom half in real time. The thread is shared with the
+ * global Cmd+Shift+Space chat overlay via localStorage.
  *
  * Quick-jump buttons (top right) still surface the other entry points so
  * the user can reach the old InputView, tree, news, etc.
@@ -59,37 +66,69 @@ const FPS_MS: Record<MascotName, number> = {
   ironman: 999_999, // sprite hidden during this sequence; FPS irrelevant
 };
 
-type Role = "user" | "assistant";
-interface Turn {
+type Turn = ChatHistoryMessage;
+interface ChatPair {
   id: string;
-  role: Role;
-  content: string;
-  tools: Array<{ name: string; status: "running" | "completed" }>;
-  pending: boolean;
-  error?: string;
+  index: number;
+  question: Turn;
+  answer?: Turn;
 }
 
 function nextId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
 }
 
+function shouldDance(text: string) {
+  return /跳舞|跳个舞|小人跳|dance/i.test(text);
+}
+
+function buildChatPairs(turns: Turn[], limit = 50): ChatPair[] {
+  const pairs: ChatPair[] = [];
+  for (let i = 0; i < turns.length; i++) {
+    const turn = turns[i];
+    if (turn.role !== "user") continue;
+    let answer: Turn | undefined;
+    for (let j = i + 1; j < turns.length; j++) {
+      if (turns[j].role === "user") break;
+      if (turns[j].role === "assistant") {
+        answer = turns[j];
+        break;
+      }
+    }
+    pairs.push({
+      id: `${turn.id}-${answer?.id ?? "pending"}`,
+      index: pairs.length + 1,
+      question: turn,
+      answer,
+    });
+  }
+  return pairs.slice(-limit).reverse();
+}
+
 export function HomeView() {
   const [frame, setFrame] = useState(0);
   const [input, setInput] = useState("");
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const [turns, setTurns] = useState<Turn[]>(() => loadChatHistory());
   const [busy, setBusy] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [mascot, setMascot] = useState<MascotState>({
     current: "walk", fallback: "walk",
     startedAt: new Date().toISOString(), triggeredBy: "system",
   });
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const historyPointerToggledRef = useRef(false);
   // Hidden span that mirrors the typed text — its rendered width drives
   // where the custom "pet caret" sits. Same font / line-height / letter-
   // spacing as the textarea, so the measurement lines up to the pixel.
   const measureRef = useRef<HTMLSpanElement | null>(null);
   const [petX, setPetX] = useState(0);
   const [petY, setPetY] = useState(0);
+  const chatPairs = useMemo(() => buildChatPairs(turns), [turns]);
+
+  useEffect(() => {
+    setHistoryOpen(false);
+  }, []);
 
   // Initial fetch of mascot state, then live updates via the shared SSE
   // channel (/api/events). Any code path (REST or MCP) that publishes
@@ -130,6 +169,19 @@ export function HomeView() {
     bottomRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, [turns]);
 
+  useEffect(() => {
+    const refresh = () => setTurns(loadChatHistory({ preservePending: true }));
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === CHAT_HISTORY_STORAGE_KEY) refresh();
+    };
+    window.addEventListener(CHAT_HISTORY_UPDATED_EVENT, refresh);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(CHAT_HISTORY_UPDATED_EVENT, refresh);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
   // Auto-grow textarea: shrink-to-content first, then size to scrollHeight.
   useEffect(() => {
     const el = textareaRef.current;
@@ -160,20 +212,38 @@ export function HomeView() {
   async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
+    if (shouldDance(trimmed)) {
+      const dancing: MascotState = {
+        current: "dance",
+        fallback: mascot.fallback || "walk",
+        startedAt: new Date().toISOString(),
+        triggeredBy: "user",
+      };
+      setMascot(dancing);
+      void fetch("/api/mascot/play", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "dance" }),
+      }).catch(() => { /* local animation already started */ });
+    }
     const userTurn: Turn = {
       id: nextId(), role: "user", content: trimmed, tools: [], pending: false,
     };
     const assistantTurn: Turn = {
       id: nextId(), role: "assistant", content: "", tools: [], pending: true,
     };
-    setTurns(prev => [...prev, userTurn, assistantTurn]);
+    const baseTurns = loadChatHistory();
+    const nextTurns = [...baseTurns, userTurn, assistantTurn];
+    setTurns(nextTurns);
+    saveChatHistory(nextTurns);
+    setHistoryOpen(true);
     setInput("");
     setBusy(true);
 
     // Build history-to-send: all prior turns + new user message. We don't
     // send the empty assistant placeholder we just appended; only the
     // canonical conversation Hermes needs to reason about.
-    const history = [...turns, userTurn].map(t => ({ role: t.role, content: t.content }));
+    const history = [...baseTurns, userTurn].map(t => ({ role: t.role, content: t.content }));
 
     try {
       const r = await fetch("/api/chat/stream", {
@@ -203,45 +273,68 @@ export function HomeView() {
             try { parsed = JSON.parse(data); } catch { continue; }
             if (currentEvent === "text") {
               const { chunk } = parsed as { chunk: string };
-              setTurns(prev => prev.map((t, i) =>
-                i === prev.length - 1 ? { ...t, content: t.content + chunk } : t,
-              ));
+              setTurns(prev => {
+                const next = prev.map((t, i) =>
+                  i === prev.length - 1 ? { ...t, content: t.content + chunk } : t,
+                );
+                saveChatHistory(next);
+                return next;
+              });
             } else if (currentEvent === "tool") {
               const tev = parsed as { name: string; status: "running" | "completed" };
-              setTurns(prev => prev.map((t, i) => {
-                if (i !== prev.length - 1) return t;
-                const tools = [...t.tools];
+              setTurns(prev => {
+                const next = prev.slice();
+                const i = next.length - 1;
+                const t = next[i];
+                if (!t) return prev;
+                const tools = [...(t.tools ?? [])];
                 if (tev.status === "completed") {
                   // Update the most recent matching "running" entry to "completed".
                   for (let k = tools.length - 1; k >= 0; k--) {
                     if (tools[k].name === tev.name && tools[k].status === "running") {
-                      tools[k] = tev;
-                      return { ...t, tools };
+                      tools[k] = { ...tev, ts: Date.now() };
+                      next[i] = { ...t, tools };
+                      saveChatHistory(next);
+                      return next;
                     }
                   }
                 }
-                tools.push(tev);
-                return { ...t, tools };
-              }));
+                tools.push({ ...tev, ts: Date.now() });
+                next[i] = { ...t, tools };
+                saveChatHistory(next);
+                return next;
+              });
             } else if (currentEvent === "done") {
-              setTurns(prev => prev.map((t, i) =>
-                i === prev.length - 1 ? { ...t, pending: false } : t,
-              ));
+              setTurns(prev => {
+                const next = prev.map((t, i) =>
+                  i === prev.length - 1 ? { ...t, pending: false } : t,
+                );
+                saveChatHistory(next);
+                return next;
+              });
             } else if (currentEvent === "error") {
               const { message } = parsed as { message: string };
-              setTurns(prev => prev.map((t, i) =>
-                i === prev.length - 1 ? { ...t, pending: false, error: message } : t,
-              ));
+              setTurns(prev => {
+                const next = prev.map((t, i) =>
+                  i === prev.length - 1 ? { ...t, pending: false, error: message } : t,
+                );
+                saveChatHistory(next);
+                return next;
+              });
             }
           }
         }
       }
     } catch (err) {
-      setTurns(prev => prev.map((t, i) =>
-        i === prev.length - 1
-          ? { ...t, pending: false, error: err instanceof Error ? err.message : String(err) }
-          : t,
-      ));
+      setTurns(prev => {
+        const next = prev.map((t, i) =>
+          i === prev.length - 1
+            ? { ...t, pending: false, error: err instanceof Error ? err.message : String(err) }
+            : t,
+        );
+        saveChatHistory(next);
+        return next;
+      });
     } finally {
       setBusy(false);
     }
@@ -250,6 +343,10 @@ export function HomeView() {
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     void send(input);
+  }
+
+  function toggleHistory() {
+    setHistoryOpen(open => !open);
   }
 
   return (
@@ -263,6 +360,33 @@ export function HomeView() {
 
       {/* Navigation entirely lives in the bottom-left MascotDock — no
        *  top-right quick-jump on this page anymore. */}
+      <button
+        type="button"
+        className={`home-history-toggle${historyOpen ? " is-open" : ""}`}
+        aria-label={historyOpen ? "隐藏聊天历史" : "查看聊天历史"}
+        title={historyOpen ? "隐藏聊天历史" : "查看聊天历史"}
+        onClick={() => {
+          if (historyPointerToggledRef.current) {
+            historyPointerToggledRef.current = false;
+            return;
+          }
+          toggleHistory();
+        }}
+        onPointerDown={e => {
+          e.preventDefault();
+          historyPointerToggledRef.current = true;
+          toggleHistory();
+        }}
+        onKeyDown={e => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggleHistory();
+          }
+        }}
+      >
+        <span aria-hidden="true">≡</span>
+        {chatPairs.length > 0 && <small>{chatPairs.length}</small>}
+      </button>
 
       {/* Top half — presentation surface. The wrapper carries the
        *  `home-mascot--<name>` class so each animation gets its own
@@ -322,38 +446,49 @@ export function HomeView() {
         <button type="submit" disabled={busy || !input.trim()} aria-hidden="true" tabIndex={-1} />
       </form>
 
-      {/* Bottom half — Rich's reply stream. No empty-state hints — when
-       *  the user lands fresh, the bottom is simply blank space. Cleaner. */}
-      <section ref={bottomRef} className="home-reply" aria-live="polite">
-        {/* Newest first — latest reply sits at the visual top, closest to
-         *  the input bar. Older history scrolls downward. */}
-        {turns.slice().reverse().map(t => <TurnRow key={t.id} turn={t} />)}
+      <section
+        ref={bottomRef}
+        className={`home-history${historyOpen ? " is-open" : " is-hidden"}`}
+        aria-live="polite"
+        aria-hidden={!historyOpen}
+      >
+        {historyOpen && (
+          <div className="home-history-grid">
+            {chatPairs.map(pair => <ChatPairCard key={pair.id} pair={pair} />)}
+          </div>
+        )}
       </section>
     </div>
   );
 }
 
-function TurnRow({ turn }: { turn: Turn }) {
+function ChatPairCard({ pair }: { pair: ChatPair }) {
+  const answer = pair.answer;
   return (
-    <article className={`home-turn home-turn--${turn.role}${turn.pending ? " is-pending" : ""}${turn.error ? " has-error" : ""}`}>
-      <span className="home-turn-role">{turn.role === "user" ? "你" : "Rich"}</span>
-      <div className="home-turn-body">
-        {/* Tool-call pills (turn.tools) are intentionally NOT rendered —
-         *  the user prefers a clean conversational surface. The data still
-         *  arrives via SSE and lives on `turn.tools` for potential future
-         *  use (debug panel / DevTools view), but isn't shown inline. */}
-        {turn.content && (
-          <div className="home-turn-content">
-            <RichContent text={turn.content} />
-            {turn.pending && <span className="home-cursor">▍</span>}
-          </div>
-        )}
-        {!turn.content && turn.pending && (
-          // Tools are hidden; this placeholder is now the only "Rich is
-          // working" signal until the first text chunk arrives.
-          <div className="home-turn-thinking">Rich 正在思考…</div>
-        )}
-        {turn.error && <div className="home-turn-error">⚠ {turn.error}</div>}
+    <article className={`home-chat-pair${answer?.pending ? " is-pending" : ""}${answer?.error ? " has-error" : ""}`}>
+      <header className="home-chat-pair__head">
+        <span>#{String(pair.index).padStart(2, "0")}</span>
+        {answer?.pending && <em>进行中</em>}
+      </header>
+      <div className="home-chat-pair__question">
+        <span>你</span>
+        <p>{pair.question.content}</p>
+      </div>
+      <div className="home-chat-pair__answer">
+        <span>Rich</span>
+        <div className="home-chat-pair__content">
+          {answer?.content ? (
+            <>
+              <RichContent text={answer.content} />
+              {answer.pending && <span className="home-cursor">▍</span>}
+            </>
+          ) : answer?.pending ? (
+            <div className="home-turn-thinking">Rich 正在思考...</div>
+          ) : (
+            <div className="home-turn-thinking">等待回应...</div>
+          )}
+          {answer?.error && <div className="home-turn-error">{answer.error}</div>}
+        </div>
       </div>
     </article>
   );

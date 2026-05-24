@@ -2,7 +2,6 @@ import { create } from "zustand";
 import type { Element, Relation, LearningPath, ElementId, PathKind, RichnessLevel, MindmapDeckView } from "@ke/domain";
 import { api, type Model, type GreatMeBrainResult, type GreatMeMode } from "../api/client.js";
 import { createDemoLargeTree } from "../data/demoLargeTree.js";
-import type { SystemPanelMode } from "../components/SystemPanel.js";
 
 export type OpKind = "generate" | "refine" | "expand" | "extend" | "feedback" | "path" | "daily-news" | "ai-search" | "mindmap" | "image-gen" | "greatme-brain";
 
@@ -92,14 +91,8 @@ interface AppState {
    *  (which IS persisted, server-side, via /api/great-me/state). The view
    *  consults this on task transitions to apply the AI result then forgets. */
   greatMeResults: Map<string, { adapter: string; result: GreatMeBrainResult }>;
-  /** Current top-level view — switched via the right-side 视图系统 panel. */
+  /** Current top-level view — switched via MascotDock (左下角小人弹窗). */
   appView: AppView;
-  /** Which system panel is shown on the right side (search / view / map / notice). */
-  systemMode: SystemPanelMode;
-  /** Whether the right-side system panel drawer is visible. Default hidden
-   *  to give the main content area more breathing room; the TopBar tool
-   *  buttons toggle it open/closed for the matching mode. */
-  systemPanelOpen: boolean;
   /** True when user jumped to tree view from a news card's "深入了解" button.
    *  ESC in tree view + a topbar pill use this to return to the news view. */
   cameFromNews: boolean;
@@ -168,13 +161,6 @@ interface AppState {
   exitToHome(): void;
   /** Switch the top-level app view. */
   setAppView(view: AppView): void;
-  /** Switch which system panel is shown on the right. Also switches to tree view
-   *  when called from admin, so the panel is actually visible to the user. */
-  setSystemMode(mode: SystemPanelMode): void;
-  /** Toggle the right drawer. If already open for the same mode, closes it;
-   *  otherwise opens it (and switches mode if needed). */
-  toggleSystemPanel(mode: SystemPanelMode): void;
-  closeSystemPanel(): void;
   /** Start a new analysis session — creates a new tab, sets as active.
    *  Returns the session id so the caller can fill in `analysis` later. */
   startHomeAnalysis(analyzedText: string): string;
@@ -440,8 +426,6 @@ export const useStore = create<AppState>((set, get) => ({
   greatMeResults: new Map(),
   lastCenterId: null,
   appView: (typeof window !== "undefined" && window.location.hash === "#greatme") ? "greatme" : "home",
-  systemMode: "view",
-  systemPanelOpen: false,
   cameFromNews: false,
   favorites: loadStringList("ke.favorites.v1"),
   quickNav: loadStringList("ke.quickNav.v1"),
@@ -610,25 +594,6 @@ export const useStore = create<AppState>((set, get) => ({
     // Clear "came from news" whenever we leave the tree view, so a later return
     // doesn't get the news pill / ESC behavior unexpectedly.
     set(s => ({ appView: view, cameFromNews: view === "tree" ? s.cameFromNews : false }));
-  },
-
-  setSystemMode(mode) {
-    set({ systemMode: mode });
-  },
-
-  toggleSystemPanel(mode) {
-    set(s => {
-      // Same mode while already open → close. Otherwise open + switch mode.
-      const sameModeOpen = s.systemPanelOpen && s.systemMode === mode;
-      return {
-        systemMode: mode,
-        systemPanelOpen: !sameModeOpen,
-      };
-    });
-  },
-
-  closeSystemPanel() {
-    set({ systemPanelOpen: false });
   },
 
   openMindmap(deckId) {
