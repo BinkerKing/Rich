@@ -53,6 +53,12 @@ export function elementsRoutes(deps: ElementsRoutesDeps): Hono {
     const type = (typeof body.type === "string" ? body.type : defaultType) as
       "topic" | "concept" | "practice" | "project" | "step" | "exercise" | "product-design" | "summary";
     const subtitle = typeof body.subtitle === "string" ? body.subtitle.trim() || undefined : undefined;
+    // 项目实战：允许 POST 时一起传入 content 和 status（step 类型用）
+    const content = body.content !== undefined ? body.content : {} as Record<string, unknown>;
+    const status =
+      body.status === "todo" || body.status === "doing" || body.status === "done"
+        ? body.status as "todo" | "doing" | "done"
+        : undefined;
     const id = slugify(title, await repo.list());
     const now = new Date().toISOString();
     const next = {
@@ -60,7 +66,8 @@ export function elementsRoutes(deps: ElementsRoutesDeps): Hono {
       type,
       title,
       subtitle,
-      content: {} as Record<string, unknown>,
+      content,
+      status,
       metadata: { createdAt: now, updatedAt: now, generatedBy: "user" as const, richness: 1 as const },
     };
     await repo.put(next);
@@ -125,6 +132,20 @@ export function elementsRoutes(deps: ElementsRoutesDeps): Hono {
       } else {
         return c.json({ error: `invalid difficulty: ${body.difficulty}` }, 400);
       }
+    }
+    // 项目实战：开发任务的 status 字段 (仅 step 类型有意义)
+    if (body.status !== undefined) {
+      if (body.status === null || body.status === "") {
+        patch.status = undefined;
+      } else if (body.status === "todo" || body.status === "doing" || body.status === "done") {
+        patch.status = body.status;
+      } else {
+        return c.json({ error: `invalid status: ${body.status}` }, 400);
+      }
+    }
+    // 允许 patch content（PRD 编辑 / drawer 编辑 用）
+    if (body.content !== undefined) {
+      patch.content = body.content;
     }
     if (Object.keys(patch).length === 0) return c.json({ error: "nothing to update" }, 400);
     const next = {

@@ -6,6 +6,7 @@ import { AdminView } from "./views/AdminView.js";
 import { NewsView } from "./views/NewsView.js";
 import { MindmapView } from "./views/MindmapView.js";
 import { GreatMeView } from "./views/GreatMeView.js";
+import { PracticeView } from "./views/PracticeView.js";
 import { OverlayTaskView } from "./views/OverlayTaskView.js";
 import { ChatOverlay } from "./views/ChatOverlay.js";
 import { ToolboxView } from "./views/ToolboxView.js";
@@ -82,6 +83,7 @@ function MainApp() {
       {appView === "news" && <NewsView />}
       {appView === "mindmap" && <MindmapView />}
       {appView === "greatme" && <GreatMeView />}
+      {appView === "practice" && <PracticeView />}
       {appView === "toolbox" && <ToolboxView />}
       {appView === "home" && <HomeView />}
       {appView === "tree" && (rootId ? <TreeView /> : <InputView />)}

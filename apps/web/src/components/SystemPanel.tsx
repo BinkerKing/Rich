@@ -88,6 +88,7 @@ function ViewSystem() {
     { id: "news", label: "AI 早报", desc: "每日 AI 能力进展与应用速览", icon: "spark", onClick: () => setAppView("news") },
     { id: "mindmap", label: "导图 PPT", desc: "把元 / 文稿一键拆成可播放导图", icon: "branch", onClick: () => setAppView("mindmap") },
     { id: "greatme", label: "计划管理", desc: "AI 拆解 · 目标跟进 · 日报反馈", icon: "target", onClick: () => setAppView("greatme") },
+    { id: "practice", label: "项目实战", desc: "拆解 · PRD · 效果图", icon: "gear", onClick: () => setAppView("practice") },
     { id: "toolbox", label: "工具箱", desc: "锁屏 · 定时器 · 其它小工具", icon: "gear", onClick: () => setAppView("toolbox") },
     { id: "admin", label: "后台", desc: "AI 引擎 · 操作日志 · 提示词", icon: "gear", onClick: () => setAppView("admin") },
   ];

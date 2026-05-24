@@ -320,6 +320,50 @@ export const api = {
     if (!r.ok) throw new Error(`deleteElement ${r.status}`);
     return r.json();
   },
+
+  // ----- 项目实战 helpers -----
+  /** 创建一个 type=practice 的实战项目元 */
+  async createPracticeElement(input: { title: string; subtitle?: string }): Promise<Element> {
+    const r = await fetch("/api/elements", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: input.title, subtitle: input.subtitle, type: "practice" }),
+    });
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(body.error ?? `createPracticeElement ${r.status}`);
+    }
+    const result = await r.json() as { element: Element };
+    return result.element;
+  },
+  /** 在指定 practice 元下创建一个子元（concept / case / product-design / step） */
+  async createPracticeChild(input: {
+    practiceId: string;
+    type: "concept" | "case" | "product-design" | "step";
+    title: string;
+    subtitle?: string;
+    content?: unknown;
+  }): Promise<Element> {
+    const r = await fetch("/api/elements", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        title: input.title,
+        subtitle: input.subtitle,
+        type: input.type,
+        parentId: input.practiceId,
+        content: input.content,
+        // step 默认 todo
+        ...(input.type === "step" ? { status: "todo" } : {}),
+      }),
+    });
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(body.error ?? `createPracticeChild ${r.status}`);
+    }
+    const result = await r.json() as { element: Element };
+    return result.element;
+  },
   async moveElement(id: string, newParentId: string | null): Promise<{ id: string; newParentId: string | null }> {
     const r = await fetch(`/api/elements/${encodeURIComponent(id)}/move`, {
       method: "POST",
@@ -355,7 +399,16 @@ export const api = {
     }
     return r.json();
   },
-  async patchElement(id: string, patch: { title?: string; subtitle?: string; type?: string; difficulty?: "low" | "mid" | "high" | null }): Promise<Element> {
+  async patchElement(id: string, patch: {
+    title?: string;
+    subtitle?: string;
+    type?: string;
+    difficulty?: "low" | "mid" | "high" | null;
+    /** 项目实战：开发任务的 status 字段 */
+    status?: "todo" | "doing" | "done" | null;
+    /** 项目实战：替换 content 整体（PRD / drawer 编辑用） */
+    content?: unknown;
+  }): Promise<Element> {
     const r = await fetch(`/api/elements/${encodeURIComponent(id)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },

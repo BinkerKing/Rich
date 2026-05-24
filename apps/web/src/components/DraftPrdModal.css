@@ -1,0 +1,123 @@
+.dpm-back {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.78);
+  backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+}
+.dpm-modal {
+  background: #0a0604;
+  border: 1px solid rgba(217, 154, 62, .65);
+  border-radius: 16px;
+  padding: 22px 24px 18px;
+  width: 720px; max-width: 92vw;
+  max-height: 86vh;
+  box-shadow: 0 0 0 1px rgba(217, 154, 62, .4), 0 0 60px rgba(217, 154, 62, .2);
+  color: #e6b25a;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.dpm-modal--input, .dpm-modal--loading, .dpm-modal--error { width: 520px; }
+.dpm-modal--preview { width: 800px; max-height: 88vh; }
+.dpm-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 14px;
+}
+.dpm-title { font-size: 16px; font-weight: 700; }
+.dpm-close {
+  width: 26px; height: 26px; border-radius: 50%; border: none;
+  background: rgba(255,255,255,.08); color: #a87526;
+  cursor: pointer; font-size: 16px;
+}
+.dpm-close:hover { background: rgba(255,255,255,.16); color: #e6b25a; }
+.dpm-body { display: flex; flex-direction: column; overflow: hidden; }
+.dpm-preview {
+  overflow-y: auto; padding-right: 4px;
+  gap: 14px; flex: 1 1 0; min-height: 0;
+}
+
+.dpm-context { font-size: 12px; color: #a87526; margin-bottom: 10px; }
+.dpm-label { display: block; font-size: 11px; color: #a87526; margin-bottom: 6px; }
+.dpm-textarea, .dpm-sec__text, .dpm-sec__input {
+  width: 100%; padding: 8px 10px; border-radius: 6px;
+  background: rgba(0,0,0,.4);
+  border: 1px solid rgba(217, 154, 62, .3);
+  color: #e6b25a; font-size: 12px; outline: none;
+  font-family: inherit; resize: vertical;
+}
+.dpm-textarea:focus, .dpm-sec__text:focus, .dpm-sec__input:focus { border-color: #d99a3e; }
+
+.dpm-loading {
+  align-items: center; padding: 20px 0; gap: 10px;
+}
+.dpm-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid rgba(217, 154, 62, .2);
+  border-top-color: #d99a3e;
+  border-radius: 50%;
+  animation: dpm-spin .8s linear infinite;
+}
+@keyframes dpm-spin { to { transform: rotate(360deg); } }
+.dpm-hint { font-size: 11px; color: #6a4f1a; }
+.dpm-error {
+  padding: 14px; border-radius: 8px;
+  background: rgba(255,80,80,.08);
+  border: 1px solid rgba(255,80,80,.4);
+  color: #ff9a8a; font-size: 13px; line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.dpm-prd-title {
+  width: 100%; padding: 10px 12px;
+  background: rgba(217, 154, 62, .05);
+  border: 1px solid rgba(217, 154, 62, .35);
+  border-radius: 8px;
+  color: #e6b25a; font-size: 15px; font-weight: 700;
+  outline: none; font-family: inherit;
+  margin-bottom: 6px;
+}
+
+.dpm-sec {
+  padding: 10px 12px; border-radius: 8px;
+  background: rgba(255,255,255,.02);
+  border-left: 3px solid #d99a3e;
+}
+.dpm-sec__name {
+  font-size: 11px; font-weight: 700; color: #d99a3e;
+  margin-bottom: 6px;
+}
+.dpm-sec__row { display: flex; gap: 6px; margin-bottom: 4px; }
+.dpm-sec__del {
+  width: 28px; border-radius: 4px; border: none;
+  background: rgba(255,255,255,.04); color: #a87526;
+  cursor: pointer; font-size: 14px;
+}
+.dpm-sec__del:hover { background: rgba(255,80,80,.18); color: #ff9a8a; }
+.dpm-sec__add {
+  padding: 4px 10px; border-radius: 6px;
+  background: transparent;
+  border: 1px dashed rgba(217, 154, 62, .4);
+  color: #a87526; font-size: 11px; cursor: pointer;
+  font-family: inherit; margin-top: 4px;
+}
+.dpm-sec__add:hover { color: #e6b25a; border-color: rgba(217, 154, 62, .7); }
+
+.dpm-foot {
+  display: flex; justify-content: flex-end; gap: 8px;
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid rgba(217, 154, 62, .18);
+}
+.dpm-btn {
+  padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px;
+  background: transparent;
+  border: 1px solid rgba(217, 154, 62, .3); color: #a87526;
+  font-family: inherit;
+}
+.dpm-btn:hover { color: #e6b25a; border-color: rgba(217, 154, 62, .65); }
+.dpm-btn.is-primary {
+  background: #d99a3e; color: #1a1208;
+  border-color: #d99a3e; font-weight: 600;
+}
+.dpm-btn.is-primary:hover { background: #e6b25a; }
+.dpm-btn:disabled { opacity: .35; cursor: not-allowed; }

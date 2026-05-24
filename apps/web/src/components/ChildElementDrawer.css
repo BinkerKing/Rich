@@ -1,0 +1,80 @@
+.ced-back {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 900;
+  display: flex; justify-content: flex-end;
+}
+.ced-panel {
+  width: 520px; max-width: 95vw;
+  height: 100%;
+  background: #0a0604;
+  border-left: 1px solid rgba(217, 154, 62, .5);
+  padding: 22px 24px 18px;
+  color: #e6b25a;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  display: flex; flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+.ced-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 10px; margin-bottom: 6px;
+}
+.ced-type {
+  font-size: 10px; padding: 1px 8px; border-radius: 10px;
+  background: rgba(217, 154, 62, .18); color: #d99a3e;
+  display: inline-block; margin-bottom: 6px;
+}
+.ced-title {
+  width: 100%; background: transparent; border: none;
+  color: #e6b25a; font-size: 17px; font-weight: 700;
+  outline: none; padding: 2px 0;
+  font-family: inherit;
+}
+.ced-title:focus { border-bottom: 1px dashed rgba(217, 154, 62, .5); }
+.ced-close {
+  width: 28px; height: 28px; border-radius: 50%; border: none;
+  background: rgba(255,255,255,.08); color: #a87526;
+  cursor: pointer; font-size: 16px;
+}
+.ced-close:hover { background: rgba(255,255,255,.16); color: #e6b25a; }
+.ced-label { font-size: 11px; color: #a87526; margin-top: 6px; }
+.ced-input, .ced-content {
+  width: 100%; padding: 8px 10px; border-radius: 6px;
+  background: rgba(0,0,0,.4); border: 1px solid rgba(217, 154, 62, .25);
+  color: #e6b25a; font-size: 12px; outline: none;
+  font-family: inherit;
+}
+.ced-input:focus, .ced-content:focus { border-color: #d99a3e; }
+.ced-content { font-family: monospace; resize: vertical; }
+.ced-status { display: flex; gap: 6px; }
+.ced-chip {
+  padding: 4px 12px; border-radius: 6px;
+  background: transparent;
+  border: 1px solid rgba(217, 154, 62, .25);
+  color: #a87526; font-size: 11px;
+  cursor: pointer; font-family: inherit;
+}
+.ced-chip.is-active {
+  background: #d99a3e; color: #1a1208;
+  border-color: #d99a3e; font-weight: 600;
+}
+.ced-foot {
+  display: flex; gap: 8px; margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid rgba(217, 154, 62, .18);
+}
+.ced-btn {
+  padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px;
+  background: transparent;
+  border: 1px solid rgba(217, 154, 62, .3); color: #a87526;
+  font-family: inherit;
+}
+.ced-btn:hover { color: #e6b25a; border-color: rgba(217, 154, 62, .65); }
+.ced-btn.is-primary {
+  background: #d99a3e; color: #1a1208;
+  border-color: #d99a3e; font-weight: 600;
+}
+.ced-btn.is-primary:hover { background: #e6b25a; }
+.ced-btn--danger { color: #ff9a8a; border-color: rgba(255,80,80,.3); }
+.ced-btn--danger:hover { background: rgba(255,80,80,.12); border-color: rgba(255,80,80,.5); }
+.ced-btn:disabled { opacity: .35; cursor: not-allowed; }
