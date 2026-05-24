@@ -39,6 +39,9 @@ export interface Element<TContent = unknown> {
   tags?: string[];
   domain?: string;
   difficulty?: "low" | "mid" | "high";
+  /** 仅 type="step" (开发任务) 用。其他类型忽略。
+   *  undefined → UI 按 "todo" 渲染（向后兼容老元素） */
+  status?: "todo" | "doing" | "done";
   content: TContent;
   metadata: ElementMetadata;
 }

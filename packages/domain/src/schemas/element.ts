@@ -145,6 +145,8 @@ export const ElementSchema = z.object({
   tags: z.array(z.string()).optional(),
   domain: z.string().optional(),
   difficulty: z.enum(["low", "mid", "high"]).optional(),
+  // 项目实战：仅 step (开发任务) 用，其他 type 忽略；undefined 视为 todo
+  status: z.enum(["todo", "doing", "done"]).optional(),
   content: ElementContentSchema,
   metadata: ElementMetadataSchema,
 });
