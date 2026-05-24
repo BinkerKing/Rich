@@ -13,7 +13,8 @@
   "extraResources": [
     { "from": "../web/dist", "to": "web-dist" },
     { "from": "../../ai", "to": "ai" },
-    { "from": "assets/tray", "to": "tray-frames" }
+    { "from": "assets/tray", "to": "tray-frames" },
+    { "from": "assets/app-icon.png", "to": "app-icon.png" }
   ],
   "asar": true,
   "asarUnpack": [
@@ -21,6 +22,7 @@
     "**/better-sqlite3/**"
   ],
   "mac": {
+    "icon": "build/icon.icns",
     "category": "public.app-category.productivity",
     "target": [
       { "target": "dir", "arch": ["arm64"] }

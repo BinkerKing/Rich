@@ -133,6 +133,8 @@ export function chatRoutes(): Hono {
       const decoder = new TextDecoder();
       let buf = "";
       let currentEvent: string | null = null;
+      let sawText = false;
+      let finishReason = "stop";
 
       try {
         while (true) {
@@ -161,7 +163,7 @@ export function chatRoutes(): Hono {
             if (line.startsWith("data:")) {
               const data = line.slice(5).trim();
               if (data === "[DONE]") {
-                await stream.writeSSE({ event: "done", data: JSON.stringify({ finish_reason: "stop" }) });
+                finishReason = "stop";
                 continue;
               }
               let parsed: unknown;
@@ -189,21 +191,46 @@ export function chatRoutes(): Hono {
               const choice = chunk.choices?.[0];
               const text = choice?.delta?.content;
               if (typeof text === "string" && text.length > 0) {
+                sawText = true;
                 await stream.writeSSE({
                   event: "text",
                   data: JSON.stringify({ chunk: text }),
                 });
               }
               if (choice?.finish_reason) {
-                await stream.writeSSE({
-                  event: "done",
-                  data: JSON.stringify({ finish_reason: choice.finish_reason }),
-                });
+                finishReason = choice.finish_reason;
               }
             }
             // Ignore other field types (id:, retry:, comments starting with `:`).
           }
         }
+        if (!sawText) {
+          const fallback = await fetch(`${HERMES_BASE_URL}/v1/chat/completions`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "hermes-agent",
+              stream: false,
+              messages: injectSystemPrompt(messages),
+            }),
+          });
+          if (fallback.ok) {
+            const json = await fallback.json() as {
+              choices?: Array<{ message?: { content?: string } }>;
+            };
+            const text = json.choices?.[0]?.message?.content;
+            if (typeof text === "string" && text.length > 0) {
+              await stream.writeSSE({
+                event: "text",
+                data: JSON.stringify({ chunk: text }),
+              });
+            }
+          }
+        }
+        await stream.writeSSE({
+          event: "done",
+          data: JSON.stringify({ finish_reason: finishReason }),
+        });
       } catch (err) {
         await stream.writeSSE({
           event: "error",

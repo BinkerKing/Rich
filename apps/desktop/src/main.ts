@@ -1,5 +1,5 @@
 import { app, BrowserWindow, shell, dialog, Menu, Tray, nativeImage, globalShortcut, screen } from "electron";
-import { existsSync, mkdirSync, statSync, readdirSync, copyFileSync, appendFileSync } from "node:fs";
+import { existsSync, mkdirSync, statSync, readdirSync, copyFileSync, appendFileSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import http from "node:http";
@@ -65,6 +65,52 @@ function ensureUserShellPath() {
   }
 }
 
+function unquoteEnvValue(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function expandHome(value: string): string {
+  const home = app.getPath("home");
+  return value
+    .replaceAll("$HOME", home)
+    .replaceAll("${HOME}", home)
+    .replace(/^~/, home);
+}
+
+function loadRichCloudEnv() {
+  const envPath = join(app.getPath("home"), ".rich-cloud-postgres.env");
+  if (!existsSync(envPath)) return;
+
+  try {
+    const content = readFileSync(envPath, "utf8");
+    for (const rawLine of content.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith("#")) continue;
+      const match = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line);
+      if (!match) continue;
+      const [, key, rawValue] = match;
+      if (process.env[key]) continue;
+      process.env[key] = expandHome(unquoteEnvValue(rawValue));
+    }
+    if (!process.env.DATABASE_URL && process.env.RICH_DB_URL) {
+      process.env.DATABASE_URL = process.env.RICH_DB_URL;
+    }
+    if (!process.env.KE_STORAGE && process.env.DATABASE_URL) {
+      process.env.KE_STORAGE = "postgres";
+    }
+    flog("rich cloud env loaded");
+  } catch (e) {
+    console.warn("[ke-desktop] rich cloud env load failed", e);
+  }
+}
+
 // ----- Step 2: Resolve / migrate data directory --------------------------
 function userDataDir(): string {
   // app.getPath("userData") is the OS-conventional per-app data dir.
@@ -125,6 +171,22 @@ function copyDirSync(src: string, dst: string) {
   }
 }
 
+function appIconPath(): string | undefined {
+  const candidates = [
+    process.resourcesPath ? join(process.resourcesPath, "app-icon.png") : "",
+    resolve(__dirname, "../assets/app-icon.png"),
+  ];
+  return candidates.find((p) => p && existsSync(p));
+}
+
+function setDockIconIfAvailable() {
+  if (process.platform !== "darwin" || !app.dock) return;
+  const iconPath = appIconPath();
+  if (!iconPath) return;
+  const icon = nativeImage.createFromPath(iconPath);
+  if (!icon.isEmpty()) app.dock.setIcon(icon);
+}
+
 // ----- Step 3: Boot the server -------------------------------------------
 async function findFreePort(start = 31515): Promise<number> {
   for (let p = start; p < start + 200; p++) {
@@ -176,6 +238,7 @@ async function bootServer(port: number) {
 
 // ----- Step 4: Window ----------------------------------------------------
 async function openMainWindow(port: number): Promise<BrowserWindow> {
+  const icon = appIconPath();
   const win = new BrowserWindow({
     width: 1480,
     height: 920,
@@ -194,6 +257,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
       nodeIntegration: false,
       sandbox: true,
     },
+    ...(icon ? { icon } : {}),
     show: false,
   });
   win.once("ready-to-show", () => win.show());
@@ -737,6 +801,8 @@ app.setName("Rich");
 app.whenReady().then(async () => {
   try {
     ensureUserShellPath();
+    loadRichCloudEnv();
+    setDockIconIfAvailable();
     migrateInRepoDataIfNeeded(userDataDir());
     const port = await findFreePort();
     serverPort = port;
