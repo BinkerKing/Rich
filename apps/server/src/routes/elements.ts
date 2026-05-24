@@ -53,12 +53,15 @@ export function elementsRoutes(deps: ElementsRoutesDeps): Hono {
     const type = (typeof body.type === "string" ? body.type : defaultType) as
       "topic" | "concept" | "practice" | "project" | "step" | "exercise" | "product-design" | "summary";
     const subtitle = typeof body.subtitle === "string" ? body.subtitle.trim() || undefined : undefined;
-    // 项目实战：允许 POST 时一起传入 content 和 status（step 类型用）
+    // 项目实战：允许 POST 时一起传入 content / status / tags
     const content = body.content !== undefined ? body.content : {} as Record<string, unknown>;
     const status =
       body.status === "todo" || body.status === "doing" || body.status === "done"
         ? body.status as "todo" | "doing" | "done"
         : undefined;
+    const tags = Array.isArray(body.tags)
+      ? body.tags.filter((t: unknown): t is string => typeof t === "string").slice(0, 20)
+      : undefined;
     const id = slugify(title, await repo.list());
     const now = new Date().toISOString();
     const next = {
@@ -66,6 +69,7 @@ export function elementsRoutes(deps: ElementsRoutesDeps): Hono {
       type,
       title,
       subtitle,
+      tags,
       content,
       status,
       metadata: { createdAt: now, updatedAt: now, generatedBy: "user" as const, richness: 1 as const },
@@ -146,6 +150,16 @@ export function elementsRoutes(deps: ElementsRoutesDeps): Hono {
     // 允许 patch content（PRD 编辑 / drawer 编辑 用）
     if (body.content !== undefined) {
       patch.content = body.content;
+    }
+    // 项目实战开关：通过 tags 控制 practice 元是否在 项目实战 列表显示
+    if (body.tags !== undefined) {
+      if (Array.isArray(body.tags)) {
+        patch.tags = body.tags.filter((t: unknown): t is string => typeof t === "string").slice(0, 20);
+      } else if (body.tags === null) {
+        patch.tags = undefined;
+      } else {
+        return c.json({ error: "tags must be an array of strings" }, 400);
+      }
     }
     if (Object.keys(patch).length === 0) return c.json({ error: "nothing to update" }, 400);
     const next = {

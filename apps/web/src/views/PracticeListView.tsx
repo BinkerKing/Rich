@@ -14,7 +14,10 @@ export function PracticeListView({ onPickPractice }: Props): ReactNode {
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
 
-  const practices = Array.from(elements.values()).filter(e => e.type === "practice");
+  // 只显示打开了"项目实战"开关的 practice 元；其他 practice（知识树里的"实战经验"种子数据）不进列表
+  const practices = Array.from(elements.values())
+    .filter(e => e.type === "practice")
+    .filter(e => (e.tags ?? []).includes("实战项目"));
 
   // 每个 practice 算子元统计
   const statsOf = (practiceId: string) => {

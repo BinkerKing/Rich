@@ -322,12 +322,17 @@ export const api = {
   },
 
   // ----- 项目实战 helpers -----
-  /** 创建一个 type=practice 的实战项目元 */
+  /** 创建一个 type=practice 的实战项目元（自动带"实战项目"标签 → 在 项目实战 页可见） */
   async createPracticeElement(input: { title: string; subtitle?: string }): Promise<Element> {
     const r = await fetch("/api/elements", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title: input.title, subtitle: input.subtitle, type: "practice" }),
+      body: JSON.stringify({
+        title: input.title,
+        subtitle: input.subtitle,
+        type: "practice",
+        tags: ["实战项目"],
+      }),
     });
     if (!r.ok) {
       const body = await r.json().catch(() => ({})) as { error?: string };
@@ -408,6 +413,8 @@ export const api = {
     status?: "todo" | "doing" | "done" | null;
     /** 项目实战：替换 content 整体（PRD / drawer 编辑用） */
     content?: unknown;
+    /** 项目实战开关：tags 里有 "实战项目" 就在 项目实战 列表显示 */
+    tags?: string[] | null;
   }): Promise<Element> {
     const r = await fetch(`/api/elements/${encodeURIComponent(id)}`, {
       method: "PATCH",

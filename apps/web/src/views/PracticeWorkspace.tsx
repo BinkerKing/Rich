@@ -16,9 +16,11 @@ interface Props {
 export function PracticeWorkspace({ practiceId, onBack }: Props): ReactNode {
   const elements = useStore(s => s.elements);
   const relations = useStore(s => s.relations);
+  const hydrate = useStore(s => s.hydrate);
   const [tab, setTab] = useState<TabId>("overview");
   const [openChildId, setOpenChildId] = useState<string | null>(null);
   const [draftPrdOpen, setDraftPrdOpen] = useState(false);
+  const [toggling, setToggling] = useState(false);
 
   const practice = elements.get(practiceId);
   if (!practice || practice.type !== "practice") {
@@ -29,6 +31,25 @@ export function PracticeWorkspace({ practiceId, onBack }: Props): ReactNode {
       </div>
     );
   }
+
+  const isProject = (practice.tags ?? []).includes("实战项目");
+  const toggleProjectMode = async (): Promise<void> => {
+    setToggling(true);
+    try {
+      const currentTags = practice.tags ?? [];
+      const nextTags = isProject
+        ? currentTags.filter(t => t !== "实战项目")
+        : ["实战项目", ...currentTags];
+      await api.patchElement(practice.id, { tags: nextTags });
+      await hydrate();
+      // 关闭开关 → 立刻退出工作空间（不再在列表里显示了）
+      if (isProject) onBack();
+    } catch (e) {
+      alert(`切换失败: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setToggling(false);
+    }
+  };
 
   const childIds = relations
     .filter(r => r.kind === "child" && r.from === practiceId)
@@ -47,6 +68,14 @@ export function PracticeWorkspace({ practiceId, onBack }: Props): ReactNode {
         <button className="pw__back" onClick={onBack}>← 全部项目</button>
         <div className="pw__title">{practice.title}</div>
         {practice.subtitle && <span className="pw__subtitle">{practice.subtitle}</span>}
+        <div style={{ flex: 1 }} />
+        <button
+          className={`pw__toggle ${isProject ? "is-on" : "is-off"}`}
+          disabled={toggling}
+          title={isProject ? "关闭后从 项目实战 列表移除（仍在知识树）" : "打开后在 项目实战 列表显示"}
+          onClick={() => void toggleProjectMode()}>
+          {toggling ? "…" : isProject ? "✓ 在 项目实战 中" : "+ 加入 项目实战"}
+        </button>
       </div>
 
       <div className="pw__tabs">

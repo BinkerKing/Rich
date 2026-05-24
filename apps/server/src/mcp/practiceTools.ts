@@ -44,12 +44,17 @@ export function registerPracticeTools(
   // ===== practice_list =====
   server.tool(
     "practice_list",
-    "List all 实战项目 (type=practice elements) with sub-element counts + dev-task progress. Use this to orient on which projects 大斌哥 has and which need attention. Each item: id, title, subtitle, counts of each sub-type (concept/case/product-design/step), and step done/total.",
-    {},
-    async () => {
+    "List 实战项目 — practice elements TAGGED with '实战项目' (the project-mode switch). Untagged practice elements are 'best-practice / 实战经验' entries from the knowledge tree and don't show here. Use includeAll=true to see ALL practice elements (including untagged seed/knowledge entries) for promotion workflows. Returns counts of sub-types + step done/total.",
+    {
+      includeAll: z.boolean().default(false).describe("true = include practice elements without the '实战项目' tag (the knowledge-tree best-practice entries). Default false → only project-mode practices."),
+    },
+    async ({ includeAll }) => {
       const all = await elements.list();
       const rels = await relations.list();
-      const practices = all.filter(e => e.type === "practice");
+      let practices = all.filter(e => e.type === "practice");
+      if (!includeAll) {
+        practices = practices.filter(p => (p.tags ?? []).includes("实战项目"));
+      }
       const result = practices.map(p => {
         const childIds = rels.filter(r => r.kind === "child" && r.from === p.id).map(r => r.to);
         const children = childIds.map(id => all.find(e => e.id === id)).filter((e): e is Element => !!e);
@@ -95,7 +100,7 @@ export function registerPracticeTools(
   // ===== practice_create =====
   server.tool(
     "practice_create",
-    "Create a new 实战项目 (practice element). After creation, use practice_add_child to populate it with knowledge points / requirements / PRDs / dev tasks.",
+    "Create a new 实战项目 (practice element). Automatically tagged with '实战项目' so it appears in the 项目实战 list. After creation, use practice_add_child to populate it with knowledge points / requirements / PRDs / dev tasks.",
     {
       title: z.string().min(1).max(280),
       subtitle: z.string().max(280).optional(),
@@ -103,12 +108,14 @@ export function registerPracticeTools(
     },
     async ({ title, subtitle, tags }) => {
       const now = new Date().toISOString();
+      // 自动加上 "实战项目" 标签让它出现在列表（项目实战开关默认 ON）
+      const finalTags = tags.includes("实战项目") ? tags : ["实战项目", ...tags];
       const newElement: Element = {
         id: uid("e"),
         type: "practice",
         title,
         subtitle,
-        tags,
+        tags: finalTags,
         content: {},
         metadata: {
           createdAt: now,
@@ -163,6 +170,35 @@ export function registerPracticeTools(
       }]);
       fire("practice.add_child", { practiceId, childId: newEl.id, type });
       return ok({ ok: true, element: newEl });
+    },
+  );
+
+  // ===== practice_set_project_mode =====
+  server.tool(
+    "practice_set_project_mode",
+    "Toggle whether a practice element appears in the 项目实战 list. Adds/removes the '实战项目' tag. Use enabled=true to promote a knowledge-tree practice (一条实战经验) into a managed project; enabled=false to demote it back (it stays in the knowledge tree).",
+    {
+      id: z.string().min(1),
+      enabled: z.boolean().describe("true = show in 项目实战 page; false = remove from 项目实战 list (stays in knowledge tree)"),
+    },
+    async ({ id, enabled }) => {
+      const e = await elements.get(id);
+      if (!e) return err(`Element ${id} not found`);
+      if (e.type !== "practice") return err(`Element ${id} is type=${e.type}, not practice`);
+      const currentTags = e.tags ?? [];
+      const hasTag = currentTags.includes("实战项目");
+      let nextTags: string[];
+      if (enabled && !hasTag) nextTags = ["实战项目", ...currentTags];
+      else if (!enabled && hasTag) nextTags = currentTags.filter(t => t !== "实战项目");
+      else nextTags = currentTags;  // already in desired state
+      const updated: Element = {
+        ...e,
+        tags: nextTags,
+        metadata: { ...e.metadata, updatedAt: new Date().toISOString() },
+      };
+      await elements.put(updated);
+      fire("practice.set_project_mode", { id, enabled });
+      return ok({ ok: true, element: updated, projectMode: enabled });
     },
   );
 
