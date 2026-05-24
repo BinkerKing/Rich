@@ -34,6 +34,7 @@ function applySchema(db: Database.Database) {
       tags TEXT,               -- JSON array
       domain TEXT,
       difficulty TEXT,
+      status TEXT,             -- 项目实战：仅 step 类型用，todo/doing/done
       content TEXT NOT NULL,   -- JSON
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -184,6 +185,7 @@ function applySchema(db: Database.Database) {
   ensureColumn(db, "qa", "anchor", "TEXT");
   ensureColumn(db, "improvement_tasks", "assigned_agent_id", "TEXT");
   ensureColumn(db, "improvement_tasks", "assigned_at", "TEXT");
+  ensureColumn(db, "elements", "status", "TEXT");
 }
 
 function ensureColumn(db: Database.Database, table: string, column: string, type: string) {

@@ -11,6 +11,7 @@ interface ElementRow {
   tags: string | null;
   domain: string | null;
   difficulty: string | null;
+  status: string | null;        // 项目实战：step 类型才有意义
   content: string;
   created_at: string;
   updated_at: string;
@@ -30,6 +31,7 @@ function rowToElement(r: ElementRow): Element {
     tags: r.tags ? JSON.parse(r.tags) : undefined,
     domain: r.domain ?? undefined,
     difficulty: (r.difficulty as Element["difficulty"]) ?? undefined,
+    status: (r.status as Element["status"]) ?? undefined,
     content: JSON.parse(r.content),
     metadata: {
       createdAt: r.created_at,
@@ -52,6 +54,7 @@ function elementParams(el: Element) {
     el.tags ? JSON.stringify(el.tags) : null,
     el.domain ?? null,
     el.difficulty ?? null,
+    el.status ?? null,
     JSON.stringify(el.content),
     el.metadata.createdAt,
     el.metadata.updatedAt,
@@ -89,8 +92,8 @@ export class PostgresElementsRepo implements ElementsRepo {
         );
       }
       await client.query(`
-        INSERT INTO elements (id, type, title, subtitle, aliases, tags, domain, difficulty, content, created_at, updated_at, generated_by, ai_model, ai_session_id, richness)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        INSERT INTO elements (id, type, title, subtitle, aliases, tags, domain, difficulty, status, content, created_at, updated_at, generated_by, ai_model, ai_session_id, richness)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         ON CONFLICT(id) DO UPDATE SET
           type=EXCLUDED.type,
           title=EXCLUDED.title,
@@ -99,6 +102,7 @@ export class PostgresElementsRepo implements ElementsRepo {
           tags=EXCLUDED.tags,
           domain=EXCLUDED.domain,
           difficulty=EXCLUDED.difficulty,
+          status=EXCLUDED.status,
           content=EXCLUDED.content,
           created_at=EXCLUDED.created_at,
           updated_at=EXCLUDED.updated_at,

@@ -11,6 +11,7 @@ interface ElementRow {
   tags: string | null;
   domain: string | null;
   difficulty: string | null;
+  status: string | null;        // 项目实战：step 类型才有意义
   content: string;
   created_at: string;
   updated_at: string;
@@ -30,6 +31,7 @@ function rowToElement(r: ElementRow): Element {
     tags: r.tags ? JSON.parse(r.tags) : undefined,
     domain: r.domain ?? undefined,
     difficulty: (r.difficulty as Element["difficulty"]) ?? undefined,
+    status: (r.status as Element["status"]) ?? undefined,
     content: JSON.parse(r.content),
     metadata: {
       createdAt: r.created_at,
@@ -65,8 +67,8 @@ export class SqliteElementsRepo implements ElementsRepo {
         ).run(existing.id, existing.updated_at, JSON.stringify(rowToElement(existing)));
       }
       this.db.prepare(`
-        INSERT INTO elements (id, type, title, subtitle, aliases, tags, domain, difficulty, content, created_at, updated_at, generated_by, ai_model, ai_session_id, richness)
-        VALUES (@id, @type, @title, @subtitle, @aliases, @tags, @domain, @difficulty, @content, @created_at, @updated_at, @generated_by, @ai_model, @ai_session_id, @richness)
+        INSERT INTO elements (id, type, title, subtitle, aliases, tags, domain, difficulty, status, content, created_at, updated_at, generated_by, ai_model, ai_session_id, richness)
+        VALUES (@id, @type, @title, @subtitle, @aliases, @tags, @domain, @difficulty, @status, @content, @created_at, @updated_at, @generated_by, @ai_model, @ai_session_id, @richness)
         ON CONFLICT(id) DO UPDATE SET
           type=excluded.type,
           title=excluded.title,
@@ -75,6 +77,7 @@ export class SqliteElementsRepo implements ElementsRepo {
           tags=excluded.tags,
           domain=excluded.domain,
           difficulty=excluded.difficulty,
+          status=excluded.status,
           content=excluded.content,
           created_at=excluded.created_at,
           updated_at=excluded.updated_at,
@@ -91,6 +94,7 @@ export class SqliteElementsRepo implements ElementsRepo {
         tags: next.tags ? JSON.stringify(next.tags) : null,
         domain: next.domain ?? null,
         difficulty: next.difficulty ?? null,
+        status: next.status ?? null,
         content: JSON.stringify(next.content),
         created_at: next.metadata.createdAt,
         updated_at: next.metadata.updatedAt,

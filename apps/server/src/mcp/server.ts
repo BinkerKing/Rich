@@ -23,6 +23,7 @@ import { loadManual, manualToPromptFragment } from "../ai/manuals.js";
 import { enqueue, get as getTask, list as listTasks } from "./tasks.js";
 import { eventBus } from "../lib/eventBus.js";
 import { registerPlanTools } from "./planTools.js";
+import { registerPracticeTools } from "./practiceTools.js";
 import {
   listMascotAnimations, playMascotAnimation, getMascotState,
 } from "../lib/mascotState.js";
@@ -1403,6 +1404,10 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
   if (deps.greatMe) {
     registerPlanTools(server, deps.greatMe, deps.adapters, eventBus);
   }
+
+  // ───── 项目实战 (Practice) tools ─────────────────────────
+  // Always mount — uses elements / relations which always exist in production.
+  registerPracticeTools(server, deps.elements, deps.relations, deps.adapters, eventBus);
 
   return server;
 }

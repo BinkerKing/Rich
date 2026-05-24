@@ -29,6 +29,7 @@ async function applySchema(pool: Pool): Promise<void> {
       tags TEXT,
       domain TEXT,
       difficulty TEXT,
+      status TEXT,                  -- 项目实战：仅 step 类型用，todo/doing/done
       content TEXT NOT NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -37,6 +38,8 @@ async function applySchema(pool: Pool): Promise<void> {
       ai_session_id TEXT,
       richness INTEGER NOT NULL
     );
+    -- 对老库幂等加列
+    ALTER TABLE elements ADD COLUMN IF NOT EXISTS status TEXT;
     CREATE INDEX IF NOT EXISTS idx_elements_type ON elements(type);
 
     CREATE TABLE IF NOT EXISTS element_versions (
