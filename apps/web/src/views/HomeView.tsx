@@ -405,7 +405,6 @@ export function HomeView() {
         }}
       >
         <span aria-hidden="true">≡</span>
-        {chatPairs.length > 0 && <small>{chatPairs.length}</small>}
       </button>
 
       {/* Top half — presentation surface. The wrapper carries the

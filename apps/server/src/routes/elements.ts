@@ -63,7 +63,7 @@ export function elementsRoutes(deps: ElementsRoutesDeps): Hono {
     const tags = Array.isArray(body.tags)
       ? body.tags.filter((t: unknown): t is string => typeof t === "string").slice(0, 20)
       : undefined;
-    const id = slugify(title, await repo.list());
+    const id = slugify(title, await repo.list(), type);
     const now = new Date().toISOString();
     const next = {
       id,
@@ -129,6 +129,7 @@ export function elementsRoutes(deps: ElementsRoutesDeps): Hono {
         "project", "practice", "summary", "relation",
         "dispute", "exercise", "report", "guide",
         "group",
+        "knowledge", "requirement", "prd", "dev-task",
       ];
       if (!VALID_TYPES.includes(body.type)) {
         return c.json({ error: `invalid type: ${body.type}` }, 400);
@@ -388,16 +389,19 @@ export function elementsRoutes(deps: ElementsRoutesDeps): Hono {
 }
 
 /** Make a unique kebab id from a (possibly Chinese) title. We strip non-ASCII,
- *  fall back to a timestamp suffix when the title has no Latin chars, and
- *  append a numeric suffix on collision. */
-function slugify(title: string, existing: { id: string }[]): string {
+ *  fall back to <type>-<timestamp> when the title has no Latin chars, and
+ *  append a numeric suffix on collision. The type prefix avoids confusion —
+ *  before, all Chinese-titled elements ended up as "topic-xxx" regardless of
+ *  their actual type. */
+function slugify(title: string, existing: { id: string }[], typeForFallback?: string): string {
   const base = title.toLowerCase()
     .replace(/[^a-z0-9一-鿿]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 48);
-  let candidate = base || `topic-${Date.now().toString(36)}`;
+  const prefix = typeForFallback ?? "topic";
+  let candidate = base || `${prefix}-${Date.now().toString(36)}`;
   // ASCII-only id is friendlier for URLs; if all stripped, use timestamp.
-  if (!/[a-z0-9]/.test(candidate)) candidate = `topic-${Date.now().toString(36)}`;
+  if (!/[a-z0-9]/.test(candidate)) candidate = `${prefix}-${Date.now().toString(36)}`;
   const taken = new Set(existing.map(e => e.id));
   if (!taken.has(candidate)) return candidate;
   let n = 2;

@@ -81,7 +81,7 @@ export function DraftPrdModal({ practice, children, onClose }: Props): ReactNode
       }
       await api.createPracticeChild({
         parentId: prdGroup.id,
-        type: "product-design",
+        type: "prd",
         title: title.trim(),
         subtitle: sections.overview.slice(0, 60),
         content: sections,

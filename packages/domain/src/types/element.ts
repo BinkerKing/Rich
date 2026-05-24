@@ -16,7 +16,11 @@ export type ElementType =
   | "exercise"
   | "report"
   | "guide"
-  | "group";    // 项目实战分组节点：实战项目下挂分组，分组下挂具体子元
+  | "group"          // 项目实战：分组节点
+  | "knowledge"      // 项目实战：知识点
+  | "requirement"    // 项目实战：需求分析
+  | "prd"            // 项目实战：PRD 文档
+  | "dev-task";      // 项目实战：开发任务
 
 export type ElementId = string;
 

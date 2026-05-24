@@ -66,10 +66,11 @@ export function PracticeWorkspace({ practiceId, onBack }: Props): ReactNode {
   for (const g of groups) allDescendants.push(...childrenOf(g.id));
   allDescendants.push(...looseChildren);
 
-  const concepts = allDescendants.filter(c => c.type === "concept").length;
-  const cases = allDescendants.filter(c => c.type === "case").length;
-  const prds = allDescendants.filter(c => c.type === "product-design").length;
-  const steps = allDescendants.filter(c => c.type === "step");
+  // 新类型为主；老类型 concept/case/product-design/step 算同类（向后兼容）
+  const concepts = allDescendants.filter(c => c.type === "knowledge" || c.type === "concept").length;
+  const cases = allDescendants.filter(c => c.type === "requirement" || c.type === "case").length;
+  const prds = allDescendants.filter(c => c.type === "prd" || c.type === "product-design").length;
+  const steps = allDescendants.filter(c => c.type === "dev-task" || c.type === "step");
   const stepDone = steps.filter(s => s.status === "done").length;
 
   return (
@@ -179,11 +180,11 @@ const GROUP_ICON: Record<string, string> = {
   "PRD": "📄",
   "开发任务": "⚙️",
 };
-const GROUP_DEFAULT_TYPE: Record<string, "concept" | "case" | "product-design" | "step"> = {
-  "知识点": "concept",
-  "需求分析": "case",
-  "PRD": "product-design",
-  "开发任务": "step",
+const GROUP_DEFAULT_TYPE: Record<string, "knowledge" | "requirement" | "prd" | "dev-task"> = {
+  "知识点": "knowledge",
+  "需求分析": "requirement",
+  "PRD": "prd",
+  "开发任务": "dev-task",
 };
 
 function BreakdownTab({
@@ -202,7 +203,7 @@ function BreakdownTab({
   const [newGroupTitle, setNewGroupTitle] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
 
-  const addChildToGroup = async (groupId: string, type: "concept" | "case" | "product-design" | "step"): Promise<void> => {
+  const addChildToGroup = async (groupId: string, type: "knowledge" | "requirement" | "prd" | "dev-task"): Promise<void> => {
     const title = (newTitleByGroup[groupId] ?? "").trim();
     if (!title) return;
     try {
@@ -241,9 +242,9 @@ function BreakdownTab({
     const icon = GROUP_ICON[group.title] ?? "📁";
     const defaultType = GROUP_DEFAULT_TYPE[group.title] ?? "concept";
     const isPrd = group.title.includes("PRD");
-    // 任何 group 只要里面主要是 step（或标题含"任务"/"task"）就用看板
+    // 任何 group 只要里面主要是 dev-task / step（或标题含"任务"/"task"）就用看板
     const isKanban = group.title.includes("任务") || group.title.toLowerCase().includes("task")
-      || (children.length > 0 && children.every(c => c.type === "step"));
+      || (children.length > 0 && children.every(c => c.type === "dev-task" || c.type === "step"));
 
     return (
       <div key={group.id} className="pw-bd-group">
@@ -267,7 +268,7 @@ function BreakdownTab({
         {isKanban ? (
           <div className="pw-bd-kanban">
             {(["todo", "doing", "done"] as const).map(col => {
-              const items = children.filter(c => c.type === "step" && (c.status ?? "todo") === col);
+              const items = children.filter(c => (c.type === "dev-task" || c.type === "step") && (c.status ?? "todo") === col);
               return (
                 <div key={col} className={`pw-bd-col pw-bd-col--${col}`}>
                   <div className="pw-bd-col__head">{col} ({items.length})</div>

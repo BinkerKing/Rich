@@ -3,6 +3,23 @@ import { useStore } from "../state/store.js";
 import { api } from "../api/client.js";
 import "./ChildElementDrawer.css";
 
+/** type 的中文展示名。项目实战专属类型显示成对应分组名；其他类型 fallback 原 type 字符串。 */
+const TYPE_DISPLAY_NAME: Record<string, string> = {
+  knowledge: "知识点",
+  requirement: "需求分析",
+  prd: "PRD",
+  "dev-task": "开发任务",
+  group: "分组",
+  // 向后兼容：老数据仍以 concept/case/product-design/step 存
+  concept: "知识点",
+  case: "需求分析",
+  "product-design": "PRD",
+  step: "开发任务",
+};
+function displayType(t: string): string {
+  return TYPE_DISPLAY_NAME[t] ?? t;
+}
+
 interface Props {
   elementId: string;
   onClose: () => void;
@@ -52,7 +69,7 @@ export function ChildElementDrawer({ elementId, onClose }: Props): ReactNode {
         title: title.trim() || el.title,
         subtitle: subtitle,
         content: parsedContent,
-        ...(el.type === "step" ? { status } : {}),
+        ...((el.type === "dev-task" || el.type === "step") ? { status } : {}),
       });
       await hydrate();
       onClose();
@@ -79,7 +96,7 @@ export function ChildElementDrawer({ elementId, onClose }: Props): ReactNode {
       <div className="ced-panel" onClick={e => e.stopPropagation()}>
         <div className="ced-head">
           <div>
-            <div className="ced-type">{el.type}</div>
+            <div className="ced-type">{displayType(el.type)}</div>
             <input className="ced-title" value={title} onChange={e => setTitle(e.target.value)} />
           </div>
           <button className="ced-close" onClick={onClose}>×</button>
@@ -89,7 +106,7 @@ export function ChildElementDrawer({ elementId, onClose }: Props): ReactNode {
         <input className="ced-input" value={subtitle}
           onChange={e => setSubtitle(e.target.value)} />
 
-        {el.type === "step" && (
+        {(el.type === "dev-task" || el.type === "step") && (
           <>
             <label className="ced-label">状态</label>
             <div className="ced-status">

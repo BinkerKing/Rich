@@ -69,11 +69,17 @@ export function registerPracticeTools(
           if (c.type === "group") allDescendants.push(...childrenOf(c.id));
           else allDescendants.push(c);  // 历史孤儿数据兼容
         }
-        const counts: Record<string, number> = { concept: 0, case: 0, "product-design": 0, step: 0 };
+        // 用新 type 计数，兼容老数据（concept/case/product-design/step）算同类
+        const counts = { knowledge: 0, requirement: 0, prd: 0, "dev-task": 0 };
         let stepDone = 0;
         for (const c of allDescendants) {
-          if (c.type in counts) counts[c.type]++;
-          if (c.type === "step" && c.status === "done") stepDone++;
+          if (c.type === "knowledge" || c.type === "concept") counts.knowledge++;
+          else if (c.type === "requirement" || c.type === "case") counts.requirement++;
+          else if (c.type === "prd" || c.type === "product-design") counts.prd++;
+          else if (c.type === "dev-task" || c.type === "step") {
+            counts["dev-task"]++;
+            if (c.status === "done") stepDone++;
+          }
         }
         return {
           id: p.id,
@@ -82,7 +88,7 @@ export function registerPracticeTools(
           tags: p.tags ?? [],
           counts,
           stepDone,
-          stepTotal: counts.step,
+          stepTotal: counts["dev-task"],
         };
       });
       return ok({ count: result.length, practices: result });
@@ -165,14 +171,14 @@ export function registerPracticeTools(
   // ===== practice_add_child =====
   server.tool(
     "practice_add_child",
-    "Add a sub-element (concept/case/product-design/step) under a GROUP inside a practice. Pass parentId = the group's id (use practice_get to find groups). If parentId is a practice element instead of a group, the tool auto-routes to a sensible default group based on type: concept→知识点, case→需求分析, product-design→PRD, step→开发任务 (creating the group if missing).",
+    "Add a sub-element (knowledge/requirement/prd/dev-task) under a GROUP inside a practice. Pass parentId = the group's id (use practice_get to find groups). If parentId is a practice element, the tool auto-routes to a sensible default group based on type: knowledge→知识点, requirement→需求分析, prd→PRD, dev-task→开发任务 (creating the group if missing).",
     {
       parentId: z.string().min(1).describe("Group element id (preferred) or practice element id (auto-routes)."),
-      type: z.enum(["concept", "case", "product-design", "step"] as [ElementType, ...ElementType[]]),
+      type: z.enum(["knowledge", "requirement", "prd", "dev-task"] as [ElementType, ...ElementType[]]),
       title: z.string().min(1).max(280),
       subtitle: z.string().max(280).optional(),
       content: z.unknown().optional().describe("Optional rich content. Free-form per element type."),
-      status: z.enum(["todo", "doing", "done"]).optional().describe("Only meaningful when type=step. Default todo."),
+      status: z.enum(["todo", "doing", "done"]).optional().describe("Only meaningful when type=dev-task. Default todo."),
     },
     async ({ parentId, type, title, subtitle, content, status }) => {
       const parent = await elements.get(parentId);
@@ -184,13 +190,12 @@ export function registerPracticeTools(
       // 如果传的是 practice id，自动路由到对应的默认分组（不存在则建）
       if (parent.type === "practice") {
         const DEFAULT_GROUP: Record<string, string> = {
-          concept: "知识点",
-          case: "需求分析",
-          "product-design": "PRD",
-          step: "开发任务",
+          knowledge: "知识点",
+          requirement: "需求分析",
+          prd: "PRD",
+          "dev-task": "开发任务",
         };
         const wantedGroupTitle = DEFAULT_GROUP[type];
-        // 找已有 group
         const rels = await relations.list();
         const childIds = rels.filter(r => r.kind === "child" && r.from === parent.id).map(r => r.to);
         const all = await elements.list();
@@ -224,7 +229,7 @@ export function registerPracticeTools(
         title,
         subtitle,
         content: content ?? {},
-        status: type === "step" ? (status ?? "todo") : undefined,
+        status: type === "dev-task" ? (status ?? "todo") : undefined,
         metadata: { createdAt: now, updatedAt: now, generatedBy: "ai", richness: 1 },
       };
       await elements.put(newEl);
@@ -300,7 +305,7 @@ export function registerPracticeTools(
   // ===== practice_set_task_status =====
   server.tool(
     "practice_set_task_status",
-    "Set the status of a dev-task (step element) to todo/doing/done. Quickest tool for marking task progress. Use task_complete in 计划管理 for plan tasks; this one is for project step elements.",
+    "Set the status of a dev-task element to todo/doing/done. Used for 项目实战 dev tasks; for 计划管理 plan tasks use task_complete instead.",
     {
       id: z.string().min(1),
       status: z.enum(["todo", "doing", "done"]),
@@ -308,7 +313,10 @@ export function registerPracticeTools(
     async ({ id, status }) => {
       const e = await elements.get(id);
       if (!e) return err(`Element ${id} not found`);
-      if (e.type !== "step") return err(`Element ${id} is type=${e.type}, not step`);
+      // 兼容老数据：旧版用 step type，新版用 dev-task
+      if (e.type !== "dev-task" && e.type !== "step") {
+        return err(`Element ${id} is type=${e.type}, not dev-task`);
+      }
       const updated: Element = {
         ...e,
         status,
@@ -390,7 +398,7 @@ export function registerPracticeTools(
 
       const prdEl: Element = {
         id: uid("e"),
-        type: "product-design",
+        type: "prd",
         title: result.title,
         content: result.sections,
         metadata: {

@@ -356,12 +356,12 @@ export const api = {
     }
     return practice;
   },
-  /** 在指定 group 元下创建一个子元 (concept / case / product-design / step / 任何 type)。
+  /** 在指定 group 元下创建一个子元 (项目实战专属类型)。
    *  parentId 应该是 group 元的 id，不是 practice 元本身。
-   *  新版项目实战：practice → group → 实际子元。 */
+   *  type 枚举跟分组对应：knowledge=知识点 / requirement=需求分析 / prd=PRD / dev-task=开发任务。 */
   async createPracticeChild(input: {
     parentId: string;
-    type: "concept" | "case" | "product-design" | "step";
+    type: "knowledge" | "requirement" | "prd" | "dev-task";
     title: string;
     subtitle?: string;
     content?: unknown;
@@ -375,7 +375,7 @@ export const api = {
         type: input.type,
         parentId: input.parentId,
         content: input.content,
-        ...(input.type === "step" ? { status: "todo" } : {}),
+        ...(input.type === "dev-task" ? { status: "todo" } : {}),
       }),
     });
     if (!r.ok) {

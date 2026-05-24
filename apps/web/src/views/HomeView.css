@@ -306,25 +306,6 @@
   line-height: 1;
   transform: translateY(-1px);
 }
-.home-history-toggle small {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: #42f7f0;
-  color: #001011;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  line-height: 1;
-  font-weight: 800;
-  box-shadow: 0 0 12px rgba(66, 247, 240, .42);
-}
-
 .home-history {
   padding: 22px 24px 42px;
   overflow: hidden;
