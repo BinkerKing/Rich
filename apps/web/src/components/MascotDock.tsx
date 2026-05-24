@@ -29,6 +29,7 @@ const VIEWS: View[] = [
   { id: "news",    label: "AI 早报", icon: "calendar", desc: "每日 AI 能力进展与应用速览" },
   { id: "mindmap", label: "导图 PPT", icon: "diamond",  desc: "把元 / 文稿一键拆成可播放导图" },
   { id: "greatme", label: "计划管理", icon: "target",   desc: "AI 拆解 · 目标跟进 · 日报反馈" },
+  { id: "practice", label: "项目实战", icon: "card",    desc: "拆解 · PRD · 效果图" },
   { id: "toolbox", label: "工具箱",   icon: "rocket",   desc: "锁屏 · 定时器 · 其它小工具" },
   { id: "admin",   label: "后台",     icon: "gear",     desc: "AI 引擎 · 操作日志 · 提示词" },
 ];
