@@ -8,6 +8,7 @@
     "build": "tsc",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "plan": "tsx src/cli/plan.ts",
     "db:migrate": "tsx scripts/migrate-to-sqlite.ts",
     "db:migrate:postgres": "tsx scripts/migrate-sqlite-to-postgres.ts"
   },
