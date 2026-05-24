@@ -2100,14 +2100,14 @@ function AnalyticsSection({ state, setState }: SectionProps): ReactNode {
 
           </div>
         </div>
-      </div>
 
-      {/* —— Phase B：AI 推进建议 —— */}
-      <ProgressAIPanel state={state} setState={setState} planHealths={planHealths}
-        overdueCount={overdueTasks.length}
-        stuckCount={stuckGoals.length}
-        emptyGoalCount={goalsWithoutTasks.length}
-        orphanTaskCount={orphanTasks.length} />
+        {/* —— 第 3 列：AI 推进建议 (Phase B)，内部滚动 —— */}
+        <ProgressAIPanel state={state} setState={setState} planHealths={planHealths}
+          overdueCount={overdueTasks.length}
+          stuckCount={stuckGoals.length}
+          emptyGoalCount={goalsWithoutTasks.length}
+          orphanTaskCount={orphanTasks.length} />
+      </div>
     </div>
   );
 }

@@ -2522,28 +2522,30 @@
 /* =============================================================
  * 数据分析 v3 — 推进情况 + 卡点 + AI 建议
  * ============================================================= */
-.gm-section > .gm-analytics-v3 { flex: 1; min-height: 0; overflow-y: auto; }
+.gm-section > .gm-analytics-v3 { flex: 1; min-height: 0; overflow: hidden; }
 .gm-analytics-v3 {
-  display: flex; flex-direction: column;
+  display: grid;
+  grid-template-rows: auto 1fr;
   gap: 14px;
-  padding-right: 4px;
+  height: 100%;
+  min-height: 0;
 }
 .gm-analytics-v3__kpis {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
-  flex: 0 0 auto;
 }
 .gm-analytics-v3__main {
   display: grid;
-  grid-template-columns: 55% 45%;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 14px;
+  min-height: 0;
 }
 .gm-analytics-v3__col {
   display: flex; flex-direction: column;
-  /* 关键：必须给固定高度，否则里面 flex:1 的 __plans / __blockers 拿不到生长空间，
-   * 整个卡塌到只剩 head（前一版本只设了 max-height，会塌）。 */
-  height: 520px;
+  /* 在 __main 的 1fr 行里撑满高度；内部 __plans / __blockers 各自 overflow-y:auto */
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -2681,14 +2683,23 @@
   text-align: center;
 }
 
-/* —— AI 推进建议 —— */
+/* —— AI 推进建议（第 3 列：与左两列等高，内部滚动） —— */
 .gm-analytics-v3__ai {
   border-color: rgba(217, 154, 62, 0.4);
   background: linear-gradient(180deg, rgba(217,154,62,0.06), rgba(217,154,62,0.02));
+  display: flex; flex-direction: column;
+  height: 100%; min-height: 0;
+  overflow: hidden;
 }
 .gm-analytics-v3__ai-body {
-  min-height: 60px;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
   padding: 12px 14px;
+}
+.gm-analytics-v3__ai-body::-webkit-scrollbar { width: 6px; }
+.gm-analytics-v3__ai-body::-webkit-scrollbar-thumb {
+  background: rgba(217, 154, 62, 0.3); border-radius: 3px;
 }
 .gm-analytics-v3__ai-empty {
   font-size: 12px; color: #a87526;
