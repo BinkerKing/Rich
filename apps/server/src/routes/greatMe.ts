@@ -110,6 +110,13 @@ const ReviewSchema = z.object({
   blocker: z.array(z.string().max(280)).max(10).default([]),
   planning: z.array(z.string().max(280)).max(10).default([]),
   summary: z.string().max(2000).default(""),
+  /** 多维度复盘：每条 = {第一性原理 / 时间杠杆 / 系统视角 / 反脆弱 / 复利方向 / ...} */
+  perspectives: z.array(z.object({
+    dimension: z.string().min(1).max(40),
+    content: z.string().max(800),
+  })).max(8).default([]),
+  /** 来源：手动 / AI 起草 */
+  source: z.enum(["user", "ai"]).default("user"),
   createdAt: z.number(),
 });
 

@@ -32,6 +32,7 @@ import {
   runGreatMeBrain,
   runDecomposePlan,
   runAnalyzeProgress,
+  runDraftReview,
   type DailyNewsItem,
 } from "../ai/operations.js";
 import { shortlistByKeywords } from "../lib/elementShortlist.js";
@@ -341,6 +342,82 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       ts: new Date().toISOString(), type: "op.failed", manual: "analyze-progress",
       op: "analyze-progress", adapter: adapter.name,
       data: { durationMs: Date.now() - t0, message },
+    });
+    return c.json({ error: message, adapter: adapter.name }, 500);
+  });
+
+  // ----- draft-review: AI 起草每周复盘（多维度 perspectives） -----
+  const DraftReviewBodySchema = z.object({
+    weekOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    weekTasks: z.unknown(),
+    weekGoals: z.unknown(),
+    activePlans: z.unknown(),
+    lastReview: z.unknown().optional(),
+    metrics: z.object({
+      weekDone: z.number().int(),
+      weekTotal: z.number().int(),
+      completionRate: z.number().int().min(0).max(100),
+      overdueCount: z.number().int(),
+      stuckCount: z.number().int(),
+    }),
+    model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+  });
+  const DRAFT_REVIEW_BODY_MAX = 256 * 1024;
+  r.post("/draft-review", async (c) => {
+    const text = await c.req.text();
+    if (text.length > DRAFT_REVIEW_BODY_MAX) {
+      return c.json({ error: `body too large (>${DRAFT_REVIEW_BODY_MAX} bytes)` }, 413);
+    }
+    let raw: unknown;
+    try { raw = JSON.parse(text); }
+    catch { return c.json({ error: "invalid JSON" }, 400); }
+    const parsed = DraftReviewBodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
+    }
+    const { weekOf, weekTasks, weekGoals, activePlans, lastReview, metrics, model } = parsed.data;
+    const adapter = pickAdapter(deps.adapters, model);
+    const reqId = newReqId();
+    const t0 = Date.now();
+    log.info("ai.op.start", { reqId, op: "/api/ai/draft-review", adapter: adapter.name, weekOf });
+
+    if (!(await adapter.available())) {
+      const message = `${adapter.name} unavailable`;
+      await recordSignal(deps.signals, {
+        ts: new Date().toISOString(), type: "op.failed", manual: "draft-review",
+        op: "draft-review", adapter: adapter.name, data: { weekOf, message },
+      });
+      return c.json({ error: message, adapter: adapter.name }, 503);
+    }
+
+    let finalResult: unknown = null;
+    let lastError = "";
+    for await (const ev of runDraftReview(adapter, {
+      weekOf, weekTasks, weekGoals, activePlans, lastReview, metrics,
+      signal: c.req.raw.signal,
+    })) {
+      if (ev.type === "error") { lastError = ev.message; break; }
+      if (ev.type === "done") {
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.completed", manual: "draft-review",
+          op: "draft-review", adapter: adapter.name,
+          data: {
+            weekOf,
+            durationMs: Date.now() - t0,
+            score: ev.result.score,
+            perspectiveCount: ev.result.perspectives.length,
+          },
+        });
+        finalResult = ev.result;
+        break;
+      }
+    }
+    if (finalResult) return c.json({ adapter: adapter.name, result: finalResult });
+    const message = lastError || "draft-review failed";
+    await recordSignal(deps.signals, {
+      ts: new Date().toISOString(), type: "op.failed", manual: "draft-review",
+      op: "draft-review", adapter: adapter.name,
+      data: { weekOf, durationMs: Date.now() - t0, message },
     });
     return c.json({ error: message, adapter: adapter.name }, 500);
   });

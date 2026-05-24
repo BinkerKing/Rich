@@ -52,7 +52,15 @@ interface Task {
 }
 interface EventItem { id: string; title: string; heat: number; category: string; updatedAt: number; notes: { at: number; text: string }[] }
 interface Daily { date: string; tomorrowPlan: string; doingToday: string; meditation: string; victoryBlocker: string; nightReport: string }
-interface Review { id: string; weekOf: string; score: number; victory: string[]; blocker: string[]; planning: string[]; summary: string; createdAt: number }
+interface ReviewPerspective { dimension: string; content: string }
+interface Review {
+  id: string; weekOf: string; score: number;
+  victory: string[]; blocker: string[]; planning: string[];
+  summary: string;
+  perspectives?: ReviewPerspective[];
+  source?: "user" | "ai";
+  createdAt: number;
+}
 interface Ability { execution: number; focus: number; rhythm: number; review: number; recovery: number; evidence: number }
 interface ConversationMsg { role: "user" | "assistant"; content: string; at: number }
 interface Conversation { id: string; title: string; personality: HQPersonality; createdAt: number; messages: ConversationMsg[] }
@@ -2309,20 +2317,109 @@ function ProgressAIPanel({ state, setState, planHealths, overdueCount, stuckCoun
 function WeeklyReviewSection({ state, setState }: SectionProps): ReactNode {
   const [selectedId, setSelectedId] = useState<string | null>(state.reviews[0]?.id ?? null);
   const [editing, setEditing] = useState<Review | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const aiAbortRef = useRef<AbortController | null>(null);
 
   const reviews = [...state.reviews].sort((a, b) => b.createdAt - a.createdAt);
   const selected = reviews.find(r => r.id === selectedId) ?? reviews[0];
 
-  const startNew = (): void => {
-    const today = new Date();
-    const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - (today.getDay() + 6) % 7);
-    setEditing({ id: uid(), weekOf: ymd(weekStart), score: 60, victory: [], blocker: [], planning: [], summary: "", createdAt: Date.now() });
-  };
   const saveReview = (r: Review): void => {
     setState(prev => ({ ...prev, reviews: [...prev.reviews.filter(x => x.id !== r.id), r] }));
     setSelectedId(r.id);
     setEditing(null);
+  };
+
+  // AI 起草本周复盘：拉本周 tasks/goals/plans + 上一周复盘 → Hermes → 写入 state
+  const draftAiReview = async (): Promise<void> => {
+    setAiLoading(true);
+    setAiError(null);
+    aiAbortRef.current = new AbortController();
+    try {
+      // 本周时间窗（周一-周日）
+      const now = new Date();
+      const dayOfWeek = (now.getDay() + 6) % 7;
+      const weekStart = new Date(now); weekStart.setDate(now.getDate() - dayOfWeek);
+      const weekStartYmd = ymd(weekStart);
+      const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+      const weekEndYmd = ymd(weekEnd);
+
+      const weekTasks = state.tasks.filter(t => t.date >= weekStartYmd && t.date <= weekEndYmd);
+      const taskGoalIds = new Set(weekTasks.map(t => t.goalId).filter(Boolean));
+      const weekGoals = state.goals.filter(g => taskGoalIds.has(g.id));
+      const activePlans = state.plans.filter(p => p.status === "active");
+
+      const weekDone = weekTasks.filter(t => t.done).length;
+      const weekTotal = weekTasks.length;
+      const completionRate = weekTotal === 0 ? 0 : Math.round((weekDone / weekTotal) * 100);
+      // 卡点统计
+      const today = todayYmd();
+      const overdue = state.tasks.filter(t => !t.done && t.date && t.date < today);
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 14);
+      const cutoffYmd = ymd(cutoff);
+      const stuck = state.goals.filter(g => {
+        const ts = state.tasks.filter(t => t.goalId === g.id);
+        if (ts.length === 0 || ts.every(t => t.done)) return false;
+        return !ts.some(t => t.done && t.date >= cutoffYmd);
+      });
+
+      // 上周复盘（如果有），让 AI 对照"上周说要做但本周没做的"
+      const lastReview = reviews.find(r => r.weekOf < weekStartYmd);
+
+      const r = await fetch("/api/ai/draft-review", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          weekOf: weekStartYmd,
+          weekTasks, weekGoals, activePlans,
+          lastReview: lastReview ?? null,
+          metrics: {
+            weekDone, weekTotal, completionRate,
+            overdueCount: overdue.length,
+            stuckCount: stuck.length,
+          },
+        }),
+        signal: aiAbortRef.current.signal,
+      });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? `HTTP ${r.status}`);
+      }
+      const body = await r.json() as {
+        result: {
+          score: number;
+          victory: string[]; blocker: string[]; planning: string[];
+          summary: string;
+          perspectives: ReviewPerspective[];
+        };
+      };
+
+      // 同周已有复盘 → 替换；没有 → 新建
+      const existing = state.reviews.find(x => x.weekOf === weekStartYmd);
+      const newReview: Review = {
+        id: existing?.id ?? `review-ai-${Date.now().toString(36)}`,
+        weekOf: weekStartYmd,
+        score: body.result.score,
+        victory: body.result.victory,
+        blocker: body.result.blocker,
+        planning: body.result.planning,
+        summary: body.result.summary,
+        perspectives: body.result.perspectives,
+        source: "ai",
+        createdAt: Date.now(),
+      };
+      setState(prev => ({
+        ...prev,
+        reviews: [...prev.reviews.filter(x => x.id !== newReview.id), newReview],
+      }));
+      setSelectedId(newReview.id);
+    } catch (err) {
+      const e = err as { name?: string; message?: string };
+      if (e.name === "AbortError") { setAiLoading(false); return; }
+      setAiError(e.message ?? String(err));
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const avgScore = reviews.length === 0 ? 0 : Math.round(reviews.reduce((s, r) => s + r.score, 0) / reviews.length);
@@ -2331,36 +2428,22 @@ function WeeklyReviewSection({ state, setState }: SectionProps): ReactNode {
     <>
       <div className="gm-row" style={{ justifyContent: "space-between" }}>
         <div className="gm-card__title">每周复盘</div>
-        <button className="gm-btn is-primary" onClick={startNew}>+ 新建复盘</button>
+        <button className="gm-btn is-primary" onClick={() => void draftAiReview()} disabled={aiLoading}>
+          {aiLoading ? "Hermes 起草中…" : "🪄 AI 复盘"}
+        </button>
       </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)", gap: 14, alignItems: "start" }}>
-        <div className="gm-card">
-          <div className="gm-card__head">
-            <div>
-              <div className="gm-card__title">整体摘要</div>
-              <div className="gm-card__sub">最近一次复盘</div>
-            </div>
-            {selected && <span className="gm-badge">{selected.score} 分</span>}
-          </div>
-          {!selected ? (
-            <div className="gm-empty">
-              <div>暂无复盘记录</div>
-              <button className="gm-empty__cta" onClick={startNew}>+ 立刻开始</button>
-            </div>
-          ) : (
-            <>
-              <div className="gm-card__sub">第 {selected.weekOf} 周起 · {new Date(selected.createdAt).toLocaleDateString("zh-CN")}</div>
-              <div className="gm-mt12">{selected.summary || "（暂无摘要）"}</div>
-              <div className="gm-report-3col gm-mt20">
-                <ReportCol kind="victory" title="胜利回顾" items={selected.victory} empty="—" />
-                <ReportCol kind="blocker" title="阻碍复盘" items={selected.blocker} empty="—" />
-                <ReportCol kind="planning" title="下周规划" items={selected.planning} empty="—" />
-              </div>
-            </>
-          )}
+      {aiError && (
+        <div style={{
+          padding: "8px 12px", borderRadius: 8, marginTop: 8,
+          background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.3)",
+          color: "#ff9a8a", fontSize: 12,
+        }}>
+          起草失败：{aiError}
         </div>
+      )}
 
+      {/* 位置互换：左 = 数据洞察 + 历史；右 = 整体摘要（宽，承载多维度内容） */}
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.8fr)", gap: 14, alignItems: "start" }}>
         <div className="gm-card">
           <div className="gm-card__title">数据洞察</div>
           <div className="gm-analytics-overview gm-mt12" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
@@ -2368,18 +2451,69 @@ function WeeklyReviewSection({ state, setState }: SectionProps): ReactNode {
             <div className="gm-kpi"><div className="gm-kpi__num">{avgScore}</div><div className="gm-kpi__label">平均分</div></div>
           </div>
           <div className="gm-card__title gm-mt20">历史考核</div>
-          <div className="gm-tasks gm-mt12" style={{ maxHeight: 280, overflowY: "auto" }}>
+          <div className="gm-tasks gm-mt12" style={{ maxHeight: 360, overflowY: "auto" }}>
             {reviews.length === 0 ? <div className="gm-empty">还没有历史记录</div> :
               reviews.map(r => (
                 <div key={r.id} className={`gm-task ${r.id === selectedId ? "is-active" : ""}`} onClick={() => setSelectedId(r.id)}>
                   <div className="gm-task__body">
-                    <div className="gm-task__title">第 {r.weekOf} 周 · {r.score} 分</div>
+                    <div className="gm-task__title">
+                      {r.weekOf} · {r.score} 分
+                      {r.source === "ai" && <span style={{ marginLeft: 6, fontSize: 10, padding: "1px 6px", borderRadius: 8, background: "rgba(217,154,62,0.18)", color: "#d99a3e" }}>AI</span>}
+                    </div>
                     <div className="gm-task__sub">{new Date(r.createdAt).toLocaleDateString("zh-CN")}</div>
                   </div>
                 </div>
               ))
             }
           </div>
+        </div>
+
+        <div className="gm-card">
+          <div className="gm-card__head">
+            <div>
+              <div className="gm-card__title">整体摘要</div>
+              <div className="gm-card__sub">
+                {selected ? `第 ${selected.weekOf} 周起 · ${new Date(selected.createdAt).toLocaleDateString("zh-CN")}` : "选择一份复盘查看详情"}
+              </div>
+            </div>
+            {selected && <span className="gm-badge">{selected.score} 分</span>}
+          </div>
+          {!selected ? (
+            <div className="gm-empty">
+              <div>暂无复盘记录</div>
+              <button className="gm-empty__cta" onClick={() => void draftAiReview()}>🪄 让 Rich 起草本周复盘</button>
+            </div>
+          ) : (
+            <>
+              <div className="gm-mt12" style={{ lineHeight: 1.7 }}>{selected.summary || "（暂无摘要）"}</div>
+
+              <div className="gm-report-3col gm-mt20">
+                <ReportCol kind="victory" title="胜利回顾" items={selected.victory} empty="—" />
+                <ReportCol kind="blocker" title="阻碍复盘" items={selected.blocker} empty="—" />
+                <ReportCol kind="planning" title="下周规划" items={selected.planning} empty="—" />
+              </div>
+
+              {/* 多维度复盘块（AI 复盘专属，手动复盘可能没有这块） */}
+              {selected.perspectives && selected.perspectives.length > 0 && (
+                <div className="gm-mt20">
+                  <div className="gm-card__title" style={{ marginBottom: 10 }}>多视角分析</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+                    {selected.perspectives.map((p, i) => (
+                      <div key={i} style={{
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        background: "rgba(217,154,62,0.05)",
+                        borderLeft: "3px solid #d99a3e",
+                      }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "#d99a3e", marginBottom: 4 }}>{p.dimension}</div>
+                        <div style={{ fontSize: 12, lineHeight: 1.65, color: "#c9a96a" }}>{p.content}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
 

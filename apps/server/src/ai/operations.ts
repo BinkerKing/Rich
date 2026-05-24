@@ -22,6 +22,7 @@ import { buildGenerateMindmapPrompt } from "./prompts/generateMindmap.js";
 import { buildGreatMePrompt, type GreatMeMode } from "./prompts/greatMe.js";
 import { buildDecomposePlanPrompt } from "./prompts/decomposePlan.js";
 import { buildAnalyzeProgressPrompt } from "./prompts/analyzeProgress.js";
+import { buildDraftReviewPrompt } from "./prompts/draftReview.js";
 import type { AIManual } from "./manuals.js";
 import type { Signal } from "@ke/domain";
 
@@ -588,6 +589,51 @@ export function runAnalyzeProgress(
       op: "analyze-progress",
       model: adapter.name,
       scope: {},
+    },
+  });
+}
+
+// ----- Draft weekly review (multi-perspective) -----
+const DraftReviewResultSchema = z.object({
+  score: z.number().int().min(0).max(100),
+  victory: z.array(z.string().max(280)).max(10).default([]),
+  blocker: z.array(z.string().max(280)).max(10).default([]),
+  planning: z.array(z.string().max(280)).max(10).default([]),
+  summary: z.string().max(2000),
+  perspectives: z.array(z.object({
+    dimension: z.string().min(1).max(40),
+    content: z.string().max(800),
+  })).max(8).default([]),
+});
+export type DraftReviewResult = z.infer<typeof DraftReviewResultSchema>;
+
+export function runDraftReview(
+  adapter: AIAdapter,
+  args: {
+    weekOf: string;
+    weekTasks: unknown;
+    weekGoals: unknown;
+    activePlans: unknown;
+    lastReview?: unknown;
+    metrics: Parameters<typeof buildDraftReviewPrompt>[0]["metrics"];
+  } & SharedOpArgs,
+): AsyncIterable<StructuredEvent<DraftReviewResult>> {
+  const prompt = buildDraftReviewPrompt({
+    weekOf: args.weekOf,
+    weekTasks: args.weekTasks,
+    weekGoals: args.weekGoals,
+    activePlans: args.activePlans,
+    lastReview: args.lastReview,
+    metrics: args.metrics,
+  });
+  return runStructuredAI(adapter, {
+    prompt,
+    signal: args.signal,
+    validate: zodValidator(DraftReviewResultSchema),
+    opLog: {
+      op: "draft-review",
+      model: adapter.name,
+      scope: { weekOf: args.weekOf },
     },
   });
 }
