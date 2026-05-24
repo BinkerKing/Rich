@@ -125,13 +125,16 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
     scene: "目标拆解、任务推进、每日任务、每周复盘、AI 推进建议。",
     manual: [
       "先用 plan_list 或 analytics_summary 获取当前计划状态。",
-      "用户说完成某事时用 task_mark_done，不要只回复鼓励。",
-      "用户提出新目标时优先 plan_decompose，而不是手工造空计划。",
+      "用户说完成某事时用 task_complete，不要只回复鼓励。",
+      "用户提出新目标时优先 plan_decompose；服务离线或批量维护时用计划管理 CLI。",
+      "清理 seed/demo 脏计划前必须先备份 GreatMe state，只清空 plans/goals/tasks。",
     ],
     cli: [
       "MCP: plan_list / plan_get / analytics_summary",
       "MCP: plan_decompose / goal_create / task_create",
-      "MCP: task_list / task_mark_done / analyze_progress",
+      "MCP: task_list / task_complete / analyze_progress",
+      "CLI: pnpm --filter @ke/server run plan -- list plans --status all --json",
+      "CLI: pnpm --filter @ke/server run plan -- clear all --yes --json",
     ],
   },
   {

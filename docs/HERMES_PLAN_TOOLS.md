@@ -4,6 +4,14 @@ Rich 的 MCP 服务在 `http://127.0.0.1:31515/mcp` 暴露 17 个跟"计划管�
 相关的工具，让 Hermes（或任何 MCP 客户端：Claude Desktop、Codex、Cursor）
 直接驱动 大斌哥 的 plan / goal / task 数据流。
 
+如果 MCP 服务不可用、需要后台批量维护、或需要清理 seed/demo 脏数据，使用服务端计划管理 CLI：
+
+```bash
+pnpm --filter @ke/server run plan -- list plans --status all --json
+pnpm --filter @ke/server run plan -- list day --date today --json
+pnpm --filter @ke/server run plan -- clear all --yes --json
+```
+
 Hermes 已经在 `~/.hermes/config.yaml` 配置好 `mcp_servers.rich`，每次会话
 自动 list_tools；所以这些工具开箱即用，无需额外配置。
 
@@ -127,7 +135,38 @@ Plan (计划)
 
 ## 调试 / 测试
 
-直接 curl MCP 端点：
+### 服务端 CLI
+
+CLI 会根据 `KE_STORAGE` 选择 GreatMe 后端。Rich 当前如果以 Postgres 运行，就必须用同一套环境变量连接真实后端；不要默认改 `data/ke.db`。
+
+```bash
+# 读取完整计划树索引
+pnpm --filter @ke/server run plan -- list plans --status all --json
+pnpm --filter @ke/server run plan -- list goals --plan-id <planId> --json
+pnpm --filter @ke/server run plan -- list tasks --plan-id <planId> --json
+
+# 按年/月/周/日维度读取
+pnpm --filter @ke/server run plan -- list year --plan-id <planId> --json
+pnpm --filter @ke/server run plan -- list month --plan-id <planId> --json
+pnpm --filter @ke/server run plan -- list week --plan-id <planId> --json
+pnpm --filter @ke/server run plan -- list day --date today --json
+
+# 创建和更新
+pnpm --filter @ke/server run plan -- create plan --title "我的计划" --start 2026-05-25 --end 2026-08-25
+pnpm --filter @ke/server run plan -- create week --plan-id <planId> --title "本周推进" --due 2026-05-31
+pnpm --filter @ke/server run plan -- create day --goal-id <goalId> --title "今天行动" --date 2026-05-25
+pnpm --filter @ke/server run plan -- update day --id <taskId> --done true
+
+# 破坏性操作必须 --yes
+pnpm --filter @ke/server run plan -- delete plan --id <planId> --yes
+pnpm --filter @ke/server run plan -- clear all --yes --json
+```
+
+清理“计划管理脏数据”的标准流程：先备份完整 GreatMe blob，再只清空 `plans/goals/tasks`，写回后验证三类计数为 0，并确认 profile/events/daily/reviews 等非计划数据仍存在。
+
+不要把 `psql ... | python3 <<'PY'` 这种管道和 heredoc 混用：heredoc 会占用 Python stdin，导致 JSON 解析空输入。需要解析 CLI/psql 输出时，先写临时文件再让 Python 读取文件。
+
+### MCP 端点
 
 ```bash
 curl -s -X POST http://127.0.0.1:31515/mcp \
