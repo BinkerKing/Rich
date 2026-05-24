@@ -87,10 +87,12 @@ const SECTION_LABELS: Record<SectionId, string> = {
   analytics: "数据分析", weekly_review: "每周复盘",
   mission_control: "HQ 对话", settings: "设置",
 };
-/** 侧栏只渲染这几项；goals / events 暂时隐藏（功能已并入首页+计划详情+数据分析）。
- *  组件代码还在，git history 里也在；以后想再用一行恢复。 */
+/** 侧栏只渲染这几项；goals / events / mission_control 暂时隐藏。
+ *  - goals/events 已并入首页+计划详情+数据分析
+ *  - mission_control（HQ 对话）：大斌哥 直接用 Hermes CLI 沟通，应用内的对话面板冗余
+ *  组件代码全部还在，git history 里也在；以后想再用一行恢复。 */
 const SIDEBAR_SECTIONS: SectionId[] = [
-  "home", "analytics", "weekly_review", "mission_control", "settings",
+  "home", "analytics", "weekly_review", "settings",
 ];
 const SECTION_SUBTITLES: Record<SectionId, string> = {
   home: "专注当下、持续进化",
