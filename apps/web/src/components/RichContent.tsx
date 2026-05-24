@@ -1,5 +1,15 @@
 import type { ReactNode } from "react";
+import { marked } from "marked";
 import { useStore } from "../state/store.js";
+import { VisualBlockRenderer } from "./VisualBlockRenderer.js";
+
+// 启用 GFM + 软换行 —— AI 写 "\n" 会渲染成 <br>，避免每行都得 \n\n
+marked.setOptions({ gfm: true, breaks: true });
+
+/** 这段文字是不是含块级 markdown（标题 / 列表 / 引用 / 段落分隔）？*/
+function isBlockMarkdown(text: string): boolean {
+  return /(\n\n)|(^|\n)#{1,6}\s|(^|\n)[-*]\s|(^|\n)>\s|(^|\n)\d+\.\s/.test(text);
+}
 
 /**
  * RichContent — render an assistant's message content with in-line jump
@@ -22,21 +32,73 @@ import { useStore } from "../state/store.js";
  */
 
 const RICH_LINK_RE = /\[([^\]]+)\]\(rich:\/\/([^)\s]+)\)/g;
+// 视觉块围栏：```<lang>\n ... \n``` (T03 系统提示词约定的协议)
+// 流式时如果还没闭合，pre-parse 也会识别一个"streaming"块（用末尾未闭合的部分）
+const VISUAL_FENCE_RE = /```([a-zA-Z]*)\n([\s\S]*?)```/g;
+const VISUAL_FENCE_OPEN_RE = /```([a-zA-Z]*)\n([\s\S]*)$/;  // 末尾未闭合
 
 interface Segment {
-  type: "text" | "link";
-  /** For text segments — the literal string. */
+  type: "text" | "link" | "visual";
+  /** For text segments */
   text?: string;
-  /** For link segments — display label + target path. */
+  /** For link segments */
   label?: string;
   target?: string;
+  /** For visual segments — ASCII content + lang hint + 是否已闭合 */
+  ascii?: string;
+  langHint?: string;
+  closed?: boolean;
 }
 
+/**
+ * 把消息文本切成 text / link / visual 三类 segment。
+ *
+ * 优先级：先识别完整的视觉块围栏（闭合的 ```...```），再在 text 段里识别 rich:// 链接。
+ * 末尾未闭合的围栏识别成一个 streaming 视觉块（content=尚未到的部分）。
+ */
 function parse(text: string): Segment[] {
+  const out: Segment[] = [];
+  let cursor = 0;
+  // 第一遍：识别所有闭合的视觉块围栏
+  VISUAL_FENCE_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = VISUAL_FENCE_RE.exec(text)) !== null) {
+    if (m.index > cursor) {
+      // 前缀文字段，进 link parser
+      const before = text.slice(cursor, m.index);
+      for (const seg of parseTextWithLinks(before)) out.push(seg);
+    }
+    out.push({ type: "visual", ascii: m[2], langHint: m[1], closed: true });
+    cursor = VISUAL_FENCE_RE.lastIndex;
+  }
+
+  // 剩余：可能含一个未闭合的围栏（流式中的状态）
+  if (cursor < text.length) {
+    const tail = text.slice(cursor);
+    const openMatch = tail.match(VISUAL_FENCE_OPEN_RE);
+    if (openMatch) {
+      const openStart = tail.indexOf("```");
+      if (openStart > 0) {
+        for (const seg of parseTextWithLinks(tail.slice(0, openStart))) out.push(seg);
+      }
+      out.push({
+        type: "visual",
+        ascii: openMatch[2],
+        langHint: openMatch[1],
+        closed: false,
+      });
+    } else {
+      for (const seg of parseTextWithLinks(tail)) out.push(seg);
+    }
+  }
+  return out;
+}
+
+/** 把一段文字里的 rich:// 链接识别成 link segment */
+function parseTextWithLinks(text: string): Segment[] {
   const out: Segment[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
-  // Reset regex state per call — global regexes carry .lastIndex across calls.
   RICH_LINK_RE.lastIndex = 0;
   while ((m = RICH_LINK_RE.exec(text)) !== null) {
     if (m.index > last) {
@@ -103,7 +165,27 @@ export function RichContent({ text }: { text: string }): ReactNode {
     <>
       {segments.map((seg, i) => {
         if (seg.type === "text") {
-          return <span key={i}>{seg.text}</span>;
+          const t = seg.text ?? "";
+          if (!t) return null;
+          // 块级 markdown（列表 / 标题 / 引用 / 多段）→ 用 div + marked.parse 完整渲染
+          // 否则用 inline 渲染（不破坏行内的 rich-jump 按钮）
+          if (isBlockMarkdown(t)) {
+            const html = marked.parse(t, { async: false }) as string;
+            return <div key={i} className="rich-md" dangerouslySetInnerHTML={{ __html: html }} />;
+          }
+          const html = marked.parseInline(t, { async: false }) as string;
+          return <span key={i} className="rich-md-inline" dangerouslySetInnerHTML={{ __html: html }} />;
+        }
+        if (seg.type === "visual") {
+          return (
+            <VisualBlockRenderer
+              key={i}
+              ascii={seg.ascii ?? ""}
+              hint={undefined /* 让 detectBlockType 自动判 */}
+              mode={seg.closed ? "final" : "stream"}
+              done={seg.closed}
+            />
+          );
         }
         return (
           <button

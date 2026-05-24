@@ -50,6 +50,7 @@
   font-size: 12px;
   color: var(--muted);
 }
+.admin-filters input,
 .admin-filters select,
 .admin-filters button {
   height: 30px;
@@ -59,6 +60,12 @@
   background: rgba(255,255,255,.05);
   color: var(--text);
   font: inherit;
+}
+.admin-filters input {
+  min-width: 220px;
+  outline: none;
+}
+.admin-filters button {
   cursor: pointer;
 }
 .admin-filters button:hover {
@@ -297,6 +304,90 @@
   .admin-manuals { grid-template-columns: 1fr; }
 }
 
+/* ----- AI learning manual tab ----- */
+
+.learning-manual-grid {
+  padding: 0 20px 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+  overflow: auto;
+  min-height: 0;
+}
+
+.learning-manual-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,.02);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.learning-manual-card header {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.learning-manual-card__id {
+  color: var(--teal);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.learning-manual-card h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.learning-manual-card h3 {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.learning-manual-card p {
+  margin: 0;
+  color: var(--soft);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.learning-manual-card ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--soft);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.learning-manual-cli {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.learning-manual-cli code {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(0,0,0,.18);
+  color: var(--teal);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  padding: 7px 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .admin-hint {
   padding: 14px 16px;
   display: flex;
@@ -310,6 +401,269 @@
 
 @media (max-width: 1240px) {
   .admin-split { grid-template-columns: 1fr; }
+}
+
+/* ----- AI corpus tab ----- */
+
+.corpus-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 14px;
+  padding: 0 20px 20px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.corpus-error {
+  color: #f3bd58;
+}
+
+.corpus-list {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,.02);
+  padding: 10px;
+  overflow: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.corpus-item {
+  --corpus-accent: var(--teal);
+  --corpus-accent-glow: rgba(61,213,205,.16);
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  transition: border-color .12s ease, background .12s ease;
+}
+.corpus-item:hover,
+.corpus-item.is-active {
+  border-color: var(--line-2);
+  background: rgba(255,255,255,.035);
+}
+.corpus-item strong {
+  color: var(--text);
+  font-size: 13px;
+}
+.corpus-item span {
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.corpus-item em {
+  color: var(--corpus-accent);
+  font-style: normal;
+  font-size: 11px;
+}
+
+.corpus-editor {
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
+  gap: 14px;
+}
+
+.corpus-editor__grid,
+.corpus-preview {
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,.02);
+}
+
+.corpus-editor__grid {
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-content: start;
+}
+
+.corpus-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.corpus-field--wide { grid-column: 1 / -1; }
+.corpus-field span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.corpus-field input,
+.corpus-field select,
+.corpus-field textarea {
+  width: 100%;
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+  background: rgba(255,255,255,.035);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  padding: 9px 10px;
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.corpus-field textarea {
+  line-height: 1.55;
+  font-family: var(--mono);
+}
+.corpus-field input:focus,
+.corpus-field select:focus,
+.corpus-field textarea:focus {
+  border-color: var(--corpus-accent, var(--teal-line));
+}
+
+.corpus-color-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.corpus-color {
+  --corpus-accent: var(--teal);
+  --corpus-accent-glow: rgba(61,213,205,.16);
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: rgba(255,255,255,.025);
+  color: var(--soft);
+  font: inherit;
+  font-size: 12px;
+  padding: 7px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: border-color .12s ease, background .12s ease, color .12s ease;
+}
+
+.corpus-color span {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--corpus-accent);
+  box-shadow: 0 0 12px var(--corpus-accent-glow);
+}
+
+.corpus-color:hover,
+.corpus-color.is-active {
+  border-color: var(--corpus-accent);
+  background: var(--corpus-accent-glow);
+  color: var(--text);
+}
+
+.corpus-preview {
+  --corpus-accent: var(--teal);
+  --corpus-accent-glow: rgba(61,213,205,.16);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.corpus-preview header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.corpus-preview header strong { color: var(--text); }
+.corpus-preview header span {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.corpus-preview__accent {
+  border: 1px solid var(--corpus-accent);
+  border-radius: 999px;
+  background: var(--corpus-accent-glow);
+  color: var(--text);
+  font-size: 12px;
+  width: fit-content;
+  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.corpus-preview__accent span {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--corpus-accent);
+}
+.corpus-preview dl {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px 10px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.corpus-preview dt { color: var(--muted); }
+.corpus-preview dd { margin: 0; color: var(--soft); }
+.corpus-template-preview {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(0,0,0,.16);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.corpus-template-line {
+  min-height: 1.55em;
+}
+.corpus-template-line.is-empty {
+  height: .8em;
+  min-height: .8em;
+}
+.corpus-token--heading {
+  color: var(--corpus-accent);
+  font-weight: 800;
+  text-shadow: 0 0 14px var(--corpus-accent-glow);
+}
+.corpus-token--slot {
+  color: var(--corpus-accent);
+  border: 1px solid color-mix(in srgb, var(--corpus-accent) 45%, transparent);
+  border-radius: 5px;
+  background: var(--corpus-accent-glow);
+  padding: 0 4px;
+}
+.corpus-token--bullet {
+  color: var(--corpus-accent);
+  font-weight: 800;
+}
+.corpus-actions {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 1180px) {
+  .corpus-layout { grid-template-columns: 1fr; overflow: auto; }
+  .corpus-list { max-height: 220px; }
+  .corpus-editor { grid-template-columns: 1fr; overflow: visible; }
 }
 
 /* ----- Engine tab ----- */
@@ -412,7 +766,10 @@ html[data-theme="cyber"] .admin-main,
 html[data-theme="cyber"] .admin-pane,
 html[data-theme="cyber"] .admin-engine,
 html[data-theme="cyber"] .admin-split,
-html[data-theme="cyber"] .admin-manuals {
+html[data-theme="cyber"] .admin-manuals,
+html[data-theme="cyber"] .learning-manual-grid,
+html[data-theme="cyber"] .corpus-layout,
+html[data-theme="cyber"] .corpus-editor {
   background: #000 !important;
   box-shadow: none !important;
 }
@@ -428,6 +785,13 @@ html[data-theme="cyber"] .admin-table-wrap,
 html[data-theme="cyber"] .admin-detail,
 html[data-theme="cyber"] .admin-manual-detail,
 html[data-theme="cyber"] .admin-manuals-list,
+html[data-theme="cyber"] .learning-manual-card,
+html[data-theme="cyber"] .learning-manual-cli code,
+html[data-theme="cyber"] .corpus-list,
+html[data-theme="cyber"] .corpus-item,
+html[data-theme="cyber"] .corpus-editor__grid,
+html[data-theme="cyber"] .corpus-preview,
+html[data-theme="cyber"] .corpus-template-preview,
 html[data-theme="cyber"] .admin-pre,
 html[data-theme="cyber"] .admin-empty,
 html[data-theme="cyber"] .admin-loading {
@@ -440,6 +804,7 @@ html[data-theme="cyber"] .admin-engine-card > header,
 html[data-theme="cyber"] .admin-pane__head,
 html[data-theme="cyber"] .admin-detail__head,
 html[data-theme="cyber"] .admin-manual-detail > header,
+html[data-theme="cyber"] .corpus-preview header,
 html[data-theme="cyber"] .admin-table th {
   background: #000 !important;
   border-color: rgba(255, 255, 255, .10) !important;
@@ -456,12 +821,35 @@ html[data-theme="cyber"] .admin-table tbody tr.is-active {
 }
 
 html[data-theme="cyber"] .admin-filters select,
+html[data-theme="cyber"] .admin-filters input,
 html[data-theme="cyber"] .admin-filters button,
 html[data-theme="cyber"] .admin-detail__meta code,
-html[data-theme="cyber"] .admin-adapter-list li {
+html[data-theme="cyber"] .admin-adapter-list li,
+html[data-theme="cyber"] .corpus-field input,
+html[data-theme="cyber"] .corpus-field select,
+html[data-theme="cyber"] .corpus-field textarea {
   background: #000 !important;
   border-color: rgba(255, 255, 255, .12) !important;
   box-shadow: none !important;
+}
+
+html[data-theme="cyber"] .corpus-item:hover,
+html[data-theme="cyber"] .corpus-item.is-active {
+  background: rgba(255, 255, 255, .035) !important;
+  border-color: rgba(255, 255, 255, .18) !important;
+}
+
+html[data-theme="cyber"] .corpus-color:hover,
+html[data-theme="cyber"] .corpus-color.is-active,
+html[data-theme="cyber"] .corpus-preview__accent {
+  background: var(--corpus-accent-glow) !important;
+  border-color: var(--corpus-accent) !important;
+}
+
+html[data-theme="cyber"] .corpus-field input:focus,
+html[data-theme="cyber"] .corpus-field select:focus,
+html[data-theme="cyber"] .corpus-field textarea:focus {
+  border-color: var(--corpus-accent, var(--teal-line)) !important;
 }
 
 /* -------------------------------- Cron Tab -------------------------------- */

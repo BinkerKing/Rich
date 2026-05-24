@@ -24,6 +24,8 @@ import { buildDecomposePlanPrompt } from "./prompts/decomposePlan.js";
 import { buildAnalyzeProgressPrompt } from "./prompts/analyzeProgress.js";
 import { buildDraftReviewPrompt } from "./prompts/draftReview.js";
 import { buildDraftPrdPrompt } from "./prompts/draftPrd.js";
+import { buildDraftChildPrompt } from "./prompts/draftChild.js";
+import { buildAdjustChildPrompt } from "./prompts/adjustChild.js";
 import type { AIManual } from "./manuals.js";
 import type { Signal } from "@ke/domain";
 
@@ -640,6 +642,19 @@ export function runDraftReview(
 }
 
 // ----- Draft PRD (项目实战) -----
+// AI 不确定时给用户列出的问题——支持 2-6 个选项，前端做选择卡片。
+// 用在 draftPrd / draftChild / adjustChild 三种 op 的输出末尾。
+export const InquirySchema = z.object({
+  question: z.string().min(1).max(400),
+  options: z.array(z.object({
+    label: z.string().min(1).max(80),
+    description: z.string().max(200).default(""),
+  })).min(2).max(6),
+  context: z.string().max(200).default(""),
+  importance: z.enum(["blocker", "nice-to-know"]).default("nice-to-know"),
+});
+export type Inquiry = z.infer<typeof InquirySchema>;
+
 const DraftPrdResultSchema = z.object({
   title: z.string().min(1).max(200),
   sections: z.object({
@@ -652,6 +667,7 @@ const DraftPrdResultSchema = z.object({
     outOfScope: z.array(z.string().max(280)).max(10).default([]),
     risks: z.array(z.string().max(280)).max(10).default([]),
   }),
+  inquiries: z.array(InquirySchema).default([]),
 });
 export type DraftPrdResult = z.infer<typeof DraftPrdResultSchema>;
 
@@ -676,6 +692,88 @@ export function runDraftPrd(
       op: "draft-prd",
       model: adapter.name,
       scope: { title: args.practice.title.slice(0, 80) },
+    },
+  });
+}
+
+// ====== draft-child：AI 起草项目实战的单个子元（知识点/场景分析/功能说明/开发任务） ======
+const DraftChildResultSchema = z.object({
+  title: z.string().min(1).max(200),
+  subtitle: z.string().max(400).default(""),
+  // content 留宽松——不同 type 字段不同；上层渲染靠 ChildElementModal 智能渲染。
+  content: z.record(z.string(), z.union([z.string(), z.array(z.string()), z.null()])).default({}),
+  // AI 写的时候碰到不确定点 → 列成 inquiries，上层会建成独立的 inquiry 元
+  inquiries: z.array(InquirySchema).default([]),
+});
+export type DraftChildResult = z.infer<typeof DraftChildResultSchema>;
+
+export function runDraftChild(
+  adapter: AIAdapter,
+  args: {
+    practice: Parameters<typeof buildDraftChildPrompt>[0]["practice"];
+    groupType: Parameters<typeof buildDraftChildPrompt>[0]["groupType"];
+    existingTitles: string[];
+    direction: string;
+  } & SharedOpArgs,
+): AsyncIterable<StructuredEvent<DraftChildResult>> {
+  const prompt = buildDraftChildPrompt({
+    practice: args.practice,
+    groupType: args.groupType,
+    existingTitles: args.existingTitles,
+    direction: args.direction,
+  });
+  return runStructuredAI(adapter, {
+    prompt,
+    signal: args.signal,
+    validate: zodValidator(DraftChildResultSchema),
+    opLog: {
+      op: "draft-child",
+      model: adapter.name,
+      scope: {
+        title: args.practice.title.slice(0, 80),
+        groupType: args.groupType,
+      },
+    },
+  });
+}
+
+// ====== adjust-child：AI 基于"当前状态 + 调整方向"重写一个已有子元 ======
+// 复用 DraftChildResultSchema —— 返回结构跟 draft 一致（title + subtitle + content + inquiries）
+const AdjustChildResultSchema = z.object({
+  title: z.string().min(1).max(200),
+  subtitle: z.string().max(400).default(""),
+  content: z.record(z.string(), z.union([z.string(), z.array(z.string()), z.null()])).default({}),
+  inquiries: z.array(InquirySchema).default([]),
+});
+export type AdjustChildResult = z.infer<typeof AdjustChildResultSchema>;
+
+export function runAdjustChild(
+  adapter: AIAdapter,
+  args: {
+    practice: Parameters<typeof buildAdjustChildPrompt>[0]["practice"];
+    groupType: Parameters<typeof buildAdjustChildPrompt>[0]["groupType"];
+    current: Parameters<typeof buildAdjustChildPrompt>[0]["current"];
+    direction: string;
+  } & SharedOpArgs,
+): AsyncIterable<StructuredEvent<AdjustChildResult>> {
+  const prompt = buildAdjustChildPrompt({
+    practice: args.practice,
+    groupType: args.groupType,
+    current: args.current,
+    direction: args.direction,
+  });
+  return runStructuredAI(adapter, {
+    prompt,
+    signal: args.signal,
+    validate: zodValidator(AdjustChildResultSchema),
+    opLog: {
+      op: "adjust-child",
+      model: adapter.name,
+      scope: {
+        title: args.practice.title.slice(0, 80),
+        groupType: args.groupType,
+        currentTitle: args.current.title.slice(0, 60),
+      },
     },
   });
 }

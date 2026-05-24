@@ -9,7 +9,8 @@ import type { ElementsRepo } from "../repos/ElementsRepo.js";
 import type { RelationsRepo } from "../repos/RelationsRepo.js";
 import type { AIAdapter } from "../ai/adapter.js";
 import { pickAdapter } from "../ai/pickAdapter.js";
-import { runDraftPrd } from "../ai/operations.js";
+import { runDraftPrd, runDraftChild, runAdjustChild } from "../ai/operations.js";
+import type { Inquiry } from "../ai/operations.js";
 import type { Element, ElementType } from "@ke/domain";
 
 function uid(prefix: string): string {
@@ -125,7 +126,7 @@ export function registerPracticeTools(
   // ===== practice_create =====
   server.tool(
     "practice_create",
-    "Create a new 实战项目 (practice element) + 4 default groups (知识点 / 需求分析 / PRD / 开发任务). Auto-tagged '实战项目'. After creation, use practice_add_child to populate each group; pass the group's id as parentId.",
+    "Create a new 实战项目 (practice element) + 7 default groups (知识点 / 场景分析 / 功能说明 / PRD / 开发任务 / 整改建议 / 提问). Auto-tagged '实战项目'. After creation, use practice_add_child to populate each group; pass the group's id as parentId.",
     {
       title: z.string().min(1).max(280),
       subtitle: z.string().max(280).optional(),
@@ -145,8 +146,8 @@ export function registerPracticeTools(
       };
       await elements.put(practice);
 
-      // 顺序建 4 个默认分组（顺序 = 创建顺序 = UI 渲染顺序）
-      const defaults = ["知识点", "需求分析", "PRD", "开发任务"];
+      // 顺序建 7 个默认分组（顺序 = 创建顺序 = UI 渲染顺序）
+      const defaults = ["知识点", "场景分析", "功能说明", "PRD", "开发任务", "整改建议", "提问"];
       const groups: Element[] = [];
       for (const g of defaults) {
         const grp: Element = {
@@ -171,10 +172,10 @@ export function registerPracticeTools(
   // ===== practice_add_child =====
   server.tool(
     "practice_add_child",
-    "Add a sub-element (knowledge/requirement/prd/dev-task) under a GROUP inside a practice. Pass parentId = the group's id (use practice_get to find groups). If parentId is a practice element, the tool auto-routes to a sensible default group based on type: knowledge→知识点, requirement→需求分析, prd→PRD, dev-task→开发任务 (creating the group if missing).",
+    "Add a sub-element (knowledge/requirement/feature/prd/dev-task/revision/inquiry) under a GROUP inside a practice. Pass parentId = the group's id (use practice_get to find groups). If parentId is a practice element, the tool auto-routes to a sensible default group based on type: knowledge→知识点, requirement→场景分析, feature→功能说明, prd→PRD, dev-task→开发任务, revision→整改建议, inquiry→提问 (creating the group if missing).",
     {
       parentId: z.string().min(1).describe("Group element id (preferred) or practice element id (auto-routes)."),
-      type: z.enum(["knowledge", "requirement", "prd", "dev-task"] as [ElementType, ...ElementType[]]),
+      type: z.enum(["knowledge", "requirement", "feature", "prd", "dev-task", "revision", "inquiry"] as [ElementType, ...ElementType[]]),
       title: z.string().min(1).max(280),
       subtitle: z.string().max(280).optional(),
       content: z.unknown().optional().describe("Optional rich content. Free-form per element type."),
@@ -191,9 +192,12 @@ export function registerPracticeTools(
       if (parent.type === "practice") {
         const DEFAULT_GROUP: Record<string, string> = {
           knowledge: "知识点",
-          requirement: "需求分析",
+          requirement: "场景分析",
+          feature: "功能说明",
           prd: "PRD",
           "dev-task": "开发任务",
+          revision: "整改建议",
+          inquiry: "提问",
         };
         const wantedGroupTitle = DEFAULT_GROUP[type];
         const rels = await relations.list();
@@ -417,8 +421,472 @@ export function registerPracticeTools(
         kind: "child",
         createdAt: now,
       }]);
+      // 落地 AI 提出的 inquiries
+      const inquiryIds = await persistInquiries(
+        elements, relations, practiceId, prdEl.id, result.inquiries ?? [],
+      );
+
       fire("practice.draft_prd", { practiceId, prdId: prdEl.id, groupId: prdGroupId });
-      return ok({ ok: true, prdId: prdEl.id, title: result.title, groupId: prdGroupId });
+      return ok({
+        ok: true, prdId: prdEl.id, title: result.title, groupId: prdGroupId,
+        inquiries: inquiryIds.length,
+      });
     },
   );
+
+  // ===== practice_patch_child =====
+  // 增量更新一个子元（title / subtitle / content / status / tags）。
+  // 用于不调 AI、直接改某个字段；比 add_child 后删旧的更轻。
+  server.tool(
+    "practice_patch_child",
+    "Patch fields of an existing practice sub-element (title / subtitle / content / status / tags). Only fields you pass get updated; others stay. Use this for surgical edits without AI.",
+    {
+      elementId: z.string().min(1),
+      title: z.string().min(1).max(280).optional(),
+      subtitle: z.string().max(400).optional(),
+      content: z.unknown().optional().describe("If passed, REPLACES the whole content object."),
+      status: z.enum(["todo", "doing", "done"]).optional(),
+      tags: z.array(z.string().max(40)).max(20).optional(),
+    },
+    async ({ elementId, title, subtitle, content, status, tags }) => {
+      const el = await elements.get(elementId);
+      if (!el) return err(`Element ${elementId} not found`);
+      const next: Element = { ...el, metadata: { ...el.metadata, updatedAt: new Date().toISOString() } };
+      if (title !== undefined) next.title = title.trim();
+      if (subtitle !== undefined) next.subtitle = subtitle.trim() || undefined;
+      if (content !== undefined) next.content = content;
+      if (status !== undefined) next.status = status;
+      if (tags !== undefined) next.tags = tags;
+      await elements.put(next);
+      fire("practice.patch_child", { id: elementId, type: el.type });
+      return ok({ ok: true, element: next });
+    },
+  );
+
+  // ===== practice_delete_child =====
+  // 级联删除：元 + 所有以它为父的子元 + 所有 relation。
+  server.tool(
+    "practice_delete_child",
+    "Delete a practice sub-element. Cascades: removes the element + all its descendants + all relations. Cannot be undone.",
+    {
+      elementId: z.string().min(1),
+    },
+    async ({ elementId }) => {
+      const el = await elements.get(elementId);
+      if (!el) return err(`Element ${elementId} not found`);
+      // BFS 收集要删的 id
+      const allRels = await relations.list();
+      const toDelete = new Set<string>([elementId]);
+      const queue = [elementId];
+      while (queue.length) {
+        const cur = queue.shift()!;
+        for (const r of allRels) {
+          if (r.kind === "child" && r.from === cur && !toDelete.has(r.to)) {
+            toDelete.add(r.to);
+            queue.push(r.to);
+          }
+        }
+      }
+      const idsArr = Array.from(toDelete);
+      await relations.removeForElements(idsArr);
+      await elements.removeMany(idsArr);
+      fire("practice.delete_child", { id: elementId, cascadeCount: toDelete.size });
+      return ok({ ok: true, deletedIds: idsArr, count: toDelete.size });
+    },
+  );
+
+  // ===== practice_draft_child =====
+  // AI 起草一个子元（知识点/场景分析/功能说明/开发任务/整改建议），输出 title+subtitle+content+inquiries。
+  // 自动挂到对应分组下；inquiries 落到 "提问" 分组。
+  server.tool(
+    "practice_draft_child",
+    "🪄 Ask Hermes to draft a single sub-element for a practice (knowledge / requirement / feature / dev-task / revision). AI generates title + subtitle + content based on the project context + user direction. If AI raises questions, they auto-land in the '提问' group. Takes 15-40s.",
+    {
+      practiceId: z.string().min(1),
+      groupType: z.enum(["knowledge", "requirement", "feature", "dev-task", "revision"]),
+      direction: z.string().min(1).max(1000).describe("What you want this element to be about (short sentence or two)"),
+      model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+    },
+    async ({ practiceId, groupType, direction, model }) => {
+      const p = await elements.get(practiceId);
+      if (!p || p.type !== "practice") return err(`Practice ${practiceId} not found`);
+      const adapter = pickAdapter(adapters, model);
+      if (!(await adapter.available())) return err(`${adapter.name} unavailable`);
+
+      const GROUP_TITLE: Record<string, string> = {
+        knowledge: "知识点",
+        requirement: "场景分析",
+        feature: "功能说明",
+        "dev-task": "开发任务",
+        revision: "整改建议",
+      };
+      const targetGroupTitle = GROUP_TITLE[groupType];
+
+      // 找/建目标分组
+      const groupId = await ensureGroup(elements, relations, practiceId, targetGroupTitle);
+      const existing = await listChildren(elements, relations, groupId);
+
+      let result: import("../ai/operations.js").DraftChildResult | null = null;
+      let lastError = "";
+      for await (const ev of runDraftChild(adapter, {
+        practice: { title: p.title, subtitle: p.subtitle, content: p.content },
+        groupType,
+        existingTitles: existing.map(c => c.title),
+        direction,
+      })) {
+        if (ev.type === "error") { lastError = ev.message; break; }
+        if (ev.type === "done") { result = ev.result; break; }
+      }
+      if (!result) return err(lastError || "draft-child failed");
+
+      const now = new Date().toISOString();
+      const newEl: Element = {
+        id: uid("e"),
+        type: groupType as ElementType,
+        title: result.title,
+        subtitle: result.subtitle || undefined,
+        content: result.content,
+        metadata: { createdAt: now, updatedAt: now, generatedBy: "ai", aiModel: adapter.name, richness: 2 },
+      };
+      await elements.put(newEl);
+      await relations.append([{
+        id: uid("r"), from: groupId, to: newEl.id, kind: "child", createdAt: now,
+      }]);
+
+      // AI 提出的不确定点 → 挂到 "提问" 分组
+      const inquiryIds = await persistInquiries(
+        elements, relations, practiceId, newEl.id, result.inquiries ?? [],
+      );
+
+      fire("practice.draft_child", { practiceId, childId: newEl.id, groupType });
+      return ok({
+        ok: true, childId: newEl.id, groupId,
+        title: newEl.title, subtitle: newEl.subtitle,
+        inquiries: inquiryIds.length,
+      });
+    },
+  );
+
+  // ===== practice_adjust_child =====
+  // 基于"当前内容 + 调整方向"重写一个已有子元。整版替换 title+subtitle+content。
+  server.tool(
+    "practice_adjust_child",
+    "🪄 Ask Hermes to adjust an existing practice sub-element based on a direction (e.g. 'make painPoint more concrete' / 'add an example'). AI re-writes the whole element preserving the content field structure. Takes 15-40s.",
+    {
+      elementId: z.string().min(1),
+      direction: z.string().min(1).max(1000),
+      model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+    },
+    async ({ elementId, direction, model }) => {
+      const el = await elements.get(elementId);
+      if (!el) return err(`Element ${elementId} not found`);
+      const ADJUSTABLE = new Set(["knowledge", "requirement", "feature", "prd", "dev-task", "revision"]);
+      if (!ADJUSTABLE.has(el.type)) {
+        return err(`Element type '${el.type}' is not adjustable. Adjustable: knowledge / requirement / feature / prd / dev-task / revision.`);
+      }
+
+      // 找所属 practice：el ← group ← practice
+      const allRels = await relations.list();
+      const parentRel = allRels.find(r => r.kind === "child" && r.to === el.id);
+      if (!parentRel) return err(`Element ${elementId} has no parent`);
+      const parent = await elements.get(parentRel.from);
+      let practice: Element | null = null;
+      if (parent?.type === "practice") {
+        practice = parent;
+      } else if (parent?.type === "group") {
+        const gpRel = allRels.find(r => r.kind === "child" && r.to === parent.id);
+        if (gpRel) {
+          const gp = await elements.get(gpRel.from);
+          if (gp?.type === "practice") practice = gp;
+        }
+      }
+      if (!practice) return err(`Could not find parent practice for ${elementId}`);
+
+      const adapter = pickAdapter(adapters, model);
+      if (!(await adapter.available())) return err(`${adapter.name} unavailable`);
+
+      let result: import("../ai/operations.js").AdjustChildResult | null = null;
+      let lastError = "";
+      for await (const ev of runAdjustChild(adapter, {
+        practice: { title: practice.title, subtitle: practice.subtitle, content: practice.content },
+        groupType: el.type as "knowledge" | "requirement" | "feature" | "prd" | "dev-task" | "revision",
+        current: { title: el.title, subtitle: el.subtitle, content: el.content },
+        direction,
+      })) {
+        if (ev.type === "error") { lastError = ev.message; break; }
+        if (ev.type === "done") { result = ev.result; break; }
+      }
+      if (!result) return err(lastError || "adjust-child failed");
+
+      const now = new Date().toISOString();
+      const updated: Element = {
+        ...el,
+        title: result.title,
+        subtitle: result.subtitle || undefined,
+        content: result.content,
+        metadata: { ...el.metadata, updatedAt: now, aiModel: adapter.name },
+      };
+      await elements.put(updated);
+
+      const inquiryIds = await persistInquiries(
+        elements, relations, practice.id, el.id, result.inquiries ?? [],
+      );
+
+      fire("practice.adjust_child", { elementId, practiceId: practice.id });
+      return ok({
+        ok: true, element: updated,
+        inquiries: inquiryIds.length,
+      });
+    },
+  );
+
+  // ===== practice_list_inquiries =====
+  // 列出待回答的提问（按 practice 过滤或全局）
+  server.tool(
+    "practice_list_inquiries",
+    "List pending inquiries (questions raised by Rich that need 大斌哥's answer). Filter by practice or get all open ones. Use this to check 'what's waiting for me'.",
+    {
+      practiceId: z.string().optional().describe("Optional: filter to one practice. Omit = all practices."),
+      includeAnswered: z.boolean().default(false).describe("Include already-answered inquiries"),
+    },
+    async ({ practiceId, includeAnswered }) => {
+      const all = await elements.list();
+      const allRels = await relations.list();
+      const inquiries = all.filter(e => e.type === "inquiry");
+      const filtered = inquiries.filter(inq => {
+        if (!includeAnswered && inq.status === "done") return false;
+        if (!practiceId) return true;
+        // 反向追到顶层 practice
+        const ancestors = findAncestors(inq.id, allRels);
+        return ancestors.includes(practiceId);
+      });
+      return ok({
+        count: filtered.length,
+        inquiries: filtered.map(i => ({
+          id: i.id,
+          title: i.title,
+          status: i.status ?? "todo",
+          question: (i.content as { question?: string })?.question,
+          options: (i.content as { options?: unknown[] })?.options,
+          importance: (i.content as { importance?: string })?.importance,
+          context: (i.content as { context?: string })?.context,
+          relatedTo: (i.content as { relatedTo?: string })?.relatedTo,
+        })),
+      });
+    },
+  );
+
+  // ===== practice_answer_inquiry =====
+  // 回答一个提问：选择 option 或写自定义答案
+  server.tool(
+    "practice_answer_inquiry",
+    "Answer an inquiry (the questions Rich raised). Either pick an option by index (0-based) OR provide a customAnswer text. Marks the inquiry as 'done'.",
+    {
+      inquiryId: z.string().min(1),
+      optionIndex: z.number().int().min(0).optional().describe("0-based index of the chosen option. Omit if using customAnswer."),
+      customAnswer: z.string().max(1000).optional().describe("Free-text answer. Omit if using optionIndex."),
+    },
+    async ({ inquiryId, optionIndex, customAnswer }) => {
+      const el = await elements.get(inquiryId);
+      if (!el || el.type !== "inquiry") return err(`Inquiry ${inquiryId} not found`);
+      if (optionIndex === undefined && !customAnswer?.trim()) {
+        return err("Must provide either optionIndex or customAnswer");
+      }
+      const now = new Date().toISOString();
+      const oldContent = (el.content ?? {}) as Record<string, unknown>;
+      const nextContent = {
+        ...oldContent,
+        selectedOption: optionIndex !== undefined ? optionIndex : -1,
+        customAnswer: customAnswer?.trim() || undefined,
+        answeredAt: now,
+      };
+      const updated: Element = {
+        ...el,
+        content: nextContent,
+        status: "done" as const,
+        metadata: { ...el.metadata, updatedAt: now },
+      };
+      await elements.put(updated);
+      fire("practice.answer_inquiry", { id: inquiryId });
+      return ok({ ok: true, element: updated });
+    },
+  );
+
+  // ===== practice_delete_group =====
+  // 级联删除一个分组 + 它下面所有的子元
+  server.tool(
+    "practice_delete_group",
+    "Delete a group inside a practice + all its child elements (cascade). Cannot be undone.",
+    {
+      groupId: z.string().min(1),
+    },
+    async ({ groupId }) => {
+      const g = await elements.get(groupId);
+      if (!g || g.type !== "group") return err(`Group ${groupId} not found`);
+      const allRels = await relations.list();
+      const toDelete = new Set<string>([groupId]);
+      const queue = [groupId];
+      while (queue.length) {
+        const cur = queue.shift()!;
+        for (const r of allRels) {
+          if (r.kind === "child" && r.from === cur && !toDelete.has(r.to)) {
+            toDelete.add(r.to);
+            queue.push(r.to);
+          }
+        }
+      }
+      const idsArr = Array.from(toDelete);
+      await relations.removeForElements(idsArr);
+      await elements.removeMany(idsArr);
+      fire("practice.delete_group", { groupId, cascadeCount: toDelete.size });
+      return ok({ ok: true, deletedIds: idsArr, count: toDelete.size });
+    },
+  );
+
+  // ===== practice_rename_group =====
+  server.tool(
+    "practice_rename_group",
+    "Rename a group inside a practice. Sub-elements keep their type; only the group's display label changes.",
+    {
+      groupId: z.string().min(1),
+      title: z.string().min(1).max(120),
+    },
+    async ({ groupId, title }) => {
+      const g = await elements.get(groupId);
+      if (!g || g.type !== "group") return err(`Group ${groupId} not found`);
+      const updated: Element = {
+        ...g,
+        title: title.trim(),
+        metadata: { ...g.metadata, updatedAt: new Date().toISOString() },
+      };
+      await elements.put(updated);
+      fire("practice.rename_group", { groupId, title });
+      return ok({ ok: true, group: updated });
+    },
+  );
+
+  // ===== practice_set_revision_decision =====
+  // 快速给一个 revision 元打 decision 标记（做 / 暂缓 / 不做）
+  server.tool(
+    "practice_set_revision_decision",
+    "Set the decision field on a revision element (做 / 暂缓 / 不做). Convenience wrapper over patch_child — just updates content.decision without rewriting other fields.",
+    {
+      revisionId: z.string().min(1),
+      decision: z.enum(["做", "暂缓", "不做"]),
+      reason: z.string().max(400).optional(),
+    },
+    async ({ revisionId, decision, reason }) => {
+      const el = await elements.get(revisionId);
+      if (!el || el.type !== "revision") return err(`Revision ${revisionId} not found`);
+      const oldContent = (el.content ?? {}) as Record<string, unknown>;
+      const decisionStr = reason ? `${decision} —— ${reason}` : decision;
+      const updated: Element = {
+        ...el,
+        content: { ...oldContent, decision: decisionStr },
+        metadata: { ...el.metadata, updatedAt: new Date().toISOString() },
+      };
+      await elements.put(updated);
+      fire("practice.set_revision_decision", { revisionId, decision });
+      return ok({ ok: true, element: updated });
+    },
+  );
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * 找/建一个 practice 下的指定 group。返回 group id。
+ */
+async function ensureGroup(
+  elements: ElementsRepo,
+  relations: RelationsRepo,
+  practiceId: string,
+  groupTitle: string,
+): Promise<string> {
+  const rels = await relations.list();
+  const childIds = rels.filter(r => r.kind === "child" && r.from === practiceId).map(r => r.to);
+  const all = await elements.list();
+  const byId = new Map(all.map(e => [e.id, e] as const));
+  const existing = childIds
+    .map(id => byId.get(id))
+    .find(e => e?.type === "group" && e.title === groupTitle);
+  if (existing) return existing.id;
+  const now = new Date().toISOString();
+  const grp: Element = {
+    id: `${groupTitle.replace(/[^\w一-鿿]+/g, "-").slice(0, 30)}-${Math.random().toString(36).slice(2, 7)}`,
+    type: "group",
+    title: groupTitle,
+    content: {},
+    metadata: { createdAt: now, updatedAt: now, generatedBy: "ai", richness: 1 },
+  };
+  await elements.put(grp);
+  await relations.append([{
+    id: `${practiceId}-child-${grp.id}`,
+    from: practiceId, to: grp.id, kind: "child", createdAt: now,
+  }]);
+  return grp.id;
+}
+
+/**
+ * AI 提出的 inquiries[] → 挂在 practice 下的 "提问" 分组里。
+ * 返回新建的 inquiry id 数组。
+ */
+async function persistInquiries(
+  elements: ElementsRepo,
+  relations: RelationsRepo,
+  practiceId: string,
+  relatedToId: string,
+  inquiries: Inquiry[],
+): Promise<string[]> {
+  if (inquiries.length === 0) return [];
+  const groupId = await ensureGroup(elements, relations, practiceId, "提问");
+  const askedAt = new Date().toISOString();
+  const createdIds: string[] = [];
+  for (const inq of inquiries) {
+    const titleRaw = inq.question.trim();
+    const title = titleRaw.length > 60 ? titleRaw.slice(0, 60) + "…" : titleRaw;
+    const inqEl: Element = {
+      id: `inquiry-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      type: "inquiry",
+      title,
+      subtitle: inq.context || undefined,
+      content: {
+        question: inq.question,
+        options: inq.options,
+        context: inq.context,
+        importance: inq.importance,
+        relatedTo: relatedToId,
+        askedAt,
+      },
+      status: "todo" as const,
+      metadata: { createdAt: askedAt, updatedAt: askedAt, generatedBy: "ai", richness: 1 },
+    };
+    await elements.put(inqEl);
+    await relations.append([{
+      id: `${groupId}-child-${inqEl.id}`,
+      from: groupId, to: inqEl.id, kind: "child", createdAt: askedAt,
+    }]);
+    createdIds.push(inqEl.id);
+  }
+  return createdIds;
+}
+
+/**
+ * 反向追溯祖先链（用 child relation 逆向走）。返回从直接父到顶层的 id 数组。
+ */
+function findAncestors(elementId: string, rels: Array<{ kind: string; from: string; to: string }>): string[] {
+  const ancestors: string[] = [];
+  let current = elementId;
+  const visited = new Set<string>();
+  while (true) {
+    if (visited.has(current)) break;
+    visited.add(current);
+    const parentRel = rels.find(r => r.kind === "child" && r.to === current);
+    if (!parentRel) break;
+    ancestors.push(parentRel.from);
+    current = parentRel.from;
+  }
+  return ancestors;
 }

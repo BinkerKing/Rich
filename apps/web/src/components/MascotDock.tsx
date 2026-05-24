@@ -5,6 +5,8 @@ import walk0 from "../assets/mascot/walk-0.png";
 import walk1 from "../assets/mascot/walk-1.png";
 import walk2 from "../assets/mascot/walk-2.png";
 import walk3 from "../assets/mascot/walk-3.png";
+import { useMascotState } from "../lib/useMascotState.js";
+import { startBreathScheduler } from "../lib/mascotBreathScheduler.js";
 import "./MascotDock.css";
 
 /**
@@ -40,29 +42,61 @@ export function MascotDock() {
   const appView = useStore(s => s.appView);
   const setAppView = useStore(s => s.setAppView);
   const exitToHome = useStore(s => s.exitToHome);
+  const mascotState = useMascotState();
   const [frame, setFrame] = useState(0);
+  /** 微动作 once 动画：随机插入的 800ms 单次动作（抓头/翻白眼/看左/看右） */
+  const [microAction, setMicroAction] = useState<string | null>(null);
+
+  // 每态自带的帧切换速度
+  const frameMs = (
+    mascotState === "talking" ? 120 :
+    mascotState === "thinking" ? 220 :
+    mascotState === "proud" ? 100 :
+    mascotState === "confused" ? 260 :
+    mascotState === "embarrassed" ? 200 :
+    180   // idle = 漫步
+  );
 
   useEffect(() => {
     const id = window.setInterval(() => {
       setFrame(f => (f + 1) % WALK_FRAMES.length);
-    }, 180);
+    }, frameMs);
     return () => window.clearInterval(id);
-  }, []);
+  }, [frameMs]);
+
+  // T08 呼吸态调度器：thinking ≥ 1s 期间，每 3-5s 随机插一个 800ms 微动作
+  useEffect(() => {
+    if (mascotState !== "thinking") {
+      setMicroAction(null);
+      return;
+    }
+    const stop = startBreathScheduler({
+      onTriggerMicro: (action) => setMicroAction(action),
+      onClearMicro: () => setMicroAction(null),
+    });
+    return stop;
+  }, [mascotState]);
+
+  // CSS 类聚合
+  const stateClass = `mascot-dock__sprite-wrap--${mascotState}`;
+  const microClass = microAction ? `mascot-dock__sprite-wrap--micro-${microAction}` : "";
 
   return (
-    <div className="mascot-dock" aria-label="Rich · 视图切换">
+    <div className="mascot-dock" aria-label="Rich · 视图切换" data-state={mascotState}>
       <button
         type="button"
         className="mascot-dock__mascot"
         title="视图系统"
         aria-haspopup="true"
       >
-        <img
-          src={WALK_FRAMES[frame]}
-          alt=""
-          className="mascot-dock__sprite"
-          aria-hidden="true"
-        />
+        <span className={`mascot-dock__sprite-wrap ${stateClass} ${microClass}`}>
+          <img
+            src={WALK_FRAMES[frame]}
+            alt=""
+            className="mascot-dock__sprite"
+            aria-hidden="true"
+          />
+        </span>
       </button>
       <div className="mascot-dock__flyout" role="menu" aria-label="视图">
         {VIEWS.map(v => {

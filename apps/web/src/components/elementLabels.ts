@@ -25,11 +25,17 @@ export function elementTypeLabel(type: ElementType): string {
     case "knowledge":
       return "知识点";
     case "requirement":
-      return "需求分析";
+      return "场景分析";
+    case "feature":
+      return "功能说明";
     case "prd":
       return "PRD";
     case "dev-task":
       return "开发任务";
+    case "revision":
+      return "整改建议";
+    case "inquiry":
+      return "提问";
     default:
       return "知识元";
   }
@@ -61,10 +67,16 @@ export function elementTypeClass(type: ElementType): string {
       return "element-type--knowledge";
     case "requirement":
       return "element-type--requirement";
+    case "feature":
+      return "element-type--feature";
     case "prd":
       return "element-type--prd";
     case "dev-task":
       return "element-type--dev-task";
+    case "revision":
+      return "element-type--revision";
+    case "inquiry":
+      return "element-type--inquiry";
     default:
       return "element-type--knowledge";
   }

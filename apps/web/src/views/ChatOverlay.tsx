@@ -4,6 +4,10 @@ import {
 } from "react";
 import { create } from "zustand";
 import { RichContent } from "../components/RichContent.js";
+import { dispatchMascotEvent } from "../lib/mascotEvents.js";
+import { persistVisualBlocks } from "../lib/extractVisualBlocks.js";
+import { markChatSendStart, markMascotFirstFrame, markFirstTextChunk, newReqId } from "../lib/perfMarks.js";
+import { ChatHistoryView } from "./ChatHistoryView.js";
 import "../components/RichContent.css";
 import {
   CHAT_HISTORY_STORAGE_KEY,
@@ -113,6 +117,8 @@ export function ChatOverlay() {
   const reset = useChatStore(s => s.reset);
 
   const [input, setInput] = useState("");
+  /** T16: 是否切到三栏历史回看视图 */
+  const [historyOpen, setHistoryOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -176,6 +182,14 @@ export function ChatOverlay() {
     // Push an empty pending assistant message that we'll stream into.
     append({ id: nextId(), role: "assistant", content: "", pending: true, tools: [] });
     setInflight(true);
+    // T06/T07/T08 —— 立即切 Mascot 到 thinking（user 感知线，跟服务端 mascot
+    // 事件兜底叠加。任一方先到都生效，state machine 防抖）
+    dispatchMascotEvent({ type: "user-send" });
+    // T18 性能埋点：记录回车的时刻
+    const reqId = newReqId();
+    markChatSendStart(reqId);
+    markMascotFirstFrame(reqId);   // 实际上跟 send 同一 tick，L1 ≈ 0
+    let firstTextChunkSeen = false;
 
     try {
       const r = await fetch("/api/chat/stream", {
@@ -213,23 +227,39 @@ export function ChatOverlay() {
               patchLast({
                 content: (useChatStore.getState().messages.at(-1)?.content ?? "") + chunk,
               });
+              if (!firstTextChunkSeen) {
+                firstTextChunkSeen = true;
+                dispatchMascotEvent({ type: "first-text-chunk" });
+                markFirstTextChunk(reqId);   // T18: 上报首字延迟
+              }
             } else if (currentEvent === "tool") {
               const t = parsed as { name: string; status: "running" | "completed" };
               pushTool({ name: t.name, status: t.status, ts: Date.now() });
+              dispatchMascotEvent({ type: "tool-progress", tool: t.name });
+            } else if (currentEvent === "mascot") {
+              // 服务端推的状态（T02 兜底首帧 mascot:thinking）
+              const m = parsed as { state: import("../lib/mascotEvents.js").MascotState };
+              if (m.state) dispatchMascotEvent({ type: "server-push", state: m.state });
             } else if (currentEvent === "done") {
               patchLast({ pending: false });
+              dispatchMascotEvent({ type: "done" });
+              // T15: 把 assistant 消息里的所有视觉块持久化（异步，不阻塞 UI）
+              const lastMsg = useChatStore.getState().messages.at(-1);
+              if (lastMsg?.role === "assistant" && lastMsg.content) {
+                void persistVisualBlocks(lastMsg.id, lastMsg.content);
+              }
             } else if (currentEvent === "error") {
               const { message } = parsed as { message: string };
               patchLast({ pending: false, error: message });
+              dispatchMascotEvent({ type: "error", message });
             }
           }
         }
       }
     } catch (err) {
-      patchLast({
-        pending: false,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      const message = err instanceof Error ? err.message : String(err);
+      patchLast({ pending: false, error: message });
+      dispatchMascotEvent({ type: "error", message });
     } finally {
       setInflight(false);
     }
@@ -294,7 +324,13 @@ export function ChatOverlay() {
           />
           <div className="chat-input-actions">
             {messages.length > 0 && (
-              <button type="button" className="chat-pill" onClick={reset} title="清空对话">清空</button>
+              <>
+                <button type="button" className="chat-pill"
+                  onClick={() => setHistoryOpen(true)} title="历史回看（三栏）">
+                  📜 历史
+                </button>
+                <button type="button" className="chat-pill" onClick={reset} title="清空对话">清空</button>
+              </>
             )}
             <button
               type="submit"
@@ -333,6 +369,7 @@ export function ChatOverlay() {
           </div>
         </footer>
       </div>
+      {historyOpen && <ChatHistoryView onBack={() => setHistoryOpen(false)} />}
     </div>
   );
 }

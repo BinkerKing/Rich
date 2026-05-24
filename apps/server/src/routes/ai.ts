@@ -34,6 +34,8 @@ import {
   runAnalyzeProgress,
   runDraftReview,
   runDraftPrd,
+  runDraftChild,
+  runAdjustChild,
   type DailyNewsItem,
 } from "../ai/operations.js";
 import { shortlistByKeywords } from "../lib/elementShortlist.js";
@@ -480,6 +482,129 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     }
     if (finalResult) return c.json({ adapter: adapter.name, result: finalResult });
     return c.json({ error: lastError || "draft-prd failed", adapter: adapter.name }, 500);
+  });
+
+  // ----- draft-child: AI 起草项目实战的单个子元 -----
+  const DraftChildBodySchema = z.object({
+    practice: z.object({
+      title: z.string().min(1).max(280),
+      subtitle: z.string().max(280).optional(),
+      content: z.unknown().optional(),
+    }),
+    groupType: z.enum(["knowledge", "requirement", "feature", "dev-task", "revision"]),
+    existingTitles: z.array(z.string().max(200)).max(50).default([]),
+    direction: z.string().min(1).max(1000),
+    model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+  });
+  const DRAFT_CHILD_BODY_MAX = 64 * 1024;
+  r.post("/draft-child", async (c) => {
+    const text = await c.req.text();
+    if (text.length > DRAFT_CHILD_BODY_MAX) {
+      return c.json({ error: `body too large (>${DRAFT_CHILD_BODY_MAX} bytes)` }, 413);
+    }
+    let raw: unknown;
+    try { raw = JSON.parse(text); }
+    catch { return c.json({ error: "invalid JSON" }, 400); }
+    const parsed = DraftChildBodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
+    }
+    const { practice, groupType, existingTitles, direction, model } = parsed.data;
+    const adapter = pickAdapter(deps.adapters, model);
+    const reqId = newReqId();
+    const t0 = Date.now();
+    log.info("ai.op.start", { reqId, op: "/api/ai/draft-child", adapter: adapter.name, groupType });
+
+    if (!(await adapter.available())) {
+      return c.json({ error: `${adapter.name} unavailable`, adapter: adapter.name }, 503);
+    }
+
+    let finalResult: unknown = null;
+    let lastError = "";
+    for await (const ev of runDraftChild(adapter, {
+      practice, groupType, existingTitles, direction, signal: c.req.raw.signal,
+    })) {
+      if (ev.type === "error") { lastError = ev.message; break; }
+      if (ev.type === "done") {
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.completed", manual: "draft-child",
+          op: "draft-child", adapter: adapter.name,
+          data: {
+            practiceTitle: practice.title.slice(0, 80),
+            groupType,
+            durationMs: Date.now() - t0,
+          },
+        });
+        finalResult = ev.result;
+        break;
+      }
+    }
+    if (finalResult) return c.json({ adapter: adapter.name, result: finalResult });
+    return c.json({ error: lastError || "draft-child failed", adapter: adapter.name }, 500);
+  });
+
+  // ----- adjust-child: AI 基于"当前状态 + 方向"重写一个已有子元 -----
+  const AdjustChildBodySchema = z.object({
+    practice: z.object({
+      title: z.string().min(1).max(280),
+      subtitle: z.string().max(280).optional(),
+      content: z.unknown().optional(),
+    }),
+    groupType: z.enum(["knowledge", "requirement", "feature", "prd", "dev-task", "revision"]),
+    current: z.object({
+      title: z.string().min(1).max(280),
+      subtitle: z.string().max(400).optional(),
+      content: z.unknown().optional(),
+    }),
+    direction: z.string().min(1).max(1000),
+    model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+  });
+  const ADJUST_CHILD_BODY_MAX = 128 * 1024;
+  r.post("/adjust-child", async (c) => {
+    const text = await c.req.text();
+    if (text.length > ADJUST_CHILD_BODY_MAX) {
+      return c.json({ error: `body too large (>${ADJUST_CHILD_BODY_MAX} bytes)` }, 413);
+    }
+    let raw: unknown;
+    try { raw = JSON.parse(text); }
+    catch { return c.json({ error: "invalid JSON" }, 400); }
+    const parsed = AdjustChildBodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
+    }
+    const { practice, groupType, current, direction, model } = parsed.data;
+    const adapter = pickAdapter(deps.adapters, model);
+    const reqId = newReqId();
+    const t0 = Date.now();
+    log.info("ai.op.start", { reqId, op: "/api/ai/adjust-child", adapter: adapter.name, groupType });
+
+    if (!(await adapter.available())) {
+      return c.json({ error: `${adapter.name} unavailable`, adapter: adapter.name }, 503);
+    }
+
+    let finalResult: unknown = null;
+    let lastError = "";
+    for await (const ev of runAdjustChild(adapter, {
+      practice, groupType, current, direction, signal: c.req.raw.signal,
+    })) {
+      if (ev.type === "error") { lastError = ev.message; break; }
+      if (ev.type === "done") {
+        await recordSignal(deps.signals, {
+          ts: new Date().toISOString(), type: "op.completed", manual: "adjust-child",
+          op: "adjust-child", adapter: adapter.name,
+          data: {
+            practiceTitle: practice.title.slice(0, 80),
+            currentTitle: current.title.slice(0, 80),
+            groupType,
+            durationMs: Date.now() - t0,
+          },
+        });
+        finalResult = ev.result;
+        break;
+      }
+    }
+    if (finalResult) return c.json({ adapter: adapter.name, result: finalResult });
+    return c.json({ error: lastError || "adjust-child failed", adapter: adapter.name }, 500);
   });
 
   // ----- analyze-input: AI 解析引擎 -----

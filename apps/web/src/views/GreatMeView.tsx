@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import { api } from "../api/client.js";
+import { useStore } from "../state/store.js";
 import { migrateLegacyGoals, computePlanProgress } from "@ke/domain";
 import type { Plan, Metric } from "@ke/domain";
 import { NewPlanModal } from "../components/NewPlanModal.js";
@@ -360,21 +361,29 @@ export function GreatMeView(): ReactNode {
   }, []);
 
   const update = (patch: Partial<GreatMeState>): void => setState(prev => ({ ...prev, ...patch }));
+  const switchSection = (id: SectionId): void => {
+    setSelectedPlanId(null);
+    update({ activeSection: id });
+  };
 
   return (
     <div className="gm-app">
-      <aside className="gm-side">
-        <div className="gm-side__brand">计划管理</div>
-        {SIDEBAR_SECTIONS.map(id => (
-          <button key={id}
-            className={`gm-side__item ${state.activeSection === id ? "is-active" : ""}`}
-            onClick={() => update({ activeSection: id })}>
-            {SECTION_LABELS[id]}
-          </button>
-        ))}
-      </aside>
-
       <div className="gm-main">
+        <div className="gm-topbar">
+          <div className="gm-topbar__brand">计划管理</div>
+          <div className="gm-topnav" role="tablist" aria-label="计划管理菜单">
+            {SIDEBAR_SECTIONS.map(id => (
+              <button key={id}
+                type="button"
+                role="tab"
+                aria-selected={state.activeSection === id && !selectedPlanId}
+                className={`gm-topnav__item ${state.activeSection === id && !selectedPlanId ? "is-active" : ""}`}
+                onClick={() => switchSection(id)}>
+                {SECTION_LABELS[id]}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="gm-section">
           {selectedPlanId ? (() => {
             const plan = state.plans.find(p => p.id === selectedPlanId);
@@ -453,6 +462,17 @@ function HomeSection({ state, setState, onPickPlan, onNewPlan, onAIDecompose }: 
 
   const todayTasks = state.tasks.filter(t => t.date === selectedDate);
   const completion = todayTasks.length === 0 ? 0 : Math.round(todayTasks.filter(t => t.done).length / todayTasks.length * 100);
+
+  // 项目实战待回答提问总数（跨所有 practice）—— 显示在首页顶部作为提醒
+  const allElements = useStore(s => s.elements);
+  const pendingInquiriesTotal = useMemo(() => {
+    let n = 0;
+    allElements.forEach(e => {
+      if (e.type === "inquiry" && (e.status ?? "todo") !== "done") n++;
+    });
+    return n;
+  }, [allElements]);
+  const setAppView = useStore(s => s.setAppView);
 
   // 只看 week/month/year（"custom"/"all" fallback 到 week）
   const scope: "week" | "month" | "year" =
@@ -680,6 +700,14 @@ function HomeSection({ state, setState, onPickPlan, onNewPlan, onAIDecompose }: 
           <span className="gm-home-v3__date">{todayDateLabel} · 第 {wk} 周</span>
         </div>
         <div className="gm-home-v3__top-right">
+          {pendingInquiriesTotal > 0 && (
+            <button
+              className="gm-home-v3__inquiry-chip"
+              title="项目实战里 Rich 提出的待回答问题"
+              onClick={() => setAppView("practice")}>
+              ❓ {pendingInquiriesTotal} 个问题待你回答
+            </button>
+          )}
           <div className="gm-home-v3__top-num">{completion}%</div>
           <div className="gm-home-v3__top-meta">
             <span>今日 {doneToday} / {todayTasks.length}</span>
@@ -1790,7 +1818,7 @@ function EventsSection({ state, setState }: SectionProps): ReactNode {
           {/* 战术地图主体 */}
           <div className="gm-tactical-map">
             {filtered.length === 0 ? (
-              <div className="gm-empty" style={{ alignSelf: "flex-end", width: "100%", padding: 14, background: "rgba(217,154,62,0.06)", border: "1px dashed var(--gm-line)", borderRadius: 10, marginTop: "auto" }}>
+              <div className="gm-empty" style={{ alignSelf: "flex-end", width: "100%", padding: 14, background: "transparent", border: "1px dashed var(--gm-line)", borderRadius: 10, marginTop: "auto" }}>
                 当前范围还没有可显示的主题辖区。
               </div>
             ) : viewMode === "topic" ? (
@@ -2428,7 +2456,7 @@ function WeeklyReviewSection({ state, setState }: SectionProps): ReactNode {
     <>
       <div className="gm-row" style={{ justifyContent: "space-between" }}>
         <div className="gm-card__title">每周复盘</div>
-        <button className="gm-btn is-primary" onClick={() => void draftAiReview()} disabled={aiLoading}>
+        <button className="gm-btn is-primary gm-weekly-review__ai-btn" onClick={() => void draftAiReview()} disabled={aiLoading}>
           {aiLoading ? "Hermes 起草中…" : "🪄 AI 复盘"}
         </button>
       </div>
@@ -2443,8 +2471,8 @@ function WeeklyReviewSection({ state, setState }: SectionProps): ReactNode {
       )}
 
       {/* 位置互换：左 = 数据洞察 + 历史；右 = 整体摘要（宽，承载多维度内容） */}
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.8fr)", gap: 14, alignItems: "start" }}>
-        <div className="gm-card">
+      <div className="gm-weekly-review">
+        <div className="gm-card gm-weekly-review__side">
           <div className="gm-card__title">数据洞察</div>
           <div className="gm-analytics-overview gm-mt12" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
             <div className="gm-kpi"><div className="gm-kpi__num">{reviews.length}</div><div className="gm-kpi__label">复盘次数</div></div>
@@ -2458,7 +2486,7 @@ function WeeklyReviewSection({ state, setState }: SectionProps): ReactNode {
                   <div className="gm-task__body">
                     <div className="gm-task__title">
                       {r.weekOf} · {r.score} 分
-                      {r.source === "ai" && <span style={{ marginLeft: 6, fontSize: 10, padding: "1px 6px", borderRadius: 8, background: "rgba(217,154,62,0.18)", color: "#d99a3e" }}>AI</span>}
+                      {r.source === "ai" && <span style={{ marginLeft: 6, fontSize: 10, padding: "1px 6px", borderRadius: 8, background: "transparent", border: "1px solid rgba(96,165,250,0.35)", color: "#93c5fd" }}>AI</span>}
                     </div>
                     <div className="gm-task__sub">{new Date(r.createdAt).toLocaleDateString("zh-CN")}</div>
                   </div>
@@ -2468,7 +2496,7 @@ function WeeklyReviewSection({ state, setState }: SectionProps): ReactNode {
           </div>
         </div>
 
-        <div className="gm-card">
+        <div className="gm-card gm-weekly-summary">
           <div className="gm-card__head">
             <div>
               <div className="gm-card__title">整体摘要</div>
@@ -2478,42 +2506,44 @@ function WeeklyReviewSection({ state, setState }: SectionProps): ReactNode {
             </div>
             {selected && <span className="gm-badge">{selected.score} 分</span>}
           </div>
-          {!selected ? (
-            <div className="gm-empty">
-              <div>暂无复盘记录</div>
-              <button className="gm-empty__cta" onClick={() => void draftAiReview()}>🪄 让 Rich 起草本周复盘</button>
-            </div>
-          ) : (
-            <>
-              <div className="gm-mt12" style={{ lineHeight: 1.7 }}>{selected.summary || "（暂无摘要）"}</div>
-
-              <div className="gm-report-3col gm-mt20">
-                <ReportCol kind="victory" title="胜利回顾" items={selected.victory} empty="—" />
-                <ReportCol kind="blocker" title="阻碍复盘" items={selected.blocker} empty="—" />
-                <ReportCol kind="planning" title="下周规划" items={selected.planning} empty="—" />
+          <div className="gm-weekly-summary__body">
+            {!selected ? (
+              <div className="gm-empty">
+                <div>暂无复盘记录</div>
+                <button className="gm-empty__cta" onClick={() => void draftAiReview()}>🪄 让 Rich 起草本周复盘</button>
               </div>
+            ) : (
+              <>
+                <div className="gm-mt12" style={{ lineHeight: 1.7 }}>{selected.summary || "（暂无摘要）"}</div>
 
-              {/* 多维度复盘块（AI 复盘专属，手动复盘可能没有这块） */}
-              {selected.perspectives && selected.perspectives.length > 0 && (
-                <div className="gm-mt20">
-                  <div className="gm-card__title" style={{ marginBottom: 10 }}>多视角分析</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
-                    {selected.perspectives.map((p, i) => (
-                      <div key={i} style={{
-                        padding: "10px 12px",
-                        borderRadius: 8,
-                        background: "rgba(217,154,62,0.05)",
-                        borderLeft: "3px solid #d99a3e",
-                      }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: "#d99a3e", marginBottom: 4 }}>{p.dimension}</div>
-                        <div style={{ fontSize: 12, lineHeight: 1.65, color: "#c9a96a" }}>{p.content}</div>
-                      </div>
-                    ))}
-                  </div>
+                <div className="gm-report-3col gm-mt20">
+                  <ReportCol kind="victory" title="胜利回顾" items={selected.victory} empty="—" />
+                  <ReportCol kind="blocker" title="阻碍复盘" items={selected.blocker} empty="—" />
+                  <ReportCol kind="planning" title="下周规划" items={selected.planning} empty="—" />
                 </div>
-              )}
-            </>
-          )}
+
+                {/* 多维度复盘块（AI 复盘专属，手动复盘可能没有这块） */}
+                {selected.perspectives && selected.perspectives.length > 0 && (
+                  <div className="gm-mt20">
+                    <div className="gm-card__title" style={{ marginBottom: 10 }}>多视角分析</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+                      {selected.perspectives.map((p, i) => (
+                        <div key={i} style={{
+                          padding: "10px 12px",
+                          borderRadius: 8,
+                          background: "transparent",
+                          borderLeft: "3px solid #38bdf8",
+                        }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#38bdf8", marginBottom: 4 }}>{p.dimension}</div>
+                          <div style={{ fontSize: 12, lineHeight: 1.65, color: "#cbd5e1" }}>{p.content}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -3072,4 +3102,3 @@ function HexRadar({ ability }: { ability: Ability }): ReactNode {
     </svg>
   );
 }
-

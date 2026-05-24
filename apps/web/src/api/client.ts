@@ -341,8 +341,8 @@ export const api = {
       throw new Error(body.error ?? `createPracticeElement ${r.status}`);
     }
     const { element: practice } = await r.json() as { element: Element };
-    // 顺序创建 4 个默认分组（顺序保留 = 创建顺序 = UI 渲染顺序）
-    const defaults = ["知识点", "需求分析", "PRD", "开发任务"];
+    // 顺序创建 7 个默认分组（顺序保留 = 创建顺序 = UI 渲染顺序）
+    const defaults = ["知识点", "场景分析", "功能说明", "PRD", "开发任务", "整改建议", "提问"];
     for (const groupTitle of defaults) {
       await fetch("/api/elements", {
         method: "POST",
@@ -358,10 +358,10 @@ export const api = {
   },
   /** 在指定 group 元下创建一个子元 (项目实战专属类型)。
    *  parentId 应该是 group 元的 id，不是 practice 元本身。
-   *  type 枚举跟分组对应：knowledge=知识点 / requirement=需求分析 / prd=PRD / dev-task=开发任务。 */
+   *  type 枚举跟分组对应：knowledge=知识点 / requirement=场景分析 / feature=功能说明 / prd=PRD / dev-task=开发任务 / revision=整改建议。 */
   async createPracticeChild(input: {
     parentId: string;
-    type: "knowledge" | "requirement" | "prd" | "dev-task";
+    type: "knowledge" | "requirement" | "feature" | "prd" | "dev-task" | "revision" | "inquiry";
     title: string;
     subtitle?: string;
     content?: unknown;

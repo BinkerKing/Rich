@@ -11,6 +11,13 @@ interface PrdSections {
   outOfScope: string[]; risks: string[];
 }
 
+interface AIInquiry {
+  question: string;
+  options: Array<{ label: string; description?: string }>;
+  context?: string;
+  importance?: "blocker" | "nice-to-know";
+}
+
 interface Props {
   practice: Element;
   children: Element[];
@@ -30,6 +37,7 @@ export function DraftPrdModal({ practice, children, onClose }: Props): ReactNode
   const [error, setError] = useState("");
   const [title, setTitle] = useState("");
   const [sections, setSections] = useState<PrdSections | null>(null);
+  const [pendingInquiries, setPendingInquiries] = useState<AIInquiry[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const hydrate = useStore(s => s.hydrate);
 
@@ -52,9 +60,12 @@ export function DraftPrdModal({ practice, children, onClose }: Props): ReactNode
         const body = await r.json().catch(() => ({})) as { error?: string };
         throw new Error(body.error ?? `HTTP ${r.status}`);
       }
-      const body = await r.json() as { result: { title: string; sections: PrdSections } };
+      const body = await r.json() as {
+        result: { title: string; sections: PrdSections; inquiries?: AIInquiry[] };
+      };
       setTitle(body.result.title);
       setSections(body.result.sections);
+      setPendingInquiries(body.result.inquiries ?? []);
       setStep("preview");
     } catch (e) {
       const err = e as { name?: string; message?: string };
@@ -79,13 +90,41 @@ export function DraftPrdModal({ practice, children, onClose }: Props): ReactNode
       if (!prdGroup) {
         prdGroup = await api.createPracticeGroup({ practiceId: practice.id, title: "PRD" });
       }
-      await api.createPracticeChild({
+      const created = await api.createPracticeChild({
         parentId: prdGroup.id,
         type: "prd",
         title: title.trim(),
         subtitle: sections.overview.slice(0, 60),
         content: sections,
       });
+
+      // 把 AI 提出的不确定点落地成 inquiry 元，挂在 "提问" 分组下
+      if (pendingInquiries.length > 0) {
+        let inquiryGroup = directChildren.find(c => c.type === "group" && c.title === "提问");
+        if (!inquiryGroup) {
+          inquiryGroup = await api.createPracticeGroup({ practiceId: practice.id, title: "提问" });
+        }
+        const askedAt = new Date().toISOString();
+        for (const inq of pendingInquiries) {
+          const titleRaw = inq.question.trim();
+          const inqTitle = titleRaw.length > 60 ? titleRaw.slice(0, 60) + "…" : titleRaw;
+          await api.createPracticeChild({
+            parentId: inquiryGroup.id,
+            type: "inquiry",
+            title: inqTitle,
+            subtitle: inq.context || undefined,
+            content: {
+              question: inq.question,
+              options: inq.options,
+              context: inq.context,
+              importance: inq.importance ?? "nice-to-know",
+              relatedTo: created.id,
+              askedAt,
+            },
+          });
+        }
+      }
+
       await hydrate();
       onClose();
     } catch (e) {

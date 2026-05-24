@@ -36,13 +36,17 @@ export function PracticeListView({ onPickPractice }: Props): ReactNode {
       if (c.type === "group") all.push(...childrenOf(c.id));
       else all.push(c);  // 历史孤儿数据
     }
-    const steps = all.filter(c => c.type === "step");
+    // 新类型为主，老类型兼容（concept/case/product-design/step）
+    const steps = all.filter(c => c.type === "dev-task" || c.type === "step");
     return {
-      concepts: all.filter(c => c.type === "concept").length,
-      cases: all.filter(c => c.type === "case").length,
-      prds: all.filter(c => c.type === "product-design").length,
+      concepts: all.filter(c => c.type === "knowledge" || c.type === "concept").length,
+      cases: all.filter(c => c.type === "requirement" || c.type === "case").length,
+      features: all.filter(c => c.type === "feature").length,
+      prds: all.filter(c => c.type === "prd" || c.type === "product-design").length,
       steps: steps.length,
       stepsDone: steps.filter(s => s.status === "done").length,
+      revisions: all.filter(c => c.type === "revision").length,
+      inquiriesPending: all.filter(c => c.type === "inquiry" && (c.status ?? "todo") !== "done").length,
     };
   };
 
@@ -93,10 +97,15 @@ export function PracticeListView({ onPickPractice }: Props): ReactNode {
               <div className="pv-card__title">{p.title}</div>
               {p.subtitle && <div className="pv-card__sub">{p.subtitle}</div>}
               <div className="pv-card__stats">
-                <span title="知识点">📚 {s.concepts}</span>
-                <span title="需求分析">🎯 {s.cases}</span>
-                <span title="PRD">📄 {s.prds}</span>
-                <span title="开发任务">⚙️ {s.stepsDone}/{s.steps}</span>
+                <span className="pv-card__stat pv-card__stat--knowledge"   title="知识点">📚 {s.concepts}</span>
+                <span className="pv-card__stat pv-card__stat--requirement" title="场景分析">🎯 {s.cases}</span>
+                <span className="pv-card__stat pv-card__stat--feature"     title="功能说明">✨ {s.features}</span>
+                <span className="pv-card__stat pv-card__stat--prd"         title="PRD">📄 {s.prds}</span>
+                <span className="pv-card__stat pv-card__stat--dev-task"    title="开发任务">⚙️ {s.stepsDone}/{s.steps}</span>
+                <span className="pv-card__stat pv-card__stat--revision"    title="整改建议">🔧 {s.revisions}</span>
+                {s.inquiriesPending > 0 && (
+                  <span className="pv-card__stat pv-card__stat--inquiry"   title="待回答提问">❓ {s.inquiriesPending}</span>
+                )}
               </div>
               {s.steps > 0 && (
                 <div className="pv-card__bar">

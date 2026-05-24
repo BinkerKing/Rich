@@ -7,7 +7,7 @@ export const ElementTypeSchema = z.enum([
   "dispute", "exercise", "report", "guide",
   "group",
   // 项目实战专属：让分组里的子元有匹配的语义类型，不再借用 concept/case/step 等
-  "knowledge", "requirement", "prd", "dev-task",
+  "knowledge", "requirement", "feature", "prd", "dev-task", "revision", "inquiry",
 ]);
 
 export const RichnessLevelSchema = z.union([

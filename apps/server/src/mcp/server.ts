@@ -24,6 +24,7 @@ import { enqueue, get as getTask, list as listTasks } from "./tasks.js";
 import { eventBus } from "../lib/eventBus.js";
 import { registerPlanTools } from "./planTools.js";
 import { registerPracticeTools } from "./practiceTools.js";
+import { registerCorpusTools } from "./corpusTools.js";
 import {
   listMascotAnimations, playMascotAnimation, getMascotState,
 } from "../lib/mascotState.js";
@@ -72,6 +73,8 @@ export interface BuildMcpDeps {
   adapters: AIAdapter[];
   aiDir: string;
   improvements?: import("../repos/ImprovementsRepo.js").ImprovementsStore | null;
+  /** Optional — AI corpus templates shared by Admin UI, Hermes MCP, and CLI. */
+  corpus?: import("../repos/CorpusRepo.js").CorpusRepo | null;
   /** Optional — Toolbox runtime, gives Hermes access to user-defined small
    *  utility tools (lock screen, etc) via a generic invoke entry-point. */
   toolRuntime?: import("../tools/runtime.js").ToolRuntime | null;
@@ -269,6 +272,19 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
     name: "rich",
     version: "0.1.0",
   });
+
+  server.tool(
+    "get_rich_system_manual",
+    "Read the Rich system learning manual before operating unfamiliar Rich modules. It explains pages, scenarios, usage rules, and the preferred CLI/MCP entrypoints for Hermes/Codex agents.",
+    {},
+    async () => {
+      const manual = await loadManual(deps.aiDir, "rich-system");
+      if (!manual) {
+        return { isError: true, content: [{ type: "text", text: "rich-system manual not found" }] };
+      }
+      return { content: [{ type: "text", text: manual.raw }] };
+    },
+  );
 
   // ───── Layer 1 — Data tools ──────────────────────────────────────────
 
@@ -1403,6 +1419,12 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
   // analytics blockers, and ask AI for a 推进 strategy.
   if (deps.greatMe) {
     registerPlanTools(server, deps.greatMe, deps.adapters, eventBus);
+  }
+
+  // ───── AI 语料模板 tools ─────────────────────────
+  // Lets Hermes read and update 大斌哥's preferred reply templates over time.
+  if (deps.corpus) {
+    registerCorpusTools(server, deps.corpus, eventBus);
   }
 
   // ───── 项目实战 (Practice) tools ─────────────────────────

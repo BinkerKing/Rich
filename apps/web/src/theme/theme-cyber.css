@@ -1169,16 +1169,57 @@ html[data-theme="cyber"] .element-type--dev-task    { --element-accent: #a4e87a;
 html[data-theme="cyber"] .element-type--group       .tree-element-card__type { background: rgba(138,141,150,.16) !important; border-color: rgba(138,141,150,.45) !important; color: #c5c8d0 !important; }
 html[data-theme="cyber"] .element-type--knowledge   .tree-element-card__type { background: rgba(64,231,220,.16) !important; border-color: rgba(64,231,220,.50) !important; color: #6ef0e7 !important; }
 html[data-theme="cyber"] .element-type--requirement .tree-element-card__type { background: rgba(245,166,99,.16) !important; border-color: rgba(245,166,99,.50) !important; color: #f5b97e !important; }
+html[data-theme="cyber"] .element-type--feature     .tree-element-card__type { background: rgba(210,141,255,.16) !important; border-color: rgba(210,141,255,.50) !important; color: #e3b3ff !important; }
 html[data-theme="cyber"] .element-type--prd         .tree-element-card__type { background: rgba(109,211,238,.16) !important; border-color: rgba(109,211,238,.50) !important; color: #8edcf0 !important; }
 html[data-theme="cyber"] .element-type--dev-task    .tree-element-card__type { background: rgba(164,232,122,.16) !important; border-color: rgba(164,232,122,.50) !important; color: #b6ec8e !important; }
+html[data-theme="cyber"] .element-type--revision    .tree-element-card__type { background: rgba(251,113,133,.16) !important; border-color: rgba(251,113,133,.50) !important; color: #ff9aae !important; }
+html[data-theme="cyber"] .element-type--inquiry     .tree-element-card__type { background: rgba(253,224,71,.18) !important; border-color: rgba(253,224,71,.55) !important; color: #fef08a !important; }
 
-/* 同时给卡片本身的边框也按类型染色 — 现在边框靠 --line-2 一刀切，看不出层级 */
-html[data-theme="cyber"] .child-card.element-type--group       { border-color: rgba(138,141,150,.32) !important; }
-html[data-theme="cyber"] .child-card.element-type--knowledge   { border-color: rgba(64,231,220,.32) !important; }
-html[data-theme="cyber"] .child-card.element-type--requirement { border-color: rgba(245,166,99,.32) !important; }
-html[data-theme="cyber"] .child-card.element-type--prd         { border-color: rgba(109,211,238,.32) !important; }
-html[data-theme="cyber"] .child-card.element-type--dev-task    { border-color: rgba(164,232,122,.32) !important; }
-html[data-theme="cyber"] .child-card.element-type--practice    { border-color: rgba(255,150,102,.40) !important; }
+/* 卡片边框强制按类型染色 — 不让 center 环境色覆盖其他类型的卡 */
+html[data-theme="cyber"] .tree-element-card.element-type--group       { border-color: rgba(138,141,150,.40) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--knowledge   { border-color: rgba(64,231,220,.40) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--requirement { border-color: rgba(245,166,99,.40) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--feature     { border-color: rgba(210,141,255,.40) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--prd         { border-color: rgba(109,211,238,.40) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--dev-task    { border-color: rgba(164,232,122,.40) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--revision    { border-color: rgba(251,113,133,.40) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--inquiry     { border-color: rgba(253,224,71,.45) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--practice    { border-color: rgba(255,150,102,.50) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--concept     { border-color: rgba(122,167,255,.40) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--topic       { border-color: rgba(255,209,102,.40) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--step        { border-color: rgba(177,135,255,.40) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--report      { border-color: rgba(114,242,164,.40) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--project     { border-color: rgba(139,142,255,.40) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--guide       { border-color: rgba(255,107,214,.40) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--product-design { border-color: rgba(255,184,107,.40) !important; }
+
+/* 同样：hover 状态也要按自己类型 hover，不要被 center 拐走 */
+html[data-theme="cyber"] .tree-element-card.element-type--group:hover       { border-color: rgba(138,141,150,.70) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--knowledge:hover   { border-color: rgba(64,231,220,.70) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--requirement:hover { border-color: rgba(245,166,99,.70) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--feature:hover     { border-color: rgba(210,141,255,.70) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--prd:hover         { border-color: rgba(109,211,238,.70) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--dev-task:hover    { border-color: rgba(164,232,122,.70) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--revision:hover    { border-color: rgba(251,113,133,.70) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--inquiry:hover     { border-color: rgba(253,224,71,.78) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--practice:hover    { border-color: rgba(255,150,102,.80) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--concept:hover     { border-color: rgba(122,167,255,.70) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--topic:hover       { border-color: rgba(255,209,102,.70) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--step:hover        { border-color: rgba(177,135,255,.70) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--report:hover      { border-color: rgba(114,242,164,.70) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--project:hover     { border-color: rgba(139,142,255,.70) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--guide:hover       { border-color: rgba(255,107,214,.70) !important; }
+html[data-theme="cyber"] .tree-element-card.element-type--product-design:hover { border-color: rgba(255,184,107,.70) !important; }
+
+/* concept 等老类型的 pill 也加强制规则（之前只加了项目实战 5 个新类型的） */
+html[data-theme="cyber"] .element-type--concept     .tree-element-card__type { background: rgba(122,167,255,.16) !important; border-color: rgba(122,167,255,.50) !important; color: #a6c5ff !important; }
+html[data-theme="cyber"] .element-type--practice    .tree-element-card__type { background: rgba(255,150,102,.16) !important; border-color: rgba(255,150,102,.55) !important; color: #ffb18a !important; }
+html[data-theme="cyber"] .element-type--topic       .tree-element-card__type { background: rgba(255,209,102,.16) !important; border-color: rgba(255,209,102,.50) !important; color: #ffd989 !important; }
+html[data-theme="cyber"] .element-type--step        .tree-element-card__type { background: rgba(177,135,255,.16) !important; border-color: rgba(177,135,255,.50) !important; color: #c2a5ff !important; }
+html[data-theme="cyber"] .element-type--report      .tree-element-card__type { background: rgba(114,242,164,.16) !important; border-color: rgba(114,242,164,.50) !important; color: #99f5be !important; }
+html[data-theme="cyber"] .element-type--project     .tree-element-card__type { background: rgba(139,142,255,.16) !important; border-color: rgba(139,142,255,.50) !important; color: #adafff !important; }
+html[data-theme="cyber"] .element-type--guide       .tree-element-card__type { background: rgba(255,107,214,.16) !important; border-color: rgba(255,107,214,.50) !important; color: #ff96dc !important; }
+html[data-theme="cyber"] .element-type--product-design .tree-element-card__type { background: rgba(255,184,107,.16) !important; border-color: rgba(255,184,107,.50) !important; color: #ffcd96 !important; }
 
 html[data-theme="cyber"] .body-prose,
 html[data-theme="cyber"] .body-lead,
@@ -1735,16 +1776,87 @@ html[data-theme="cyber"] .element-content .meta-chip {
   background: color-mix(in srgb, var(--center-accent, var(--teal)) 10%, transparent) !important;
 }
 
-html[data-theme="cyber"] .element-content .meta-chip--type.type-practice {
-  color: #ff6f5f !important;
-  border-color: rgba(255, 111, 95, .42) !important;
-  background: rgba(255, 111, 95, .10) !important;
+/* 元类型 chip：颜色必须始终跟随 type，不要被 --center-accent 拐走 */
+html[data-theme="cyber"] .element-content .meta-chip--type.type-topic {
+  color: #ffd989 !important;
+  border-color: rgba(255, 209, 102, .50) !important;
+  background: rgba(255, 209, 102, .12) !important;
 }
-
+html[data-theme="cyber"] .element-content .meta-chip--type.type-concept {
+  color: #a6c5ff !important;
+  border-color: rgba(122, 167, 255, .50) !important;
+  background: rgba(122, 167, 255, .12) !important;
+}
+html[data-theme="cyber"] .element-content .meta-chip--type.type-practice {
+  color: #ffb18a !important;
+  border-color: rgba(255, 150, 102, .55) !important;
+  background: rgba(255, 150, 102, .12) !important;
+}
 html[data-theme="cyber"] .element-content .meta-chip--type.type-project {
-  color: #8b8eff !important;
-  border-color: rgba(139, 142, 255, .44) !important;
-  background: rgba(99, 102, 241, .12) !important;
+  color: #adafff !important;
+  border-color: rgba(139, 142, 255, .50) !important;
+  background: rgba(139, 142, 255, .12) !important;
+}
+html[data-theme="cyber"] .element-content .meta-chip--type.type-step {
+  color: #c2a5ff !important;
+  border-color: rgba(177, 135, 255, .50) !important;
+  background: rgba(177, 135, 255, .12) !important;
+}
+html[data-theme="cyber"] .element-content .meta-chip--type.type-report {
+  color: #99f5be !important;
+  border-color: rgba(114, 242, 164, .50) !important;
+  background: rgba(114, 242, 164, .12) !important;
+}
+html[data-theme="cyber"] .element-content .meta-chip--type.type-guide {
+  color: #ff96dc !important;
+  border-color: rgba(255, 107, 214, .50) !important;
+  background: rgba(255, 107, 214, .12) !important;
+}
+html[data-theme="cyber"] .element-content .meta-chip--type.type-product-design {
+  color: #ffcd96 !important;
+  border-color: rgba(255, 184, 107, .50) !important;
+  background: rgba(255, 184, 107, .12) !important;
+}
+/* 项目实战专属类型 */
+html[data-theme="cyber"] .element-content .meta-chip--type.type-group {
+  color: #b8bcc4 !important;
+  border-color: rgba(138, 141, 150, .50) !important;
+  background: rgba(138, 141, 150, .12) !important;
+}
+html[data-theme="cyber"] .element-content .meta-chip--type.type-knowledge {
+  color: #6ef0e7 !important;
+  border-color: rgba(64, 231, 220, .50) !important;
+  background: rgba(64, 231, 220, .12) !important;
+}
+html[data-theme="cyber"] .element-content .meta-chip--type.type-requirement {
+  color: #f5b97e !important;
+  border-color: rgba(245, 166, 99, .50) !important;
+  background: rgba(245, 166, 99, .12) !important;
+}
+html[data-theme="cyber"] .element-content .meta-chip--type.type-feature {
+  color: #e3b3ff !important;
+  border-color: rgba(210, 141, 255, .50) !important;
+  background: rgba(210, 141, 255, .12) !important;
+}
+html[data-theme="cyber"] .element-content .meta-chip--type.type-prd {
+  color: #8edcf0 !important;
+  border-color: rgba(109, 211, 238, .50) !important;
+  background: rgba(109, 211, 238, .12) !important;
+}
+html[data-theme="cyber"] .element-content .meta-chip--type.type-dev-task {
+  color: #b6ec8e !important;
+  border-color: rgba(164, 232, 122, .50) !important;
+  background: rgba(164, 232, 122, .12) !important;
+}
+html[data-theme="cyber"] .element-content .meta-chip--type.type-revision {
+  color: #ff9aae !important;
+  border-color: rgba(251, 113, 133, .50) !important;
+  background: rgba(251, 113, 133, .12) !important;
+}
+html[data-theme="cyber"] .element-content .meta-chip--type.type-inquiry {
+  color: #fef08a !important;
+  border-color: rgba(253, 224, 71, .55) !important;
+  background: rgba(253, 224, 71, .14) !important;
 }
 
 html[data-theme="cyber"] .element-content .cta-button,

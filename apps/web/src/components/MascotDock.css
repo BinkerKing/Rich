@@ -47,12 +47,7 @@
   height: 32px;
   /* The source PNG is black + alpha (drawn for the macOS menu-bar template
    * image system). Against a dark sidebar it would be invisible — so we
-   * invert(1) to flip black → white, then hue-rotate to teal.
-   *   invert(1)   → black pixels become white
-   *   sepia(1)    → adds warm tone (gives the hue-rotate a chroma anchor)
-   *   hue-rotate  → shift warm tone to cyan/teal
-   *   saturate    → boost the result so it pops against #0d0d10
-   * `image-rendering: pixelated` keeps the chunky 22-px upscaled look. */
+   * invert(1) to flip black → white, then hue-rotate to teal. */
   filter:
     invert(1)
     sepia(1)
@@ -61,6 +56,129 @@
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
+  transition: transform .12s, filter .25s;
+}
+
+/* T07 6 状态 + T08 4 个微动作 */
+.mascot-dock__sprite-wrap {
+  display: inline-flex;
+  transition: transform .25s ease-out;
+}
+/* idle —— 用默认 walk 循环 + 轻微 sway，跟原来一样 */
+.mascot-dock__sprite-wrap--idle .mascot-dock__sprite { /* 默认 */ }
+
+/* thinking —— 呼吸动效：放大/缩小 1.6s 一轮，色调偏黄 */
+.mascot-dock__sprite-wrap--thinking {
+  animation: mascot-breathe 1.6s ease-in-out infinite;
+}
+.mascot-dock__sprite-wrap--thinking .mascot-dock__sprite {
+  filter: invert(1) sepia(1) hue-rotate(20deg) saturate(5);  /* 黄 */
+}
+@keyframes mascot-breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
+}
+
+/* talking —— 快速点头 / 嘴动节奏：transform 上下 0.5s */
+.mascot-dock__sprite-wrap--talking {
+  animation: mascot-nod 0.5s ease-in-out infinite;
+}
+.mascot-dock__sprite-wrap--talking .mascot-dock__sprite {
+  filter: invert(1) sepia(1) hue-rotate(140deg) saturate(5);  /* 青 */
+}
+@keyframes mascot-nod {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
+}
+
+/* proud —— 小跳跃 + 抬头，颜色偏金 */
+.mascot-dock__sprite-wrap--proud {
+  animation: mascot-jump 0.6s ease-out infinite;
+}
+.mascot-dock__sprite-wrap--proud .mascot-dock__sprite {
+  filter: invert(1) sepia(1) hue-rotate(50deg) saturate(6) brightness(1.2);  /* 金 */
+}
+@keyframes mascot-jump {
+  0%, 100%       { transform: translateY(0) scale(1); }
+  40%            { transform: translateY(-5px) scale(1.05); }
+  60%            { transform: translateY(-3px) scale(1.05); }
+}
+
+/* confused —— 歪头摇摆，偏紫 */
+.mascot-dock__sprite-wrap--confused {
+  animation: mascot-tilt 1.4s ease-in-out infinite;
+}
+.mascot-dock__sprite-wrap--confused .mascot-dock__sprite {
+  filter: invert(1) sepia(1) hue-rotate(260deg) saturate(4);  /* 紫 */
+}
+@keyframes mascot-tilt {
+  0%, 100% { transform: rotate(-8deg); }
+  50%      { transform: rotate(8deg); }
+}
+
+/* embarrassed —— 缩头 + 抖动，偏粉红 */
+.mascot-dock__sprite-wrap--embarrassed {
+  animation: mascot-shake 0.18s ease-in-out infinite;
+}
+.mascot-dock__sprite-wrap--embarrassed .mascot-dock__sprite {
+  filter: invert(1) sepia(1) hue-rotate(340deg) saturate(5);  /* 粉 */
+  transform: scale(.92);
+}
+@keyframes mascot-shake {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-1px); }
+  75%      { transform: translateX(1px); }
+}
+
+/* T08 4 个 800ms 微动作 —— 仅在 thinking 状态下叠加触发 */
+.mascot-dock__sprite-wrap--micro-scratch {
+  animation: mascot-breathe 1.6s ease-in-out infinite, mascot-scratch .8s ease-in-out;
+}
+@keyframes mascot-scratch {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  20%, 60% { transform: translateY(-1px) rotate(-3deg); }
+  40%, 80% { transform: translateY(-1px) rotate(3deg); }
+}
+
+.mascot-dock__sprite-wrap--micro-eyeroll {
+  animation: mascot-breathe 1.6s ease-in-out infinite, mascot-eyeroll .8s ease-in-out;
+}
+@keyframes mascot-eyeroll {
+  0%, 100% { transform: rotate(0); }
+  50%      { transform: rotate(-12deg); }
+}
+
+.mascot-dock__sprite-wrap--micro-look-left {
+  animation: mascot-breathe 1.6s ease-in-out infinite, mascot-look-left .8s ease-in-out;
+}
+@keyframes mascot-look-left {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(-3px); }
+}
+
+.mascot-dock__sprite-wrap--micro-look-right {
+  animation: mascot-breathe 1.6s ease-in-out infinite, mascot-look-right .8s ease-in-out;
+}
+@keyframes mascot-look-right {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(3px); }
+}
+
+/* prefers-reduced-motion 关闭所有动画（T22 也会处理，这里先做 a11y 兜底） */
+@media (prefers-reduced-motion: reduce) {
+  .mascot-dock__sprite-wrap,
+  .mascot-dock__sprite-wrap--thinking,
+  .mascot-dock__sprite-wrap--talking,
+  .mascot-dock__sprite-wrap--proud,
+  .mascot-dock__sprite-wrap--confused,
+  .mascot-dock__sprite-wrap--embarrassed,
+  .mascot-dock__sprite-wrap--micro-scratch,
+  .mascot-dock__sprite-wrap--micro-eyeroll,
+  .mascot-dock__sprite-wrap--micro-look-left,
+  .mascot-dock__sprite-wrap--micro-look-right {
+    animation: none !important;
+    transform: none !important;
+  }
 }
 
 /* Horizontal flyout — collapsed (zero width, fully transparent) by default.

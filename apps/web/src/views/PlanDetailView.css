@@ -4,32 +4,32 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  color: #e6b25a;
+  color: #dbeafe;
 }
 .pd__top {
   display: flex; align-items: center; gap: 14px;
   padding: 4px 0 12px;
-  border-bottom: 1px solid rgba(217,154,62,0.3);
+  border-bottom: 1px solid rgba(96, 165, 250,0.3);
   margin-bottom: 14px;
 }
 .pd__back {
-  background: transparent; border: 1px solid rgba(217,154,62,0.3);
-  color: #a87526; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+  background: transparent; border: 1px solid rgba(96, 165, 250,0.3);
+  color: #93c5fd; padding: 6px 12px; border-radius: 8px; cursor: pointer;
   font-size: 12px;
 }
-.pd__back:hover { color: #e6b25a; border-color: rgba(217,154,62,0.65); }
-.pd__title { flex: 1; font-size: 18px; font-weight: 700; color: #e6b25a; }
+.pd__back:hover { color: #dbeafe; border-color: rgba(96, 165, 250,0.65); }
+.pd__title { flex: 1; font-size: 18px; font-weight: 700; color: #dbeafe; }
 .pd__status {
   padding: 4px 10px; border-radius: 4px; font-size: 11px;
-  background: rgba(217,154,62,0.12); color: #e6b25a;
-  border: 1px solid rgba(217,154,62,0.35);
+  background: rgba(96, 165, 250,0.12); color: #dbeafe;
+  border: 1px solid rgba(96, 165, 250,0.35);
 }
 
 .pd-hero {
   padding: 14px 18px;
   border-radius: 12px;
-  background: #050302;
-  border: 1px solid rgba(217,154,62,0.3);
+  background: #020817;
+  border: 1px solid rgba(96, 165, 250,0.3);
   margin-bottom: 14px;
 }
 .pd-hero__bar {
@@ -38,60 +38,60 @@
 }
 .pd-hero__bar > span {
   display: block; height: 100%;
-  background: linear-gradient(90deg, #d99a3e, #e6b25a);
+  background: linear-gradient(90deg, #38bdf8, #34d399);
 }
 .pd-hero__meta {
   display: flex; justify-content: space-between; align-items: center;
-  margin-top: 8px; font-size: 11px; color: #a87526;
+  margin-top: 8px; font-size: 11px; color: #93c5fd;
 }
-.pd-hero__pct { font-size: 16px; font-weight: 700; color: #e6b25a; }
+.pd-hero__pct { font-size: 16px; font-weight: 700; color: #dbeafe; }
 
 .pd-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
 .pd-tab {
   padding: 6px 16px; border-radius: 999px; cursor: pointer;
-  background: transparent; border: 1px solid rgba(217,154,62,0.3);
-  color: #a87526; font-size: 12px; font-family: inherit;
+  background: transparent; border: 1px solid rgba(96, 165, 250,0.3);
+  color: #93c5fd; font-size: 12px; font-family: inherit;
 }
-.pd-tab:hover { color: #e6b25a; border-color: rgba(217,154,62,0.65); }
-.pd-tab.is-active { background: #3a2408; color: #e6b25a; border-color: rgba(217,154,62,0.65); }
+.pd-tab:hover { color: #dbeafe; border-color: rgba(96, 165, 250,0.65); }
+.pd-tab.is-active { background: #06212f; color: #dbeafe; border-color: rgba(96, 165, 250,0.65); }
 
 .pd-body {
   flex: 1 1 0; min-height: 0; overflow-y: auto;
   border-radius: 12px;
-  background: #050302;
-  border: 1px solid rgba(217,154,62,0.3);
+  background: #020817;
+  border: 1px solid rgba(96, 165, 250,0.3);
   padding: 22px;
 }
 .pd-empty { text-align: center; padding: 60px 20px; }
-.pd-empty__title { font-size: 14px; color: #e6b25a; font-weight: 600; }
-.pd-empty__sub { font-size: 12px; color: #6e4c1a; margin-top: 8px; }
-.pd-empty__stats { font-size: 11px; color: #a87526; margin-top: 18px; }
+.pd-empty__title { font-size: 14px; color: #dbeafe; font-weight: 600; }
+.pd-empty__sub { font-size: 12px; color: #64748b; margin-top: 8px; }
+.pd-empty__stats { font-size: 11px; color: #93c5fd; margin-top: 18px; }
 
 .pd-today { display: flex; flex-direction: column; gap: 6px; }
 .pd-today-item {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 10px; border-radius: 8px;
   background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(217,154,62,0.18);
+  border: 1px solid rgba(96, 165, 250,0.18);
 }
 .pd-today-item.is-done .pd-today-item__title { opacity: 0.5; text-decoration: line-through; }
 .pd-today-item__check {
   width: 18px; height: 18px; border-radius: 50%;
-  border: 1.5px solid #d99a3e; background: transparent;
-  color: #1a1208; font-size: 11px; font-weight: 700; cursor: pointer;
+  border: 1.5px solid #38bdf8; background: transparent;
+  color: #0b1020; font-size: 11px; font-weight: 700; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0; padding: 0;
 }
-.pd-today-item__check.is-done { background: #d99a3e; }
-.pd-today-item__title { flex: 1; font-size: 13px; color: #e6b25a; }
+.pd-today-item__check.is-done { background: #38bdf8; }
+.pd-today-item__title { flex: 1; font-size: 13px; color: #dbeafe; }
 .pd-today-item__goal {
   font-size: 10px; padding: 2px 8px; border-radius: 4px;
-  background: rgba(217,154,62,0.1);
-  border: 1px solid rgba(217,154,62,0.3);
-  color: #e6b25a; flex-shrink: 0;
+  background: rgba(96, 165, 250,0.1);
+  border: 1px solid rgba(96, 165, 250,0.3);
+  color: #dbeafe; flex-shrink: 0;
 }
 .pd-today-item__del {
-  background: transparent; border: none; color: #6e4c1a;
+  background: transparent; border: none; color: #64748b;
   cursor: pointer; font-size: 14px; padding: 0 4px;
 }
 .pd-today-item__del:hover { color: #d96a5b; }
@@ -104,7 +104,7 @@
 }
 .pd-kanban-col {
   background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(217,154,62,0.18);
+  border: 1px solid rgba(96, 165, 250,0.18);
   border-radius: 10px;
   padding: 10px;
   display: flex; flex-direction: column;
@@ -116,34 +116,34 @@
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 4px;
 }
-.pd-kanban-col__title { font-size: 12px; font-weight: 600; color: #e6b25a; }
+.pd-kanban-col__title { font-size: 12px; font-weight: 600; color: #dbeafe; }
 .pd-kanban-col__count {
   font-size: 11px; padding: 2px 8px; border-radius: 10px;
-  background: rgba(217,154,62,0.15); color: #e6b25a;
+  background: rgba(96, 165, 250,0.15); color: #dbeafe;
 }
 .pd-kanban-card {
-  background: rgba(217,154,62,0.04);
-  border: 1px solid rgba(217,154,62,0.25);
+  background: rgba(96, 165, 250,0.04);
+  border: 1px solid rgba(96, 165, 250,0.25);
   border-radius: 8px;
   padding: 8px 10px;
 }
 .pd-kanban-card__parent {
   font-size: 10px;
-  color: #a87526;
+  color: #93c5fd;
   margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: 0.02em;
 }
-.pd-kanban-card__title { font-size: 12px; color: #e6b25a; margin-bottom: 6px; line-height: 1.4; }
+.pd-kanban-card__title { font-size: 12px; color: #dbeafe; margin-bottom: 6px; line-height: 1.4; }
 .pd-kanban-card__bar {
   height: 4px; border-radius: 2px;
   background: rgba(255,255,255,0.08); overflow: hidden;
 }
 .pd-kanban-card__bar > span {
   display: block; height: 100%;
-  background: linear-gradient(90deg, #d99a3e, #e6b25a);
+  background: linear-gradient(90deg, #38bdf8, #34d399);
 }
 .pd-kanban-card__foot {
   display: flex; justify-content: space-between; align-items: center; gap: 8px;
@@ -154,9 +154,9 @@
   min-width: 0; flex: 1; align-items: flex-start;
 }
 .pd-kanban-card__drill {
-  background: rgba(217,154,62,0.08);
-  border: 1px solid rgba(217,154,62,0.3);
-  color: #e6b25a;
+  background: rgba(96, 165, 250,0.08);
+  border: 1px solid rgba(96, 165, 250,0.3);
+  color: #dbeafe;
   font-size: 10px;
   padding: 2px 8px;
   border-radius: 4px;
@@ -166,17 +166,17 @@
   transition: all 0.12s;
 }
 .pd-kanban-card__drill:hover {
-  background: rgba(217,154,62,0.18);
-  border-color: #d99a3e;
+  background: rgba(96, 165, 250,0.18);
+  border-color: #38bdf8;
 }
 .pd-kanban-card__tasks {
   font-size: 10px;
-  color: #6e4c1a;
+  color: #64748b;
   padding: 0 2px;
 }
 .pd-kanban-card__pct {
   font-size: 11px;
-  color: #e6b25a;
+  color: #dbeafe;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -187,21 +187,21 @@
   padding: 8px 12px;
   margin-bottom: 10px;
   border-radius: 8px;
-  background: rgba(217,154,62,0.08);
-  border: 1px solid rgba(217,154,62,0.3);
+  background: rgba(96, 165, 250,0.08);
+  border: 1px solid rgba(96, 165, 250,0.3);
 }
-.pd-filter-bar__label { font-size: 12px; color: #e6b25a; }
+.pd-filter-bar__label { font-size: 12px; color: #dbeafe; }
 .pd-filter-bar__clear {
   background: transparent;
-  border: 1px solid rgba(217,154,62,0.3);
-  color: #a87526;
+  border: 1px solid rgba(96, 165, 250,0.3);
+  color: #93c5fd;
   padding: 4px 10px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 11px;
   font-family: inherit;
 }
-.pd-filter-bar__clear:hover { color: #e6b25a; border-color: #d99a3e; }
+.pd-filter-bar__clear:hover { color: #dbeafe; border-color: #38bdf8; }
 
 .pd-overview {
   display: grid;
@@ -210,12 +210,12 @@
 }
 .pd-kpi {
   padding: 22px 14px; border-radius: 10px;
-  background: rgba(217,154,62,0.04);
-  border: 1px solid rgba(217,154,62,0.25);
+  background: rgba(96, 165, 250,0.04);
+  border: 1px solid rgba(96, 165, 250,0.25);
   text-align: center;
 }
-.pd-kpi__num { font-size: 24px; font-weight: 700; color: #e6b25a; }
-.pd-kpi__label { font-size: 11px; color: #a87526; margin-top: 4px; }
+.pd-kpi__num { font-size: 24px; font-weight: 700; color: #dbeafe; }
+.pd-kpi__label { font-size: 11px; color: #93c5fd; margin-top: 4px; }
 
 /* ======================================================
  * 总览 tab v2：上面 KPI 行 + 下面层级结构树
@@ -238,24 +238,24 @@
   min-height: 0;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(217, 154, 62, 0.25);
+  border: 1px solid rgba(96, 165, 250, 0.25);
   display: flex; flex-direction: column;
   overflow: hidden;
 }
 .pd-overview-v2__tree-head {
   display: flex; justify-content: space-between; align-items: baseline;
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(217, 154, 62, 0.15);
+  border-bottom: 1px solid rgba(96, 165, 250, 0.15);
   flex: 0 0 auto;
 }
 .pd-overview-v2__tree-title {
   font-size: 13px;
   font-weight: 600;
-  color: #e6b25a;
+  color: #dbeafe;
 }
 .pd-overview-v2__tree-hint {
   font-size: 10px;
-  color: #6e4c1a;
+  color: #64748b;
   letter-spacing: 0.04em;
 }
 
@@ -267,24 +267,26 @@
   padding: 10px 14px;
 }
 .pd-tree::-webkit-scrollbar { width: 6px; }
-.pd-tree::-webkit-scrollbar-thumb { background: rgba(217, 154, 62, 0.3); border-radius: 3px; }
+.pd-tree::-webkit-scrollbar-thumb { background: rgba(96, 165, 250, 0.3); border-radius: 3px; }
 
 .pd-tree-node { margin-bottom: 2px; }
 
 .pd-tree-row {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 10px;
+  padding-right: 482px;
+  position: relative;
   border-radius: 6px;
   border: 1px solid transparent;
   transition: background 0.12s, border-color 0.12s;
 }
 .pd-tree-row:hover {
-  background: rgba(217, 154, 62, 0.04);
-  border-color: rgba(217, 154, 62, 0.2);
+  background: rgba(96, 165, 250, 0.04);
+  border-color: rgba(96, 165, 250, 0.2);
 }
 
 .pd-tree-edge {
-  color: #6e4c1a;
+  color: #64748b;
   font-size: 11px;
   letter-spacing: -0.05em;
   flex-shrink: 0;
@@ -300,48 +302,62 @@
   font-weight: 700;
   flex-shrink: 0;
 }
-.pd-tree-scope--year  { background: rgba(217, 154, 62, 0.22); color: #e6b25a; }
-.pd-tree-scope--month { background: rgba(217, 154, 62, 0.14); color: #e6b25a; }
-.pd-tree-scope--week  { background: rgba(217, 154, 62, 0.08); color: #d99a3e; }
+.pd-tree-scope--year  { background: rgba(96, 165, 250, 0.22); color: #dbeafe; }
+.pd-tree-scope--month { background: rgba(96, 165, 250, 0.14); color: #dbeafe; }
+.pd-tree-scope--week  { background: rgba(96, 165, 250, 0.08); color: #38bdf8; }
 
 .pd-tree-title {
   font-size: 13px;
-  color: #e6b25a;
+  color: #dbeafe;
   flex: 1; min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.pd-tree-metrics {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: min(46vw, 460px);
+  transform: translateY(-50%);
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 44px minmax(112px, 150px) 88px;
+  align-items: center;
+  gap: 10px;
+}
+
 .pd-tree-bar {
-  width: 120px; height: 5px;
+  width: 100%; height: 5px;
   background: rgba(255, 255, 255, 0.06);
   border-radius: 3px;
   overflow: hidden;
-  flex-shrink: 0;
 }
 .pd-tree-bar > span {
   display: block; height: 100%;
-  background: linear-gradient(90deg, #d99a3e, #e6b25a);
+  background: linear-gradient(90deg, #38bdf8, #34d399);
 }
 
 .pd-tree-pct {
   font-size: 11px;
   font-weight: 700;
-  color: #e6b25a;
-  min-width: 38px;
+  color: #dbeafe;
   text-align: right;
-  flex-shrink: 0;
 }
 
 .pd-tree-summary {
+  min-width: 0;
   font-size: 10px;
-  color: #a87526;
+  color: #93c5fd;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding: 2px 8px;
-  background: rgba(217, 154, 62, 0.06);
+  background: rgba(96, 165, 250, 0.06);
   border-radius: 4px;
-  flex-shrink: 0;
+}
+.pd-tree-summary.is-empty {
+  visibility: hidden;
 }
 
 /* ---- Leaf task row under a week node ---- */
@@ -349,7 +365,7 @@
   display: flex; align-items: center; gap: 8px;
   padding: 4px 10px;
   font-size: 11px;
-  color: #a87526;
+  color: #93c5fd;
   border-radius: 4px;
 }
 .pd-tree-task:hover { background: rgba(255, 255, 255, 0.02); }
@@ -360,19 +376,19 @@
 .pd-tree-task__check {
   width: 14px; height: 14px;
   border-radius: 50%;
-  border: 1.5px solid #d99a3e;
+  border: 1.5px solid #38bdf8;
   background: transparent;
-  color: #1a1208;
+  color: #0b1020;
   font-size: 9px;
   font-weight: 700;
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.pd-tree-task__check.is-done { background: #d99a3e; }
-.pd-tree-task__title { flex: 1; min-width: 0; color: #e6b25a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pd-tree-task__check.is-done { background: #38bdf8; }
+.pd-tree-task__title { flex: 1; min-width: 0; color: #dbeafe; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pd-tree-task__date {
   font-size: 10px;
-  color: #6e4c1a;
+  color: #64748b;
   flex-shrink: 0;
 }
 
@@ -387,9 +403,9 @@
 .pd-kanban-col__add {
   width: 20px; height: 20px;
   border-radius: 4px;
-  border: 1px solid rgba(217,154,62,0.4);
-  background: rgba(217,154,62,0.1);
-  color: #e6b25a;
+  border: 1px solid rgba(96, 165, 250,0.4);
+  background: rgba(96, 165, 250,0.1);
+  color: #dbeafe;
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
@@ -399,8 +415,8 @@
   transition: all 0.12s;
 }
 .pd-kanban-col__add:hover {
-  background: rgba(217,154,62,0.22);
-  border-color: #d99a3e;
+  background: rgba(96, 165, 250,0.22);
+  border-color: #38bdf8;
 }
 
 /* 卡片标题可点击 */
@@ -412,14 +428,14 @@
   transition: background 0.12s;
 }
 .pd-kanban-card__title.is-clickable:hover {
-  background: rgba(217,154,62,0.08);
+  background: rgba(96, 165, 250,0.08);
 }
 
 /* 月卡里的"+ 新建周计划"快捷按钮 */
 .pd-kanban-card__quick-add {
-  background: rgba(217,154,62,0.05);
-  border: 1px dashed rgba(217,154,62,0.35);
-  color: #a87526;
+  background: rgba(96, 165, 250,0.05);
+  border: 1px dashed rgba(96, 165, 250,0.35);
+  color: #93c5fd;
   font-size: 10px;
   padding: 2px 8px;
   border-radius: 4px;
@@ -429,9 +445,9 @@
   transition: all 0.12s;
 }
 .pd-kanban-card__quick-add:hover {
-  background: rgba(217,154,62,0.14);
+  background: rgba(96, 165, 250,0.14);
   border-style: solid;
-  color: #e6b25a;
+  color: #dbeafe;
 }
 
 /* 今日 tab 顶部的 inline 加任务条 */
@@ -440,36 +456,36 @@
   padding: 8px 10px;
   margin-bottom: 12px;
   border-radius: 8px;
-  background: rgba(217,154,62,0.04);
-  border: 1px solid rgba(217,154,62,0.25);
+  background: rgba(96, 165, 250,0.04);
+  border: 1px solid rgba(96, 165, 250,0.25);
 }
 .pd-today-add__input {
   flex: 1; min-width: 0;
   background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(217,154,62,0.18);
+  border: 1px solid rgba(96, 165, 250,0.18);
   border-radius: 6px;
   padding: 6px 10px;
-  color: #e6b25a;
+  color: #dbeafe;
   font-size: 13px;
   outline: none;
   font-family: inherit;
 }
-.pd-today-add__input:focus { border-color: #d99a3e; }
-.pd-today-add__input::placeholder { color: #6e4c1a; }
+.pd-today-add__input:focus { border-color: #38bdf8; }
+.pd-today-add__input::placeholder { color: #64748b; }
 .pd-today-add__goal {
   background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(217,154,62,0.18);
+  border: 1px solid rgba(96, 165, 250,0.18);
   border-radius: 6px;
   padding: 6px 8px;
-  color: #e6b25a;
+  color: #dbeafe;
   font-size: 11px;
   outline: none;
   font-family: inherit;
   max-width: 220px;
 }
 .pd-today-add__btn {
-  background: #d99a3e;
-  color: #1a1208;
+  background: #38bdf8;
+  color: #0b1020;
   border: none;
   border-radius: 6px;
   padding: 6px 14px;
@@ -479,7 +495,7 @@
   font-family: inherit;
   transition: background 0.12s;
 }
-.pd-today-add__btn:hover { background: #e6b25a; }
+.pd-today-add__btn:hover { background: #dbeafe; }
 .pd-today-add__btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* === S5/S6：树视图折叠 + hover 操作 === */
@@ -487,7 +503,7 @@
   width: 16px; height: 16px;
   background: transparent;
   border: none;
-  color: #a87526;
+  color: #93c5fd;
   font-size: 10px;
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
@@ -497,9 +513,9 @@
   font-family: inherit;
   transition: color 0.12s;
 }
-.pd-tree-toggle:hover { color: #e6b25a; background: rgba(217,154,62,0.1); }
+.pd-tree-toggle:hover { color: #dbeafe; background: rgba(96, 165, 250,0.1); }
 .pd-tree-toggle--leaf {
-  color: #3a2408;
+  color: #06212f;
   cursor: default;
 }
 .pd-tree-toggle--leaf:hover { background: transparent; }
@@ -511,11 +527,10 @@
   border-radius: 4px;
   transition: background 0.12s;
 }
-.pd-tree-title.is-clickable:hover { background: rgba(217,154,62,0.08); }
+.pd-tree-title.is-clickable:hover { background: rgba(96, 165, 250,0.08); }
 
 .pd-tree-actions {
-  display: flex; gap: 2px;
-  flex-shrink: 0;
+  display: flex; justify-content: flex-end; gap: 2px;
   opacity: 0;
   transition: opacity 0.12s;
 }
@@ -523,7 +538,7 @@
 .pd-tree-action {
   background: transparent;
   border: 1px solid transparent;
-  color: #a87526;
+  color: #93c5fd;
   font-size: 11px;
   padding: 2px 6px;
   border-radius: 4px;
@@ -533,9 +548,9 @@
   transition: all 0.1s;
 }
 .pd-tree-action:hover {
-  background: rgba(217,154,62,0.12);
-  border-color: rgba(217,154,62,0.35);
-  color: #e6b25a;
+  background: rgba(96, 165, 250,0.12);
+  border-color: rgba(96, 165, 250,0.35);
+  color: #dbeafe;
 }
 .pd-tree-action--danger:hover {
   background: rgba(217,90,90,0.12);
@@ -557,15 +572,15 @@
   border-radius: 4px;
   transition: background 0.12s;
 }
-.pd-today-item__title.is-clickable:hover { background: rgba(217,154,62,0.08); }
+.pd-today-item__title.is-clickable:hover { background: rgba(96, 165, 250,0.08); }
 
 .pd-today-item__edit {
   flex: 1; min-width: 0;
   background: rgba(0,0,0,0.45);
-  border: 1px solid #d99a3e;
+  border: 1px solid #38bdf8;
   border-radius: 5px;
   padding: 4px 8px;
-  color: #e6b25a;
+  color: #dbeafe;
   font-size: 13px;
   outline: none;
   font-family: inherit;
@@ -578,10 +593,10 @@
 .pd-today-item__goal.is-set { /* 继承现有样式 */ }
 .pd-today-item__goal.is-empty {
   border-style: dashed;
-  color: #6e4c1a;
+  color: #64748b;
   background: transparent;
 }
-.pd-today-item__goal:hover { border-color: #d99a3e; }
+.pd-today-item__goal:hover { border-color: #38bdf8; }
 
 .pd-today-item__reassign-pop {
   position: absolute;
@@ -590,8 +605,8 @@
   min-width: 240px;
   max-height: 280px;
   overflow-y: auto;
-  background: #0a0604;
-  border: 1px solid rgba(217,154,62,0.5);
+  background: #020817;
+  border: 1px solid rgba(96, 165, 250,0.5);
   border-radius: 8px;
   padding: 4px;
   box-shadow: 0 6px 18px rgba(0,0,0,0.5);
@@ -602,16 +617,16 @@
   padding: 6px 8px;
   background: transparent;
   border: none;
-  color: #e6b25a;
+  color: #dbeafe;
   font-size: 12px;
   text-align: left;
   cursor: pointer;
   border-radius: 4px;
   font-family: inherit;
 }
-.pd-today-item__reassign-row:hover { background: rgba(217,154,62,0.1); }
+.pd-today-item__reassign-row:hover { background: rgba(96, 165, 250,0.1); }
 .pd-today-item__reassign-row.is-current {
-  background: rgba(217,154,62,0.15);
+  background: rgba(96, 165, 250,0.15);
   color: #fff;
 }
 .pd-today-item__reassign-scope {
@@ -624,7 +639,68 @@
 }
 .pd-today-item__reassign-empty {
   font-size: 11px;
-  color: #6e4c1a;
+  color: #64748b;
   padding: 8px;
   text-align: center;
+}
+
+/* Combo accents shared with GreatMe: mint for completion, coral for action. */
+.pd-today-item__check.is-done,
+.pd-tree-task__check.is-done {
+  background: #34d399;
+  border-color: #34d399;
+}
+.pd-today-add__btn {
+  background: #f472b6;
+  border-color: #f472b6;
+  color: #16020b;
+}
+.pd-today-add__btn:hover {
+  background: #fb7185;
+}
+.pd-tab.is-active {
+  border-color: rgba(52, 211, 153, 0.62);
+  background: rgba(52, 211, 153, 0.11);
+  color: #a7f3d0;
+}
+
+/* Border-only module surfaces inside plan detail. */
+.pd .pd-hero,
+.pd .pd-body,
+.pd .pd-today-item,
+.pd .pd-kanban-col,
+.pd .pd-kanban-card,
+.pd .pd-filter-bar,
+.pd .pd-kpi,
+.pd .pd-overview-v2__tree-card,
+.pd .pd-tree-row,
+.pd .pd-tree-summary,
+.pd .pd-tree-task,
+.pd .pd-today-add,
+.pd .pd-today-item__goal,
+.pd .pd-today-item__reassign-pop,
+.pd .pd-kanban-card__drill,
+.pd .pd-kanban-card__quick-add,
+.pd .pd-kanban-col__count {
+  background: transparent;
+  border-width: 1.5px;
+}
+.pd .pd-tab.is-active,
+.pd .pd-tree-row:hover,
+.pd .pd-tree-task:hover,
+.pd .pd-kanban-card__title.is-clickable:hover,
+.pd .pd-kanban-card__quick-add:hover,
+.pd .pd-today-item__title.is-clickable:hover,
+.pd .pd-today-item__reassign-row:hover,
+.pd .pd-today-item__reassign-row.is-current,
+.pd .pd-tree-title.is-clickable:hover,
+.pd .pd-tree-action:hover,
+.pd .pd-tree-toggle:hover,
+.pd .pd-filter-bar,
+.pd .pd-kanban-card__drill:hover {
+  background: transparent;
+}
+.pd .pd-tree-scope {
+  background: transparent;
+  border: 1px solid rgba(96, 165, 250, 0.28);
 }

@@ -1,25 +1,27 @@
 /* =============================================================
- * 项目实战 工作空间（3 tabs）
+ * 项目实战 工作空间（2 tabs：总览 / 效果图）
+ * 总览 = KPI + 拆解全部内容
+ *
+ * 设计：顶部 chrome（title / tabs / toggle）保留琥珀暖调；
+ * 下面 5 个 KPI + 5 个 GroupBox（含 kanban）各按自己 type 染色，
+ * 通过本地 CSS 变量 --gbox-accent / --gbox-accent-soft / --gbox-accent-line
+ * 注入到子节点。改一处颜色 = 改一处变量。
  * ============================================================= */
+
 .pw {
   position: fixed; inset: 0;
+  box-sizing: border-box;
   display: flex; flex-direction: column;
-  padding: 22px 28px;
+  padding: 70px 28px 22px;
   color: #e6b25a;
   background: #050302;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
   z-index: 10;
 }
+
+/* ── 顶部 chrome（保留琥珀暖调，是"项目实战"系统的视觉锚） ── */
 .pw__top { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
-.pw__back {
-  background: transparent;
-  border: 1px solid rgba(217, 154, 62, .3);
-  color: #a87526;
-  padding: 6px 12px; border-radius: 8px;
-  cursor: pointer; font-size: 12px; font-family: inherit;
-}
-.pw__back:hover { color: #e6b25a; border-color: rgba(217, 154, 62, .65); }
 .pw__title { font-size: 18px; font-weight: 700; }
 .pw__subtitle { font-size: 12px; color: #a87526; }
 .pw__error { padding: 60px; text-align: center; color: #ff9a8a; }
@@ -53,9 +55,112 @@
   background: transparent;
   border: 1px solid rgba(217, 154, 62, .3);
   color: #a87526; font-size: 12px; font-family: inherit;
+  outline: none;
 }
 .pw__tab:hover { color: #e6b25a; border-color: rgba(217, 154, 62, .65); }
 .pw__tab.is-active { background: #3a2408; color: #e6b25a; border-color: rgba(217, 154, 62, .65); }
+.pw__tab:focus-visible { outline: none; border-color: rgba(217, 154, 62, .85); }
+/* 整改建议 tab —— 用 revision 玫红做区分，更易扫到 */
+.pw__tab--revisions { color: #ff9aae; border-color: rgba(251, 113, 133, .35); }
+.pw__tab--revisions:hover { color: #fb7185; border-color: rgba(251, 113, 133, .65); }
+.pw__tab--revisions.is-active {
+  background: rgba(251, 113, 133, .14);
+  color: #ff9aae;
+  border-color: rgba(251, 113, 133, .65);
+}
+/* 提问 tab —— 柠檬黄，注意力色 */
+.pw__tab--inquiries { color: #fef08a; border-color: rgba(253, 224, 71, .40); }
+.pw__tab--inquiries:hover { color: #fde047; border-color: rgba(253, 224, 71, .75); }
+.pw__tab--inquiries.is-active {
+  background: rgba(253, 224, 71, .14);
+  color: #fef08a;
+  border-color: rgba(253, 224, 71, .65);
+}
+
+/* Inquiries tab body */
+.pw-inquiries {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.pw-inquiries__empty {
+  padding: 60px 24px;
+  text-align: center;
+  border: 1px dashed rgba(253, 224, 71, .25);
+  border-radius: 12px;
+  background: rgba(253, 224, 71, .04);
+}
+.pw-inquiries__empty-icon { font-size: 36px; margin-bottom: 12px; }
+.pw-inquiries__empty-text {
+  font-size: 14px;
+  color: #fef08a;
+  line-height: 1.7;
+  max-width: 560px;
+  margin: 0 auto;
+}
+.pw-inquiries__empty-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted, #a87526);
+  font-style: italic;
+}
+.pw-inquiries__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pw-inquiries__section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.pw-inquiries__section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fef08a;
+  letter-spacing: 0.02em;
+}
+.pw-inquiries__section-title--done { color: #74e5b0; }
+.pw-inquiries__section-sub {
+  font-size: 11px;
+  color: var(--muted, #a87526);
+  font-style: italic;
+}
+.pw-inquiries__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pw-inquiries__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pw-inquiries__related {
+  font-size: 11px;
+  color: var(--muted, #a87526);
+  padding-left: 16px;
+}
+.pw-inquiries__related-name {
+  color: var(--teal, #3dd5cd);
+  font-weight: 500;
+}
+
+/* 整改建议 tab body */
+.pw-revisions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.pw-revisions__intro {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(251, 113, 133, .06);
+  border: 1px solid rgba(251, 113, 133, .22);
+  color: #ff9aae;
+  font-size: 12px;
+  line-height: 1.7;
+}
 
 .pw__body {
   flex: 1 1 0; min-height: 0;
@@ -66,52 +171,361 @@
   padding: 22px;
 }
 
+/* =============================================================
+ * 5 个 type 的色板（同步 centerStyle.ts + theme-cyber.css）
+ * 用 :where() 给低特异度，方便外层覆盖
+ * ============================================================= */
+.pw-kpi--knowledge, .pw-bd-group--knowledge {
+  --gbox-accent:       #40e7dc;     /* 知识点 青绿 */
+  --gbox-accent-text:  #6ef0e7;
+  --gbox-accent-soft:  rgba(64, 231, 220, .08);
+  --gbox-accent-line:  rgba(64, 231, 220, .30);
+  --gbox-accent-strong:rgba(64, 231, 220, .55);
+}
+.pw-kpi--requirement, .pw-bd-group--requirement {
+  --gbox-accent:       #f5a663;     /* 场景分析 橙 */
+  --gbox-accent-text:  #f5b97e;
+  --gbox-accent-soft:  rgba(245, 166, 99, .09);
+  --gbox-accent-line:  rgba(245, 166, 99, .32);
+  --gbox-accent-strong:rgba(245, 166, 99, .58);
+}
+.pw-kpi--feature, .pw-bd-group--feature {
+  --gbox-accent:       #d28dff;     /* 功能说明 薰衣草 */
+  --gbox-accent-text:  #e3b3ff;
+  --gbox-accent-soft:  rgba(210, 141, 255, .09);
+  --gbox-accent-line:  rgba(210, 141, 255, .32);
+  --gbox-accent-strong:rgba(210, 141, 255, .58);
+}
+.pw-kpi--prd, .pw-bd-group--prd {
+  --gbox-accent:       #6dd3ee;     /* PRD 天蓝 */
+  --gbox-accent-text:  #8edcf0;
+  --gbox-accent-soft:  rgba(109, 211, 238, .09);
+  --gbox-accent-line:  rgba(109, 211, 238, .32);
+  --gbox-accent-strong:rgba(109, 211, 238, .58);
+}
+.pw-kpi--dev-task, .pw-bd-group--dev-task {
+  --gbox-accent:       #a4e87a;     /* 开发任务 黄绿 */
+  --gbox-accent-text:  #b6ec8e;
+  --gbox-accent-soft:  rgba(164, 232, 122, .09);
+  --gbox-accent-line:  rgba(164, 232, 122, .32);
+  --gbox-accent-strong:rgba(164, 232, 122, .58);
+}
+.pw-kpi--revision, .pw-bd-group--revision {
+  --gbox-accent:       #fb7185;     /* 整改建议 玫红 */
+  --gbox-accent-text:  #ff9aae;
+  --gbox-accent-soft:  rgba(251, 113, 133, .09);
+  --gbox-accent-line:  rgba(251, 113, 133, .32);
+  --gbox-accent-strong:rgba(251, 113, 133, .58);
+}
+.pw-kpi--inquiry, .pw-bd-group--inquiry {
+  --gbox-accent:       #fde047;     /* 提问 柠檬黄 */
+  --gbox-accent-text:  #fef08a;
+  --gbox-accent-soft:  rgba(253, 224, 71, .10);
+  --gbox-accent-line:  rgba(253, 224, 71, .35);
+  --gbox-accent-strong:rgba(253, 224, 71, .62);
+}
+
 /* ----- Tab 1: 总览 ----- */
 .pw-overview { display: flex; flex-direction: column; gap: 18px; }
-.pw-overview__kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+.pw-overview__kpis { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
+.pw-kpi__num-sub { font-size: 14px; color: var(--muted, #a87526); font-weight: 500; margin-left: 2px; }
+/* KPI 卡：底色中性，边框按 type 色（用 line 弱一档），数字 / label 也按 type 染色 */
 .pw-kpi {
   padding: 14px 16px; border-radius: 10px;
   background: rgba(255,255,255,.03);
-  border: 1px solid rgba(217, 154, 62, .2);
+  border: 1px solid var(--gbox-accent-line, rgba(217, 154, 62, .15));
   text-align: center;
+  transition: transform .12s, border-color .12s;
 }
-.pw-kpi__num { font-size: 24px; font-weight: 700; color: #e6b25a; }
-.pw-kpi__label { font-size: 11px; color: #a87526; margin-top: 4px; }
+.pw-kpi:hover {
+  border-color: var(--gbox-accent-strong, rgba(217, 154, 62, .35));
+  transform: translateY(-1px);
+}
+.pw-kpi__num {
+  font-size: 24px; font-weight: 700;
+  color: var(--gbox-accent-text, #e6b25a);
+}
+.pw-kpi__label {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--gbox-accent) 65%, #a87526);
+  margin-top: 4px;
+  letter-spacing: 0.04em;
+}
+
 .pw-overview__progress-label { font-size: 11px; color: #a87526; margin-bottom: 6px; }
 .pw-overview__progress-bar {
   height: 8px; border-radius: 4px;
   background: rgba(255,255,255,.05); overflow: hidden;
 }
+/* 多色彩进度条：知识点青 → 场景橙 → 功能薰衣草 → PRD天蓝 → 开发任务绿 → 整改玫红 */
 .pw-overview__progress-bar > span {
   display: block; height: 100%;
-  background: linear-gradient(90deg, #d99a3e, #e6b25a);
+  background: linear-gradient(90deg,
+    #40e7dc 0%,
+    #f5a663 20%,
+    #d28dff 40%,
+    #6dd3ee 60%,
+    #a4e87a 80%,
+    #fb7185 100%);
 }
-.pw-overview__meta { display: flex; gap: 18px; font-size: 11px; color: #a87526; }
+.pw-overview__meta {
+  display: flex; gap: 18px; font-size: 11px; color: #a87526;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(217, 154, 62, .15);
+}
 
-/* ----- Tab 2: 拆解 ----- */
-.pw-bd { display: flex; flex-direction: column; gap: 18px; }
+/* ----- 拆解内容 ----- */
+.pw-bd-row { display: grid; gap: 16px; }
+.pw-bd-row--two   { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pw-bd-row--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pw-bd-row--two > .pw-bd-group,
+.pw-bd-row--three > .pw-bd-group {
+  height: 360px;
+  display: flex; flex-direction: column;
+}
+.pw-bd-row--two > .pw-bd-group .pw-bd-list,
+.pw-bd-row--three > .pw-bd-group .pw-bd-list {
+  flex: 1 1 0; min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* 通用 group 盒子：底色中性，边框按 type 色 */
 .pw-bd-group {
   padding: 12px 14px; border-radius: 10px;
-  background: rgba(217, 154, 62, .03);
-  border: 1px solid rgba(217, 154, 62, .18);
+  background: rgba(255, 255, 255, .02);
+  border: 1px solid var(--gbox-accent-line, rgba(217, 154, 62, .15));
 }
+/* 看板：盒子整体固定高度，内部 kanban 区 flex-grow + 各列独立滚 */
+.pw-bd-group--kanban {
+  height: 440px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;       /* 防止任何子元素溢出推开外层 */
+}
+.pw-bd-group--kanban .pw-bd-group__head {
+  flex-shrink: 0;          /* 头部不缩 */
+}
+.pw-bd-group--kanban .pw-bd-kanban {
+  flex: 1 1 0;
+  min-height: 0;           /* 让 flex child 可以缩小 + 让内部 overflow 生效 */
+}
+.pw-bd-group--kanban .pw-bd-col {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.pw-bd-group--kanban .pw-bd-col__head {
+  flex-shrink: 0;
+  position: sticky;        /* 列标题钉在顶 */
+  top: 0;
+  background: rgba(5, 3, 2, .85);
+  backdrop-filter: blur(4px);
+  padding-bottom: 4px;
+  z-index: 1;
+}
+
 .pw-bd-group__head {
   display: flex; justify-content: space-between; align-items: center;
-  font-size: 13px; font-weight: 600; color: #e6b25a;
+  font-size: 13px; font-weight: 600;
+  color: var(--gbox-accent-text, #e6b25a);
   margin-bottom: 10px;
 }
 .pw-bd-group__title-btn {
   background: transparent; border: none; padding: 2px 4px;
-  color: #e6b25a; font-size: 13px; font-weight: 600;
+  color: var(--gbox-accent-text, #e6b25a);
+  font-size: 13px; font-weight: 600;
   cursor: pointer; font-family: inherit;
   border-radius: 4px;
+  outline: none;
 }
 .pw-bd-group__title-btn:hover {
-  background: rgba(217, 154, 62, .08); color: #f0c070;
+  background: color-mix(in srgb, var(--gbox-accent) 12%, transparent);
+  color: var(--gbox-accent);
 }
-.pw-bd-add-group {
-  display: flex; gap: 8px; padding: 8px 0;
+.pw-bd-group__title-btn:focus,
+.pw-bd-group__title-btn:focus-visible { outline: none; }
+.pw-bd-group__count {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--gbox-accent-text) 65%, transparent);
+  font-weight: 500;
+  margin-left: 2px;
 }
+.pw-bd-group__hint {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--gbox-accent-text) 55%, #8a6520);
+  margin-bottom: 8px;
+  line-height: 1.5;
+  font-style: italic;
+}
+.pw-bd-group__actions { display: flex; gap: 8px; align-items: center; }
+
+/* 排序下拉 —— 只有文字按 type 色，背景边框中性 */
+.pw-bd-sort {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, .4);
+  border: 1px solid rgba(217, 154, 62, .22);
+  color: var(--gbox-accent-text, #d99a3e);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+}
+.pw-bd-sort:hover  { border-color: rgba(217, 154, 62, .45); }
+.pw-bd-sort:focus  { border-color: var(--gbox-accent); }
+.pw-bd-sort option { background: #1a1208; color: #e6b25a; }
+
+/* "+ 新增" 按钮：只有文字按 type 色，背景边框统一中性 */
+.pw-bd-add-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid rgba(217, 154, 62, .30);
+  color: var(--gbox-accent-text, #e6b25a);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  outline: none;
+}
+.pw-bd-add-btn:hover {
+  border-color: var(--gbox-accent, rgba(217, 154, 62, .65));
+  color: var(--gbox-accent);
+}
+.pw-bd-add-btn:focus-visible { outline: none; border-color: var(--gbox-accent); }
+.pw-bd-add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* PRD 用的 inline input —— 文字按 type 色，框中性 */
+.pw-bd-input {
+  padding: 6px 10px; border-radius: 6px;
+  background: rgba(0,0,0,.4);
+  border: 1px solid rgba(217, 154, 62, .22);
+  color: var(--gbox-accent-text, #e6b25a);
+  font-size: 12px; outline: none;
+  font-family: inherit; width: 200px;
+}
+.pw-bd-input:focus { border-color: var(--gbox-accent, #d99a3e); }
+
+/* 🪄 让 Rich 起草 —— PRD 专属，作为主行动按钮保留稍强一点的强调 */
+.pw-bd-ai {
+  padding: 5px 10px; border-radius: 6px;
+  background: transparent;
+  border: 1px solid rgba(217, 154, 62, .30);
+  color: var(--gbox-accent-text, #d99a3e);
+  font-size: 11px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+}
+.pw-bd-ai:hover {
+  border-color: var(--gbox-accent);
+  color: var(--gbox-accent);
+}
+
+/* 列表项 */
+.pw-bd-item {
+  display: flex; flex-direction: column;
+  width: 100%; text-align: left;
+  padding: 8px 10px; border-radius: 6px;
+  background: rgba(255,255,255,.015);
+  border: 1px solid transparent;
+  color: var(--gbox-accent-text, #e6b25a);
+  font-family: inherit; cursor: pointer;
+  margin-bottom: 4px;
+  outline: none;
+}
+.pw-bd-item:hover,
+.pw-bd-item:focus,
+.pw-bd-item:focus-visible {
+  background: rgba(255, 255, 255, .03);
+  border-color: rgba(217, 154, 62, .25);
+  outline: none;
+}
+.pw-bd-item__title {
+  font-size: 13px;
+  color: var(--gbox-accent-text, #e6b25a);
+}
+.pw-bd-item__sub {
+  font-size: 10px;
+  color: color-mix(in srgb, var(--gbox-accent-text) 55%, #8a6520);
+  margin-top: 2px;
+}
+.pw-bd-empty {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--gbox-accent) 35%, #6a4f1a);
+  padding: 6px 0;
+}
+
+/* ──────────── 看板 ──────────── */
+/* 三列各自的语义色：todo 金 / doing 蓝 / done 绿 */
+.pw-bd-kanban {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.pw-bd-col {
+  padding: 8px; border-radius: 8px;
+  background: rgba(255,255,255,.015);
+  border: 1px solid rgba(217, 154, 62, .15);
+  min-height: 120px;
+}
+/* 看板每列：底色中性、边框按状态色；列标题 + 任务标题 也按状态色 */
+.pw-bd-col--todo  { --col-accent: #ffd166; --col-line: rgba(255, 209, 102, .30); }
+.pw-bd-col--doing { --col-accent: #7aa7ff; --col-line: rgba(122, 167, 255, .30); }
+.pw-bd-col--done  { --col-accent: #74e5b0; --col-line: rgba(116, 229, 176, .30); }
+
+.pw-bd-col {
+  border-color: var(--col-line, rgba(217, 154, 62, .15));
+}
+.pw-bd-col__head {
+  font-size: 11px; font-weight: 600;
+  color: var(--col-accent, #a87526);
+  margin-bottom: 6px;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.pw-bd-task {
+  padding: 6px 8px; border-radius: 6px;
+  background: rgba(255, 255, 255, .02);
+  border: 1px solid var(--col-line, rgba(217, 154, 62, .12));
+  margin-bottom: 6px;
+}
+.pw-bd-task__title {
+  background: transparent; border: none; padding: 0;
+  color: var(--col-accent, #e6b25a);
+  font-size: 12px;
+  cursor: pointer; font-family: inherit; text-align: left;
+  display: block; width: 100%;
+  outline: none;
+}
+.pw-bd-task__title:focus,
+.pw-bd-task__title:focus-visible { outline: none; }
+.pw-bd-task__actions { display: flex; gap: 4px; margin-top: 6px; }
+
+/* 状态 chip——每个 chip 用自己状态的色 */
+.pw-bd-task__chip {
+  padding: 2px 6px; border-radius: 4px; font-size: 10px;
+  background: transparent;
+  border: 1px solid rgba(217, 154, 62, .2);
+  color: #6a4f1a;
+  cursor: pointer; font-family: inherit;
+}
+.pw-bd-task__chip:hover { color: #a87526; }
+.pw-bd-task__chip--todo.is-active {
+  background: #ffd166; border-color: #ffd166;
+  color: #2a1d05; font-weight: 600;
+}
+.pw-bd-task__chip--doing.is-active {
+  background: #7aa7ff; border-color: #7aa7ff;
+  color: #05132a; font-weight: 600;
+}
+.pw-bd-task__chip--done.is-active {
+  background: #74e5b0; border-color: #74e5b0;
+  color: #052a1a; font-weight: 600;
+}
+
+/* 历史孤儿 + 新建分组（保留琥珀色，是边角功能） */
+.pw-bd-add-group { display: flex; gap: 8px; padding: 8px 0; }
 .pw-bd-add-group-btn {
   padding: 8px 14px; border-radius: 8px;
   background: transparent;
@@ -131,78 +545,18 @@
   cursor: pointer; font-family: inherit;
 }
 .pw-bd-cancel:hover { color: #e6b25a; }
-.pw-bd-group__actions { display: flex; gap: 8px; align-items: center; }
-.pw-bd-input {
-  padding: 6px 10px; border-radius: 6px;
-  background: rgba(0,0,0,.4);
-  border: 1px solid rgba(217, 154, 62, .25);
-  color: #e6b25a; font-size: 12px; outline: none;
-  font-family: inherit; width: 200px;
+.pw-bd-orphans {
+  padding: 12px 14px; border-radius: 10px;
+  background: rgba(217, 154, 62, .02);
+  border: 1px dashed rgba(217, 154, 62, .25);
+  opacity: 0.85;
 }
-.pw-bd-input:focus { border-color: #d99a3e; }
-.pw-bd-ai {
-  padding: 5px 10px; border-radius: 6px;
-  background: rgba(217, 154, 62, .15);
-  border: 1px solid rgba(217, 154, 62, .4);
-  color: #d99a3e; font-size: 11px; font-weight: 600;
-  cursor: pointer; font-family: inherit;
-}
-.pw-bd-ai:hover { background: rgba(217, 154, 62, .25); color: #e6b25a; }
-.pw-bd-item {
-  display: flex; flex-direction: column;
-  width: 100%; text-align: left;
-  padding: 8px 10px; border-radius: 6px;
-  background: rgba(255,255,255,.015);
-  border: 1px solid transparent;
-  color: #e6b25a; font-family: inherit; cursor: pointer;
-  margin-bottom: 4px;
-}
-.pw-bd-item:hover {
-  background: rgba(217, 154, 62, .06);
-  border-color: rgba(217, 154, 62, .25);
-}
-.pw-bd-item__title { font-size: 13px; color: #e6b25a; }
-.pw-bd-item__sub { font-size: 10px; color: #8a6520; margin-top: 2px; }
-.pw-bd-empty { font-size: 11px; color: #6a4f1a; padding: 6px 0; }
-
-.pw-bd-kanban { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.pw-bd-col {
-  padding: 8px; border-radius: 8px;
-  background: rgba(255,255,255,.015);
-  border: 1px solid rgba(217, 154, 62, .15);
-  min-height: 120px;
-}
-.pw-bd-col__head {
-  font-size: 11px; color: #a87526;
-  margin-bottom: 6px;
-  text-transform: uppercase; letter-spacing: .04em;
-}
-.pw-bd-task {
-  padding: 6px 8px; border-radius: 6px;
-  background: rgba(217, 154, 62, .04);
-  border: 1px solid rgba(217, 154, 62, .15);
-  margin-bottom: 6px;
-}
-.pw-bd-task__title {
-  background: transparent; border: none; padding: 0;
-  color: #e6b25a; font-size: 12px;
-  cursor: pointer; font-family: inherit; text-align: left;
-  display: block; width: 100%;
-}
-.pw-bd-task__actions { display: flex; gap: 4px; margin-top: 6px; }
-.pw-bd-task__chip {
-  padding: 2px 6px; border-radius: 4px; font-size: 10px;
-  background: transparent;
-  border: 1px solid rgba(217, 154, 62, .2);
-  color: #6a4f1a;
-  cursor: pointer; font-family: inherit;
-}
-.pw-bd-task__chip:hover { color: #a87526; }
-.pw-bd-task__chip.is-active {
-  background: #d99a3e; border-color: #d99a3e; color: #1a1208; font-weight: 600;
+.pw-bd-orphans__head {
+  font-size: 12px; font-weight: 600; color: #a87526;
+  margin-bottom: 8px;
 }
 
-/* ----- Tab 3: 效果图 ----- */
+/* ----- Tab 2: 效果图 ----- */
 .pw-mk { display: flex; flex-direction: column; gap: 14px; }
 .pw-mk__head {
   display: flex; align-items: center; gap: 14px;

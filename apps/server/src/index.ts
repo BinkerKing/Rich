@@ -7,6 +7,7 @@ import { relationsRoutes } from "./routes/relations.js";
 import { pathsRoutes } from "./routes/paths.js";
 import { signalsRoutes } from "./routes/signals.js";
 import { stateRoutes } from "./routes/state.js";
+import { corpusRoutes } from "./routes/corpus.js";
 import { aiRoutes } from "./routes/ai.js";
 import { adminRoutes } from "./routes/admin.js";
 import { join, resolve as pathResolve, join as pathJoin, extname as pathExtname } from "node:path";
@@ -37,24 +38,29 @@ import { imagesRoutes } from "./routes/images.js";
 import { attachmentsRoutes } from "./routes/attachments.js";
 import { mindmapsRoutes } from "./routes/mindmaps.js";
 import { JsonStateRepo } from "./repos/JsonStateRepo.js";
+import { JsonCorpusRepo } from "./repos/JsonCorpusRepo.js";
 import { CachedElementsRepo } from "./repos/CachedElementsRepo.js";
 import { CachedRelationsRepo } from "./repos/CachedRelationsRepo.js";
 import { SqliteElementsRepo } from "./repos/SqliteElementsRepo.js";
 import { SqliteRelationsRepo } from "./repos/SqliteRelationsRepo.js";
 import { SqlitePathsRepo } from "./repos/SqlitePathsRepo.js";
 import { SqliteSignalsRepo } from "./repos/SqliteSignalsRepo.js";
+import { SqliteChatVisualBlocksRepo } from "./repos/SqliteChatVisualBlocksRepo.js";
 import { SqliteQARepo } from "./repos/SqliteQARepo.js";
 import { SqliteAnnotationsRepo } from "./repos/SqliteAnnotationsRepo.js";
 import { SqliteStateRepo } from "./repos/SqliteStateRepo.js";
+import { SqliteCorpusRepo } from "./repos/SqliteCorpusRepo.js";
 import { openDb } from "./db/sqlite.js";
 import { openPostgresPool } from "./db/postgres.js";
 import type { ElementsRepo } from "./repos/ElementsRepo.js";
 import type { RelationsRepo } from "./repos/RelationsRepo.js";
 import type { PathsRepo } from "./repos/PathsRepo.js";
 import type { SignalsRepo } from "./repos/SignalsRepo.js";
+import type { ChatVisualBlocksRepo } from "./repos/ChatVisualBlocksRepo.js";
 import type { QARepo } from "./repos/QARepo.js";
 import type { AnnotationsRepo } from "./repos/AnnotationsRepo.js";
 import type { StateRepo } from "./repos/StateRepo.js";
+import type { CorpusRepo } from "./repos/CorpusRepo.js";
 import { dataDir, aiDir } from "./lib/paths.js";
 import { ClaudeAdapter } from "./ai/claude.js";
 import { CodexAdapter } from "./ai/codex.js";
@@ -68,6 +74,7 @@ import { mountMcp } from "./mcp/transport.js";
 import { eventsRoute } from "./routes/events.js";
 import { greatMeRoutes } from "./routes/greatMe.js";
 import { chatRoutes } from "./routes/chat.js";
+import { chatVisualBlocksRoutes } from "./routes/chatVisualBlocks.js";
 import { cronRoutes } from "./routes/cron.js";
 import { ImprovementsRepo, type ImprovementsStore } from "./repos/ImprovementsRepo.js";
 import { improvementsRoutes } from "./routes/improvements.js";
@@ -83,9 +90,11 @@ import { PostgresElementsRepo } from "./repos/PostgresElementsRepo.js";
 import { PostgresRelationsRepo } from "./repos/PostgresRelationsRepo.js";
 import { PostgresPathsRepo } from "./repos/PostgresPathsRepo.js";
 import { PostgresSignalsRepo } from "./repos/PostgresSignalsRepo.js";
+import { PostgresChatVisualBlocksRepo } from "./repos/PostgresChatVisualBlocksRepo.js";
 import { PostgresQARepo } from "./repos/PostgresQARepo.js";
 import { PostgresAnnotationsRepo } from "./repos/PostgresAnnotationsRepo.js";
 import { PostgresStateRepo } from "./repos/PostgresStateRepo.js";
+import { PostgresCorpusRepo } from "./repos/PostgresCorpusRepo.js";
 import { PostgresGreatMeRepo } from "./repos/PostgresGreatMeRepo.js";
 import { PostgresInvocationsRepo } from "./repos/PostgresInvocationsRepo.js";
 import { PostgresImprovementsRepo } from "./repos/PostgresImprovementsRepo.js";
@@ -109,9 +118,12 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let qa: QARepo;
   let annotations: AnnotationsRepo;
   let state: StateRepo;
+  let corpus: CorpusRepo;
   let greatMe: GreatMeRepo;
   let improvements: ImprovementsStore | null = null;
   let invocations: InvocationsStore | null = null;
+  /** chat_visual_blocks 仅 sqlite + postgres 后端支持；json 模式下保持 null。 */
+  let chatVisualBlocks: ChatVisualBlocksRepo | null = null;
   if (storage === "json") {
     elements = new CachedElementsRepo(new JsonElementsRepo(root));
     relations = new CachedRelationsRepo(new JsonRelationsRepo(root));
@@ -120,6 +132,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     qa = new JsonQARepo(root);
     annotations = new JsonAnnotationsRepo(root);
     state = new JsonStateRepo(root);
+    corpus = new JsonCorpusRepo(root);
     greatMe = new JsonGreatMeRepo(root);
   } else if (storage === "postgres") {
     const connectionString = process.env.DATABASE_URL ?? process.env.KE_DATABASE_URL;
@@ -134,9 +147,11 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     qa = new PostgresQARepo(pg);
     annotations = new PostgresAnnotationsRepo(pg);
     state = new PostgresStateRepo(pg);
+    corpus = new PostgresCorpusRepo(pg);
     greatMe = new PostgresGreatMeRepo(pg);
     invocations = new PostgresInvocationsRepo(pg);
     improvements = new PostgresImprovementsRepo(pg);
+    chatVisualBlocks = new PostgresChatVisualBlocksRepo(pg);
   } else {
     const dbPath = process.env.KE_SQLITE_PATH ?? join(root, "ke.db");
     const db = openDb(dbPath);
@@ -147,9 +162,11 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     qa = new SqliteQARepo(db);
     annotations = new SqliteAnnotationsRepo(db);
     state = new SqliteStateRepo(db);
+    corpus = new SqliteCorpusRepo(db);
     greatMe = new SqliteGreatMeRepo(db);
     improvements = new ImprovementsRepo(db);
     invocations = new InvocationsRepo(db);
+    chatVisualBlocks = new SqliteChatVisualBlocksRepo(db);
   }
 
   // Toolbox runtime constructed below (after `log` is defined).
@@ -214,8 +231,10 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/images", imagesRoutes());
   app.route("/api/attachments", attachmentsRoutes());
   app.route("/api/state", stateRoutes(state, elements, signals));
+  app.route("/api/corpus", corpusRoutes(corpus));
   app.route("/api/great-me", greatMeRoutes(greatMe));
   app.route("/api/chat", chatRoutes());
+  app.route("/api/chat-visual-blocks", chatVisualBlocksRoutes(chatVisualBlocks));
   app.route("/api/cron", cronRoutes());
   if (improvements) {
     app.route("/api/improvements", improvementsRoutes(improvements));
@@ -228,7 +247,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     adapters: ai, elements, relations, paths, signals, qa, annotations,
     aiDir: manualsDir, logger: log,
   }));
-  app.route("/api/admin", adminRoutes({ signals, aiDir: manualsDir, adapters: ai }));
+  app.route("/api/admin", adminRoutes({ signals, aiDir: manualsDir, adapters: ai, corpus }));
   // Mindmap PPT decks — element-backed. Every deck IS the root element of
   // a subtree that carries a `mindmap-embed` section. No separate storage.
   app.route("/api/mindmaps", mindmapsRoutes({
@@ -248,7 +267,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   // the same SQLite the Rich UI is reading from.
   mountMcp(app, {
     elements, relations, paths, signals, qa, annotations,
-    adapters: ai, aiDir: manualsDir, improvements,
+    adapters: ai, aiDir: manualsDir, improvements, corpus,
     toolRuntime,
     greatMe,
   });

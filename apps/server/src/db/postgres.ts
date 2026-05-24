@@ -170,5 +170,18 @@ async function applySchema(pool: Pool): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_tool_invocations_status_ts ON tool_invocations(status, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_tool_invocations_tool ON tool_invocations(tool_name, created_at DESC);
+
+    -- Rich 首页动画展示系统 v0.1：visual 块独立持久化
+    CREATE TABLE IF NOT EXISTS chat_visual_blocks (
+      id                TEXT PRIMARY KEY,
+      message_id        TEXT NOT NULL DEFAULT '',
+      block_type        TEXT NOT NULL,
+      payload           JSONB NOT NULL,
+      order_in_message  INTEGER NOT NULL DEFAULT 0,
+      created_at        TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_cvb_message ON chat_visual_blocks(message_id, order_in_message);
+    CREATE INDEX IF NOT EXISTS idx_cvb_created ON chat_visual_blocks(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_cvb_type ON chat_visual_blocks(block_type, created_at DESC);
   `);
 }

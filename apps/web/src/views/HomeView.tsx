@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { RichContent } from "../components/RichContent.js";
+import { dispatchMascotEvent } from "../lib/mascotEvents.js";
+import { useMascotState } from "../lib/useMascotState.js";
+import { VisualBlockRenderer } from "../components/VisualBlockRenderer.js";
+import { detectBlockType, type DetectedBlockType } from "../lib/detectBlockType.js";
+import { persistVisualBlocks } from "../lib/extractVisualBlocks.js";
+
+/** 哪些 block 类型才能上舞台 = 真正『图形』、不是文字组织 */
+const STAGE_VISUAL_TYPES = new Set<DetectedBlockType>([
+  "flowchart", "chart", "sequence", "architecture", "tree", "sketch",
+]);
+/** table / concept / raw 不上舞台 —— 它们本质是文字塞进框里，看着还是大把文字 */
+import { markChatSendStart, markMascotFirstFrame, markFirstTextChunk, newReqId } from "../lib/perfMarks.js";
 import "../components/RichContent.css";
 import {
   CHAT_HISTORY_STORAGE_KEY,
@@ -82,6 +94,43 @@ function shouldDance(text: string) {
   return /跳舞|跳个舞|小人跳|dance/i.test(text);
 }
 
+/** 抽出最近一组 (问题, 答案) 给首页主区显示。流式中也算 — answer 可能 pending。 */
+function latestPair(turns: Turn[]): { question: Turn; answer: Turn | null } | null {
+  // 找最后一个 user turn
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const t = turns[i];
+    if (t.role === "user") {
+      const next = turns[i + 1];
+      return { question: t, answer: next?.role === "assistant" ? next : null };
+    }
+  }
+  return null;
+}
+
+/** 解析答案文本里的 ascii 视觉块（含未闭合的 streaming 块） */
+const VBLOCK_RE = /```([a-zA-Z]*)\n([\s\S]*?)```/g;
+const VBLOCK_OPEN_RE = /```([a-zA-Z]*)\n([\s\S]*)$/;
+function parseAnswerVisuals(content: string): { ascii: string; closed: boolean }[] {
+  const out: { ascii: string; closed: boolean }[] = [];
+  VBLOCK_RE.lastIndex = 0;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = VBLOCK_RE.exec(content)) !== null) {
+    out.push({ ascii: m[2], closed: true });
+    last = VBLOCK_RE.lastIndex;
+  }
+  // 末尾未闭合的围栏
+  const tail = content.slice(last);
+  const openMatch = tail.match(VBLOCK_OPEN_RE);
+  if (openMatch && openMatch[2].length > 0) {
+    out.push({ ascii: openMatch[2], closed: false });
+  }
+  return out;
+}
+function stripVisuals(content: string): string {
+  return content.replace(VBLOCK_RE, "").replace(VBLOCK_OPEN_RE, "").trim();
+}
+
 function buildChatPairs(turns: Turn[], limit = 50): ChatPair[] {
   const pairs: ChatPair[] = [];
   for (let i = 0; i < turns.length; i++) {
@@ -130,6 +179,9 @@ export function HomeView() {
   const [turns, setTurns] = useState<Turn[]>(() => loadChatHistory());
   const [busy, setBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // T06 状态机驱动首页大 Mascot —— useMascotState 接 mascotStateMachine，
+  // 状态变化时映射到本地 home-mascot 名字（保留旧 sprite 系统 + 后端 /api/mascot/play 集成）
+  const machineState = useMascotState();
   const [mascot, setMascot] = useState<MascotState>({
     current: "walk", fallback: "walk",
     startedAt: new Date().toISOString(), triggeredBy: "system",
@@ -138,16 +190,51 @@ export function HomeView() {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const historyPointerToggledRef = useRef(false);
   // Hidden span that mirrors the typed text — its rendered width drives
-  // where the custom underline caret sits. Same font / line-height /
+  // where the custom block caret sits. Same font / line-height /
   // letter-spacing as the textarea, so the measurement lines up to the pixel.
   const measureRef = useRef<HTMLSpanElement | null>(null);
   const [petX, setPetX] = useState(0);
   const [petY, setPetY] = useState(0);
   const chatPairs = useMemo(() => buildChatPairs(turns), [turns]);
 
+  // 首页主区显示「最新一组对话」—— 用户问一句，Rich 答的视觉块+文字在 stage 大显示
+  const latestQA = useMemo(() => latestPair(turns), [turns]);
+  const latestAnswerContent = latestQA?.answer?.content ?? "";
+  const allVisuals = useMemo(
+    () => parseAnswerVisuals(latestAnswerContent),
+    [latestAnswerContent],
+  );
+  /** 只筛真正的图（流程图/图表/时序/架构/树/手绘）；table/concept/raw 不上舞台 */
+  const latestVisuals = useMemo(
+    () => allVisuals.filter(v => STAGE_VISUAL_TYPES.has(detectBlockType(v.ascii))),
+    [allVisuals],
+  );
+  const latestText = useMemo(() => stripVisuals(latestAnswerContent), [latestAnswerContent]);
+  /** stage 是否进入「答案模式」：用户问了任何问题 → 当前 Q&A 上半屏展示。
+   *  有视觉块就视觉块 + 文字（针对当前问题）；纯文字就文字。
+   *  历史是另外的 surface，默认隐藏，点 📜 才看。 */
+  const stageInAnswerMode = !!latestQA?.answer && (
+    latestQA.answer.pending || latestText.length > 0 || latestVisuals.length > 0
+  );
+
   useEffect(() => {
     setHistoryOpen(false);
   }, []);
+
+  // 历史 panel 全屏模式时 ESC 关闭（用户原话「点开看」是主动行为，关闭也得方便）
+  useEffect(() => {
+    if (!historyOpen) return;
+    const handler = (e: KeyboardEvent): void => {
+      const t = e.target;
+      if (t instanceof HTMLElement && t.closest("input, textarea")) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setHistoryOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [historyOpen]);
 
   // Initial fetch of mascot state, then live updates via the shared SSE
   // channel (/api/events). Any code path (REST or MCP) that publishes
@@ -166,6 +253,27 @@ export function HomeView() {
     es.addEventListener("change", onChange);
     return () => { es.close(); };
   }, []);
+
+  // T06 状态机 → 首页大 Mascot 名字 映射：聊天发起 / 流式 / 完成 时
+  // 自动驱动 home-mascot--<name> 切换。后端 /api/mascot/play 没改变（仅在
+  // shouldDance 等用户主动行为时调），状态机优先级更高。
+  useEffect(() => {
+    const MAP: Record<typeof machineState, MascotName> = {
+      idle: "walk",
+      thinking: "think",
+      talking: "happy",        // 流式输出中：保持活力（walk 太静、think 太蹙眉）
+      proud: "celebrate",
+      confused: "alert",
+      embarrassed: "sad",
+    };
+    const next = MAP[machineState] ?? "walk";
+    setMascot(prev => prev.current === next ? prev : {
+      current: next,
+      fallback: "walk",
+      startedAt: new Date().toISOString(),
+      triggeredBy: "system",
+    });
+  }, [machineState]);
 
   // Mascot walk-cycle: swap sprite frames at a tempo dictated by the current
   // animation. Pure JS state (rather than CSS `steps()` animation) keeps the
@@ -209,7 +317,7 @@ export function HomeView() {
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, [input]);
 
-  // Underline-caret position. Measure the typed text in a hidden span (same
+  // Block-caret position. Measure the typed text in a hidden span (same
   // font as the textarea) to know where the caret should sit. For multi-line
   // input we measure only the LAST line's width and shift the pet down
   // by (lines - 1) × lineHeight so it tracks line wrapping too.
@@ -292,7 +400,8 @@ export function HomeView() {
     const nextTurns = [...baseTurns, userTurn, assistantTurn];
     setTurns(nextTurns);
     saveChatHistory(nextTurns);
-    setHistoryOpen(true);
+    // 不要自动开历史 —— 当前 Q&A 在上面 stage 已经展示，历史是另外的 surface
+    // 用户主动点 📜 才开（fullscreen overlay）
     setInput("");
     setBusy(true);
 
@@ -300,6 +409,13 @@ export function HomeView() {
     // send the empty assistant placeholder we just appended; only the
     // canonical conversation Hermes needs to reason about.
     const history = [...baseTurns, userTurn].map(t => ({ role: t.role, content: t.content }));
+    // Mascot 状态切到 thinking（瞬时，跟服务端 mascot 事件兜底叠加）
+    dispatchMascotEvent({ type: "user-send" });
+    // T18 性能埋点
+    const reqId = newReqId();
+    markChatSendStart(reqId);
+    markMascotFirstFrame(reqId);
+    let firstTextChunkSeen = false;
 
     try {
       const r = await fetch("/api/chat/stream", {
@@ -336,6 +452,14 @@ export function HomeView() {
                 saveChatHistory(next);
                 return next;
               });
+              if (!firstTextChunkSeen) {
+                firstTextChunkSeen = true;
+                dispatchMascotEvent({ type: "first-text-chunk" });
+                markFirstTextChunk(reqId);   // T18
+              }
+            } else if (currentEvent === "mascot") {
+              const m = parsed as { state: import("../lib/mascotEvents.js").MascotState };
+              if (m.state) dispatchMascotEvent({ type: "server-push", state: m.state });
             } else if (currentEvent === "tool") {
               const tev = parsed as { name: string; status: "running" | "completed" };
               setTurns(prev => {
@@ -366,8 +490,14 @@ export function HomeView() {
                   i === prev.length - 1 ? { ...t, pending: false } : t,
                 );
                 saveChatHistory(next);
+                // T15 持久化视觉块
+                const last = next.at(-1);
+                if (last?.role === "assistant" && last.content && last.id) {
+                  void persistVisualBlocks(last.id, last.content);
+                }
                 return next;
               });
+              dispatchMascotEvent({ type: "done" });
             } else if (currentEvent === "error") {
               const { message } = parsed as { message: string };
               setTurns(prev => {
@@ -377,15 +507,18 @@ export function HomeView() {
                 saveChatHistory(next);
                 return next;
               });
+              dispatchMascotEvent({ type: "error", message });
             }
           }
         }
       }
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      dispatchMascotEvent({ type: "error", message });
       setTurns(prev => {
         const next = prev.map((t, i) =>
           i === prev.length - 1
-            ? { ...t, pending: false, error: err instanceof Error ? err.message : String(err) }
+            ? { ...t, pending: false, error: message }
             : t,
         );
         saveChatHistory(next);
@@ -446,14 +579,61 @@ export function HomeView() {
       {/* Top half — presentation surface. The wrapper carries the
        *  `home-mascot--<name>` class so each animation gets its own
        *  glow color / scale / bob amplitude / particle layer from CSS. */}
-      <section className="home-stage" aria-hidden="true">
+      <section className={`home-stage${stageInAnswerMode ? " is-answer-mode" : ""}`}>
         <div className="home-scan-grid" />
         {mascot.current === "ironman" ? (
-          // Iron Man owns the whole stage for 30s. `key` bound to startedAt
-          // so re-triggering the same animation replays it cleanly (React
-          // remounts the subtree → CSS keyframes restart from 0%).
+          // Iron Man owns the whole stage for 30s
           <IronManFlight key={mascot.startedAt} />
+        ) : stageInAnswerMode ? (
+          // ╭─────────────────── 答案模式 ───────────────────╮
+          // 用户问了问题 → 首页主区 = AI 视觉答案区。
+          // 视觉块（流程图 / 表 / 树）BIG 显示在中间；文字答案在下方。
+          // 用户的问题 + Mascot 都搬到左下角（home-corner-mascot），
+          // 问题以气泡 (bubble) 形式挂在 Mascot 头顶。
+          (() => {
+            // 根据内容自适应布局：
+            //   - 纯图（无文字）  → 居中大图
+            //   - 纯文字（无图）  → 居中文字块
+            //   - 图 + 文字       → 左右分栏（图左，文字右），不再上下堆叠
+            const hasVisuals = latestVisuals.length > 0;
+            const hasText = latestText.length > 0;
+            const layout =
+              hasVisuals && hasText ? "split" :
+              hasVisuals ? "visuals-only" :
+              hasText ? "text-only" : "empty";
+            return (
+              <div className={`home-answer home-answer--${layout}`}>
+                <div className="home-answer__body">
+                  {hasVisuals && (
+                    <div className="home-answer__visuals">
+                      {latestVisuals.map((v, i) => (
+                        <VisualBlockRenderer
+                          key={i}
+                          ascii={v.ascii}
+                          mode={v.closed ? "final" : "stream"}
+                          done={v.closed}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {hasText && (
+                    <div className="home-answer__text">
+                      <RichContent text={latestText} />
+                    </div>
+                  )}
+                  {!hasText && !hasVisuals && latestQA?.answer?.pending && (
+                    <div className="home-answer__waiting">Rich 正在写…</div>
+                  )}
+                  {latestQA?.answer?.error && (
+                    <div className="home-answer__error">⚠ {latestQA.answer.error}</div>
+                  )}
+                </div>
+              </div>
+            );
+          })()
         ) : (
+          // ╭───────────────── 空闲模式（默认）─────────────────╮
+          // 没问问题时 mascot 大居中（保持原视觉）
           <div className={`home-mascot-wrap home-mascot--${mascot.current}`}>
             <div className="home-mascot-glow" />
             <img
@@ -468,8 +648,28 @@ export function HomeView() {
         )}
       </section>
 
+      {/* 左下角的小人 + 用户问题气泡 —— 仅在答案模式下出现。
+       *  小人挂在左下；气泡（speech bubble）浮在小人头顶，尾巴指下方对准小人；
+       *  这样上半屏纯粹给视觉块 / 答案文字，用户的问题不再压在窗口顶部。 */}
+      {stageInAnswerMode && mascot.current !== "ironman" && (
+        <aside
+          className={`home-corner-mascot home-corner-mascot--${mascot.current}`}
+          aria-label="你的问题"
+        >
+          {latestQA?.question.content && (
+            <div className="home-corner-bubble" role="note">
+              <span className="home-corner-bubble__name">大斌哥：</span>
+              <span className="home-corner-bubble__text">{latestQA.question.content}</span>
+            </div>
+          )}
+          <span className="home-corner-mascot__sprite" aria-hidden="true">
+            <img src={WALK_FRAMES[frame]} alt="" draggable={false} />
+          </span>
+        </aside>
+      )}
+
       {/* Middle — input bar. Single column, no send button at all —
-       *  press Enter to send. Native caret is hidden; a static underline
+       *  press Enter to send. Native caret is hidden; a custom block caret
        *  sits at the end of the typed text, positioned via the measure span. */}
       <form className="home-input" onSubmit={onSubmit}>
         {/* Hidden measurement span — its rendered width drives the pet
@@ -499,16 +699,18 @@ export function HomeView() {
         <button type="submit" disabled={busy || !input.trim()} aria-hidden="true" tabIndex={-1} />
       </form>
 
-      <section
-        ref={bottomRef}
-        className={`home-history${historyOpen ? " is-open" : " is-hidden"}`}
-        aria-live="polite"
-        aria-hidden={!historyOpen}
-      >
-        {historyOpen && (
+      {/* 历史 panel：默认隐藏；点 📜 toggle 切到全屏 overlay 模式
+       *  打开时盖住整个首页（包括 stage / input），用户能专心翻历史
+       *  右下角历史按钮保留在 overlay 上方，再点一次收回。 */}
+      {historyOpen && (
+        <section
+          ref={bottomRef}
+          className="home-history is-fullscreen"
+          aria-live="polite"
+        >
           <ChatHistoryPanel pairs={chatPairs} />
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }

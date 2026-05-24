@@ -262,17 +262,19 @@ export function PlanDetailView<S extends PartialState>({ plan, state, setState, 
           <span className={`pd-tree-scope pd-tree-scope--${goal.scope}`}>{scopeLabel}</span>
           <span className="pd-tree-title is-clickable" title="点击编辑"
             onClick={() => openEditGoal(goal)}>{goal.title}</span>
-          <div className="pd-tree-bar"><span style={{ width: `${dynProgress}%` }} /></div>
-          <span className="pd-tree-pct">{dynProgress}%</span>
-          {summary && <span className="pd-tree-summary">{summary}</span>}
-          {/* S5：hover actions */}
-          <div className="pd-tree-actions">
-            <button className="pd-tree-action" title="编辑"
-              onClick={() => openEditGoal(goal)}>✎</button>
-            <button className="pd-tree-action" title={`在此节点下${addChildLabel.slice(2)}`}
-              onClick={addChild}>{addChildLabel}</button>
-            <button className="pd-tree-action pd-tree-action--danger" title="删除"
-              onClick={() => deleteGoalCascade(goal)}>🗑</button>
+          <div className="pd-tree-metrics">
+            <div className="pd-tree-bar"><span style={{ width: `${dynProgress}%` }} /></div>
+            <span className="pd-tree-pct">{dynProgress}%</span>
+            <span className={`pd-tree-summary ${summary ? "" : "is-empty"}`}>{summary || " "}</span>
+            {/* S5：hover actions */}
+            <div className="pd-tree-actions">
+              <button className="pd-tree-action" title="编辑"
+                onClick={() => openEditGoal(goal)}>✎</button>
+              <button className="pd-tree-action" title={`在此节点下${addChildLabel.slice(2)}`}
+                onClick={addChild}>{addChildLabel}</button>
+              <button className="pd-tree-action pd-tree-action--danger" title="删除"
+                onClick={() => deleteGoalCascade(goal)}>🗑</button>
+            </div>
           </div>
         </div>
         {!collapsed && children.map(c => renderTreeNode(c, depth + 1))}

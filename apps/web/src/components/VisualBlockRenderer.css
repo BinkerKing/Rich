@@ -1,0 +1,162 @@
+/* Rich 首页动画展示系统 v0.1 —— VisualBlockRenderer (T09)
+ *
+ * 视觉块容器：等宽字体 + 字符级 reveal + 每种 blockType 独立动画。
+ * 各 blockType 的动画在这里实现（T10-T14）。
+ */
+
+.vbr {
+  position: relative;
+  margin: 12px 0;
+  padding: 12px 14px 14px;
+  background: rgba(0, 0, 0, .3);
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.vbr.is-clickable { cursor: pointer; }
+.vbr.is-clickable:hover { border-color: rgba(57, 246, 232, .35); }
+
+/* caption（AI 给的视觉块标题） */
+.vbr__caption {
+  font-size: 11px;
+  color: var(--muted, #8a8d96);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+  font-style: italic;
+}
+
+/* 主体：等宽字体 + 行高紧凑 + 横向滚动，永不纵向滚 */
+.vbr__pre {
+  margin: 0;
+  padding: 0;
+  font-family: "SF Mono", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text, #e7e7ea);
+  white-space: pre;
+  /* 关键：水平滚动允许，垂直绝不滚（视觉块超高就让 AI 重新画） */
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* 字符级渲染 —— 避免抗锯齿让 box-drawing 字符之间出现缝隙 */
+  text-rendering: optimizeSpeed;
+  -webkit-font-feature-settings: "liga" 0;
+  font-feature-settings: "liga" 0;
+  /* 每行 box-drawing 字符必须等宽对齐 */
+  font-variant-numeric: tabular-nums;
+}
+
+/* 流式态：整体淡入，已完成后给一次高亮 */
+.vbr--streaming .vbr__pre {
+  opacity: 0.95;
+}
+.vbr--streaming.is-done .vbr__pre {
+  animation: vbr-done-pulse 800ms ease-out;
+}
+@keyframes vbr-done-pulse {
+  0%   { opacity: 0.7; filter: brightness(1); }
+  30%  { opacity: 1.0; filter: brightness(1.15); }
+  100% { opacity: 1.0; filter: brightness(1); }
+}
+
+/* ============================================================================
+ * T10 三模板（concept / tree / table）—— 静态 box+arrow / 树 / 表格
+ * ============================================================================ */
+/* 各类型只保留文字颜色区分；左侧 3px 彩条用户嫌多余，全部移除 */
+.vbr--concept .vbr__pre   { color: #a6c5ff; }   /* 概念蓝 */
+.vbr--tree .vbr__pre      { color: #c2a5ff; }   /* 树紫 */
+.vbr--table .vbr__pre     { color: #b6ec8e; }   /* 表绿 */
+
+/* ============================================================================
+ * T11 场景 5 流程图 —— box-arrow + stagger 节点冒出 + 箭头延伸
+ * 用 line-by-line stagger（每行延迟 100ms 显现，模拟节点 + 连线依次出现）
+ * ============================================================================ */
+.vbr--flowchart .vbr__pre { color: #ff9c8a; }
+
+.vbr--flowchart.vbr--streaming.is-done .vbr__pre {
+  animation: vbr-flowchart-reveal 1.2s ease-out;
+}
+@keyframes vbr-flowchart-reveal {
+  0%   { clip-path: inset(0 0 100% 0); opacity: 0.6; }
+  100% { clip-path: inset(0 0 0 0);    opacity: 1.0; }
+}
+
+/* ============================================================================
+ * T12 场景 6 数据可视化 —— 字符柱状图 / 饼图 / 趋势
+ * 柱状图：每行 width 0 → 100% transition（横向长出）
+ * ============================================================================ */
+.vbr--chart .vbr__pre     { color: #ffd989; }
+
+.vbr--chart.vbr--streaming.is-done .vbr__pre {
+  animation: vbr-chart-rise 900ms ease-out;
+}
+@keyframes vbr-chart-rise {
+  0%   { transform: scaleX(0.3); transform-origin: left center; opacity: 0.6; }
+  100% { transform: scaleX(1);   transform-origin: left center; opacity: 1.0; }
+}
+
+/* ============================================================================
+ * T13 场景 7 时序图 —— actor 顶部 + 竖虚线 + 横箭头按时间出现
+ * 竖虚线 fade-in，箭头延迟出现
+ * ============================================================================ */
+.vbr--sequence .vbr__pre  { color: #8edcf0; }
+
+.vbr--sequence.vbr--streaming.is-done .vbr__pre {
+  animation: vbr-sequence-fade 1.1s ease-out;
+}
+@keyframes vbr-sequence-fade {
+  0%   { opacity: 0.5; transform: translateY(4px); }
+  50%  { opacity: 0.9; transform: translateY(0); }
+  100% { opacity: 1.0; }
+}
+
+/* ============================================================================
+ * T14 场景 8 架构图 —— 嵌套方框 + 层级冒出
+ * 整体从下往上 reveal（模拟"基础层→上层"建出来的感觉）
+ * ============================================================================ */
+.vbr--architecture .vbr__pre { color: #e3b3ff; }
+
+.vbr--architecture.vbr--streaming.is-done .vbr__pre {
+  animation: vbr-arch-build 1.4s ease-out;
+}
+@keyframes vbr-arch-build {
+  0%   { clip-path: inset(100% 0 0 0); opacity: 0.5; }
+  100% { clip-path: inset(0 0 0 0);    opacity: 1.0; }
+}
+
+/* ============================================================================
+ * sketch（T24 手绘草图风） —— 占位：jitter 抖动 + 不规则边
+ * 真正的 Rough.js 集成在 T24
+ * ============================================================================ */
+.vbr--sketch .vbr__pre    { color: #fef08a; }
+.vbr--sketch.vbr--streaming.is-done .vbr__pre {
+  animation: vbr-sketch-jitter 1.2s ease-out;
+}
+@keyframes vbr-sketch-jitter {
+  0%, 100% { transform: rotate(0); }
+  20%      { transform: rotate(-.2deg); }
+  40%      { transform: rotate(.2deg); }
+  60%      { transform: rotate(-.1deg); }
+  80%      { transform: rotate(.1deg); }
+}
+
+/* raw 兜底（未识别类型） */
+.vbr--raw .vbr__pre       { color: var(--text, #e7e7ea); }
+
+/* ============================================================================
+ * Reduced motion 全关
+ * ============================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .vbr__pre,
+  .vbr--flowchart.is-done .vbr__pre,
+  .vbr--chart.is-done .vbr__pre,
+  .vbr--sequence.is-done .vbr__pre,
+  .vbr--architecture.is-done .vbr__pre,
+  .vbr--sketch.is-done .vbr__pre,
+  .vbr--streaming.is-done .vbr__pre {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+.vbr.is-reduced .vbr__pre {
+  animation: none !important;
+}

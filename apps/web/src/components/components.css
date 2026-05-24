@@ -2387,16 +2387,28 @@ button {
   text-align: center !important;
 }
 
-/* ── Per-type accent overrides ── */
-.element-content--type-topic    { --center-accent: #ffc977; --center-soft: rgba(255, 201, 119, .10); --center-line: rgba(255, 201, 119, .45); }
-.element-content--type-concept  { --center-accent: #3dd5cd; --center-soft: rgba(61, 213, 205, .10); --center-line: rgba(61, 213, 205, .35); }
+/* ── Per-type accent overrides ──
+ * 这些值必须跟 src/theme/centerStyle.ts 的 presets 保持一致；
+ * 改一处颜色 = 两处都改，否则元详情面板会跟卡片网格脱钩。
+ */
+.element-content--type-topic    { --center-accent: #ffd166; --center-accent-2: #ffc977; --center-soft: rgba(255, 209, 102, .13); --center-line: rgba(255, 209, 102, .38); --center-glow: rgba(255, 209, 102, .24); }
+.element-content--type-concept  { --center-accent: #7aa7ff; --center-accent-2: #55caff; --center-soft: rgba(122, 167, 255, .13); --center-line: rgba(122, 167, 255, .38); --center-glow: rgba(122, 167, 255, .24); }
 .element-content--type-step,
-.element-content--type-exercise { --center-accent: #9b7cff; --center-soft: rgba(155, 124, 255, .10); --center-line: rgba(155, 124, 255, .40); }
+.element-content--type-exercise { --center-accent: #b187ff; --center-accent-2: #9b7cff; --center-soft: rgba(177, 135, 255, .13); --center-line: rgba(177, 135, 255, .38); --center-glow: rgba(177, 135, 255, .24); }
 .element-content--type-practice { --center-accent: #ff6f5f; --center-accent-2: #ffc977; --center-warm: #ff8fb5; --center-soft: rgba(255, 111, 95, .13); --center-line: rgba(255, 111, 95, .36); --center-glow: rgba(255, 111, 95, .24); }
 .element-content--type-project  { --center-accent: #6366f1; --center-accent-2: #8b8eff; --center-warm: #ffb6e2; --center-soft: rgba(99, 102, 241, .13); --center-line: rgba(99, 102, 241, .38); --center-glow: rgba(99, 102, 241, .26); }
 .element-content--type-report   { --center-accent: #4ade80; --center-accent-2: #74e5b0; --center-warm: #ffd86b; --center-soft: rgba(74, 222, 128, .13); --center-line: rgba(74, 222, 128, .36); --center-glow: rgba(74, 222, 128, .24); }
 .element-content--type-guide    { --center-accent: #f472b6; --center-accent-2: #fb7185; --center-warm: #ffd28d; --center-soft: rgba(244, 114, 182, .13); --center-line: rgba(244, 114, 182, .40); --center-glow: rgba(244, 114, 182, .26); }
-.element-content--type-product-design { --center-accent: #ffa86b; --center-soft: rgba(255, 168, 107, .10); --center-line: rgba(255, 168, 107, .40); }
+.element-content--type-product-design { --center-accent: #ffb86b; --center-accent-2: #ff9666; --center-soft: rgba(255, 184, 107, .13); --center-line: rgba(255, 184, 107, .38); --center-glow: rgba(255, 184, 107, .24); }
+/* 项目实战专属类型 */
+.element-content--type-group        { --center-accent: #8a8d96; --center-accent-2: #b8bcc4; --center-soft: rgba(138, 141, 150, .13); --center-line: rgba(138, 141, 150, .38); --center-glow: rgba(138, 141, 150, .22); }
+.element-content--type-knowledge    { --center-accent: #40e7dc; --center-accent-2: #6ef0e7; --center-soft: rgba(64, 231, 220, .13); --center-line: rgba(64, 231, 220, .38); --center-glow: rgba(64, 231, 220, .24); }
+.element-content--type-requirement  { --center-accent: #f5a663; --center-accent-2: #f5b97e; --center-soft: rgba(245, 166, 99, .13); --center-line: rgba(245, 166, 99, .38); --center-glow: rgba(245, 166, 99, .24); }
+.element-content--type-feature      { --center-accent: #d28dff; --center-accent-2: #e3b3ff; --center-soft: rgba(210, 141, 255, .13); --center-line: rgba(210, 141, 255, .38); --center-glow: rgba(210, 141, 255, .24); }
+.element-content--type-prd          { --center-accent: #6dd3ee; --center-accent-2: #8edcf0; --center-soft: rgba(109, 211, 238, .13); --center-line: rgba(109, 211, 238, .38); --center-glow: rgba(109, 211, 238, .24); }
+.element-content--type-dev-task     { --center-accent: #a4e87a; --center-accent-2: #b6ec8e; --center-soft: rgba(164, 232, 122, .13); --center-line: rgba(164, 232, 122, .38); --center-glow: rgba(164, 232, 122, .24); }
+.element-content--type-revision     { --center-accent: #fb7185; --center-accent-2: #ff9aae; --center-soft: rgba(251, 113, 133, .13); --center-line: rgba(251, 113, 133, .38); --center-glow: rgba(251, 113, 133, .24); }
+.element-content--type-inquiry      { --center-accent: #fde047; --center-accent-2: #fef08a; --center-soft: rgba(253, 224, 71, .14); --center-line: rgba(253, 224, 71, .42); --center-glow: rgba(253, 224, 71, .28); }
 
 /* ── Misconceptions: vertical stack, no 4-up squeeze ── */
 .warn-grid {

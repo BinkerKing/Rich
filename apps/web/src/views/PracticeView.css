@@ -4,9 +4,10 @@
 .pv {
   /* fixed inset:0 跟 .gm-app 同款 — 不依赖父链 height:100% 传递，直接锚到 viewport */
   position: fixed; inset: 0;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  padding: 24px 28px;
+  padding: 72px 28px 24px;
   color: #e6b25a;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
   background: #050302;
@@ -66,7 +67,7 @@
   gap: 14px;
   align-content: start;
   overflow-y: auto;
-  padding-right: 4px;
+  padding: 2px 4px 0 0;
 }
 .pv__empty {
   grid-column: 1 / -1;
@@ -77,7 +78,7 @@
 }
 .pv-card {
   display: flex; flex-direction: column; gap: 8px;
-  padding: 14px 16px;
+  padding: 22px 16px 16px;
   min-height: 120px;
   border-radius: 12px;
   background: rgba(217, 154, 62, .12);
@@ -89,23 +90,41 @@
 .pv-card:hover {
   background: rgba(217, 154, 62, .1);
   border-color: rgba(217, 154, 62, .5);
-  transform: translateY(-1px);
 }
 .pv-card__title {
-  font-size: 14px; font-weight: 600; color: #e6b25a;
+  font-size: 14px; line-height: 1.35; font-weight: 600; color: #e6b25a;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .pv-card__sub { font-size: 11px; color: #a87526; }
 .pv-card__stats {
-  display: flex; gap: 10px;
-  font-size: 11px; color: #c9a96a;
+  display: flex; gap: 12px; flex-wrap: wrap;
+  font-size: 11px;
   margin-top: 4px;
 }
+.pv-card__stat {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+/* 每个 stat 只换字色 —— 不加底色 / 边框，避免视觉凌乱 */
+.pv-card__stat--knowledge   { color: #6ef0e7; }
+.pv-card__stat--requirement { color: #f5b97e; }
+.pv-card__stat--feature     { color: #e3b3ff; }
+.pv-card__stat--prd         { color: #8edcf0; }
+.pv-card__stat--dev-task    { color: #b6ec8e; }
+.pv-card__stat--revision    { color: #ff9aae; }
+.pv-card__stat--inquiry     { color: #fef08a; font-weight: 600; }
+
 .pv-card__bar {
   height: 5px; border-radius: 3px;
   background: rgba(255,255,255,.05); overflow: hidden;
 }
+/* 进度条用多色彩渐变，跟 workspace 一致 */
 .pv-card__bar > span {
   display: block; height: 100%;
-  background: linear-gradient(90deg, #d99a3e, #e6b25a);
+  background: linear-gradient(90deg,
+    #40e7dc 0%,
+    #f5a663 25%,
+    #d28dff 50%,
+    #6dd3ee 75%,
+    #a4e87a 100%);
 }

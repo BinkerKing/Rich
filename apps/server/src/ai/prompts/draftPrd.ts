@@ -44,6 +44,33 @@ ${args.extraContext ? `## 大斌哥 的额外要求\n${args.extraContext}\n` : "
 
 PRD 的 title 字段：基于 practice 标题生成形如 "X PRD v0.1" 的命名。
 
+## 不确定的地方 —— 列成 inquiries
+
+PRD 这种长文档写的时候**很容易碰到拍板项**（验收边界、范围裁剪、性能 SLO、用户分层等）。
+不要瞎猜，把这些不确定点写到 inquiries 数组里，每条给 2-4 个具体选项 + 简短说明，
+大斌哥 选完再重写。没有不确定就 inquiries: [] 留空。
+
+## 输出顺序（重要——给前端看进度用）
+
+PRD 起草是长任务（30-60s）。请在内容前**先输出阶段标记**，让前端能切表情 + 进度条。
+stage 名固定五个：理解 / 查资料 / 起草 / 校对 / 完成。示例：
+
+[STAGE: 理解]
+（简短一句话说你理解了什么）
+
+[STAGE: 查资料]
+（一句话说你看了哪些子元）
+
+[STAGE: 起草]
+（开始输出真正的 PRD JSON）
+
+[STAGE: 校对]
+（输出完后简短一句话校对说明）
+
+[STAGE: 完成]
+
+stage 标记每个占一行，前后留空行。前端会用正则识别这些标记切换 mascot 表情。
+
 ## 严格输出 JSON
 
 只输出合法 JSON，不要 Markdown 代码块，不要前后缀。
@@ -59,6 +86,17 @@ PRD 的 title 字段：基于 practice 标题生成形如 "X PRD v0.1" 的命名
     "nonFunctional": "...",
     "outOfScope": ["..."],
     "risks": ["..."]
-  }
+  },
+  "inquiries": [
+    {
+      "question": "需要拍板的问题（一句话）",
+      "options": [
+        { "label": "选项 A", "description": "解释" },
+        { "label": "选项 B", "description": "..." }
+      ],
+      "context": "关联到 PRD 哪一段（overview / acceptance / outOfScope etc.）",
+      "importance": "blocker | nice-to-know"
+    }
+  ]
 }`;
 }

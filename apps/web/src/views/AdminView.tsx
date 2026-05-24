@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { Icon } from "../components/Icon.js";
 import { TopBar } from "../components/TopBar.js";
 import { FooterTaskStrip } from "../components/FooterTaskStrip.js";
 import { useStore } from "../state/store.js";
 import "./AdminView.css";
 
-type Tab = "engine" | "ops" | "signals" | "manuals" | "cron" | "improvements";
+type Tab = "engine" | "ops" | "signals" | "manuals" | "corpus" | "learning" | "cron" | "improvements";
 
 interface OpListItem {
   id: string;
@@ -46,7 +47,140 @@ interface ManualItem {
   content: string;
 }
 
+interface LearningManualModule {
+  id: string;
+  page: string;
+  scene: string;
+  manual: string[];
+  cli: string[];
+}
+
 const OP_FILTERS = ["", "generate", "refine", "section-refine", "expand", "extend", "path", "review", "analyze-mark"];
+
+const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
+  {
+    id: "home-chat",
+    page: "首页 / 全局输入框 / ⌘⇧Space",
+    scene: "用户直接向 Rich 或 Hermes 下达任务、查询状态、触发系统级动作。",
+    manual: [
+      "先判断用户是在聊天、操作 Rich 数据，还是要求后台自动化。",
+      "涉及 Rich 数据变更时优先走 MCP，不要只给文字建议。",
+      "回复风格先查 AI 语料模板，尤其是系统汇报、信息汇报、复盘类任务。",
+    ],
+    cli: [
+      "pnpm corpus list <场景关键词>",
+      "pnpm corpus prompt <template-id>",
+      "MCP: get_rich_system_manual",
+      "MCP: corpus_list / corpus_prompt / corpus_upsert",
+    ],
+  },
+  {
+    id: "knowledge-tree",
+    page: "知识树",
+    scene: "管理概念、主题、关系、学习路径；补充、细化、扩展已有知识元。",
+    manual: [
+      "读取前先用 list_topics 或 get_subtree 定位上下文。",
+      "新增内容用 create_element + relation，修改内容用 update_element 或 update_section_blocks。",
+      "不要生成 unsupported block.style；推荐列表使用 dot-list 或 markdown。",
+    ],
+    cli: [
+      "MCP: list_topics / get_element / get_subtree",
+      "MCP: create_element / update_element / delete_element",
+      "MCP: refine / expand / extend / generate_paths",
+    ],
+  },
+  {
+    id: "daily-news",
+    page: "AI 早报",
+    scene: "生成每日 AI 新闻、补充热门 Skill、把新闻转成可行动建议。",
+    manual: [
+      "写入早报内容前先看目标元素结构，避免写出 Rich 不识别的 block.style。",
+      "热门 Skill 推荐应使用 dot-list 或 markdown，而不是 style=list。",
+      "信息汇报类内容先套用 information-briefing 语料模板。",
+    ],
+    cli: [
+      "pnpm corpus prompt information-briefing",
+      "MCP: get_element / update_section_blocks",
+      "API: POST /api/ai/news/generate-daily",
+    ],
+  },
+  {
+    id: "mindmap-ppt",
+    page: "导图 PPT",
+    scene: "把文稿或知识树生成可播放导图，管理封面、隐藏、图片、文本显示。",
+    manual: [
+      "PPT 是 element-backed，优先修改底层元素和 mindmap-embed section。",
+      "导图加载慢时先区分是图片生成、元素树过大，还是前端渲染问题。",
+      "不要绕过元素树另建孤立 PPT 数据。",
+    ],
+    cli: [
+      "API: GET /api/mindmaps",
+      "API: POST /api/mindmaps/attach",
+      "MCP: get_element / get_subtree / update_section_blocks",
+    ],
+  },
+  {
+    id: "plan-management",
+    page: "计划管理",
+    scene: "目标拆解、任务推进、每日任务、每周复盘、AI 推进建议。",
+    manual: [
+      "先用 plan_list 或 analytics_summary 获取当前计划状态。",
+      "用户说完成某事时用 task_mark_done，不要只回复鼓励。",
+      "用户提出新目标时优先 plan_decompose，而不是手工造空计划。",
+    ],
+    cli: [
+      "MCP: plan_list / plan_get / analytics_summary",
+      "MCP: plan_decompose / goal_create / task_create",
+      "MCP: task_list / task_mark_done / analyze_progress",
+    ],
+  },
+  {
+    id: "practice-project",
+    page: "项目实战",
+    scene: "创建实战项目、维护知识点/需求/功能/PRD/开发任务/整改建议/提问。",
+    manual: [
+      "项目实战是 practice element + group + typed children，不是独立数据库。",
+      "新增子项时优先传 group id；如果只有 practice id，MCP 会自动路由到默认分组。",
+      "起草 PRD 或子元时先读取 practice_get，带上下文生成。",
+    ],
+    cli: [
+      "MCP: practice_list / practice_get / practice_create",
+      "MCP: practice_add_child / practice_update_child",
+      "MCP: draft_prd / draft_child / adjust_child",
+    ],
+  },
+  {
+    id: "toolbox",
+    page: "工具箱",
+    scene: "锁屏、延迟执行、小工具调用、系统动作。",
+    manual: [
+      "先用 list_toolbox_tools 看可用工具和参数 schema。",
+      "有 delay_minutes / delay_seconds 时可创建延迟调用。",
+      "执行结果会写入 tool_invocations，后台可审计。",
+    ],
+    cli: [
+      "MCP: list_toolbox_tools",
+      "MCP: invoke_toolbox_tool",
+      "API: GET /api/toolbox/invocations",
+    ],
+  },
+  {
+    id: "admin-corpus",
+    page: "后台 / AI 语料管理 / AI 学习手册",
+    scene: "沉淀 AI 表达模板、系统使用手册、Agent 自我改进经验。",
+    manual: [
+      "语料模板解决怎么说，学习手册解决怎么用 Rich。",
+      "Hermes 收到风格反馈时用 corpus_upsert 写回模板。",
+      "发现 Rich 缺能力时创建 improvement task，不要假装完成。",
+    ],
+    cli: [
+      "pnpm corpus list",
+      "pnpm corpus patch <id> --field <name> --value <value>",
+      "MCP: get_rich_system_manual",
+      "MCP: create_improvement / claim_improvement / update_improvement",
+    ],
+  },
+];
 
 export function AdminView() {
   const [tab, setTab] = useState<Tab>("engine");
@@ -87,6 +221,20 @@ export function AdminView() {
             </button>
             <button
               type="button"
+              className={`sidebar-node ${tab === "corpus" ? "is-active" : ""}`}
+              onClick={() => setTab("corpus")}
+            >
+              <span className="sidebar-node__title">AI 语料管理</span>
+            </button>
+            <button
+              type="button"
+              className={`sidebar-node ${tab === "learning" ? "is-active" : ""}`}
+              onClick={() => setTab("learning")}
+            >
+              <span className="sidebar-node__title">AI 学习手册</span>
+            </button>
+            <button
+              type="button"
               className={`sidebar-node ${tab === "cron" ? "is-active" : ""}`}
               onClick={() => setTab("cron")}
             >
@@ -108,6 +256,8 @@ export function AdminView() {
         {tab === "ops" && <OpsTab />}
         {tab === "signals" && <SignalsTab />}
         {tab === "manuals" && <ManualsTab />}
+        {tab === "corpus" && <CorpusTab />}
+        {tab === "learning" && <LearningManualTab />}
         {tab === "cron" && <CronTab />}
         {tab === "improvements" && <ImprovementsTab />}
       </main>
@@ -570,6 +720,436 @@ function ManualsTab() {
       </div>
     </div>
   );
+}
+
+/* ---------------------------- Learning Manual ----------------------------- */
+
+function LearningManualTab() {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const modules = q
+    ? LEARNING_MANUAL_MODULES.filter(m =>
+        [m.page, m.scene, ...m.manual, ...m.cli].join("\n").toLowerCase().includes(q),
+      )
+    : LEARNING_MANUAL_MODULES;
+
+  return (
+    <div className="admin-pane">
+      <header className="admin-pane__head">
+        <h1>AI 学习手册</h1>
+        <div className="admin-filters">
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="搜索页面 / 场景 / CLI"
+          />
+        </div>
+      </header>
+      <p className="admin-pane__desc">
+        写给 Hermes / Codex / 其他 Agent 的 Rich 操作索引。Agent 接到任务时，先定位页面和场景，
+        再按手册选择 MCP / API / CLI，避免只聊天不落库、只改 UI 不改数据。
+      </p>
+
+      <div className="learning-manual-grid">
+        {modules.map(m => (
+          <article key={m.id} className="learning-manual-card">
+            <header>
+              <span className="learning-manual-card__id">{m.id}</span>
+              <h2>{m.page}</h2>
+            </header>
+            <section>
+              <h3>场景</h3>
+              <p>{m.scene}</p>
+            </section>
+            <section>
+              <h3>手册</h3>
+              <ul>
+                {m.manual.map(item => <li key={item}>{item}</li>)}
+              </ul>
+            </section>
+            <section>
+              <h3>CLI / MCP</h3>
+              <div className="learning-manual-cli">
+                {m.cli.map(item => <code key={item}>{item}</code>)}
+              </div>
+            </section>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------ Corpus Tab ------------------------------ */
+
+type CorpusTone = "concise" | "warm" | "executive" | "diagnostic" | "narrative";
+type CorpusAccent = "teal" | "blue" | "violet" | "amber" | "rose";
+
+interface CorpusTemplate {
+  id: string;
+  name: string;
+  scene: string;
+  intent: string;
+  tone: CorpusTone;
+  accent: CorpusAccent;
+  mustInclude: string;
+  styleGuide: string;
+  template: string;
+  sample: string;
+  updatedAt: string;
+}
+
+const CORPUS_STORAGE_KEY = "rich.aiCorpusTemplates.v1";
+
+const TONE_LABELS: Record<CorpusTone, string> = {
+  concise: "短促清晰",
+  warm: "温和陪伴",
+  executive: "管理层汇报",
+  diagnostic: "诊断复盘",
+  narrative: "叙事解释",
+};
+
+const ACCENT_OPTIONS: Array<{ key: CorpusAccent; label: string; color: string; glow: string }> = [
+  { key: "teal", label: "青绿", color: "#40e7dc", glow: "rgba(64, 231, 220, .18)" },
+  { key: "blue", label: "蓝色", color: "#62b7ff", glow: "rgba(98, 183, 255, .18)" },
+  { key: "violet", label: "紫色", color: "#aa8cff", glow: "rgba(170, 140, 255, .18)" },
+  { key: "amber", label: "琥珀", color: "#f3bd58", glow: "rgba(243, 189, 88, .18)" },
+  { key: "rose", label: "玫红", color: "#ef78b8", glow: "rgba(239, 120, 184, .18)" },
+];
+
+const DEFAULT_CORPUS_ACCENT: CorpusAccent = "teal";
+
+const DEFAULT_CORPUS_TEMPLATES: CorpusTemplate[] = [
+  {
+    id: "system-status-report",
+    name: "系统运行情况汇报",
+    scene: "后台 / Hermes 定时汇报 / Rich 自检",
+    intent: "把系统当前运行状态讲清楚：哪些正常、哪些异常、下一步要不要处理。",
+    tone: "diagnostic",
+    accent: "blue",
+    mustInclude: "总体状态、关键指标、异常/风险、最近变化、建议动作",
+    styleGuide: "先给结论，再给证据。避免堆日志；只保留用户需要做决策的信息。语气稳定，不夸张。",
+    template: "【结论】\n{overall_status}\n\n【关键状态】\n- 服务：{service_status}\n- 数据：{data_status}\n- AI / Hermes：{agent_status}\n\n【异常与风险】\n{risks}\n\n【建议动作】\n{next_actions}",
+    sample: "【结论】\nRich 当前可用，云数据库连接正常；Hermes 有 1 个定时任务上次投递超时，需要观察。\n\n【建议动作】\n先不做大改，下一次 cron 后再看是否重复超时。",
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: "information-briefing",
+    name: "信息汇报",
+    scene: "AI 早报 / 调研摘要 / 热点信息归纳",
+    intent: "把收集到的信息变成可读、可判断、可行动的简报。",
+    tone: "executive",
+    accent: "amber",
+    mustInclude: "一句话结论、信息来源/时间、为什么重要、对 Rich/用户的启发、建议关注点",
+    styleGuide: "不要流水账。每条信息都要解释价值，不只是复述新闻。尽量用短段落和明确标题。",
+    template: "【一句话】\n{one_liner}\n\n【发生了什么】\n{facts}\n\n【为什么重要】\n{why_it_matters}\n\n【可以怎么用】\n{application}\n\n【继续关注】\n{watchlist}",
+    sample: "【一句话】\n今天值得关注的不是参数榜，而是多个产品把 agent 能力做成了稳定工作流。\n\n【可以怎么用】\nRich 的 AI 早报应该增加“可直接上手的 Skill 推荐”。",
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+function loadCorpusTemplates(): CorpusTemplate[] {
+  if (typeof window === "undefined") return DEFAULT_CORPUS_TEMPLATES;
+  const raw = window.localStorage.getItem(CORPUS_STORAGE_KEY);
+  if (!raw) return DEFAULT_CORPUS_TEMPLATES;
+  try {
+    const parsed = JSON.parse(raw) as CorpusTemplate[];
+    return Array.isArray(parsed) && parsed.length > 0
+      ? parsed.map(t => ({ ...t, accent: t.accent ?? DEFAULT_CORPUS_ACCENT }))
+      : DEFAULT_CORPUS_TEMPLATES;
+  } catch {
+    return DEFAULT_CORPUS_TEMPLATES;
+  }
+}
+
+async function fetchCorpusTemplates(): Promise<CorpusTemplate[]> {
+  const res = await fetch("/api/admin/corpus");
+  if (!res.ok) throw new Error(`load corpus templates failed: ${res.status}`);
+  const body = await res.json() as { templates?: CorpusTemplate[] };
+  return Array.isArray(body.templates) && body.templates.length > 0
+    ? body.templates.map(t => ({ ...t, accent: t.accent ?? DEFAULT_CORPUS_ACCENT }))
+    : DEFAULT_CORPUS_TEMPLATES;
+}
+
+async function saveCorpusTemplates(templates: CorpusTemplate[]): Promise<void> {
+  const res = await fetch("/api/admin/corpus", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ templates }),
+  });
+  if (!res.ok) throw new Error(`save corpus templates failed: ${res.status}`);
+}
+
+function createCorpusTemplate(): CorpusTemplate {
+  return {
+    id: `corpus-${Date.now().toString(36)}`,
+    name: "新的答复模板",
+    scene: "填写适用场景",
+    intent: "说明这个模板要解决什么表达任务",
+    tone: "concise",
+    accent: "teal",
+    mustInclude: "列出必须汇报的信息点",
+    styleGuide: "说明语气、结构、禁忌和偏好的表达方式",
+    template: "【结论】\n{summary}\n\n【关键事实】\n{facts}\n\n【建议】\n{next_step}",
+    sample: "",
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function CorpusTab() {
+  const [templates, setTemplates] = useState<CorpusTemplate[]>(DEFAULT_CORPUS_TEMPLATES);
+  const [activeId, setActiveId] = useState(DEFAULT_CORPUS_TEMPLATES[0]?.id ?? "");
+  const [loaded, setLoaded] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const skipNextSave = useRef(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchCorpusTemplates()
+      .then(next => {
+        if (cancelled) return;
+        setTemplates(next);
+        setActiveId(next[0]?.id ?? "");
+        setLoaded(true);
+        window.localStorage.setItem(CORPUS_STORAGE_KEY, JSON.stringify(next));
+      })
+      .catch(err => {
+        if (cancelled) return;
+        const fallback = loadCorpusTemplates();
+        setTemplates(fallback);
+        setActiveId(fallback[0]?.id ?? "");
+        setLoaded(true);
+        setSaveError(err instanceof Error ? err.message : String(err));
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    if (skipNextSave.current) {
+      skipNextSave.current = false;
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void saveCorpusTemplates(templates)
+        .then(() => {
+          setSaveError(null);
+          window.localStorage.setItem(CORPUS_STORAGE_KEY, JSON.stringify(templates));
+        })
+        .catch(err => setSaveError(err instanceof Error ? err.message : String(err)));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [templates, loaded]);
+
+  const active = templates.find(t => t.id === activeId) ?? templates[0] ?? null;
+  const activeAccent = getCorpusAccent(active?.accent);
+  const activeAccentStyle = getCorpusAccentStyle(active?.accent);
+
+  function updateActive(patch: Partial<CorpusTemplate>) {
+    if (!active) return;
+    setTemplates(prev => prev.map(t => (
+      t.id === active.id ? { ...t, ...patch, updatedAt: new Date().toISOString() } : t
+    )));
+  }
+
+  function addTemplate() {
+    const next = createCorpusTemplate();
+    setTemplates(prev => [next, ...prev]);
+    setActiveId(next.id);
+  }
+
+  function duplicateTemplate() {
+    if (!active) return;
+    const next = {
+      ...active,
+      id: `corpus-${Date.now().toString(36)}`,
+      name: `${active.name} 副本`,
+      updatedAt: new Date().toISOString(),
+    };
+    setTemplates(prev => [next, ...prev]);
+    setActiveId(next.id);
+  }
+
+  function removeTemplate() {
+    if (!active) return;
+    if (!confirm(`删除「${active.name}」？`)) return;
+    setTemplates(prev => {
+      const next = prev.filter(t => t.id !== active.id);
+      setActiveId(next[0]?.id ?? "");
+      return next;
+    });
+  }
+
+  function resetDefaults() {
+    if (!confirm("恢复默认语料模板？当前自定义模板会被覆盖。")) return;
+    setTemplates(DEFAULT_CORPUS_TEMPLATES);
+    setActiveId(DEFAULT_CORPUS_TEMPLATES[0]?.id ?? "");
+  }
+
+  return (
+    <div className="admin-pane">
+      <header className="admin-pane__head">
+        <h1>AI 语料管理</h1>
+        <div className="admin-filters">
+          <button type="button" onClick={addTemplate}>+ 新建模板</button>
+          <button type="button" onClick={duplicateTemplate} disabled={!active}>复制当前</button>
+          <button type="button" onClick={resetDefaults}>恢复默认</button>
+        </div>
+      </header>
+
+      <p className="admin-pane__desc">
+        用来沉淀 Rich / Hermes 在不同场景下的答复方式。先把「场景 → 必须汇报的信息 → 风格约束 → 模板」
+        固化下来，后续接入具体 AI 调用时，就可以直接按这里的语料生成你的专属表达风格。
+      </p>
+      {saveError && <p className="admin-pane__desc corpus-error">语料同步异常：{saveError}</p>}
+
+      <div className="corpus-layout">
+        <aside className="corpus-list" aria-label="AI 语料模板">
+          {templates.map(t => (
+            <button
+              key={t.id}
+              type="button"
+              className={`corpus-item ${active?.id === t.id ? "is-active" : ""}`}
+              style={getCorpusAccentStyle(t.accent)}
+              onClick={() => setActiveId(t.id)}
+            >
+              <strong>{t.name}</strong>
+              <span>{t.scene}</span>
+              <em>{TONE_LABELS[t.tone]}</em>
+            </button>
+          ))}
+        </aside>
+
+        <section className="corpus-editor" style={activeAccentStyle}>
+          {!active && <div className="admin-empty">还没有语料模板，点右上角新建一个。</div>}
+          {active && (
+            <>
+              <div className="corpus-editor__grid">
+                <label className="corpus-field">
+                  <span>模板名称</span>
+                  <input value={active.name} onChange={e => updateActive({ name: e.target.value })} />
+                </label>
+                <label className="corpus-field">
+                  <span>风格</span>
+                  <select value={active.tone} onChange={e => updateActive({ tone: e.target.value as CorpusTone })}>
+                    {(Object.keys(TONE_LABELS) as CorpusTone[]).map(tone => (
+                      <option key={tone} value={tone}>{TONE_LABELS[tone]}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="corpus-field corpus-field--wide">
+                  <span>正文颜色</span>
+                  <div className="corpus-color-row" role="radiogroup" aria-label="正文颜色">
+                    {ACCENT_OPTIONS.map(option => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        role="radio"
+                        aria-checked={active.accent === option.key}
+                        className={`corpus-color ${active.accent === option.key ? "is-active" : ""}`}
+                        style={getCorpusAccentStyle(option.key)}
+                        onClick={() => updateActive({ accent: option.key })}
+                      >
+                        <span aria-hidden="true" />
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </label>
+                <label className="corpus-field corpus-field--wide">
+                  <span>适用场景</span>
+                  <input value={active.scene} onChange={e => updateActive({ scene: e.target.value })} />
+                </label>
+                <label className="corpus-field corpus-field--wide">
+                  <span>这个模板要完成什么</span>
+                  <textarea rows={2} value={active.intent} onChange={e => updateActive({ intent: e.target.value })} />
+                </label>
+                <label className="corpus-field corpus-field--wide">
+                  <span>必须汇报的信息</span>
+                  <textarea rows={3} value={active.mustInclude} onChange={e => updateActive({ mustInclude: e.target.value })} />
+                </label>
+                <label className="corpus-field corpus-field--wide">
+                  <span>风格规则</span>
+                  <textarea rows={3} value={active.styleGuide} onChange={e => updateActive({ styleGuide: e.target.value })} />
+                </label>
+                <label className="corpus-field corpus-field--wide">
+                  <span>答复模板</span>
+                  <textarea rows={9} value={active.template} onChange={e => updateActive({ template: e.target.value })} />
+                </label>
+                <label className="corpus-field corpus-field--wide">
+                  <span>示例答复</span>
+                  <textarea rows={5} value={active.sample} onChange={e => updateActive({ sample: e.target.value })} />
+                </label>
+              </div>
+
+              <aside className="corpus-preview" style={activeAccentStyle}>
+                <header>
+                  <strong>模板卡片</strong>
+                  <span>更新于 {formatTs(active.updatedAt)}</span>
+                </header>
+                <div className="corpus-preview__accent">
+                  <span style={activeAccentStyle} />
+                  {activeAccent.label} 正文强调色
+                </div>
+                <dl>
+                  <dt>场景</dt>
+                  <dd>{active.scene || "—"}</dd>
+                  <dt>风格</dt>
+                  <dd>{TONE_LABELS[active.tone]}</dd>
+                  <dt>必须包含</dt>
+                  <dd>{active.mustInclude || "—"}</dd>
+                </dl>
+                <div className="corpus-template-preview" aria-label="带颜色的答复模板预览">
+                  {renderCorpusTemplatePreview(active.template)}
+                </div>
+                <div className="corpus-actions">
+                  <button type="button" className="imp-ghost" onClick={removeTemplate}>删除模板</button>
+                </div>
+              </aside>
+            </>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function getCorpusAccent(accent?: CorpusAccent) {
+  return ACCENT_OPTIONS.find(option => option.key === accent) ?? ACCENT_OPTIONS[0];
+}
+
+function getCorpusAccentStyle(accent?: CorpusAccent): CSSProperties {
+  const option = getCorpusAccent(accent);
+  return {
+    "--corpus-accent": option.color,
+    "--corpus-accent-glow": option.glow,
+  } as CSSProperties;
+}
+
+function renderCorpusTemplatePreview(template: string) {
+  return template.split("\n").map((line, lineIndex) => {
+    const parts = line.split(/(\{[^{}]+\}|【[^】]+】|-\s*)/g);
+    return (
+      <div
+        key={`${lineIndex}-${line}`}
+        className={`corpus-template-line ${line.trim() === "" ? "is-empty" : ""}`}
+      >
+        {parts.map((part, partIndex) => {
+          if (!part) return null;
+          if (/^【[^】]+】$/.test(part)) {
+            return <span key={partIndex} className="corpus-token corpus-token--heading">{part}</span>;
+          }
+          if (/^\{[^{}]+\}$/.test(part)) {
+            return <span key={partIndex} className="corpus-token corpus-token--slot">{part}</span>;
+          }
+          if (/^-\s*$/.test(part)) {
+            return <span key={partIndex} className="corpus-token corpus-token--bullet">{part}</span>;
+          }
+          return <span key={partIndex}>{part}</span>;
+        })}
+      </div>
+    );
+  });
 }
 
 /* ---------------------------------- helpers ---------------------------------- */

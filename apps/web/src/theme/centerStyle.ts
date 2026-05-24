@@ -146,6 +146,126 @@ const presets: Record<string, CenterStyleInput> = {
     line: "rgba(244, 114, 182, .40)",
     glow: "rgba(244, 114, 182, .26)",
   },
+  // 主题元 — 金黄；用于主题型 / 综合性元。
+  topic: {
+    name: "主题金",
+    accent: "#ffd166",
+    accent2: "#ffc977",
+    warm: "#ff9666",
+    soft: "rgba(255, 209, 102, .13)",
+    line: "rgba(255, 209, 102, .38)",
+    glow: "rgba(255, 209, 102, .24)",
+  },
+  // 概念元 — 海空蓝，跟知识树主色一致。
+  concept: {
+    name: "概念蓝",
+    accent: "#7aa7ff",
+    accent2: "#55caff",
+    warm: "#ffc977",
+    soft: "rgba(122, 167, 255, .13)",
+    line: "rgba(122, 167, 255, .38)",
+    glow: "rgba(122, 167, 255, .24)",
+  },
+  // 步骤元 — 紫；走流程类元素。
+  step: {
+    name: "步骤紫",
+    accent: "#b187ff",
+    accent2: "#9b7cff",
+    warm: "#ffc977",
+    soft: "rgba(177, 135, 255, .13)",
+    line: "rgba(177, 135, 255, .38)",
+    glow: "rgba(177, 135, 255, .24)",
+  },
+  // 产品设计元 — 暖橙；和实战橙互补。
+  productDesign: {
+    name: "产品橙",
+    accent: "#ffb86b",
+    accent2: "#ff9666",
+    warm: "#ffd166",
+    soft: "rgba(255, 184, 107, .13)",
+    line: "rgba(255, 184, 107, .38)",
+    glow: "rgba(255, 184, 107, .24)",
+  },
+  // 项目实战专属：分组元 — 中性灰，作为容器不抢戏。
+  group: {
+    name: "分组灰",
+    accent: "#8a8d96",
+    accent2: "#b8bcc4",
+    warm: "#ffc977",
+    soft: "rgba(138, 141, 150, .13)",
+    line: "rgba(138, 141, 150, .38)",
+    glow: "rgba(138, 141, 150, .22)",
+  },
+  // 项目实战专属：知识点 — 青绿，跟"记忆青"区分。
+  knowledge: {
+    name: "知识青",
+    accent: "#40e7dc",
+    accent2: "#6ef0e7",
+    warm: "#ffc977",
+    soft: "rgba(64, 231, 220, .13)",
+    line: "rgba(64, 231, 220, .38)",
+    glow: "rgba(64, 231, 220, .24)",
+  },
+  // 项目实战专属：场景分析 — 橙。
+  requirement: {
+    name: "场景橙",
+    accent: "#f5a663",
+    accent2: "#f5b97e",
+    warm: "#ffc977",
+    soft: "rgba(245, 166, 99, .13)",
+    line: "rgba(245, 166, 99, .38)",
+    glow: "rgba(245, 166, 99, .24)",
+  },
+  // 项目实战专属：功能说明 — 薰衣草粉，跟需求橙、PRD 天蓝拉开距离。
+  feature: {
+    name: "功能薰衣草",
+    accent: "#d28dff",
+    accent2: "#e3b3ff",
+    warm: "#ffc977",
+    soft: "rgba(210, 141, 255, .13)",
+    line: "rgba(210, 141, 255, .38)",
+    glow: "rgba(210, 141, 255, .24)",
+  },
+  // 项目实战专属：PRD — 天蓝。
+  prd: {
+    name: "PRD 天蓝",
+    accent: "#6dd3ee",
+    accent2: "#8edcf0",
+    warm: "#ffc977",
+    soft: "rgba(109, 211, 238, .13)",
+    line: "rgba(109, 211, 238, .38)",
+    glow: "rgba(109, 211, 238, .24)",
+  },
+  // 项目实战专属：开发任务 — 黄绿。
+  devTask: {
+    name: "任务绿",
+    accent: "#a4e87a",
+    accent2: "#b6ec8e",
+    warm: "#ffc977",
+    soft: "rgba(164, 232, 122, .13)",
+    line: "rgba(164, 232, 122, .38)",
+    glow: "rgba(164, 232, 122, .24)",
+  },
+  // 项目实战专属：整改建议 — 玫红，跟开发任务绿、PRD 天蓝、需求橙都拉开距离。
+  revision: {
+    name: "整改玫红",
+    accent: "#fb7185",
+    accent2: "#ff9aae",
+    warm: "#ffc977",
+    soft: "rgba(251, 113, 133, .13)",
+    line: "rgba(251, 113, 133, .38)",
+    glow: "rgba(251, 113, 133, .24)",
+  },
+  // 项目实战专属：提问 — 柠檬黄，注意力色（"看我，需要你的回答"）
+  inquiry: {
+    name: "提问黄",
+    accent: "#fde047",
+    accent2: "#fef08a",
+    warm: "#ff9aae",
+    soft: "rgba(253, 224, 71, .14)",
+    line: "rgba(253, 224, 71, .42)",
+    glow: "rgba(253, 224, 71, .28)",
+  },
   default: {
     name: "宇宙青",
     accent: "#3dd5cd",
@@ -190,6 +310,19 @@ function presetFor(element: Element) {
   if (element.type === "practice" || element.title.includes("实战")) return presets.practice;
   if (element.type === "report") return presets.report;
   if (element.type === "guide" || element.title.includes("攻略")) return presets.guide;
+  if (element.type === "topic") return presets.topic;
+  if (element.type === "concept") return presets.concept;
+  if (element.type === "step" || element.type === "exercise") return presets.step;
+  if (element.type === "product-design") return presets.productDesign;
+  // 项目实战专属类型
+  if (element.type === "group") return presets.group;
+  if (element.type === "knowledge") return presets.knowledge;
+  if (element.type === "requirement") return presets.requirement;
+  if (element.type === "feature") return presets.feature;
+  if (element.type === "prd") return presets.prd;
+  if (element.type === "dev-task") return presets.devTask;
+  if (element.type === "revision") return presets.revision;
+  if (element.type === "inquiry") return presets.inquiry;
   return presets.default;
 }
 

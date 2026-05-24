@@ -287,13 +287,23 @@ function RichnessGauge({ level }: { level: RichnessLevel }) {
 // Element types offered in the inline type picker. Matches the home-page
 // manual creation set; other esoteric types stay editable via direct API.
 const TYPE_OPTIONS: Array<{ value: ElementType; label: string }> = [
-  { value: "topic" as ElementType,    label: "主题元" },
-  { value: "concept" as ElementType,  label: "概念元" },
-  { value: "practice" as ElementType, label: "实战元" },
-  { value: "project" as ElementType,  label: "项目元" },
-  { value: "step" as ElementType,     label: "步骤元" },
-  { value: "report" as ElementType,   label: "报告元" },
-  { value: "guide" as ElementType,    label: "攻略元" },
+  { value: "topic" as ElementType,          label: "主题元" },
+  { value: "concept" as ElementType,        label: "概念元" },
+  { value: "practice" as ElementType,       label: "实战元" },
+  { value: "project" as ElementType,        label: "项目元" },
+  { value: "step" as ElementType,           label: "步骤元" },
+  { value: "report" as ElementType,         label: "报告元" },
+  { value: "guide" as ElementType,          label: "攻略元" },
+  { value: "product-design" as ElementType, label: "产品设计元" },
+  // 项目实战专属
+  { value: "group" as ElementType,          label: "分组元" },
+  { value: "knowledge" as ElementType,      label: "知识点" },
+  { value: "requirement" as ElementType,    label: "场景分析" },
+  { value: "feature" as ElementType,        label: "功能说明" },
+  { value: "prd" as ElementType,            label: "PRD" },
+  { value: "dev-task" as ElementType,       label: "开发任务" },
+  { value: "revision" as ElementType,       label: "整改建议" },
+  { value: "inquiry" as ElementType,        label: "提问" },
 ];
 const DIFFICULTY_OPTIONS: Array<{ value: "low" | "mid" | "high" | null; label: string }> = [
   { value: null,  label: "未设置" },

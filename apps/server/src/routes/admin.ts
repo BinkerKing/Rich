@@ -6,11 +6,14 @@ import type { Signal } from "@ke/domain";
 import { readAllOpRecords, reduceToFinal } from "../ai/aiOpLog.js";
 import type { AIAdapter } from "../ai/adapter.js";
 import { childRegistry } from "../lib/childRegistry.js";
+import type { CorpusRepo } from "../repos/CorpusRepo.js";
+import { corpusRoutes } from "./corpus.js";
 
 export interface AdminRoutesDeps {
   signals: SignalsRepo;
   aiDir: string;
   adapters: AIAdapter[];
+  corpus: CorpusRepo;
 }
 
 /**
@@ -23,6 +26,8 @@ export interface AdminRoutesDeps {
  */
 export function adminRoutes(deps: AdminRoutesDeps): Hono {
   const r = new Hono();
+
+  r.route("/corpus", corpusRoutes(deps.corpus));
 
   // -- AI op log --
   r.get("/ops", async (c) => {

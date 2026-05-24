@@ -1,0 +1,195 @@
+/* InquiryCard — 提问交互卡片（独立 + 嵌入两态） */
+
+.inq-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, .02);
+  border: 1px solid rgba(253, 224, 71, .35);
+  border-left: 3px solid #fde047;
+  border-radius: 10px;
+}
+.inq-card.is-answered {
+  border-color: rgba(116, 229, 176, .35);
+  border-left-color: #74e5b0;
+  opacity: 0.88;
+}
+.inq-card--embedded {
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+/* Head 一行：重要性徽标 + 关联上下文 + 答完状态 */
+.inq-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+}
+.inq-card__importance {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.inq-card__importance--blocker {
+  background: rgba(244, 114, 114, .14);
+  color: #ff9a8a;
+  border: 1px solid rgba(244, 114, 114, .35);
+}
+.inq-card__importance--nice-to-know {
+  background: rgba(253, 224, 71, .14);
+  color: #fef08a;
+  border: 1px solid rgba(253, 224, 71, .35);
+}
+.inq-card__context {
+  color: var(--muted);
+  font-style: italic;
+}
+.inq-card__status-badge {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(116, 229, 176, .14);
+  border: 1px solid rgba(116, 229, 176, .40);
+  color: #74e5b0;
+  font-weight: 600;
+}
+
+/* 问题正文 */
+.inq-card__question {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.55;
+}
+
+/* 选项列表 */
+.inq-card__options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.inq-card__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  text-align: left;
+  background: rgba(255, 255, 255, .02);
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 8px;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--text);
+  transition: border-color .12s, background .12s;
+  outline: none;
+}
+.inq-card__option:hover:not(:disabled) {
+  border-color: rgba(253, 224, 71, .55);
+  background: rgba(253, 224, 71, .04);
+}
+.inq-card__option.is-selected {
+  border-color: #fde047;
+  background: rgba(253, 224, 71, .08);
+}
+.inq-card__option:disabled { cursor: not-allowed; }
+.inq-card__option:focus-visible { outline: none; border-color: #fde047; }
+
+.inq-card__option-radio {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  color: #fde047;
+  line-height: 1;
+}
+.inq-card__option-body {
+  flex: 1;
+  min-width: 0;
+}
+.inq-card__option-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.4;
+}
+.inq-card__option-desc {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.inq-card__option--custom .inq-card__option-radio { color: var(--soft); }
+.inq-card__option--custom.is-selected .inq-card__option-radio { color: #fde047; }
+
+.inq-card__custom-text {
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  background: rgba(0, 0, 0, .35);
+  border: 1px solid rgba(253, 224, 71, .35);
+  border-radius: 8px;
+  outline: none;
+  resize: vertical;
+}
+.inq-card__custom-text:focus { border-color: #fde047; }
+
+/* 答案展示（已回答态） */
+.inq-card__answer {
+  padding: 10px 12px;
+  background: rgba(116, 229, 176, .06);
+  border: 1px solid rgba(116, 229, 176, .30);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.inq-card__answer-label {
+  color: var(--muted);
+  margin-right: 6px;
+}
+.inq-card__answer-text {
+  color: #74e5b0;
+  font-weight: 600;
+}
+.inq-card__answered-at {
+  color: var(--muted);
+  font-size: 11px;
+  margin-left: 6px;
+}
+
+/* Actions */
+.inq-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.inq-card__btn-primary {
+  padding: 7px 16px;
+  background: #fde047;
+  border: 1px solid #fde047;
+  color: #1a1a08;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.inq-card__btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+.inq-card__btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.inq-card__btn-secondary {
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid var(--line-2);
+  color: var(--soft);
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.inq-card__btn-secondary:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); }
