@@ -1159,6 +1159,11 @@ html[data-theme="cyber"] .element-type--report      { --element-accent: #72f2a4;
 html[data-theme="cyber"] .element-type--project     { --element-accent: #8b8eff; }
 html[data-theme="cyber"] .element-type--guide       { --element-accent: #ff6bd6; }
 html[data-theme="cyber"] .element-type--product-design { --element-accent: #ffb86b; }
+/* 项目实战专属类型 */
+html[data-theme="cyber"] .element-type--group       { --element-accent: #8a8d96; } /* 灰：容器，弱化突出 */
+html[data-theme="cyber"] .element-type--requirement { --element-accent: #f5a663; } /* 暖橙：调研/痛点 */
+html[data-theme="cyber"] .element-type--prd         { --element-accent: #6dd3ee; } /* 浅蓝：文档 */
+html[data-theme="cyber"] .element-type--dev-task    { --element-accent: #a4e87a; } /* 草绿：行动 */
 
 html[data-theme="cyber"] .body-prose,
 html[data-theme="cyber"] .body-lead,

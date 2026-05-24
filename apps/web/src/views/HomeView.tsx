@@ -138,8 +138,8 @@ export function HomeView() {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const historyPointerToggledRef = useRef(false);
   // Hidden span that mirrors the typed text — its rendered width drives
-  // where the custom "pet caret" sits. Same font / line-height / letter-
-  // spacing as the textarea, so the measurement lines up to the pixel.
+  // where the custom underline caret sits. Same font / line-height /
+  // letter-spacing as the textarea, so the measurement lines up to the pixel.
   const measureRef = useRef<HTMLSpanElement | null>(null);
   const [petX, setPetX] = useState(0);
   const [petY, setPetY] = useState(0);
@@ -209,8 +209,8 @@ export function HomeView() {
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, [input]);
 
-  // Pet-caret position. Measure the typed text in a hidden span (same font
-  // as the textarea) to know where the pet should sit. For multi-line
+  // Underline-caret position. Measure the typed text in a hidden span (same
+  // font as the textarea) to know where the caret should sit. For multi-line
   // input we measure only the LAST line's width and shift the pet down
   // by (lines - 1) × lineHeight so it tracks line wrapping too.
   useEffect(() => {
@@ -226,6 +226,42 @@ export function HomeView() {
     const cs = window.getComputedStyle(m);
     const lh = parseFloat(cs.lineHeight) || 26;
     setPetY((lines.length - 1) * lh);
+  }, [input]);
+
+  useEffect(() => {
+    const isTypingSurface = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false;
+      return Boolean(target.closest("input, textarea, select, button, a, [contenteditable='true'], [role='menuitem']"));
+    };
+    const insertAtCursor = (text: string) => {
+      const el = textareaRef.current;
+      if (!el) return;
+      const start = el.selectionStart ?? input.length;
+      const end = el.selectionEnd ?? start;
+      setInput(prev => `${prev.slice(0, start)}${text}${prev.slice(end)}`);
+      window.requestAnimationFrame(() => {
+        el.focus();
+        const next = start + text.length;
+        el.setSelectionRange(next, next);
+      });
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (isTypingSurface(event.target)) return;
+      window.requestAnimationFrame(() => textareaRef.current?.focus());
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (isTypingSurface(event.target)) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.key.length !== 1) return;
+      event.preventDefault();
+      insertAtCursor(event.key);
+    };
+    window.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, [input]);
 
   async function send(text: string) {
@@ -433,8 +469,8 @@ export function HomeView() {
       </section>
 
       {/* Middle — input bar. Single column, no send button at all —
-       *  press Enter to send. Native caret is hidden; a blinking 🐶 sits
-       *  at the end of the typed text, positioned via the measure span. */}
+       *  press Enter to send. Native caret is hidden; a static underline
+       *  sits at the end of the typed text, positioned via the measure span. */}
       <form className="home-input" onSubmit={onSubmit}>
         {/* Hidden measurement span — its rendered width drives the pet
          *  caret's left offset. Must use the same font / line-height /
@@ -444,9 +480,7 @@ export function HomeView() {
           className="home-input-pet"
           aria-hidden="true"
           style={{ transform: `translate(${petX}px, ${petY}px)` }}
-        >
-          ▸
-        </span>
+        />
         <textarea
           ref={textareaRef}
           value={input}

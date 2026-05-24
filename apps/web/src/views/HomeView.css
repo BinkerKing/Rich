@@ -159,15 +159,13 @@
 /* ─── Middle equator: minimal input ─────────────────────────────── */
 
 /* Just a single thin underline — no frame, no glow, no leading symbol.
- * The white caret is the only signal of "type here". Hairline brightens
- * subtly on focus. */
+ * The short underline caret is the only signal of "type here". */
 .home-input {
   display: block;                    /* single column — no button track */
   width: min(640px, calc(100vw - 64px));
   margin: 0 auto;
   padding: 6px 0 10px;
-  /* No underline — the blinking ▸ caret is the only visible chrome. */
-  position: relative;                /* anchor for measure span + pet caret */
+  position: relative;                /* anchor for measure span + custom caret */
   z-index: 5;
 }
 
@@ -191,40 +189,25 @@
   left: 0;
 }
 
-/* The blinking pet that replaces the native caret. Hidden when the
- * input isn't focused so the empty homepage stays minimal. */
+/* Thick blinking block caret that replaces the native vertical bar. */
 .home-input-pet {
   position: absolute;
-  /* Caret glyph sits roughly at the text baseline. The triangle (▸) is a
-   * Unicode arrow rendered in the system font — at 36px its visual mass
-   * is centered, so a small downward offset aligns its center with the
-   * text baseline. Multi-line tracking via translateY (in JSX). */
-  top: 2px;
+  top: 5px;
   left: 0;
-  /* Width 0 so transform translateX places the LEFT edge of the emoji
-   * exactly at the cursor position; the emoji itself overflows visibly. */
-  width: 0;
-  height: 1em;
-  /* 2× the textarea text size — caret reads as a distinct flame next to
-   * what you type, not a foreign sticker but not lost either. */
-  font-size: 36px;
-  line-height: 1;
+  width: 4px;
+  height: 22px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, .90);
+  box-shadow: 0 0 10px rgba(66, 247, 240, .24);
   pointer-events: none;
   user-select: none;
-  white-space: nowrap;
-  /* Slight offset so the emoji's visible shape sits next to text, not
-   * underneath the last character. */
   margin-left: 2px;
   z-index: 1;
-  display: none;
+  animation: home-caret-pulse 920ms steps(2, end) infinite;
 }
-.home-input:focus-within .home-input-pet {
-  display: inline-block;
-  animation: home-pet-blink 700ms steps(2, end) infinite;
-}
-@keyframes home-pet-blink {
-  0%, 60%   { opacity: 1; }
-  100%      { opacity: .25; }
+@keyframes home-caret-pulse {
+  0%, 48% { opacity: 1; }
+  49%, 100% { opacity: .18; }
 }
 .home-input textarea {
   resize: none;
@@ -239,10 +222,8 @@
   min-height: 28px;
   max-height: 200px;
   font-weight: 400;
-  /* Hide the native vertical bar — the blinking 🐶 (.home-input-pet)
-   * replaces it visually. We still need the caret to function (for click
-   * positioning, selection, etc), so caret-color: transparent keeps the
-   * behavior but kills the pixels. */
+  /* Hide the native vertical bar — the custom underline replaces it visually.
+   * We still need caret behavior for click positioning and selection. */
   caret-color: transparent;
   letter-spacing: .01em;
   width: 100%;

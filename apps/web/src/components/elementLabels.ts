@@ -19,6 +19,17 @@ export function elementTypeLabel(type: ElementType): string {
       return "报告元";
     case "guide":
       return "攻略元";
+    // 项目实战专属
+    case "group":
+      return "分组元";
+    case "knowledge":
+      return "知识点";
+    case "requirement":
+      return "需求分析";
+    case "prd":
+      return "PRD";
+    case "dev-task":
+      return "开发任务";
     default:
       return "知识元";
   }
@@ -43,6 +54,17 @@ export function elementTypeClass(type: ElementType): string {
       return "element-type--report";
     case "guide":
       return "element-type--guide";
+    // 项目实战专属
+    case "group":
+      return "element-type--group";
+    case "knowledge":
+      return "element-type--knowledge";
+    case "requirement":
+      return "element-type--requirement";
+    case "prd":
+      return "element-type--prd";
+    case "dev-task":
+      return "element-type--dev-task";
     default:
       return "element-type--knowledge";
   }
