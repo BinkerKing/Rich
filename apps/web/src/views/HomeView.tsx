@@ -105,6 +105,25 @@ function buildChatPairs(turns: Turn[], limit = 50): ChatPair[] {
   return pairs.slice(-limit).reverse();
 }
 
+function messageTime(turn: Turn | undefined): number | null {
+  if (!turn) return null;
+  if (typeof turn.createdAt === "number") return turn.createdAt;
+  const prefix = turn.id.split("-")[0];
+  const parsed = Number.parseInt(prefix, 36);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatHistoryTime(turn: Turn | undefined): string {
+  const ts = messageTime(turn);
+  if (!ts) return "";
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(ts));
+}
+
 export function HomeView() {
   const [frame, setFrame] = useState(0);
   const [input, setInput] = useState("");
@@ -226,11 +245,12 @@ export function HomeView() {
         body: JSON.stringify({ name: "dance" }),
       }).catch(() => { /* local animation already started */ });
     }
+    const now = Date.now();
     const userTurn: Turn = {
-      id: nextId(), role: "user", content: trimmed, tools: [], pending: false,
+      id: nextId(), role: "user", content: trimmed, tools: [], pending: false, createdAt: now,
     };
     const assistantTurn: Turn = {
-      id: nextId(), role: "assistant", content: "", tools: [], pending: true,
+      id: nextId(), role: "assistant", content: "", tools: [], pending: true, createdAt: now,
     };
     const baseTurns = loadChatHistory();
     const nextTurns = [...baseTurns, userTurn, assistantTurn];
@@ -453,42 +473,138 @@ export function HomeView() {
         aria-hidden={!historyOpen}
       >
         {historyOpen && (
-          <div className="home-history-grid">
-            {chatPairs.map(pair => <ChatPairCard key={pair.id} pair={pair} />)}
-          </div>
+          <ChatHistoryPanel pairs={chatPairs} />
         )}
       </section>
     </div>
   );
 }
 
-function ChatPairCard({ pair }: { pair: ChatPair }) {
+function ChatHistoryPanel({ pairs }: { pairs: ChatPair[] }) {
+  const [activeId, setActiveId] = useState(() => pairs[0]?.id ?? "");
+  const questionRefs = useRef(new Map<string, HTMLButtonElement>());
+  const answerRefs = useRef(new Map<string, HTMLElement>());
+  const answerPaneRef = useRef<HTMLDivElement | null>(null);
+  const syncingRef = useRef(false);
+
+  useEffect(() => {
+    setActiveId(current => pairs.some(pair => pair.id === current) ? current : pairs[0]?.id ?? "");
+  }, [pairs]);
+
+  useEffect(() => {
+    const el = activeId ? questionRefs.current.get(activeId) : null;
+    if (el) el.scrollIntoView({ block: "nearest" });
+  }, [activeId]);
+
+  function scrollToPair(id: string) {
+    const target = answerRefs.current.get(id);
+    const pane = answerPaneRef.current;
+    if (!target || !pane) return;
+    syncingRef.current = true;
+    setActiveId(id);
+    const targetTop = target.getBoundingClientRect().top - pane.getBoundingClientRect().top + pane.scrollTop;
+    pane.scrollTo({
+      top: targetTop - 8,
+      behavior: "smooth",
+    });
+    window.setTimeout(() => { syncingRef.current = false; }, 360);
+  }
+
+  function syncFromAnswerScroll() {
+    if (syncingRef.current) return;
+    const pane = answerPaneRef.current;
+    if (!pane) return;
+    const paneTop = pane.getBoundingClientRect().top;
+    let nextId = pairs[0]?.id ?? "";
+    for (const pair of pairs) {
+      const el = answerRefs.current.get(pair.id);
+      if (!el) continue;
+      const top = el.getBoundingClientRect().top - paneTop;
+      if (top <= 24) nextId = pair.id;
+      else break;
+    }
+    setActiveId(nextId);
+  }
+
+  return (
+    <div className="home-history-split">
+      <div className="home-history-questions" aria-label="你的问题历史">
+        {pairs.map(pair => (
+          <button
+            key={pair.id}
+            ref={el => {
+              if (el) questionRefs.current.set(pair.id, el);
+              else questionRefs.current.delete(pair.id);
+            }}
+            type="button"
+            className={`home-history-question${activeId === pair.id ? " is-active" : ""}`}
+            onClick={() => scrollToPair(pair.id)}
+          >
+            <span className="home-history-question__meta">
+              <em>#{String(pair.index).padStart(2, "0")}</em>
+              {formatHistoryTime(pair.question) && <time>{formatHistoryTime(pair.question)}</time>}
+            </span>
+            <span className="home-history-question__text">{pair.question.content}</span>
+          </button>
+        ))}
+      </div>
+
+      <div
+        ref={answerPaneRef}
+        className="home-history-answers"
+        aria-label="Rich 的回答历史"
+        onScroll={syncFromAnswerScroll}
+      >
+        {pairs.map(pair => (
+          <AnswerHistoryRow
+            key={pair.id}
+            pair={pair}
+            active={activeId === pair.id}
+            setRef={el => {
+              if (el) answerRefs.current.set(pair.id, el);
+              else answerRefs.current.delete(pair.id);
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AnswerHistoryRow({
+  pair,
+  active,
+  setRef,
+}: {
+  pair: ChatPair;
+  active: boolean;
+  setRef: (el: HTMLElement | null) => void;
+}) {
   const answer = pair.answer;
   return (
-    <article className={`home-chat-pair${answer?.pending ? " is-pending" : ""}${answer?.error ? " has-error" : ""}`}>
-      <header className="home-chat-pair__head">
-        <span>#{String(pair.index).padStart(2, "0")}</span>
-        {answer?.pending && <em>进行中</em>}
-      </header>
-      <div className="home-chat-pair__question">
-        <span>你</span>
-        <p>{pair.question.content}</p>
-      </div>
-      <div className="home-chat-pair__answer">
+    <article
+      ref={setRef}
+      className={`home-history-answer${active ? " is-active" : ""}${answer?.pending ? " is-pending" : ""}${answer?.error ? " has-error" : ""}`}
+    >
+      <header className="home-history-answer__head">
         <span>Rich</span>
-        <div className="home-chat-pair__content">
-          {answer?.content ? (
-            <>
-              <RichContent text={answer.content} />
-              {answer.pending && <span className="home-cursor">▍</span>}
-            </>
-          ) : answer?.pending ? (
-            <div className="home-turn-thinking">Rich 正在思考...</div>
-          ) : (
-            <div className="home-turn-thinking">等待回应...</div>
-          )}
-          {answer?.error && <div className="home-turn-error">{answer.error}</div>}
+        <div>
+          {formatHistoryTime(answer ?? pair.question) && <time>{formatHistoryTime(answer ?? pair.question)}</time>}
+          {answer?.pending && <em>进行中</em>}
         </div>
+      </header>
+      <div className="home-history-answer__body">
+        {answer?.content ? (
+          <>
+            <RichContent text={answer.content} />
+            {answer.pending && <span className="home-cursor">▍</span>}
+          </>
+        ) : answer?.pending ? (
+          <div className="home-turn-thinking">Rich 正在思考...</div>
+        ) : (
+          <div className="home-turn-thinking">等待回应...</div>
+        )}
+        {answer?.error && <div className="home-turn-error">{answer.error}</div>}
       </div>
     </article>
   );

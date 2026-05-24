@@ -5,6 +5,7 @@ export const ElementTypeSchema = z.enum([
   "viewpoint", "question", "case", "tool", "ability",
   "project", "practice", "summary", "relation",
   "dispute", "exercise", "report", "guide",
+  "group",
 ]);
 
 export const RichnessLevelSchema = z.union([

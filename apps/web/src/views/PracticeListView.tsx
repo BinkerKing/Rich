@@ -19,19 +19,28 @@ export function PracticeListView({ onPickPractice }: Props): ReactNode {
     .filter(e => e.type === "practice")
     .filter(e => (e.tags ?? []).includes("实战项目"));
 
-  // 每个 practice 算子元统计
-  const statsOf = (practiceId: string) => {
+  // 新结构：practice → group → 实际子元。统计要穿透 group 层。
+  const childrenOf = (parentId: string) => {
     const childIds = relations
-      .filter(r => r.kind === "child" && r.from === practiceId)
+      .filter(r => r.kind === "child" && r.from === parentId)
       .map(r => r.to);
-    const children = childIds
+    return childIds
       .map(id => elements.get(id))
       .filter((e): e is NonNullable<typeof e> => !!e);
-    const steps = children.filter(c => c.type === "step");
+  };
+  const statsOf = (practiceId: string) => {
+    const direct = childrenOf(practiceId);
+    // 收集所有 group 的子元 + 未分组的 loose children
+    const all: typeof direct = [];
+    for (const c of direct) {
+      if (c.type === "group") all.push(...childrenOf(c.id));
+      else all.push(c);  // 历史孤儿数据
+    }
+    const steps = all.filter(c => c.type === "step");
     return {
-      concepts: children.filter(c => c.type === "concept").length,
-      cases: children.filter(c => c.type === "case").length,
-      prds: children.filter(c => c.type === "product-design").length,
+      concepts: all.filter(c => c.type === "concept").length,
+      cases: all.filter(c => c.type === "case").length,
+      prds: all.filter(c => c.type === "product-design").length,
       steps: steps.length,
       stepsDone: steps.filter(s => s.status === "done").length,
     };

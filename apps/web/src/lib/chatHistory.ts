@@ -10,6 +10,7 @@ export interface ChatHistoryMessage {
   id: string;
   role: ChatRole;
   content: string;
+  createdAt?: number;
   tools?: ChatToolEvent[];
   pending?: boolean;
   error?: string;

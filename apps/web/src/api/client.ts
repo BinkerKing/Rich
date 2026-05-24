@@ -322,7 +322,9 @@ export const api = {
   },
 
   // ----- 项目实战 helpers -----
-  /** 创建一个 type=practice 的实战项目元（自动带"实战项目"标签 → 在 项目实战 页可见） */
+  /** 创建一个 type=practice 的实战项目元 + 4 个默认分组（知识点/需求分析/PRD/开发任务）。
+   *  自动带 "实战项目" 标签 → 在 项目实战 页可见。
+   *  分组本身是 type=group 的子元，可以改名、删、加。 */
   async createPracticeElement(input: { title: string; subtitle?: string }): Promise<Element> {
     const r = await fetch("/api/elements", {
       method: "POST",
@@ -338,12 +340,27 @@ export const api = {
       const body = await r.json().catch(() => ({})) as { error?: string };
       throw new Error(body.error ?? `createPracticeElement ${r.status}`);
     }
-    const result = await r.json() as { element: Element };
-    return result.element;
+    const { element: practice } = await r.json() as { element: Element };
+    // 顺序创建 4 个默认分组（顺序保留 = 创建顺序 = UI 渲染顺序）
+    const defaults = ["知识点", "需求分析", "PRD", "开发任务"];
+    for (const groupTitle of defaults) {
+      await fetch("/api/elements", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          title: groupTitle,
+          type: "group",
+          parentId: practice.id,
+        }),
+      });
+    }
+    return practice;
   },
-  /** 在指定 practice 元下创建一个子元（concept / case / product-design / step） */
+  /** 在指定 group 元下创建一个子元 (concept / case / product-design / step / 任何 type)。
+   *  parentId 应该是 group 元的 id，不是 practice 元本身。
+   *  新版项目实战：practice → group → 实际子元。 */
   async createPracticeChild(input: {
-    practiceId: string;
+    parentId: string;
     type: "concept" | "case" | "product-design" | "step";
     title: string;
     subtitle?: string;
@@ -356,15 +373,32 @@ export const api = {
         title: input.title,
         subtitle: input.subtitle,
         type: input.type,
-        parentId: input.practiceId,
+        parentId: input.parentId,
         content: input.content,
-        // step 默认 todo
         ...(input.type === "step" ? { status: "todo" } : {}),
       }),
     });
     if (!r.ok) {
       const body = await r.json().catch(() => ({})) as { error?: string };
       throw new Error(body.error ?? `createPracticeChild ${r.status}`);
+    }
+    const result = await r.json() as { element: Element };
+    return result.element;
+  },
+  /** 在指定 practice 下新建一个分组 */
+  async createPracticeGroup(input: { practiceId: string; title: string }): Promise<Element> {
+    const r = await fetch("/api/elements", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        title: input.title,
+        type: "group",
+        parentId: input.practiceId,
+      }),
+    });
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(body.error ?? `createPracticeGroup ${r.status}`);
     }
     const result = await r.json() as { element: Element };
     return result.element;

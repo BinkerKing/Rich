@@ -67,8 +67,20 @@ export function DraftPrdModal({ practice, children, onClose }: Props): ReactNode
   const confirmCreate = async (): Promise<void> => {
     if (!sections || !title.trim()) return;
     try {
+      // 找 / 建 "PRD" 分组，再把 PRD 元挂到分组下（新结构：practice → group → 子元）
+      const state = useStore.getState();
+      const childIds = state.relations
+        .filter(r => r.kind === "child" && r.from === practice.id)
+        .map(r => r.to);
+      const directChildren = childIds
+        .map(id => state.elements.get(id))
+        .filter((e): e is Element => !!e);
+      let prdGroup = directChildren.find(c => c.type === "group" && c.title === "PRD");
+      if (!prdGroup) {
+        prdGroup = await api.createPracticeGroup({ practiceId: practice.id, title: "PRD" });
+      }
       await api.createPracticeChild({
-        practiceId: practice.id,
+        parentId: prdGroup.id,
         type: "product-design",
         title: title.trim(),
         subtitle: sections.overview.slice(0, 60),

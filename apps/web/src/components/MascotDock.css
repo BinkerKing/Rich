@@ -90,7 +90,7 @@
 }
 .mascot-dock:hover .mascot-dock__flyout,
 .mascot-dock:focus-within .mascot-dock__flyout {
-  max-width: 600px;
+  max-width: calc(100vw - 92px);
   opacity: 1;
   pointer-events: auto;
   transform: translateX(0);
@@ -101,6 +101,7 @@
 
 .mascot-dock__item {
   position: relative;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   gap: 6px;

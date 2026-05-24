@@ -100,6 +100,37 @@
   font-size: 13px; font-weight: 600; color: #e6b25a;
   margin-bottom: 10px;
 }
+.pw-bd-group__title-btn {
+  background: transparent; border: none; padding: 2px 4px;
+  color: #e6b25a; font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+  border-radius: 4px;
+}
+.pw-bd-group__title-btn:hover {
+  background: rgba(217, 154, 62, .08); color: #f0c070;
+}
+.pw-bd-add-group {
+  display: flex; gap: 8px; padding: 8px 0;
+}
+.pw-bd-add-group-btn {
+  padding: 8px 14px; border-radius: 8px;
+  background: transparent;
+  border: 1px dashed rgba(217, 154, 62, .35);
+  color: #a87526; font-size: 12px;
+  cursor: pointer; font-family: inherit;
+  width: 100%;
+}
+.pw-bd-add-group-btn:hover {
+  color: #e6b25a; border-color: rgba(217, 154, 62, .7);
+}
+.pw-bd-cancel {
+  padding: 5px 10px; border-radius: 6px;
+  background: transparent;
+  border: 1px solid rgba(217, 154, 62, .25);
+  color: #a87526; font-size: 11px;
+  cursor: pointer; font-family: inherit;
+}
+.pw-bd-cancel:hover { color: #e6b25a; }
 .pw-bd-group__actions { display: flex; gap: 8px; align-items: center; }
 .pw-bd-input {
   padding: 6px 10px; border-radius: 6px;

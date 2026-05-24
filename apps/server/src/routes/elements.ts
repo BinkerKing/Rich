@@ -128,6 +128,7 @@ export function elementsRoutes(deps: ElementsRoutesDeps): Hono {
         "viewpoint", "question", "case", "tool", "ability",
         "project", "practice", "summary", "relation",
         "dispute", "exercise", "report", "guide",
+        "group",
       ];
       if (!VALID_TYPES.includes(body.type)) {
         return c.json({ error: `invalid type: ${body.type}` }, 400);

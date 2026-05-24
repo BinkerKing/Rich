@@ -15,7 +15,8 @@ export type ElementType =
   | "dispute"
   | "exercise"
   | "report"
-  | "guide";
+  | "guide"
+  | "group";    // 项目实战分组节点：实战项目下挂分组，分组下挂具体子元
 
 export type ElementId = string;
 

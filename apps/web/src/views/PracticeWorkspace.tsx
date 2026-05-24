@@ -42,7 +42,6 @@ export function PracticeWorkspace({ practiceId, onBack }: Props): ReactNode {
         : ["实战项目", ...currentTags];
       await api.patchElement(practice.id, { tags: nextTags });
       await hydrate();
-      // 关闭开关 → 立刻退出工作空间（不再在列表里显示了）
       if (isProject) onBack();
     } catch (e) {
       alert(`切换失败: ${e instanceof Error ? e.message : String(e)}`);
@@ -51,15 +50,26 @@ export function PracticeWorkspace({ practiceId, onBack }: Props): ReactNode {
     }
   };
 
-  const childIds = relations
-    .filter(r => r.kind === "child" && r.from === practiceId)
-    .map(r => r.to);
-  const children = childIds.map(id => elements.get(id)).filter((e): e is Element => !!e);
+  // 新结构：practice → group → 实际子元
+  const childrenOf = (parentId: string): Element[] => {
+    const ids = relations
+      .filter(r => r.kind === "child" && r.from === parentId)
+      .map(r => r.to);
+    return ids.map(id => elements.get(id)).filter((e): e is Element => !!e);
+  };
+  const directChildren = childrenOf(practiceId);
+  const groups = directChildren.filter(c => c.type === "group");
+  const looseChildren = directChildren.filter(c => c.type !== "group");
 
-  const concepts = children.filter(c => c.type === "concept");
-  const cases = children.filter(c => c.type === "case");
-  const prds = children.filter(c => c.type === "product-design");
-  const steps = children.filter(c => c.type === "step");
+  // 统计：递归算所有 group 的子元 + 历史孤儿（loose）
+  const allDescendants: Element[] = [];
+  for (const g of groups) allDescendants.push(...childrenOf(g.id));
+  allDescendants.push(...looseChildren);
+
+  const concepts = allDescendants.filter(c => c.type === "concept").length;
+  const cases = allDescendants.filter(c => c.type === "case").length;
+  const prds = allDescendants.filter(c => c.type === "product-design").length;
+  const steps = allDescendants.filter(c => c.type === "step");
   const stepDone = steps.filter(s => s.status === "done").length;
 
   return (
@@ -90,17 +100,16 @@ export function PracticeWorkspace({ practiceId, onBack }: Props): ReactNode {
 
       <div className="pw__body">
         {tab === "overview" && (
-          <OverviewTab concepts={concepts.length} cases={cases.length}
-            prds={prds.length} steps={steps.length} stepDone={stepDone}
+          <OverviewTab concepts={concepts} cases={cases}
+            prds={prds} steps={steps.length} stepDone={stepDone}
             practice={practice} />
         )}
         {tab === "breakdown" && (
           <BreakdownTab
             practiceId={practiceId}
-            concepts={concepts}
-            cases={cases}
-            prds={prds}
-            steps={steps}
+            groups={groups}
+            looseChildren={looseChildren}
+            childrenOf={childrenOf}
             onOpenChild={setOpenChildId}
             onDraftPrd={() => setDraftPrdOpen(true)} />
         )}
@@ -117,7 +126,7 @@ export function PracticeWorkspace({ practiceId, onBack }: Props): ReactNode {
       {draftPrdOpen && (
         <DraftPrdModal
           practice={practice}
-          children={children}
+          children={allDescendants}
           onClose={() => setDraftPrdOpen(false)} />
       )}
     </div>
@@ -128,7 +137,11 @@ export function PracticeWorkspace({ practiceId, onBack }: Props): ReactNode {
 // Tab 1: 总览
 // ===================================================================
 function OverviewTab({ concepts, cases, prds, steps, stepDone, practice }: {
-  concepts: number; cases: number; prds: number; steps: number; stepDone: number;
+  concepts: number;
+  cases: number;
+  prds: number;
+  steps: number;
+  stepDone: number;
   practice: Element;
 }): ReactNode {
   const stepPct = steps === 0 ? 0 : Math.round((stepDone / steps) * 100);
@@ -155,29 +168,62 @@ function OverviewTab({ concepts, cases, prds, steps, stepDone, practice }: {
 }
 
 // ===================================================================
-// Tab 2: 拆解（4 组 + step 看板）
+// Tab 2: 拆解 — 按 group 渲染
+// 每个 group 是个 Element (type="group")，下面挂具体子元
+// PRD group 多个 🪄 起草按钮；开发任务 group / 含 step 的 group 用看板渲染
 // ===================================================================
+
+const GROUP_ICON: Record<string, string> = {
+  "知识点": "📚",
+  "需求分析": "🎯",
+  "PRD": "📄",
+  "开发任务": "⚙️",
+};
+const GROUP_DEFAULT_TYPE: Record<string, "concept" | "case" | "product-design" | "step"> = {
+  "知识点": "concept",
+  "需求分析": "case",
+  "PRD": "product-design",
+  "开发任务": "step",
+};
+
 function BreakdownTab({
-  practiceId, concepts, cases, prds, steps,
+  practiceId, groups, looseChildren, childrenOf,
   onOpenChild, onDraftPrd,
 }: {
   practiceId: string;
-  concepts: Element[]; cases: Element[]; prds: Element[]; steps: Element[];
+  groups: Element[];
+  looseChildren: Element[];
+  childrenOf: (parentId: string) => Element[];
   onOpenChild: (id: string) => void;
   onDraftPrd: () => void;
 }): ReactNode {
   const hydrate = useStore(s => s.hydrate);
-  const [newTitle, setNewTitle] = useState<Record<string, string>>({});
+  const [newTitleByGroup, setNewTitleByGroup] = useState<Record<string, string>>({});
+  const [newGroupTitle, setNewGroupTitle] = useState("");
+  const [creatingGroup, setCreatingGroup] = useState(false);
 
-  const addChild = async (type: "concept" | "case" | "product-design" | "step"): Promise<void> => {
-    const title = (newTitle[type] ?? "").trim();
+  const addChildToGroup = async (groupId: string, type: "concept" | "case" | "product-design" | "step"): Promise<void> => {
+    const title = (newTitleByGroup[groupId] ?? "").trim();
     if (!title) return;
     try {
-      await api.createPracticeChild({ practiceId, type, title });
-      setNewTitle(s => ({ ...s, [type]: "" }));
+      await api.createPracticeChild({ parentId: groupId, type, title });
+      setNewTitleByGroup(s => ({ ...s, [groupId]: "" }));
       await hydrate();
     } catch (e) {
       alert(`新增失败: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
+  const addGroup = async (): Promise<void> => {
+    const t = newGroupTitle.trim();
+    if (!t) return;
+    try {
+      await api.createPracticeGroup({ practiceId, title: t });
+      setNewGroupTitle("");
+      setCreatingGroup(false);
+      await hydrate();
+    } catch (e) {
+      alert(`新增分组失败: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
@@ -190,85 +236,112 @@ function BreakdownTab({
     }
   };
 
-  const Group = ({ icon, label, type, items, extraButton }: {
-    icon: string; label: string;
-    type: "concept" | "case" | "product-design";
-    items: Element[]; extraButton?: ReactNode;
-  }): ReactNode => (
-    <div className="pw-bd-group">
-      <div className="pw-bd-group__head">
-        <span>{icon} {label} ({items.length})</span>
-        <div className="pw-bd-group__actions">
-          {extraButton}
-          <input className="pw-bd-input"
-            placeholder={`+ 新增${label}`}
-            value={newTitle[type] ?? ""}
-            onChange={e => setNewTitle(s => ({ ...s, [type]: e.target.value }))}
-            onKeyDown={e => { if (e.key === "Enter") void addChild(type); }} />
-        </div>
-      </div>
-      {items.map(it => (
-        <button key={it.id} className="pw-bd-item" onClick={() => onOpenChild(it.id)}>
-          <span className="pw-bd-item__title">{it.title}</span>
-          {it.subtitle && <span className="pw-bd-item__sub">{it.subtitle}</span>}
-        </button>
-      ))}
-      {items.length === 0 && <div className="pw-bd-empty">暂无</div>}
-    </div>
-  );
+  const renderGroup = (group: Element): ReactNode => {
+    const children = childrenOf(group.id);
+    const icon = GROUP_ICON[group.title] ?? "📁";
+    const defaultType = GROUP_DEFAULT_TYPE[group.title] ?? "concept";
+    const isPrd = group.title.includes("PRD");
+    // 任何 group 只要里面主要是 step（或标题含"任务"/"task"）就用看板
+    const isKanban = group.title.includes("任务") || group.title.toLowerCase().includes("task")
+      || (children.length > 0 && children.every(c => c.type === "step"));
 
-  // Step kanban
-  const todo = steps.filter(s => (s.status ?? "todo") === "todo");
-  const doing = steps.filter(s => s.status === "doing");
-  const done = steps.filter(s => s.status === "done");
+    return (
+      <div key={group.id} className="pw-bd-group">
+        <div className="pw-bd-group__head">
+          <button className="pw-bd-group__title-btn" onClick={() => onOpenChild(group.id)}
+            title="点击编辑分组标题">
+            {icon} {group.title} ({children.length})
+          </button>
+          <div className="pw-bd-group__actions">
+            {isPrd && (
+              <button className="pw-bd-ai" onClick={onDraftPrd}>🪄 让 Rich 起草</button>
+            )}
+            <input className="pw-bd-input"
+              placeholder={`+ 新增${group.title}`}
+              value={newTitleByGroup[group.id] ?? ""}
+              onChange={e => setNewTitleByGroup(s => ({ ...s, [group.id]: e.target.value }))}
+              onKeyDown={e => { if (e.key === "Enter") void addChildToGroup(group.id, defaultType); }} />
+          </div>
+        </div>
+
+        {isKanban ? (
+          <div className="pw-bd-kanban">
+            {(["todo", "doing", "done"] as const).map(col => {
+              const items = children.filter(c => c.type === "step" && (c.status ?? "todo") === col);
+              return (
+                <div key={col} className={`pw-bd-col pw-bd-col--${col}`}>
+                  <div className="pw-bd-col__head">{col} ({items.length})</div>
+                  {items.map(s => (
+                    <div key={s.id} className="pw-bd-task">
+                      <button className="pw-bd-task__title" onClick={() => onOpenChild(s.id)}>
+                        {s.title}
+                      </button>
+                      <div className="pw-bd-task__actions">
+                        {(["todo","doing","done"] as const).map(st => (
+                          <button key={st}
+                            className={`pw-bd-task__chip ${(s.status ?? "todo") === st ? "is-active" : ""}`}
+                            onClick={() => void setStatus(s.id, st)}>
+                            {st}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  {items.length === 0 && <div className="pw-bd-empty">空</div>}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <>
+            {children.map(c => (
+              <button key={c.id} className="pw-bd-item" onClick={() => onOpenChild(c.id)}>
+                <span className="pw-bd-item__title">{c.title}</span>
+                {c.subtitle && <span className="pw-bd-item__sub">{c.subtitle}</span>}
+              </button>
+            ))}
+            {children.length === 0 && <div className="pw-bd-empty">暂无</div>}
+          </>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="pw-bd">
-      <Group icon="📚" label="知识点" type="concept" items={concepts} />
-      <Group icon="🎯" label="需求分析" type="case" items={cases} />
-      <Group icon="📄" label="PRD" type="product-design" items={prds}
-        extraButton={
-          <button className="pw-bd-ai" onClick={onDraftPrd}>🪄 让 Rich 起草</button>
-        } />
+      {groups.map(renderGroup)}
 
-      <div className="pw-bd-group">
-        <div className="pw-bd-group__head">
-          <span>⚙️ 开发任务 ({steps.length})</span>
-          <input className="pw-bd-input"
-            placeholder="+ 新增任务"
-            value={newTitle.step ?? ""}
-            onChange={e => setNewTitle(s => ({ ...s, step: e.target.value }))}
-            onKeyDown={e => { if (e.key === "Enter") void addChild("step"); }} />
-        </div>
-        <div className="pw-bd-kanban">
-          {([
-            { id: "todo", label: "todo", items: todo },
-            { id: "doing", label: "doing", items: doing },
-            { id: "done", label: "done", items: done },
-          ] as const).map(col => (
-            <div key={col.id} className={`pw-bd-col pw-bd-col--${col.id}`}>
-              <div className="pw-bd-col__head">{col.label} ({col.items.length})</div>
-              {col.items.map(s => (
-                <div key={s.id} className="pw-bd-task">
-                  <button className="pw-bd-task__title" onClick={() => onOpenChild(s.id)}>
-                    {s.title}
-                  </button>
-                  <div className="pw-bd-task__actions">
-                    {(["todo","doing","done"] as const).map(st => (
-                      <button key={st}
-                        className={`pw-bd-task__chip ${(s.status ?? "todo") === st ? "is-active" : ""}`}
-                        onClick={() => void setStatus(s.id, st)}>
-                        {st}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              {col.items.length === 0 && <div className="pw-bd-empty">空</div>}
-            </div>
+      {/* 历史孤儿：没挂在 group 下的旧数据兼容显示 */}
+      {looseChildren.length > 0 && (
+        <div className="pw-bd-group" style={{ borderStyle: "dashed", opacity: 0.85 }}>
+          <div className="pw-bd-group__head">
+            <span>⚠ 未分组（{looseChildren.length}）</span>
+          </div>
+          {looseChildren.map(c => (
+            <button key={c.id} className="pw-bd-item" onClick={() => onOpenChild(c.id)}>
+              <span className="pw-bd-item__title">[{c.type}] {c.title}</span>
+            </button>
           ))}
         </div>
-      </div>
+      )}
+
+      {/* + 新增分组 */}
+      {creatingGroup ? (
+        <div className="pw-bd-add-group">
+          <input className="pw-bd-input" autoFocus
+            placeholder="分组名（例：竞品调研 / 设计稿 / 测试用例）"
+            value={newGroupTitle}
+            onChange={e => setNewGroupTitle(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Enter") void addGroup();
+              if (e.key === "Escape") { setCreatingGroup(false); setNewGroupTitle(""); }
+            }} />
+          <button className="pw-bd-ai" onClick={() => void addGroup()} disabled={!newGroupTitle.trim()}>新建</button>
+          <button className="pw-bd-cancel" onClick={() => { setCreatingGroup(false); setNewGroupTitle(""); }}>取消</button>
+        </div>
+      ) : (
+        <button className="pw-bd-add-group-btn" onClick={() => setCreatingGroup(true)}>+ 新建分组</button>
+      )}
     </div>
   );
 }
