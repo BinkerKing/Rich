@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, statSync, readdirSync, copyFileSync, appendFileS
 import { join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import http from "node:http";
+import { fileURLToPath } from "node:url";
 
 // File-based logger so we can see what happened when launched from .app bundle
 // (where stdout is swallowed). Always logs to /tmp/ke-desktop.log.
@@ -18,6 +19,35 @@ console.error = (...a: unknown[]) => { flog("ERROR " + a.map(String).join(" "));
 process.on("uncaughtException", (e) => { flog("uncaughtException " + (e instanceof Error ? e.stack || e.message : String(e))); });
 process.on("unhandledRejection", (e) => { flog("unhandledRejection " + String(e)); });
 flog("main.cjs loaded");
+
+function openExternalTarget(url: string): void {
+  if (url.startsWith("file://")) {
+    try {
+      const path = fileURLToPath(url);
+      void shell.openPath(path).then((error) => {
+        if (error) flog(`openPath failed ${path}: ${error}`);
+      });
+    } catch (error) {
+      flog(`openPath invalid file url ${url}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return;
+  }
+  void shell.openExternal(url).catch((error) => {
+    flog(`openExternal failed ${url}: ${error instanceof Error ? error.message : String(error)}`);
+  });
+}
+
+function openRichExternalUrl(url: string): boolean {
+  if (!url.startsWith("rich://open-external")) return false;
+  try {
+    const parsed = new URL(url);
+    const target = parsed.searchParams.get("url");
+    if (target) openExternalTarget(target);
+  } catch (error) {
+    flog(`invalid rich external url ${url}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  return true;
+}
 
 // CJS-friendly module dir. esbuild outputs CJS so `__dirname` is available
 // directly; we don't need ESM's fileURLToPath dance.
@@ -278,9 +308,24 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
 
   // Open external links in the default browser, not new Electron windows.
   win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("rich://navigate")) {
+      void navigateMainWindowFromUrl(url);
+      return { action: "deny" };
+    }
+    if (openRichExternalUrl(url)) return { action: "deny" };
     if (url.startsWith("http://127.0.0.1:") || url.startsWith("http://localhost:")) return { action: "allow" };
-    shell.openExternal(url);
+    openExternalTarget(url);
     return { action: "deny" };
+  });
+  win.webContents.on("will-navigate", (event, url) => {
+    if (url.startsWith(`http://127.0.0.1:${port}/`) || url.startsWith(`http://localhost:${port}/`)) return;
+    event.preventDefault();
+    if (url.startsWith("rich://navigate")) {
+      void navigateMainWindowFromUrl(url);
+      return;
+    }
+    if (openRichExternalUrl(url)) return;
+    openExternalTarget(url);
   });
 
   // Default the UI to 80% zoom — the source design was tuned for a denser
@@ -507,6 +552,7 @@ function bringRichToFront(mainWin: BrowserWindow) {
     if (process.platform === "darwin") app.hide();
     return;
   }
+  if (process.platform === "darwin") app.show();
   if (mainWin.isMinimized()) mainWin.restore();
   if (!mainWin.isVisible()) mainWin.show();
   mainWin.moveTop();
@@ -585,6 +631,23 @@ function createChatWindow(port: number): BrowserWindow {
 
   win.setAlwaysOnTop(true, "floating", 1);
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("rich://navigate")) {
+      void navigateMainWindowFromUrl(url);
+    } else if (!openRichExternalUrl(url)) {
+      openExternalTarget(url);
+    }
+    return { action: "deny" };
+  });
+  win.webContents.on("will-navigate", (event, url) => {
+    event.preventDefault();
+    if (url.startsWith("rich://navigate")) {
+      void navigateMainWindowFromUrl(url);
+      return;
+    }
+    if (openRichExternalUrl(url)) return;
+    openExternalTarget(url);
+  });
 
   // Belt-and-suspenders: inject a !important transparent body rule after
   // the renderer loads. Same trick OverlayTaskView uses — defends against
@@ -646,11 +709,50 @@ function hideChatAndApp() {
   }
 }
 
+async function navigateMainWindowFromUrl(url: string) {
+  let payload: unknown;
+  try {
+    const parsed = new URL(url);
+    const raw = parsed.searchParams.get("payload");
+    if (!raw) return;
+    payload = JSON.parse(raw);
+  } catch {
+    return;
+  }
+  await navigateMainWindow(payload);
+}
+
+async function navigateMainWindow(payload: unknown) {
+  if (serverPort == null) return;
+  const win = mainWindow && !mainWindow.isDestroyed()
+    ? mainWindow
+    : await openMainWindow(serverPort);
+
+  if (process.platform === "darwin") app.show();
+  if (win.isMinimized()) win.restore();
+  if (!win.isVisible()) win.show();
+  win.focus();
+
+  const jsPayload = JSON.stringify(payload);
+  const script = `window.dispatchEvent(new CustomEvent("rich.navigate", { detail: ${jsPayload} }));`;
+  const run = () => win.webContents.executeJavaScript(script).catch(() => undefined);
+  if (win.webContents.isLoading()) {
+    win.webContents.once("did-finish-load", run);
+  } else {
+    await run();
+  }
+
+  if (chatWindow && !chatWindow.isDestroyed() && chatWindow.isVisible()) {
+    chatWindow.hide();
+  }
+}
+
 function toggleChatWindow() {
   if (serverPort == null) return;
   if (!chatWindow || chatWindow.isDestroyed()) {
     chatWindow = createChatWindow(serverPort);
     chatWindow.once("ready-to-show", () => {
+      if (process.platform === "darwin") app.show();
       chatWindow?.show();
       chatWindow?.focus();
     });
@@ -669,6 +771,7 @@ function toggleChatWindow() {
       x: Math.round(display.bounds.x + (display.bounds.width - bounds.width) / 2),
       y: Math.round(display.bounds.y + display.bounds.height * 0.18),
     });
+    if (process.platform === "darwin") app.show();
     chatWindow.show();
     chatWindow.focus();
   }

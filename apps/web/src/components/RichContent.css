@@ -34,3 +34,37 @@
 .rich-jump:hover .rich-jump__arrow {
   color: #fff;
 }
+
+.rich-external-link {
+  color: #8fefff;
+  text-decoration: underline;
+  text-decoration-color: rgba(143, 239, 255, .42);
+  text-underline-offset: 3px;
+  word-break: break-word;
+  cursor: pointer;
+  transition: color 120ms ease, text-decoration-color 120ms ease, background 120ms ease;
+}
+.rich-external-link:hover {
+  color: #ffffff;
+  text-decoration-color: rgba(143, 239, 255, .95);
+  background: rgba(143, 239, 255, .10);
+}
+.rich-external-link--code {
+  display: inline;
+  font-family: "SF Mono", "JetBrains Mono", Menlo, Monaco, monospace;
+  font-size: .92em;
+  padding: 1px 5px;
+  margin: 0 2px;
+  border: 1px solid rgba(143, 239, 255, .34);
+  border-radius: 4px;
+  background: rgba(143, 239, 255, .10);
+  color: #b9f6ff;
+  text-decoration: underline;
+  text-decoration-color: rgba(143, 239, 255, .55);
+  cursor: pointer;
+}
+.rich-external-link--code:hover {
+  color: #ffffff;
+  border-color: rgba(143, 239, 255, .72);
+  background: rgba(143, 239, 255, .18);
+}

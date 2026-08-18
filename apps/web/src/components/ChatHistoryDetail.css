@@ -119,6 +119,25 @@
   color: #e7e7ea;
   white-space: pre-wrap;
 }
+.chd__text .rich-md,
+.chd__text .rich-md-inline {
+  white-space: normal;
+}
+.chd__text .rich-md p {
+  margin: 0 0 8px;
+  line-height: 1.75;
+}
+.chd__text .rich-md p:last-child {
+  margin-bottom: 0;
+}
+.chd__text .rich-md ul,
+.chd__text .rich-md ol {
+  margin: 6px 0 10px;
+  padding-left: 22px;
+}
+.chd__text .rich-md li {
+  margin: 3px 0;
+}
 .chd__error {
   padding: 12px 14px;
   background: rgba(244, 114, 114, .10);

@@ -6,7 +6,9 @@
  */
 import { useEffect, useRef, type ReactNode } from "react";
 import { VisualBlockRenderer } from "./VisualBlockRenderer.js";
+import { RichContent } from "./RichContent.js";
 import type { HistoryRow } from "../views/ChatHistoryView.js";
+import "./RichContent.css";
 import "./ChatHistoryDetail.css";
 
 interface Props {
@@ -80,7 +82,7 @@ export function ChatHistoryDetail({ row, rows, onClose, onNavigate }: Props): Re
           {row.textOnly && (
             <section className="chd__sec">
               <div className="chd__sec-label">文字答案</div>
-              <div className="chd__text">{row.textOnly}</div>
+              <div className="chd__text"><RichContent text={row.textOnly} /></div>
               <button type="button" className="chd__copy" onClick={() => copy(row.textOnly)}>
                 复制全文
               </button>

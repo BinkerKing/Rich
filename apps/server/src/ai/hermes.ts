@@ -65,6 +65,7 @@ export class HermesAdapter implements AIAdapter {
           model: this.model,
           stream: true,
           messages: [
+            ...(args.systemPrompt ? [{ role: "system", content: args.systemPrompt }] : []),
             { role: "user", content: args.prompt },
           ],
           // Hermes-specific — pass through any session id so it can

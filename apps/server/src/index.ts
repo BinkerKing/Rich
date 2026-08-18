@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { fileURLToPath } from "node:url";
-import { realpathSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { elementsRoutes } from "./routes/elements.js";
 import { relationsRoutes } from "./routes/relations.js";
 import { pathsRoutes } from "./routes/paths.js";
@@ -27,6 +28,86 @@ const STATIC_MIMES: Record<string, string> = {
   ".woff2": "font/woff2",
   ".woff": "font/woff",
 };
+
+type MiniProgramTone = "cyan" | "blue" | "gold" | "green" | "violet" | "slate";
+
+interface MiniProgramDefinition {
+  id: string;
+  label: string;
+  desc: string;
+  category: string;
+  icon: string;
+  tone: MiniProgramTone;
+  candidates: string[];
+}
+
+const richWorkspaceDir = process.env.RICH_WORKSPACE_DIR
+  ? pathResolve(process.env.RICH_WORKSPACE_DIR)
+  : pathResolve(process.env.HOME ?? process.cwd(), "Documents/Ai-WorkSpace");
+
+function inWorkspace(...segments: string[]) {
+  return pathResolve(richWorkspaceDir, ...segments);
+}
+
+const MINI_PROGRAMS: MiniProgramDefinition[] = [
+  {
+    id: "riking-ybt-ops-manual",
+    label: "Riking-YBT-OpsManual",
+    desc: "打开【首都银行】一表通独立运维手册",
+    category: "Script",
+    icon: "book",
+    tone: "cyan",
+    candidates: [
+      inWorkspace("Tools/Riking-YBT-OpsManual/index.html"),
+      inWorkspace("Script/Riking-YBT-OpsManual/index.html"),
+    ],
+  },
+  {
+    id: "file-compare",
+    label: "对比文件工具",
+    desc: "打开中间层数据文件对比工具",
+    category: "tools",
+    icon: "card",
+    tone: "gold",
+    candidates: [
+      inWorkspace("Tools/对比文件脚本/web/compare.html"),
+      inWorkspace("Tools/对比文件脚本/dist/中间层数据文件对比工具/首页.html"),
+      inWorkspace("Script/对比文件脚本/web/compare.html"),
+      inWorkspace("Script/对比文件脚本/dist/中间层数据文件对比工具/首页.html"),
+    ],
+  },
+  {
+    id: "speech-script-presenter",
+    label: "演讲稿",
+    desc: "适合演讲现场查看和编辑节点、重点、提示的讲稿小程序",
+    category: "Tools",
+    icon: "chat",
+    tone: "blue",
+    candidates: [
+      inWorkspace("Tools/SpeechScriptPresenter/index.html"),
+    ],
+  },
+];
+
+function resolveMiniProgramTarget(program: MiniProgramDefinition): string | null {
+  return program.candidates.find(candidate => existsSync(candidate)) ?? null;
+}
+
+function findOpsManualIndex(): string | null {
+  const external = MINI_PROGRAMS.find(program => program.id === "riking-ybt-ops-manual");
+  return external ? resolveMiniProgramTarget(external) : null;
+}
+
+function openLocalFile(target: string) {
+  const command = process.platform === "darwin"
+    ? "open"
+    : process.platform === "win32"
+      ? "cmd"
+      : "xdg-open";
+  const args = process.platform === "win32" ? ["/c", "start", "", target] : [target];
+  const child = spawn(command, args, { detached: true, stdio: "ignore" });
+  child.unref();
+}
 import { JsonElementsRepo } from "./repos/JsonElementsRepo.js";
 import { JsonRelationsRepo } from "./repos/JsonRelationsRepo.js";
 import { JsonPathsRepo } from "./repos/JsonPathsRepo.js";
@@ -46,6 +127,7 @@ import { SqliteRelationsRepo } from "./repos/SqliteRelationsRepo.js";
 import { SqlitePathsRepo } from "./repos/SqlitePathsRepo.js";
 import { SqliteSignalsRepo } from "./repos/SqliteSignalsRepo.js";
 import { SqliteChatVisualBlocksRepo } from "./repos/SqliteChatVisualBlocksRepo.js";
+import { SqliteChatAttachmentsRepo } from "./repos/SqliteChatAttachmentsRepo.js";
 import { SqliteQARepo } from "./repos/SqliteQARepo.js";
 import { SqliteAnnotationsRepo } from "./repos/SqliteAnnotationsRepo.js";
 import { SqliteStateRepo } from "./repos/SqliteStateRepo.js";
@@ -57,6 +139,8 @@ import type { RelationsRepo } from "./repos/RelationsRepo.js";
 import type { PathsRepo } from "./repos/PathsRepo.js";
 import type { SignalsRepo } from "./repos/SignalsRepo.js";
 import type { ChatVisualBlocksRepo } from "./repos/ChatVisualBlocksRepo.js";
+import type { ChatAttachmentsRepo } from "./repos/ChatAttachmentsRepo.js";
+import type { HealthRepo } from "./repos/HealthRepo.js";
 import type { QARepo } from "./repos/QARepo.js";
 import type { AnnotationsRepo } from "./repos/AnnotationsRepo.js";
 import type { StateRepo } from "./repos/StateRepo.js";
@@ -75,6 +159,11 @@ import { eventsRoute } from "./routes/events.js";
 import { greatMeRoutes } from "./routes/greatMe.js";
 import { chatRoutes } from "./routes/chat.js";
 import { chatVisualBlocksRoutes } from "./routes/chatVisualBlocks.js";
+import { chatAttachmentsRoutes } from "./routes/chatAttachments.js";
+import { healthRoutes } from "./routes/health.js";
+import { createReminderTicker } from "./lib/reminderTicker.js";
+import { projectsRoutes } from "./routes/projects.js";
+import { rikingProjectsRoutes } from "./routes/rikingProjects.js";
 import { cronRoutes } from "./routes/cron.js";
 import { ImprovementsRepo, type ImprovementsStore } from "./repos/ImprovementsRepo.js";
 import { improvementsRoutes } from "./routes/improvements.js";
@@ -91,6 +180,8 @@ import { PostgresRelationsRepo } from "./repos/PostgresRelationsRepo.js";
 import { PostgresPathsRepo } from "./repos/PostgresPathsRepo.js";
 import { PostgresSignalsRepo } from "./repos/PostgresSignalsRepo.js";
 import { PostgresChatVisualBlocksRepo } from "./repos/PostgresChatVisualBlocksRepo.js";
+import { PostgresChatAttachmentsRepo } from "./repos/PostgresChatAttachmentsRepo.js";
+import { PostgresHealthRepo } from "./repos/PostgresHealthRepo.js";
 import { PostgresQARepo } from "./repos/PostgresQARepo.js";
 import { PostgresAnnotationsRepo } from "./repos/PostgresAnnotationsRepo.js";
 import { PostgresStateRepo } from "./repos/PostgresStateRepo.js";
@@ -124,6 +215,10 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let invocations: InvocationsStore | null = null;
   /** chat_visual_blocks 仅 sqlite + postgres 后端支持；json 模式下保持 null。 */
   let chatVisualBlocks: ChatVisualBlocksRepo | null = null;
+  /** chat_attachments 同上 —— bytea 存储需要数据库后端 */
+  let chatAttachments: ChatAttachmentsRepo | null = null;
+  /** Body Insights 健康档案 —— V0.1 只支持 postgres（数据敏感、需跨机同步） */
+  let healthRepo: HealthRepo | null = null;
   if (storage === "json") {
     elements = new CachedElementsRepo(new JsonElementsRepo(root));
     relations = new CachedRelationsRepo(new JsonRelationsRepo(root));
@@ -152,6 +247,8 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     invocations = new PostgresInvocationsRepo(pg);
     improvements = new PostgresImprovementsRepo(pg);
     chatVisualBlocks = new PostgresChatVisualBlocksRepo(pg);
+    chatAttachments = new PostgresChatAttachmentsRepo(pg);
+    healthRepo = new PostgresHealthRepo(pg);
   } else {
     const dbPath = process.env.KE_SQLITE_PATH ?? join(root, "ke.db");
     const db = openDb(dbPath);
@@ -167,6 +264,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     improvements = new ImprovementsRepo(db);
     invocations = new InvocationsRepo(db);
     chatVisualBlocks = new SqliteChatVisualBlocksRepo(db);
+    chatAttachments = new SqliteChatAttachmentsRepo(db);
   }
 
   // Toolbox runtime constructed below (after `log` is defined).
@@ -233,8 +331,20 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/state", stateRoutes(state, elements, signals));
   app.route("/api/corpus", corpusRoutes(corpus));
   app.route("/api/great-me", greatMeRoutes(greatMe));
-  app.route("/api/chat", chatRoutes());
+  app.route("/api/chat", chatRoutes(chatAttachments, ai));
   app.route("/api/chat-visual-blocks", chatVisualBlocksRoutes(chatVisualBlocks));
+  app.route("/api/chat/attachments", chatAttachmentsRoutes(chatAttachments));
+  app.route("/api/health", healthRoutes(healthRepo));
+  app.route("/api/projects", projectsRoutes(elements));
+  app.route("/api/riking-projects", rikingProjectsRoutes(root));
+
+  // 提醒触发器 —— 仅在 healthRepo 可用（即 KE_STORAGE=postgres）时启动。
+  // 每分钟扫描一次 enabled 的提醒，到点发飞书 + SSE。
+  if (healthRepo) {
+    const ticker = createReminderTicker(healthRepo);
+    ticker.start();
+    log.info("reminder.ticker.started");
+  }
   app.route("/api/cron", cronRoutes());
   if (improvements) {
     app.route("/api/improvements", improvementsRoutes(improvements));
@@ -275,6 +385,59 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   // Agent-id endpoint：前端读这个值在 admin UI 默认填进 claim 表单。
   app.get("/api/agent-id", (c) => {
     return c.json({ agentId: getAgentId() });
+  });
+
+  app.post("/api/launcher/open-ops-manual", (c) => {
+    const target = findOpsManualIndex();
+    if (!target) {
+      return c.json({ error: "ops_manual_not_found" }, 404);
+    }
+    try {
+      openLocalFile(target);
+      return c.json({ ok: true, path: target });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return c.json({ error: "open_failed", message }, 500);
+    }
+  });
+
+  app.get("/api/mini-programs", (c) => {
+    return c.json({
+      workspaceDir: richWorkspaceDir,
+      programs: MINI_PROGRAMS.map(program => {
+        const target = resolveMiniProgramTarget(program);
+        return {
+          id: program.id,
+          label: program.label,
+          desc: program.desc,
+          category: program.category,
+          icon: program.icon,
+          tone: program.tone,
+          path: target,
+          exists: Boolean(target),
+          launchable: Boolean(target),
+        };
+      }),
+    });
+  });
+
+  app.post("/api/mini-programs/:id/open", (c) => {
+    const id = c.req.param("id");
+    const program = MINI_PROGRAMS.find(item => item.id === id);
+    if (!program) {
+      return c.json({ error: "mini_program_not_found" }, 404);
+    }
+    const target = resolveMiniProgramTarget(program);
+    if (!target) {
+      return c.json({ error: "mini_program_entry_not_found", workspaceDir: richWorkspaceDir }, 404);
+    }
+    try {
+      openLocalFile(target);
+      return c.json({ ok: true, path: target });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return c.json({ error: "open_failed", message }, 500);
+    }
   });
 
   // Health endpoint registered BEFORE the SPA catch-all so it actually matches.

@@ -7,9 +7,10 @@ type Payload =
   | { type: "svg"; html: string };
 
 /**
- * Global click-to-enlarge for any <img> inside .body-section and the SVG
- * inside .mermaid-diagram__host. Renders a portal overlay; click backdrop
- * or press Escape to close.
+ * Global click-to-enlarge for any <img> inside .body-section, plus any <img>
+ * with the `.is-zoomable` class (聊天附件 / 历史里的图都加这个类)。
+ * 也接受手动触发：window.dispatchEvent(new CustomEvent("ke-lightbox-open", {detail:{src}}))
+ * —— 用于那些被 button 包裹、click 事件被吞掉的场景。
  */
 export function Lightbox() {
   const [payload, setPayload] = useState<Payload | null>(null);
@@ -28,6 +29,14 @@ export function Lightbox() {
         setPayload({ type: "img", src: img.src, alt: img.alt });
         return;
       }
+      // 任何带 .is-zoomable 类的 <img> —— 聊天图片附件 / 缩略图 / 历史里的图都用这个
+      if (img && img.classList.contains("is-zoomable")) {
+        if (!img.src) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setPayload({ type: "img", src: img.src, alt: img.alt });
+        return;
+      }
 
       // Mermaid SVG inside the diagram host
       const host = target.closest(".mermaid-diagram__host") as HTMLElement | null;
@@ -40,7 +49,18 @@ export function Lightbox() {
       }
     }
     document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
+    // 手动触发入口 —— 用于嵌在 button 里的 img，避免 React onClick 吃掉事件
+    function onOpenEvent(e: Event) {
+      const detail = (e as CustomEvent<{ src?: string; alt?: string; html?: string }>).detail;
+      if (!detail) return;
+      if (detail.src) setPayload({ type: "img", src: detail.src, alt: detail.alt });
+      else if (detail.html) setPayload({ type: "svg", html: detail.html });
+    }
+    window.addEventListener("ke-lightbox-open", onOpenEvent);
+    return () => {
+      document.removeEventListener("click", onClick);
+      window.removeEventListener("ke-lightbox-open", onOpenEvent);
+    };
   }, []);
 
   useEffect(() => {

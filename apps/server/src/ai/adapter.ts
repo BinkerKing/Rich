@@ -5,6 +5,7 @@ export type StreamEvent =
 
 export interface GenerateArgs {
   prompt: string;
+  systemPrompt?: string;
   sessionId?: string;
   signal?: AbortSignal;
 }

@@ -426,6 +426,9 @@ export const api = {
     type?: string;
     subtitle?: string;
     parentId?: string;
+    content?: unknown;
+    status?: "todo" | "doing" | "done";
+    tags?: string[];
   }): Promise<{ element: Element; relation: Relation | null }> {
     const r = await fetch("/api/elements", {
       method: "POST",
@@ -668,4 +671,77 @@ export const api = {
   }) {
     return sseStream<{ title: string; body: string }>("/ai/analyze-mark", input);
   },
+
+  // ----- 项目管理 · 文件夹 -----
+  async scanProjectFolder(projectId: string, maxDepth = 4): Promise<ProjectFolderScanResult> {
+    const r = await fetch(`/api/projects/${encodeURIComponent(projectId)}/folder/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ maxDepth }),
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      throw new Error(`scanProjectFolder ${r.status}: ${t.slice(0, 200)}`);
+    }
+    return r.json();
+  },
+  async probeConnections(connections: Array<{ id: string; ip: string; port: number }>): Promise<ProbeConnectionsResult> {
+    const r = await fetch(`/api/projects/probe-connections`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ connections }),
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      throw new Error(`probeConnections ${r.status}: ${t.slice(0, 200)}`);
+    }
+    return r.json();
+  },
+  async mkdirsInProjectFolder(projectId: string, paths: string[]): Promise<ProjectFolderMkdirsResult> {
+    const r = await fetch(`/api/projects/${encodeURIComponent(projectId)}/folder/mkdirs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paths }),
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      throw new Error(`mkdirsInProjectFolder ${r.status}: ${t.slice(0, 200)}`);
+    }
+    return r.json();
+  },
 };
+
+export interface ProjectFolderNode {
+  path: string;
+  name: string;
+  kind: "dir" | "file";
+  size: number;
+  children?: ProjectFolderNode[];
+  truncated?: boolean;
+  ext?: string;
+  mtime?: string;
+}
+export interface ProjectFolderScanResult {
+  rootPath: string;
+  scannedAt: string;
+  totalNodes: number;
+  totalFiles: number;
+  totalDirs: number;
+  totalSize: number;
+  extStats: Array<{ ext: string; count: number; totalBytes: number }>;
+  root: ProjectFolderNode;
+  warnings: string[];
+}
+export interface ProjectFolderMkdirsResult {
+  created: string[];
+  skipped: Array<{ path: string; reason: string }>;
+  count: number;
+}
+export interface ProbeConnectionsResult {
+  probedAt: string;
+  results: Array<{
+    id: string;
+    status: "ok" | "timeout" | "refused" | "unreachable";
+    message?: string;
+  }>;
+}

@@ -338,11 +338,22 @@
   pointer-events: none;
 }
 
+/* Green/teal border after a refine task finishes, so the completed card remains
+ * visually discoverable after the running pulse stops. */
+.news-card.is-refined {
+  border: 2px solid #5eead4 !important;
+  padding: 15px 17px !important;
+  box-shadow: 0 0 22px rgba(94, 234, 212, .26);
+}
+
+.news-card.is-refined:hover {
+  border-color: #99f6e4 !important;
+  box-shadow: 0 0 28px rgba(94, 234, 212, .36);
+}
+
 /* Red border (2px, thick enough to read at a glance) + breathing glow
- * while a refine task is running for this element. No separate text badge:
- * the entire border IS the signal — overlapping the existing 🔥重大 chip
- * would just clutter the corner. Wins over .is-favorite because "AI is
- * working" needs to grab attention first. */
+ * while a refine task is running for this element. Wins over .is-refined
+ * and .is-favorite because "AI is working" needs to grab attention first. */
 .news-card.is-refining {
   border: 2px solid #ff6b6b !important;
   /* Compensate for the +1px border so the inside content doesn't shift. */
@@ -365,6 +376,29 @@
 .news-card.is-refining::after { display: none; }
 
 .news-card { position: relative; }
+
+.news-card__state {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.4;
+  pointer-events: none;
+}
+
+.news-card__state--refining {
+  color: #ffd6d6;
+  background: rgba(255, 107, 107, .16);
+  border: 1px solid rgba(255, 107, 107, .42);
+}
+
+.news-card__state--refined {
+  color: #b7fff0;
+  background: rgba(94, 234, 212, .12);
+  border: 1px solid rgba(94, 234, 212, .42);
+}
 
 /* ─── Modal footer buttons (favorite + deep-dive + edit-element) ─────── */
 

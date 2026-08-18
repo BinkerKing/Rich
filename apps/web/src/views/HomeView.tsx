@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { RichContent } from "../components/RichContent.js";
 import { dispatchMascotEvent } from "../lib/mascotEvents.js";
 import { useMascotState } from "../lib/useMascotState.js";
 import { VisualBlockRenderer } from "../components/VisualBlockRenderer.js";
 import { detectBlockType, type DetectedBlockType } from "../lib/detectBlockType.js";
 import { persistVisualBlocks } from "../lib/extractVisualBlocks.js";
+import { useChatComposer } from "../lib/useChatComposer.js";
 
 /** 哪些 block 类型才能上舞台 = 真正『图形』、不是文字组织 */
 const STAGE_VISUAL_TYPES = new Set<DetectedBlockType>([
@@ -18,6 +19,7 @@ import {
   CHAT_HISTORY_UPDATED_EVENT,
   loadChatHistory,
   saveChatHistory,
+  attachmentDataUrl,
   type ChatHistoryMessage,
 } from "../lib/chatHistory.js";
 import { IronManFlight } from "./IronManFlight.js";
@@ -127,8 +129,58 @@ function parseAnswerVisuals(content: string): { ascii: string; closed: boolean }
   }
   return out;
 }
+/** Strip ONLY blocks that will go to the visual stage. Code blocks
+ *  (```sql, ```python, ```bash …) and anything else `detectBlockType`
+ *  classifies as non-stage (raw / concept / table) must stay in the text
+ *  so markdown can render them inline — otherwise the answer ends up with
+ *  blank gaps where the code should be. */
 function stripVisuals(content: string): string {
-  return content.replace(VBLOCK_RE, "").replace(VBLOCK_OPEN_RE, "").trim();
+  const stripBlock = (full: string, ascii: string): string =>
+    STAGE_VISUAL_TYPES.has(detectBlockType(ascii)) ? "" : full;
+  return content
+    .replace(VBLOCK_RE, (full, _lang, ascii) => stripBlock(full, ascii))
+    .replace(VBLOCK_OPEN_RE, (full, _lang, ascii) => stripBlock(full, ascii))
+    .trim();
+}
+
+function textChunkWeight(text: string): number {
+  const compact = text.replace(/\s+/g, " ").trim();
+  return Math.max(1, Math.ceil(compact.length / 42));
+}
+
+function splitTextForColumns(text: string): [string, string] {
+  const paragraphs = text.split(/\n{2,}/).map(part => part.trim()).filter(Boolean);
+  const chunks = paragraphs.length > 1
+    ? paragraphs
+    : text.split(/\n/).map(part => part.trim()).filter(Boolean);
+
+  if (chunks.length <= 1) {
+    const compact = text.trim();
+    if (!compact) return ["", ""];
+    const center = Math.floor(compact.length / 2);
+    const before = compact.lastIndexOf(" ", center);
+    const after = compact.indexOf(" ", center);
+    const splitAt = before > compact.length * 0.35
+      ? before
+      : after > -1 && after < compact.length * 0.65
+        ? after
+        : center;
+    return [compact.slice(0, splitAt).trim(), compact.slice(splitAt).trim()];
+  }
+
+  const totalWeight = chunks.reduce((sum, chunk) => sum + textChunkWeight(chunk), 0);
+  const firstColumnTarget = totalWeight * 0.42;
+  let runningWeight = 0;
+  let cut = 1;
+  for (let i = 0; i < chunks.length - 1; i++) {
+    runningWeight += textChunkWeight(chunks[i]);
+    if (runningWeight >= firstColumnTarget) {
+      cut = i + 1;
+      break;
+    }
+  }
+
+  return [chunks.slice(0, cut).join("\n\n"), chunks.slice(cut).join("\n\n")];
 }
 
 function buildChatPairs(turns: Turn[], limit = 50): ChatPair[] {
@@ -173,33 +225,61 @@ function formatHistoryTime(turn: Turn | undefined): string {
   }).format(new Date(ts));
 }
 
+/** 右键菜单：
+ *  - 选中文字 → 复制 / 高亮 / 下划线
+ *  - 右键现有 mark → 取消标记
+ *  高亮 / 下划线用 DOM range wrap，本地（DOM 内存）有效，刷新或重渲染失效。 */
+interface SelectionMenu {
+  x: number;
+  y: number;
+  /** 选中模式：text + range 必有；markEl 不存在 */
+  text?: string;
+  range?: Range;
+  /** 移除模式：markEl 存在；text / range 不一定有 */
+  markEl?: HTMLElement;
+}
+
 export function HomeView() {
   const [frame, setFrame] = useState(0);
   const [input, setInput] = useState("");
   const [turns, setTurns] = useState<Turn[]>(() => loadChatHistory());
   const [busy, setBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [selMenu, setSelMenu] = useState<SelectionMenu | null>(null);
   // T06 状态机驱动首页大 Mascot —— useMascotState 接 mascotStateMachine，
   // 状态变化时映射到本地 home-mascot 名字（保留旧 sprite 系统 + 后端 /api/mascot/play 集成）
   const machineState = useMascotState();
+  // 照片对话支持：附件状态机 + 上传逻辑都封在 hook 里，ChatOverlay 也用同款
+  const composer = useChatComposer({ maxAttachments: 8 });
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [mascot, setMascot] = useState<MascotState>({
     current: "walk", fallback: "walk",
     startedAt: new Date().toISOString(), triggeredBy: "system",
   });
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const composingRef = useRef(false);
+  const lastDictationInputAtRef = useRef(0);
   const historyPointerToggledRef = useRef(false);
-  // Hidden span that mirrors the typed text — its rendered width drives
-  // where the custom block caret sits. Same font / line-height /
-  // letter-spacing as the textarea, so the measurement lines up to the pixel.
-  const measureRef = useRef<HTMLSpanElement | null>(null);
+  const answerTextMeasureRef = useRef<HTMLDivElement | null>(null);
+  // Hidden mirror div that wraps EXACTLY like the textarea (same width, font,
+  // line-height, padding, white-space). We slice the typed text at the caret
+  // position, insert a zero-width marker span, then read the marker's
+  // bounding rect — that's the pixel-precise caret position, including
+  // arrow-key movement and soft wrapping.
+  const measureRef = useRef<HTMLDivElement | null>(null);
+  const caretMarkerRef = useRef<HTMLSpanElement | null>(null);
+  const [caretPos, setCaretPos] = useState(0);
   const [petX, setPetX] = useState(0);
   const [petY, setPetY] = useState(0);
+  const [textNeedsColumns, setTextNeedsColumns] = useState(false);
+  const [dismissedAnswerId, setDismissedAnswerId] = useState<string | null>(null);
   const chatPairs = useMemo(() => buildChatPairs(turns), [turns]);
 
   // 首页主区显示「最新一组对话」—— 用户问一句，Rich 答的视觉块+文字在 stage 大显示
   const latestQA = useMemo(() => latestPair(turns), [turns]);
   const latestAnswerContent = latestQA?.answer?.content ?? "";
+  const latestAnswerId = latestQA?.answer?.id ?? null;
   const allVisuals = useMemo(
     () => parseAnswerVisuals(latestAnswerContent),
     [latestAnswerContent],
@@ -210,16 +290,122 @@ export function HomeView() {
     [allVisuals],
   );
   const latestText = useMemo(() => stripVisuals(latestAnswerContent), [latestAnswerContent]);
+  const textColumnParts = useMemo(() => splitTextForColumns(latestText), [latestText]);
+  const isTextOnlyAnswer = latestText.length > 0 && latestVisuals.length === 0;
+  const currentAnswerDismissed = latestAnswerId !== null && dismissedAnswerId === latestAnswerId;
   /** stage 是否进入「答案模式」：用户问了任何问题 → 当前 Q&A 上半屏展示。
    *  有视觉块就视觉块 + 文字（针对当前问题）；纯文字就文字。
    *  历史是另外的 surface，默认隐藏，点 📜 才看。 */
-  const stageInAnswerMode = !!latestQA?.answer && (
-    latestQA.answer.pending || latestText.length > 0 || latestVisuals.length > 0
+  const stageInAnswerMode = !!latestQA?.answer && !currentAnswerDismissed && (
+    latestQA.answer.pending ||
+    latestText.length > 0 ||
+    latestVisuals.length > 0 ||
+    !!latestQA.answer.error
   );
 
   useEffect(() => {
     setHistoryOpen(false);
   }, []);
+
+  useEffect(() => {
+    setDismissedAnswerId(null);
+  }, [latestAnswerId]);
+
+  useLayoutEffect(() => {
+    if (!isTextOnlyAnswer) {
+      setTextNeedsColumns(false);
+      return;
+    }
+
+    const measureEl = answerTextMeasureRef.current;
+    if (!measureEl) return;
+
+    let raf = 0;
+    const measure = () => {
+      if (raf) window.cancelAnimationFrame(raf);
+      raf = window.requestAnimationFrame(() => {
+        const next = measureEl.scrollHeight > measureEl.clientHeight + 4;
+        setTextNeedsColumns(prev => (prev === next ? prev : next));
+      });
+    };
+
+    measure();
+    const observer = typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(measure)
+      : null;
+    observer?.observe(measureEl);
+    window.addEventListener("resize", measure);
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf);
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [isTextOnlyAnswer, latestText]);
+
+  // 选中 + 右键菜单 —— 答案区 / 历史 / 视觉块 / 问题气泡 都支持。
+  // 复制：直接 navigator.clipboard。高亮 / 下划线：DOM wrap（本地有效，不持久）。
+  useEffect(() => {
+    const SELECTABLE_SCOPE =
+      ".home-answer__text, .home-answer__visuals, .home-history, .home-corner-bubble, .vbr";
+    const onContext = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!t?.closest?.(SELECTABLE_SCOPE)) return;
+      // 优先：右键点在现有 mark 上 → 取消标记菜单
+      const markEl = t.closest?.(".home-mark") as HTMLElement | null;
+      if (markEl) {
+        e.preventDefault();
+        setSelMenu({ x: e.clientX, y: e.clientY, markEl });
+        return;
+      }
+      const sel = window.getSelection();
+      const text = sel?.toString() ?? "";
+      if (!text.trim() || !sel || sel.rangeCount === 0) return;
+      e.preventDefault();
+      setSelMenu({ x: e.clientX, y: e.clientY, text, range: sel.getRangeAt(0).cloneRange() });
+    };
+    const onAway = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest?.(".home-sel-menu")) return;
+      setSelMenu(null);
+    };
+    window.addEventListener("contextmenu", onContext);
+    window.addEventListener("mousedown", onAway);
+    window.addEventListener("scroll", () => setSelMenu(null), true);
+    return () => {
+      window.removeEventListener("contextmenu", onContext);
+      window.removeEventListener("mousedown", onAway);
+      window.removeEventListener("scroll", () => setSelMenu(null), true);
+    };
+  }, []);
+
+  async function copySelection() {
+    if (!selMenu?.text) return;
+    try { await navigator.clipboard.writeText(selMenu.text); } catch { /* offline / blocked */ }
+    setSelMenu(null);
+  }
+  function markSelection(kind: "highlight" | "underline") {
+    if (!selMenu?.range) return;
+    try {
+      const span = document.createElement("span");
+      span.className = `home-mark home-mark--${kind}`;
+      selMenu.range.surroundContents(span);
+      window.getSelection()?.removeAllRanges();
+    } catch {
+      // Range 跨越多个块时 surroundContents 失败 —— 暂时静默
+    }
+    setSelMenu(null);
+  }
+  /** 取消高亮 / 下划线：把 mark span 内的文字节点搬到 span 外，再删掉 span */
+  function removeMark() {
+    if (!selMenu?.markEl) return;
+    const el = selMenu.markEl;
+    const parent = el.parentNode;
+    if (parent) {
+      while (el.firstChild) parent.insertBefore(el.firstChild, el);
+      parent.removeChild(el);
+    }
+    setSelMenu(null);
+  }
 
   // 历史 panel 全屏模式时 ESC 关闭（用户原话「点开看」是主动行为，关闭也得方便）
   useEffect(() => {
@@ -317,50 +503,66 @@ export function HomeView() {
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, [input]);
 
-  // Block-caret position. Measure the typed text in a hidden span (same
-  // font as the textarea) to know where the caret should sit. For multi-line
-  // input we measure only the LAST line's width and shift the pet down
-  // by (lines - 1) × lineHeight so it tracks line wrapping too.
-  useEffect(() => {
-    const m = measureRef.current;
-    if (!m) return;
-    const lines = input.split("\n");
-    const lastLine = lines[lines.length - 1];
-    // Empty-line case: measure a single space so the pet has a stable
-    // starting offset; otherwise an empty span has width 0 and the pet
-    // would jump to the far left edge on the first keystroke.
-    m.textContent = lastLine.length > 0 ? lastLine : "";
-    setPetX(m.offsetWidth);
-    const cs = window.getComputedStyle(m);
-    const lh = parseFloat(cs.lineHeight) || 26;
-    setPetY((lines.length - 1) * lh);
-  }, [input]);
+  // Block-caret position. The mirror div has identical typography + width to
+  // the textarea, so its line wrapping matches char-for-char. We insert a
+  // marker at `caretPos` and read its bounding rect → that's where the caret
+  // really is. Tracks BOTH arrow-key movement (caretPos updates via onSelect)
+  // AND soft wrap (mirror wraps the same way the textarea does).
+  useLayoutEffect(() => {
+    const ta = textareaRef.current;
+    const mirror = measureRef.current;
+    const marker = caretMarkerRef.current;
+    if (!ta || !mirror || !marker) return;
+    // Pin the mirror to the textarea's content width so soft-wrap lines up.
+    mirror.style.width = `${ta.clientWidth}px`;
+    const mirrorRect = mirror.getBoundingClientRect();
+    const markerRect = marker.getBoundingClientRect();
+    setPetX(markerRect.left - mirrorRect.left);
+    setPetY(markerRect.top - mirrorRect.top);
+  }, [input, caretPos]);
 
   useEffect(() => {
     const isTypingSurface = (target: EventTarget | null) => {
       if (!(target instanceof HTMLElement)) return false;
       return Boolean(target.closest("input, textarea, select, button, a, [contenteditable='true'], [role='menuitem']"));
     };
+    /** 用户要在这些区域选中文字 / 右键复制 —— 不能抢焦点回输入框，
+     *  否则 Cmd+C 复制的是输入框（空）而不是用户选中的文字。 */
+    const isSelectableSurface = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false;
+      return Boolean(target.closest(
+        ".home-answer__text, .home-answer__visuals, .home-history, .home-corner-bubble, .vbr, .ke-annotation"
+      ));
+    };
     const insertAtCursor = (text: string) => {
       const el = textareaRef.current;
       if (!el) return;
-      const start = el.selectionStart ?? input.length;
+      const base = el.value || input;
+      const start = el.selectionStart ?? base.length;
       const end = el.selectionEnd ?? start;
-      setInput(prev => `${prev.slice(0, start)}${text}${prev.slice(end)}`);
+      const nextValue = `${base.slice(0, start)}${text}${base.slice(end)}`;
+      setInput(nextValue);
       window.requestAnimationFrame(() => {
         el.focus();
         const next = start + text.length;
         el.setSelectionRange(next, next);
+        setCaretPos(next);
       });
     };
     const onPointerDown = (event: PointerEvent) => {
       if (isTypingSurface(event.target)) return;
+      if (isSelectableSurface(event.target)) return;   // 文字选中区不偷焦点
+      if (event.button !== 0) return;                  // 只有左键才回焦输入框（右键 / 中键放过去）
       window.requestAnimationFrame(() => textareaRef.current?.focus());
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (isTypingSurface(event.target)) return;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.isComposing || event.key === "Process" || event.key.startsWith("Dead")) return;
       if (event.key.length !== 1) return;
+      // 用户有选中（在答案区 / 历史里）时，别把按键塞进输入框 —— 让选区交互优先
+      const sel = window.getSelection();
+      if (sel && sel.toString().length > 0) return;
       event.preventDefault();
       insertAtCursor(event.key);
     };
@@ -374,8 +576,10 @@ export function HomeView() {
 
   async function send(text: string) {
     const trimmed = text.trim();
-    if (!trimmed || busy) return;
-    if (shouldDance(trimmed)) {
+    const attRefs = composer.getAttachmentRefs();
+    // 允许『纯图无文字』发送（图本身就是问题）；但 busy / 还在上传时拒绝
+    if ((!trimmed && attRefs.length === 0) || busy || composer.isUploading) return;
+    if (trimmed && shouldDance(trimmed)) {
       const dancing: MascotState = {
         current: "dance",
         fallback: mascot.fallback || "walk",
@@ -391,7 +595,12 @@ export function HomeView() {
     }
     const now = Date.now();
     const userTurn: Turn = {
-      id: nextId(), role: "user", content: trimmed, tools: [], pending: false, createdAt: now,
+      id: nextId(), role: "user",
+      content: trimmed || "（图片）",
+      tools: [], pending: false, createdAt: now,
+      attachments: attRefs.length > 0
+        ? attRefs.map(r => ({ id: r.id, url: r.url, mime: r.mime, width: r.width, height: r.height }))
+        : undefined,
     };
     const assistantTurn: Turn = {
       id: nextId(), role: "assistant", content: "", tools: [], pending: true, createdAt: now,
@@ -400,9 +609,18 @@ export function HomeView() {
     const nextTurns = [...baseTurns, userTurn, assistantTurn];
     setTurns(nextTurns);
     saveChatHistory(nextTurns);
+    // 把附件绑定到 message（服务端记得这些图属于哪条消息）
+    for (const ref of attRefs) {
+      void fetch(`/api/chat/attachments/${ref.id}/bind`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ messageId: userTurn.id }),
+      }).catch(() => { /* 绑定失败不影响发送 */ });
+    }
     // 不要自动开历史 —— 当前 Q&A 在上面 stage 已经展示，历史是另外的 surface
     // 用户主动点 📜 才开（fullscreen overlay）
     setInput("");
+    composer.clear();
     setBusy(true);
 
     // Build history-to-send: all prior turns + new user message. We don't
@@ -421,7 +639,13 @@ export function HomeView() {
       const r = await fetch("/api/chat/stream", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({
+          messages: history,
+          // 把图片 ref 也带上 —— 后端会从 chat_attachments 拉字节 inline 进最后一条 user message
+          attachments: attRefs.length > 0
+            ? attRefs.map(r => ({ id: r.id, mime: r.mime }))
+            : undefined,
+        }),
       });
       if (!r.ok || !r.body) throw new Error(`chat failed: ${r.status}`);
       const reader = r.body.getReader();
@@ -534,8 +758,23 @@ export function HomeView() {
     void send(input);
   }
 
+  function syncHomeInput(el: HTMLTextAreaElement, inputType?: string) {
+    if (inputType === "insertFromDictation") {
+      lastDictationInputAtRef.current = Date.now();
+    }
+    setInput(el.value);
+    setCaretPos(el.selectionStart ?? el.value.length);
+  }
+
   function toggleHistory() {
     setHistoryOpen(open => !open);
+  }
+
+  function returnToHomeStage() {
+    if (latestAnswerId) setDismissedAnswerId(latestAnswerId);
+    setHistoryOpen(false);
+    setSelMenu(null);
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
   return (
@@ -616,7 +855,30 @@ export function HomeView() {
                       ))}
                     </div>
                   )}
-                  {hasText && (
+                  {hasText && layout === "text-only" && (
+                    <div className={`home-answer__text${textNeedsColumns ? " is-two-column" : ""}`}>
+                      <div
+                        ref={answerTextMeasureRef}
+                        className="home-answer__text-probe"
+                        aria-hidden="true"
+                      >
+                        <RichContent text={latestText} />
+                      </div>
+                      {textNeedsColumns ? (
+                        <div className="home-answer__text-columns">
+                          <div className="home-answer__text-column home-answer__text-column--primary">
+                            <RichContent text={textColumnParts[0] || latestText} />
+                          </div>
+                          <div className="home-answer__text-column home-answer__text-column--scroll">
+                            <RichContent text={textColumnParts[1]} />
+                          </div>
+                        </div>
+                      ) : (
+                        <RichContent text={latestText} />
+                      )}
+                    </div>
+                  )}
+                  {hasText && layout !== "text-only" && (
                     <div className="home-answer__text">
                       <RichContent text={latestText} />
                     </div>
@@ -648,45 +910,156 @@ export function HomeView() {
         )}
       </section>
 
-      {/* 左下角的小人 + 用户问题气泡 —— 仅在答案模式下出现。
-       *  小人挂在左下；气泡（speech bubble）浮在小人头顶，尾巴指下方对准小人；
-       *  这样上半屏纯粹给视觉块 / 答案文字，用户的问题不再压在窗口顶部。 */}
-      {stageInAnswerMode && mascot.current !== "ironman" && (
+      {/* 左下角的小人 + 用户问题气泡 + （正在附加的）图片缩略图。
+       *  flex column 自下而上：mascot → 气泡 → 待发送的图片预览。
+       *  这样新粘的图永远在气泡顶上，不再跟气泡重叠。 */}
+      {(stageInAnswerMode || composer.attachments.length > 0) && mascot.current !== "ironman" && (
         <aside
           className={`home-corner-mascot home-corner-mascot--${mascot.current}`}
           aria-label="你的问题"
         >
-          {latestQA?.question.content && (
-            <div className="home-corner-bubble" role="note">
-              <span className="home-corner-bubble__name">大斌哥：</span>
-              <span className="home-corner-bubble__text">{latestQA.question.content}</span>
+          {/* 待发送图：堆在气泡之上 —— 用户能看到自己刚附加的图 */}
+          {composer.attachments.length > 0 && (
+            <div className="home-corner-pending" aria-label="待发送的图片">
+              {composer.attachments.map(a => (
+                <div
+                  key={a.clientId}
+                  className={`home-corner-pending__thumb home-corner-pending__thumb--${a.state}`}
+                  title={a.state === "failed" ? a.error : "点击查看原图"}
+                >
+                  <img src={a.previewUrl} alt="" draggable={false} className="is-zoomable" />
+                  {a.state === "uploading" && <span className="home-corner-pending__spinner" aria-hidden="true">⌛</span>}
+                  {a.state === "failed" && <span className="home-corner-pending__err" aria-hidden="true">!</span>}
+                  <button
+                    type="button"
+                    className="home-corner-pending__remove"
+                    onClick={(e) => { e.stopPropagation(); composer.detach(a.clientId); }}
+                    aria-label="删除这张图"
+                    title="删除"
+                  >×</button>
+                </div>
+              ))}
             </div>
           )}
-          <span className="home-corner-mascot__sprite" aria-hidden="true">
-            <img src={WALK_FRAMES[frame]} alt="" draggable={false} />
-          </span>
+          {/* 上一条问题的气泡 */}
+          {stageInAnswerMode && latestQA?.question && (latestQA.question.content || (latestQA.question.attachments?.length ?? 0) > 0) && (
+            <div className="home-corner-bubble" role="note">
+              {(latestQA.question.attachments?.length ?? 0) > 0 && (
+                <div className="home-corner-bubble__images">
+                  {latestQA.question.attachments!.map(att => (
+                    <img
+                      key={att.id}
+                      src={attachmentDataUrl(att)}
+                      alt=""
+                      draggable={false}
+                      className="home-corner-bubble__image is-zoomable"
+                      title="点击查看原图"
+                    />
+                  ))}
+                </div>
+              )}
+              {latestQA.question.content && latestQA.question.content !== "（图片）" && (
+                <>
+                  <span className="home-corner-bubble__name">大斌哥：</span>
+                  <span className="home-corner-bubble__text">{latestQA.question.content}</span>
+                </>
+              )}
+            </div>
+          )}
+          {/* mascot —— 仅在答案模式下显示，避免和首页大 mascot 重复 */}
+          {stageInAnswerMode && (
+            <span
+              className="home-corner-mascot__sprite"
+              role="button"
+              tabIndex={0}
+              title="双击回到首页"
+              aria-label="双击回到首页"
+              onDoubleClick={returnToHomeStage}
+              onKeyDown={e => {
+                if (e.key === "Escape") returnToHomeStage();
+              }}
+            >
+              <img src={WALK_FRAMES[frame]} alt="" draggable={false} />
+            </span>
+          )}
         </aside>
       )}
 
-      {/* Middle — input bar. Single column, no send button at all —
-       *  press Enter to send. Native caret is hidden; a custom block caret
-       *  sits at the end of the typed text, positioned via the measure span. */}
-      <form className="home-input" onSubmit={onSubmit}>
-        {/* Hidden measurement span — its rendered width drives the pet
-         *  caret's left offset. Must use the same font / line-height /
-         *  letter-spacing as the textarea (set in .home-input-measure). */}
-        <span ref={measureRef} className="home-input-measure" aria-hidden="true" />
+      {/* Middle — input bar with attachment support (drop / paste / 📎). */}
+      <form
+        className="home-input"
+        onSubmit={onSubmit}
+        onDragOver={e => {
+          // 必须 preventDefault 才能让 drop 触发
+          if (e.dataTransfer?.types?.includes("Files")) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+          }
+        }}
+        onDrop={e => {
+          const files = Array.from(e.dataTransfer?.files ?? []);
+          const images = files.filter(f => f.type.startsWith("image/"));
+          if (images.length === 0) return;
+          e.preventDefault();
+          for (const f of images) {
+            void composer.attach(f).catch(err => console.warn("[home-input] attach:", err));
+          }
+        }}
+      >
+        <div ref={measureRef} className="home-input-measure" aria-hidden="true">
+          {input.slice(0, caretPos)}
+          <span ref={caretMarkerRef} className="home-input-measure-marker">{"​"}</span>
+          {/* Trailing zero-width fallback so a caret right after a final "\n"
+              still gets a layout box on the new line (otherwise the trailing
+              newline collapses and offsetTop reports the wrong row). */}
+          {input.slice(caretPos) || "​"}
+        </div>
         <span
           className="home-input-pet"
           aria-hidden="true"
           style={{ transform: `translate(${petX}px, ${petY}px)` }}
         />
+
+        {/* 缩略图已移到左下角 .home-corner-pending（堆在气泡上方），不再在 input 内 */}
+
         <textarea
           ref={textareaRef}
           value={input}
-          onChange={e => setInput(e.target.value)}
+          onBeforeInput={e => {
+            const native = e.nativeEvent as InputEvent;
+            if (native.inputType === "insertFromDictation") {
+              lastDictationInputAtRef.current = Date.now();
+            }
+          }}
+          onInput={e => {
+            const native = e.nativeEvent as InputEvent;
+            syncHomeInput(e.currentTarget, native.inputType);
+          }}
+          onChange={e => {
+            syncHomeInput(e.target);
+          }}
+          onCompositionStart={() => { composingRef.current = true; }}
+          onCompositionEnd={e => {
+            composingRef.current = false;
+            syncHomeInput(e.currentTarget);
+          }}
+          // Native event — fires on click, arrow keys, drag-select, Home/End,
+          // Cmd+A, etc. Whenever the caret moves, we re-measure.
+          onSelect={e => setCaretPos((e.currentTarget as HTMLTextAreaElement).selectionStart ?? 0)}
+          onPaste={e => {
+            // 截图粘贴：从 clipboard items 里抓 image
+            const items = Array.from(e.clipboardData?.items ?? []);
+            const imgItem = items.find(it => it.type.startsWith("image/"));
+            if (!imgItem) return;
+            const file = imgItem.getAsFile();
+            if (!file) return;
+            e.preventDefault();
+            void composer.attach(file).catch(err => console.warn("[home-input] paste:", err));
+          }}
           onKeyDown={e => {
             if (e.key === "Enter" && !e.shiftKey) {
+              const justDictated = Date.now() - lastDictationInputAtRef.current < 1200;
+              if (e.nativeEvent.isComposing || composingRef.current || justDictated) return;
               e.preventDefault();
               void send(input);
             }
@@ -695,8 +1068,32 @@ export function HomeView() {
           rows={1}
           autoFocus
         />
-        {/* Hidden submit so Enter inside textarea still triggers form onSubmit. */}
-        <button type="submit" disabled={busy || !input.trim()} aria-hidden="true" tabIndex={-1} />
+
+        {/* 📎 选择文件按钮（位于输入框右侧） */}
+        <button
+          type="button"
+          className="home-input-attach-btn"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={composer.isFull}
+          aria-label="附加图片"
+          title={composer.isFull ? "已达上限" : "附加图片"}
+        >📎</button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          style={{ display: "none" }}
+          onChange={e => {
+            const files = Array.from(e.target.files ?? []);
+            for (const f of files) {
+              void composer.attach(f).catch(err => console.warn("[home-input] picker:", err));
+            }
+            e.target.value = "";  // 允许选同一文件
+          }}
+        />
+
+        <button type="submit" disabled={busy || composer.isUploading || (!input.trim() && composer.attachments.length === 0)} aria-hidden="true" tabIndex={-1} />
       </form>
 
       {/* 历史 panel：默认隐藏；点 📜 toggle 切到全屏 overlay 模式
@@ -710,6 +1107,35 @@ export function HomeView() {
         >
           <ChatHistoryPanel pairs={chatPairs} />
         </section>
+      )}
+
+      {selMenu && (
+        <div
+          className="home-sel-menu"
+          style={{ left: selMenu.x, top: selMenu.y }}
+          role="menu"
+          onContextMenu={e => e.preventDefault()}
+        >
+          {selMenu.markEl ? (
+            // 模式 B：右键点在已有标记上 → 取消
+            <button type="button" role="menuitem" onClick={removeMark}>
+              <span className="home-sel-menu__swatch home-sel-menu__swatch--remove" /> 取消标记
+            </button>
+          ) : (
+            // 模式 A：选中文字 → 复制 / 高亮 / 下划线
+            <>
+              <button type="button" role="menuitem" onClick={() => void copySelection()}>
+                <span className="home-sel-menu__icon" aria-hidden="true">⎘</span> 复制
+              </button>
+              <button type="button" role="menuitem" onClick={() => markSelection("highlight")}>
+                <span className="home-sel-menu__swatch home-sel-menu__swatch--highlight" /> 高亮
+              </button>
+              <button type="button" role="menuitem" onClick={() => markSelection("underline")}>
+                <span className="home-sel-menu__swatch home-sel-menu__swatch--underline" /> 下划线
+              </button>
+            </>
+          )}
+        </div>
       )}
     </div>
   );
@@ -779,7 +1205,37 @@ function ChatHistoryPanel({ pairs }: { pairs: ChatPair[] }) {
               <em>#{String(pair.index).padStart(2, "0")}</em>
               {formatHistoryTime(pair.question) && <time>{formatHistoryTime(pair.question)}</time>}
             </span>
-            <span className="home-history-question__text">{pair.question.content}</span>
+            <span className="home-history-question__body">
+              {pair.question.content && pair.question.content !== "（图片）" && (
+                <span className="home-history-question__text">{pair.question.content}</span>
+              )}
+              {(pair.question.attachments?.length ?? 0) > 0 && (
+                <span className="home-history-question__thumbs">
+                  {pair.question.attachments!.map(att => (
+                    <img
+                      key={att.id}
+                      src={attachmentDataUrl(att)}
+                      alt=""
+                      draggable={false}
+                      className="home-history-question__thumb is-zoomable"
+                      title="点击查看原图"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.dispatchEvent(new CustomEvent("ke-lightbox-open", { detail: { src: attachmentDataUrl(att) } }));
+                      }}
+                      onError={(e) => {
+                        // 后端没数据 / url 失效 时给个占位，不要显示破图
+                        const img = e.currentTarget;
+                        img.style.background = "rgba(247, 130, 130, .15)";
+                        img.style.border = "1px dashed rgba(247, 130, 130, .55)";
+                        img.removeAttribute("src");
+                        img.title = "图片无法加载（可能已被清理）";
+                      }}
+                    />
+                  ))}
+                </span>
+              )}
+            </span>
           </button>
         ))}
       </div>

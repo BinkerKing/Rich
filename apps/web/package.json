@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@ke/domain": "workspace:*",
+    "@xyflow/react": "^12.10.2",
     "marked": "^18.0.4",
     "mermaid": "^11.15.0",
     "react": "^18.3.0",

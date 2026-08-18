@@ -27,13 +27,7 @@ type View = { id: AppView; label: string; icon: IconName; desc: string };
 
 const VIEWS: View[] = [
   { id: "home",    label: "首页",     icon: "center",   desc: "跟 Rich 自由对话的驾驶舱首页" },
-  { id: "tree",    label: "知识树",   icon: "branch",   desc: "选择 / 新建一棵知识树" },
-  { id: "news",    label: "AI 早报", icon: "calendar", desc: "每日 AI 能力进展与应用速览" },
-  { id: "mindmap", label: "导图 PPT", icon: "diamond",  desc: "把元 / 文稿一键拆成可播放导图" },
-  { id: "greatme", label: "计划管理", icon: "target",   desc: "AI 拆解 · 目标跟进 · 日报反馈" },
-  { id: "practice", label: "项目实战", icon: "card",    desc: "拆解 · PRD · 效果图" },
-  { id: "toolbox", label: "工具箱",   icon: "rocket",   desc: "锁屏 · 定时器 · 其它小工具" },
-  { id: "admin",   label: "后台",     icon: "gear",     desc: "AI 引擎 · 操作日志 · 提示词" },
+  { id: "apps",    label: "应用",     icon: "grid",     desc: "打开应用中心，进入全部 Rich 模块" },
 ];
 
 const WALK_FRAMES = [walk0, walk1, walk2, walk3];

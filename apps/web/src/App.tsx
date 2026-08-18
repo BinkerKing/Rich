@@ -7,15 +7,22 @@ import { NewsView } from "./views/NewsView.js";
 import { MindmapView } from "./views/MindmapView.js";
 import { GreatMeView } from "./views/GreatMeView.js";
 import { PracticeView } from "./views/PracticeView.js";
+import { ProjectsView } from "./views/ProjectsView.js";
 import { OverlayTaskView } from "./views/OverlayTaskView.js";
 import { ChatOverlay } from "./views/ChatOverlay.js";
 import { ToolboxView } from "./views/ToolboxView.js";
 import { HomeView } from "./views/HomeView.js";
+import { HealthView } from "./views/HealthView.js";
+import { AppLauncherView } from "./views/AppLauncherView.js";
+import { MiniAppsView } from "./views/MiniAppsView.js";
+import { RikingProjectsView } from "./views/RikingProjectsView.js";
 import { Lightbox } from "./components/Lightbox.js";
+import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import { CommandPalette } from "./components/CommandPalette.js";
 import { MascotDock } from "./components/MascotDock.js";
 import { FloatingTaskDock } from "./components/FloatingTaskDock.js";
 import { connectServerEvents } from "./lib/serverEvents.js";
+import { RICH_NAV_EVENT, RICH_NAV_STORAGE_KEY, type RichNavigationPayload } from "./lib/richNavigation.js";
 
 export function App() {
   const [hashRoute, setHashRoute] = useState(() =>
@@ -33,7 +40,12 @@ export function App() {
   if (hashRoute === "chat") {
     // Tag <html> so global CSS knows this is the transparent chat window.
     document.documentElement.classList.add("is-chat-overlay");
-    return <ChatOverlay />;
+    return (
+      <>
+        <ErrorBoundary><ChatOverlay /></ErrorBoundary>
+        <Lightbox />
+      </>
+    );
   }
 
   return <MainApp />;
@@ -46,10 +58,44 @@ function MainApp() {
   const runAutoRetrySweep = useStore(s => s.runAutoRetrySweep);
   const exitToHome = useStore(s => s.exitToHome);
   const setAppView = useStore(s => s.setAppView);
+  const enterAtElement = useStore(s => s.enterAtElement);
   useEffect(() => { void hydrate(); }, [hydrate]);
   // Subscribe to backend SSE so Hermes-driven (or any server-side) writes
   // re-hydrate the UI within ~500ms. Closed on unmount.
   useEffect(() => connectServerEvents(), []);
+
+  useEffect(() => {
+      const validViews = new Set(["home", "apps", "tree", "admin", "news", "mindmap", "greatme", "toolbox", "practice", "health", "projects", "miniapps", "rikingProjects"]);
+    const applyNavigation = (payload: RichNavigationPayload | null) => {
+      if (!payload || Date.now() - payload.ts > 30_000) return;
+      if (payload.kind === "view" && validViews.has(payload.view)) {
+        if (payload.view === "tree") exitToHome();
+        setAppView(payload.view);
+      } else if (payload.kind === "element" && payload.elementId) {
+        void enterAtElement(payload.elementId);
+      }
+    };
+    const onNavigate = (event: Event) => {
+      applyNavigation((event as CustomEvent<RichNavigationPayload>).detail);
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== RICH_NAV_STORAGE_KEY || !event.newValue) return;
+      try {
+        applyNavigation(JSON.parse(event.newValue) as RichNavigationPayload);
+      } catch { /* ignore malformed bridge payload */ }
+    };
+    window.addEventListener(RICH_NAV_EVENT, onNavigate as EventListener);
+    window.addEventListener("storage", onStorage);
+    try {
+      const pending = window.localStorage.getItem(RICH_NAV_STORAGE_KEY);
+      if (pending) applyNavigation(JSON.parse(pending) as RichNavigationPayload);
+    } catch { /* ignore malformed bridge payload */ }
+    return () => {
+      window.removeEventListener(RICH_NAV_EVENT, onNavigate as EventListener);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [enterAtElement, exitToHome, setAppView]);
+
   // Periodic task-list monitor: every 60s mark stuck-running tasks as error
   // and auto-retry unretried failures. First sweep runs ~5s after mount so
   // any tasks left running from a previous session get triaged promptly.
@@ -77,6 +123,79 @@ function MainApp() {
     return () => window.removeEventListener("keydown", onKey);
   }, [exitToHome, setAppView]);
 
+  // 视图切换快捷键：Cmd/Ctrl + 1..9 跳到对应菜单（1=首页，2=应用中心）
+  // 单纯 Cmd+N，不带 Shift/Alt，避免跟系统快捷键 / 输入法冲突。
+  useEffect(() => {
+    type ViewId = "home" | "apps" | "tree" | "news" | "mindmap" | "greatme" | "practice" | "health" | "toolbox" | "admin";
+    const HOTKEYS: Record<string, ViewId> = {
+      "1": "home",
+      "2": "apps",
+      "3": "tree",
+      "4": "news",
+      "5": "mindmap",
+      "6": "greatme",
+      "7": "practice",
+      "8": "health",
+      "9": "toolbox",
+      "0": "admin",
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.shiftKey || e.altKey) return;
+      const target = HOTKEYS[e.key];
+      if (!target) return;
+      e.preventDefault();
+      // tree 视图：先 exitToHome 清掉 rootId，让 InputView 渲染（跟 MascotDock 一致）
+      if (target === "tree") exitToHome();
+      setAppView(target);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [exitToHome, setAppView]);
+
+  // 纯 ESC（无 Cmd/Ctrl）—— 从任何子菜单返回"应用中心"。
+  // 防误触：在输入框 / dialog / lightbox 等已有自己 ESC 处理的地方不抢。
+  // 用 setTimeout(0) 推到事件队列末尾，让子组件自己的 ESC 处理（preventDefault）先跑。
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      const target = e.target as HTMLElement | null;
+      // 输入框 / 富文本编辑器内的 ESC：只在用户有正在编辑的内容时让步。
+      // 空 input 自动 focus（InputView / HealthView 都有）也照常让 ESC 跳走。
+      const inputLike = target?.closest?.("input, textarea, [contenteditable='true']") as HTMLElement | null;
+      if (inputLike) {
+        const value = inputLike.tagName === "INPUT" || inputLike.tagName === "TEXTAREA"
+          ? (inputLike as HTMLInputElement | HTMLTextAreaElement).value ?? ""
+          : inputLike.textContent ?? "";
+        if (value.length > 0) return;        // 用户正在打字 → 让组件自己处理
+      }
+      // 已经在应用中心了就跳过
+      if (useStore.getState().appView === "apps") return;
+      // 推迟一帧 —— 让任何 modal / overlay / dropdown 的 ESC 先跑（一般会 preventDefault）
+      window.setTimeout(() => {
+        if (e.defaultPrevented) return;
+        // 二次防御：检查 DOM 里有没有已经打开的 dialog / lightbox / palette / overlay
+        if (document.querySelector(
+          [
+            "[role='dialog']",
+            "dialog[open]",
+            ".home-history.is-fullscreen",
+            ".ke-lightbox",
+            ".cmd-palette",
+            ".ask-popup",
+            ".chd",
+            ".home-sel-menu",
+            ".prj-drawer-overlay",
+          ].join(","),
+        )) return;
+        setAppView("apps");
+      }, 0);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [setAppView]);
+
   return (
     <>
       {appView === "admin" && <AdminView />}
@@ -84,8 +203,13 @@ function MainApp() {
       {appView === "mindmap" && <MindmapView />}
       {appView === "greatme" && <GreatMeView />}
       {appView === "practice" && <PracticeView />}
+      {appView === "projects" && <ErrorBoundary><ProjectsView /></ErrorBoundary>}
       {appView === "toolbox" && <ToolboxView />}
-      {appView === "home" && <HomeView />}
+      {appView === "health" && <ErrorBoundary><HealthView /></ErrorBoundary>}
+      {appView === "home" && <ErrorBoundary><HomeView /></ErrorBoundary>}
+      {appView === "apps" && <ErrorBoundary><AppLauncherView /></ErrorBoundary>}
+      {appView === "miniapps" && <ErrorBoundary><MiniAppsView /></ErrorBoundary>}
+      {appView === "rikingProjects" && <ErrorBoundary><RikingProjectsView /></ErrorBoundary>}
       {appView === "tree" && (rootId ? <TreeView /> : <InputView />)}
       <Lightbox />
       <CommandPalette />

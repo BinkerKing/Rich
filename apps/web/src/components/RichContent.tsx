@@ -22,9 +22,9 @@ function isBlockMarkdown(text: string): boolean {
  *   [播放 PPT](rich://mindmap/deck-xyz)         → openMindmap(deckId)
  *   [回首页](rich://home)                       → exitToHome()
  *
- * Anything that doesn't match `rich://` stays as plain text — including
- * normal http/https links (we deliberately don't auto-render those as
- * buttons to keep the surface clean; the user already gets readable URLs).
+ * Anything that doesn't match `rich://` stays in the normal answer surface.
+ * Plain http(s), file:// and common macOS absolute file paths are rendered
+ * as external links so generated files and URLs can be opened directly.
  *
  * Streaming safety: the regex requires a closing `)`, so half-arrived
  * tokens like "[查看攻略](rich://elem" render as plain text until the
@@ -32,6 +32,12 @@ function isBlockMarkdown(text: string): boolean {
  */
 
 const RICH_LINK_RE = /\[([^\]]+)\]\(rich:\/\/([^)\s]+)\)/g;
+const URL_RE = /\b(?:https?:\/\/|file:\/\/\/)[^\s<>"']+/g;
+const URL_ONLY_RE = /^(?:https?:\/\/|file:\/\/\/)[^\s<>"']+$/i;
+const MAC_FILE_PATH_RE = /(^|[\s([{（:：])((?:\/Users|\/Volumes|\/Applications|\/tmp|\/private\/tmp)[^\n\r\t<>"]+?\.(?:md|txt|json|csv|xlsx?|docx?|pptx?|pdf|png|jpe?g|gif|webp|svg|html?|zip|log|sql|ts|tsx|js|jsx|py|sh|yaml|yml))/gi;
+const MAC_FILE_PATH_ONLY_RE = /^(?:\/Users|\/Volumes|\/Applications|\/tmp|\/private\/tmp)[^\n\r\t<>"]+?\.(?:md|txt|json|csv|xlsx?|docx?|pptx?|pdf|png|jpe?g|gif|webp|svg|html?|zip|log|sql|ts|tsx|js|jsx|py|sh|yaml|yml)$/i;
+const LINK_TOKEN_PREFIX = "\uE000RICH_LINK_";
+const LINK_TOKEN_SUFFIX = "\uE001";
 // 视觉块围栏：```<lang>\n ... \n``` (T03 系统提示词约定的协议)
 // 流式时如果还没闭合，pre-parse 也会识别一个"streaming"块（用末尾未闭合的部分）
 const VISUAL_FENCE_RE = /```([a-zA-Z]*)\n([\s\S]*?)```/g;
@@ -113,6 +119,107 @@ function parseTextWithLinks(text: string): Segment[] {
   return out;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function unescapeHtml(value: string): string {
+  return value
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function trimUrlCandidate(value: string): { link: string; suffix: string } {
+  let link = value;
+  let suffix = "";
+  while (/[),.;:!?，。；：！？、）\]}]$/.test(link)) {
+    suffix = link.slice(-1) + suffix;
+    link = link.slice(0, -1);
+  }
+  return { link, suffix };
+}
+
+function toExternalHref(value: string): string {
+  if (/^https?:\/\//i.test(value)) return value;
+  const fileUrl = /^file:\/\//i.test(value) ? encodeURI(value) : `file://${encodeURI(value)}`;
+  return `rich://open-external?url=${encodeURIComponent(fileUrl)}`;
+}
+
+function externalAnchor(label: string, href: string, className = "rich-external-link"): string {
+  return `<a class="${className}" href="${escapeHtml(href)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a>`;
+}
+
+function isExternalReference(value: string): boolean {
+  return URL_ONLY_RE.test(value) || MAC_FILE_PATH_ONLY_RE.test(value);
+}
+
+function shouldSkipRawUrl(source: string, offset: number): boolean {
+  const prev = source.slice(Math.max(0, offset - 2), offset);
+  const attrPrefix = source.slice(Math.max(0, offset - 12), offset);
+  return prev === "](" || /href\s*=\s*["']?$/i.test(attrPrefix);
+}
+
+function linkifyPlainReferences(text: string): string {
+  const anchors: string[] = [];
+  const stash = (html: string) => {
+    const token = `${LINK_TOKEN_PREFIX}${anchors.length}${LINK_TOKEN_SUFFIX}`;
+    anchors.push(html);
+    return token;
+  };
+
+  let out = text.replace(URL_RE, (raw, offset: number, source: string) => {
+    if (shouldSkipRawUrl(source, offset)) return raw;
+    const { link, suffix } = trimUrlCandidate(raw);
+    if (!link) return raw;
+    return `${stash(externalAnchor(link, toExternalHref(link)))}${suffix}`;
+  });
+
+  out = out.replace(MAC_FILE_PATH_RE, (full, prefix: string, path: string) => {
+    if (full.includes(LINK_TOKEN_PREFIX)) return full;
+    return `${prefix}${stash(externalAnchor(path, toExternalHref(path)))}`;
+  });
+
+  anchors.forEach((html, index) => {
+    out = out.replace(new RegExp(escapeRegExp(`${LINK_TOKEN_PREFIX}${index}${LINK_TOKEN_SUFFIX}`), "g"), html);
+  });
+  return out;
+}
+
+function decorateMarkdownAnchors(html: string): string {
+  return html.replace(/<a\s+href="([^"]*)"/g, (_match, href: string) => {
+    const externalHref = /^\/(?:Users|Volumes|Applications|tmp|private\/tmp)\//i.test(href)
+      ? escapeHtml(toExternalHref(href))
+      : href;
+    return `<a class="rich-external-link" target="_blank" rel="noreferrer" href="${externalHref}"`;
+  });
+}
+
+function decorateCodeReferences(html: string): string {
+  return html.replace(/<code>([\s\S]*?)<\/code>/g, (match, codeHtml: string) => {
+    const label = unescapeHtml(codeHtml).trim();
+    if (!isExternalReference(label)) return match;
+    return externalAnchor(label, toExternalHref(label), "rich-external-link rich-external-link--code");
+  });
+}
+
+function renderMarkdown(text: string, block: boolean): string {
+  const parsed = block
+    ? marked.parse(linkifyPlainReferences(text), { async: false }) as string
+    : marked.parseInline(linkifyPlainReferences(text), { async: false }) as string;
+  return decorateCodeReferences(decorateMarkdownAnchors(parsed));
+}
+
 export function RichContent({ text }: { text: string }): ReactNode {
   // The store hooks are pulled at top level (rules-of-hooks). The button
   // handlers below use these via a captured store reference at click time.
@@ -170,10 +277,10 @@ export function RichContent({ text }: { text: string }): ReactNode {
           // 块级 markdown（列表 / 标题 / 引用 / 多段）→ 用 div + marked.parse 完整渲染
           // 否则用 inline 渲染（不破坏行内的 rich-jump 按钮）
           if (isBlockMarkdown(t)) {
-            const html = marked.parse(t, { async: false }) as string;
+            const html = renderMarkdown(t, true);
             return <div key={i} className="rich-md" dangerouslySetInnerHTML={{ __html: html }} />;
           }
-          const html = marked.parseInline(t, { async: false }) as string;
+          const html = renderMarkdown(t, false);
           return <span key={i} className="rich-md-inline" dangerouslySetInnerHTML={{ __html: html }} />;
         }
         if (seg.type === "visual") {

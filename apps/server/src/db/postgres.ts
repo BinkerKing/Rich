@@ -151,8 +151,9 @@ async function applySchema(pool: Pool): Promise<void> {
       ts TEXT NOT NULL,
       from_id TEXT,
       to_id TEXT NOT NULL,
-      dwell_ms INTEGER
+      dwell_ms BIGINT
     );
+    ALTER TABLE center_history ALTER COLUMN dwell_ms TYPE BIGINT;
     CREATE INDEX IF NOT EXISTS idx_center_history_ts ON center_history(id DESC);
 
     CREATE TABLE IF NOT EXISTS tool_invocations (
@@ -183,5 +184,205 @@ async function applySchema(pool: Pool): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_cvb_message ON chat_visual_blocks(message_id, order_in_message);
     CREATE INDEX IF NOT EXISTS idx_cvb_created ON chat_visual_blocks(created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_cvb_type ON chat_visual_blocks(block_type, created_at DESC);
+
+    -- Rich 照片对话支持 v0.1：聊天附件（图片）独立持久化。
+    -- data 列存原始字节（≤ 2MB inline）；url 列预留 V1 OSS 切换。
+    -- sha256 做去重 + 同图复用。message_id 关联 chat_history 消息。
+    CREATE TABLE IF NOT EXISTS chat_attachments (
+      id          TEXT PRIMARY KEY,
+      message_id  TEXT NOT NULL DEFAULT '',
+      kind        TEXT NOT NULL DEFAULT 'image',  -- image / future: audio / pdf
+      mime        TEXT NOT NULL,
+      size_bytes  INTEGER NOT NULL,
+      width       INTEGER,
+      height      INTEGER,
+      caption     TEXT,                            -- 异步填充（V0.1 可空）
+      data        BYTEA,                           -- MVP 内嵌；V1 切对象存储
+      url         TEXT,                            -- V1 用：外部对象存储 URL
+      sha256      TEXT NOT NULL,
+      created_at  TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_attachments_message ON chat_attachments(message_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_chat_attachments_sha ON chat_attachments(sha256);
+    CREATE INDEX IF NOT EXISTS idx_chat_attachments_created ON chat_attachments(created_at DESC);
+
+    -- ─── Rich 私人健康档案 · Body Insights v0.1 ──────────────────────
+    -- 单用户 MVP（user_id = 'me'）。9 张表：profile / weight / workout / set /
+    -- meal / sleep / mood / weekly_plan / weekly_report / health_alert。
+    -- 所有 timestamp 用 ISO 8601 文本（Rich 全局约定）。
+
+    CREATE TABLE IF NOT EXISTS health_profile (
+      user_id         TEXT PRIMARY KEY DEFAULT 'me',
+      height_cm       INTEGER,
+      sex             TEXT,                       -- 'male' | 'female' | 'other'
+      dob             TEXT,                       -- ISO date
+      goal            TEXT,                       -- 'cut' | 'maintain' | 'bulk'
+      activity_level  TEXT,                       -- 'sedentary'..'very-active'
+      target_weight_kg REAL,
+      health_notes    TEXT,
+      allergies       TEXT,
+      updated_at      TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS health_weight_log (
+      id            TEXT PRIMARY KEY,
+      logged_at     TEXT NOT NULL,                -- ISO datetime
+      kg            REAL NOT NULL,
+      body_fat_pct  REAL,
+      notes         TEXT,
+      source        TEXT NOT NULL DEFAULT 'manual', -- manual | apple-health | smart-scale | ai-photo
+      created_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_health_weight_at ON health_weight_log(logged_at DESC);
+
+    CREATE TABLE IF NOT EXISTS health_workout_log (
+      id            TEXT PRIMARY KEY,
+      session_name  TEXT,
+      performed_at  TEXT NOT NULL,
+      duration_min  INTEGER,
+      total_volume  REAL,                          -- sum of weight×reps
+      rpe_avg       REAL,
+      notes         TEXT,
+      source        TEXT NOT NULL DEFAULT 'manual',
+      created_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_health_workout_at ON health_workout_log(performed_at DESC);
+
+    CREATE TABLE IF NOT EXISTS health_workout_set (
+      id            TEXT PRIMARY KEY,
+      workout_id    TEXT NOT NULL,
+      exercise      TEXT NOT NULL,
+      reps          INTEGER,
+      weight_kg     REAL,
+      rpe           INTEGER,                       -- 1-10
+      order_index   INTEGER NOT NULL DEFAULT 0,
+      notes         TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_health_workout_set ON health_workout_set(workout_id, order_index);
+
+    CREATE TABLE IF NOT EXISTS health_meal_log (
+      id              TEXT PRIMARY KEY,
+      consumed_at     TEXT NOT NULL,
+      meal_type       TEXT,                        -- breakfast | lunch | dinner | snack
+      items           JSONB NOT NULL DEFAULT '[]', -- [{name, grams?, kcal, protein_g, ...}]
+      total_kcal      REAL,
+      total_protein_g REAL,
+      total_carb_g    REAL,
+      total_fat_g     REAL,
+      total_fiber_g   REAL,
+      photo_url       TEXT,
+      source          TEXT NOT NULL DEFAULT 'manual', -- manual | ai-text | ai-photo
+      notes           TEXT,
+      created_at      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_health_meal_at ON health_meal_log(consumed_at DESC);
+
+    CREATE TABLE IF NOT EXISTS health_sleep_log (
+      id            TEXT PRIMARY KEY,
+      sleep_date    TEXT NOT NULL,                 -- 该夜的日期（入睡当天）
+      duration_min  INTEGER,
+      quality       INTEGER,                       -- 1-10
+      bedtime       TEXT,
+      wake_time     TEXT,
+      notes         TEXT,
+      source        TEXT NOT NULL DEFAULT 'manual',
+      created_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_health_sleep_date ON health_sleep_log(sleep_date DESC);
+
+    CREATE TABLE IF NOT EXISTS health_mood_log (
+      id          TEXT PRIMARY KEY,
+      logged_at   TEXT NOT NULL,
+      energy      INTEGER,                         -- 1-10
+      mood        INTEGER,
+      fatigue     INTEGER,
+      soreness    INTEGER,
+      notes       TEXT,
+      created_at  TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_health_mood_at ON health_mood_log(logged_at DESC);
+
+    CREATE TABLE IF NOT EXISTS health_raw_import (
+      id            TEXT PRIMARY KEY,
+      source        TEXT NOT NULL,
+      kind          TEXT NOT NULL,
+      record_at     TEXT,
+      payload       JSONB NOT NULL,
+      imported_at   TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_health_raw_import_at ON health_raw_import(record_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_health_raw_import_source ON health_raw_import(source, kind);
+
+    CREATE TABLE IF NOT EXISTS health_metric_sample (
+      id                 TEXT PRIMARY KEY,
+      raw_import_id      TEXT,
+      source             TEXT NOT NULL,
+      metric             TEXT NOT NULL,
+      category           TEXT NOT NULL,
+      aggregation_style  TEXT NOT NULL,            -- cumulative | discrete
+      apple_identifier   TEXT,
+      recorded_at        TEXT NOT NULL,
+      value              REAL NOT NULL,
+      unit               TEXT,
+      imported_at        TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_health_metric_sample_metric_at ON health_metric_sample(metric, recorded_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_health_metric_sample_category_at ON health_metric_sample(category, recorded_at DESC);
+
+    CREATE TABLE IF NOT EXISTS health_daily_activity_summary (
+      summary_date                              TEXT NOT NULL,
+      source                                    TEXT NOT NULL DEFAULT 'apple-health',
+      steps_count                               REAL,
+      walking_running_distance_km               REAL,
+      flights_climbed                           REAL,
+      walking_speed_avg_kmh                     REAL,
+      walking_speed_samples                     INTEGER NOT NULL DEFAULT 0,
+      walking_step_length_avg_cm                REAL,
+      walking_step_length_samples               INTEGER NOT NULL DEFAULT 0,
+      walking_double_support_avg_pct            REAL,
+      walking_double_support_samples            INTEGER NOT NULL DEFAULT 0,
+      walking_asymmetry_avg_pct                 REAL,
+      walking_asymmetry_samples                 INTEGER NOT NULL DEFAULT 0,
+      headphone_audio_exposure_avg_dbaspl       REAL,
+      headphone_audio_exposure_max_dbaspl       REAL,
+      headphone_audio_exposure_samples          INTEGER NOT NULL DEFAULT 0,
+      updated_at                                TEXT NOT NULL,
+      PRIMARY KEY (summary_date, source)
+    );
+    CREATE INDEX IF NOT EXISTS idx_health_daily_activity_date ON health_daily_activity_summary(summary_date DESC);
+
+    CREATE TABLE IF NOT EXISTS health_weekly_plan (
+      id              TEXT PRIMARY KEY,
+      week_start      TEXT NOT NULL,               -- ISO date 周一
+      goal_snapshot   TEXT,
+      diet_plan       TEXT,                        -- markdown
+      training_plan   TEXT,                        -- markdown
+      notes           TEXT,
+      generated_at    TEXT NOT NULL,
+      generated_by    TEXT NOT NULL DEFAULT 'ai',  -- ai | user
+      status          TEXT NOT NULL DEFAULT 'active' -- draft | active | archived
+    );
+    CREATE INDEX IF NOT EXISTS idx_health_plan_start ON health_weekly_plan(week_start DESC);
+
+    CREATE TABLE IF NOT EXISTS health_weekly_report (
+      id            TEXT PRIMARY KEY,
+      week_start    TEXT NOT NULL,
+      body          TEXT NOT NULL,                 -- markdown 周报正文
+      metrics       JSONB,                         -- {weight_avg, weight_trend, kcal_avg, ...}
+      generated_at  TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_health_report_start ON health_weekly_report(week_start DESC);
+
+    CREATE TABLE IF NOT EXISTS health_alert (
+      id              TEXT PRIMARY KEY,
+      kind            TEXT NOT NULL,               -- weight-spike | low-protein | overtrain | ...
+      severity        TEXT NOT NULL,               -- low | medium | high
+      message         TEXT NOT NULL,
+      context         JSONB,                       -- 触发时的相关数据
+      status          TEXT NOT NULL DEFAULT 'open', -- open | acknowledged | dismissed
+      created_at      TEXT NOT NULL,
+      acknowledged_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_health_alert_status ON health_alert(status, created_at DESC);
   `);
 }

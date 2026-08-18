@@ -218,11 +218,14 @@ function NewsCard({ item, onOpen }: { item: Element; onOpen: () => void }) {
   // Both pull straight from the global store so the card updates live
   // (refine kicks off → red ring within ~1 SSE tick; refine done → ring fades).
   const isFavorite = useStore(s => s.favorites.includes(item.id));
-  const isRefining = useStore(s => s.tasks.some(
-    t => t.kind === "refine" && t.elementId === item.id && t.status === "running",
-  ));
+  const latestRefineStatus = useStore(s => s.tasks.find(
+    t => t.kind === "refine" && t.elementId === item.id,
+  )?.status);
+  const isRefining = latestRefineStatus === "running";
+  const isRefined = latestRefineStatus === "done";
   const stateClass =
     (isRefining ? " is-refining" : "") +
+    (!isRefining && isRefined ? " is-refined" : "") +
     (isFavorite ? " is-favorite" : "");
   const category = tagValue(item, "category:") ?? "未分类";
   const impact = tagValue(item, "impact:");
@@ -240,6 +243,8 @@ function NewsCard({ item, onOpen }: { item: Element; onOpen: () => void }) {
         {source?.cite && <span>来源 · {source.cite}</span>}
         <span>{date}</span>
       </footer>
+      {isRefining && <span className="news-card__state news-card__state--refining">细化中</span>}
+      {!isRefining && isRefined && <span className="news-card__state news-card__state--refined">已细化</span>}
     </article>
   );
 }

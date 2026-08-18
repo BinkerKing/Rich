@@ -1,0 +1,231 @@
+.app-launcher {
+  min-height: 100vh;
+  padding: 72px 72px 64px;
+  position: relative;
+  overflow: hidden;
+  color: #edf7ff;
+  background:
+    linear-gradient(180deg, rgba(3, 7, 13, .94), rgba(0, 0, 0, .98)),
+    radial-gradient(circle at 24% 18%, rgba(84, 215, 255, .12), transparent 36%),
+    radial-gradient(circle at 78% 72%, rgba(255, 208, 111, .10), transparent 34%),
+    #020408;
+}
+.app-launcher::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .035) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .85), transparent 82%);
+  pointer-events: none;
+}
+.app-launcher__glow {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 999px;
+  filter: blur(30px);
+  opacity: .32;
+  pointer-events: none;
+}
+.app-launcher__glow--left {
+  left: -210px;
+  top: 140px;
+  background: radial-gradient(circle, rgba(57, 246, 232, .28), transparent 64%);
+}
+.app-launcher__glow--right {
+  right: -220px;
+  bottom: -120px;
+  background: radial-gradient(circle, rgba(255, 209, 102, .20), transparent 68%);
+}
+.app-launcher__header {
+  position: relative;
+  z-index: 1;
+  max-width: 1320px;
+  margin: 0 auto 34px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+}
+.app-launcher__header p {
+  margin: 0 0 8px;
+  color: #8ffef7;
+  font-size: 13px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+.app-launcher__header h1 {
+  margin: 0;
+  font-size: 44px;
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+.app-launcher__header span {
+  display: block;
+  margin-top: 12px;
+  color: rgba(237, 247, 255, .62);
+  font-size: 15px;
+}
+.app-launcher__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.app-launcher__status {
+  min-height: 38px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 8px;
+  border: 1px solid rgba(122, 247, 145, .24);
+  background: rgba(10, 30, 18, .62);
+  color: #8fffa2;
+  font-size: 13px;
+}
+.app-launcher__actions button {
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(143, 254, 247, .22);
+  background: rgba(4, 12, 20, .74);
+  color: #bffefa;
+  font: inherit;
+  cursor: pointer;
+}
+.app-launcher__actions button:hover {
+  border-color: rgba(143, 254, 247, .5);
+  background: rgba(12, 30, 44, .9);
+}
+.app-launcher__grid {
+  position: relative;
+  z-index: 1;
+  max-width: 1320px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+.app-launcher-card {
+  --app-accent: #8ffef7;
+  min-height: 184px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 22px;
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--app-accent) 34%, rgba(255, 255, 255, .08));
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg,
+      color-mix(in srgb, var(--app-accent) 9%, transparent),
+      rgba(7, 12, 20, .80) 50%,
+      rgba(0, 0, 0, .86));
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, .32),
+    inset 0 0 0 1px rgba(255, 255, 255, .035);
+  cursor: pointer;
+  color: #edf7ff;
+  font: inherit;
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+.app-launcher-card:hover,
+.app-launcher-card:focus-visible {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--app-accent) 70%, rgba(255, 255, 255, .14));
+  box-shadow:
+    0 22px 54px rgba(0, 0, 0, .42),
+    0 0 28px color-mix(in srgb, var(--app-accent) 17%, transparent),
+    inset 0 0 0 1px rgba(255, 255, 255, .055);
+  outline: none;
+}
+.app-launcher-card.is-dragging {
+  opacity: .45;
+  transform: scale(.98);
+}
+.app-launcher-card.is-drop-target {
+  border-style: dashed;
+  transform: translateY(-2px);
+}
+.app-launcher-card__icon {
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--app-accent);
+  background: color-mix(in srgb, var(--app-accent) 12%, rgba(255, 255, 255, .03));
+  border: 1px solid color-mix(in srgb, var(--app-accent) 34%, rgba(255, 255, 255, .08));
+}
+.app-launcher-card__icon .ke-icon {
+  width: 36px;
+  height: 36px;
+  stroke-width: 1.75;
+}
+.app-launcher-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.app-launcher-card__body strong {
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+.app-launcher-card__body em {
+  color: rgba(237, 247, 255, .62);
+  font-size: 14px;
+  line-height: 1.5;
+  font-style: normal;
+}
+.app-launcher-card__launch {
+  align-self: flex-start;
+  min-height: 30px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--app-accent) 46%, transparent);
+  background: color-mix(in srgb, var(--app-accent) 14%, rgba(0, 0, 0, .54));
+  color: var(--app-accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+.app-launcher-card--cyan { --app-accent: #73f7ec; }
+.app-launcher-card--green { --app-accent: #7af791; }
+.app-launcher-card--gold { --app-accent: #ffd166; }
+.app-launcher-card--blue { --app-accent: #7aa7ff; }
+.app-launcher-card--rose { --app-accent: #ff8fb3; }
+.app-launcher-card--violet { --app-accent: #bda7ff; }
+.app-launcher-card--orange { --app-accent: #ffb86b; }
+.app-launcher-card--slate { --app-accent: #c7d2fe; }
+
+@media (max-width: 1180px) {
+  .app-launcher {
+    padding: 64px 44px 56px;
+  }
+  .app-launcher__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 820px) {
+  .app-launcher {
+    padding: 54px 22px 88px;
+  }
+  .app-launcher__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .app-launcher__header h1 {
+    font-size: 34px;
+  }
+  .app-launcher__grid {
+    grid-template-columns: 1fr;
+  }
+  .app-launcher-card {
+    min-height: 148px;
+  }
+}

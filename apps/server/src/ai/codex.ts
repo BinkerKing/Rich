@@ -8,7 +8,10 @@ import { childRegistry } from "../lib/childRegistry.js";
 
 const execFileP = promisify(execFile);
 
-const DEFAULT_CODEX_BIN = "/Applications/Codex.app/Contents/Resources/codex";
+const DEFAULT_CODEX_BINS = [
+  "/Applications/ChatGPT.app/Contents/Resources/codex",
+  "/Applications/Codex.app/Contents/Resources/codex",
+];
 
 async function fileIsExecutable(p: string): Promise<boolean> {
   try {
@@ -21,7 +24,7 @@ async function fileIsExecutable(p: string): Promise<boolean> {
  * Resolve the codex binary. Priority:
  *   1. $KE_CODEX_BIN env override
  *   2. $PATH lookup (`which codex`)
- *   3. /Applications/Codex.app/Contents/Resources/codex (macOS desktop install)
+ *   3. ChatGPT.app / Codex.app bundled codex binary (macOS desktop install)
  * Returns null if none found.
  */
 async function resolveCodexBin(): Promise<string | null> {
@@ -32,7 +35,9 @@ async function resolveCodexBin(): Promise<string | null> {
     const path = stdout.trim();
     if (path && await fileIsExecutable(path)) return path;
   } catch { /* fall through */ }
-  if (await fileIsExecutable(DEFAULT_CODEX_BIN)) return DEFAULT_CODEX_BIN;
+  for (const bundledBin of DEFAULT_CODEX_BINS) {
+    if (await fileIsExecutable(bundledBin)) return bundledBin;
+  }
   return null;
 }
 

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useStore } from "../state/store.js";
 import { api } from "../api/client.js";
+import { GuidedPracticeWizard } from "../components/GuidedPracticeWizard.js";
 
 interface Props {
   onPickPractice: (id: string) => void;
@@ -12,6 +13,7 @@ export function PracticeListView({ onPickPractice }: Props): ReactNode {
   const hydrate = useStore(s => s.hydrate);
 
   const [creating, setCreating] = useState(false);
+  const [guidedOpen, setGuidedOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
 
   // 只显示打开了"项目实战"开关的 practice 元；其他 practice（知识树里的"实战经验"种子数据）不进列表
@@ -70,6 +72,7 @@ export function PracticeListView({ onPickPractice }: Props): ReactNode {
         <div className="pv__title">项目实战</div>
         <div className="pv__sub">{practices.length} 个项目</div>
         <div style={{ flex: 1 }} />
+        <button className="pv__guide" onClick={() => setGuidedOpen(true)}>引导式立项</button>
         <button className="pv__create" onClick={() => setCreating(true)}>+ 新建项目</button>
       </div>
 
@@ -121,6 +124,16 @@ export function PracticeListView({ onPickPractice }: Props): ReactNode {
           </div>
         )}
       </div>
+
+      {guidedOpen && (
+        <GuidedPracticeWizard
+          onClose={() => setGuidedOpen(false)}
+          onCreated={(id) => {
+            setGuidedOpen(false);
+            onPickPractice(id);
+          }}
+        />
+      )}
     </div>
   );
 }

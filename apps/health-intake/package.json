@@ -1,0 +1,25 @@
+{
+  "name": "@ke/health-intake",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/server.cjs",
+    "deploy": "pnpm build && bash scripts/deploy.sh",
+    "dev": "tsx watch src/index.ts",
+    "import:health-auto-export": "node scripts/import-health-auto-export.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.11.0",
+    "hono": "^4.8.4",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.11.10",
+    "esbuild": "^0.25.10",
+    "tsx": "^4.20.6",
+    "typescript": "^5.4.0"
+  }
+}

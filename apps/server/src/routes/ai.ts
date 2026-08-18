@@ -36,6 +36,7 @@ import {
   runDraftPrd,
   runDraftChild,
   runAdjustChild,
+  runGuidedPractice,
   type DailyNewsItem,
 } from "../ai/operations.js";
 import { shortlistByKeywords } from "../lib/elementShortlist.js";
@@ -541,6 +542,75 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     }
     if (finalResult) return c.json({ adapter: adapter.name, result: finalResult });
     return c.json({ error: lastError || "draft-child failed", adapter: adapter.name }, 500);
+  });
+
+  // ----- guided-practice: Hermes 引导式项目立项 / 需求明确化 -----
+  const GuidedPracticeBodySchema = z.object({
+    stage: z.enum(["goal", "scenario", "technical", "scope", "prd", "plan"]),
+    userInput: z.string().min(1).max(4000),
+    draft: z.object({
+      title: z.string().max(120).optional(),
+      idea: z.string().max(1200).optional(),
+      goal: z.string().max(3000).optional(),
+      users: z.string().max(1600).optional(),
+      scenarios: z.string().max(5000).optional(),
+      technical: z.string().max(5000).optional(),
+      features: z.string().max(5000).optional(),
+      risks: z.string().max(3000).optional(),
+      outOfScope: z.string().max(3000).optional(),
+      tasks: z.string().max(5000).optional(),
+    }).default({}),
+    messages: z.array(z.object({
+      role: z.enum(["user", "assistant"]),
+      stage: z.string().max(40),
+      text: z.string().max(4000),
+    })).max(30).default([]),
+    model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+  });
+  const GUIDED_PRACTICE_BODY_MAX = 128 * 1024;
+  r.post("/guided-practice", async (c) => {
+    const text = await c.req.text();
+    if (text.length > GUIDED_PRACTICE_BODY_MAX) {
+      return c.json({ error: `body too large (>${GUIDED_PRACTICE_BODY_MAX} bytes)` }, 413);
+    }
+    let raw: unknown;
+    try { raw = JSON.parse(text); }
+    catch { return c.json({ error: "invalid JSON" }, 400); }
+    const parsed = GuidedPracticeBodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
+    }
+    const { stage, userInput, draft, messages, model } = parsed.data;
+    const adapter = pickAdapter(deps.adapters, model ?? "hermes");
+    const reqId = newReqId();
+    const t0 = Date.now();
+    log.info("ai.op.start", { reqId, op: "/api/ai/guided-practice", adapter: adapter.name, stage });
+
+    if (!(await adapter.available())) {
+      return c.json({ error: `${adapter.name} unavailable`, adapter: adapter.name }, 503);
+    }
+
+    let finalResult: unknown = null;
+    let lastError = "";
+    for (let attempt = 1; attempt <= 3 && !finalResult; attempt++) {
+      for await (const ev of runGuidedPractice(adapter, {
+        stage, userInput, draft, messages, signal: c.req.raw.signal,
+      })) {
+        if (ev.type === "error") { lastError = ev.message; break; }
+        if (ev.type === "done") {
+          await recordSignal(deps.signals, {
+            ts: new Date().toISOString(), type: "op.completed", manual: "guided-practice",
+            op: "guided-practice", adapter: adapter.name,
+            data: { stage, durationMs: Date.now() - t0, attempt },
+          });
+          finalResult = ev.result;
+          break;
+        }
+      }
+      if (lastError !== "No valid JSON found in input") break;
+    }
+    if (finalResult) return c.json({ adapter: adapter.name, result: finalResult });
+    return c.json({ error: lastError || "guided-practice failed", adapter: adapter.name }, 500);
   });
 
   // ----- adjust-child: AI 基于"当前状态 + 方向"重写一个已有子元 -----

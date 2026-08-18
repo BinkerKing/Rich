@@ -68,6 +68,8 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
       "回复风格先查 AI 语料模板，尤其是系统汇报、信息汇报、复盘类任务。",
     ],
     cli: [
+      "CLI: pnpm rich -- chat stream --json '{\"messages\":[...]}'",
+      "CLI: pnpm rich -- chat-attachments upload --file image.png",
       "pnpm corpus list <场景关键词>",
       "pnpm corpus prompt <template-id>",
       "MCP: get_rich_system_manual",
@@ -84,6 +86,8 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
       "不要生成 unsupported block.style；推荐列表使用 dot-list 或 markdown。",
     ],
     cli: [
+      "CLI: pnpm rich -- elements list/get/create/patch/delete/move",
+      "CLI: pnpm rich -- relations reorder --json '{\"parentId\":\"...\",\"childIds\":[...]}'",
       "MCP: list_topics / get_element / get_subtree",
       "MCP: create_element / update_element / delete_element",
       "MCP: refine / expand / extend / generate_paths",
@@ -99,9 +103,10 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
       "信息汇报类内容先套用 information-briefing 语料模板。",
     ],
     cli: [
+      "CLI: pnpm rich -- ai news-generate-daily --json '{\"date\":\"YYYY-MM-DD\",\"model\":\"codex\"}'",
+      "CLI: pnpm rich -- elements sections <id> --json '{\"sections\":[...]}'",
       "pnpm corpus prompt information-briefing",
       "MCP: get_element / update_section_blocks",
-      "API: POST /api/ai/news/generate-daily",
     ],
   },
   {
@@ -114,8 +119,8 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
       "不要绕过元素树另建孤立 PPT 数据。",
     ],
     cli: [
-      "API: GET /api/mindmaps",
-      "API: POST /api/mindmaps/attach",
+      "CLI: pnpm rich -- mindmaps list/get/attach/detach/toggle-hidden/toggle-image/toggle-text/retry-cover",
+      "CLI: pnpm rich -- mindmaps generate --json '{\"prose\":\"...\",\"titleHint\":\"...\"}'",
       "MCP: get_element / get_subtree / update_section_blocks",
     ],
   },
@@ -130,6 +135,8 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
       "清理 seed/demo 脏计划前必须先备份 GreatMe state，只清空 plans/goals/tasks。",
     ],
     cli: [
+      "CLI: pnpm rich -- great-me get",
+      "CLI: pnpm rich -- ai decompose-plan/analyze-progress/draft-review --json '{...}'",
       "MCP: plan_list / plan_get / analytics_summary",
       "MCP: plan_decompose / goal_create / task_create",
       "MCP: task_list / task_complete / analyze_progress",
@@ -147,6 +154,8 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
       "起草 PRD 或子元时先读取 practice_get，带上下文生成。",
     ],
     cli: [
+      "CLI: pnpm rich -- elements create/patch/delete --json '{...}'",
+      "CLI: pnpm rich -- ai draft-prd/draft-child/adjust-child --json '{...}'",
       "MCP: practice_list / practice_get / practice_create",
       "MCP: practice_add_child / practice_update_child",
       "MCP: draft_prd / draft_child / adjust_child",
@@ -162,9 +171,11 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
       "执行结果会写入 tool_invocations，后台可审计。",
     ],
     cli: [
+      "CLI: pnpm rich -- toolbox tools",
+      "CLI: pnpm rich -- toolbox invoke --json '{\"tool\":\"...\",\"args\":{}}'",
+      "CLI: pnpm rich -- toolbox cancel <invocationId>",
       "MCP: list_toolbox_tools",
       "MCP: invoke_toolbox_tool",
-      "API: GET /api/toolbox/invocations",
     ],
   },
   {
@@ -177,10 +188,28 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
       "发现 Rich 缺能力时创建 improvement task，不要假装完成。",
     ],
     cli: [
+      "CLI: pnpm rich -- corpus list/get/upsert/delete/reset",
+      "CLI: pnpm rich -- improvements list/create/claim/release/patch/delete",
+      "CLI: pnpm rich -- admin engine/ops/signals/manuals",
       "pnpm corpus list",
       "pnpm corpus patch <id> --field <name> --value <value>",
       "MCP: get_rich_system_manual",
       "MCP: create_improvement / claim_improvement / update_improvement",
+    ],
+  },
+  {
+    id: "cli-coverage",
+    page: "全部按钮 CLI 覆盖",
+    scene: "AI 员工需要像点击 UI 一样执行 Rich 的所有后端操作。",
+    manual: [
+      "数据写入、AI 生成、上传、工具调用、删除都必须有 CLI/MCP；纯 UI 展开、筛选、弹窗不要求 CLI。",
+      "优先 MCP；MCP 不可用时用 pnpm rich 的语义命令。",
+      "新按钮如果还没有语义命令，用 api/sse 兜底，并补 docs/RICH_CLI_COVERAGE.md。",
+    ],
+    cli: [
+      "CLI: pnpm rich -- api <METHOD> /api/<path> --json '{...}'",
+      "CLI: pnpm rich -- sse POST /api/<stream-path> --json '{...}'",
+      "DOC: docs/RICH_CLI_COVERAGE.md",
     ],
   },
 ];

@@ -1,21 +1,84 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { buildChatSystemPrompt } from "../ai/prompts/chatSystem.js";
+import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
+import type { ChatAttachmentRef } from "@ke/domain";
+import type { AIAdapter } from "../ai/adapter.js";
+
+/** Hermes / OpenAI 兼容协议下的消息 content —— 可以是纯字符串或 multimodal part 数组 */
+type ContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+type MessageContent = string | ContentPart[];
+type Message = { role: string; content: MessageContent };
+
+function contentToText(content: MessageContent): string {
+  if (typeof content === "string") return content;
+  return content
+    .map(part => part.type === "text" ? part.text : "[图片]")
+    .join("\n");
+}
+
+function messagesToFallbackPrompt(messages: Message[]): string {
+  return messages
+    .filter(message => message.role !== "system")
+    .map(message => `${message.role}: ${contentToText(message.content)}`)
+    .join("\n\n");
+}
 
 /**
  * 把 client 发来的 messages 注入 Rich 的 system prompt：
  *  - 如果 messages[0] 已经是 system，替换内容（保持单一 system）
  *  - 否则在最前面插入
  *
- * 注意：每次请求都重新生成 prompt 串 —— 后续可以扩展成按用户偏好 / 时间段
- * 动态调整（如夜间模式更简洁），现在直接静态返回。
+ * content 允许字符串或多模态 part 数组（OpenAI vision 协议），原样透传到 Hermes。
  */
-function injectSystemPrompt(messages: Array<{ role: string; content: string }>): Array<{ role: string; content: string }> {
-  const sys = { role: "system", content: buildChatSystemPrompt() };
+function injectSystemPrompt(messages: Message[]): Message[] {
+  const sys: Message = { role: "system", content: buildChatSystemPrompt() };
   if (messages.length > 0 && messages[0].role === "system") {
     return [sys, ...messages.slice(1)];
   }
   return [sys, ...messages];
+}
+
+/**
+ * 给最后一条 user message 拼上图片 part —— 走 OpenAI 标准的 image_url + base64 data URL。
+ * 服务端从 chat_attachments 表把字节拉出来 base64 编码，inline 进消息体。
+ * 这样上游模型（Hermes 或它代理的 codex / claude）直接拿到完整内容。
+ */
+async function inlineAttachments(
+  messages: Message[],
+  refs: ChatAttachmentRef[],
+  repo: ChatAttachmentsRepo,
+): Promise<Message[]> {
+  if (refs.length === 0) return messages;
+  // 拉 byte
+  const parts: ContentPart[] = [];
+  for (const ref of refs) {
+    const data = await repo.getData(ref.id);
+    if (!data) continue;
+    const b64 = Buffer.from(data.data).toString("base64");
+    parts.push({
+      type: "image_url",
+      image_url: { url: `data:${data.mime};base64,${b64}` },
+    });
+  }
+  if (parts.length === 0) return messages;
+  // 找最后一条 user message
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role !== "user") continue;
+    const m = messages[i];
+    const textContent: ContentPart[] = typeof m.content === "string"
+      ? [{ type: "text", text: m.content }]
+      : m.content;
+    return [
+      ...messages.slice(0, i),
+      { role: "user", content: [...textContent, ...parts] },
+      ...messages.slice(i + 1),
+    ];
+  }
+  // 没找到 user message —— 兜底加一条
+  return [...messages, { role: "user", content: parts }];
 }
 
 /**
@@ -39,8 +102,79 @@ function injectSystemPrompt(messages: Array<{ role: string; content: string }>):
 
 const HERMES_BASE_URL = process.env.HERMES_BASE_URL || "http://127.0.0.1:8642";
 
-export function chatRoutes(): Hono {
+export function chatRoutes(
+  attachmentsRepo: ChatAttachmentsRepo | null = null,
+  adapters: AIAdapter[] = [],
+): Hono {
   const r = new Hono();
+  const codexFallback = adapters.find(adapter => adapter.name === "codex");
+
+  async function streamCodexFallback(stream: Parameters<Parameters<typeof streamSSE>[1]>[0], messages: Message[]) {
+    if (!codexFallback || !(await codexFallback.available())) {
+      await stream.writeSSE({
+        event: "error",
+        data: JSON.stringify({ message: "Hermes 没有可用凭证，且 Codex fallback 不可用。" }),
+      });
+      return false;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 90_000);
+    let wroteText = false;
+    try {
+      for await (const event of codexFallback.stream({
+        systemPrompt: buildChatSystemPrompt(),
+        prompt: messagesToFallbackPrompt(messages),
+        signal: controller.signal,
+      })) {
+        if (event.type === "delta" && event.text) {
+          wroteText = true;
+          await stream.writeSSE({
+            event: "text",
+            data: JSON.stringify({ chunk: event.text }),
+          });
+        } else if (event.type === "error") {
+          await stream.writeSSE({
+            event: "error",
+            data: JSON.stringify({ message: event.message }),
+          });
+          return wroteText;
+        }
+      }
+    } catch (e) {
+      await stream.writeSSE({
+        event: "error",
+        data: JSON.stringify({ message: e instanceof Error ? e.message : String(e) }),
+      });
+      return wroteText;
+    } finally {
+      clearTimeout(timeout);
+    }
+    return wroteText;
+  }
+
+  async function streamCodexFallbackWithProgress(
+    stream: Parameters<Parameters<typeof streamSSE>[1]>[0],
+    messages: Message[],
+    hermesMessage: string,
+  ): Promise<boolean> {
+    await stream.writeSSE({
+      event: "tool",
+      data: JSON.stringify({ name: "codex-fallback", status: "running" }),
+    });
+    const wroteText = await streamCodexFallback(stream, messages);
+    await stream.writeSSE({
+      event: "tool",
+      data: JSON.stringify({ name: "codex-fallback", status: "completed" }),
+    });
+    if (!wroteText) {
+      await stream.writeSSE({
+        event: "error",
+        data: JSON.stringify({ message: hermesMessage }),
+      });
+    }
+    return wroteText;
+  }
 
   // Non-streaming endpoint for GreatMe HQ conversations and any other caller
   // that just wants a single completed reply. Forwards to Hermes with
@@ -78,12 +212,16 @@ export function chatRoutes(): Hono {
 
   r.post("/stream", async (c) => {
     const body = await c.req.json().catch(() => null) as
-      | { messages?: Array<{ role: string; content: string }> }
+      | { messages?: Message[]; attachments?: ChatAttachmentRef[] }
       | null;
     if (!body || !Array.isArray(body.messages) || body.messages.length === 0) {
       return c.json({ error: "messages[] required" }, 400);
     }
-    const messages = body.messages;
+    let messages: Message[] = body.messages;
+    // 有图就把字节 inline 到最后一条 user message
+    if (Array.isArray(body.attachments) && body.attachments.length > 0 && attachmentsRepo) {
+      messages = await inlineAttachments(messages, body.attachments, attachmentsRepo);
+    }
 
     // T02 — 首字 SLO 基础设施。
     // (1) 反代关 buffering：Nginx / Cloudflare 见到这个 header 不会攒 chunk
@@ -115,17 +253,24 @@ export function chatRoutes(): Hono {
           }),
         });
       } catch (e) {
-        await stream.writeSSE({
-          event: "error",
-          data: JSON.stringify({ message: `Hermes unreachable: ${e instanceof Error ? e.message : String(e)}` }),
-        });
+        const message = `Hermes unreachable: ${e instanceof Error ? e.message : String(e)}`;
+        if (await streamCodexFallbackWithProgress(stream, messages, message)) {
+          await stream.writeSSE({
+            event: "done",
+            data: JSON.stringify({ finish_reason: "codex-fallback" }),
+          });
+        }
         return;
       }
       if (!upstream.ok || !upstream.body) {
-        await stream.writeSSE({
-          event: "error",
-          data: JSON.stringify({ message: `Hermes ${upstream.status} ${upstream.statusText}` }),
-        });
+        const detail = await upstream.text().catch(() => "");
+        const message = `Hermes ${upstream.status} ${upstream.statusText}${detail ? `: ${detail}` : ""}`;
+        if (await streamCodexFallbackWithProgress(stream, messages, message)) {
+          await stream.writeSSE({
+            event: "done",
+            data: JSON.stringify({ finish_reason: "codex-fallback" }),
+          });
+        }
         return;
       }
 
@@ -220,11 +365,25 @@ export function chatRoutes(): Hono {
             };
             const text = json.choices?.[0]?.message?.content;
             if (typeof text === "string" && text.length > 0) {
+              sawText = true;
               await stream.writeSSE({
                 event: "text",
                 data: JSON.stringify({ chunk: text }),
               });
             }
+          } else {
+            const json = await fallback.json().catch(() => null) as { error?: { message?: string } } | null;
+            const message = json?.error?.message ?? `Hermes ${fallback.status} ${fallback.statusText}`;
+            if (/No Codex credentials stored|hermes auth|hermes model/i.test(message)) {
+              await stream.writeSSE({
+                event: "error",
+                data: JSON.stringify({
+                  message: `Hermes 需要重新授权：${message}`,
+                }),
+              });
+              return;
+            }
+            sawText = await streamCodexFallbackWithProgress(stream, messages, message);
           }
         }
         await stream.writeSSE({
@@ -232,9 +391,17 @@ export function chatRoutes(): Hono {
           data: JSON.stringify({ finish_reason: finishReason }),
         });
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (!sawText && await streamCodexFallbackWithProgress(stream, messages, message)) {
+          await stream.writeSSE({
+            event: "done",
+            data: JSON.stringify({ finish_reason: "codex-fallback" }),
+          });
+          return;
+        }
         await stream.writeSSE({
           event: "error",
-          data: JSON.stringify({ message: err instanceof Error ? err.message : String(err) }),
+          data: JSON.stringify({ message }),
         });
       }
     });

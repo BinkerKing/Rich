@@ -10,6 +10,7 @@
 4. 选择 MCP / API / CLI 执行。
 5. 需要输出给用户时，先套 AI 语料模板。
 6. 如果用户指出表达或操作方式不对，把经验写回语料模板或系统改造任务。
+7. 如果任务对应一个 Rich 按钮，先查 `docs/RICH_CLI_COVERAGE.md` 的按钮覆盖表，确认该按钮对应的 MCP / CLI。
 
 ## 页面与工具
 
@@ -21,10 +22,35 @@
 | 导图 PPT | 文稿转导图、PPT 展示图 | `/api/mindmaps`, `get_subtree`, `update_element` |
 | 计划管理 | 计划、目标、任务、复盘、批量清理 | 优先 MCP：`plan_list`, `plan_get`, `task_list`, `task_complete`, `plan_decompose`, `analyze_progress`；服务离线/批量维护/排障时用 CLI：`pnpm --filter @ke/server run plan -- ...` |
 | 项目实战 | 实战项目、PRD、开发任务 | `practice_list`, `practice_get`, `practice_create`, `practice_add_child`, `draft_prd`, `draft_child`, `adjust_child` |
+| 健康顾问 | 苹果健康同步、健康原始数据、训练/体重/睡眠/饮食复盘 | `pnpm rich -- api GET /api/health/timeline`, `pnpm rich -- api GET /api/health/intake/status`, `docs/APPLE_HEALTH_METRICS.md` |
 | 工具箱 | 小工具、锁屏、延迟动作 | `list_toolbox_tools`, `invoke_toolbox_tool` |
 | 后台 | 监控、语料、学习手册、改造任务 | `get_rich_system_manual`, `pnpm corpus ...`, `corpus_upsert`, `create_improvement` |
 
 ## CLI
+
+### 统一 Rich CLI
+
+所有后端 API / SSE 操作都有统一 CLI 兜底入口。新按钮只要调用 `/api/...`，Agent 就可以通过这里执行，不必等单独脚本：
+
+```bash
+pnpm rich -- health
+pnpm rich -- api GET /api/elements
+pnpm rich -- api PATCH /api/elements/<id> --json '{"title":"新标题"}'
+pnpm rich -- sse POST /api/ai/refine --json '{"elementId":"<id>","model":"codex"}'
+```
+
+常用语义化命令：
+
+```bash
+pnpm rich -- elements list
+pnpm rich -- elements create --json '{"title":"新元","type":"topic","parentId":"<optional>"}'
+pnpm rich -- elements patch <id> --json '{"difficulty":"mid"}'
+pnpm rich -- mindmaps attach --json '{"elementId":"<id>"}'
+pnpm rich -- toolbox invoke --json '{"tool":"lock_screen","args":{}}'
+pnpm rich -- improvements create --json '{"title":"补一个能力","description":"...","priority":"medium"}'
+```
+
+按钮级覆盖表见 `docs/RICH_CLI_COVERAGE.md`。纯 UI 按钮，如打开弹窗、切换 tab、筛选、收起展开，不要求 CLI；真正的数据写入要通过 MCP / CLI / API 完成。
 
 ### 语料模板 CLI
 
@@ -60,6 +86,57 @@ pnpm --filter @ke/server run plan -- clear all --yes --json
 ```
 
 Agent 清理“计划管理脏数据”时必须先备份完整 GreatMe blob，只清空 `plans/goals/tasks`，保留 `profile/events/daily/reviews/ability/compounding/conversations` 等非计划数据，并在写回后验证三类计数为 0。
+
+### 健康数据 CLI / SQL
+
+苹果健康接入有三层数据：原始层 `health_raw_import`、标准化样本层 `health_metric_sample`、每日汇总层 `health_daily_activity_summary`。体重、训练、睡眠、饮食、心情仍走 `health_weight_log` / `health_workout_log` / `health_sleep_log` / `health_meal_log` / `health_mood_log`。不要因为前端没展示就判断“没入库”，先查结构化层，再查原始层。
+
+```bash
+pnpm rich -- api GET /api/health/intake/status
+pnpm rich -- api GET /api/health/timeline
+```
+
+需要直接排查 Health Auto Export REST 数据时，先读取云库配置，再查原始指标：
+
+```bash
+set -a
+source ~/.rich-cloud-postgres.env
+set +a
+
+psql "$RICH_DB_URL" -P pager=off -c "
+SELECT payload->>'metric' AS metric, payload->>'unit' AS unit, count(*)
+FROM health_raw_import
+WHERE source = 'health-auto-export-rest'
+  AND kind = 'metric'
+GROUP BY 1,2
+ORDER BY count DESC;
+"
+```
+
+日常分析优先查每日汇总：
+
+```bash
+psql "$RICH_DB_URL" -P pager=off -c "
+SELECT *
+FROM health_daily_activity_summary
+ORDER BY summary_date DESC
+LIMIT 14;
+"
+```
+
+需要看细粒度样本时查：
+
+```bash
+psql "$RICH_DB_URL" -P pager=off -c "
+SELECT recorded_at, metric, value, unit, category
+FROM health_metric_sample
+WHERE metric = 'walking_speed'
+ORDER BY recorded_at DESC
+LIMIT 20;
+"
+```
+
+解释苹果健康字段前必须先看 `docs/APPLE_HEALTH_METRICS.md`。当前 `step_count`、`walking_running_distance`、`flights_climbed` 按天求和；`walking_speed`、`walking_step_length`、`walking_double_support_percentage`、`walking_asymmetry_percentage`、`headphone_audio_exposure` 按天求平均或最大值，已经进入结构化表。
 
 ## 重要约束
 

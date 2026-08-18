@@ -23,7 +23,8 @@ export type IconName =
   | "calendar"
   | "palette"
   | "gear"
-  | "pencil";
+  | "pencil"
+  | "heart";
 
 interface Props {
   name: IconName;
@@ -65,6 +66,9 @@ const paths: Record<IconName, string[]> = {
   pencil: [
     "M14.5 4.5l5 5L8.5 20.5H3.5v-5L14.5 4.5Z",
     "M13 6l5 5",
+  ],
+  heart: [
+    "M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.7A4 4 0 0 1 19 10c0 5.5-7 10-7 10Z",
   ],
 };
 

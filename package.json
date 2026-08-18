@@ -8,6 +8,7 @@
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "corpus": "node scripts/rich-corpus.mjs",
+    "rich": "node scripts/rich-cli.mjs",
     "typecheck": "pnpm -r run typecheck"
   },
   "devDependencies": {

@@ -6,6 +6,24 @@ export interface ChatToolEvent {
   ts: number;
 }
 
+/** 历史记录里的附件引用 —— 只存元数据，原始字节在服务端 chat_attachments 表 */
+export interface ChatHistoryAttachment {
+  id: string;        // 服务端 attachment id（att-...）
+  url: string;       // /api/chat/attachments/:id/data
+  mime: string;
+  width?: number;
+  height?: number;
+}
+
+/** 兼容老历史里 url 没带 /data 后缀的情况 —— 把元数据路径自动改成数据路径 */
+export function attachmentDataUrl(att: ChatHistoryAttachment): string {
+  if (att.url.endsWith("/data")) return att.url;
+  // 老格式 /api/chat/attachments/:id → 自动补 /data
+  if (/^\/api\/chat\/attachments\/[^/]+$/.test(att.url)) return `${att.url}/data`;
+  // 外部 URL（V1 OSS）或 已经带 /data 的，原样返回
+  return att.url;
+}
+
 export interface ChatHistoryMessage {
   id: string;
   role: ChatRole;
@@ -14,6 +32,8 @@ export interface ChatHistoryMessage {
   tools?: ChatToolEvent[];
   pending?: boolean;
   error?: string;
+  /** 用户在这条 message 附上的图片（仅 user 角色用） */
+  attachments?: ChatHistoryAttachment[];
 }
 
 export const CHAT_HISTORY_STORAGE_KEY = "ke.chat.v1";
