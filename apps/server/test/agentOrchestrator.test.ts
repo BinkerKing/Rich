@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { planChatTurn } from "../src/ai/agentOrchestrator.js";
+import { planChatTurn, planChatTurnWithModel } from "../src/ai/agentOrchestrator.js";
+import type { AIAdapter } from "../src/ai/adapter.js";
 
 describe("planChatTurn", () => {
   it("keeps ordinary questions in chat", () => {
@@ -28,5 +29,17 @@ describe("planChatTurn", () => {
   it("routes document generation to document", () => {
     const plan = planChatTurn([{ role: "user", content: "帮我写一个简易租赁合同" }]);
     expect(plan.scenario).toBe("document");
+  });
+
+  it("falls back when model planner returns invalid output", async () => {
+    const adapter: AIAdapter = {
+      name: "bailian",
+      available: async () => true,
+      async *stream() {
+        yield { type: "done", fullText: "not json" };
+      },
+    };
+    const plan = await planChatTurnWithModel(adapter, [{ role: "user", content: "帮我把 Rich 数据库检查一下" }]);
+    expect(plan.scenario).toBe("agent-task");
   });
 });

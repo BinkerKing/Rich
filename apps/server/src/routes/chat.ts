@@ -7,7 +7,7 @@ import { normalizeAdapterName } from "../ai/modelRouter.js";
 import type { AIScenario } from "../ai/modelRouter.js";
 import { createAIContextProvider } from "../ai/contextProvider.js";
 import { startOpRecord, type OpHandle } from "../ai/aiOpLog.js";
-import { planChatTurn } from "../ai/agentOrchestrator.js";
+import { planChatTurn, planChatTurnWithModel } from "../ai/agentOrchestrator.js";
 import type { AIContextProvider } from "../ai/contextProvider.js";
 import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
@@ -160,6 +160,13 @@ export function chatRoutes(
     return pickScenarioAdapter(adapters, "analysis");
   }
 
+  async function planTurn(messages: Message[], signal?: AbortSignal) {
+    if (process.env.RICH_AI_TURN_PLANNER !== "llm") return planChatTurn(messages);
+    const planner = pickSummaryAdapter();
+    if (!planner) return planChatTurn(messages);
+    return planChatTurnWithModel(planner, messages, signal);
+  }
+
   function queueSummaryRefresh(conversationId: string): void {
     void contextProvider.refreshChatSummary(conversationId, pickSummaryAdapter())
       .catch(() => undefined);
@@ -292,7 +299,7 @@ export function chatRoutes(
     }
     const messages = body.messages;
     const conversationId = body.conversationId?.trim() || "rich-chat-default";
-    const turnPlan = planChatTurn(messages);
+    const turnPlan = await planTurn(messages, c.req.raw.signal);
     const adapter = pickChatAdapter(turnPlan.scenario, body.model);
     const now = new Date().toISOString();
     let opRecorder: ReturnType<typeof makeChatOpRecorder> | null = null;
@@ -385,7 +392,7 @@ export function chatRoutes(
       return c.json({ error: "messages[] required" }, 400);
     }
     const conversationId = body.conversationId?.trim() || "rich-chat-default";
-    const turnPlan = planChatTurn(body.messages);
+    const turnPlan = await planTurn(body.messages, c.req.raw.signal);
     const now = new Date().toISOString();
     await conversationsRepo?.ensureConversation({
       id: conversationId,

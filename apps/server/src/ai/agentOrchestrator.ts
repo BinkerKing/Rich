@@ -1,4 +1,7 @@
 import type { AIScenario } from "./modelRouter.js";
+import type { AIAdapter } from "./adapter.js";
+import { extractJson } from "./extractJson.js";
+import { startOpRecord } from "./aiOpLog.js";
 
 type MessageLike = { role: string; content: unknown };
 
@@ -8,6 +11,9 @@ export interface ChatTurnPlan {
   requiresAgent: boolean;
   reason: string;
 }
+
+const VALID_SCENARIOS = new Set<AIScenario>(["chat", "agent-task", "content", "analysis", "document", "data"]);
+const VALID_INTENTS = new Set<ChatTurnPlan["intent"]>(["answer", "content", "analysis", "document", "data", "operate-rich"]);
 
 function messageText(content: unknown): string {
   if (typeof content === "string") return content;
@@ -58,4 +64,72 @@ export function planChatTurn(messages: MessageLike[]): ChatTurnPlan {
   }
 
   return { scenario: "chat", intent: "answer", requiresAgent: false, reason: "默认普通问答" };
+}
+
+export async function planChatTurnWithModel(
+  adapter: AIAdapter,
+  messages: MessageLike[],
+  signal?: AbortSignal,
+): Promise<ChatTurnPlan> {
+  const fallback = planChatTurn(messages);
+  const text = lastUserText(messages);
+  if (!text) return fallback;
+
+  const prompt = [
+    "你是 Rich 的 AI 调度器。只输出 JSON，不要解释。",
+    "根据用户最后一轮输入，判断这一轮应该走哪个 Rich AI 场景。",
+    "scenario 只能是 chat, content, analysis, document, data, agent-task。",
+    "普通问答用 chat；文章/方案/表达产出用 content；文档/PPT/Excel/PDF/合同处理用 document；SQL/Mapping/数据库分析用 data；需要操作 Rich、代码、部署、文件、服务器、Git、CLI、MCP 时用 agent-task。",
+    `用户输入：${text}`,
+    "输出 JSON: {\"scenario\":\"chat\",\"intent\":\"answer\",\"requiresAgent\":false,\"reason\":\"一句话原因\"}",
+  ].join("\n");
+  const handle = await startOpRecord({
+    op: "chat-turn-plan",
+    model: adapter.name,
+    scenario: "analysis",
+    scope: { fallbackScenario: fallback.scenario },
+    prompt,
+  });
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
+
+  let output = "";
+  try {
+    for await (const event of adapter.stream({
+      prompt,
+      scenario: "analysis",
+      signal: controller.signal,
+    })) {
+      if (event.type === "delta") output += event.text;
+      if (event.type === "done") output = event.fullText || output;
+      if (event.type === "error") throw new Error(event.message);
+    }
+    const parsed = extractJson(output) as Partial<ChatTurnPlan>;
+    const scenario = VALID_SCENARIOS.has(parsed.scenario as AIScenario)
+      ? parsed.scenario as AIScenario
+      : fallback.scenario;
+    const intent = VALID_INTENTS.has(parsed.intent as ChatTurnPlan["intent"])
+      ? parsed.intent as ChatTurnPlan["intent"]
+      : fallback.intent;
+    const requiresAgent = typeof parsed.requiresAgent === "boolean"
+      ? parsed.requiresAgent
+      : scenario === "agent-task";
+    const reason = typeof parsed.reason === "string" && parsed.reason.trim()
+      ? parsed.reason.trim().slice(0, 160)
+      : fallback.reason;
+    const plan: ChatTurnPlan = { scenario, intent, requiresAgent, reason };
+    await handle.recordDone(output);
+    return plan;
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    await handle.recordError(message);
+    return fallback;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
