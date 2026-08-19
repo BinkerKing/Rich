@@ -163,6 +163,7 @@ import { chatAttachmentsRoutes } from "./routes/chatAttachments.js";
 import { healthRoutes } from "./routes/health.js";
 import { createReminderTicker } from "./lib/reminderTicker.js";
 import { projectsRoutes } from "./routes/projects.js";
+import { projectManagementRoutes } from "./routes/projectManagement.js";
 import { rikingProjectsRoutes } from "./routes/rikingProjects.js";
 import { cronRoutes } from "./routes/cron.js";
 import { ImprovementsRepo, type ImprovementsStore } from "./repos/ImprovementsRepo.js";
@@ -190,6 +191,10 @@ import { PostgresGreatMeRepo } from "./repos/PostgresGreatMeRepo.js";
 import { PostgresInvocationsRepo } from "./repos/PostgresInvocationsRepo.js";
 import { PostgresImprovementsRepo } from "./repos/PostgresImprovementsRepo.js";
 import { getAgentId } from "./lib/agentId.js";
+import type { ProjectManagementRepo } from "./repos/ProjectManagementRepo.js";
+import { EmptyProjectManagementRepo } from "./repos/EmptyProjectManagementRepo.js";
+import { PostgresProjectManagementRepo } from "./repos/PostgresProjectManagementRepo.js";
+import { SqliteProjectManagementRepo } from "./repos/SqliteProjectManagementRepo.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -213,6 +218,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let greatMe: GreatMeRepo;
   let improvements: ImprovementsStore | null = null;
   let invocations: InvocationsStore | null = null;
+  let projectManagement: ProjectManagementRepo;
   /** chat_visual_blocks 仅 sqlite + postgres 后端支持；json 模式下保持 null。 */
   let chatVisualBlocks: ChatVisualBlocksRepo | null = null;
   /** chat_attachments 同上 —— bytea 存储需要数据库后端 */
@@ -229,6 +235,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     state = new JsonStateRepo(root);
     corpus = new JsonCorpusRepo(root);
     greatMe = new JsonGreatMeRepo(root);
+    projectManagement = new EmptyProjectManagementRepo();
   } else if (storage === "postgres") {
     const connectionString = process.env.DATABASE_URL ?? process.env.KE_DATABASE_URL;
     if (!connectionString) {
@@ -249,6 +256,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     chatVisualBlocks = new PostgresChatVisualBlocksRepo(pg);
     chatAttachments = new PostgresChatAttachmentsRepo(pg);
     healthRepo = new PostgresHealthRepo(pg);
+    projectManagement = new PostgresProjectManagementRepo(pg);
   } else {
     const dbPath = process.env.KE_SQLITE_PATH ?? join(root, "ke.db");
     const db = openDb(dbPath);
@@ -265,6 +273,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     invocations = new InvocationsRepo(db);
     chatVisualBlocks = new SqliteChatVisualBlocksRepo(db);
     chatAttachments = new SqliteChatAttachmentsRepo(db);
+    projectManagement = new SqliteProjectManagementRepo(db);
   }
 
   // Toolbox runtime constructed below (after `log` is defined).
@@ -336,6 +345,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/chat/attachments", chatAttachmentsRoutes(chatAttachments));
   app.route("/api/health", healthRoutes(healthRepo));
   app.route("/api/projects", projectsRoutes(elements));
+  app.route("/api/project-management", projectManagementRoutes(projectManagement));
   app.route("/api/riking-projects", rikingProjectsRoutes(root));
 
   // 提醒触发器 —— 仅在 healthRepo 可用（即 KE_STORAGE=postgres）时启动。

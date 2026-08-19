@@ -709,6 +709,108 @@ export const api = {
     }
     return r.json();
   },
+
+  // ----- 项目管理 · 新领域模块 -----
+  async getProjectManagementSummary(projectId: string): Promise<ProjectManagementSummary> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/summary`);
+    if (!r.ok) throw new Error(`getProjectManagementSummary ${r.status}`);
+    return r.json();
+  },
+  async searchProjectManagement(projectId: string, query: string, limit = 30): Promise<ProjectManagementSearchResult> {
+    const params = new URLSearchParams({ q: query, limit: String(limit) });
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/search?${params.toString()}`);
+    if (!r.ok) throw new Error(`searchProjectManagement ${r.status}`);
+    return r.json();
+  },
+  async listProjectManagementModuleItems(
+    projectId: string,
+    moduleKey: ProjectManagementModuleKey,
+    parentId?: string,
+  ): Promise<ProjectModuleItem[]> {
+    const params = new URLSearchParams();
+    if (parentId) params.set("parentId", parentId);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/modules/${encodeURIComponent(moduleKey)}/items${suffix}`);
+    if (!r.ok) throw new Error(`listProjectManagementModuleItems ${r.status}`);
+    return r.json();
+  },
+  async createProjectManagementModuleItem(
+    projectId: string,
+    moduleKey: ProjectManagementModuleKey,
+    input: ProjectModuleItemInput,
+  ): Promise<ProjectModuleItem> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/modules/${encodeURIComponent(moduleKey)}/items`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!r.ok) throw new Error(`createProjectManagementModuleItem ${r.status}`);
+    return r.json();
+  },
+  async updateProjectManagementModuleItem(
+    projectId: string,
+    itemId: string,
+    patch: ProjectModuleItemPatch,
+  ): Promise<ProjectModuleItem> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/modules/items/${encodeURIComponent(itemId)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!r.ok) throw new Error(`updateProjectManagementModuleItem ${r.status}`);
+    return r.json();
+  },
+  async deleteProjectManagementModuleItem(projectId: string, itemId: string): Promise<void> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/modules/items/${encodeURIComponent(itemId)}`, { method: "DELETE" });
+    if (!r.ok) throw new Error(`deleteProjectManagementModuleItem ${r.status}`);
+  },
+  async reorderProjectManagementModuleItems(projectId: string, moduleKey: ProjectManagementModuleKey, itemIds: string[]): Promise<void> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/modules/${encodeURIComponent(moduleKey)}/reorder`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ itemIds }),
+    });
+    if (!r.ok) throw new Error(`reorderProjectManagementModuleItems ${r.status}`);
+  },
+  async listProjectDictionarySystems(projectId: string): Promise<ProjectDictionarySystem[]> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/systems`);
+    if (!r.ok) throw new Error(`listProjectDictionarySystems ${r.status}`);
+    return r.json();
+  },
+  async listProjectDictionaryTables(projectId: string, systemId?: string): Promise<ProjectDictionaryTable[]> {
+    const params = new URLSearchParams();
+    if (systemId) params.set("systemId", systemId);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables${suffix}`);
+    if (!r.ok) throw new Error(`listProjectDictionaryTables ${r.status}`);
+    return r.json();
+  },
+  async listProjectDictionaryFields(projectId: string, tableId: string): Promise<ProjectDictionaryFieldHit[]> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/fields`);
+    if (!r.ok) throw new Error(`listProjectDictionaryFields ${r.status}`);
+    return r.json();
+  },
+  async resolveProjectDictionaryFieldRefs(projectId: string, refs: string[]): Promise<ProjectDictionaryFieldHit[]> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/fields/resolve`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ refs }),
+    });
+    if (!r.ok) throw new Error(`resolveProjectDictionaryFieldRefs ${r.status}`);
+    const data = await r.json() as { results?: ProjectDictionaryFieldHit[] };
+    return data.results ?? [];
+  },
+  async searchProjectDictionaryFields(projectId: string, query: string, limit = 30): Promise<ProjectDictionaryFieldSearchResult> {
+    const params = new URLSearchParams({ q: query, limit: String(limit) });
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/fields/search?${params.toString()}`);
+    if (!r.ok) throw new Error(`searchProjectDictionaryFields ${r.status}`);
+    return r.json();
+  },
+  async getProjectDictionaryField(projectId: string, fieldId: string): Promise<ProjectDictionaryFieldDetail> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/fields/${encodeURIComponent(fieldId)}`);
+    if (!r.ok) throw new Error(`getProjectDictionaryField ${r.status}`);
+    return r.json();
+  },
 };
 
 export interface ProjectFolderNode {
@@ -736,6 +838,163 @@ export interface ProjectFolderMkdirsResult {
   created: string[];
   skipped: Array<{ path: string; reason: string }>;
   count: number;
+}
+
+export type ProjectManagementModuleKey =
+  | "dictionary"
+  | "workflow"
+  | "scenarios"
+  | "environments"
+  | "deploymentSteps"
+  | "monitoring"
+  | "codeVersions"
+  | "todos"
+  | "folder";
+
+export interface ProjectManagementSummary {
+  projectId: string;
+  modules: Array<{ key: ProjectManagementModuleKey; label: string; count: number }>;
+  dictionary: {
+    systems: number;
+    tables: number;
+    fields: number;
+  };
+}
+
+export interface ProjectManagementSearchHit {
+  id: string;
+  moduleKey: ProjectManagementModuleKey;
+  entityType: string;
+  entityId: string;
+  title: string;
+  subtitle?: string;
+  excerpt?: string;
+  score: number;
+  updatedAt: string;
+}
+
+export interface ProjectManagementSearchResult {
+  query: string;
+  results: ProjectManagementSearchHit[];
+}
+
+export interface ProjectModuleItem {
+  id: string;
+  projectId: string;
+  moduleKey: ProjectManagementModuleKey;
+  parentId?: string;
+  title: string;
+  subtitle?: string;
+  sortOrder: number;
+  content: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectModuleItemInput {
+  parentId?: string | null;
+  title: string;
+  subtitle?: string | null;
+  sortOrder?: number;
+  content?: Record<string, unknown>;
+}
+
+export interface ProjectModuleItemPatch {
+  parentId?: string | null;
+  title?: string;
+  subtitle?: string | null;
+  sortOrder?: number;
+  content?: Record<string, unknown>;
+}
+
+export interface ProjectDictionarySystem {
+  id: string;
+  code: string;
+  name: string;
+  type?: string;
+  assetLayer?: string;
+  fieldCount: number;
+  tableCount: number;
+}
+
+export interface ProjectDictionaryTable {
+  id: string;
+  systemId?: string;
+  tableName: string;
+  tableCn?: string;
+  tableGroup?: string;
+  dataLayer?: string;
+  sourceKind?: string;
+  description?: string;
+  caliber?: string;
+  fieldCount: number;
+}
+
+export interface ProjectDictionaryCodeItem {
+  id?: string;
+  value: string;
+  description: string;
+  remark?: string;
+  sortOrder?: number;
+}
+
+export interface ProjectDictionaryCodeSet {
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string;
+  items: ProjectDictionaryCodeItem[];
+}
+
+export interface ProjectDictionaryFieldHit {
+  id: string;
+  systemId?: string;
+  systemName?: string;
+  systemCode?: string;
+  tableId?: string;
+  tableName?: string;
+  tableCn?: string;
+  fieldName: string;
+  fieldCn?: string;
+  fieldType?: string;
+  fieldLength?: string;
+  formatPattern?: string;
+  description?: string;
+  acquireLogic?: string;
+  codeValue?: string;
+  codeSetId?: string;
+  codeSetName?: string;
+  codeItems?: ProjectDictionaryCodeItem[];
+  mappedTable?: string;
+  mappedField?: string;
+  remark?: string;
+  score: number;
+}
+
+export interface ProjectDictionaryFieldDetail extends ProjectDictionaryFieldHit {
+  fieldLength?: string;
+  formatPattern?: string;
+  nullable?: string;
+  primaryKey: boolean;
+  required: boolean;
+  validationRule?: string;
+  codeValue?: string;
+  mappedFieldCn?: string;
+  dataSource?: string;
+  remark?: string;
+  tableDescription?: string;
+  tableCaliber?: string;
+  tableDataLayer?: string;
+  tableSourceKind?: string;
+  systemType?: string;
+  systemAssetLayer?: string;
+  systemDescription?: string;
+  extra?: Record<string, unknown>;
+}
+
+export interface ProjectDictionaryFieldSearchResult {
+  query: string;
+  results: ProjectDictionaryFieldHit[];
 }
 export interface ProbeConnectionsResult {
   probedAt: string;

@@ -21,6 +21,7 @@
 | AI 早报 | 早报生成、Skill 推荐、信息摘要 | `pnpm corpus prompt information-briefing`, `get_element`, `update_section_blocks` |
 | 导图 PPT | 文稿转导图、PPT 展示图 | `/api/mindmaps`, `get_subtree`, `update_element` |
 | 计划管理 | 计划、目标、任务、复盘、批量清理 | 优先 MCP：`plan_list`, `plan_get`, `task_list`, `task_complete`, `plan_decompose`, `analyze_progress`；服务离线/批量维护/排障时用 CLI：`pnpm --filter @ke/server run plan -- ...` |
+| 项目管理·数据字典 | 银行监管报送 Mapping、字段设计、场景口径、字段血缘、码值说明 | 先读 `docs/PROJECT_DICTIONARY_MAPPING_RULES.md`；按场景 title、口径、字段 Mapping 表、涉及字段、逻辑的固定模版维护 |
 | 项目实战 | 实战项目、PRD、开发任务 | `practice_list`, `practice_get`, `practice_create`, `practice_add_child`, `draft_prd`, `draft_child`, `adjust_child` |
 | 健康顾问 | 苹果健康同步、健康原始数据、训练/体重/睡眠/饮食复盘 | `pnpm rich -- api GET /api/health/timeline`, `pnpm rich -- api GET /api/health/intake/status`, `docs/APPLE_HEALTH_METRICS.md` |
 | 工具箱 | 小工具、锁屏、延迟动作 | `list_toolbox_tools`, `invoke_toolbox_tool` |
@@ -146,3 +147,4 @@ LIMIT 20;
 - 计划管理通过 GreatMe state 管理，任务完成必须写回 state；MCP 用 `task_complete`，CLI 用 `update day --done true`。
 - 批量维护计划数据时优先用计划管理 CLI，不要手写 SQL 改 `plans/goals/tasks`，除非 CLI 无法覆盖且已先备份。
 - 语料模板存在服务端数据层。Postgres 模式下，多台机器共享同一套模板。
+- 项目管理数据字典 / Mapping 必须遵守 `docs/PROJECT_DICTIONARY_MAPPING_RULES.md`。用户提出新的 Mapping 模版偏好时，先更新该手册，再考虑改 UI、数据库或 CLI。

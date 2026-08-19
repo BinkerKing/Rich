@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ProjectListView } from "./ProjectListView.js";
 import { ProjectWorkspace } from "./ProjectWorkspace.js";
 import "./ProjectsView.css";
@@ -17,8 +17,25 @@ import "./ProjectsView.css";
 export function ProjectsView(): ReactNode {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!selectedId) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      const target = event.target as HTMLElement | null;
+      const inputLike = target?.closest?.("input, textarea, [contenteditable='true']");
+      if (inputLike) return;
+      if (document.querySelector("[role='dialog'], dialog[open], .prj-drawer-overlay")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setSelectedId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedId]);
+
   if (selectedId) {
-    return <ProjectWorkspace projectId={selectedId} onBack={() => setSelectedId(null)} />;
+    return <ProjectWorkspace projectId={selectedId} />;
   }
   return <ProjectListView onPick={setSelectedId} />;
 }

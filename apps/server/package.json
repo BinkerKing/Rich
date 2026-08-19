@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "plan": "tsx src/cli/plan.ts",
     "db:migrate": "tsx scripts/migrate-to-sqlite.ts",
-    "db:migrate:postgres": "tsx scripts/migrate-sqlite-to-postgres.ts"
+    "db:migrate:postgres": "tsx scripts/migrate-sqlite-to-postgres.ts",
+    "pm:import:dictionary": "tsx scripts/import-project-dictionary.ts",
+    "pm:import:ops": "tsx scripts/import-project-ops.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.143",

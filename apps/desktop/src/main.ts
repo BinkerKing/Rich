@@ -49,6 +49,21 @@ function openRichExternalUrl(url: string): boolean {
   return true;
 }
 
+function handleRichWindowCommand(url: string, win: BrowserWindow): boolean {
+  if (!url.startsWith("rich://window/")) return false;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === "toggle-maximize") {
+      if (win.isMaximized()) win.unmaximize();
+      else win.maximize();
+      return true;
+    }
+  } catch (error) {
+    flog(`invalid rich window url ${url}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  return false;
+}
+
 // CJS-friendly module dir. esbuild outputs CJS so `__dirname` is available
 // directly; we don't need ESM's fileURLToPath dance.
 declare const __dirname: string;
@@ -211,6 +226,12 @@ function appIconPath(): string | undefined {
 
 function setDockIconIfAvailable() {
   if (process.platform !== "darwin" || !app.dock) return;
+  try {
+    (app as unknown as { setActivationPolicy?: (policy: "regular" | "accessory" | "prohibited") => boolean }).setActivationPolicy?.("regular");
+    app.dock.show();
+  } catch (error) {
+    flog(`dock show failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
   const iconPath = appIconPath();
   if (!iconPath) return;
   const icon = nativeImage.createFromPath(iconPath);
@@ -290,7 +311,11 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
     ...(icon ? { icon } : {}),
     show: false,
   });
-  win.once("ready-to-show", () => win.show());
+  win.setSkipTaskbar(false);
+  win.once("ready-to-show", () => {
+    if (process.platform === "darwin") app.show();
+    win.show();
+  });
 
   // macOS dock-icon UX: pressing the red close button should HIDE the window
   // rather than destroy it. The dock-icon `activate` handler then re-shows
@@ -308,6 +333,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
 
   // Open external links in the default browser, not new Electron windows.
   win.webContents.setWindowOpenHandler(({ url }) => {
+    if (handleRichWindowCommand(url, win)) return { action: "deny" };
     if (url.startsWith("rich://navigate")) {
       void navigateMainWindowFromUrl(url);
       return { action: "deny" };
@@ -320,6 +346,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
   win.webContents.on("will-navigate", (event, url) => {
     if (url.startsWith(`http://127.0.0.1:${port}/`) || url.startsWith(`http://localhost:${port}/`)) return;
     event.preventDefault();
+    if (handleRichWindowCommand(url, win)) return;
     if (url.startsWith("rich://navigate")) {
       void navigateMainWindowFromUrl(url);
       return;
@@ -345,7 +372,22 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
     // become drag regions for the window; interactive elements opt out.
     win.webContents.insertCSS(`
       .tv-topbar,
-      .learning-sidebar {
+      .learning-sidebar,
+      .prj-ws__head,
+      .prj__head,
+      .apps-launcher__head,
+      .app-launcher__head,
+      .mini-apps__head,
+      .mini-apps-header,
+      .riking-projects__head,
+      .health-view__head,
+      .gm-shell__head,
+      .mindmap-view__head,
+      .practice-view__head,
+      .practice-workspace__head,
+      .toolbox-view__head,
+      .admin-view__head,
+      [data-window-drag-region="true"] {
         -webkit-app-region: drag;
         user-select: none;
       }
@@ -362,7 +404,64 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
       .learning-sidebar [role="button"],
       .learning-sidebar [contenteditable="true"],
       .learning-sidebar [draggable="true"],
-      .learning-sidebar [data-draggable] {
+      .learning-sidebar [data-draggable],
+      .prj-ws__head button,
+      .prj-ws__head a,
+      .prj-ws__head input,
+      .prj-ws__head textarea,
+      .prj-ws__head select,
+      .prj-ws__head [role="button"],
+      .prj-ws__head [role="tab"],
+      .prj-ws__head [contenteditable="true"],
+      .prj__head button,
+      .prj__head a,
+      .prj__head input,
+      .prj__head textarea,
+      .prj__head select,
+      .apps-launcher__head button,
+      .apps-launcher__head a,
+      .apps-launcher__head input,
+      .app-launcher__head button,
+      .app-launcher__head a,
+      .app-launcher__head input,
+      .mini-apps__head button,
+      .mini-apps__head a,
+      .mini-apps__head input,
+      .mini-apps-header button,
+      .mini-apps-header a,
+      .mini-apps-header input,
+      .riking-projects__head button,
+      .riking-projects__head a,
+      .riking-projects__head input,
+      .health-view__head button,
+      .health-view__head a,
+      .health-view__head input,
+      .gm-shell__head button,
+      .gm-shell__head a,
+      .gm-shell__head input,
+      .mindmap-view__head button,
+      .mindmap-view__head a,
+      .mindmap-view__head input,
+      .practice-view__head button,
+      .practice-view__head a,
+      .practice-view__head input,
+      .practice-workspace__head button,
+      .practice-workspace__head a,
+      .practice-workspace__head input,
+      .toolbox-view__head button,
+      .toolbox-view__head a,
+      .toolbox-view__head input,
+      .admin-view__head button,
+      .admin-view__head a,
+      .admin-view__head input,
+      [data-window-drag-region="true"] button,
+      [data-window-drag-region="true"] a,
+      [data-window-drag-region="true"] input,
+      [data-window-drag-region="true"] textarea,
+      [data-window-drag-region="true"] select,
+      [data-window-drag-region="true"] [role="button"],
+      [data-window-drag-region="true"] [role="tab"],
+      [data-window-drag-region="true"] [contenteditable="true"] {
         -webkit-app-region: no-drag;
       }
     `).catch(() => { /* SPA route changes may race; ignore */ });
@@ -969,13 +1068,13 @@ app.on("activate", async () => {
   //   2. Main window is minimized → restore.
   //   3. Main window truly gone (rare; cold start path) → recreate using
   //      the EXISTING server port; don't allocate a new one.
+  if (process.platform === "darwin") app.show();
   if (mainWindow && !mainWindow.isDestroyed()) {
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    if (!mainWindow.isVisible()) mainWindow.show();
-    mainWindow.focus();
+    bringRichToFront(mainWindow);
     return;
   }
   if (serverPort != null) {
-    await openMainWindow(serverPort);
+    const win = await openMainWindow(serverPort);
+    bringRichToFront(win);
   }
 });

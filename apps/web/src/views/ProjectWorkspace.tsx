@@ -1,33 +1,48 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import type { DeploymentStepContent, Element, ProjectContent } from "@ke/domain";
 import { useStore } from "../state/store.js";
-import { api, type ProjectFolderNode, type ProjectFolderScanResult } from "../api/client.js";
+import {
+  api,
+  type ProjectFolderNode,
+  type ProjectFolderScanResult,
+  type ProjectManagementSummary,
+} from "../api/client.js";
 import { TopologyCanvas } from "./TopologyCanvas.js";
+import {
+  CodeVersionsSection,
+  DictionarySection,
+  EnvironmentsSection,
+  MonitoringSection,
+  ProjectDeploymentStepsSection,
+  ProjectManagementSearchBar,
+  PROJECT_MANAGEMENT_SECTIONS,
+  ScenariosSection,
+  TodosSection,
+  WorkflowSection,
+  type ProjectManagementSection,
+} from "./project-management/ProjectManagementModules.js";
 
-interface Props { projectId: string; onBack: () => void }
+interface Props { projectId: string }
 
-type Section = "overview" | "deploy" | "deploySteps" | "code" | "todos" | "faq" | "folder" | "reports";
-
-const SECTIONS: Array<{ id: Section; label: string; icon: string }> = [
-  { id: "overview", label: "概览",   icon: "⌂" },
-  { id: "deploy",   label: "环境配置", icon: "🚀" },
-  { id: "deploySteps", label: "部署步骤", icon: "☑️" },
-  { id: "code",     label: "代码",   icon: "🌿" },
-  { id: "todos",    label: "待办",   icon: "✅" },
-  { id: "faq",      label: "答疑",   icon: "💬" },
-  { id: "folder",   label: "文件夹", icon: "📁" },
-  { id: "reports",  label: "报告",   icon: "📰" },
-];
-
-export function ProjectWorkspace({ projectId, onBack }: Props): ReactNode {
+export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const project = useStore(s => s.elements.get(projectId));
-  const [section, setSection] = useState<Section>("overview");
+  const [section, setSection] = useState<ProjectManagementSection>("dictionary");
+  const [summary, setSummary] = useState<ProjectManagementSummary | null>(null);
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchFocusSignal, setSearchFocusSignal] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api.getProjectManagementSummary(projectId)
+      .then(next => { if (!cancelled) setSummary(next); })
+      .catch(() => { if (!cancelled) setSummary(null); });
+    return () => { cancelled = true; };
+  }, [projectId]);
 
   if (!project) {
     return (
       <div className="prj-ws">
         <header className="prj-ws__head">
-          <button className="prj-ws__back" onClick={onBack}>← 返回</button>
           <span className="prj-ws__title">项目不存在</span>
         </header>
         <div className="prj-ws__empty">找不到 id={projectId}。可能已被删除。</div>
@@ -39,38 +54,68 @@ export function ProjectWorkspace({ projectId, onBack }: Props): ReactNode {
   const statusLabel = c.status === "archived" ? "已归档"
                     : c.status === "paused" ? "暂停"
                     : "进行中";
+  const toggleWindowMaximize = (event: MouseEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest?.("button, a, input, textarea, select, [role='button'], [role='tab'], [contenteditable='true']")) return;
+    window.location.href = "rich://window/toggle-maximize";
+  };
 
   return (
     <div className="prj-ws">
-      <header className="prj-ws__head">
-        <button className="prj-ws__back" onClick={onBack} title="返回项目列表">← 返回</button>
-        <span className="prj-ws__title">{project.title}</span>
-        <span className={`prj-ws__status prj-ws__status--${c.status ?? "active"}`}>{statusLabel}</span>
-        {c.owner && <span className="prj-ws__owner">· {c.owner}</span>}
-        <div style={{ flex: 1 }} />
+      <header className="prj-ws__head" onDoubleClick={toggleWindowMaximize}>
+        <div className="prj-ws__project-title" aria-label="当前项目">
+          <span className="prj-ws__title">{project.title}</span>
+          <span className={`prj-ws__status prj-ws__status--${c.status ?? "active"}`}>{statusLabel}</span>
+          {c.owner && <span className="prj-ws__owner">· {c.owner}</span>}
+        </div>
+        <nav className="prj-ws__nav" role="tablist" aria-label="项目管理菜单">
+          {PROJECT_MANAGEMENT_SECTIONS.map(s => (
+            <button key={s.id} type="button" role="tab"
+              aria-label={s.label}
+              title={s.label}
+              data-section={s.id}
+              aria-selected={section === s.id}
+              className={`prj-ws__nav-btn${section === s.id ? " is-active" : ""}`}
+              onClick={() => setSection(s.id)}>
+              <span className="prj-ws__nav-icon" aria-hidden="true">{s.icon}</span>
+              <span className="prj-ws__nav-label">{s.label}</span>
+            </button>
+          ))}
+          <button
+            type="button"
+            className={`prj-ws__nav-btn prj-ws__nav-btn--search${searchVisible ? " is-active" : ""}`}
+            data-section="globalSearch"
+            aria-label="全局搜索"
+            title="全局搜索"
+            onClick={() => {
+              setSearchVisible(value => !value);
+              setSearchFocusSignal(value => value + 1);
+            }}>
+            <span className="prj-ws__nav-icon" aria-hidden="true">⌕</span>
+            <span className="prj-ws__nav-label">全局搜索</span>
+          </button>
+        </nav>
+        <div className={`prj-ws__head-search${searchVisible ? " is-open" : ""}`}>
+          <ProjectManagementSearchBar
+            projectId={project.id}
+            onJump={setSection}
+            autoFocusSignal={searchFocusSignal}
+          />
+        </div>
       </header>
 
-      <nav className="prj-ws__nav" role="tablist">
-        {SECTIONS.map(s => (
-          <button key={s.id} type="button" role="tab"
-            aria-selected={section === s.id}
-            className={`prj-ws__nav-btn${section === s.id ? " is-active" : ""}`}
-            onClick={() => setSection(s.id)}>
-            <span className="prj-ws__nav-icon">{s.icon}</span>
-            <span>{s.label}</span>
-          </button>
-        ))}
-      </nav>
-
-      <div className="prj-ws__body">
-        {section === "overview" && <OverviewSection project={project} />}
-        {section === "deploy"   && <DeploySection project={project} />}
-        {section === "deploySteps" && <DeployStepsSection project={project} />}
-        {section === "code"     && <PlaceholderSection title="代码 / 版本"   hint="批次 2 接入：仓库列表 + 默认分支 + 版本发布历史 + changelog" />}
-        {section === "todos"    && <PlaceholderSection title="项目待办"     hint="批次 2 接入：dev-task 三栏看板 todo/doing/done，拖拽改状态" />}
-        {section === "faq"      && <PlaceholderSection title="业务答疑"     hint="批次 2 接入：FAQ Q/A 卡片，标签筛选 + 搜索" />}
-        {section === "folder"   && <FolderSection project={project} />}
-        {section === "reports"  && <PlaceholderSection title="日报 / 周报"  hint="批次 3 接入：自动生成 + 飞书推送 + 历史报告浏览" />}
+      <div className="prj-ws__main">
+        <div className="prj-ws__body">
+          {section === "dictionary" && <DictionarySection project={project} summary={summary} />}
+          {section === "workflow" && <WorkflowSection project={project} summary={summary} />}
+          {section === "scenarios" && <ScenariosSection project={project} summary={summary} />}
+          {section === "environments" && <EnvironmentsSection project={project} summary={summary} />}
+          {section === "deploymentSteps" && <ProjectDeploymentStepsSection project={project} summary={summary} />}
+          {section === "monitoring" && <MonitoringSection project={project} summary={summary} />}
+          {section === "codeVersions" && <CodeVersionsSection project={project} summary={summary} />}
+          {section === "todos" && <TodosSection project={project} summary={summary} />}
+          {section === "folder" && <FolderSection project={project} />}
+        </div>
       </div>
     </div>
   );

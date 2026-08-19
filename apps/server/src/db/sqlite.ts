@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { SQLITE_PROJECT_MANAGEMENT_SCHEMA } from "./projectManagementSchema.js";
 
 /**
  * Open / create the SQLite database, run idempotent schema migrations, and
@@ -391,12 +392,17 @@ function applySchema(db: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_health_alert_status ON health_alert(status, created_at DESC);
   `);
+  db.exec(SQLITE_PROJECT_MANAGEMENT_SCHEMA);
 
   // Idempotent column additions for older DBs created before these fields existed.
   ensureColumn(db, "qa", "anchor", "TEXT");
   ensureColumn(db, "improvement_tasks", "assigned_agent_id", "TEXT");
   ensureColumn(db, "improvement_tasks", "assigned_at", "TEXT");
   ensureColumn(db, "elements", "status", "TEXT");
+  ensureColumn(db, "pm_data_tables", "table_group", "TEXT");
+  ensureColumn(db, "pm_data_tables", "data_layer", "TEXT");
+  ensureColumn(db, "pm_data_tables", "source_kind", "TEXT");
+  ensureColumn(db, "pm_data_fields", "format_pattern", "TEXT");
 }
 
 function ensureColumn(db: Database.Database, table: string, column: string, type: string) {

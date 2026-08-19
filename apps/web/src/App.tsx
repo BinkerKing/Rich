@@ -213,8 +213,12 @@ function MainApp() {
       {appView === "tree" && (rootId ? <TreeView /> : <InputView />)}
       <Lightbox />
       <CommandPalette />
-      <MascotDock />
-      <FloatingTaskDock />
+      {appView === "home" && (
+        <>
+          <MascotDock />
+          <FloatingTaskDock />
+        </>
+      )}
     </>
   );
 }

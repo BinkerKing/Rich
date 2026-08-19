@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { POSTGRES_PROJECT_MANAGEMENT_SCHEMA } from "./projectManagementSchema.js";
 
 export interface PgPool {
   pool: Pool;
@@ -385,4 +386,5 @@ async function applySchema(pool: Pool): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_health_alert_status ON health_alert(status, created_at DESC);
   `);
+  await pool.query(POSTGRES_PROJECT_MANAGEMENT_SCHEMA);
 }
