@@ -11,6 +11,7 @@
 5. 不确定结构时先读：`get_element` / `get_subtree` / `practice_get` / `plan_get`。
 6. 发现 Rich 缺能力时，用 `create_improvement` 记录系统改造任务。
 7. 对应 Rich 按钮的操作，先查 `docs/RICH_CLI_COVERAGE.md`。按钮只要涉及后端数据、AI 生成、上传、工具调用或删除，都必须能通过 MCP / CLI 执行；纯 UI 展开、筛选、弹窗开关不需要 CLI。
+8. AI 调用先看场景。Rich 使用统一 AI 场景路由，配置在环境变量 `RICH_AI_<SCENARIO>_MODEL`，状态在 `/api/admin/engine`。不要假设所有能力都走 Hermes 或 Codex。
 
 ## 模块索引
 
@@ -25,6 +26,30 @@
 | 项目实战 | 实战项目、PRD、开发任务、整改建议 | practice → group → typed children；新增子项优先传 group id | `practice_list`; `practice_get`; `practice_create`; `practice_add_child`; `draft_prd`; `draft_child`; CLI `pnpm rich -- ai guided-practice --json ...` |
 | 工具箱 | 锁屏、延迟执行、小工具调用 | 先列工具 schema，再调用 | `list_toolbox_tools`; `invoke_toolbox_tool`; `pnpm rich -- toolbox ...` |
 | 后台 | 语料、学习手册、系统改造任务 | 语料解决“怎么说”，学习手册解决“怎么用 Rich” | `get_rich_system_manual`; `pnpm corpus ...`; `pnpm rich -- improvements ...`; `create_improvement`; `claim_improvement`; `update_improvement` |
+
+## AI 引擎与模型路由
+
+Rich 的 AI 入口按场景选择模型：
+
+| 场景 | 默认模型 | 用途 |
+| --- | --- | --- |
+| `chat` | `hermes` | 首页聊天、快捷聊天，已支持服务端上下文落库 |
+| `agent-task` | `hermes` | 需要操作 Rich、调用 MCP、执行多步骤任务 |
+| `content` | `hermes` | AI 早报、汇报、文案和结构化内容产出 |
+| `analysis` | `hermes` | 进度分析、信息分析、数据分析 |
+| `document` | `hermes` | 文档理解、摘要和材料整理 |
+| `coding` | `codex` | 代码分析、实现、调试 |
+| `mindmap` / `image` | `codex` | 导图生成和图片生成队列 |
+
+可以通过环境变量覆盖：
+
+```bash
+RICH_AI_CHAT_MODEL=bailian
+RICH_AI_ANALYSIS_MODEL=bailian
+RICH_AI_CODING_MODEL=codex
+```
+
+百炼 / DashScope 这类 OpenAI 兼容模型只允许通过本机环境变量配置密钥，例如 `~/.rich-ai.env`。不要把 API Key、Token Plan 命令或任何密钥写入 Git、手册、PRD、任务描述或聊天历史。
 
 ## 统一 Rich CLI
 

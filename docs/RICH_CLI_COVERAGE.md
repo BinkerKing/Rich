@@ -27,7 +27,7 @@ pnpm rich -- sse POST /api/<stream-path> --json '{"body":"when needed"}'
 | Home / global chat | Send text or image message | `pnpm rich -- chat stream --json '{"messages":[...]}'`; attachments via `pnpm rich -- chat-attachments upload --file image.png` |
 | Home / global chat | Attach image | `pnpm rich -- chat-attachments upload --file image.png` |
 | Home / global chat | Play mascot animation | `pnpm rich -- mascot play --json '{"name":"dance","durationMs":3000}'`; MCP `play_mascot_animation` |
-| Home / history | View/select history | UI-only; local chat history surface. No data mutation. |
+| Home / history | View/select history | `pnpm rich -- api GET /api/chat/conversations`; `pnpm rich -- api GET /api/chat/conversations/<id>/messages` |
 | Knowledge tree | List/read topics | `pnpm rich -- elements list`; MCP `list_topics`, `get_element`, `get_subtree` |
 | Knowledge tree | Create element | `pnpm rich -- elements create --json '{"title":"...","type":"topic","parentId":"..."}'`; MCP `create_element` |
 | Knowledge tree | Edit title/type/difficulty/content | `pnpm rich -- elements patch <id> --json '{...}'`; MCP `update_element`, `update_section_blocks` |
@@ -62,7 +62,7 @@ These do not need CLI because they do not change Rich state or perform an extern
 - Switch tab, open/close modal, cancel modal, collapse/expand local tree nodes.
 - Select an element/card, scroll history, preview a modal image, open fullscreen preview.
 - Local text editor toolbar actions before save. The persisted operation is `elements sections`.
-- History row selection and history overlay toggle. The durable data is chat history storage, not a backend operation.
+- History row selection and history overlay toggle. Durable chat history itself is backend data and can be read through `/api/chat/conversations`.
 
 ## Agent Rule
 
