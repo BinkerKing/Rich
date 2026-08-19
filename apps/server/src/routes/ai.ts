@@ -10,7 +10,7 @@ import type { SignalsRepo } from "../repos/SignalsRepo.js";
 import type { QARepo } from "../repos/QARepo.js";
 import type { AnnotationsRepo } from "../repos/AnnotationsRepo.js";
 import { buildAskPrompt } from "../ai/prompts/ask.js";
-import { pickAdapter } from "../ai/pickAdapter.js";
+import { pickScenarioAdapter } from "../ai/pickAdapter.js";
 import { recordSignal } from "../ai/signalRecorder.js";
 import { RICHNESS_SPECS } from "../ai/prompts/generateTree.js";
 import { adoptImagesInContent } from "../lib/imageAssets.js";
@@ -158,8 +158,8 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
   // ----- great-me: Hermes-backed personal cockpit brain -----
   // This is intentionally a single JSON endpoint instead of SSE: the GreatMe
   // UI needs a compact decision packet (missions, PDCA, axis adjustments)
-  // rather than token-by-token prose. By default pickAdapter() selects Hermes,
-  // because Hermes is adapters[0] in buildApp().
+  // rather than token-by-token prose. Model routing is scenario-based, so
+  // this defaults through the planning scenario unless the caller overrides it.
   // Input schema. `state` is an opaque snapshot of the GreatMe cockpit —
   // its shape is owned by the view; we don't reparse it here, but we do
   // cap its serialised size so a runaway client can't blow up the prompt.
@@ -184,7 +184,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     if (JSON.stringify(state).length > GREAT_ME_STATE_MAX_BYTES) {
       return c.json({ error: `state too large (>${GREAT_ME_STATE_MAX_BYTES} bytes)` }, 413);
     }
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "planning", model);
     const reqId = newReqId();
     const t0 = Date.now();
     log.info("ai.op.start", { reqId, op: "/api/ai/great-me", mode, adapter: adapter.name });
@@ -243,7 +243,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     }
     const { intent, targetEnd, model } = parsed.data;
     const today = new Date().toISOString().slice(0, 10);
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "planning", model);
     const reqId = newReqId();
     const t0 = Date.now();
     log.info("ai.op.start", { reqId, op: "/api/ai/decompose-plan", adapter: adapter.name });
@@ -310,7 +310,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
     }
     const { state, metrics, model } = parsed.data;
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "analysis", model);
     const reqId = newReqId();
     const t0 = Date.now();
     log.info("ai.op.start", { reqId, op: "/api/ai/analyze-progress", adapter: adapter.name });
@@ -380,7 +380,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
     }
     const { weekOf, weekTasks, weekGoals, activePlans, lastReview, metrics, model } = parsed.data;
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "review", model);
     const reqId = newReqId();
     const t0 = Date.now();
     log.info("ai.op.start", { reqId, op: "/api/ai/draft-review", adapter: adapter.name, weekOf });
@@ -456,7 +456,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
     }
     const { practice, children, extraContext, model } = parsed.data;
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "project-practice", model);
     const reqId = newReqId();
     const t0 = Date.now();
     log.info("ai.op.start", { reqId, op: "/api/ai/draft-prd", adapter: adapter.name });
@@ -511,7 +511,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
     }
     const { practice, groupType, existingTitles, direction, model } = parsed.data;
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "project-practice", model);
     const reqId = newReqId();
     const t0 = Date.now();
     log.info("ai.op.start", { reqId, op: "/api/ai/draft-child", adapter: adapter.name, groupType });
@@ -581,7 +581,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
     }
     const { stage, userInput, draft, messages, model } = parsed.data;
-    const adapter = pickAdapter(deps.adapters, model ?? "hermes");
+    const adapter = pickScenarioAdapter(deps.adapters, "project-practice", model);
     const reqId = newReqId();
     const t0 = Date.now();
     log.info("ai.op.start", { reqId, op: "/api/ai/guided-practice", adapter: adapter.name, stage });
@@ -643,7 +643,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       return c.json({ error: "schema validation failed", issues: parsed.error.issues }, 400);
     }
     const { practice, groupType, current, direction, model } = parsed.data;
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "project-practice", model);
     const reqId = newReqId();
     const t0 = Date.now();
     log.info("ai.op.start", { reqId, op: "/api/ai/adjust-child", adapter: adapter.name, groupType });
@@ -689,7 +689,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     const text = typeof body.text === "string" ? body.text.trim() : "";
     const model = body.model as "claude-code" | "codex" | undefined;
     if (!text) return c.json({ error: "text required" }, 400);
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "agent-task", model);
     const signal = c.req.raw.signal;
 
     // Step 1: AI keyword extraction.
@@ -739,7 +739,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     const model = body.model as "claude-code" | "codex" | undefined;
     const richness = (body.richness ?? 2) as RichnessLevel;
     if (!topic) return c.json({ error: "topic required" }, 400);
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "knowledge", model);
     const signal = c.req.raw.signal;
     const reqId = newReqId();
     const t0 = Date.now();
@@ -793,7 +793,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     const model = body.model as "claude-code" | "codex" | undefined;
     const element = await deps.elements.get(elementId);
     if (!element) return c.json({ error: "element not found" }, 404);
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "knowledge", model);
     const signal = c.req.raw.signal;
     const reqId = newReqId();
     const logCtx = { reqId, op: c.req.path, elementId, adapter: adapter.name };
@@ -845,7 +845,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     if (!feedback) return c.json({ error: "feedback required" }, 400);
     const element = await deps.elements.get(elementId);
     if (!element) return c.json({ error: "element not found" }, 404);
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "review", model);
     const beforeRichness = element.metadata.richness;
     const targetRichness = Math.max(beforeRichness, 3) as RichnessLevel;
     // Record the feedback signal up front so it's preserved even if refine fails.
@@ -939,7 +939,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     if (sectionIndex < 0) return c.json({ error: "section not found in this element" }, 404);
     const targetSection = sectionsRaw[sectionIndex] as { id: string; title: string; blocks: unknown[] };
 
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "review", model);
     await recordSignal(deps.signals, {
       ts: new Date().toISOString(), type: "user.feedback", manual: "knowledge",
       elementId, adapter: adapter.name,
@@ -1014,7 +1014,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     const parent = await deps.elements.get(parentId);
     if (!parent) return c.json({ error: "parent not found" }, 404);
 
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "knowledge", model);
     const sig = c.req.raw.signal;
     const reqId = newReqId();
     const logCtx = { reqId, op: c.req.path, elementId: parentId, adapter: adapter.name };
@@ -1058,7 +1058,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     const parent = await deps.elements.get(elementId);
     if (!parent) return c.json({ error: "element not found" }, 404);
     const existingChildren = await loadChildren(deps, elementId);
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "knowledge", model);
     const signal = c.req.raw.signal;
     const reqId = newReqId();
     const logCtx = { reqId, op: c.req.path, elementId, adapter: adapter.name };
@@ -1101,7 +1101,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     if (!direction) return c.json({ error: "direction required" }, 400);
     const element = await deps.elements.get(elementId);
     if (!element) return c.json({ error: "element not found" }, 404);
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "knowledge", model);
     const signal = c.req.raw.signal;
     const reqId = newReqId();
     const logCtx = { reqId, op: c.req.path, elementId, adapter: adapter.name };
@@ -1145,7 +1145,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     const center = await deps.elements.get(elementId);
     if (!center) return c.json({ error: "element not found" }, 404);
     const availableElements = await loadSubtreeElements(deps, elementId, 2);
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "knowledge", model);
     const signal = c.req.raw.signal;
     const reqId = newReqId();
     const logCtx = { reqId, op: c.req.path, elementId, adapter: adapter.name };
@@ -1191,7 +1191,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     if (signals.length === 0) {
       return c.json({ added: 0, skipped: 0, rules: [], signalsReviewed: 0, note: "no signals in window" });
     }
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "review", model);
     const reqId = newReqId();
     const t0 = Date.now();
     log.info("ai.review.start", { reqId, manual: manualName, signalCount: signals.length, since });
@@ -1243,7 +1243,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     const element = await deps.elements.get(elementId);
     if (!element) return c.json({ error: "element not found" }, 404);
 
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "chat", model);
     const history = await deps.qa.listForElement(elementId);
     const manual = await knowledgeManualFragment(deps.aiDir);
     const scopedQuestion = contextText
@@ -1315,7 +1315,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     if (!elementId || !markedText) return c.json({ error: "elementId + markedText required" }, 400);
     const element = await deps.elements.get(elementId);
     if (!element) return c.json({ error: "element not found" }, 404);
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "analysis", model);
     const sig = c.req.raw.signal;
     const reqId = newReqId();
     const logCtx = { reqId, op: c.req.path, elementId, adapter: adapter.name, annotationId };
@@ -1402,7 +1402,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     // editorial choice the user should make.
     const parent = await deps.elements.get("ai-news");
     if (!parent) return c.json({ error: "ai-news topic not found; create it first" }, 404);
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "content", model);
     const signal = c.req.raw.signal;
     const reqId = newReqId();
     const t0 = Date.now();

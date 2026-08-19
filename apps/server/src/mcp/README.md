@@ -88,9 +88,10 @@ You: 写好了!
 - **Task tracking**: In-memory `Map<taskId, TaskRecord>` in
   `apps/server/src/mcp/tasks.ts`. No persistence — process restart
   drops queued/running tasks.
-- **LLM routing**: All Layer 2 tools use Rich's `pickAdapter()`,
-  defaulting to whatever Rich.app's index.ts configures. Pass
-  `model: "claude-code" | "codex"` in tool args to override.
+- **LLM routing**: Layer 2 tools use Rich's scenario model router
+  (`knowledge`, `planning`, `analysis`, `content`, `project-practice`).
+  Pass `model: "claude-code" | "codex" | "hermes"` in tool args to
+  override a specific call.
 
 ## Debugging
 

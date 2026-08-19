@@ -8,7 +8,7 @@ import { z } from "zod";
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
 import type { RelationsRepo } from "../repos/RelationsRepo.js";
 import type { AIAdapter } from "../ai/adapter.js";
-import { pickAdapter } from "../ai/pickAdapter.js";
+import { pickScenarioAdapter } from "../ai/pickAdapter.js";
 import { runDraftPrd, runDraftChild, runAdjustChild } from "../ai/operations.js";
 import type { Inquiry } from "../ai/operations.js";
 import type { Element, ElementType } from "@ke/domain";
@@ -344,7 +344,7 @@ export function registerPracticeTools(
     async ({ practiceId, extraContext, model }) => {
       const p = await elements.get(practiceId);
       if (!p || p.type !== "practice") return err(`Practice ${practiceId} not found`);
-      const adapter = pickAdapter(adapters, model);
+      const adapter = pickScenarioAdapter(adapters, "project-practice", model);
       if (!(await adapter.available())) return err(`${adapter.name} unavailable`);
 
       // 新结构：practice → groups → 实际子元。draft_prd 需要扁平化所有非 group 后代
@@ -510,7 +510,7 @@ export function registerPracticeTools(
     async ({ practiceId, groupType, direction, model }) => {
       const p = await elements.get(practiceId);
       if (!p || p.type !== "practice") return err(`Practice ${practiceId} not found`);
-      const adapter = pickAdapter(adapters, model);
+      const adapter = pickScenarioAdapter(adapters, "project-practice", model);
       if (!(await adapter.available())) return err(`${adapter.name} unavailable`);
 
       const GROUP_TITLE: Record<string, string> = {
@@ -602,7 +602,7 @@ export function registerPracticeTools(
       }
       if (!practice) return err(`Could not find parent practice for ${elementId}`);
 
-      const adapter = pickAdapter(adapters, model);
+      const adapter = pickScenarioAdapter(adapters, "project-practice", model);
       if (!(await adapter.available())) return err(`${adapter.name} unavailable`);
 
       let result: import("../ai/operations.js").AdjustChildResult | null = null;

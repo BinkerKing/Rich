@@ -13,7 +13,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { GreatMeRepo } from "../repos/GreatMeRepo.js";
 import type { AIAdapter } from "../ai/adapter.js";
-import { pickAdapter } from "../ai/pickAdapter.js";
+import { pickScenarioAdapter } from "../ai/pickAdapter.js";
 import { runDecomposePlan, runAnalyzeProgress } from "../ai/operations.js";
 
 /* -------------------------------------------------------------------------- */
@@ -637,7 +637,7 @@ export function registerPlanTools(
       model: z.enum(["claude-code", "codex", "hermes"]).optional().describe("Defaults to hermes."),
     },
     async ({ intent, targetEnd, model }) => {
-      const adapter = pickAdapter(adapters, model);
+      const adapter = pickScenarioAdapter(adapters, "planning", model);
       if (!(await adapter.available())) return err(`${adapter.name} unavailable`);
       const today = todayYmd();
 
@@ -721,7 +721,7 @@ export function registerPlanTools(
       model: z.enum(["claude-code", "codex", "hermes"]).optional(),
     },
     async ({ model }) => {
-      const adapter = pickAdapter(adapters, model);
+      const adapter = pickScenarioAdapter(adapters, "analysis", model);
       if (!(await adapter.available())) return err(`${adapter.name} unavailable`);
       const s = await loadState(greatMe);
 

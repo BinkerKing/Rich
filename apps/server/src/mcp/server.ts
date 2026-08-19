@@ -10,7 +10,7 @@ import type { QARepo } from "../repos/QARepo.js";
 import type { AnnotationsRepo } from "../repos/AnnotationsRepo.js";
 import type { Signal, Relation, LearningPath } from "@ke/domain";
 import type { AIAdapter } from "../ai/adapter.js";
-import { pickAdapter } from "../ai/pickAdapter.js";
+import { pickScenarioAdapter } from "../ai/pickAdapter.js";
 import {
   refineElement,
   expandElement,
@@ -569,7 +569,7 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
       if (!el) {
         return { isError: true, content: [{ type: "text", text: `Element ${element_id} not found` }] };
       }
-      const adapter = pickAdapter(deps.adapters, model);
+      const adapter = pickScenarioAdapter(deps.adapters, "knowledge", model);
       const queued = enqueue(
         "refine",
         async () => {
@@ -614,7 +614,7 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
         const c = await deps.elements.get(cid);
         if (c) existingChildren.push(c);
       }
-      const adapter = pickAdapter(deps.adapters, model);
+      const adapter = pickScenarioAdapter(deps.adapters, "knowledge", model);
       const queued = enqueue(
         "expand",
         async () => {
@@ -654,7 +654,7 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
       if (!el) {
         return { isError: true, content: [{ type: "text", text: `Element ${element_id} not found` }] };
       }
-      const adapter = pickAdapter(deps.adapters, model);
+      const adapter = pickScenarioAdapter(deps.adapters, "knowledge", model);
       const queued = enqueue(
         "extend",
         async () => {
@@ -695,7 +695,7 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
           content: [{ type: "text", text: "ai-news parent topic not found; create it first via create_element({ title: 'AI 早报', type: 'topic' }) — then the id 'ai-news' is auto-assigned by the user." }],
         };
       }
-      const adapter = pickAdapter(deps.adapters, model);
+      const adapter = pickScenarioAdapter(deps.adapters, "content", model);
       const queued = enqueue(
         "generate_news",
         async () => {
@@ -776,7 +776,7 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
         return { isError: true, content: [{ type: "text", text: `Element ${center_id} not found` }] };
       }
       const allElements = await deps.elements.list();
-      const adapter = pickAdapter(deps.adapters, model);
+      const adapter = pickScenarioAdapter(deps.adapters, "knowledge", model);
       const queued = enqueue(
         "generate_paths",
         async () => {

@@ -5,7 +5,7 @@ import type { AIAdapter } from "../ai/adapter.js";
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
 import type { RelationsRepo } from "../repos/RelationsRepo.js";
 import type { SignalsRepo } from "../repos/SignalsRepo.js";
-import { pickAdapter } from "../ai/pickAdapter.js";
+import { pickScenarioAdapter } from "../ai/pickAdapter.js";
 import { generateMindmap, generateTreeFor } from "../ai/operations.js";
 import { recordSignal } from "../ai/signalRecorder.js";
 import { imageQueue } from "../ai/imageQueue.js";
@@ -567,7 +567,7 @@ export function mindmapsRoutes(deps: MindmapsRoutesDeps): Hono {
     const titleHint = typeof body.titleHint === "string" ? body.titleHint : undefined;
     const audience = typeof body.audience === "string" ? body.audience : undefined;
     const model = body.model as "claude-code" | "codex" | undefined;
-    const adapter = pickAdapter(deps.adapters, model);
+    const adapter = pickScenarioAdapter(deps.adapters, "mindmap", model);
     const signal = c.req.raw.signal;
     const t0 = Date.now();
     log.info("ai.op.start", { op: "/api/mindmaps/generate", adapter: adapter.name });
