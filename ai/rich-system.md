@@ -13,6 +13,7 @@
 7. 对应 Rich 按钮的操作，先查 `docs/RICH_CLI_COVERAGE.md`。按钮只要涉及后端数据、AI 生成、上传、工具调用或删除，都必须能通过 MCP / CLI 执行；纯 UI 展开、筛选、弹窗开关不需要 CLI。
 8. AI 调用先看场景。Rich 使用统一 AI 场景路由，配置在环境变量 `RICH_AI_<SCENARIO>_MODEL`，状态在 `/api/admin/engine`。不要假设所有能力都走 Hermes 或 Codex。
 9. Rich 聊天上下文由服务端负责。Agent 不要依赖浏览器临时消息作为唯一上下文；长对话会被压缩成摘要并随最近消息一起注入模型。
+10. 非聊天 AI 操作必须把项目、元素、计划、手册、Mapping 规则等上下文显式传入。不要因为用户曾经聊过某件事，就假设当前接口自动知道。
 
 ## 模块索引
 
@@ -62,6 +63,17 @@ RICH_AI_CODING_MODEL=codex
 - 摘要刷新使用 `analysis` 场景路由，因此可以切到 Hermes、Bailian 或未来其他模型。
 
 Agent 执行跨轮任务时，应优先读取聊天历史或调用相关 Rich 数据接口确认状态，不要把一次模型响应当作完整事实来源。
+
+### 结构化 AI 操作上下文
+
+`/api/ai/*` 这类接口不是普通聊天。Rich 会给每个结构化 AI 操作补一段统一上下文，说明当前 operation、scenario、事实来源和输出约束。
+
+Agent 规则：
+
+- 需要操作 Rich 数据时，先读对应数据，再把数据放入接口请求。
+- 需要风格模板时，先读 `corpus_prompt`，把模板作为上下文传入。
+- 需要项目管理 Mapping 规则时，先读 `docs/PROJECT_DICTIONARY_MAPPING_RULES.md`。
+- 如果上下文不足，返回待确认问题或创建系统改造任务，不要凭空补齐。
 
 ## 统一 Rich CLI
 
