@@ -317,6 +317,14 @@ interface EngineStats {
 interface EnginePayload {
   ts: string;
   adapters: { name: string; available: boolean }[];
+  routing?: {
+    scenarios: {
+      scenario: string;
+      adapter: string;
+      source: "request" | "env" | "default" | "fallback";
+      env: string;
+    }[];
+  };
   uptimeSec: number;
   childProcesses: number;
   signalsTotal: number;
@@ -384,6 +392,20 @@ function EngineTab() {
                 </dl>
               </EngineCard>
             </section>
+
+            {data.routing?.scenarios && (
+              <EngineCard title="场景模型路由" subtitle="按使用场景选择 AI 引擎">
+                <div className="admin-routing-grid">
+                  {data.routing.scenarios.map(route => (
+                    <div className="admin-routing-chip" key={route.scenario}>
+                      <span>{route.scenario}</span>
+                      <strong>{route.adapter}</strong>
+                      <em>{route.source === "env" ? route.env : route.source}</em>
+                    </div>
+                  ))}
+                </div>
+              </EngineCard>
+            )}
 
             <section className="admin-engine__row">
               <StatsCard title="最近 1 小时" stats={data.stats.lastHour} />

@@ -6,6 +6,7 @@ import type { Signal } from "@ke/domain";
 import { readAllOpRecords, reduceToFinal } from "../ai/aiOpLog.js";
 import type { AIAdapter } from "../ai/adapter.js";
 import { childRegistry } from "../lib/childRegistry.js";
+import { describeModelRouting } from "../ai/modelRouter.js";
 import type { CorpusRepo } from "../repos/CorpusRepo.js";
 import { corpusRoutes } from "./corpus.js";
 
@@ -141,6 +142,7 @@ export function adminRoutes(deps: AdminRoutesDeps): Hono {
     return _c.json({
       ts: new Date().toISOString(),
       adapters: adapterChecks,
+      routing: await describeModelRouting(deps.adapters),
       uptimeSec: Math.round(process.uptime()),
       childProcesses: childRegistry.size(),
       signalsTotal: await deps.signals.count(),
