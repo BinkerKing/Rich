@@ -8,6 +8,7 @@ import type { AIAdapter } from "../ai/adapter.js";
 import { childRegistry } from "../lib/childRegistry.js";
 import { currentAIEngineSettings, writeAIEngineSettings } from "../ai/engineSettings.js";
 import { describeModelRouting, listAIScenarios, normalizeAdapterName, normalizeScenario, type AIScenario, type AdapterName } from "../ai/modelRouter.js";
+import { listAIContextPolicies } from "../ai/contextPolicy.js";
 import type { CorpusRepo } from "../repos/CorpusRepo.js";
 import { corpusRoutes } from "./corpus.js";
 
@@ -144,6 +145,7 @@ export function adminRoutes(deps: AdminRoutesDeps): Hono {
       ts: new Date().toISOString(),
       adapters: adapterChecks,
       routing: await describeModelRouting(deps.adapters),
+      contextPolicies: listAIContextPolicies(),
       settings: currentAIEngineSettings(),
       uptimeSec: Math.round(process.uptime()),
       childProcesses: childRegistry.size(),

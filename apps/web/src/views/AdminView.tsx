@@ -321,10 +321,17 @@ interface EnginePayload {
     scenarios: {
       scenario: string;
       adapter: string;
-      source: "request" | "env" | "default" | "fallback";
+      source: "request" | "settings" | "env" | "default" | "fallback";
       env: string;
     }[];
   };
+  contextPolicies?: {
+    operation: string;
+    scenario: string;
+    sources: string[];
+    memory: "durable" | "request" | "none";
+    notes: string;
+  }[];
   settings?: {
     routes?: Record<string, string>;
     updatedAt?: string;
@@ -428,6 +435,28 @@ function EngineTab() {
                       </select>
                       <em>{route.source === "env" ? route.env : route.source}</em>
                     </div>
+                  ))}
+                </div>
+              </EngineCard>
+            )}
+
+            {data.contextPolicies && (
+              <EngineCard title="上下文策略" subtitle="每个 AI 入口使用的上下文来源">
+                <div className="admin-context-grid">
+                  {data.contextPolicies.map(policy => (
+                    <article className="admin-context-card" key={policy.operation}>
+                      <header>
+                        <strong>{policy.operation}</strong>
+                        <span>{policy.scenario}</span>
+                      </header>
+                      <div className="admin-context-card__sources">
+                        {policy.sources.map(source => <em key={source}>{source}</em>)}
+                      </div>
+                      <p>{policy.notes}</p>
+                      <small className={`admin-context-card__memory admin-context-card__memory--${policy.memory}`}>
+                        {policy.memory === "durable" ? "服务端长期上下文" : policy.memory === "request" ? "请求上下文" : "无上下文"}
+                      </small>
+                    </article>
                   ))}
                 </div>
               </EngineCard>
