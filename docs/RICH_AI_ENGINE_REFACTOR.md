@@ -28,8 +28,11 @@ Environment variables still work:
 
 - `RICH_AI_<SCENARIO>_MODEL`
 - `RICH_AI_DEFAULT_MODEL`
+- `RICH_AI_CONTEXT_PROVIDER=rich-internal|none`
 
 Request-level model selection has the highest priority, then persisted settings, then environment variables, then built-in defaults.
+
+`RICH_AI_CONTEXT_PROVIDER` controls the chat context provider. The default is `rich-internal` when a conversation repository is available. Set it to `none` only for debugging context-related failures.
 
 ## Bailian / DashScope
 
