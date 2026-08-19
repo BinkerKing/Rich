@@ -336,6 +336,11 @@ interface EnginePayload {
     summaryKeepTail: number;
     maxSummarySourceChars: number;
   };
+  turnPlanner?: {
+    mode: "fast" | "llm";
+    source: "env" | "default";
+    modelScenario: string;
+  };
   contextPolicies?: {
     operation: string;
     scenario: string;
@@ -437,6 +442,13 @@ function EngineTab() {
                     <dt>近期窗口</dt><dd>{data.contextEngine.recentMessages} 条消息</dd>
                     <dt>摘要保留尾部</dt><dd>{data.contextEngine.summaryKeepTail} 条消息</dd>
                     <dt>摘要输入上限</dt><dd>{data.contextEngine.maxSummarySourceChars.toLocaleString()} 字符</dd>
+                    {data.turnPlanner && (
+                      <>
+                        <dt>聊天调度</dt><dd>{data.turnPlanner.mode === "llm" ? "模型规划" : "快速规则"}</dd>
+                        <dt>调度来源</dt><dd>{data.turnPlanner.source}</dd>
+                        <dt>调度模型场景</dt><dd>{data.turnPlanner.modelScenario}</dd>
+                      </>
+                    )}
                   </dl>
                 </EngineCard>
               )}

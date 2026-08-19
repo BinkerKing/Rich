@@ -170,6 +170,11 @@ export function adminRoutes(deps: AdminRoutesDeps): Hono {
       adapters: adapterChecks,
       routing: await describeModelRouting(deps.adapters),
       contextEngine: (deps.contextProvider ?? createAIContextProvider(deps.chatConversations ?? null)).status(),
+      turnPlanner: {
+        mode: process.env.RICH_AI_TURN_PLANNER === "llm" ? "llm" : "fast",
+        source: process.env.RICH_AI_TURN_PLANNER ? "env" : "default",
+        modelScenario: "analysis",
+      },
       contextPolicies: listAIContextPolicies(),
       chatContext,
       settings: currentAIEngineSettings(),
