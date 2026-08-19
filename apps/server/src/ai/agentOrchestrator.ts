@@ -31,7 +31,7 @@ function lastUserText(messages: MessageLike[]): string {
 
 const RICH_OPERATION_RE = /(rich|hermes|codex|飞书|后台|首页|项目管理|应用中心|小程序|数据字典|知识树|ai早报|数据库|postgres|sqlite|服务器|部署|app|快捷键|cli|mcp|git|github)/i;
 const OPERATION_VERB_RE = /(帮我|把|给|需要|继续|开始|处理|修复|新增|删除|修改|更新|调整|接入|迁移|同步|导入|导出|启动|重启|打包|提交|配置|绑定|清理|排查|检查|测试|落库|入库|生成|记录)/;
-const DOCUMENT_RE = /(文档|ppt|pptx|excel|xlsx|pdf|合同|发票|报告|日报|周报|演讲稿|手册)/i;
+const DOCUMENT_RE = /(文档|ppt|pptx|excel|xlsx|pdf|合同|报告|日报|周报|演讲稿|手册)/i;
 const DATA_RE = /(数据分析|数据库|sql|mapping|字段|表结构|码值|postgres|mysql|oracle|etl)/i;
 
 export function planChatTurn(messages: MessageLike[]): ChatTurnPlan {
