@@ -4,10 +4,12 @@ import type { ChatConversationsRepo, ChatMessageRecord } from "../repos/ChatConv
 type MessageContent = string | Array<{ type: string; text?: string }>;
 export type ContextMessage = { role: string; content: MessageContent };
 
-const RECENT_CONTEXT_MESSAGES = 18;
-const SUMMARY_TRIGGER_MESSAGES = 28;
-const SUMMARY_KEEP_TAIL = 12;
-const MAX_SUMMARY_SOURCE_CHARS = 18_000;
+export const CHAT_CONTEXT_CONFIG = {
+  recentMessages: 18,
+  summaryTriggerMessages: 28,
+  summaryKeepTail: 12,
+  maxSummarySourceChars: 18_000,
+} as const;
 
 function contentToText(content: MessageContent): string {
   if (typeof content === "string") return content;
@@ -36,7 +38,7 @@ export async function buildChatContextMessages(
 
   const [summary, recent] = await Promise.all([
     repo.getSummary(conversationId),
-    repo.listMessages(conversationId, RECENT_CONTEXT_MESSAGES),
+    repo.listMessages(conversationId, CHAT_CONTEXT_CONFIG.recentMessages),
   ]);
   const incomingText = incoming.map(message => `${message.role}:${contentToText(message.content)}`).join("\n");
   const dedupedRecent = recent
@@ -63,14 +65,14 @@ export async function refreshChatSummaryIfNeeded(
 
   const total = await repo.countMessages(conversationId);
   const current = await repo.getSummary(conversationId);
-  if (total < SUMMARY_TRIGGER_MESSAGES) return;
-  if (current && total - current.messageCount < SUMMARY_KEEP_TAIL) return;
+  if (total < CHAT_CONTEXT_CONFIG.summaryTriggerMessages) return;
+  if (current && total - current.messageCount < CHAT_CONTEXT_CONFIG.summaryKeepTail) return;
 
   const messages = await repo.listMessages(conversationId, Math.min(total, 120));
-  const source = messages.slice(0, Math.max(0, messages.length - SUMMARY_KEEP_TAIL));
+  const source = messages.slice(0, Math.max(0, messages.length - CHAT_CONTEXT_CONFIG.summaryKeepTail));
   if (source.length === 0) return;
   const lastSourceMessage = source[source.length - 1];
-  const transcript = formatTranscript(source).slice(-MAX_SUMMARY_SOURCE_CHARS);
+  const transcript = formatTranscript(source).slice(-CHAT_CONTEXT_CONFIG.maxSummarySourceChars);
   const previous = current?.summary?.trim()
     ? `已有摘要：\n${current.summary.trim()}\n\n`
     : "";

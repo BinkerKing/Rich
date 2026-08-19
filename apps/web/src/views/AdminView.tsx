@@ -325,6 +325,15 @@ interface EnginePayload {
       env: string;
     }[];
   };
+  contextEngine?: {
+    provider: "none" | "rich-internal";
+    chatContextEnabled: boolean;
+    summaryEnabled: boolean;
+    recentMessages: number;
+    summaryTriggerMessages: number;
+    summaryKeepTail: number;
+    maxSummarySourceChars: number;
+  };
   contextPolicies?: {
     operation: string;
     scenario: string;
@@ -416,6 +425,18 @@ function EngineTab() {
                   ))}
                 </ul>
               </EngineCard>
+              {data.contextEngine && (
+                <EngineCard title="上下文引擎" subtitle="聊天记忆 / 摘要压缩">
+                  <dl className="admin-kv">
+                    <dt>Provider</dt><dd>{data.contextEngine.provider === "rich-internal" ? "Rich 内置" : "未启用"}</dd>
+                    <dt>服务端上下文</dt><dd>{data.contextEngine.chatContextEnabled ? "启用" : "未启用"}</dd>
+                    <dt>摘要压缩</dt><dd>{data.contextEngine.summaryEnabled ? `满 ${data.contextEngine.summaryTriggerMessages} 条触发` : "未启用"}</dd>
+                    <dt>近期窗口</dt><dd>{data.contextEngine.recentMessages} 条消息</dd>
+                    <dt>摘要保留尾部</dt><dd>{data.contextEngine.summaryKeepTail} 条消息</dd>
+                    <dt>摘要输入上限</dt><dd>{data.contextEngine.maxSummarySourceChars.toLocaleString()} 字符</dd>
+                  </dl>
+                </EngineCard>
+              )}
               <EngineCard title="服务器" subtitle="进程 / 信号">
                 <dl className="admin-kv">
                   <dt>已运行</dt><dd>{formatUptime(data.uptimeSec)}</dd>

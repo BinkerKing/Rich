@@ -157,6 +157,7 @@ import { configureOpLog, healStaleRunningOps } from "./ai/aiOpLog.js";
 import { imageQueue } from "./ai/imageQueue.js";
 import type { AIAdapter } from "./ai/adapter.js";
 import { pickScenarioAdapter } from "./ai/pickAdapter.js";
+import { createAIContextProvider } from "./ai/contextProvider.js";
 import { createLogger, noopLogger, type Logger } from "./lib/logger.js";
 import { installShutdownHandlers, childRegistry } from "./lib/childRegistry.js";
 import { mountMcp } from "./mcp/transport.js";
@@ -310,6 +311,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   }
   // Persist every AI op prompt + output to data/ai-ops.jsonl for the admin UI.
   configureOpLog(root);
+  const aiContextProvider = createAIContextProvider(chatConversations);
   // Self-heal: any op stuck in "running" from a previous crash / pkill / OOM
   // gets a synthetic error terminal line, so the admin UI doesn't show
   // dead-but-still-running entries indefinitely. Fire-and-forget.
@@ -334,7 +336,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/state", stateRoutes(state, elements, signals));
   app.route("/api/corpus", corpusRoutes(corpus));
   app.route("/api/great-me", greatMeRoutes(greatMe));
-  app.route("/api/chat", chatRoutes(chatAttachments, ai, chatConversations));
+  app.route("/api/chat", chatRoutes(chatAttachments, ai, chatConversations, aiContextProvider));
   app.route("/api/chat-visual-blocks", chatVisualBlocksRoutes(chatVisualBlocks));
   app.route("/api/chat/attachments", chatAttachmentsRoutes(chatAttachments));
   app.route("/api/health", healthRoutes(healthRepo));
@@ -367,6 +369,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     adapters: ai,
     corpus,
     chatConversations,
+    contextProvider: aiContextProvider,
   }));
   // Mindmap PPT decks — element-backed. Every deck IS the root element of
   // a subtree that carries a `mindmap-embed` section. No separate storage.

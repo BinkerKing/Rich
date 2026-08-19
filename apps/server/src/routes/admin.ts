@@ -9,6 +9,8 @@ import { childRegistry } from "../lib/childRegistry.js";
 import { currentAIEngineSettings, writeAIEngineSettings } from "../ai/engineSettings.js";
 import { describeModelRouting, listAIScenarios, normalizeAdapterName, normalizeScenario, type AIScenario, type AdapterName } from "../ai/modelRouter.js";
 import { listAIContextPolicies } from "../ai/contextPolicy.js";
+import type { AIContextProvider } from "../ai/contextProvider.js";
+import { createAIContextProvider } from "../ai/contextProvider.js";
 import type { CorpusRepo } from "../repos/CorpusRepo.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
 import { corpusRoutes } from "./corpus.js";
@@ -19,6 +21,7 @@ export interface AdminRoutesDeps {
   adapters: AIAdapter[];
   corpus: CorpusRepo;
   chatConversations?: ChatConversationsRepo | null;
+  contextProvider?: AIContextProvider;
 }
 
 /**
@@ -166,6 +169,7 @@ export function adminRoutes(deps: AdminRoutesDeps): Hono {
       ts: new Date().toISOString(),
       adapters: adapterChecks,
       routing: await describeModelRouting(deps.adapters),
+      contextEngine: (deps.contextProvider ?? createAIContextProvider(deps.chatConversations ?? null)).status(),
       contextPolicies: listAIContextPolicies(),
       chatContext,
       settings: currentAIEngineSettings(),
