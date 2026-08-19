@@ -240,6 +240,15 @@ function applySchema(db: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation ON chat_messages(conversation_id, created_at);
 
+    CREATE TABLE IF NOT EXISTS chat_conversation_summaries (
+      conversation_id TEXT PRIMARY KEY,
+      summary         TEXT NOT NULL,
+      message_count   INTEGER NOT NULL DEFAULT 0,
+      last_message_id TEXT,
+      updated_at      TEXT NOT NULL,
+      FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id) ON DELETE CASCADE
+    );
+
     -- ─── Rich 私人健康档案 · Body Insights v0.1 ──────────────────────
     -- 单用户 MVP（user_id = 'me'）。Sqlite 用 TEXT 存 JSON（postgres 用 JSONB）。
     CREATE TABLE IF NOT EXISTS health_profile (

@@ -230,6 +230,14 @@ async function applySchema(pool: Pool): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation ON chat_messages(conversation_id, created_at);
 
+    CREATE TABLE IF NOT EXISTS chat_conversation_summaries (
+      conversation_id TEXT PRIMARY KEY REFERENCES chat_conversations(id) ON DELETE CASCADE,
+      summary         TEXT NOT NULL,
+      message_count   INTEGER NOT NULL DEFAULT 0,
+      last_message_id TEXT,
+      updated_at      TEXT NOT NULL
+    );
+
     -- ─── Rich 私人健康档案 · Body Insights v0.1 ──────────────────────
     -- 单用户 MVP（user_id = 'me'）。9 张表：profile / weight / workout / set /
     -- meal / sleep / mood / weekly_plan / weekly_report / health_alert。

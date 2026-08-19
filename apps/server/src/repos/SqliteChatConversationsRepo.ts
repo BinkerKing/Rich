@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import type { ChatConversation, ChatConversationsRepo, ChatMessageRecord } from "./ChatConversationsRepo.js";
+import type { ChatConversation, ChatConversationSummary, ChatConversationsRepo, ChatMessageRecord } from "./ChatConversationsRepo.js";
 
 interface ConversationRow {
   id: string;
@@ -19,6 +19,14 @@ interface MessageRow {
   model_session_id: string | null;
   metadata: string | null;
   created_at: string;
+}
+
+interface SummaryRow {
+  conversation_id: string;
+  summary: string;
+  message_count: number;
+  last_message_id: string | null;
+  updated_at: string;
 }
 
 function conversationFromRow(row: ConversationRow): ChatConversation {
@@ -42,6 +50,16 @@ function messageFromRow(row: MessageRow): ChatMessageRecord {
     modelSessionId: row.model_session_id ?? undefined,
     metadata: row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : undefined,
     createdAt: row.created_at,
+  };
+}
+
+function summaryFromRow(row: SummaryRow): ChatConversationSummary {
+  return {
+    conversationId: row.conversation_id,
+    summary: row.summary,
+    messageCount: row.message_count,
+    lastMessageId: row.last_message_id ?? undefined,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -116,5 +134,40 @@ export class SqliteChatConversationsRepo implements ChatConversationsRepo {
        LIMIT ?
     `).all(limit) as ConversationRow[];
     return rows.map(conversationFromRow);
+  }
+
+  async countMessages(conversationId: string): Promise<number> {
+    const row = this.db.prepare(`
+      SELECT count(*) AS count FROM chat_messages WHERE conversation_id = ?
+    `).get(conversationId) as { count: number };
+    return row.count;
+  }
+
+  async getSummary(conversationId: string): Promise<ChatConversationSummary | null> {
+    const row = this.db.prepare(`
+      SELECT conversation_id, summary, message_count, last_message_id, updated_at
+        FROM chat_conversation_summaries
+       WHERE conversation_id = ?
+    `).get(conversationId) as SummaryRow | undefined;
+    return row ? summaryFromRow(row) : null;
+  }
+
+  async upsertSummary(summary: ChatConversationSummary): Promise<void> {
+    this.db.prepare(`
+      INSERT INTO chat_conversation_summaries
+        (conversation_id, summary, message_count, last_message_id, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(conversation_id) DO UPDATE SET
+        summary = excluded.summary,
+        message_count = excluded.message_count,
+        last_message_id = excluded.last_message_id,
+        updated_at = excluded.updated_at
+    `).run(
+      summary.conversationId,
+      summary.summary,
+      summary.messageCount,
+      summary.lastMessageId ?? null,
+      summary.updatedAt,
+    );
   }
 }

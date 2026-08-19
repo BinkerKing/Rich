@@ -20,6 +20,14 @@ export interface ChatMessageRecord {
   createdAt: string;
 }
 
+export interface ChatConversationSummary {
+  conversationId: string;
+  summary: string;
+  messageCount: number;
+  lastMessageId?: string;
+  updatedAt: string;
+}
+
 export interface ChatConversationsRepo {
   ensureConversation(input: {
     id: string;
@@ -30,4 +38,7 @@ export interface ChatConversationsRepo {
   appendMessage(message: ChatMessageRecord): Promise<void>;
   listMessages(conversationId: string, limit: number): Promise<ChatMessageRecord[]>;
   listConversations(limit: number): Promise<ChatConversation[]>;
+  countMessages(conversationId: string): Promise<number>;
+  getSummary(conversationId: string): Promise<ChatConversationSummary | null>;
+  upsertSummary(summary: ChatConversationSummary): Promise<void>;
 }

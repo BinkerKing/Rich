@@ -1,5 +1,5 @@
 import type { PgPool } from "../db/postgres.js";
-import type { ChatConversation, ChatConversationsRepo, ChatMessageRecord } from "./ChatConversationsRepo.js";
+import type { ChatConversation, ChatConversationSummary, ChatConversationsRepo, ChatMessageRecord } from "./ChatConversationsRepo.js";
 
 interface ConversationRow {
   id: string;
@@ -19,6 +19,14 @@ interface MessageRow {
   model_session_id: string | null;
   metadata: Record<string, unknown> | null;
   created_at: string;
+}
+
+interface SummaryRow {
+  conversation_id: string;
+  summary: string;
+  message_count: number;
+  last_message_id: string | null;
+  updated_at: string;
 }
 
 function conversationFromRow(row: ConversationRow): ChatConversation {
@@ -42,6 +50,16 @@ function messageFromRow(row: MessageRow): ChatMessageRecord {
     modelSessionId: row.model_session_id ?? undefined,
     metadata: row.metadata ?? undefined,
     createdAt: row.created_at,
+  };
+}
+
+function summaryFromRow(row: SummaryRow): ChatConversationSummary {
+  return {
+    conversationId: row.conversation_id,
+    summary: row.summary,
+    messageCount: row.message_count,
+    lastMessageId: row.last_message_id ?? undefined,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -122,5 +140,43 @@ export class PostgresChatConversationsRepo implements ChatConversationsRepo {
       [limit],
     );
     return rows.map(conversationFromRow);
+  }
+
+  async countMessages(conversationId: string): Promise<number> {
+    const { rows } = await this.pool.query<{ count: string }>(
+      `SELECT count(*) AS count FROM chat_messages WHERE conversation_id = $1`,
+      [conversationId],
+    );
+    return Number(rows[0]?.count ?? 0);
+  }
+
+  async getSummary(conversationId: string): Promise<ChatConversationSummary | null> {
+    const { rows } = await this.pool.query<SummaryRow>(
+      `SELECT conversation_id, summary, message_count, last_message_id, updated_at
+         FROM chat_conversation_summaries
+        WHERE conversation_id = $1`,
+      [conversationId],
+    );
+    return rows[0] ? summaryFromRow(rows[0]) : null;
+  }
+
+  async upsertSummary(summary: ChatConversationSummary): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO chat_conversation_summaries
+         (conversation_id, summary, message_count, last_message_id, updated_at)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT(conversation_id) DO UPDATE SET
+         summary = EXCLUDED.summary,
+         message_count = EXCLUDED.message_count,
+         last_message_id = EXCLUDED.last_message_id,
+         updated_at = EXCLUDED.updated_at`,
+      [
+        summary.conversationId,
+        summary.summary,
+        summary.messageCount,
+        summary.lastMessageId ?? null,
+        summary.updatedAt,
+      ],
+    );
   }
 }

@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { buildChatSystemPrompt } from "../ai/prompts/chatSystem.js";
 import { pickScenarioAdapter } from "../ai/pickAdapter.js";
 import { normalizeAdapterName } from "../ai/modelRouter.js";
+import { buildChatContextMessages, refreshChatSummaryIfNeeded } from "../ai/chatContextEngine.js";
 import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
 import type { ChatAttachmentRef } from "@ke/domain";
@@ -38,11 +39,25 @@ function messagesToFallbackPrompt(messages: Message[]): string {
  * content 允许字符串或多模态 part 数组（OpenAI vision 协议），原样透传到 Hermes。
  */
 function injectSystemPrompt(messages: Message[]): Message[] {
-  const sys: Message = { role: "system", content: buildChatSystemPrompt() };
+  const basePrompt = buildChatSystemPrompt();
   if (messages.length > 0 && messages[0].role === "system") {
-    return [sys, ...messages.slice(1)];
+    const extraContext = contentToText(messages[0].content).trim();
+    return [{
+      role: "system",
+      content: extraContext ? `${basePrompt}\n\n${extraContext}` : basePrompt,
+    }, ...messages.slice(1)];
   }
+  const sys: Message = { role: "system", content: basePrompt };
   return [sys, ...messages];
+}
+
+function systemPromptWithContext(messages: Message[]): string {
+  const context = messages
+    .filter(message => message.role === "system")
+    .map(message => contentToText(message.content).trim())
+    .filter(Boolean)
+    .join("\n\n");
+  return context ? `${buildChatSystemPrompt()}\n\n${context}` : buildChatSystemPrompt();
 }
 
 /**
@@ -119,24 +134,21 @@ export function chatRoutes(
     return pickScenarioAdapter(adapters, "chat", normalizeAdapterName(preference));
   }
 
+  function pickSummaryAdapter(): AIAdapter | null {
+    if (adapters.length === 0) return null;
+    return pickScenarioAdapter(adapters, "analysis");
+  }
+
+  function queueSummaryRefresh(conversationId: string): void {
+    if (!conversationsRepo) return;
+    void refreshChatSummaryIfNeeded(conversationsRepo, pickSummaryAdapter(), conversationId)
+      .catch(() => undefined);
+  }
+
   function messageTitle(messages: Message[]): string {
     const firstUser = messages.find(message => message.role === "user");
     const text = firstUser ? contentToText(firstUser.content).replace(/\s+/g, " ").trim() : "";
     return text ? text.slice(0, 40) : "Rich 对话";
-  }
-
-  async function loadContextMessages(conversationId: string, incoming: Message[]): Promise<Message[]> {
-    if (!conversationsRepo) return incoming;
-    const recent = await conversationsRepo.listMessages(conversationId, 30);
-    if (recent.length === 0) return incoming;
-
-    const incomingText = incoming.map(message => `${message.role}:${contentToText(message.content)}`).join("\n");
-    const merged: Message[] = [];
-    for (const message of recent) {
-      if (incomingText.includes(`${message.role}:${message.content}`)) continue;
-      merged.push({ role: message.role, content: message.content });
-    }
-    return [...merged, ...incoming];
   }
 
   function lastUserMessage(messages: Message[]): Message | undefined {
@@ -161,7 +173,7 @@ export function chatRoutes(
     let wroteText = false;
     try {
       for await (const event of codexFallback.stream({
-        systemPrompt: buildChatSystemPrompt(),
+        systemPrompt: systemPromptWithContext(messages),
         prompt: messagesToFallbackPrompt(messages),
         signal: controller.signal,
       })) {
@@ -225,7 +237,7 @@ export function chatRoutes(
     let fullText = "";
     let sessionId: string | undefined;
     for await (const event of adapter.stream({
-      systemPrompt: buildChatSystemPrompt(),
+      systemPrompt: systemPromptWithContext(messages),
       prompt: messagesToFallbackPrompt(messages),
       scenario: "chat",
       signal,
@@ -268,7 +280,7 @@ export function chatRoutes(
         surface: body.surface?.trim() || "api-chat",
         now,
       });
-      const contextMessages = await loadContextMessages(conversationId, messages);
+      const contextMessages = await buildChatContextMessages(conversationsRepo, conversationId, messages) as Message[];
       let msg: { role: string; content: string } | null = null;
       let usedAdapter = adapter?.name ?? "hermes";
       if (!adapter || adapter.name === "hermes") {
@@ -289,7 +301,7 @@ export function chatRoutes(
       } else {
         let content = "";
         for await (const event of adapter.stream({
-          systemPrompt: buildChatSystemPrompt(),
+          systemPrompt: systemPromptWithContext(contextMessages),
           prompt: messagesToFallbackPrompt(contextMessages),
           scenario: "chat",
         })) {
@@ -318,6 +330,7 @@ export function chatRoutes(
         adapter: usedAdapter,
         createdAt: new Date().toISOString(),
       });
+      queueSummaryRefresh(conversationId);
       return c.json({ conversationId, message: msg });
     } catch (e) {
       return c.json({ error: e instanceof Error ? e.message : String(e) }, 503);
@@ -354,7 +367,7 @@ export function chatRoutes(
       });
     }
 
-    let messages: Message[] = await loadContextMessages(conversationId, body.messages);
+    let messages = await buildChatContextMessages(conversationsRepo, conversationId, body.messages) as Message[];
     // 有图就把字节 inline 到最后一条 user message
     if (Array.isArray(body.attachments) && body.attachments.length > 0 && attachmentsRepo) {
       messages = await inlineAttachments(messages, body.attachments, attachmentsRepo);
@@ -401,6 +414,7 @@ export function chatRoutes(
               modelSessionId: result.sessionId,
               createdAt: new Date().toISOString(),
             });
+            queueSummaryRefresh(conversationId);
           }
           await stream.writeSSE({
             event: "done",
@@ -436,6 +450,7 @@ export function chatRoutes(
             adapter: "codex",
             createdAt: new Date().toISOString(),
           });
+          queueSummaryRefresh(conversationId);
           await stream.writeSSE({
             event: "done",
             data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
@@ -456,6 +471,7 @@ export function chatRoutes(
             adapter: "codex",
             createdAt: new Date().toISOString(),
           });
+          queueSummaryRefresh(conversationId);
           await stream.writeSSE({
             event: "done",
             data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
@@ -594,6 +610,7 @@ export function chatRoutes(
             adapter: usedAdapter,
             createdAt: new Date().toISOString(),
           });
+          queueSummaryRefresh(conversationId);
         }
         await stream.writeSSE({
           event: "done",
@@ -614,6 +631,7 @@ export function chatRoutes(
             adapter: usedAdapter,
             createdAt: new Date().toISOString(),
           });
+          queueSummaryRefresh(conversationId);
           await stream.writeSSE({
             event: "done",
             data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
