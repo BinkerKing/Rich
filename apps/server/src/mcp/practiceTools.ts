@@ -339,7 +339,7 @@ export function registerPracticeTools(
     {
       practiceId: z.string().min(1),
       extraContext: z.string().max(2000).optional().describe("Optional: any specific requirements or scope hints"),
-      model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+      model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
     },
     async ({ practiceId, extraContext, model }) => {
       const p = await elements.get(practiceId);
@@ -505,7 +505,7 @@ export function registerPracticeTools(
       practiceId: z.string().min(1),
       groupType: z.enum(["knowledge", "requirement", "feature", "dev-task", "revision"]),
       direction: z.string().min(1).max(1000).describe("What you want this element to be about (short sentence or two)"),
-      model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+      model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
     },
     async ({ practiceId, groupType, direction, model }) => {
       const p = await elements.get(practiceId);
@@ -575,7 +575,7 @@ export function registerPracticeTools(
     {
       elementId: z.string().min(1),
       direction: z.string().min(1).max(1000),
-      model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+      model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
     },
     async ({ elementId, direction, model }) => {
       const el = await elements.get(elementId);

@@ -562,7 +562,7 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
       element_id: z.string().min(1),
       target_richness: richnessSchema,
       direction: z.string().optional().describe("Optional direction, e.g. '补充失败案例' / '加入数学推导'"),
-      model: z.enum(["claude-code", "codex"]).optional(),
+      model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
     },
     async ({ element_id, target_richness, direction, model }) => {
       const el = await deps.elements.get(element_id);
@@ -598,7 +598,7 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
       parent_id: z.string().min(1),
       count: z.number().int().min(1).max(8).default(4).describe("How many children to generate (default 4)"),
       direction: z.string().optional(),
-      model: z.enum(["claude-code", "codex"]).optional(),
+      model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
     },
     async ({ parent_id, count, direction, model }) => {
       const parent = await deps.elements.get(parent_id);
@@ -647,7 +647,7 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
       element_id: z.string().min(1),
       direction: z.string().min(1).describe("The direction to extend in"),
       count: z.number().int().min(1).max(6).default(3),
-      model: z.enum(["claude-code", "codex"]).optional(),
+      model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
     },
     async ({ element_id, direction, count, model }) => {
       const el = await deps.elements.get(element_id);
@@ -684,7 +684,7 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
     "Generate today's (or a specific date's) AI daily news roundup. Pulls 30+ sources via Codex, distills 5-12 items, writes them as a roundup element + N child news elements under `ai-news`. Returns task_id; poll get_task for the materialised roundup id.",
     {
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("YYYY-MM-DD; defaults to today"),
-      model: z.enum(["claude-code", "codex"]).optional(),
+      model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
     },
     async ({ date, model }) => {
       const targetDate = date ?? new Date().toISOString().slice(0, 10);
@@ -768,7 +768,7 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
     {
       center_id: z.string().min(1),
       kinds: z.array(z.enum(["quick", "academic", "practice", "custom"])).min(1).default(["quick", "academic"]),
-      model: z.enum(["claude-code", "codex"]).optional(),
+      model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
     },
     async ({ center_id, kinds, model }) => {
       const center = await deps.elements.get(center_id);

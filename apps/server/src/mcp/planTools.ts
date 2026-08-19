@@ -634,7 +634,7 @@ export function registerPlanTools(
     {
       intent: z.string().min(2).max(500).describe("用户的自然语言意图，例如 '我想 3 个月减 10 斤'"),
       targetEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Optional target completion date. If omitted, AI picks one based on the intent."),
-      model: z.enum(["claude-code", "codex", "hermes"]).optional().describe("Defaults to hermes."),
+      model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional().describe("Defaults to hermes."),
     },
     async ({ intent, targetEnd, model }) => {
       const adapter = pickScenarioAdapter(adapters, "planning", model);
@@ -718,7 +718,7 @@ export function registerPlanTools(
     "analyze_progress",
     "🪄 Ask Hermes to analyze 大斌哥's overall推进 and return strategic advice. Returns { keyInsight, blockers, pushActions, priorityTasks }. Internally pulls a snapshot via analytics_summary then prompts the AI. Use this when 大斌哥 says 'I feel stuck' or 'what should I do next' — gives a structured response. Takes 30-60 seconds.",
     {
-      model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+      model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
     },
     async ({ model }) => {
       const adapter = pickScenarioAdapter(adapters, "analysis", model);

@@ -129,10 +129,8 @@ function expandHome(value: string): string {
     .replace(/^~/, home);
 }
 
-function loadRichCloudEnv() {
-  const envPath = join(app.getPath("home"), ".rich-cloud-postgres.env");
-  if (!existsSync(envPath)) return;
-
+function loadEnvFile(envPath: string) {
+  if (!existsSync(envPath)) return false;
   try {
     const content = readFileSync(envPath, "utf8");
     for (const rawLine of content.split(/\r?\n/)) {
@@ -150,9 +148,27 @@ function loadRichCloudEnv() {
     if (!process.env.KE_STORAGE && process.env.DATABASE_URL) {
       process.env.KE_STORAGE = "postgres";
     }
-    flog("rich cloud env loaded");
+    flog(`env loaded: ${envPath}`);
+    return true;
   } catch (e) {
-    console.warn("[ke-desktop] rich cloud env load failed", e);
+    console.warn(`[ke-desktop] env load failed: ${envPath}`, e);
+    return false;
+  }
+}
+
+function loadRichCloudEnv() {
+  const loadedCount = [
+    ".rich-cloud-postgres.env",
+    ".rich-ai.env",
+  ].filter(file => loadEnvFile(join(app.getPath("home"), file))).length;
+
+  if (loadedCount > 0) {
+    if (!process.env.DATABASE_URL && process.env.RICH_DB_URL) {
+      process.env.DATABASE_URL = process.env.RICH_DB_URL;
+    }
+    if (!process.env.KE_STORAGE && process.env.DATABASE_URL) {
+      process.env.KE_STORAGE = "postgres";
+    }
   }
 }
 

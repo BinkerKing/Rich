@@ -167,7 +167,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     mode: z.enum(["goal", "mission", "review", "week-simulation"]),
     input: z.string().max(2000).default(""),
     state: z.unknown().optional(),
-    model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+    model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
   });
   const GREAT_ME_STATE_MAX_BYTES = 64 * 1024;
   r.post("/great-me", async (c) => {
@@ -232,7 +232,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
   const DecomposePlanBodySchema = z.object({
     intent: z.string().min(2).max(500),
     targetEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+    model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
   });
   r.post("/decompose-plan", async (c) => {
     const raw = await c.req.json().catch(() => null);
@@ -294,7 +294,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
   const AnalyzeProgressBodySchema = z.object({
     state: z.unknown(),
     metrics: z.unknown(),
-    model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+    model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
   });
   const ANALYZE_PROGRESS_BODY_MAX = 256 * 1024;
   r.post("/analyze-progress", async (c) => {
@@ -364,7 +364,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       overdueCount: z.number().int(),
       stuckCount: z.number().int(),
     }),
-    model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+    model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
   });
   const DRAFT_REVIEW_BODY_MAX = 256 * 1024;
   r.post("/draft-review", async (c) => {
@@ -440,7 +440,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       content: z.unknown().optional(),
     })).max(100).default([]),
     extraContext: z.string().max(2000).optional(),
-    model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+    model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
   });
   const DRAFT_PRD_BODY_MAX = 256 * 1024;
   r.post("/draft-prd", async (c) => {
@@ -495,7 +495,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     groupType: z.enum(["knowledge", "requirement", "feature", "dev-task", "revision"]),
     existingTitles: z.array(z.string().max(200)).max(50).default([]),
     direction: z.string().min(1).max(1000),
-    model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+    model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
   });
   const DRAFT_CHILD_BODY_MAX = 64 * 1024;
   r.post("/draft-child", async (c) => {
@@ -565,7 +565,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       stage: z.string().max(40),
       text: z.string().max(4000),
     })).max(30).default([]),
-    model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+    model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
   });
   const GUIDED_PRACTICE_BODY_MAX = 128 * 1024;
   r.post("/guided-practice", async (c) => {
@@ -627,7 +627,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
       content: z.unknown().optional(),
     }),
     direction: z.string().min(1).max(1000),
-    model: z.enum(["claude-code", "codex", "hermes"]).optional(),
+    model: z.enum(["claude-code", "codex", "hermes", "bailian"]).optional(),
   });
   const ADJUST_CHILD_BODY_MAX = 128 * 1024;
   r.post("/adjust-child", async (c) => {

@@ -149,6 +149,7 @@ import { dataDir, aiDir } from "./lib/paths.js";
 import { ClaudeAdapter } from "./ai/claude.js";
 import { CodexAdapter } from "./ai/codex.js";
 import { HermesAdapter } from "./ai/hermes.js";
+import { BailianAdapter } from "./ai/bailian.js";
 import { configureOpLog, healStaleRunningOps } from "./ai/aiOpLog.js";
 import { imageQueue } from "./ai/imageQueue.js";
 import type { AIAdapter } from "./ai/adapter.js";
@@ -282,6 +283,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   // registered here, and let modelRouter decide per AI scenario.
   const ai = adapters ?? opts.adapters ?? [
     new HermesAdapter(),
+    new BailianAdapter(),
     new CodexAdapter(),
     new ClaudeAdapter(),
   ];

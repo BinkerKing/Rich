@@ -85,7 +85,7 @@ export interface PathResult {
 
 // ---------- AI ops ----------
 
-export type Model = "hermes" | "claude-code" | "codex";
+export type Model = "hermes" | "claude-code" | "codex" | "bailian";
 
 export type GreatMeMode = "goal" | "mission" | "review" | "week-simulation";
 

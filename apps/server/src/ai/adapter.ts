@@ -1,3 +1,9 @@
+export type AIAdapterName =
+  | "claude-code"
+  | "codex"
+  | "hermes"
+  | "bailian";
+
 export type StreamEvent =
   | { type: "delta"; text: string }
   | { type: "done"; fullText: string; sessionId?: string }
@@ -12,7 +18,7 @@ export interface GenerateArgs {
 }
 
 export interface AIAdapter {
-  readonly name: "claude-code" | "codex" | "hermes";
+  readonly name: AIAdapterName;
   available(): Promise<boolean>;
   stream(args: GenerateArgs): AsyncIterable<StreamEvent>;
 }

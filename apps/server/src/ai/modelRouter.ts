@@ -24,7 +24,7 @@ export interface ModelRoute {
   source: "request" | "env" | "default" | "fallback";
 }
 
-const ADAPTER_NAMES: readonly AdapterName[] = ["hermes", "codex", "claude-code"];
+const ADAPTER_NAMES: readonly AdapterName[] = ["hermes", "codex", "claude-code", "bailian"];
 
 const SCENARIO_ENV: Record<AIScenario, string> = {
   default: "RICH_AI_DEFAULT_MODEL",
