@@ -4,8 +4,10 @@ import { randomUUID } from "node:crypto";
 import { buildChatSystemPrompt } from "../ai/prompts/chatSystem.js";
 import { pickScenarioAdapter } from "../ai/pickAdapter.js";
 import { normalizeAdapterName } from "../ai/modelRouter.js";
+import type { AIScenario } from "../ai/modelRouter.js";
 import { createAIContextProvider } from "../ai/contextProvider.js";
 import { startOpRecord, type OpHandle } from "../ai/aiOpLog.js";
+import { planChatTurn } from "../ai/agentOrchestrator.js";
 import type { AIContextProvider } from "../ai/contextProvider.js";
 import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
@@ -148,9 +150,9 @@ export function chatRoutes(
   const r = new Hono();
   const codexFallback = adapters.find(adapter => adapter.name === "codex");
 
-  function pickChatAdapter(preference?: unknown): AIAdapter | null {
+  function pickChatAdapter(scenario: AIScenario, preference?: unknown): AIAdapter | null {
     if (adapters.length === 0) return null;
-    return pickScenarioAdapter(adapters, "chat", normalizeAdapterName(preference));
+    return pickScenarioAdapter(adapters, scenario, normalizeAdapterName(preference));
   }
 
   function pickSummaryAdapter(): AIAdapter | null {
@@ -249,6 +251,7 @@ export function chatRoutes(
     stream: Parameters<Parameters<typeof streamSSE>[1]>[0],
     adapter: AIAdapter,
     messages: Message[],
+    scenario: AIScenario,
     signal?: AbortSignal,
   ): Promise<{ wroteText: boolean; fullText: string; sessionId?: string; error?: string }> {
     let wroteText = false;
@@ -257,7 +260,7 @@ export function chatRoutes(
     for await (const event of adapter.stream({
       systemPrompt: systemPromptWithContext(messages),
       prompt: messagesToFallbackPrompt(messages),
-      scenario: "chat",
+      scenario,
       signal,
     })) {
       if (event.type === "delta" && event.text) {
@@ -289,7 +292,8 @@ export function chatRoutes(
     }
     const messages = body.messages;
     const conversationId = body.conversationId?.trim() || "rich-chat-default";
-    const adapter = pickChatAdapter(body.model);
+    const turnPlan = planChatTurn(messages);
+    const adapter = pickChatAdapter(turnPlan.scenario, body.model);
     const now = new Date().toISOString();
     let opRecorder: ReturnType<typeof makeChatOpRecorder> | null = null;
     try {
@@ -303,8 +307,8 @@ export function chatRoutes(
       opRecorder = makeChatOpRecorder(await startOpRecord({
         op: "chat",
         model: adapter?.name ?? "hermes",
-        scenario: "chat",
-        scope: { conversationId, surface: body.surface?.trim() || "api-chat" },
+        scenario: turnPlan.scenario,
+        scope: { conversationId, surface: body.surface?.trim() || "api-chat", intent: turnPlan.intent, reason: turnPlan.reason },
         prompt: messagesToFallbackPrompt(contextMessages),
       }));
       let msg: { role: string; content: string } | null = null;
@@ -330,7 +334,7 @@ export function chatRoutes(
         for await (const event of adapter.stream({
           systemPrompt: systemPromptWithContext(contextMessages),
           prompt: messagesToFallbackPrompt(contextMessages),
-          scenario: "chat",
+          scenario: turnPlan.scenario,
         })) {
           if (event.type === "delta") content += event.text;
           if (event.type === "error") {
@@ -381,6 +385,7 @@ export function chatRoutes(
       return c.json({ error: "messages[] required" }, 400);
     }
     const conversationId = body.conversationId?.trim() || "rich-chat-default";
+    const turnPlan = planChatTurn(body.messages);
     const now = new Date().toISOString();
     await conversationsRepo?.ensureConversation({
       id: conversationId,
@@ -408,7 +413,7 @@ export function chatRoutes(
     if (Array.isArray(body.attachments) && body.attachments.length > 0 && attachmentsRepo) {
       messages = await inlineAttachments(messages, body.attachments, attachmentsRepo);
     }
-    const adapter = pickChatAdapter(body.model);
+    const adapter = pickChatAdapter(turnPlan.scenario, body.model);
 
     // T02 — 首字 SLO 基础设施。
     // (1) 反代关 buffering：Nginx / Cloudflare 见到这个 header 不会攒 chunk
@@ -429,10 +434,12 @@ export function chatRoutes(
       const opRecorder = makeChatOpRecorder(await startOpRecord({
         op: "chat-stream",
         model: adapter?.name ?? "hermes",
-        scenario: "chat",
+        scenario: turnPlan.scenario,
         scope: {
           conversationId,
           surface: body.surface?.trim() || "chat-stream",
+          intent: turnPlan.intent,
+          reason: turnPlan.reason,
           attachmentCount: Array.isArray(body.attachments) ? body.attachments.length : 0,
         },
         prompt: messagesToFallbackPrompt(messages),
@@ -443,7 +450,7 @@ export function chatRoutes(
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 120_000);
         try {
-          const result = await streamGenericAdapter(stream, adapter, messages, controller.signal);
+          const result = await streamGenericAdapter(stream, adapter, messages, turnPlan.scenario, controller.signal);
           if (result.error) {
             await opRecorder.error(result.error);
             await stream.writeSSE({

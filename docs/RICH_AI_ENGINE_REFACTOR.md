@@ -14,6 +14,7 @@
 - Centralize model selection by scenario, not by adapter array order.
 - Keep Hermes as the default agent/task layer while making Codex, Claude Code, Bailian, and future providers pluggable.
 - Keep server-side conversation persistence for Rich chat so home chat and quick chat can share durable context.
+- Add a thin agent-orchestration layer before model routing. Rich chat first classifies the turn into a scenario; ordinary answers stay in `chat`, while clear Rich/code/deploy/database operations move to `agent-task`.
 - Treat long-context compression as an engine layer: Rich stores raw messages, then derives compact summaries for model calls. This keeps the data portable if we later embed LangGraph, Mem0, LangMem, or another memory framework.
 - Preserve direct Hermes streaming only where Hermes-specific tool progress or multimodal pass-through is needed; otherwise prefer the shared adapter contract.
 - Add future provider adapters as OpenAI-compatible adapters first when possible.
@@ -63,6 +64,7 @@ Do not commit Token Plan installer commands, API keys, or provider-specific secr
 - Chat context is stored in `chat_conversations` and `chat_messages`. `chat_conversation_summaries` stores derived summaries, not source-of-truth conversation data.
 - The stream API appends the latest user message, builds context from summary + recent messages + the current request, injects the Rich system prompt, and persists the assistant reply after completion.
 - Chat routes depend on `AIContextProvider`, not directly on the summary implementation. The current provider is `rich-internal`; future LangMem/Mem0/LangGraph recall can be added behind this boundary.
+- Chat routes also call `planChatTurn` before adapter selection. This is the current orchestration boundary: a lightweight deterministic planner chooses `chat`, `content`, `document`, `data`, `analysis`, or `agent-task`, then the scenario router chooses Hermes/Codex/Bailian/etc. A future LLM planner can replace this function without rewriting chat persistence or provider adapters.
 - Conversation summaries are refreshed asynchronously through the `analysis` scenario after enough new messages accumulate. This keeps UI response fast while preserving long-running context.
 - Structured operations share `buildOperationContextFragment`, which tells models the operation/scenario and makes the prompt's explicit project/element/request data the source of truth.
 - Scenario routing can be inspected in Backstage -> AI engine monitor, or through `GET /api/admin/engine`.
