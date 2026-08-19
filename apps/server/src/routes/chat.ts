@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
+import { randomUUID } from "node:crypto";
 import { buildChatSystemPrompt } from "../ai/prompts/chatSystem.js";
 import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
+import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
 import type { ChatAttachmentRef } from "@ke/domain";
 import type { AIAdapter } from "../ai/adapter.js";
 
@@ -105,17 +107,46 @@ const HERMES_BASE_URL = process.env.HERMES_BASE_URL || "http://127.0.0.1:8642";
 export function chatRoutes(
   attachmentsRepo: ChatAttachmentsRepo | null = null,
   adapters: AIAdapter[] = [],
+  conversationsRepo: ChatConversationsRepo | null = null,
 ): Hono {
   const r = new Hono();
   const codexFallback = adapters.find(adapter => adapter.name === "codex");
 
+  function messageTitle(messages: Message[]): string {
+    const firstUser = messages.find(message => message.role === "user");
+    const text = firstUser ? contentToText(firstUser.content).replace(/\s+/g, " ").trim() : "";
+    return text ? text.slice(0, 40) : "Rich 对话";
+  }
+
+  async function loadContextMessages(conversationId: string, incoming: Message[]): Promise<Message[]> {
+    if (!conversationsRepo) return incoming;
+    const recent = await conversationsRepo.listMessages(conversationId, 30);
+    if (recent.length === 0) return incoming;
+
+    const incomingText = incoming.map(message => `${message.role}:${contentToText(message.content)}`).join("\n");
+    const merged: Message[] = [];
+    for (const message of recent) {
+      if (incomingText.includes(`${message.role}:${message.content}`)) continue;
+      merged.push({ role: message.role, content: message.content });
+    }
+    return [...merged, ...incoming];
+  }
+
+  function lastUserMessage(messages: Message[]): Message | undefined {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "user") return messages[i];
+    }
+    return undefined;
+  }
+
   async function streamCodexFallback(stream: Parameters<Parameters<typeof streamSSE>[1]>[0], messages: Message[]) {
+    let fullText = "";
     if (!codexFallback || !(await codexFallback.available())) {
       await stream.writeSSE({
         event: "error",
         data: JSON.stringify({ message: "Hermes 没有可用凭证，且 Codex fallback 不可用。" }),
       });
-      return false;
+      return { wroteText: false, fullText };
     }
 
     const controller = new AbortController();
@@ -129,6 +160,7 @@ export function chatRoutes(
       })) {
         if (event.type === "delta" && event.text) {
           wroteText = true;
+          fullText += event.text;
           await stream.writeSSE({
             event: "text",
             data: JSON.stringify({ chunk: event.text }),
@@ -138,7 +170,7 @@ export function chatRoutes(
             event: "error",
             data: JSON.stringify({ message: event.message }),
           });
-          return wroteText;
+          return { wroteText, fullText };
         }
       }
     } catch (e) {
@@ -146,34 +178,34 @@ export function chatRoutes(
         event: "error",
         data: JSON.stringify({ message: e instanceof Error ? e.message : String(e) }),
       });
-      return wroteText;
+      return { wroteText, fullText };
     } finally {
       clearTimeout(timeout);
     }
-    return wroteText;
+    return { wroteText, fullText };
   }
 
   async function streamCodexFallbackWithProgress(
     stream: Parameters<Parameters<typeof streamSSE>[1]>[0],
     messages: Message[],
     hermesMessage: string,
-  ): Promise<boolean> {
+  ): Promise<{ wroteText: boolean; fullText: string }> {
     await stream.writeSSE({
       event: "tool",
       data: JSON.stringify({ name: "codex-fallback", status: "running" }),
     });
-    const wroteText = await streamCodexFallback(stream, messages);
+    const result = await streamCodexFallback(stream, messages);
     await stream.writeSSE({
       event: "tool",
       data: JSON.stringify({ name: "codex-fallback", status: "completed" }),
     });
-    if (!wroteText) {
+    if (!result.wroteText) {
       await stream.writeSSE({
         event: "error",
         data: JSON.stringify({ message: hermesMessage }),
       });
     }
-    return wroteText;
+    return result;
   }
 
   // Non-streaming endpoint for GreatMe HQ conversations and any other caller
@@ -188,14 +220,23 @@ export function chatRoutes(
       return c.json({ error: "messages[] required" }, 400);
     }
     const messages = body.messages;
+    const conversationId = "rich-chat-default";
+    const now = new Date().toISOString();
     try {
+      await conversationsRepo?.ensureConversation({
+        id: conversationId,
+        title: messageTitle(messages),
+        surface: "api-chat",
+        now,
+      });
+      const contextMessages = await loadContextMessages(conversationId, messages);
       const upstream = await fetch(`${HERMES_BASE_URL}/v1/chat/completions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "hermes-agent",
           stream: false,
-          messages: injectSystemPrompt(body.messages),
+          messages: injectSystemPrompt(contextMessages),
         }),
       });
       if (!upstream.ok) {
@@ -204,7 +245,25 @@ export function chatRoutes(
       const json = await upstream.json() as { choices?: { message?: { role: string; content: string } }[] };
       const msg = json.choices?.[0]?.message;
       if (!msg) return c.json({ error: "no message in response" }, 502);
-      return c.json({ message: msg });
+      const user = messages.at(-1);
+      if (user?.role === "user") {
+        await conversationsRepo?.appendMessage({
+          id: randomUUID(),
+          conversationId,
+          role: "user",
+          content: contentToText(user.content),
+          createdAt: now,
+        });
+      }
+      await conversationsRepo?.appendMessage({
+        id: randomUUID(),
+        conversationId,
+        role: "assistant",
+        content: msg.content,
+        adapter: "hermes",
+        createdAt: new Date().toISOString(),
+      });
+      return c.json({ conversationId, message: msg });
     } catch (e) {
       return c.json({ error: e instanceof Error ? e.message : String(e) }, 503);
     }
@@ -212,12 +271,35 @@ export function chatRoutes(
 
   r.post("/stream", async (c) => {
     const body = await c.req.json().catch(() => null) as
-      | { messages?: Message[]; attachments?: ChatAttachmentRef[] }
+      | { messages?: Message[]; attachments?: ChatAttachmentRef[]; conversationId?: string; surface?: string }
       | null;
     if (!body || !Array.isArray(body.messages) || body.messages.length === 0) {
       return c.json({ error: "messages[] required" }, 400);
     }
-    let messages: Message[] = body.messages;
+    const conversationId = body.conversationId?.trim() || "rich-chat-default";
+    const now = new Date().toISOString();
+    await conversationsRepo?.ensureConversation({
+      id: conversationId,
+      title: messageTitle(body.messages),
+      surface: body.surface?.trim() || "chat-stream",
+      now,
+    });
+
+    const originalUserMessage = lastUserMessage(body.messages);
+    if (originalUserMessage) {
+      await conversationsRepo?.appendMessage({
+        id: randomUUID(),
+        conversationId,
+        role: "user",
+        content: contentToText(originalUserMessage.content),
+        metadata: Array.isArray(body.attachments) && body.attachments.length > 0
+          ? { attachments: body.attachments.map(ref => ({ id: ref.id, mime: ref.mime })) }
+          : undefined,
+        createdAt: now,
+      });
+    }
+
+    let messages: Message[] = await loadContextMessages(conversationId, body.messages);
     // 有图就把字节 inline 到最后一条 user message
     if (Array.isArray(body.attachments) && body.attachments.length > 0 && attachmentsRepo) {
       messages = await inlineAttachments(messages, body.attachments, attachmentsRepo);
@@ -254,10 +336,19 @@ export function chatRoutes(
         });
       } catch (e) {
         const message = `Hermes unreachable: ${e instanceof Error ? e.message : String(e)}`;
-        if (await streamCodexFallbackWithProgress(stream, messages, message)) {
+        const fallback = await streamCodexFallbackWithProgress(stream, messages, message);
+        if (fallback.wroteText) {
+          await conversationsRepo?.appendMessage({
+            id: randomUUID(),
+            conversationId,
+            role: "assistant",
+            content: fallback.fullText,
+            adapter: "codex",
+            createdAt: new Date().toISOString(),
+          });
           await stream.writeSSE({
             event: "done",
-            data: JSON.stringify({ finish_reason: "codex-fallback" }),
+            data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
           });
         }
         return;
@@ -265,10 +356,19 @@ export function chatRoutes(
       if (!upstream.ok || !upstream.body) {
         const detail = await upstream.text().catch(() => "");
         const message = `Hermes ${upstream.status} ${upstream.statusText}${detail ? `: ${detail}` : ""}`;
-        if (await streamCodexFallbackWithProgress(stream, messages, message)) {
+        const fallback = await streamCodexFallbackWithProgress(stream, messages, message);
+        if (fallback.wroteText) {
+          await conversationsRepo?.appendMessage({
+            id: randomUUID(),
+            conversationId,
+            role: "assistant",
+            content: fallback.fullText,
+            adapter: "codex",
+            createdAt: new Date().toISOString(),
+          });
           await stream.writeSSE({
             event: "done",
-            data: JSON.stringify({ finish_reason: "codex-fallback" }),
+            data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
           });
         }
         return;
@@ -280,6 +380,8 @@ export function chatRoutes(
       let currentEvent: string | null = null;
       let sawText = false;
       let finishReason = "stop";
+      let fullText = "";
+      let usedAdapter = "hermes";
 
       try {
         while (true) {
@@ -337,6 +439,7 @@ export function chatRoutes(
               const text = choice?.delta?.content;
               if (typeof text === "string" && text.length > 0) {
                 sawText = true;
+                fullText += text;
                 await stream.writeSSE({
                   event: "text",
                   data: JSON.stringify({ chunk: text }),
@@ -366,6 +469,7 @@ export function chatRoutes(
             const text = json.choices?.[0]?.message?.content;
             if (typeof text === "string" && text.length > 0) {
               sawText = true;
+              fullText += text;
               await stream.writeSSE({
                 event: "text",
                 data: JSON.stringify({ chunk: text }),
@@ -383,19 +487,46 @@ export function chatRoutes(
               });
               return;
             }
-            sawText = await streamCodexFallbackWithProgress(stream, messages, message);
+            const fallbackResult = await streamCodexFallbackWithProgress(stream, messages, message);
+            sawText = fallbackResult.wroteText;
+            if (sawText) {
+              usedAdapter = "codex";
+              fullText += fallbackResult.fullText;
+            }
           }
+        }
+        if (fullText.trim()) {
+          await conversationsRepo?.appendMessage({
+            id: randomUUID(),
+            conversationId,
+            role: "assistant",
+            content: fullText,
+            adapter: usedAdapter,
+            createdAt: new Date().toISOString(),
+          });
         }
         await stream.writeSSE({
           event: "done",
-          data: JSON.stringify({ finish_reason: finishReason }),
+          data: JSON.stringify({ finish_reason: finishReason, conversationId }),
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        if (!sawText && await streamCodexFallbackWithProgress(stream, messages, message)) {
+        const fallback = !sawText
+          ? await streamCodexFallbackWithProgress(stream, messages, message)
+          : { wroteText: false, fullText: "" };
+        if (!sawText && fallback.wroteText) {
+          usedAdapter = "codex";
+          await conversationsRepo?.appendMessage({
+            id: randomUUID(),
+            conversationId,
+            role: "assistant",
+            content: fallback.fullText,
+            adapter: usedAdapter,
+            createdAt: new Date().toISOString(),
+          });
           await stream.writeSSE({
             event: "done",
-            data: JSON.stringify({ finish_reason: "codex-fallback" }),
+            data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
           });
           return;
         }
@@ -405,6 +536,18 @@ export function chatRoutes(
         });
       }
     });
+  });
+
+  r.get("/conversations", async (c) => {
+    if (!conversationsRepo) return c.json({ conversations: [] });
+    const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 30), 1), 100);
+    return c.json({ conversations: await conversationsRepo.listConversations(limit) });
+  });
+
+  r.get("/conversations/:id/messages", async (c) => {
+    if (!conversationsRepo) return c.json({ messages: [] });
+    const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 50), 1), 200);
+    return c.json({ messages: await conversationsRepo.listMessages(c.req.param("id"), limit) });
   });
 
   return r;

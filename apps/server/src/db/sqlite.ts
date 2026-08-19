@@ -216,6 +216,30 @@ function applySchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_chat_attachments_sha ON chat_attachments(sha256);
     CREATE INDEX IF NOT EXISTS idx_chat_attachments_created ON chat_attachments(created_at DESC);
 
+    -- Rich 对话上下文：服务端持久化，不再只依赖浏览器缓存。
+    CREATE TABLE IF NOT EXISTS chat_conversations (
+      id              TEXT PRIMARY KEY,
+      title           TEXT NOT NULL,
+      surface         TEXT NOT NULL DEFAULT 'chat',
+      created_at      TEXT NOT NULL,
+      updated_at      TEXT NOT NULL,
+      last_message_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_conversations_last ON chat_conversations(last_message_at DESC);
+
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id               TEXT PRIMARY KEY,
+      conversation_id  TEXT NOT NULL,
+      role             TEXT NOT NULL,
+      content          TEXT NOT NULL,
+      adapter          TEXT,
+      model_session_id TEXT,
+      metadata         TEXT,
+      created_at       TEXT NOT NULL,
+      FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation ON chat_messages(conversation_id, created_at);
+
     -- ─── Rich 私人健康档案 · Body Insights v0.1 ──────────────────────
     -- 单用户 MVP（user_id = 'me'）。Sqlite 用 TEXT 存 JSON（postgres 用 JSONB）。
     CREATE TABLE IF NOT EXISTS health_profile (

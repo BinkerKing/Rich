@@ -128,6 +128,7 @@ import { SqlitePathsRepo } from "./repos/SqlitePathsRepo.js";
 import { SqliteSignalsRepo } from "./repos/SqliteSignalsRepo.js";
 import { SqliteChatVisualBlocksRepo } from "./repos/SqliteChatVisualBlocksRepo.js";
 import { SqliteChatAttachmentsRepo } from "./repos/SqliteChatAttachmentsRepo.js";
+import { SqliteChatConversationsRepo } from "./repos/SqliteChatConversationsRepo.js";
 import { SqliteQARepo } from "./repos/SqliteQARepo.js";
 import { SqliteAnnotationsRepo } from "./repos/SqliteAnnotationsRepo.js";
 import { SqliteStateRepo } from "./repos/SqliteStateRepo.js";
@@ -140,6 +141,7 @@ import type { PathsRepo } from "./repos/PathsRepo.js";
 import type { SignalsRepo } from "./repos/SignalsRepo.js";
 import type { ChatVisualBlocksRepo } from "./repos/ChatVisualBlocksRepo.js";
 import type { ChatAttachmentsRepo } from "./repos/ChatAttachmentsRepo.js";
+import type { ChatConversationsRepo } from "./repos/ChatConversationsRepo.js";
 import type { HealthRepo } from "./repos/HealthRepo.js";
 import type { QARepo } from "./repos/QARepo.js";
 import type { AnnotationsRepo } from "./repos/AnnotationsRepo.js";
@@ -184,6 +186,7 @@ import { PostgresPathsRepo } from "./repos/PostgresPathsRepo.js";
 import { PostgresSignalsRepo } from "./repos/PostgresSignalsRepo.js";
 import { PostgresChatVisualBlocksRepo } from "./repos/PostgresChatVisualBlocksRepo.js";
 import { PostgresChatAttachmentsRepo } from "./repos/PostgresChatAttachmentsRepo.js";
+import { PostgresChatConversationsRepo } from "./repos/PostgresChatConversationsRepo.js";
 import { PostgresHealthRepo } from "./repos/PostgresHealthRepo.js";
 import { PostgresQARepo } from "./repos/PostgresQARepo.js";
 import { PostgresAnnotationsRepo } from "./repos/PostgresAnnotationsRepo.js";
@@ -225,6 +228,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let chatVisualBlocks: ChatVisualBlocksRepo | null = null;
   /** chat_attachments 同上 —— bytea 存储需要数据库后端 */
   let chatAttachments: ChatAttachmentsRepo | null = null;
+  let chatConversations: ChatConversationsRepo | null = null;
   /** Body Insights 健康档案 —— V0.1 只支持 postgres（数据敏感、需跨机同步） */
   let healthRepo: HealthRepo | null = null;
   if (storage === "json") {
@@ -257,6 +261,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     improvements = new PostgresImprovementsRepo(pg);
     chatVisualBlocks = new PostgresChatVisualBlocksRepo(pg);
     chatAttachments = new PostgresChatAttachmentsRepo(pg);
+    chatConversations = new PostgresChatConversationsRepo(pg);
     healthRepo = new PostgresHealthRepo(pg);
     projectManagement = new PostgresProjectManagementRepo(pg);
   } else {
@@ -275,6 +280,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     invocations = new InvocationsRepo(db);
     chatVisualBlocks = new SqliteChatVisualBlocksRepo(db);
     chatAttachments = new SqliteChatAttachmentsRepo(db);
+    chatConversations = new SqliteChatConversationsRepo(db);
     projectManagement = new SqliteProjectManagementRepo(db);
   }
 
@@ -326,7 +332,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/state", stateRoutes(state, elements, signals));
   app.route("/api/corpus", corpusRoutes(corpus));
   app.route("/api/great-me", greatMeRoutes(greatMe));
-  app.route("/api/chat", chatRoutes(chatAttachments, ai));
+  app.route("/api/chat", chatRoutes(chatAttachments, ai, chatConversations));
   app.route("/api/chat-visual-blocks", chatVisualBlocksRoutes(chatVisualBlocks));
   app.route("/api/chat/attachments", chatAttachmentsRoutes(chatAttachments));
   app.route("/api/health", healthRoutes(healthRepo));
