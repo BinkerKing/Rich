@@ -27,6 +27,7 @@ import { buildDraftPrdPrompt } from "./prompts/draftPrd.js";
 import { buildDraftChildPrompt } from "./prompts/draftChild.js";
 import { buildAdjustChildPrompt } from "./prompts/adjustChild.js";
 import { buildGuidedPracticePrompt } from "./prompts/guidedPractice.js";
+import { buildOperationContextFragment } from "./operationContext.js";
 import type { AIManual } from "./manuals.js";
 import type { Signal } from "@ke/domain";
 
@@ -359,8 +360,18 @@ function zodValidator<T>(schema: z.ZodSchema<T>): (parsed: unknown) => T {
   };
 }
 
-function withManual(manual: string | undefined, taskPrompt: string): string {
-  return manual ? `${manual}${taskPrompt}` : taskPrompt;
+function withOperationContext(
+  args: SharedOpArgs,
+  taskPrompt: string,
+  operation: string,
+  scenario: string,
+): string {
+  return `${buildOperationContextFragment({
+    operation,
+    scenario,
+    manual: args.manual,
+    notes: args.contextNotes,
+  })}${taskPrompt}`;
 }
 
 interface SharedOpArgs {
@@ -368,6 +379,7 @@ interface SharedOpArgs {
   signal?: AbortSignal;
   /** Pre-formatted AI manual block (use manualToPromptFragment). Optional. */
   manual?: string;
+  contextNotes?: string[];
 }
 
 // ----- Operations -----
@@ -376,9 +388,9 @@ export function generateTreeFor(
   adapter: AIAdapter,
   args: { topic: string; richness?: RichnessLevel } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<GenerateTreeResult>> {
-  const prompt = withManual(args.manual, buildGenerateTreePrompt({
+  const prompt = withOperationContext(args, buildGenerateTreePrompt({
     topic: args.topic, richness: args.richness ?? 2,
-  }));
+  }), "generate-tree", "knowledge");
   return runStructuredAI(adapter, {
     prompt, signal: args.signal, validate: zodValidator(GenerateTreeResultSchema),
     opLog: { op: "generate", model: adapter.name, scope: { topic: args.topic, richness: args.richness } },
@@ -389,9 +401,9 @@ export function refineElement(
   adapter: AIAdapter,
   args: { element: Element; targetRichness: RichnessLevel; direction?: string } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<RefineResult>> {
-  const prompt = withManual(args.manual, buildRefinePrompt({
+  const prompt = withOperationContext(args, buildRefinePrompt({
     element: args.element, targetRichness: args.targetRichness, direction: args.direction,
-  }));
+  }), "refine", "knowledge");
   return runStructuredAI(adapter, {
     prompt, sessionId: args.sessionId, signal: args.signal, validate: zodValidator(RefineResultSchema),
     opLog: { op: "refine", model: adapter.name, elementId: args.element.id, scope: { targetRichness: args.targetRichness, direction: args.direction } },
@@ -408,9 +420,9 @@ export function refineSection(
     direction: string;
   } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<SectionRefineResult>> {
-  const prompt = withManual(args.manual, buildSectionRefinePrompt({
+  const prompt = withOperationContext(args, buildSectionRefinePrompt({
     element: args.element, section: args.section, direction: args.direction,
-  }));
+  }), "section-refine", "review");
   return runStructuredAI(adapter, {
     prompt, sessionId: args.sessionId, signal: args.signal, validate: zodValidator(SectionRefineResultSchema),
     opLog: { op: "section-refine", model: adapter.name, elementId: args.element.id, scope: { sectionId: args.section.id, direction: args.direction } },
@@ -421,10 +433,10 @@ export function expandElement(
   adapter: AIAdapter,
   args: { parent: Element; existingChildren: Element[]; count?: number; direction?: string; maxDepth?: number } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<ExpandResult>> {
-  const prompt = withManual(args.manual, buildExpandPrompt({
+  const prompt = withOperationContext(args, buildExpandPrompt({
     parent: args.parent, existingChildren: args.existingChildren,
     count: args.count, direction: args.direction, maxDepth: args.maxDepth,
-  }));
+  }), "expand", "knowledge");
   return runStructuredAI(adapter, {
     prompt, sessionId: args.sessionId, signal: args.signal, validate: zodValidator(ElementsAndRelationsSchema),
     opLog: { op: "expand", model: adapter.name, elementId: args.parent.id, scope: { count: args.count, direction: args.direction, maxDepth: args.maxDepth } },
@@ -435,9 +447,9 @@ export function extendElement(
   adapter: AIAdapter,
   args: { element: Element; direction: string; count?: number } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<ExtendResult>> {
-  const prompt = withManual(args.manual, buildExtendPrompt({
+  const prompt = withOperationContext(args, buildExtendPrompt({
     element: args.element, direction: args.direction, count: args.count,
-  }));
+  }), "extend", "knowledge");
   return runStructuredAI(adapter, {
     prompt, sessionId: args.sessionId, signal: args.signal, validate: zodValidator(ElementsAndRelationsSchema),
     opLog: { op: "extend", model: adapter.name, elementId: args.element.id, scope: { count: args.count, direction: args.direction } },
@@ -454,13 +466,13 @@ export function analyzeMark(
     hint?: string;
   } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<AnalyzeMarkResult>> {
-  const prompt = withManual(args.manual, buildAnalyzeMarkPrompt({
+  const prompt = withOperationContext(args, buildAnalyzeMarkPrompt({
     element: args.element,
     markedText: args.markedText,
     contextBefore: args.contextBefore,
     contextAfter: args.contextAfter,
     hint: args.hint,
-  }));
+  }), "analyze-mark", "analysis");
   return runStructuredAI(adapter, {
     prompt, sessionId: args.sessionId, signal: args.signal, validate: zodValidator(AnalyzeMarkResultSchema),
     opLog: { op: "analyze-mark", model: adapter.name, elementId: args.element.id, scope: { markedText: args.markedText.slice(0, 80) } },
@@ -471,9 +483,9 @@ export function generatePathsFor(
   adapter: AIAdapter,
   args: { center: Element; availableElements: Element[]; kinds: PathKind[] } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<PathResult>> {
-  const prompt = withManual(args.manual, buildPathPrompt({
+  const prompt = withOperationContext(args, buildPathPrompt({
     center: args.center, availableElements: args.availableElements, kinds: args.kinds,
-  }));
+  }), "generate-paths", "knowledge");
   return runStructuredAI(adapter, {
     prompt, sessionId: args.sessionId, signal: args.signal, validate: zodValidator(PathResultSchema),
     opLog: { op: "path", model: adapter.name, elementId: args.center.id, scope: { kinds: args.kinds } },
@@ -544,12 +556,12 @@ export function attachUnder(
     richness?: RichnessLevel;
   } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<ExpandResult>> {
-  const prompt = withManual(args.manual, buildAttachUnderPrompt({
+  const prompt = withOperationContext(args, buildAttachUnderPrompt({
     parent: args.parent, mode: args.mode,
     leafTitle: args.leafTitle, chain: args.chain,
     fullIntent: args.fullIntent,
     richness: args.richness ?? 2,
-  }));
+  }), "attach-under", "knowledge");
   return runStructuredAI(adapter, {
     prompt, sessionId: args.sessionId, signal: args.signal,
     validate: zodValidator(ElementsAndRelationsSchema),
@@ -566,7 +578,12 @@ export function generateDailyNews(
   adapter: AIAdapter,
   args: { date: string } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<GenerateDailyNewsResult>> {
-  const prompt = buildGenerateDailyNewsPrompt({ date: args.date });
+  const prompt = withOperationContext(
+    args,
+    buildGenerateDailyNewsPrompt({ date: args.date }),
+    "generate-daily-news",
+    "content",
+  );
   return runStructuredAI(adapter, {
     prompt, signal: args.signal,
     validate: zodValidator(GenerateDailyNewsResultSchema),
@@ -587,12 +604,12 @@ export function generateMindmap(
     withImages?: boolean;
   } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<GenerateMindmapResult>> {
-  const prompt = buildGenerateMindmapPrompt({
+  const prompt = withOperationContext(args, buildGenerateMindmapPrompt({
     prose: args.prose,
     titleHint: args.titleHint,
     audience: args.audience,
     withImages: args.withImages,
-  });
+  }), "generate-mindmap", "mindmap");
   return runStructuredAI(adapter, {
     prompt, signal: args.signal,
     validate: zodValidator(GenerateMindmapResultSchema),
@@ -611,11 +628,11 @@ export function runGreatMeBrain(
     state: unknown;
   } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<GreatMeBrainResult>> {
-  const prompt = buildGreatMePrompt({
+  const prompt = withOperationContext(args, buildGreatMePrompt({
     mode: args.mode,
     input: args.input,
     state: args.state,
-  });
+  }), "great-me", "planning");
   return runStructuredAI(adapter, {
     prompt,
     signal: args.signal,
@@ -675,11 +692,11 @@ export function runDecomposePlan(
     targetEnd?: string;
   } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<DecomposePlanResult>> {
-  const prompt = buildDecomposePlanPrompt({
+  const prompt = withOperationContext(args, buildDecomposePlanPrompt({
     intent: args.intent,
     today: args.today,
     targetEnd: args.targetEnd,
-  });
+  }), "decompose-plan", "planning");
   return runStructuredAI(adapter, {
     prompt,
     signal: args.signal,
@@ -711,10 +728,10 @@ export function runAnalyzeProgress(
     metrics: unknown;
   } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<AnalyzeProgressResult>> {
-  const prompt = buildAnalyzeProgressPrompt({
+  const prompt = withOperationContext(args, buildAnalyzeProgressPrompt({
     state: args.state,
     metrics: args.metrics as Parameters<typeof buildAnalyzeProgressPrompt>[0]["metrics"],
-  });
+  }), "analyze-progress", "analysis");
   return runStructuredAI(adapter, {
     prompt,
     signal: args.signal,
@@ -752,14 +769,14 @@ export function runDraftReview(
     metrics: Parameters<typeof buildDraftReviewPrompt>[0]["metrics"];
   } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<DraftReviewResult>> {
-  const prompt = buildDraftReviewPrompt({
+  const prompt = withOperationContext(args, buildDraftReviewPrompt({
     weekOf: args.weekOf,
     weekTasks: args.weekTasks,
     weekGoals: args.weekGoals,
     activePlans: args.activePlans,
     lastReview: args.lastReview,
     metrics: args.metrics,
-  });
+  }), "draft-review", "review");
   return runStructuredAI(adapter, {
     prompt,
     signal: args.signal,
@@ -781,12 +798,12 @@ export function runGuidedPractice(
     messages: Parameters<typeof buildGuidedPracticePrompt>[0]["messages"];
   } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<GuidedPracticeResult>> {
-  const prompt = buildGuidedPracticePrompt({
+  const prompt = withOperationContext(args, buildGuidedPracticePrompt({
     stage: args.stage,
     userInput: args.userInput,
     draft: args.draft,
     messages: args.messages,
-  });
+  }), "guided-practice", "project-practice");
   return runStructuredAI(adapter, {
     prompt,
     systemPrompt: "You are a product requirements analyst inside Rich. Return exactly one valid JSON object with keys reply, draftPatch, nextStage, confidence, openQuestions. Do not use Markdown.",
@@ -838,11 +855,11 @@ export function runDraftPrd(
     extraContext?: string;
   } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<DraftPrdResult>> {
-  const prompt = buildDraftPrdPrompt({
+  const prompt = withOperationContext(args, buildDraftPrdPrompt({
     practice: args.practice,
     children: args.children,
     extraContext: args.extraContext,
-  });
+  }), "draft-prd", "project-practice");
   return runStructuredAI(adapter, {
     prompt,
     signal: args.signal,
@@ -875,12 +892,12 @@ export function runDraftChild(
     direction: string;
   } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<DraftChildResult>> {
-  const prompt = buildDraftChildPrompt({
+  const prompt = withOperationContext(args, buildDraftChildPrompt({
     practice: args.practice,
     groupType: args.groupType,
     existingTitles: args.existingTitles,
     direction: args.direction,
-  });
+  }), "draft-child", "project-practice");
   return runStructuredAI(adapter, {
     prompt,
     signal: args.signal,
@@ -915,12 +932,12 @@ export function runAdjustChild(
     direction: string;
   } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<AdjustChildResult>> {
-  const prompt = buildAdjustChildPrompt({
+  const prompt = withOperationContext(args, buildAdjustChildPrompt({
     practice: args.practice,
     groupType: args.groupType,
     current: args.current,
     direction: args.direction,
-  });
+  }), "adjust-child", "project-practice");
   return runStructuredAI(adapter, {
     prompt,
     signal: args.signal,
@@ -951,10 +968,10 @@ export function generateImageFor(
     elementId?: string;
   } & SharedOpArgs,
 ): AsyncIterable<StructuredEvent<GenerateImageResult>> {
-  const prompt = buildGenerateImagePrompt({
+  const prompt = withOperationContext(args, buildGenerateImagePrompt({
     alt: args.alt, caption: args.caption,
     imagePrompt: args.imagePrompt, surroundingText: args.surroundingText,
-  });
+  }), "generate-image", "image");
   return runStructuredAI(adapter, {
     prompt, signal: args.signal,
     validate: zodValidator(GenerateImageResultSchema),
