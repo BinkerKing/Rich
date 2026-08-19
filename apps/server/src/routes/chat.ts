@@ -4,7 +4,8 @@ import { randomUUID } from "node:crypto";
 import { buildChatSystemPrompt } from "../ai/prompts/chatSystem.js";
 import { pickScenarioAdapter } from "../ai/pickAdapter.js";
 import { normalizeAdapterName } from "../ai/modelRouter.js";
-import { buildChatContextMessages, refreshChatSummaryIfNeeded } from "../ai/chatContextEngine.js";
+import { createAIContextProvider } from "../ai/contextProvider.js";
+import type { AIContextProvider } from "../ai/contextProvider.js";
 import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
 import type { ChatAttachmentRef } from "@ke/domain";
@@ -125,6 +126,7 @@ export function chatRoutes(
   attachmentsRepo: ChatAttachmentsRepo | null = null,
   adapters: AIAdapter[] = [],
   conversationsRepo: ChatConversationsRepo | null = null,
+  contextProvider: AIContextProvider = createAIContextProvider(conversationsRepo),
 ): Hono {
   const r = new Hono();
   const codexFallback = adapters.find(adapter => adapter.name === "codex");
@@ -140,8 +142,7 @@ export function chatRoutes(
   }
 
   function queueSummaryRefresh(conversationId: string): void {
-    if (!conversationsRepo) return;
-    void refreshChatSummaryIfNeeded(conversationsRepo, pickSummaryAdapter(), conversationId)
+    void contextProvider.refreshChatSummary(conversationId, pickSummaryAdapter())
       .catch(() => undefined);
   }
 
@@ -280,7 +281,7 @@ export function chatRoutes(
         surface: body.surface?.trim() || "api-chat",
         now,
       });
-      const contextMessages = await buildChatContextMessages(conversationsRepo, conversationId, messages) as Message[];
+      const contextMessages = await contextProvider.buildChatContext(conversationId, messages) as Message[];
       let msg: { role: string; content: string } | null = null;
       let usedAdapter = adapter?.name ?? "hermes";
       if (!adapter || adapter.name === "hermes") {
@@ -367,7 +368,7 @@ export function chatRoutes(
       });
     }
 
-    let messages = await buildChatContextMessages(conversationsRepo, conversationId, body.messages) as Message[];
+    let messages = await contextProvider.buildChatContext(conversationId, body.messages) as Message[];
     // 有图就把字节 inline 到最后一条 user message
     if (Array.isArray(body.attachments) && body.attachments.length > 0 && attachmentsRepo) {
       messages = await inlineAttachments(messages, body.attachments, attachmentsRepo);
