@@ -7,6 +7,7 @@ export interface GenerateArgs {
   prompt: string;
   systemPrompt?: string;
   sessionId?: string;
+  scenario?: string;
   signal?: AbortSignal;
 }
 

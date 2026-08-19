@@ -152,6 +152,7 @@ import { HermesAdapter } from "./ai/hermes.js";
 import { configureOpLog, healStaleRunningOps } from "./ai/aiOpLog.js";
 import { imageQueue } from "./ai/imageQueue.js";
 import type { AIAdapter } from "./ai/adapter.js";
+import { pickScenarioAdapter } from "./ai/pickAdapter.js";
 import { createLogger, noopLogger, type Logger } from "./lib/logger.js";
 import { installShutdownHandlers, childRegistry } from "./lib/childRegistry.js";
 import { mountMcp } from "./mcp/transport.js";
@@ -277,18 +278,8 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   }
 
   // Toolbox runtime constructed below (after `log` is defined).
-  // Order matters: pickAdapter() returns adapters[0] when no preference is given.
-  // Codex first because Claude SDK 401s when the server is launched inside a
-  // Claude Code session (no OAuth refresh available in the subprocess).
-  // Default adapter order (per Plan B migration):
-  //   1. Hermes — the new brain. Speaks OpenAI-compatible HTTP API and
-  //      uses Codex internally via your existing OAuth. Routes that
-  //      need an agent-style LLM should pick this.
-  //   2. Codex — direct subprocess. Preserved for fallback while Plan B
-  //      migration is in progress; pickAdapter() returns adapters[0] by
-  //      default so codex is only used when explicitly requested via the
-  //      `model` param.
-  //   3. Claude Code — legacy SDK path; only used if explicitly named.
+  // Adapter order is no longer the routing policy. Keep Hermes/Codex/Claude
+  // registered here, and let modelRouter decide per AI scenario.
   const ai = adapters ?? opts.adapters ?? [
     new HermesAdapter(),
     new CodexAdapter(),
@@ -315,14 +306,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   void healStaleRunningOps().then(n => {
     if (n > 0) log.info("ai.ops.healed", { stale_running_marked_error: n });
   });
-  // Image generation runs in a separate AI op from text generation. The
-  // text op emits image-placeholder blocks; this background queue processes
-  // them. Hermes's OpenAI-compat endpoint can't produce image files (it's
-  // text-only), so the image queue specifically targets the Codex adapter
-  // instead of pickAdapter's default. Falls back to whichever adapter is
-  // first if Codex isn't configured.
-  const codexForImages = ai.find(a => a.name === "codex") ?? ai[0];
-  imageQueue.configure(codexForImages, elements, log);
+  imageQueue.configure(pickScenarioAdapter(ai, "image"), elements, log);
   const app = new Hono();
   app.use("*", async (c, next) => {
     c.header("access-control-allow-origin", "*");
