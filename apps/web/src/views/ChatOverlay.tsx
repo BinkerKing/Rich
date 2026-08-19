@@ -18,7 +18,9 @@ import "../components/RichContent.css";
 import {
   CHAT_HISTORY_STORAGE_KEY,
   CHAT_HISTORY_UPDATED_EVENT,
+  DEFAULT_CHAT_CONVERSATION_ID,
   loadChatHistory,
+  loadServerChatHistory,
   saveChatHistory,
   attachmentDataUrl,
   type ChatHistoryMessage,
@@ -309,16 +311,25 @@ export function ChatOverlay() {
     const refresh = () => {
       if (!useChatStore.getState().inflight) replaceAll(loadChatHistory({ preservePending: true }));
     };
+    const refreshFromServer = () => {
+      if (useChatStore.getState().inflight) return;
+      void loadServerChatHistory().then(serverMessages => {
+        if (serverMessages.length === 0 || useChatStore.getState().inflight) return;
+        replaceAll(serverMessages);
+        saveChatHistory(serverMessages);
+      }).catch(() => refresh());
+    };
     const onStorage = (e: StorageEvent) => {
       if (e.key === CHAT_HISTORY_STORAGE_KEY) refresh();
     };
+    refreshFromServer();
     window.addEventListener(CHAT_HISTORY_UPDATED_EVENT, refresh);
     window.addEventListener("storage", onStorage);
-    window.addEventListener("focus", refresh);
+    window.addEventListener("focus", refreshFromServer);
     return () => {
       window.removeEventListener(CHAT_HISTORY_UPDATED_EVENT, refresh);
       window.removeEventListener("storage", onStorage);
-      window.removeEventListener("focus", refresh);
+      window.removeEventListener("focus", refreshFromServer);
     };
   }, [replaceAll]);
 
@@ -379,6 +390,8 @@ export function ChatOverlay() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          conversationId: DEFAULT_CHAT_CONVERSATION_ID,
+          surface: "chat-overlay",
           messages: history,
           attachments: attRefs.length > 0
             ? attRefs.map(r => ({ id: r.id, mime: r.mime }))

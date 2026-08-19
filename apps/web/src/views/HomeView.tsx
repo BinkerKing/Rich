@@ -17,7 +17,9 @@ import "../components/RichContent.css";
 import {
   CHAT_HISTORY_STORAGE_KEY,
   CHAT_HISTORY_UPDATED_EVENT,
+  DEFAULT_CHAT_CONVERSATION_ID,
   loadChatHistory,
+  loadServerChatHistory,
   saveChatHistory,
   attachmentDataUrl,
   type ChatHistoryMessage,
@@ -484,16 +486,25 @@ export function HomeView() {
 
   useEffect(() => {
     const refresh = () => setTurns(loadChatHistory({ preservePending: true }));
+    const refreshFromServer = () => {
+      if (busy) return;
+      void loadServerChatHistory().then(serverMessages => {
+        if (serverMessages.length === 0) return;
+        setTurns(serverMessages);
+        saveChatHistory(serverMessages);
+      }).catch(() => refresh());
+    };
     const onStorage = (e: StorageEvent) => {
       if (e.key === CHAT_HISTORY_STORAGE_KEY) refresh();
     };
+    refreshFromServer();
     window.addEventListener(CHAT_HISTORY_UPDATED_EVENT, refresh);
     window.addEventListener("storage", onStorage);
     return () => {
       window.removeEventListener(CHAT_HISTORY_UPDATED_EVENT, refresh);
       window.removeEventListener("storage", onStorage);
     };
-  }, []);
+  }, [busy]);
 
   // Auto-grow textarea: shrink-to-content first, then size to scrollHeight.
   useEffect(() => {
@@ -640,6 +651,8 @@ export function HomeView() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          conversationId: DEFAULT_CHAT_CONVERSATION_ID,
+          surface: "home",
           messages: history,
           // 把图片 ref 也带上 —— 后端会从 chat_attachments 拉字节 inline 进最后一条 user message
           attachments: attRefs.length > 0
