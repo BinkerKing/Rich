@@ -739,6 +739,18 @@
   font-size: 16px;
   justify-self: end;
 }
+.admin-routing-chip select {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, .24);
+  color: var(--text);
+  padding: 0 8px;
+  font: inherit;
+  font-size: 12px;
+}
 .admin-routing-chip em {
   grid-column: 1 / -1;
   color: var(--text-soft);

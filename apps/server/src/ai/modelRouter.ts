@@ -21,7 +21,7 @@ export type AIScenario =
 export interface ModelRoute {
   scenario: AIScenario;
   adapter: AdapterName;
-  source: "request" | "env" | "default" | "fallback";
+  source: "request" | "settings" | "env" | "default" | "fallback";
 }
 
 const ADAPTER_NAMES: readonly AdapterName[] = ["hermes", "codex", "claude-code", "bailian"];
@@ -60,9 +60,28 @@ const DEFAULT_SCENARIO_MODEL: Record<AIScenario, AdapterName> = {
   knowledge: "hermes",
 };
 
+let routeOverrides: Partial<Record<AIScenario, AdapterName>> = {};
+
 export function normalizeAdapterName(value: unknown): AdapterName | undefined {
   if (typeof value !== "string") return undefined;
   return ADAPTER_NAMES.find(name => name === value);
+}
+
+export function normalizeScenario(value: unknown): AIScenario | undefined {
+  if (typeof value !== "string") return undefined;
+  return (Object.keys(DEFAULT_SCENARIO_MODEL) as AIScenario[]).find(scenario => scenario === value);
+}
+
+export function listAIScenarios(): AIScenario[] {
+  return Object.keys(DEFAULT_SCENARIO_MODEL) as AIScenario[];
+}
+
+export function setModelRouteOverrides(overrides: Partial<Record<AIScenario, AdapterName>>): void {
+  routeOverrides = { ...overrides };
+}
+
+export function getModelRouteOverrides(): Partial<Record<AIScenario, AdapterName>> {
+  return { ...routeOverrides };
 }
 
 function pickExisting(adapters: AIAdapter[], name: AdapterName | undefined): AIAdapter | undefined {
@@ -85,6 +104,11 @@ export function resolveModelRoute(
   }
 
   const envModel = envModelForScenario(scenario);
+  const settingsModel = routeOverrides[scenario] ?? routeOverrides.default;
+  if (pickExisting(adapters, settingsModel)) {
+    return { scenario, adapter: settingsModel!, source: "settings" };
+  }
+
   if (pickExisting(adapters, envModel)) {
     return { scenario, adapter: envModel!, source: "env" };
   }

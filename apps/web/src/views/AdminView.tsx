@@ -325,6 +325,10 @@ interface EnginePayload {
       env: string;
     }[];
   };
+  settings?: {
+    routes?: Record<string, string>;
+    updatedAt?: string;
+  };
   uptimeSec: number;
   childProcesses: number;
   signalsTotal: number;
@@ -346,6 +350,18 @@ function EngineTab() {
     } finally {
       setLoading(false);
     }
+  }
+  async function saveRoute(scenario: string, adapter: string) {
+    const routes = { ...(data?.settings?.routes ?? {}) };
+    if (adapter) routes[scenario] = adapter;
+    else delete routes[scenario];
+    const res = await fetch("/api/admin/engine/settings", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ routes }),
+    });
+    if (!res.ok) return;
+    await load();
   }
   useEffect(() => { void load(); }, []);
   useEffect(() => {
@@ -400,6 +416,16 @@ function EngineTab() {
                     <div className="admin-routing-chip" key={route.scenario}>
                       <span>{route.scenario}</span>
                       <strong>{route.adapter}</strong>
+                      <select
+                        value={data.settings?.routes?.[route.scenario] ?? ""}
+                        aria-label={`${route.scenario} 模型`}
+                        onChange={event => void saveRoute(route.scenario, event.target.value)}
+                      >
+                        <option value="">默认 / 环境变量</option>
+                        {data.adapters.map(adapter => (
+                          <option key={adapter.name} value={adapter.name}>{adapter.name}</option>
+                        ))}
+                      </select>
                       <em>{route.source === "env" ? route.env : route.source}</em>
                     </div>
                   ))}

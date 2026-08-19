@@ -6,7 +6,8 @@ import type { Signal } from "@ke/domain";
 import { readAllOpRecords, reduceToFinal } from "../ai/aiOpLog.js";
 import type { AIAdapter } from "../ai/adapter.js";
 import { childRegistry } from "../lib/childRegistry.js";
-import { describeModelRouting } from "../ai/modelRouter.js";
+import { currentAIEngineSettings, writeAIEngineSettings } from "../ai/engineSettings.js";
+import { describeModelRouting, listAIScenarios, normalizeAdapterName, normalizeScenario, type AIScenario, type AdapterName } from "../ai/modelRouter.js";
 import type { CorpusRepo } from "../repos/CorpusRepo.js";
 import { corpusRoutes } from "./corpus.js";
 
@@ -143,6 +144,7 @@ export function adminRoutes(deps: AdminRoutesDeps): Hono {
       ts: new Date().toISOString(),
       adapters: adapterChecks,
       routing: await describeModelRouting(deps.adapters),
+      settings: currentAIEngineSettings(),
       uptimeSec: Math.round(process.uptime()),
       childProcesses: childRegistry.size(),
       signalsTotal: await deps.signals.count(),
@@ -156,6 +158,31 @@ export function adminRoutes(deps: AdminRoutesDeps): Hono {
         .filter(r => r.status === "error")
         .slice(0, 10)
         .map(r => ({ id: r.id, ts: r.ts, op: r.op, elementId: r.elementId, error: r.error })),
+    });
+  });
+
+  r.get("/engine/settings", async (c) => {
+    return c.json({
+      scenarios: listAIScenarios(),
+      adapters: deps.adapters.map(adapter => adapter.name),
+      settings: currentAIEngineSettings(),
+    });
+  });
+
+  r.put("/engine/settings", async (c) => {
+    const raw = await c.req.json().catch(() => null) as { routes?: Record<string, unknown> } | null;
+    const routes: Partial<Record<AIScenario, AdapterName>> = {};
+    const availableAdapters = new Set(deps.adapters.map(adapter => adapter.name));
+    for (const [scenarioValue, adapterValue] of Object.entries(raw?.routes ?? {})) {
+      const scenario = normalizeScenario(scenarioValue);
+      const adapter = normalizeAdapterName(adapterValue);
+      if (!scenario || !adapter || !availableAdapters.has(adapter)) continue;
+      routes[scenario] = adapter;
+    }
+    return c.json({
+      scenarios: listAIScenarios(),
+      adapters: deps.adapters.map(adapter => adapter.name),
+      settings: writeAIEngineSettings(routes),
     });
   });
 

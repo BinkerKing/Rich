@@ -152,6 +152,7 @@ import { ClaudeAdapter } from "./ai/claude.js";
 import { CodexAdapter } from "./ai/codex.js";
 import { HermesAdapter } from "./ai/hermes.js";
 import { BailianAdapter } from "./ai/bailian.js";
+import { loadAIEngineSettings } from "./ai/engineSettings.js";
 import { configureOpLog, healStaleRunningOps } from "./ai/aiOpLog.js";
 import { imageQueue } from "./ai/imageQueue.js";
 import type { AIAdapter } from "./ai/adapter.js";
@@ -293,6 +294,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     new CodexAdapter(),
     new ClaudeAdapter(),
   ];
+  loadAIEngineSettings();
   const log = logger ?? opts.logger ?? noopLogger;
   const manualsDir = opts.aiDir ?? aiDir();
   // ─── Toolbox runtime (gracefully no-op if SQLite repo missing) ──
