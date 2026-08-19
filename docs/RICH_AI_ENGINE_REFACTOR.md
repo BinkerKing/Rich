@@ -42,6 +42,9 @@ Keep credentials outside Git, for example in `~/.rich-ai.env`. `Rich.app` loads 
 ```bash
 DASHSCOPE_API_KEY=...
 DASHSCOPE_MODEL=qwen-plus
+# Optional per-scenario concrete model when the scenario is routed to Bailian:
+# DASHSCOPE_CHAT_MODEL=qwen-plus
+# DASHSCOPE_ANALYSIS_MODEL=qwen-max
 # Optional:
 # DASHSCOPE_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 ```

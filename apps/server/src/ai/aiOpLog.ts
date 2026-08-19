@@ -13,6 +13,8 @@ export interface AIOpRecord {
   op: string;
   /** Adapter name: "codex" / "claude-code". */
   model: string;
+  /** Rich AI scenario: "chat" / "analysis" / "document" / etc. */
+  scenario?: string;
   /** Element this op is scoped to (omitted for generate / review). */
   elementId?: string;
   /** Extra op-specific scope (e.g. sectionId for section-feedback). */
@@ -77,6 +79,7 @@ export interface OpHandle {
 export async function startOpRecord(input: {
   op: string;
   model: string;
+  scenario?: string;
   elementId?: string;
   scope?: Record<string, unknown>;
   prompt: string;
@@ -88,6 +91,7 @@ export async function startOpRecord(input: {
     ts: new Date(startedAt).toISOString(),
     op: input.op,
     model: input.model,
+    scenario: input.scenario,
     elementId: input.elementId,
     scope: input.scope,
     prompt: input.prompt,

@@ -5,6 +5,7 @@ interface OpenAICompatibleOptions {
   baseUrl: string;
   apiKey?: string;
   model: string;
+  modelEnvPrefixes?: string[];
   headers?: Record<string, string>;
 }
 
@@ -52,7 +53,7 @@ export class OpenAICompatibleAdapter implements AIAdapter {
           accept: "text/event-stream",
         },
         body: JSON.stringify({
-          model: this.options.model,
+          model: this.modelForScenario(args.scenario),
           stream: true,
           messages: [
             ...(args.systemPrompt ? [{ role: "system", content: args.systemPrompt }] : []),
@@ -114,5 +115,15 @@ export class OpenAICompatibleAdapter implements AIAdapter {
       ...(this.options.apiKey ? { authorization: `Bearer ${this.options.apiKey}` } : {}),
       ...(this.options.headers ?? {}),
     };
+  }
+
+  private modelForScenario(scenario?: string): string {
+    const normalized = scenario?.trim().replace(/[^a-zA-Z0-9]+/g, "_").toUpperCase();
+    if (!normalized) return this.options.model;
+    for (const prefix of this.options.modelEnvPrefixes ?? []) {
+      const value = process.env[`${prefix}_${normalized}_MODEL`];
+      if (value) return value;
+    }
+    return this.options.model;
   }
 }

@@ -69,13 +69,19 @@ export type StructuredEvent<T> =
 export interface RunArgs<T> {
   prompt: string;
   systemPrompt?: string;
+  scenario?: string;
   sessionId?: string;
   signal?: AbortSignal;
   validate: (parsed: unknown) => T;
   /** Op kind label for the admin log (e.g. "refine" / "section-feedback").
    *  When provided, the prompt + output + status are appended to the
    *  ai-ops.jsonl log so the admin UI can show them. */
-  opLog?: { op: string; model: string; elementId?: string; scope?: Record<string, unknown> };
+  opLog?: { op: string; model: string; scenario?: string; elementId?: string; scope?: Record<string, unknown> };
+}
+
+function scenarioFromPrompt(prompt: string): string | undefined {
+  const match = prompt.match(/^- scenario:\s*([a-z0-9-]+)/m);
+  return match?.[1];
 }
 
 export async function* runStructuredAI<T>(
@@ -83,12 +89,14 @@ export async function* runStructuredAI<T>(
   args: RunArgs<T>,
 ): AsyncIterable<StructuredEvent<T>> {
   let buf = "";
+  const scenario = args.scenario ?? args.opLog?.scenario ?? scenarioFromPrompt(args.prompt);
   const handle = args.opLog
-    ? await startOpRecord({ ...args.opLog, prompt: args.prompt })
+    ? await startOpRecord({ ...args.opLog, scenario, prompt: args.prompt })
     : null;
   for await (const ev of adapter.stream({
     prompt: args.prompt,
     systemPrompt: args.systemPrompt,
+    scenario,
     sessionId: args.sessionId,
     signal: args.signal,
   })) {

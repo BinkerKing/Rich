@@ -13,6 +13,7 @@ interface OpListItem {
   ts: string;
   op: string;
   model: string;
+  scenario?: string;
   elementId?: string;
   scope?: Record<string, unknown>;
   status: "running" | "done" | "error";
@@ -686,6 +687,7 @@ function OpsTab() {
                 <tr>
                   <th>时间</th>
                   <th>操作</th>
+                  <th>场景</th>
                   <th>模型</th>
                   <th>元 / 范围</th>
                   <th>状态</th>
@@ -701,6 +703,7 @@ function OpsTab() {
                   >
                     <td className="admin-cell-mono">{formatTs(item.ts)}</td>
                     <td><span className={`admin-op admin-op--${item.op}`}>{item.op}</span></td>
+                    <td>{item.scenario ?? "—"}</td>
                     <td>{item.model}</td>
                     <td className="admin-cell-mono">
                       {item.elementId ?? "—"}
@@ -733,6 +736,7 @@ function OpDetailView({ detail }: { detail: OpDetail }) {
         <span className={`admin-status admin-status--${detail.status}`}>{detail.status}</span>
         <span className="admin-cell-mono">{formatTs(detail.ts)}</span>
         {detail.durationMs !== undefined && <span className="admin-cell-mono">{formatDuration(detail.durationMs)}</span>}
+        {detail.scenario && <span>{detail.scenario}</span>}
         {detail.model && <span>{detail.model}</span>}
       </header>
       {detail.elementId && (
