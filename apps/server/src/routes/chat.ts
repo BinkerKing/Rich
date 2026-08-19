@@ -5,6 +5,7 @@ import { buildChatSystemPrompt } from "../ai/prompts/chatSystem.js";
 import { pickScenarioAdapter } from "../ai/pickAdapter.js";
 import { normalizeAdapterName } from "../ai/modelRouter.js";
 import { createAIContextProvider } from "../ai/contextProvider.js";
+import { startOpRecord, type OpHandle } from "../ai/aiOpLog.js";
 import type { AIContextProvider } from "../ai/contextProvider.js";
 import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
@@ -30,6 +31,22 @@ function messagesToFallbackPrompt(messages: Message[]): string {
     .filter(message => message.role !== "system")
     .map(message => `${message.role}: ${contentToText(message.content)}`)
     .join("\n\n");
+}
+
+function makeChatOpRecorder(handle: OpHandle | null) {
+  let recorded = false;
+  return {
+    async done(output: string, sessionId?: string) {
+      if (!handle || recorded) return;
+      recorded = true;
+      await handle.recordDone(output, sessionId);
+    },
+    async error(message: string) {
+      if (!handle || recorded) return;
+      recorded = true;
+      await handle.recordError(message);
+    },
+  };
 }
 
 /**
@@ -274,6 +291,7 @@ export function chatRoutes(
     const conversationId = body.conversationId?.trim() || "rich-chat-default";
     const adapter = pickChatAdapter(body.model);
     const now = new Date().toISOString();
+    let opRecorder: ReturnType<typeof makeChatOpRecorder> | null = null;
     try {
       await conversationsRepo?.ensureConversation({
         id: conversationId,
@@ -282,6 +300,13 @@ export function chatRoutes(
         now,
       });
       const contextMessages = await contextProvider.buildChatContext(conversationId, messages) as Message[];
+      opRecorder = makeChatOpRecorder(await startOpRecord({
+        op: "chat",
+        model: adapter?.name ?? "hermes",
+        scenario: "chat",
+        scope: { conversationId, surface: body.surface?.trim() || "api-chat" },
+        prompt: messagesToFallbackPrompt(contextMessages),
+      }));
       let msg: { role: string; content: string } | null = null;
       let usedAdapter = adapter?.name ?? "hermes";
       if (!adapter || adapter.name === "hermes") {
@@ -295,6 +320,7 @@ export function chatRoutes(
           }),
         });
         if (!upstream.ok) {
+          await opRecorder.error(`Hermes ${upstream.status}`);
           return c.json({ error: `Hermes ${upstream.status}` }, 502);
         }
         const json = await upstream.json() as { choices?: { message?: { role: string; content: string } }[] };
@@ -307,12 +333,18 @@ export function chatRoutes(
           scenario: "chat",
         })) {
           if (event.type === "delta") content += event.text;
-          if (event.type === "error") return c.json({ error: event.message }, 502);
+          if (event.type === "error") {
+            await opRecorder.error(event.message);
+            return c.json({ error: event.message }, 502);
+          }
         }
         msg = content.trim() ? { role: "assistant", content } : null;
         usedAdapter = adapter.name;
       }
-      if (!msg) return c.json({ error: "no message in response" }, 502);
+      if (!msg) {
+        await opRecorder.error("no message in response");
+        return c.json({ error: "no message in response" }, 502);
+      }
       const user = messages.at(-1);
       if (user?.role === "user") {
         await conversationsRepo?.appendMessage({
@@ -331,10 +363,13 @@ export function chatRoutes(
         adapter: usedAdapter,
         createdAt: new Date().toISOString(),
       });
+      await opRecorder.done(msg.content);
       queueSummaryRefresh(conversationId);
       return c.json({ conversationId, message: msg });
     } catch (e) {
-      return c.json({ error: e instanceof Error ? e.message : String(e) }, 503);
+      const message = e instanceof Error ? e.message : String(e);
+      await opRecorder?.error(message);
+      return c.json({ error: message }, 503);
     }
   });
 
@@ -391,6 +426,17 @@ export function chatRoutes(
         event: "mascot",
         data: JSON.stringify({ state: "thinking", ts: Date.now() }),
       });
+      const opRecorder = makeChatOpRecorder(await startOpRecord({
+        op: "chat-stream",
+        model: adapter?.name ?? "hermes",
+        scenario: "chat",
+        scope: {
+          conversationId,
+          surface: body.surface?.trim() || "chat-stream",
+          attachmentCount: Array.isArray(body.attachments) ? body.attachments.length : 0,
+        },
+        prompt: messagesToFallbackPrompt(messages),
+      }));
 
       // ② 现在才开始连 Hermes（连接耗时已经从首字延迟里抠出去了）
       if (adapter && adapter.name !== "hermes") {
@@ -399,6 +445,7 @@ export function chatRoutes(
         try {
           const result = await streamGenericAdapter(stream, adapter, messages, controller.signal);
           if (result.error) {
+            await opRecorder.error(result.error);
             await stream.writeSSE({
               event: "error",
               data: JSON.stringify({ message: result.error, conversationId }),
@@ -417,6 +464,7 @@ export function chatRoutes(
             });
             queueSummaryRefresh(conversationId);
           }
+          await opRecorder.done(result.fullText, result.sessionId);
           await stream.writeSSE({
             event: "done",
             data: JSON.stringify({ finish_reason: "stop", conversationId, adapter: adapter.name }),
@@ -456,6 +504,9 @@ export function chatRoutes(
             event: "done",
             data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
           });
+          await opRecorder.done(fallback.fullText);
+        } else {
+          await opRecorder.error(message);
         }
         return;
       }
@@ -477,6 +528,9 @@ export function chatRoutes(
             event: "done",
             data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
           });
+          await opRecorder.done(fallback.fullText);
+        } else {
+          await opRecorder.error(message);
         }
         return;
       }
@@ -592,6 +646,7 @@ export function chatRoutes(
                   message: `Hermes 需要重新授权：${message}`,
                 }),
               });
+              await opRecorder.error(`Hermes 需要重新授权：${message}`);
               return;
             }
             const fallbackResult = await streamCodexFallbackWithProgress(stream, messages, message);
@@ -613,6 +668,7 @@ export function chatRoutes(
           });
           queueSummaryRefresh(conversationId);
         }
+        await opRecorder.done(fullText);
         await stream.writeSSE({
           event: "done",
           data: JSON.stringify({ finish_reason: finishReason, conversationId }),
@@ -637,8 +693,10 @@ export function chatRoutes(
             event: "done",
             data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
           });
+          await opRecorder.done(fallback.fullText);
           return;
         }
+        await opRecorder.error(message);
         await stream.writeSSE({
           event: "error",
           data: JSON.stringify({ message }),
