@@ -22,7 +22,13 @@
 - `chat`, `agent-task`, `content`, `analysis`, `document`, `data`, `planning`, `review`, `project-practice`, `knowledge`: Hermes by default.
 - `coding`, `mindmap`, `image`: Codex by default.
 
-Each scenario can be overridden with `RICH_AI_<SCENARIO>_MODEL`, or globally with `RICH_AI_DEFAULT_MODEL`.
+Each scenario can be overridden in Backstage -> AI engine monitor. Rich persists non-secret routing preferences to `data/ai-engine-settings.json`.
+Environment variables still work:
+
+- `RICH_AI_<SCENARIO>_MODEL`
+- `RICH_AI_DEFAULT_MODEL`
+
+Request-level model selection has the highest priority, then persisted settings, then environment variables, then built-in defaults.
 
 ## Bailian / DashScope
 
@@ -49,6 +55,7 @@ Do not commit Token Plan installer commands, API keys, or provider-specific secr
 
 - Chat context is stored in `chat_conversations` and `chat_messages`. The stream API appends the latest user message, reads recent messages, injects the Rich system prompt, and persists the assistant reply after completion.
 - Scenario routing can be inspected in Backstage -> AI engine monitor, or through `GET /api/admin/engine`.
+- Scenario routing can be changed with `PUT /api/admin/engine/settings`. Only adapter names are stored; provider credentials are never stored in this file.
 - The first-provider priority is no longer the AI policy. Adapter registration only defines what exists; `RICH_AI_<SCENARIO>_MODEL` decides what is used.
 - Hermes remains valuable when Rich needs agent behavior: MCP tool usage, progress events, and task execution. Direct model providers such as Bailian are better for normal Q&A, summarization, document/data analysis, and content generation when tool use is not needed.
 
