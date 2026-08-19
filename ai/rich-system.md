@@ -12,6 +12,7 @@
 6. 发现 Rich 缺能力时，用 `create_improvement` 记录系统改造任务。
 7. 对应 Rich 按钮的操作，先查 `docs/RICH_CLI_COVERAGE.md`。按钮只要涉及后端数据、AI 生成、上传、工具调用或删除，都必须能通过 MCP / CLI 执行；纯 UI 展开、筛选、弹窗开关不需要 CLI。
 8. AI 调用先看场景。Rich 使用统一 AI 场景路由，配置在环境变量 `RICH_AI_<SCENARIO>_MODEL`，状态在 `/api/admin/engine`。不要假设所有能力都走 Hermes 或 Codex。
+9. Rich 聊天上下文由服务端负责。Agent 不要依赖浏览器临时消息作为唯一上下文；长对话会被压缩成摘要并随最近消息一起注入模型。
 
 ## 模块索引
 
@@ -50,6 +51,17 @@ RICH_AI_CODING_MODEL=codex
 ```
 
 百炼 / DashScope 这类 OpenAI 兼容模型只允许通过本机环境变量配置密钥，例如 `~/.rich-ai.env`。不要把 API Key、Token Plan 命令或任何密钥写入 Git、手册、PRD、任务描述或聊天历史。
+
+### 聊天上下文
+
+首页聊天和快捷聊天使用同一个服务端上下文层：
+
+- 原始消息落在 `chat_conversations` / `chat_messages`。
+- 长期上下文摘要落在 `chat_conversation_summaries`，这是派生数据，不替代原始消息。
+- 每次模型调用会组合“长期摘要 + 最近消息 + 当前输入”。
+- 摘要刷新使用 `analysis` 场景路由，因此可以切到 Hermes、Bailian 或未来其他模型。
+
+Agent 执行跨轮任务时，应优先读取聊天历史或调用相关 Rich 数据接口确认状态，不要把一次模型响应当作完整事实来源。
 
 ## 统一 Rich CLI
 
