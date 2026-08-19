@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { randomUUID } from "node:crypto";
 import { buildChatSystemPrompt } from "../ai/prompts/chatSystem.js";
+import { pickScenarioAdapter } from "../ai/pickAdapter.js";
+import { normalizeAdapterName } from "../ai/modelRouter.js";
 import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
 import type { ChatAttachmentRef } from "@ke/domain";
@@ -112,6 +114,11 @@ export function chatRoutes(
   const r = new Hono();
   const codexFallback = adapters.find(adapter => adapter.name === "codex");
 
+  function pickChatAdapter(preference?: unknown): AIAdapter | null {
+    if (adapters.length === 0) return null;
+    return pickScenarioAdapter(adapters, "chat", normalizeAdapterName(preference));
+  }
+
   function messageTitle(messages: Message[]): string {
     const firstUser = messages.find(message => message.role === "user");
     const text = firstUser ? contentToText(firstUser.content).replace(/\s+/g, " ").trim() : "";
@@ -208,42 +215,90 @@ export function chatRoutes(
     return result;
   }
 
+  async function streamGenericAdapter(
+    stream: Parameters<Parameters<typeof streamSSE>[1]>[0],
+    adapter: AIAdapter,
+    messages: Message[],
+    signal?: AbortSignal,
+  ): Promise<{ wroteText: boolean; fullText: string; sessionId?: string; error?: string }> {
+    let wroteText = false;
+    let fullText = "";
+    let sessionId: string | undefined;
+    for await (const event of adapter.stream({
+      systemPrompt: buildChatSystemPrompt(),
+      prompt: messagesToFallbackPrompt(messages),
+      scenario: "chat",
+      signal,
+    })) {
+      if (event.type === "delta" && event.text) {
+        wroteText = true;
+        fullText += event.text;
+        await stream.writeSSE({
+          event: "text",
+          data: JSON.stringify({ chunk: event.text }),
+        });
+      } else if (event.type === "done") {
+        sessionId = event.sessionId;
+      } else if (event.type === "error") {
+        return { wroteText, fullText, sessionId, error: event.message };
+      }
+    }
+    return { wroteText, fullText, sessionId };
+  }
+
   // Non-streaming endpoint for GreatMe HQ conversations and any other caller
   // that just wants a single completed reply. Forwards to Hermes with
   // stream:false and returns the OpenAI-style JSON wrapped in
   // { message: { role, content } }.
   r.post("/", async (c) => {
     const body = await c.req.json().catch(() => null) as
-      | { messages?: Array<{ role: string; content: string }> }
+      | { messages?: Array<{ role: string; content: string }>; model?: string; conversationId?: string; surface?: string }
       | null;
     if (!body || !Array.isArray(body.messages) || body.messages.length === 0) {
       return c.json({ error: "messages[] required" }, 400);
     }
     const messages = body.messages;
-    const conversationId = "rich-chat-default";
+    const conversationId = body.conversationId?.trim() || "rich-chat-default";
+    const adapter = pickChatAdapter(body.model);
     const now = new Date().toISOString();
     try {
       await conversationsRepo?.ensureConversation({
         id: conversationId,
         title: messageTitle(messages),
-        surface: "api-chat",
+        surface: body.surface?.trim() || "api-chat",
         now,
       });
       const contextMessages = await loadContextMessages(conversationId, messages);
-      const upstream = await fetch(`${HERMES_BASE_URL}/v1/chat/completions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "hermes-agent",
-          stream: false,
-          messages: injectSystemPrompt(contextMessages),
-        }),
-      });
-      if (!upstream.ok) {
-        return c.json({ error: `Hermes ${upstream.status}` }, 502);
+      let msg: { role: string; content: string } | null = null;
+      let usedAdapter = adapter?.name ?? "hermes";
+      if (!adapter || adapter.name === "hermes") {
+        const upstream = await fetch(`${HERMES_BASE_URL}/v1/chat/completions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "hermes-agent",
+            stream: false,
+            messages: injectSystemPrompt(contextMessages),
+          }),
+        });
+        if (!upstream.ok) {
+          return c.json({ error: `Hermes ${upstream.status}` }, 502);
+        }
+        const json = await upstream.json() as { choices?: { message?: { role: string; content: string } }[] };
+        msg = json.choices?.[0]?.message ?? null;
+      } else {
+        let content = "";
+        for await (const event of adapter.stream({
+          systemPrompt: buildChatSystemPrompt(),
+          prompt: messagesToFallbackPrompt(contextMessages),
+          scenario: "chat",
+        })) {
+          if (event.type === "delta") content += event.text;
+          if (event.type === "error") return c.json({ error: event.message }, 502);
+        }
+        msg = content.trim() ? { role: "assistant", content } : null;
+        usedAdapter = adapter.name;
       }
-      const json = await upstream.json() as { choices?: { message?: { role: string; content: string } }[] };
-      const msg = json.choices?.[0]?.message;
       if (!msg) return c.json({ error: "no message in response" }, 502);
       const user = messages.at(-1);
       if (user?.role === "user") {
@@ -260,7 +315,7 @@ export function chatRoutes(
         conversationId,
         role: "assistant",
         content: msg.content,
-        adapter: "hermes",
+        adapter: usedAdapter,
         createdAt: new Date().toISOString(),
       });
       return c.json({ conversationId, message: msg });
@@ -271,7 +326,7 @@ export function chatRoutes(
 
   r.post("/stream", async (c) => {
     const body = await c.req.json().catch(() => null) as
-      | { messages?: Message[]; attachments?: ChatAttachmentRef[]; conversationId?: string; surface?: string }
+      | { messages?: Message[]; attachments?: ChatAttachmentRef[]; conversationId?: string; surface?: string; model?: string }
       | null;
     if (!body || !Array.isArray(body.messages) || body.messages.length === 0) {
       return c.json({ error: "messages[] required" }, 400);
@@ -304,6 +359,7 @@ export function chatRoutes(
     if (Array.isArray(body.attachments) && body.attachments.length > 0 && attachmentsRepo) {
       messages = await inlineAttachments(messages, body.attachments, attachmentsRepo);
     }
+    const adapter = pickChatAdapter(body.model);
 
     // T02 — 首字 SLO 基础设施。
     // (1) 反代关 buffering：Nginx / Cloudflare 见到这个 header 不会攒 chunk
@@ -321,6 +377,40 @@ export function chatRoutes(
         event: "mascot",
         data: JSON.stringify({ state: "thinking", ts: Date.now() }),
       });
+
+      // ② 现在才开始连 Hermes（连接耗时已经从首字延迟里抠出去了）
+      if (adapter && adapter.name !== "hermes") {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 120_000);
+        try {
+          const result = await streamGenericAdapter(stream, adapter, messages, controller.signal);
+          if (result.error) {
+            await stream.writeSSE({
+              event: "error",
+              data: JSON.stringify({ message: result.error, conversationId }),
+            });
+            return;
+          }
+          if (result.fullText.trim()) {
+            await conversationsRepo?.appendMessage({
+              id: randomUUID(),
+              conversationId,
+              role: "assistant",
+              content: result.fullText,
+              adapter: adapter.name,
+              modelSessionId: result.sessionId,
+              createdAt: new Date().toISOString(),
+            });
+          }
+          await stream.writeSSE({
+            event: "done",
+            data: JSON.stringify({ finish_reason: "stop", conversationId, adapter: adapter.name }),
+          });
+          return;
+        } finally {
+          clearTimeout(timeout);
+        }
+      }
 
       // ② 现在才开始连 Hermes（连接耗时已经从首字延迟里抠出去了）
       let upstream: Response;
