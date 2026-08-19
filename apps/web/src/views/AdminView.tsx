@@ -332,6 +332,16 @@ interface EnginePayload {
     memory: "durable" | "request" | "none";
     notes: string;
   }[];
+  chatContext?: {
+    conversationId: string;
+    title: string;
+    surface: string;
+    lastMessageAt: string;
+    messageCount: number;
+    summaryUpdatedAt?: string;
+    summaryMessageCount: number;
+    hasSummary: boolean;
+  }[];
   settings?: {
     routes?: Record<string, string>;
     updatedAt?: string;
@@ -459,6 +469,38 @@ function EngineTab() {
                     </article>
                   ))}
                 </div>
+              </EngineCard>
+            )}
+
+            {data.chatContext && (
+              <EngineCard title="聊天上下文状态" subtitle="服务端消息与长期摘要">
+                {data.chatContext.length === 0
+                  ? <div className="admin-empty admin-empty--inline">还没有服务端聊天记录。</div>
+                  : (
+                    <table className="admin-table">
+                      <thead>
+                        <tr><th>会话</th><th>入口</th><th>消息</th><th>摘要</th><th>更新时间</th></tr>
+                      </thead>
+                      <tbody>
+                        {data.chatContext.map(item => (
+                          <tr key={item.conversationId}>
+                            <td>
+                              <strong>{item.title}</strong>
+                              <span className="admin-scope">{item.conversationId}</span>
+                            </td>
+                            <td>{item.surface}</td>
+                            <td className="admin-cell-mono">{item.messageCount}</td>
+                            <td>
+                              <span className={`admin-status ${item.hasSummary ? "admin-status--done" : "admin-status--running"}`}>
+                                {item.hasSummary ? `${item.summaryMessageCount} 条已摘要` : "等待触发"}
+                              </span>
+                            </td>
+                            <td className="admin-cell-mono">{formatTs(item.summaryUpdatedAt ?? item.lastMessageAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
               </EngineCard>
             )}
 

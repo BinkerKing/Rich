@@ -361,7 +361,13 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     adapters: ai, elements, relations, paths, signals, qa, annotations,
     aiDir: manualsDir, logger: log,
   }));
-  app.route("/api/admin", adminRoutes({ signals, aiDir: manualsDir, adapters: ai, corpus }));
+  app.route("/api/admin", adminRoutes({
+    signals,
+    aiDir: manualsDir,
+    adapters: ai,
+    corpus,
+    chatConversations,
+  }));
   // Mindmap PPT decks — element-backed. Every deck IS the root element of
   // a subtree that carries a `mindmap-embed` section. No separate storage.
   app.route("/api/mindmaps", mindmapsRoutes({

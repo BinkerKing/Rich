@@ -10,6 +10,7 @@ import { currentAIEngineSettings, writeAIEngineSettings } from "../ai/engineSett
 import { describeModelRouting, listAIScenarios, normalizeAdapterName, normalizeScenario, type AIScenario, type AdapterName } from "../ai/modelRouter.js";
 import { listAIContextPolicies } from "../ai/contextPolicy.js";
 import type { CorpusRepo } from "../repos/CorpusRepo.js";
+import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
 import { corpusRoutes } from "./corpus.js";
 
 export interface AdminRoutesDeps {
@@ -17,6 +18,7 @@ export interface AdminRoutesDeps {
   aiDir: string;
   adapters: AIAdapter[];
   corpus: CorpusRepo;
+  chatConversations?: ChatConversationsRepo | null;
 }
 
 /**
@@ -141,11 +143,31 @@ export function adminRoutes(deps: AdminRoutesDeps): Hono {
         byOp: Array.from(byOp.entries()).map(([op, n]) => ({ op, count: n })).sort((a, b) => b.count - a.count),
       };
     }
+    const chatConversations = deps.chatConversations
+      ? await deps.chatConversations.listConversations(8)
+      : [];
+    const chatContext = await Promise.all(chatConversations.map(async (conversation) => {
+      const [summary, messageCount] = await Promise.all([
+        deps.chatConversations!.getSummary(conversation.id),
+        deps.chatConversations!.countMessages(conversation.id),
+      ]);
+      return {
+        conversationId: conversation.id,
+        title: conversation.title,
+        surface: conversation.surface,
+        lastMessageAt: conversation.lastMessageAt,
+        messageCount,
+        summaryUpdatedAt: summary?.updatedAt,
+        summaryMessageCount: summary?.messageCount ?? 0,
+        hasSummary: Boolean(summary?.summary?.trim()),
+      };
+    }));
     return _c.json({
       ts: new Date().toISOString(),
       adapters: adapterChecks,
       routing: await describeModelRouting(deps.adapters),
       contextPolicies: listAIContextPolicies(),
+      chatContext,
       settings: currentAIEngineSettings(),
       uptimeSec: Math.round(process.uptime()),
       childProcesses: childRegistry.size(),
