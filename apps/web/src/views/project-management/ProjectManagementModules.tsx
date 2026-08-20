@@ -4278,14 +4278,18 @@ type DictionaryUploadedTestFile = {
   delimiter: string;
 };
 
+type DictionaryUploadStatus = { tone: "info" | "success" | "error"; message: string };
+
 function DictionaryTestDataPanel({ table, fields, storageKey }: { table?: ProjectDictionaryTable; fields: ProjectDictionaryFieldHit[]; storageKey: string }) {
   const visibleFields = useMemo(() => fields.slice(0, 32), [fields]);
   const importedTestData = useMemo(() => getDictionaryImportedTestData(table), [table]);
   const parseConfig = useMemo(() => getDictionaryFileParseConfig(table), [table]);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<DictionaryUploadedTestFile | null>(null);
-  const [uploadedRows, setUploadedRows] = useState<DictionaryImportedTestData["rows"] | null>(null);
+  const [uploadedDraftRows, setUploadedDraftRows] = useState<DictionaryImportedTestData["rows"] | null>(null);
+  const [syncedRows, setSyncedRows] = useState<DictionaryImportedTestData["rows"] | null>(null);
   const [uploadError, setUploadError] = useState("");
+  const [uploadStatus, setUploadStatus] = useState<DictionaryUploadStatus | null>(null);
   const columns = useMemo<DictionaryResizableColumn[]>(() => [
     { id: "index", label: "#", width: 42, minWidth: 38 },
     ...visibleFields.map(field => ({
@@ -4298,11 +4302,13 @@ function DictionaryTestDataPanel({ table, fields, storageKey }: { table?: Projec
   const columnResize = useDictionaryResizableColumns(storageKey, columns);
   useEffect(() => {
     setUploadedFile(null);
-    setUploadedRows(null);
+    setUploadedDraftRows(null);
+    setSyncedRows(null);
     setUploadError("");
+    setUploadStatus(null);
     setUploadOpen(false);
   }, [table?.id]);
-  const activeRows = uploadedRows ?? importedTestData?.rows ?? [];
+  const activeRows = syncedRows ?? importedTestData?.rows ?? [];
   const importedRows = activeRows.slice(0, 12);
   const rows = importedRows.length
     ? importedRows.map((row, rowIndex) => ({
@@ -4322,62 +4328,79 @@ function DictionaryTestDataPanel({ table, fields, storageKey }: { table?: Projec
     <div className="prj-pm-dict-test-table-wrap">
       <div className="prj-pm-dict-test-summary">
         <div className="prj-pm-dict-test-summary__meta">
-          <strong>{uploadedFile?.file.name || importedTestData?.sourceFileName || table?.tableName || "测试文件"}</strong>
-          <span>{uploadedRows ? `${uploadedRows.length} 行` : `${importedTestData?.recordCount ?? 0} 行`}</span>
+          <strong>{syncedRows && uploadedFile ? uploadedFile.file.name : importedTestData?.sourceFileName || table?.tableName || "测试文件"}</strong>
+          <span>{syncedRows ? `${syncedRows.length} 行` : `${importedTestData?.recordCount ?? 0} 行`}</span>
           <span>展示 {rows.length} 行</span>
           <span>{[uploadedFile?.encoding || parseConfig.encoding, (uploadedFile?.delimiter || parseConfig.delimiter) ? `分隔符 ${uploadedFile?.delimiter || parseConfig.delimiter}` : ""].filter(Boolean).join(" / ")}</span>
+          {uploadedDraftRows ? <span>待同步 {uploadedDraftRows.length} 行</span> : null}
+          {uploadStatus ? <em className={`prj-pm-dict-test-summary__status is-${uploadStatus.tone}`}>{uploadStatus.message}</em> : null}
         </div>
-        <button type="button" onClick={() => setUploadOpen(true)}>上传测试文件</button>
+        <div className="prj-pm-dict-test-summary__actions">
+          {uploadedDraftRows ? (
+            <button
+              type="button"
+              className="is-primary"
+              onClick={() => {
+                setSyncedRows(uploadedDraftRows);
+                setUploadStatus({ tone: "success", message: `已同步 ${uploadedDraftRows.length} 行到测试数据表格` });
+              }}>
+              同步到测试数据
+            </button>
+          ) : null}
+          <button type="button" onClick={() => setUploadOpen(true)}>上传测试文件</button>
+        </div>
       </div>
-      <table className="prj-pm-dict-test-table">
-        <colgroup>
-          {columns.map(column => <col key={column.id} style={{ width: columnResize.columnWidth(column.id) }} />)}
-        </colgroup>
-        <thead>
-          <tr>
-            <th className="prj-pm-dict-test-table__row-head" style={{ width: columnResize.columnWidth("index"), minWidth: columnResize.columnWidth("index") }}>
-              <div className="prj-pm-dict-resizable-head-cell">
-                #
-                <button
-                  type="button"
-                  className="prj-pm-dict-column-resizer"
-                  aria-label="调整序号列宽"
-                  title="拖拽调整列宽"
-                  onPointerDown={event => columnResize.startResize(event, "index")}
-                />
-              </div>
-            </th>
-            {visibleFields.map(field => (
-              <th key={field.id} style={{ width: columnResize.columnWidth(field.id), minWidth: columnResize.columnWidth(field.id) }}>
-                <strong>{field.fieldName || "-"}</strong>
-                <span>{[field.fieldType, field.fieldLength, field.formatPattern].filter(Boolean).join(" / ") || field.fieldCn || "未维护类型"}</span>
-                <button
-                  type="button"
-                  className="prj-pm-dict-column-resizer"
-                  aria-label={`调整${field.fieldName || "字段"}列宽`}
-                  title="拖拽调整列宽"
-                  onPointerDown={event => columnResize.startResize(event, field.id)}
-                />
+      <div className="prj-pm-dict-test-table-scroll">
+        <table className="prj-pm-dict-test-table">
+          <colgroup>
+            {columns.map(column => <col key={column.id} style={{ width: columnResize.columnWidth(column.id) }} />)}
+          </colgroup>
+          <thead>
+            <tr>
+              <th className="prj-pm-dict-test-table__row-head" style={{ width: columnResize.columnWidth("index"), minWidth: columnResize.columnWidth("index") }}>
+                <div className="prj-pm-dict-resizable-head-cell">
+                  #
+                  <button
+                    type="button"
+                    className="prj-pm-dict-column-resizer"
+                    aria-label="调整序号列宽"
+                    title="拖拽调整列宽"
+                    onPointerDown={event => columnResize.startResize(event, "index")}
+                  />
+                </div>
               </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(row => (
-            <tr key={row.id}>
-              <td className="prj-pm-dict-test-table__row-head" style={{ width: columnResize.columnWidth("index"), minWidth: columnResize.columnWidth("index") }}>{row.indexLabel}</td>
-              {row.values.map((value, index) => (
-                <td
-                  key={visibleFields[index]?.id ?? index}
-                  className={!value ? "is-null" : ""}
-                  style={{ width: columnResize.columnWidth(visibleFields[index]?.id ?? ""), minWidth: columnResize.columnWidth(visibleFields[index]?.id ?? "") }}>
-                  {value || "(NULL)"}
-                </td>
+              {visibleFields.map(field => (
+                <th key={field.id} style={{ width: columnResize.columnWidth(field.id), minWidth: columnResize.columnWidth(field.id) }}>
+                  <strong>{field.fieldName || "-"}</strong>
+                  <span>{[field.fieldType, field.fieldLength, field.formatPattern].filter(Boolean).join(" / ") || field.fieldCn || "未维护类型"}</span>
+                  <button
+                    type="button"
+                    className="prj-pm-dict-column-resizer"
+                    aria-label={`调整${field.fieldName || "字段"}列宽`}
+                    title="拖拽调整列宽"
+                    onPointerDown={event => columnResize.startResize(event, field.id)}
+                  />
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map(row => (
+              <tr key={row.id}>
+                <td className="prj-pm-dict-test-table__row-head" style={{ width: columnResize.columnWidth("index"), minWidth: columnResize.columnWidth("index") }}>{row.indexLabel}</td>
+                {row.values.map((value, index) => (
+                  <td
+                    key={visibleFields[index]?.id ?? index}
+                    className={!value ? "is-null" : ""}
+                    style={{ width: columnResize.columnWidth(visibleFields[index]?.id ?? ""), minWidth: columnResize.columnWidth(visibleFields[index]?.id ?? "") }}>
+                    {value || "(NULL)"}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {uploadOpen && (
         <DictionaryTestFileUploadDialog
           tableName={table?.tableName || "测试文件"}
@@ -4387,18 +4410,27 @@ function DictionaryTestDataPanel({ table, fields, storageKey }: { table?: Projec
           onClose={() => setUploadOpen(false)}
           onFileLoaded={file => {
             setUploadedFile(file);
-            setUploadedRows(null);
+            setUploadedDraftRows(null);
             setUploadError("");
+            setUploadStatus({ tone: "info", message: "文件已上传，请点击解析" });
           }}
-          onError={setUploadError}
+          status={uploadStatus}
+          onError={message => {
+            setUploadError(message);
+            setUploadStatus(message ? { tone: "error", message } : null);
+          }}
           onParse={() => {
             if (!uploadedFile) {
               setUploadError("请先选择测试文件。");
+              setUploadStatus({ tone: "error", message: "请先选择测试文件" });
               return;
             }
             const parsed = parseDictionaryUploadedTestFile(uploadedFile.text, visibleFields, uploadedFile.delimiter);
-            setUploadedRows(parsed);
+            setUploadedDraftRows(parsed);
             setUploadError(parsed.length ? "" : "文件没有解析出可展示的数据。");
+            setUploadStatus(parsed.length
+              ? { tone: "success", message: `解析成功，已生成 ${parsed.length} 行，点击“同步到测试数据”后展示到表格` }
+              : { tone: "error", message: "文件没有解析出可展示的数据" });
           }}
         />
       )}
@@ -4411,6 +4443,7 @@ function DictionaryTestFileUploadDialog({
   config,
   uploadedFile,
   error,
+  status,
   onClose,
   onFileLoaded,
   onError,
@@ -4420,6 +4453,7 @@ function DictionaryTestFileUploadDialog({
   config: { encoding: string; delimiter: string };
   uploadedFile: DictionaryUploadedTestFile | null;
   error: string;
+  status: DictionaryUploadStatus | null;
   onClose: () => void;
   onFileLoaded: (file: DictionaryUploadedTestFile) => void;
   onError: (message: string) => void;
@@ -4478,6 +4512,7 @@ function DictionaryTestFileUploadDialog({
           <dt>分隔符</dt><dd>{config.delimiter || "未配置"}</dd>
           <dt>文件</dt><dd>{uploadedFile ? `${uploadedFile.file.name} / ${formatFileSize(uploadedFile.file.size)}` : "未选择"}</dd>
         </dl>
+        {status && !error ? <p className={`prj-pm-dict-upload-modal__status is-${status.tone}`}>{status.message}</p> : null}
         {error ? <p className="prj-pm-dict-upload-modal__error">{error}</p> : null}
         <pre>{uploadedFile?.preview || "选择文件后在这里预览前 80 行内容。"}</pre>
       </section>

@@ -5565,9 +5565,21 @@
 .prj-pm-dict-subview,
 .prj-pm-dict-test-table-wrap {
   min-height: 0;
+  padding: 0;
+  background: #1f1f1f;
+}
+
+.prj-pm-dict-subview {
+  min-height: 0;
   overflow: auto;
   padding: 0;
   background: #1f1f1f;
+}
+
+.prj-pm-dict-test-table-wrap {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
 }
 
 .prj-pm-dict-test-summary {
@@ -5581,6 +5593,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, .1);
   font-size: 12px;
   white-space: nowrap;
+  overflow: hidden;
 }
 
 .prj-pm-dict-test-summary__meta {
@@ -5588,16 +5601,47 @@
   align-items: center;
   gap: 12px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .prj-pm-dict-test-summary strong {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: #f7fbff;
   font-size: 13px;
 }
 
 .prj-pm-dict-test-summary span {
+  flex: 0 0 auto;
   color: #8ec7ff;
   font-family: "SF Mono", ui-monospace, monospace;
+}
+
+.prj-pm-dict-test-summary__status {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(238, 255, 253, .72);
+  font-style: normal;
+  text-overflow: ellipsis;
+}
+
+.prj-pm-dict-test-summary__status.is-success {
+  color: #55e68e;
+}
+
+.prj-pm-dict-test-summary__status.is-error {
+  color: #ff9ca0;
+}
+
+.prj-pm-dict-test-summary__actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .prj-pm-dict-test-summary button,
@@ -5611,6 +5655,12 @@
   font: 800 12px/1 inherit;
   text-decoration: none;
   cursor: pointer;
+}
+
+.prj-pm-dict-test-summary button.is-primary {
+  border-color: rgba(83, 243, 154, .58);
+  background: rgba(32, 118, 73, .72);
+  color: #d8ffe5;
 }
 
 .prj-pm-dict-test-summary button:hover,
@@ -5727,6 +5777,27 @@
   background: rgba(255, 90, 95, .09);
 }
 
+.prj-pm-dict-upload-modal__status {
+  margin: 0;
+  padding: 8px 14px;
+  color: #8ec7ff;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(112, 169, 232, .18);
+  background: rgba(112, 169, 232, .08);
+}
+
+.prj-pm-dict-upload-modal__status.is-success {
+  color: #55e68e;
+  border-bottom-color: rgba(83, 243, 154, .2);
+  background: rgba(83, 243, 154, .08);
+}
+
+.prj-pm-dict-upload-modal__status.is-error {
+  color: #ff9ca0;
+  border-bottom-color: rgba(255, 90, 95, .18);
+  background: rgba(255, 90, 95, .09);
+}
+
 .prj-pm-dict-upload-modal pre {
   margin: 0;
   min-height: 0;
@@ -5736,6 +5807,11 @@
   color: rgba(238, 255, 253, .78);
   font: 12px/1.55 "SF Mono", ui-monospace, monospace;
   white-space: pre-wrap;
+}
+
+.prj-pm-dict-test-table-scroll {
+  min-height: 0;
+  overflow: auto;
 }
 
 .prj-pm-dict-subview {
