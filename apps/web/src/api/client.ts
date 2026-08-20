@@ -773,7 +773,7 @@ export const api = {
     if (!r.ok) throw new Error(`reorderProjectManagementModuleItems ${r.status}`);
   },
   async listProjectDictionarySystems(projectId: string): Promise<ProjectDictionarySystem[]> {
-    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/systems`);
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/systems`, { cache: "no-store" });
     if (!r.ok) throw new Error(`listProjectDictionarySystems ${r.status}`);
     return r.json();
   },
@@ -781,12 +781,12 @@ export const api = {
     const params = new URLSearchParams();
     if (systemId) params.set("systemId", systemId);
     const suffix = params.toString() ? `?${params.toString()}` : "";
-    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables${suffix}`);
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables${suffix}`, { cache: "no-store" });
     if (!r.ok) throw new Error(`listProjectDictionaryTables ${r.status}`);
     return r.json();
   },
   async listProjectDictionaryFields(projectId: string, tableId: string): Promise<ProjectDictionaryFieldHit[]> {
-    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/fields`);
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/fields`, { cache: "no-store" });
     if (!r.ok) throw new Error(`listProjectDictionaryFields ${r.status}`);
     return r.json();
   },
@@ -802,12 +802,12 @@ export const api = {
   },
   async searchProjectDictionaryFields(projectId: string, query: string, limit = 30): Promise<ProjectDictionaryFieldSearchResult> {
     const params = new URLSearchParams({ q: query, limit: String(limit) });
-    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/fields/search?${params.toString()}`);
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/fields/search?${params.toString()}`, { cache: "no-store" });
     if (!r.ok) throw new Error(`searchProjectDictionaryFields ${r.status}`);
     return r.json();
   },
   async getProjectDictionaryField(projectId: string, fieldId: string): Promise<ProjectDictionaryFieldDetail> {
-    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/fields/${encodeURIComponent(fieldId)}`);
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/fields/${encodeURIComponent(fieldId)}`, { cache: "no-store" });
     if (!r.ok) throw new Error(`getProjectDictionaryField ${r.status}`);
     return r.json();
   },

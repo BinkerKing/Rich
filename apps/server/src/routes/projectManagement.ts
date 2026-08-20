@@ -33,6 +33,11 @@ const scenarioImageRoot = resolve(
 export function projectManagementRoutes(repo: ProjectManagementRepo): Hono {
   const r = new Hono();
 
+  r.use("/:projectId/dictionary/*", async (c, next) => {
+    c.header("cache-control", "no-store");
+    await next();
+  });
+
   r.get("/:projectId/summary", async c => {
     const projectId = c.req.param("projectId");
     return c.json(await repo.getSummary(projectId));

@@ -5094,6 +5094,25 @@
   flex: 1 1 auto;
 }
 
+.prj-pm-dict-refresh {
+  flex: 0 0 auto;
+  align-self: center;
+  margin: 7px 8px;
+  border: 1px solid rgba(112, 169, 232, .48);
+  border-radius: 4px;
+  background: #24384c;
+  color: rgba(255, 255, 255, .9);
+  padding: 0 12px;
+  min-height: 30px;
+  font: 800 12px/1 inherit;
+  cursor: pointer;
+}
+
+.prj-pm-dict-refresh:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
 .prj-pm-dict-table-rail__title.is-system-title {
   grid-template-columns: minmax(0, 1fr);
   place-items: center;

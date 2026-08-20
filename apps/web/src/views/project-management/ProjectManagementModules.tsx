@@ -152,6 +152,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
   const [pinnedTableIds, setPinnedTableIds] = useState<string[]>(() => loadPinnedDictionaryTables(project.id));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const systemClickTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -174,7 +175,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
       })
       .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
     return () => { cancelled = true; };
-  }, [project.id]);
+  }, [project.id, refreshKey]);
 
   useEffect(() => {
     setPinnedSystemIds(loadPinnedDictionarySystems(project.id));
@@ -196,7 +197,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
       })
       .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
     return () => { cancelled = true; };
-  }, [project.id, selectedSystemId]);
+  }, [project.id, refreshKey, selectedSystemId]);
 
   useEffect(() => {
     if (systems.length === 0) return;
@@ -226,7 +227,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [project.id, query]);
+  }, [project.id, query, refreshKey]);
 
   useEffect(() => {
     if (!selectedTableId) {
@@ -235,15 +236,17 @@ export function DictionarySection({ project, summary }: { project: Element; summ
       return;
     }
     let cancelled = false;
+    setLoading(true);
     void api.listProjectDictionaryFields(project.id, selectedTableId)
       .then(next => {
         if (cancelled) return;
         setTableFields(next);
         setSelectedFieldId(current => next.some(field => field.id === current) ? current : next[0]?.id || "");
       })
-      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [project.id, selectedTableId]);
+  }, [project.id, refreshKey, selectedTableId]);
 
   const dictionary = summary?.dictionary ?? { systems: 0, tables: 0, fields: 0 };
   const selectedSystem = systems.find(system => system.id === selectedSystemId);
@@ -304,6 +307,10 @@ export function DictionarySection({ project, summary }: { project: Element; summ
   const visibleFields = query.trim()
     ? results
     : tableFields;
+  const refreshDictionary = () => {
+    setError(null);
+    setRefreshKey(current => current + 1);
+  };
   const openSystem = (systemId: string) => {
     setSelectedSystemId(systemId);
     setSelectedTableId("");
@@ -474,6 +481,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
                   onSelect={openTable}
                   onTogglePin={togglePinnedTable}
                 />
+                <button type="button" className="prj-pm-dict-refresh" onClick={refreshDictionary} disabled={loading}>{loading ? "刷新中..." : "刷新"}</button>
               </div>
               <DictionarySystemOverview
                 system={selectedSystem}
@@ -505,6 +513,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
                   onSelect={openTable}
                   onTogglePin={togglePinnedTable}
                 />
+                <button type="button" className="prj-pm-dict-refresh" onClick={refreshDictionary} disabled={loading}>{loading ? "刷新中..." : "刷新"}</button>
               </div>
               <div className="prj-pm-dict__tabs">
                 <button type="button" className={activeView === "field-design" ? "is-active" : ""} onClick={() => setActiveView("field-design")}>字段设计</button>
