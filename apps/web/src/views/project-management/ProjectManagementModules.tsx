@@ -313,6 +313,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
   };
   const openSystem = (systemId: string) => {
     setSelectedSystemId(systemId);
+    setExpandedSystemIds(current => current.includes(systemId) ? current : [...current, systemId]);
     setSelectedTableId("");
     setSelectedFieldId("");
     setQuery("");
