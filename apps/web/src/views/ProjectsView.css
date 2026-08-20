@@ -4714,7 +4714,7 @@
 .prj-pm-dict__systems {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .prj-pm-dict__pane-title {
@@ -4737,15 +4737,32 @@
 }
 
 .prj-pm-dict__tree-group {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  align-content: start;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
   gap: 6px;
   padding: 8px;
   min-width: 0;
-  min-height: 0;
-  height: 100%;
-  overflow: hidden;
+  min-height: auto;
+  height: auto;
+  overflow: visible;
+}
+
+.prj-pm-dict__tree-group[draggable="true"],
+.prj-pm-dict__table-tree button[draggable="true"] {
+  cursor: grab;
+}
+
+.prj-pm-dict__tree-group.is-dragging,
+.prj-pm-dict__table-tree button.is-dragging {
+  opacity: .48;
+}
+
+.prj-pm-dict__tree-group.is-dragging .prj-pm-dict__system,
+.prj-pm-dict__table-tree button.is-dragging {
+  border-color: rgba(143, 254, 247, .52);
+  background: rgba(143, 254, 247, .08);
+  box-shadow: inset 0 0 0 1px rgba(143, 254, 247, .12);
 }
 
 .prj-pm-dict-workbench .prj-pm-dict__system {
@@ -4793,7 +4810,7 @@
   align-content: start;
   gap: 3px;
   min-height: 0;
-  max-height: none;
+  max-height: min(42vh, 420px);
   overflow: auto;
   padding: 0 0 0 19px;
 }

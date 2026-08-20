@@ -58,6 +58,15 @@ type DictionarySqlConversion = {
   reason?: string;
 };
 
+type DictionaryTreeDragState =
+  | { kind: "system"; id: string }
+  | { kind: "table"; id: string; systemId: string };
+
+type DictionaryTreeDragEvent = {
+  dataTransfer: DataTransfer;
+  preventDefault: () => void;
+};
+
 export function ProjectManagementSearchBar({
   projectId,
   onJump,
@@ -139,6 +148,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
   const [selectedSystemId, setSelectedSystemId] = useState<string>("");
   const [expandedSystemIds, setExpandedSystemIds] = useState<string[]>([]);
   const [tables, setTables] = useState<ProjectDictionaryTable[]>([]);
+  const [tableTrees, setTableTrees] = useState<Record<string, ProjectDictionaryTable[]>>({});
   const [selectedTableId, setSelectedTableId] = useState<string>("");
   const [activeView, setActiveView] = useState<DictionaryView>("field-design");
   const [query, setQuery] = useState("");
@@ -150,6 +160,9 @@ export function DictionarySection({ project, summary }: { project: Element; summ
   const [tableCache, setTableCache] = useState<Record<string, ProjectDictionaryTable>>({});
   const [pinnedSystemIds, setPinnedSystemIds] = useState<string[]>(() => loadPinnedDictionarySystems(project.id));
   const [pinnedTableIds, setPinnedTableIds] = useState<string[]>(() => loadPinnedDictionaryTables(project.id));
+  const [systemOrderIds, setSystemOrderIds] = useState<string[]>(() => loadDictionarySystemOrder(project.id));
+  const [tableOrderBySystem, setTableOrderBySystem] = useState<Record<string, string[]>>(() => loadDictionaryTableOrder(project.id));
+  const [treeDrag, setTreeDrag] = useState<DictionaryTreeDragState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -160,9 +173,12 @@ export function DictionarySection({ project, summary }: { project: Element; summ
     void api.listProjectDictionarySystems(project.id)
       .then(next => {
         if (cancelled) return;
+        const rememberedOrder = loadDictionarySystemOrder(project.id);
+        const orderedNext = applyDictionaryItemOrder(next, rememberedOrder);
         setSystems(next);
-        setSelectedSystemId(current => current || next[0]?.id || "");
-        setExpandedSystemIds(current => current.length > 0 ? current : next[0]?.id ? [next[0].id] : []);
+        setTableTrees({});
+        setSelectedSystemId(current => current || orderedNext[0]?.id || "");
+        setExpandedSystemIds(current => current.length > 0 ? current : orderedNext[0]?.id ? [orderedNext[0].id] : []);
       })
       .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
     return () => { cancelled = true; };
@@ -171,6 +187,8 @@ export function DictionarySection({ project, summary }: { project: Element; summ
   useEffect(() => {
     setPinnedSystemIds(loadPinnedDictionarySystems(project.id));
     setPinnedTableIds(loadPinnedDictionaryTables(project.id));
+    setSystemOrderIds(loadDictionarySystemOrder(project.id));
+    setTableOrderBySystem(loadDictionaryTableOrder(project.id));
   }, [project.id]);
 
   useEffect(() => {
@@ -179,6 +197,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
       .then(next => {
         if (cancelled) return;
         setTables(next);
+        setTableTrees(current => ({ ...current, [selectedSystemId]: next }));
         setTableCache(current => {
           const merged = { ...current };
           next.forEach(table => { merged[table.id] = table; });
@@ -189,6 +208,30 @@ export function DictionarySection({ project, summary }: { project: Element; summ
       .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
     return () => { cancelled = true; };
   }, [project.id, refreshKey, selectedSystemId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const unloadedSystemIds = expandedSystemIds.filter(systemId => systemId && systemId !== selectedSystemId);
+    if (unloadedSystemIds.length === 0) return () => { cancelled = true; };
+    void Promise.all(unloadedSystemIds.map(async systemId => ({
+      systemId,
+      tables: await api.listProjectDictionaryTables(project.id, systemId),
+    })))
+      .then(next => {
+        if (cancelled) return;
+        setTableTrees(current => ({
+          ...current,
+          ...Object.fromEntries(next.map(item => [item.systemId, item.tables])),
+        }));
+        setTableCache(current => {
+          const merged = { ...current };
+          next.forEach(item => item.tables.forEach(table => { merged[table.id] = table; }));
+          return merged;
+        });
+      })
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+    return () => { cancelled = true; };
+  }, [expandedSystemIds, project.id, refreshKey, selectedSystemId]);
 
   useEffect(() => {
     if (systems.length === 0) return;
@@ -240,8 +283,13 @@ export function DictionarySection({ project, summary }: { project: Element; summ
   }, [project.id, refreshKey, selectedTableId]);
 
   const dictionary = summary?.dictionary ?? { systems: 0, tables: 0, fields: 0 };
-  const selectedSystem = systems.find(system => system.id === selectedSystemId);
-  const selectedTable = tables.find(table => table.id === selectedTableId) ?? tableCache[selectedTableId];
+  const orderedSystems = useMemo(() => applyDictionaryItemOrder(systems, systemOrderIds), [systems, systemOrderIds]);
+  const orderedTables = useMemo(
+    () => applyDictionaryItemOrder(tables, tableOrderBySystem[selectedSystemId] ?? []),
+    [selectedSystemId, tableOrderBySystem, tables],
+  );
+  const selectedSystem = orderedSystems.find(system => system.id === selectedSystemId);
+  const selectedTable = orderedTables.find(table => table.id === selectedTableId) ?? tableCache[selectedTableId];
 
   useEffect(() => {
     let cancelled = false;
@@ -268,15 +316,15 @@ export function DictionarySection({ project, summary }: { project: Element; summ
   }, [project.id, selectedTable, tableFields]);
 
   const titleSystems = useMemo(() => {
-    const byId = new Map(systems.map(system => [system.id, system]));
+    const byId = new Map(orderedSystems.map(system => [system.id, system]));
     const pinned = pinnedSystemIds.map(id => byId.get(id)).filter((system): system is ProjectDictionarySystem => Boolean(system));
     if (selectedSystem && !selectedTable && !pinned.some(system => system.id === selectedSystem.id)) {
       return [...pinned, selectedSystem];
     }
     return pinned;
-  }, [pinnedSystemIds, selectedSystem, selectedTable, systems]);
+  }, [orderedSystems, pinnedSystemIds, selectedSystem, selectedTable]);
   const titleTables = useMemo(() => {
-    const byId = new Map([...Object.values(tableCache), ...tables].map(table => [table.id, table] as const));
+    const byId = new Map([...Object.values(tableCache), ...orderedTables].map(table => [table.id, table] as const));
     const ids = [...pinnedTableIds];
     if (selectedTableId) ids.push(selectedTableId);
     const seen = new Set<string>();
@@ -286,11 +334,14 @@ export function DictionarySection({ project, summary }: { project: Element; summ
       const table = byId.get(id);
       return table ? [table] : [];
     });
-  }, [pinnedTableIds, selectedTableId, tableCache, tables]);
+  }, [orderedTables, pinnedTableIds, selectedTableId, tableCache]);
   const openTable = (tableId: string) => {
-    const table = tables.find(item => item.id === tableId) ?? tableCache[tableId];
+    const table = Object.values(tableTrees).flat().find(item => item.id === tableId)
+      ?? tables.find(item => item.id === tableId)
+      ?? tableCache[tableId];
     if (table) {
       setTableCache(current => current[table.id] ? current : { ...current, [table.id]: table });
+      if (table.systemId) setSelectedSystemId(table.systemId);
     }
     setSelectedTableId(tableId);
     setQuery("");
@@ -394,6 +445,40 @@ export function DictionarySection({ project, summary }: { project: Element; summ
       field,
     });
   };
+  const getTreeTables = (systemId: string) => applyDictionaryItemOrder(
+    tableTrees[systemId] ?? (selectedSystemId === systemId ? orderedTables : []),
+    tableOrderBySystem[systemId] ?? [],
+  );
+  const startTreeDrag = (event: DictionaryTreeDragEvent, next: DictionaryTreeDragState) => {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", next.id);
+    setTreeDrag(next);
+  };
+  const allowTreeDrop = (event: DictionaryTreeDragEvent, target: DictionaryTreeDragState) => {
+    if (!treeDrag || treeDrag.kind !== target.kind) return;
+    if (treeDrag.kind === "table" && (target.kind !== "table" || treeDrag.systemId !== target.systemId)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  };
+  const dropSystem = (event: DictionaryTreeDragEvent, targetSystemId: string) => {
+    if (treeDrag?.kind !== "system") return;
+    event.preventDefault();
+    const next = reorderDictionaryIds(orderedSystems.map(system => system.id), treeDrag.id, targetSystemId);
+    setSystemOrderIds(next);
+    saveDictionarySystemOrder(project.id, next);
+    setTreeDrag(null);
+  };
+  const dropTable = (event: DictionaryTreeDragEvent, systemId: string, targetTableId: string) => {
+    if (treeDrag?.kind !== "table" || treeDrag.systemId !== systemId) return;
+    event.preventDefault();
+    const next = reorderDictionaryIds(getTreeTables(systemId).map(table => table.id), treeDrag.id, targetTableId);
+    setTableOrderBySystem(current => {
+      const merged = { ...current, [systemId]: next };
+      saveDictionaryTableOrder(project.id, merged);
+      return merged;
+    });
+    setTreeDrag(null);
+  };
 
   return (
     <div className="prj-pm-dict prj-pm-dict-workbench">
@@ -404,8 +489,15 @@ export function DictionarySection({ project, summary }: { project: Element; summ
           {systems.length === 0 ? (
             <div className="prj-pm-empty">还没有导入首都银行一表通 Mapping 数据。</div>
           ) : (
-            systems.map(system => (
-              <div className="prj-pm-dict__tree-group" key={system.id}>
+            orderedSystems.map(system => (
+              <div
+                className={`prj-pm-dict__tree-group${treeDrag?.kind === "system" && treeDrag.id === system.id ? " is-dragging" : ""}`}
+                key={system.id}
+                draggable
+                onDragStart={event => startTreeDrag(event, { kind: "system", id: system.id })}
+                onDragOver={event => allowTreeDrop(event, { kind: "system", id: system.id })}
+                onDrop={event => dropSystem(event, system.id)}
+                onDragEnd={() => setTreeDrag(null)}>
                 <button
                   type="button"
                   className={`prj-pm-dict__system${selectedSystemId === system.id ? " is-active" : ""}`}
@@ -415,13 +507,28 @@ export function DictionarySection({ project, summary }: { project: Element; summ
                   <small>{system.assetLayer || system.type || "mapping"}</small>
                   <em>{system.tableCount} / {system.fieldCount}</em>
                 </button>
-                {selectedSystemId === system.id && expandedSystemIds.includes(system.id) && (
+                {expandedSystemIds.includes(system.id) && (
                   <div className="prj-pm-dict__table-tree">
-                    {tables.map(table => (
+                    {getTreeTables(system.id).map(table => (
                       <button
                         key={table.id}
                         type="button"
-                        className={selectedTableId === table.id ? "is-active" : ""}
+                        className={[
+                          selectedTableId === table.id ? "is-active" : "",
+                          treeDrag?.kind === "table" && treeDrag.id === table.id ? "is-dragging" : "",
+                        ].filter(Boolean).join(" ")}
+                        draggable
+                        onDragStart={event => {
+                          event.stopPropagation();
+                          startTreeDrag(event, { kind: "table", id: table.id, systemId: system.id });
+                        }}
+                        onDragOver={event => allowTreeDrop(event, { kind: "table", id: table.id, systemId: system.id })}
+                        onDrop={event => {
+                          if (treeDrag?.kind !== "table") return;
+                          event.stopPropagation();
+                          dropTable(event, system.id, table.id);
+                        }}
+                        onDragEnd={() => setTreeDrag(null)}
                         onClick={() => openTable(table.id)}>
                         <span>{table.tableCn || table.tableName}</span>
                         <code>{table.tableName}</code>
@@ -450,7 +557,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
                   selectedTableId={selectedTableId}
                   pinnedSystemIds={pinnedSystemIds}
                   onSelect={(systemId) => {
-                    const system = systems.find(item => item.id === systemId);
+                    const system = orderedSystems.find(item => item.id === systemId);
                     openSystem(systemId);
                     if (system) inspectSystem(system);
                   }}
@@ -467,7 +574,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
               </div>
               <DictionarySystemOverview
                 system={selectedSystem}
-                tables={tables}
+                tables={orderedTables}
                 dictionary={dictionary}
                 onInspectTable={inspectTable}
                 onOpenTable={openTable}
@@ -482,7 +589,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
                   selectedTableId={selectedTableId}
                   pinnedSystemIds={pinnedSystemIds}
                   onSelect={(systemId) => {
-                    const system = systems.find(item => item.id === systemId);
+                    const system = orderedSystems.find(item => item.id === systemId);
                     openSystem(systemId);
                     if (system) inspectSystem(system);
                   }}
@@ -4809,6 +4916,78 @@ function savePinnedDictionaryTables(projectId: string, tableIds: string[]) {
   } catch {
     // Pinned table titles are a UI convenience; failing to persist them is safe.
   }
+}
+
+function dictionarySystemOrderKey(projectId: string) {
+  return `rich-project-dictionary-system-order:${projectId}`;
+}
+
+function loadDictionarySystemOrder(projectId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(dictionarySystemOrderKey(projectId)) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter(id => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDictionarySystemOrder(projectId: string, systemIds: string[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(dictionarySystemOrderKey(projectId), JSON.stringify(systemIds));
+  } catch {
+    // Dictionary tree order is a local convenience; failing to persist it is safe.
+  }
+}
+
+function dictionaryTableOrderKey(projectId: string) {
+  return `rich-project-dictionary-table-order:${projectId}`;
+}
+
+function loadDictionaryTableOrder(projectId: string): Record<string, string[]> {
+  if (typeof window === "undefined") return {};
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(dictionaryTableOrderKey(projectId)) ?? "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed)
+      .filter(([systemId, tableIds]) => typeof systemId === "string" && Array.isArray(tableIds))
+      .map(([systemId, tableIds]) => [systemId, (tableIds as unknown[]).filter((id): id is string => typeof id === "string")]));
+  } catch {
+    return {};
+  }
+}
+
+function saveDictionaryTableOrder(projectId: string, tableOrderBySystem: Record<string, string[]>) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(dictionaryTableOrderKey(projectId), JSON.stringify(tableOrderBySystem));
+  } catch {
+    // Dictionary tree order is a local convenience; failing to persist it is safe.
+  }
+}
+
+function applyDictionaryItemOrder<T extends { id: string }>(items: T[], orderIds: string[]): T[] {
+  if (orderIds.length === 0 || items.length < 2) return items;
+  const byId = new Map(items.map(item => [item.id, item]));
+  const ordered = orderIds.flatMap(id => {
+    const item = byId.get(id);
+    if (!item) return [];
+    byId.delete(id);
+    return [item];
+  });
+  return [...ordered, ...items.filter(item => byId.has(item.id))];
+}
+
+function reorderDictionaryIds(ids: string[], activeId: string, targetId: string): string[] {
+  if (activeId === targetId) return ids;
+  const from = ids.indexOf(activeId);
+  const to = ids.indexOf(targetId);
+  if (from < 0 || to < 0) return ids;
+  const next = [...ids];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
 }
 
 function escapeAttribute(value: string): string {
