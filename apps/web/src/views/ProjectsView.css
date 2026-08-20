@@ -4582,8 +4582,8 @@
   --dict-blue: #72b7ff;
   --dict-text: rgba(255, 255, 255, .9);
   --dict-muted: rgba(255, 255, 255, .62);
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   min-height: 0;
   height: 100%;
@@ -4684,6 +4684,7 @@
 
 .prj-pm-dict-workbench .prj-pm-dict__layout {
   display: grid;
+  flex: 1 1 auto;
   gap: 12px;
   min-height: 0;
   height: 100%;
