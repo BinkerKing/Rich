@@ -153,15 +153,6 @@ export function DictionarySection({ project, summary }: { project: Element; summ
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const systemClickTimerRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (systemClickTimerRef.current !== null) {
-        window.clearTimeout(systemClickTimerRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -324,21 +315,12 @@ export function DictionarySection({ project, summary }: { project: Element; summ
       : [...current, systemId]);
   };
   const handleSystemClick = (system: ProjectDictionarySystem) => {
-    if (systemClickTimerRef.current !== null) {
-      window.clearTimeout(systemClickTimerRef.current);
-    }
-    systemClickTimerRef.current = window.setTimeout(() => {
-      openSystem(system.id);
-      inspectSystem(system);
-      systemClickTimerRef.current = null;
-    }, 180);
-  };
-  const handleSystemDoubleClick = (systemId: string) => {
-    if (systemClickTimerRef.current !== null) {
-      window.clearTimeout(systemClickTimerRef.current);
-      systemClickTimerRef.current = null;
-    }
-    toggleSystemExpanded(systemId);
+    setSelectedSystemId(system.id);
+    toggleSystemExpanded(system.id);
+    setSelectedTableId("");
+    setSelectedFieldId("");
+    setQuery("");
+    inspectSystem(system);
   };
   const togglePinnedSystem = (systemId: string) => {
     setPinnedSystemIds(current => {
@@ -427,8 +409,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
                 <button
                   type="button"
                   className={`prj-pm-dict__system${selectedSystemId === system.id ? " is-active" : ""}`}
-                  onClick={() => handleSystemClick(system)}
-                  onDoubleClick={() => handleSystemDoubleClick(system.id)}>
+                  onClick={() => handleSystemClick(system)}>
                   <span>{expandedSystemIds.includes(system.id) ? "▾" : "▸"}</span>
                   <b>{system.code || system.name}</b>
                   <small>{system.assetLayer || system.type || "mapping"}</small>
