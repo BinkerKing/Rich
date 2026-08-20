@@ -5063,6 +5063,10 @@
   font-weight: 900;
 }
 
+.prj-pm-dict-system-table-summary__head > :first-child {
+  text-align: center;
+}
+
 .prj-pm-dict-resizable-head-cell {
   position: relative;
   padding-right: 18px !important;

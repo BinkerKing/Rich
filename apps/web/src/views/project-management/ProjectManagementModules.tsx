@@ -3375,7 +3375,7 @@ function DictionarySystemOverview({
   onOpenTable: (tableId: string) => void;
 }) {
   const columns = useMemo<DictionaryResizableColumn[]>(() => [
-    { id: "index", label: "", width: 42, minWidth: 38 },
+    { id: "index", label: "序号", width: 58, minWidth: 52 },
     { id: "tableCn", label: "中文表名", width: 180, minWidth: 120 },
     { id: "tableName", label: "英文表名", width: 170, minWidth: 130 },
     { id: "dataLayer", label: "数据层级", width: 120, minWidth: 86 },
@@ -3385,8 +3385,9 @@ function DictionarySystemOverview({
     { id: "caliber", label: "口径", width: 360, minWidth: 180 },
   ], []);
   const columnResize = useDictionaryResizableColumns(`dictionary-system-table-summary:${system?.id || "empty"}`, columns);
+  const indexColumnWidth = Math.max(columnResize.columnWidth("index"), 58);
   const gridStyle = useMemo(() => ({
-    "--dict-summary-c1": `${columnResize.columnWidth("index")}px`,
+    "--dict-summary-c1": `${indexColumnWidth}px`,
     "--dict-summary-c2": `${columnResize.columnWidth("tableCn")}px`,
     "--dict-summary-c3": `${columnResize.columnWidth("tableName")}px`,
     "--dict-summary-c4": `${columnResize.columnWidth("dataLayer")}px`,
@@ -3394,8 +3395,8 @@ function DictionarySystemOverview({
     "--dict-summary-c6": `${columnResize.columnWidth("fieldCount")}px`,
     "--dict-summary-c7": `${columnResize.columnWidth("description")}px`,
     "--dict-summary-c8": `${columnResize.columnWidth("caliber")}px`,
-    "--dict-summary-width": `${columnResize.totalWidth}px`,
-  }) as CSSProperties, [columnResize]);
+    "--dict-summary-width": `${columnResize.totalWidth + indexColumnWidth - columnResize.columnWidth("index")}px`,
+  }) as CSSProperties, [columnResize, indexColumnWidth]);
   if (!system) {
     return <div className="prj-pm-empty">请选择左侧系统。</div>;
   }
