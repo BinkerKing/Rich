@@ -44,8 +44,10 @@ export interface ProjectDictionaryTable {
   dataLayer?: string;
   sourceKind?: string;
   fileType?: string;
+  usageStatus?: string;
   description?: string;
   caliber?: string;
+  extra?: Record<string, unknown>;
   fieldCount: number;
 }
 
@@ -78,6 +80,9 @@ export interface ProjectDictionaryFieldHit {
   fieldType?: string;
   fieldLength?: string;
   formatPattern?: string;
+  carrierKind?: string;
+  fieldOrder?: number;
+  sourceFieldOrder?: number;
   description?: string;
   acquireLogic?: string;
   codeValue?: string;
@@ -86,7 +91,9 @@ export interface ProjectDictionaryFieldHit {
   codeItems?: ProjectDictionaryCodeItem[];
   mappedTable?: string;
   mappedField?: string;
+  mappedFieldCn?: string;
   remark?: string;
+  extra?: Record<string, unknown>;
   score: number;
 }
 
@@ -109,6 +116,155 @@ export interface ProjectDictionaryFieldDetail extends ProjectDictionaryFieldHit 
   systemAssetLayer?: string;
   systemDescription?: string;
   extra?: Record<string, unknown>;
+}
+
+export type ProjectDictionaryRectificationStatus = "open" | "fixed" | "verified" | "cancelled";
+
+export interface ProjectDictionaryRectification {
+  id: string;
+  projectId: string;
+  entityType: "library" | "table" | "field" | "codeSet" | "mapping";
+  entityId: string;
+  propertyKey: string;
+  requirement: string;
+  status: ProjectDictionaryRectificationStatus;
+  resolutionNote?: string;
+  createdBy?: string;
+  resolvedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string;
+}
+
+export interface ProjectDictionaryRectificationInput {
+  entityType: ProjectDictionaryRectification["entityType"];
+  entityId: string;
+  propertyKey: string;
+  requirement: string;
+  createdBy?: string;
+}
+
+export interface ProjectDictionaryRectificationPatch {
+  status?: ProjectDictionaryRectificationStatus;
+  resolutionNote?: string | null;
+  resolvedBy?: string | null;
+}
+
+export interface ProjectDictionaryMappingSourceField {
+  id: string;
+  projectId: string;
+  mappingRuleId: string;
+  fieldId?: string;
+  refPath: string;
+  alias?: string;
+  role?: string;
+  remark?: string;
+  sortOrder: number;
+  raw?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectDictionaryMappingAction {
+  id: string;
+  projectId: string;
+  mappingRuleId: string;
+  actionType: string;
+  conditionText?: string;
+  expressionText?: string;
+  resultText?: string;
+  remark?: string;
+  sortOrder: number;
+  raw?: Record<string, unknown>;
+  sourceFieldIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectDictionaryMappingRule {
+  id: string;
+  projectId: string;
+  scenarioId?: string;
+  systemId?: string;
+  tableId?: string;
+  fieldId?: string;
+  status: string;
+  logicText?: string;
+  convertedSql?: string;
+  remark?: string;
+  sortOrder: number;
+  raw?: Record<string, unknown>;
+  sourceFields: ProjectDictionaryMappingSourceField[];
+  actions: ProjectDictionaryMappingAction[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectDictionaryMappingRulePatch {
+  scenarioId?: string | null;
+  systemId?: string | null;
+  tableId?: string | null;
+  fieldId?: string | null;
+  status?: string;
+  logicText?: string | null;
+  convertedSql?: string | null;
+  remark?: string | null;
+  sortOrder?: number;
+  raw?: Record<string, unknown>;
+}
+
+export interface ProjectDictionaryMappingSourceFieldInput {
+  id?: string;
+  fieldId?: string | null;
+  refPath: string;
+  alias?: string | null;
+  role?: string | null;
+  remark?: string | null;
+  sortOrder?: number;
+  raw?: Record<string, unknown>;
+}
+
+export interface ProjectDictionaryMappingActionInput {
+  id?: string;
+  actionType: string;
+  conditionText?: string | null;
+  expressionText?: string | null;
+  resultText?: string | null;
+  remark?: string | null;
+  sortOrder?: number;
+  raw?: Record<string, unknown>;
+  sourceFieldIds?: string[];
+}
+
+export interface ProjectDictionaryMappingActionPatch {
+  actionType?: string;
+  conditionText?: string | null;
+  expressionText?: string | null;
+  resultText?: string | null;
+  remark?: string | null;
+  sortOrder?: number;
+  raw?: Record<string, unknown>;
+  sourceFieldIds?: string[];
+}
+
+export interface ProjectDictionaryMappingValidationIssue {
+  mappingRuleId: string;
+  fieldId?: string;
+  severity: "info" | "warning" | "error";
+  code: string;
+  message: string;
+}
+
+export interface ProjectDictionaryMappingValidation {
+  projectId: string;
+  tableId: string;
+  totalRules: number;
+  completeRules: number;
+  invalidRules: number;
+  unableToConvertRules: number;
+  missingSourceFieldRules: number;
+  missingSqlRules: number;
+  issues: ProjectDictionaryMappingValidationIssue[];
 }
 
 export interface ProjectManagementSearchHit {
@@ -167,6 +323,16 @@ export interface ProjectManagementRepo {
   resolveDictionaryFieldRefs(projectId: string, refs: string[]): Promise<ProjectDictionaryFieldHit[]>;
   searchDictionaryFields(projectId: string, query: string, limit: number): Promise<ProjectDictionaryFieldHit[]>;
   getDictionaryField(projectId: string, fieldId: string): Promise<ProjectDictionaryFieldDetail | null>;
+  listDictionaryRectifications(projectId: string): Promise<ProjectDictionaryRectification[]>;
+  createDictionaryRectification(projectId: string, input: ProjectDictionaryRectificationInput): Promise<ProjectDictionaryRectification>;
+  updateDictionaryRectification(projectId: string, rectificationId: string, patch: ProjectDictionaryRectificationPatch): Promise<ProjectDictionaryRectification | null>;
+  listDictionaryMappingRules(projectId: string, tableId: string): Promise<ProjectDictionaryMappingRule[]>;
+  getDictionaryMappingRule(projectId: string, mappingRuleId: string): Promise<ProjectDictionaryMappingRule | null>;
+  updateDictionaryMappingRule(projectId: string, mappingRuleId: string, patch: ProjectDictionaryMappingRulePatch): Promise<ProjectDictionaryMappingRule | null>;
+  updateDictionaryMappingAction(projectId: string, actionId: string, patch: ProjectDictionaryMappingActionPatch): Promise<ProjectDictionaryMappingAction | null>;
+  replaceDictionaryMappingActions(projectId: string, mappingRuleId: string, actions: ProjectDictionaryMappingActionInput[]): Promise<ProjectDictionaryMappingRule | null>;
+  replaceDictionaryMappingSourceFields(projectId: string, mappingRuleId: string, sourceFields: ProjectDictionaryMappingSourceFieldInput[]): Promise<ProjectDictionaryMappingRule | null>;
+  validateDictionaryMappingTable(projectId: string, tableId: string): Promise<ProjectDictionaryMappingValidation>;
 }
 
 export const PROJECT_MANAGEMENT_MODULES: Array<{ key: ProjectManagementModuleKey; label: string }> = [

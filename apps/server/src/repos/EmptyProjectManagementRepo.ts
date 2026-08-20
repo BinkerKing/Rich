@@ -2,6 +2,16 @@ import {
   PROJECT_MANAGEMENT_MODULES,
   type ProjectDictionaryFieldDetail,
   type ProjectDictionaryFieldHit,
+  type ProjectDictionaryMappingAction,
+  type ProjectDictionaryMappingActionInput,
+  type ProjectDictionaryMappingActionPatch,
+  type ProjectDictionaryMappingRule,
+  type ProjectDictionaryMappingRulePatch,
+  type ProjectDictionaryMappingSourceFieldInput,
+  type ProjectDictionaryMappingValidation,
+  type ProjectDictionaryRectification,
+  type ProjectDictionaryRectificationInput,
+  type ProjectDictionaryRectificationPatch,
   type ProjectDictionarySystem,
   type ProjectDictionaryTable,
   type ProjectManagementModuleKey,
@@ -78,5 +88,90 @@ export class EmptyProjectManagementRepo implements ProjectManagementRepo {
 
   async getDictionaryField(): Promise<ProjectDictionaryFieldDetail | null> {
     return null;
+  }
+
+  async listDictionaryRectifications(): Promise<ProjectDictionaryRectification[]> {
+    return [];
+  }
+
+  async createDictionaryRectification(
+    projectId: string,
+    input: ProjectDictionaryRectificationInput,
+  ): Promise<ProjectDictionaryRectification> {
+    const now = new Date().toISOString();
+    return {
+      id: "pm-dict-rect-empty",
+      projectId,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      propertyKey: input.propertyKey,
+      requirement: input.requirement,
+      status: "open",
+      createdBy: input.createdBy,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  async updateDictionaryRectification(
+    _projectId: string,
+    _rectificationId: string,
+    _patch: ProjectDictionaryRectificationPatch,
+  ): Promise<ProjectDictionaryRectification | null> {
+    return null;
+  }
+
+  async listDictionaryMappingRules(): Promise<ProjectDictionaryMappingRule[]> {
+    return [];
+  }
+
+  async getDictionaryMappingRule(): Promise<ProjectDictionaryMappingRule | null> {
+    return null;
+  }
+
+  async updateDictionaryMappingRule(
+    _projectId: string,
+    _mappingRuleId: string,
+    _patch: ProjectDictionaryMappingRulePatch,
+  ): Promise<ProjectDictionaryMappingRule | null> {
+    return null;
+  }
+
+  async updateDictionaryMappingAction(
+    _projectId: string,
+    _actionId: string,
+    _patch: ProjectDictionaryMappingActionPatch,
+  ): Promise<ProjectDictionaryMappingAction | null> {
+    return null;
+  }
+
+  async replaceDictionaryMappingActions(
+    _projectId: string,
+    _mappingRuleId: string,
+    _actions: ProjectDictionaryMappingActionInput[],
+  ): Promise<ProjectDictionaryMappingRule | null> {
+    return null;
+  }
+
+  async replaceDictionaryMappingSourceFields(
+    _projectId: string,
+    _mappingRuleId: string,
+    _sourceFields: ProjectDictionaryMappingSourceFieldInput[],
+  ): Promise<ProjectDictionaryMappingRule | null> {
+    return null;
+  }
+
+  async validateDictionaryMappingTable(projectId: string, tableId: string): Promise<ProjectDictionaryMappingValidation> {
+    return {
+      projectId,
+      tableId,
+      totalRules: 0,
+      completeRules: 0,
+      invalidRules: 0,
+      unableToConvertRules: 0,
+      missingSourceFieldRules: 0,
+      missingSqlRules: 0,
+      issues: [],
+    };
   }
 }
