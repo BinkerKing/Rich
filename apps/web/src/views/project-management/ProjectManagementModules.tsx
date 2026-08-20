@@ -702,7 +702,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
                 />
               )}
               {activeView === "relations" && <DictionaryRelationsPanel fields={visibleFields} />}
-              {activeView === "test-data" && <DictionaryTestDataPanel fields={visibleFields} storageKey={`dictionary-test-data:${project.id}:${selectedTableId || "search"}`} />}
+              {activeView === "test-data" && <DictionaryTestDataPanel table={selectedTable} fields={visibleFields} storageKey={`dictionary-test-data:${project.id}:${selectedTableId || "search"}`} />}
               {activeView === "table-info" && <DictionaryTableInfoPanel table={selectedTable} fields={visibleFields} />}
             </>
           )}
@@ -4257,8 +4257,35 @@ function DictionaryRelationsPanel({ fields }: { fields: ProjectDictionaryFieldHi
   );
 }
 
-function DictionaryTestDataPanel({ fields, storageKey }: { fields: ProjectDictionaryFieldHit[]; storageKey: string }) {
+type DictionaryImportedTestData = {
+  sourceFilePath?: string;
+  sourceFileName?: string;
+  encoding?: string;
+  delimiter?: string;
+  recordCount?: number;
+  sampleCount?: number;
+  expectedFieldCount?: number;
+  columnCounts?: Record<string, number>;
+  columnCountIssues?: Array<{ columnCount?: number; recordCount?: number; note?: string }>;
+  rows?: Array<{ lineNumber?: number; values?: Record<string, unknown>; rawColumns?: unknown[]; extraColumns?: unknown[] }>;
+};
+
+type DictionaryUploadedTestFile = {
+  file: File;
+  text: string;
+  preview: string;
+  encoding: string;
+  delimiter: string;
+};
+
+function DictionaryTestDataPanel({ table, fields, storageKey }: { table?: ProjectDictionaryTable; fields: ProjectDictionaryFieldHit[]; storageKey: string }) {
   const visibleFields = useMemo(() => fields.slice(0, 32), [fields]);
+  const importedTestData = useMemo(() => getDictionaryImportedTestData(table), [table]);
+  const parseConfig = useMemo(() => getDictionaryFileParseConfig(table), [table]);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<DictionaryUploadedTestFile | null>(null);
+  const [uploadedRows, setUploadedRows] = useState<DictionaryImportedTestData["rows"] | null>(null);
+  const [uploadError, setUploadError] = useState("");
   const columns = useMemo<DictionaryResizableColumn[]>(() => [
     { id: "index", label: "#", width: 42, minWidth: 38 },
     ...visibleFields.map(field => ({
@@ -4269,15 +4296,39 @@ function DictionaryTestDataPanel({ fields, storageKey }: { fields: ProjectDictio
     })),
   ], [visibleFields]);
   const columnResize = useDictionaryResizableColumns(storageKey, columns);
-  const rows = Array.from({ length: 12 }, (_, rowIndex) => ({
-    id: `sample-${rowIndex}`,
-    values: visibleFields.map(field => sampleDictionaryValue(field, rowIndex)),
-  }));
+  useEffect(() => {
+    setUploadedFile(null);
+    setUploadedRows(null);
+    setUploadError("");
+    setUploadOpen(false);
+  }, [table?.id]);
+  const activeRows = uploadedRows ?? importedTestData?.rows ?? [];
+  const importedRows = activeRows.slice(0, 12);
+  const rows = importedRows.length
+    ? importedRows.map((row, rowIndex) => ({
+      id: `imported-${row.lineNumber ?? rowIndex + 1}`,
+      indexLabel: String(row.lineNumber ?? rowIndex + 1),
+      values: visibleFields.map(field => stringifyTestDataValue(row.values?.[field.fieldName])),
+    }))
+    : Array.from({ length: 12 }, (_, rowIndex) => ({
+      id: `sample-${rowIndex}`,
+      indexLabel: String(rowIndex + 1),
+      values: visibleFields.map(field => sampleDictionaryValue(field, rowIndex)),
+    }));
   if (visibleFields.length === 0) {
     return <div className="prj-pm-dict__grid-empty">请选择左侧表后查看测试数据。</div>;
   }
   return (
     <div className="prj-pm-dict-test-table-wrap">
+      <div className="prj-pm-dict-test-summary">
+        <div className="prj-pm-dict-test-summary__meta">
+          <strong>{uploadedFile?.file.name || importedTestData?.sourceFileName || table?.tableName || "测试文件"}</strong>
+          <span>{uploadedRows ? `${uploadedRows.length} 行` : `${importedTestData?.recordCount ?? 0} 行`}</span>
+          <span>展示 {rows.length} 行</span>
+          <span>{[uploadedFile?.encoding || parseConfig.encoding, (uploadedFile?.delimiter || parseConfig.delimiter) ? `分隔符 ${uploadedFile?.delimiter || parseConfig.delimiter}` : ""].filter(Boolean).join(" / ")}</span>
+        </div>
+        <button type="button" onClick={() => setUploadOpen(true)}>上传测试文件</button>
+      </div>
       <table className="prj-pm-dict-test-table">
         <colgroup>
           {columns.map(column => <col key={column.id} style={{ width: columnResize.columnWidth(column.id) }} />)}
@@ -4314,7 +4365,7 @@ function DictionaryTestDataPanel({ fields, storageKey }: { fields: ProjectDictio
         <tbody>
           {rows.map(row => (
             <tr key={row.id}>
-              <td className="prj-pm-dict-test-table__row-head" style={{ width: columnResize.columnWidth("index"), minWidth: columnResize.columnWidth("index") }}>{Number(row.id.replace("sample-", "")) + 1}</td>
+              <td className="prj-pm-dict-test-table__row-head" style={{ width: columnResize.columnWidth("index"), minWidth: columnResize.columnWidth("index") }}>{row.indexLabel}</td>
               {row.values.map((value, index) => (
                 <td
                   key={visibleFields[index]?.id ?? index}
@@ -4327,6 +4378,109 @@ function DictionaryTestDataPanel({ fields, storageKey }: { fields: ProjectDictio
           ))}
         </tbody>
       </table>
+      {uploadOpen && (
+        <DictionaryTestFileUploadDialog
+          tableName={table?.tableName || "测试文件"}
+          config={parseConfig}
+          uploadedFile={uploadedFile}
+          error={uploadError}
+          onClose={() => setUploadOpen(false)}
+          onFileLoaded={file => {
+            setUploadedFile(file);
+            setUploadedRows(null);
+            setUploadError("");
+          }}
+          onError={setUploadError}
+          onParse={() => {
+            if (!uploadedFile) {
+              setUploadError("请先选择测试文件。");
+              return;
+            }
+            const parsed = parseDictionaryUploadedTestFile(uploadedFile.text, visibleFields, uploadedFile.delimiter);
+            setUploadedRows(parsed);
+            setUploadError(parsed.length ? "" : "文件没有解析出可展示的数据。");
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function DictionaryTestFileUploadDialog({
+  tableName,
+  config,
+  uploadedFile,
+  error,
+  onClose,
+  onFileLoaded,
+  onError,
+  onParse,
+}: {
+  tableName: string;
+  config: { encoding: string; delimiter: string };
+  uploadedFile: DictionaryUploadedTestFile | null;
+  error: string;
+  onClose: () => void;
+  onFileLoaded: (file: DictionaryUploadedTestFile) => void;
+  onError: (message: string) => void;
+  onParse: () => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const downloadUrl = useMemo(() => uploadedFile ? URL.createObjectURL(uploadedFile.file) : "", [uploadedFile]);
+
+  useEffect(() => () => {
+    if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+  }, [downloadUrl]);
+
+  const loadFile = async (file: File) => {
+    try {
+      const encoding = normalizeDictionaryTextEncoding(config.encoding);
+      const buffer = await file.arrayBuffer();
+      const text = decodeDictionaryTextFile(buffer, encoding);
+      onFileLoaded({
+        file,
+        text,
+        preview: text.split(/\r\n|\n|\r/).slice(0, 80).join("\n"),
+        encoding,
+        delimiter: config.delimiter,
+      });
+    } catch (errorValue) {
+      onError(errorValue instanceof Error ? errorValue.message : String(errorValue));
+    }
+  };
+
+  return (
+    <div className="prj-pm-dict-upload-modal" role="dialog" aria-modal="true" aria-label="上传测试文件">
+      <section>
+        <header>
+          <div>
+            <strong>上传测试文件</strong>
+            <span>{tableName}</span>
+          </div>
+          <button type="button" onClick={onClose}>关闭</button>
+        </header>
+        <div className="prj-pm-dict-upload-modal__actions">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.csv,.xml,.xls,.xlsx,text/plain,text/csv,text/xml,application/xml"
+            onChange={event => {
+              const file = event.currentTarget.files?.[0];
+              if (file) void loadFile(file);
+            }}
+          />
+          <button type="button" onClick={() => fileInputRef.current?.click()}>选择文件</button>
+          <button type="button" disabled={!uploadedFile} onClick={onParse}>解析</button>
+          {uploadedFile && downloadUrl ? <a href={downloadUrl} download={uploadedFile.file.name}>下载</a> : <span>下载</span>}
+        </div>
+        <dl className="prj-pm-dict-upload-modal__meta">
+          <dt>字符集</dt><dd>{normalizeDictionaryTextEncoding(config.encoding)}</dd>
+          <dt>分隔符</dt><dd>{config.delimiter || "未配置"}</dd>
+          <dt>文件</dt><dd>{uploadedFile ? `${uploadedFile.file.name} / ${formatFileSize(uploadedFile.file.size)}` : "未选择"}</dd>
+        </dl>
+        {error ? <p className="prj-pm-dict-upload-modal__error">{error}</p> : null}
+        <pre>{uploadedFile?.preview || "选择文件后在这里预览前 80 行内容。"}</pre>
+      </section>
     </div>
   );
 }
@@ -4858,6 +5012,148 @@ function sampleDictionaryValue(field: ProjectDictionaryFieldHit, index: number):
   const prefix = field.fieldName.replace(/[^A-Za-z0-9]/g, "").slice(0, 6) || "VAL";
   return `${prefix}${String(index + 1).padStart(3, "0")}`;
 }
+
+function getDictionaryImportedTestData(table?: ProjectDictionaryTable): DictionaryImportedTestData | undefined {
+  const testData = recordValue(table?.extra?.testData);
+  const rows = arrayValue(testData.rows);
+  if (!rows.length) return undefined;
+  return {
+    sourceFilePath: typeof testData.sourceFilePath === "string" ? testData.sourceFilePath : undefined,
+    sourceFileName: typeof testData.sourceFileName === "string" ? testData.sourceFileName : undefined,
+    encoding: typeof testData.encoding === "string" ? testData.encoding : undefined,
+    delimiter: typeof testData.delimiter === "string" ? testData.delimiter : undefined,
+    recordCount: typeof testData.recordCount === "number" ? testData.recordCount : undefined,
+    sampleCount: typeof testData.sampleCount === "number" ? testData.sampleCount : undefined,
+    expectedFieldCount: typeof testData.expectedFieldCount === "number" ? testData.expectedFieldCount : undefined,
+    columnCounts: recordValue(testData.columnCounts) as Record<string, number>,
+    columnCountIssues: arrayValue(testData.columnCountIssues) as DictionaryImportedTestData["columnCountIssues"],
+    rows: rows.map(row => {
+      const item = recordValue(row);
+      return {
+        lineNumber: typeof item.lineNumber === "number" ? item.lineNumber : undefined,
+        values: recordValue(item.values),
+        rawColumns: arrayValue(item.rawColumns),
+        extraColumns: arrayValue(item.extraColumns),
+      };
+    }),
+  };
+}
+
+function getDictionaryFileParseConfig(table?: ProjectDictionaryTable): { encoding: string; delimiter: string } {
+  const testData = recordValue(table?.extra?.testData);
+  const fileSource = recordValue(table?.extra?.fileSource);
+  const onegenSourceFile = recordValue(table?.extra?.onegenSourceFile);
+  const encoding = [
+    testData.encoding,
+    fileSource.encoding,
+    onegenSourceFile.encoding,
+  ].find(value => typeof value === "string" && value.trim());
+  const delimiter = [
+    testData.delimiter,
+    fileSource.delimiter,
+    onegenSourceFile.delimiter,
+  ].find(value => typeof value === "string" && value.length > 0);
+  return {
+    encoding: normalizeDictionaryTextEncoding(typeof encoding === "string" ? encoding : "utf-8"),
+    delimiter: normalizeDictionaryDelimiter(typeof delimiter === "string" ? delimiter : defaultDictionaryDelimiter(table)),
+  };
+}
+
+function defaultDictionaryDelimiter(table?: ProjectDictionaryTable): string {
+  const fileType = table?.fileType?.toLowerCase();
+  if (fileType === "csv") return ",";
+  if (fileType === "txt") return "|";
+  return "|";
+}
+
+function normalizeDictionaryTextEncoding(value: string): string {
+  const raw = value.trim().toLowerCase();
+  if (!raw) return "utf-8";
+  if (/utf[-_ ]?16le|unicode little/.test(raw)) return "utf-16le";
+  if (/utf[-_ ]?16be|unicode big/.test(raw)) return "utf-16be";
+  if (/utf[-_ ]?16|charset\.forname\(\"unicode\"\)|unicode/.test(raw)) return "utf-16le";
+  if (/gbk|gb2312|gb18030/.test(raw)) return "gb18030";
+  if (/ascii/.test(raw)) return "utf-8";
+  if (/utf[-_ ]?8/.test(raw)) return "utf-8";
+  return value.trim();
+}
+
+function normalizeDictionaryDelimiter(value: string): string {
+  if (value === "\\t" || value.toLowerCase() === "tab") return "\t";
+  if (value === "\\|") return "|";
+  if (value === "\\n") return "\n";
+  return value;
+}
+
+function decodeDictionaryTextFile(buffer: ArrayBuffer, encoding: string): string {
+  try {
+    return new TextDecoder(encoding).decode(buffer).replace(/^\uFEFF/, "");
+  } catch {
+    return new TextDecoder("utf-8").decode(buffer).replace(/^\uFEFF/, "");
+  }
+}
+
+function parseDictionaryUploadedTestFile(
+  text: string,
+  fields: ProjectDictionaryFieldHit[],
+  delimiter: string,
+): NonNullable<DictionaryImportedTestData["rows"]> {
+  const usableFields = fields.slice(0, 200);
+  const lines = text.split(/\r\n|\n|\r/).filter(line => line.length > 0);
+  return lines.map((line, index) => {
+    const columns = splitDictionaryTestDataLine(line, delimiter);
+    const values = Object.fromEntries(usableFields.map((field, fieldIndex) => [field.fieldName, columns[fieldIndex] ?? ""]));
+    return {
+      lineNumber: index + 1,
+      values,
+      rawColumns: columns,
+      extraColumns: columns.slice(usableFields.length),
+    };
+  });
+}
+
+function splitDictionaryTestDataLine(line: string, delimiter: string): string[] {
+  if (!delimiter) return [line];
+  if (delimiter === ",") return splitCsvLine(line);
+  return line.split(delimiter);
+}
+
+function splitCsvLine(line: string): string[] {
+  const values: string[] = [];
+  let current = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+    if (char === "\"" && quoted && next === "\"") {
+      current += "\"";
+      index += 1;
+    } else if (char === "\"") {
+      quoted = !quoted;
+    } else if (char === "," && !quoted) {
+      values.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  values.push(current);
+  return values;
+}
+
+function formatFileSize(size: number): string {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function stringifyTestDataValue(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return JSON.stringify(value);
+}
+
 
 function recordValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};

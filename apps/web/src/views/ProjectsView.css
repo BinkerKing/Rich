@@ -5570,6 +5570,174 @@
   background: #1f1f1f;
 }
 
+.prj-pm-dict-test-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 12px;
+  color: rgba(238, 255, 253, .66);
+  background: #252525;
+  border-bottom: 1px solid rgba(255, 255, 255, .1);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.prj-pm-dict-test-summary__meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.prj-pm-dict-test-summary strong {
+  color: #f7fbff;
+  font-size: 13px;
+}
+
+.prj-pm-dict-test-summary span {
+  color: #8ec7ff;
+  font-family: "SF Mono", ui-monospace, monospace;
+}
+
+.prj-pm-dict-test-summary button,
+.prj-pm-dict-upload-modal button,
+.prj-pm-dict-upload-modal a {
+  border: 1px solid rgba(112, 169, 232, .5);
+  border-radius: 4px;
+  background: #263d57;
+  color: #d9efff;
+  padding: 6px 10px;
+  font: 800 12px/1 inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.prj-pm-dict-test-summary button:hover,
+.prj-pm-dict-upload-modal button:hover,
+.prj-pm-dict-upload-modal a:hover {
+  border-color: rgba(83, 243, 154, .72);
+  color: #efffff;
+}
+
+.prj-pm-dict-upload-modal button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.prj-pm-dict-upload-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 170;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(0, 0, 0, .56);
+}
+
+.prj-pm-dict-upload-modal > section {
+  width: min(880px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  display: grid;
+  grid-template-rows: auto auto auto auto minmax(180px, 1fr);
+  overflow: hidden;
+  border: 1px solid rgba(112, 169, 232, .55);
+  border-radius: 8px;
+  background: #282828;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .58);
+}
+
+.prj-pm-dict-upload-modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, .13);
+  background: #303030;
+}
+
+.prj-pm-dict-upload-modal header div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.prj-pm-dict-upload-modal header strong {
+  color: #fff;
+  font-size: 16px;
+}
+
+.prj-pm-dict-upload-modal header span,
+.prj-pm-dict-upload-modal__meta dt {
+  color: rgba(255, 255, 255, .52);
+  font-size: 12px;
+}
+
+.prj-pm-dict-upload-modal__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, .09);
+}
+
+.prj-pm-dict-upload-modal__actions input {
+  display: none;
+}
+
+.prj-pm-dict-upload-modal__actions span {
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, .42);
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.prj-pm-dict-upload-modal__meta {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 0;
+  margin: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .09);
+}
+
+.prj-pm-dict-upload-modal__meta dt,
+.prj-pm-dict-upload-modal__meta dd {
+  min-width: 0;
+  margin: 0;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, .06);
+}
+
+.prj-pm-dict-upload-modal__meta dd {
+  color: #8ec7ff;
+  font: 800 12px/1.45 "SF Mono", ui-monospace, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prj-pm-dict-upload-modal__error {
+  margin: 0;
+  padding: 8px 14px;
+  color: #ff9ca0;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(255, 90, 95, .18);
+  background: rgba(255, 90, 95, .09);
+}
+
+.prj-pm-dict-upload-modal pre {
+  margin: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px;
+  background: #1d1d1d;
+  color: rgba(238, 255, 253, .78);
+  font: 12px/1.55 "SF Mono", ui-monospace, monospace;
+  white-space: pre-wrap;
+}
+
 .prj-pm-dict-subview {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
