@@ -4018,14 +4018,14 @@ function convertDictionaryMappingRuleToSql(rule: DictionaryMappingRule): Diction
     return { status: "complete", sql: `${normalizeDictionarySqlSource(directExpr, rule.sourceRefs)} AS ${target}` };
   }
 
-  const defaultExpr = extractSqlExpressionByLabels(logic, ["默认值", "固定值"]);
-  if (defaultExpr) {
-    return { status: "complete", sql: `${formatDictionarySqlLiteral(defaultExpr)} AS ${target}` };
+  const directRefSql = getSingleDictionarySourceRefSqlName(rule.sourceRefs);
+  if (directRefSql && isDictionaryDirectMappingLogic(logic)) {
+    return { status: "complete", sql: `${directRefSql} AS ${target}` };
   }
 
-  const resultExpr = stripDictionaryLogicPrefix(logic, ["结果", "表达式", "转换后SQL", "SQL"]);
-  if (resultExpr && isDictionarySqlExpression(resultExpr)) {
-    return { status: "complete", sql: `${normalizeDictionarySqlExpression(resultExpr, rule.sourceRefs)} AS ${target}` };
+  const defaultExpr = extractSqlExpressionByLabels(logic, ["默认值", "固定值", "常量", "赋值"]);
+  if (defaultExpr) {
+    return { status: "complete", sql: `${formatDictionarySqlLiteral(defaultExpr)} AS ${target}` };
   }
 
   const caseExpr = logic.match(/\bcase\b[\s\S]+\bend\b/i)?.[0];
@@ -4033,11 +4033,118 @@ function convertDictionaryMappingRuleToSql(rule: DictionaryMappingRule): Diction
     return { status: "complete", sql: `${normalizeDictionarySqlExpression(caseExpr, rule.sourceRefs)} AS ${target}` };
   }
 
+  const conditionExpr = buildDictionaryConditionSqlExpression(logic, rule.sourceRefs);
+  if (conditionExpr) {
+    return { status: "complete", sql: `${conditionExpr} AS ${target}` };
+  }
+
+  const standardExpr = buildDictionaryStandardActionSqlExpression(logic, rule.sourceRefs);
+  if (standardExpr) {
+    return { status: "complete", sql: `${standardExpr} AS ${target}` };
+  }
+
+  const resultExpr = stripDictionaryLogicPrefix(logic, ["结果", "表达式", "转换后SQL", "SQL", "计算", "公式"]);
+  if (resultExpr && canTreatDictionaryLogicAsSqlExpression(resultExpr, rule.sourceRefs)) {
+    return { status: "complete", sql: `${normalizeDictionarySqlExpression(resultExpr, rule.sourceRefs)} AS ${target}` };
+  }
+
   if (/^(无|空|null)$/i.test(logic)) {
     return { status: "complete", sql: `NULL AS ${target}` };
   }
 
+  if (/数据库生成/.test(logic)) {
+    return { status: "blocked", reason: "数据库生成" };
+  }
+
   return { status: "blocked", reason: "无法转换" };
+}
+
+function isDictionaryDirectMappingLogic(logic: string): boolean {
+  const normalized = logic
+    .replace(/\s+/g, "")
+    .replace(/[：:]+$/, "");
+  return /^(直取|直接取数|源字段直取|按涉及字段直取|按源字段直取|字段直取)$/.test(normalized);
+}
+
+function getSingleDictionarySourceRefSqlName(refs: DictionarySourceRef[]): string {
+  if (refs.length !== 1) return "";
+  return getDictionarySourceRefSqlName(refs[0]);
+}
+
+function buildDictionaryStandardActionSqlExpression(logic: string, refs: DictionarySourceRef[]): string {
+  const sqlRefs = refs.map(getDictionarySourceRefSqlName).filter(Boolean);
+  const normalized = logic.replace(/\s+/g, "");
+  if (sqlRefs.length === 0) return "";
+
+  if (/^(默认空|置空|空值|NULL)$/i.test(normalized)) return "NULL";
+
+  if (/拼接|合并|concat/i.test(logic) && sqlRefs.length > 1) {
+    return `CONCAT(${sqlRefs.join(", ")})`;
+  }
+
+  if (/求和|相加|合计|汇总|sum/i.test(logic)) {
+    if (/汇总|聚合|sum/i.test(logic) && sqlRefs.length === 1) return `SUM(${sqlRefs[0]})`;
+    if (sqlRefs.length > 1) return `(${sqlRefs.join(" + ")})`;
+  }
+
+  if (/计数|count/i.test(logic) && sqlRefs.length === 1) return `COUNT(${sqlRefs[0]})`;
+  if (/最大|max/i.test(logic) && sqlRefs.length === 1) return `MAX(${sqlRefs[0]})`;
+  if (/最小|min/i.test(logic) && sqlRefs.length === 1) return `MIN(${sqlRefs[0]})`;
+
+  const substrExpr = buildDictionarySubstringSqlExpression(logic, sqlRefs[0]);
+  if (substrExpr) return substrExpr;
+
+  const dateExpr = buildDictionaryDateFormatSqlExpression(logic, sqlRefs[0]);
+  if (dateExpr) return dateExpr;
+
+  return "";
+}
+
+function buildDictionarySubstringSqlExpression(logic: string, sqlRef: string): string {
+  if (!/截取|取前|取后|substr|substring/i.test(logic)) return "";
+  const range = logic.match(/第?\s*(\d+)\s*(?:-|到|至|~)\s*(\d+)\s*位/);
+  if (range) {
+    const start = Number(range[1]);
+    const end = Number(range[2]);
+    if (Number.isFinite(start) && Number.isFinite(end) && end >= start) return `SUBSTR(${sqlRef}, ${start}, ${end - start + 1})`;
+  }
+  const prefix = logic.match(/(?:前|左)\s*(\d+)\s*位/);
+  if (prefix) return `SUBSTR(${sqlRef}, 1, ${Number(prefix[1])})`;
+  const suffix = logic.match(/(?:后|右)\s*(\d+)\s*位/);
+  if (suffix) return `SUBSTR(${sqlRef}, LENGTH(${sqlRef}) - ${Number(suffix[1]) - 1}, ${Number(suffix[1])})`;
+  return "";
+}
+
+function buildDictionaryDateFormatSqlExpression(logic: string, sqlRef: string): string {
+  if (!/日期|时间|to_date|to_char|格式/i.test(logic)) return "";
+  if (/YYYY-MM-DD|yyyy-mm-dd/i.test(logic)) return `TO_CHAR(TO_DATE(${sqlRef}, 'YYYYMMDD'), 'YYYY-MM-DD')`;
+  if (/YYYYMMDD|yyyymmdd/i.test(logic)) return `TO_CHAR(TO_DATE(${sqlRef}, 'YYYY-MM-DD'), 'YYYYMMDD')`;
+  return "";
+}
+
+function buildDictionaryConditionSqlExpression(logic: string, refs: DictionarySourceRef[]): string {
+  const explicitCase = logic.match(/(?:如果|若|当)([\s\S]+?)(?:则|那么)([\s\S]+?)(?:否则|否则为)([\s\S]+)$/);
+  const shortCase = explicitCase ?? logic.match(/条件[：:]?([\s\S]+?)结果[：:]?([\s\S]+?)(?:否则[：:]?([\s\S]+))?$/);
+  if (!shortCase) return "";
+  const condition = normalizeDictionarySqlExpression(shortCase[1].trim(), refs);
+  const thenValue = formatDictionarySqlValueOrExpression(shortCase[2].trim(), refs);
+  const elseValue = formatDictionarySqlValueOrExpression((shortCase[3] ?? "NULL").trim(), refs);
+  if (!condition || !thenValue) return "";
+  return `CASE WHEN ${condition} THEN ${thenValue} ELSE ${elseValue} END`;
+}
+
+function formatDictionarySqlValueOrExpression(value: string, refs: DictionarySourceRef[]): string {
+  const cleaned = stripDictionaryLogicPrefix(value, ["结果", "取值", "为", "返回"]);
+  if (!cleaned) return "NULL";
+  if (canTreatDictionaryLogicAsSqlExpression(cleaned, refs)) return normalizeDictionarySqlExpression(cleaned, refs);
+  return formatDictionarySqlLiteral(cleaned);
+}
+
+function canTreatDictionaryLogicAsSqlExpression(value: string, refs: DictionarySourceRef[]): boolean {
+  if (isDictionarySqlExpression(value)) return true;
+  const normalized = normalizeDictionaryRefKey(value);
+  return refs.some(ref => buildDictionaryLogicRefCandidates([ref])
+    .some(candidate => normalizeDictionaryRefKey(candidate.token) === normalized));
 }
 
 function extractSqlExpressionByLabels(text: string, labels: string[]): string {
