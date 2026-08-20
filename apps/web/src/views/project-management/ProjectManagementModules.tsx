@@ -67,6 +67,77 @@ type DictionaryTreeDragEvent = {
   preventDefault: () => void;
 };
 
+type DictionaryResizableColumn = {
+  id: string;
+  label: string;
+  width: number;
+  minWidth?: number;
+};
+
+function useDictionaryResizableColumns(storageKey: string, columns: DictionaryResizableColumn[]) {
+  const defaultWidths = useMemo(() => Object.fromEntries(columns.map(column => [column.id, column.width])), [columns]);
+  const minWidths = useMemo(() => Object.fromEntries(columns.map(column => [column.id, column.minWidth ?? 48])), [columns]);
+  const [widths, setWidths] = useState<Record<string, number>>(() => loadDictionaryColumnWidths(storageKey, defaultWidths));
+
+  useEffect(() => {
+    setWidths(loadDictionaryColumnWidths(storageKey, defaultWidths));
+  }, [defaultWidths, storageKey]);
+
+  const startResize = (event: ReactPointerEvent<HTMLElement>, columnId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startWidth = widths[columnId] ?? defaultWidths[columnId] ?? 120;
+    const minWidth = minWidths[columnId] ?? 48;
+
+    const onMove = (moveEvent: PointerEvent) => {
+      const nextWidth = Math.max(minWidth, Math.round(startWidth + moveEvent.clientX - startX));
+      setWidths(current => ({ ...current, [columnId]: nextWidth }));
+    };
+    const onUp = (upEvent: PointerEvent) => {
+      const nextWidth = Math.max(minWidth, Math.round(startWidth + upEvent.clientX - startX));
+      setWidths(current => {
+        const next = { ...current, [columnId]: nextWidth };
+        saveDictionaryColumnWidths(storageKey, next);
+        return next;
+      });
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  };
+
+  const columnWidth = (columnId: string) => widths[columnId] ?? defaultWidths[columnId] ?? 120;
+  const totalWidth = columns.reduce((sum, column) => sum + columnWidth(column.id), 0);
+  return { columnWidth, startResize, totalWidth };
+}
+
+function DictionaryResizableHeadCell({
+  column,
+  onResizeStart,
+}: {
+  column: DictionaryResizableColumn;
+  onResizeStart: (event: ReactPointerEvent<HTMLButtonElement>, columnId: string) => void;
+}) {
+  return (
+    <span className="prj-pm-dict-resizable-head-cell">
+      {column.label}
+      <button
+        type="button"
+        className="prj-pm-dict-column-resizer"
+        aria-label={`调整${column.label || "序号"}列宽`}
+        title="拖拽调整列宽"
+        onClick={event => event.stopPropagation()}
+        onPointerDown={event => onResizeStart(event, column.id)}
+      />
+    </span>
+  );
+}
+
 export function ProjectManagementSearchBar({
   projectId,
   onJump,
@@ -615,6 +686,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
                 <DictionaryFieldGrid
                   fields={visibleFields}
                   loading={loading}
+                  storageKey={`dictionary-field-grid:${project.id}:${selectedTableId || "search"}`}
                   selectedFieldId={selectedFieldId}
                   onSelectField={setSelectedFieldId}
                   onInspectProperty={setPropertyViewer}
@@ -630,7 +702,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
                 />
               )}
               {activeView === "relations" && <DictionaryRelationsPanel fields={visibleFields} />}
-              {activeView === "test-data" && <DictionaryTestDataPanel fields={visibleFields} />}
+              {activeView === "test-data" && <DictionaryTestDataPanel fields={visibleFields} storageKey={`dictionary-test-data:${project.id}:${selectedTableId || "search"}`} />}
               {activeView === "table-info" && <DictionaryTableInfoPanel table={selectedTable} fields={visibleFields} />}
             </>
           )}
@@ -3302,6 +3374,28 @@ function DictionarySystemOverview({
   onInspectTable: (table: ProjectDictionaryTable) => void;
   onOpenTable: (tableId: string) => void;
 }) {
+  const columns = useMemo<DictionaryResizableColumn[]>(() => [
+    { id: "index", label: "", width: 42, minWidth: 38 },
+    { id: "tableCn", label: "中文表名", width: 180, minWidth: 120 },
+    { id: "tableName", label: "英文表名", width: 170, minWidth: 130 },
+    { id: "dataLayer", label: "数据层级", width: 120, minWidth: 86 },
+    { id: "sourceKind", label: "载体类型", width: 110, minWidth: 82 },
+    { id: "fieldCount", label: "字段数", width: 78, minWidth: 64 },
+    { id: "description", label: "说明", width: 320, minWidth: 180 },
+    { id: "caliber", label: "口径", width: 360, minWidth: 180 },
+  ], []);
+  const columnResize = useDictionaryResizableColumns(`dictionary-system-table-summary:${system?.id || "empty"}`, columns);
+  const gridStyle = useMemo(() => ({
+    "--dict-summary-c1": `${columnResize.columnWidth("index")}px`,
+    "--dict-summary-c2": `${columnResize.columnWidth("tableCn")}px`,
+    "--dict-summary-c3": `${columnResize.columnWidth("tableName")}px`,
+    "--dict-summary-c4": `${columnResize.columnWidth("dataLayer")}px`,
+    "--dict-summary-c5": `${columnResize.columnWidth("sourceKind")}px`,
+    "--dict-summary-c6": `${columnResize.columnWidth("fieldCount")}px`,
+    "--dict-summary-c7": `${columnResize.columnWidth("description")}px`,
+    "--dict-summary-c8": `${columnResize.columnWidth("caliber")}px`,
+    "--dict-summary-width": `${columnResize.totalWidth}px`,
+  }) as CSSProperties, [columnResize]);
   if (!system) {
     return <div className="prj-pm-empty">请选择左侧系统。</div>;
   }
@@ -3335,10 +3429,10 @@ function DictionarySystemOverview({
           <strong>表清单摘要</strong>
           <span>单击查看表详情，双击打开表</span>
         </header>
-        <div className="prj-pm-dict-system-table-summary__table">
+        <div className="prj-pm-dict-system-table-summary__table" style={gridStyle}>
           <div className="prj-pm-dict-system-table-summary__head">
-            {["", "中文表名", "英文表名", "数据层级", "载体类型", "字段数", "说明", "口径"].map(column => (
-              <span key={column}>{column}</span>
+            {columns.map(column => (
+              <DictionaryResizableHeadCell key={column.id} column={column} onResizeStart={columnResize.startResize} />
             ))}
           </div>
           {tables.map((table, index) => (
@@ -3367,12 +3461,14 @@ function DictionarySystemOverview({
 function DictionaryFieldGrid({
   fields,
   loading,
+  storageKey,
   selectedFieldId,
   onSelectField,
   onInspectProperty,
 }: {
   fields: ProjectDictionaryFieldHit[];
   loading: boolean;
+  storageKey: string;
   selectedFieldId: string;
   onSelectField: (fieldId: string) => void;
   onInspectProperty: (payload: DictionaryPropertyPayload) => void;
@@ -3395,13 +3491,37 @@ function DictionaryFieldGrid({
       field,
     });
   };
+  const columns = useMemo<DictionaryResizableColumn[]>(() => [
+    { id: "index", label: "", width: 46, minWidth: 38 },
+    { id: "fieldName", label: "英文名", width: 170, minWidth: 120 },
+    { id: "fieldCn", label: "中文名", width: 180, minWidth: 120 },
+    { id: "fieldType", label: "类型", width: 96, minWidth: 72 },
+    { id: "fieldLength", label: "长度", width: 76, minWidth: 62 },
+    { id: "formatPattern", label: "格式", width: 140, minWidth: 92 },
+    { id: "description", label: "字段说明", width: 320, minWidth: 160 },
+    { id: "codeValue", label: "码值说明", width: 280, minWidth: 140 },
+    { id: "remark", label: "备注", width: 220, minWidth: 120 },
+  ], []);
+  const columnResize = useDictionaryResizableColumns(storageKey, columns);
+  const gridStyle = useMemo(() => ({
+    "--dict-grid-c1": `${columnResize.columnWidth("index")}px`,
+    "--dict-grid-c2": `${columnResize.columnWidth("fieldName")}px`,
+    "--dict-grid-c3": `${columnResize.columnWidth("fieldCn")}px`,
+    "--dict-grid-c4": `${columnResize.columnWidth("fieldType")}px`,
+    "--dict-grid-c5": `${columnResize.columnWidth("fieldLength")}px`,
+    "--dict-grid-c6": `${columnResize.columnWidth("formatPattern")}px`,
+    "--dict-grid-c7": `${columnResize.columnWidth("description")}px`,
+    "--dict-grid-c8": `${columnResize.columnWidth("codeValue")}px`,
+    "--dict-grid-c9": `${columnResize.columnWidth("remark")}px`,
+    "--dict-grid-width": `${columnResize.totalWidth}px`,
+  }) as CSSProperties, [columnResize]);
 
   return (
     <div className="prj-pm-dict__grid-wrap">
-      <div className="prj-pm-dict__grid">
+      <div className="prj-pm-dict__grid" style={gridStyle}>
         <div className="prj-pm-dict__grid-head">
-          {["", "英文名", "中文名", "类型", "长度", "格式", "字段说明", "码值说明", "备注"].map(column => (
-            <span key={column}>{column}</span>
+          {columns.map(column => (
+            <DictionaryResizableHeadCell key={column.id} column={column} onResizeStart={columnResize.startResize} />
           ))}
         </div>
         {!loading && fields.length === 0 && (
@@ -4132,8 +4252,18 @@ function DictionaryRelationsPanel({ fields }: { fields: ProjectDictionaryFieldHi
   );
 }
 
-function DictionaryTestDataPanel({ fields }: { fields: ProjectDictionaryFieldHit[] }) {
-  const visibleFields = fields.slice(0, 32);
+function DictionaryTestDataPanel({ fields, storageKey }: { fields: ProjectDictionaryFieldHit[]; storageKey: string }) {
+  const visibleFields = useMemo(() => fields.slice(0, 32), [fields]);
+  const columns = useMemo<DictionaryResizableColumn[]>(() => [
+    { id: "index", label: "#", width: 42, minWidth: 38 },
+    ...visibleFields.map(field => ({
+      id: field.id,
+      label: field.fieldName || "-",
+      width: 168,
+      minWidth: 96,
+    })),
+  ], [visibleFields]);
+  const columnResize = useDictionaryResizableColumns(storageKey, columns);
   const rows = Array.from({ length: 12 }, (_, rowIndex) => ({
     id: `sample-${rowIndex}`,
     values: visibleFields.map(field => sampleDictionaryValue(field, rowIndex)),
@@ -4144,13 +4274,34 @@ function DictionaryTestDataPanel({ fields }: { fields: ProjectDictionaryFieldHit
   return (
     <div className="prj-pm-dict-test-table-wrap">
       <table className="prj-pm-dict-test-table">
+        <colgroup>
+          {columns.map(column => <col key={column.id} style={{ width: columnResize.columnWidth(column.id) }} />)}
+        </colgroup>
         <thead>
           <tr>
-            <th className="prj-pm-dict-test-table__row-head">#</th>
+            <th className="prj-pm-dict-test-table__row-head" style={{ width: columnResize.columnWidth("index"), minWidth: columnResize.columnWidth("index") }}>
+              <div className="prj-pm-dict-resizable-head-cell">
+                #
+                <button
+                  type="button"
+                  className="prj-pm-dict-column-resizer"
+                  aria-label="调整序号列宽"
+                  title="拖拽调整列宽"
+                  onPointerDown={event => columnResize.startResize(event, "index")}
+                />
+              </div>
+            </th>
             {visibleFields.map(field => (
-              <th key={field.id}>
+              <th key={field.id} style={{ width: columnResize.columnWidth(field.id), minWidth: columnResize.columnWidth(field.id) }}>
                 <strong>{field.fieldName || "-"}</strong>
                 <span>{[field.fieldType, field.fieldLength, field.formatPattern].filter(Boolean).join(" / ") || field.fieldCn || "未维护类型"}</span>
+                <button
+                  type="button"
+                  className="prj-pm-dict-column-resizer"
+                  aria-label={`调整${field.fieldName || "字段"}列宽`}
+                  title="拖拽调整列宽"
+                  onPointerDown={event => columnResize.startResize(event, field.id)}
+                />
               </th>
             ))}
           </tr>
@@ -4158,9 +4309,14 @@ function DictionaryTestDataPanel({ fields }: { fields: ProjectDictionaryFieldHit
         <tbody>
           {rows.map(row => (
             <tr key={row.id}>
-              <td className="prj-pm-dict-test-table__row-head">{Number(row.id.replace("sample-", "")) + 1}</td>
+              <td className="prj-pm-dict-test-table__row-head" style={{ width: columnResize.columnWidth("index"), minWidth: columnResize.columnWidth("index") }}>{Number(row.id.replace("sample-", "")) + 1}</td>
               {row.values.map((value, index) => (
-                <td key={visibleFields[index]?.id ?? index} className={!value ? "is-null" : ""}>{value || "(NULL)"}</td>
+                <td
+                  key={visibleFields[index]?.id ?? index}
+                  className={!value ? "is-null" : ""}
+                  style={{ width: columnResize.columnWidth(visibleFields[index]?.id ?? ""), minWidth: columnResize.columnWidth(visibleFields[index]?.id ?? "") }}>
+                  {value || "(NULL)"}
+                </td>
               ))}
             </tr>
           ))}
@@ -4988,6 +5144,36 @@ function reorderDictionaryIds(ids: string[], activeId: string, targetId: string)
   const [item] = next.splice(from, 1);
   next.splice(to, 0, item);
   return next;
+}
+
+function dictionaryColumnWidthsKey(storageKey: string) {
+  return `rich-project-dictionary-column-widths:${storageKey}`;
+}
+
+function loadDictionaryColumnWidths(storageKey: string, defaults: Record<string, number>): Record<string, number> {
+  if (typeof window === "undefined") return defaults;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(dictionaryColumnWidthsKey(storageKey)) ?? "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return defaults;
+    const next = { ...defaults };
+    Object.entries(parsed).forEach(([columnId, value]) => {
+      if (typeof value === "number" && Number.isFinite(value) && value > 0 && columnId in defaults) {
+        next[columnId] = Math.round(value);
+      }
+    });
+    return next;
+  } catch {
+    return defaults;
+  }
+}
+
+function saveDictionaryColumnWidths(storageKey: string, widths: Record<string, number>) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(dictionaryColumnWidthsKey(storageKey), JSON.stringify(widths));
+  } catch {
+    // Column widths are a local UI preference; failing to persist them is safe.
+  }
 }
 
 function escapeAttribute(value: string): string {

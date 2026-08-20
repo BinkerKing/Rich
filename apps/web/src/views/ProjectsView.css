@@ -5062,6 +5062,43 @@
   font-weight: 900;
 }
 
+.prj-pm-dict-resizable-head-cell {
+  position: relative;
+  padding-right: 18px !important;
+}
+
+.prj-pm-dict-column-resizer {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  z-index: 6;
+  width: 9px;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  cursor: col-resize;
+  padding: 0;
+}
+
+.prj-pm-dict-column-resizer::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 4px;
+  width: 1px;
+  background: rgba(143, 254, 247, .18);
+}
+
+.prj-pm-dict-resizable-head-cell:hover .prj-pm-dict-column-resizer::after,
+.prj-pm-dict-column-resizer:hover::after,
+.prj-pm-dict-column-resizer:active::after {
+  width: 2px;
+  background: rgba(83, 243, 154, .9);
+  box-shadow: 0 0 8px rgba(83, 243, 154, .32);
+}
+
 .prj-pm-dict-system-table-summary__row > :first-child {
   color: var(--dict-blue);
   text-align: center;
