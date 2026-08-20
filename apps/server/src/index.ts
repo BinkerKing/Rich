@@ -170,6 +170,7 @@ import { healthRoutes } from "./routes/health.js";
 import { createReminderTicker } from "./lib/reminderTicker.js";
 import { projectsRoutes } from "./routes/projects.js";
 import { projectManagementRoutes } from "./routes/projectManagement.js";
+import { projectDictionaryTestFilesRoutes } from "./routes/projectDictionaryTestFiles.js";
 import { rikingProjectsRoutes } from "./routes/rikingProjects.js";
 import { cronRoutes } from "./routes/cron.js";
 import { ImprovementsRepo, type ImprovementsStore } from "./repos/ImprovementsRepo.js";
@@ -342,6 +343,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/health", healthRoutes(healthRepo));
   app.route("/api/projects", projectsRoutes(elements));
   app.route("/api/project-management", projectManagementRoutes(projectManagement));
+  app.route("/api/project-dictionary-test-files", projectDictionaryTestFilesRoutes());
   app.route("/api/riking-projects", rikingProjectsRoutes(root));
 
   // 提醒触发器 —— 仅在 healthRepo 可用（即 KE_STORAGE=postgres）时启动。

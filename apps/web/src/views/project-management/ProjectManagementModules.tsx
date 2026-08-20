@@ -6,6 +6,7 @@ import {
   type ProjectDictionaryFieldHit,
   type ProjectDictionarySystem,
   type ProjectDictionaryTable,
+  type ProjectDictionaryTestFileMeta,
   type ProjectManagementModuleKey,
   type ProjectManagementSearchHit,
   type ProjectManagementSummary,
@@ -702,7 +703,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
                 />
               )}
               {activeView === "relations" && <DictionaryRelationsPanel fields={visibleFields} />}
-              {activeView === "test-data" && <DictionaryTestDataPanel table={selectedTable} fields={visibleFields} storageKey={`dictionary-test-data:${project.id}:${selectedTableId || "search"}`} />}
+              {activeView === "test-data" && <DictionaryTestDataPanel projectId={project.id} table={selectedTable} fields={visibleFields} storageKey={`dictionary-test-data:${project.id}:${selectedTableId || "search"}`} />}
               {activeView === "table-info" && <DictionaryTableInfoPanel table={selectedTable} fields={visibleFields} />}
             </>
           )}
@@ -4271,16 +4272,20 @@ type DictionaryImportedTestData = {
 };
 
 type DictionaryUploadedTestFile = {
-  file: File;
+  file?: File;
+  fileName: string;
+  fileSize: number;
   text: string;
   preview: string;
   encoding: string;
   delimiter: string;
+  savedAt?: string;
+  downloadUrl?: string;
 };
 
 type DictionaryUploadStatus = { tone: "info" | "success" | "error"; message: string };
 
-function DictionaryTestDataPanel({ table, fields, storageKey }: { table?: ProjectDictionaryTable; fields: ProjectDictionaryFieldHit[]; storageKey: string }) {
+function DictionaryTestDataPanel({ projectId, table, fields, storageKey }: { projectId: string; table?: ProjectDictionaryTable; fields: ProjectDictionaryFieldHit[]; storageKey: string }) {
   const visibleFields = useMemo(() => fields.slice(0, 32), [fields]);
   const importedTestData = useMemo(() => getDictionaryImportedTestData(table), [table]);
   const parseConfig = useMemo(() => getDictionaryFileParseConfig(table), [table]);
@@ -4290,6 +4295,7 @@ function DictionaryTestDataPanel({ table, fields, storageKey }: { table?: Projec
   const [syncedRows, setSyncedRows] = useState<DictionaryImportedTestData["rows"] | null>(null);
   const [uploadError, setUploadError] = useState("");
   const [uploadStatus, setUploadStatus] = useState<DictionaryUploadStatus | null>(null);
+  const [uploadBusy, setUploadBusy] = useState(false);
   const columns = useMemo<DictionaryResizableColumn[]>(() => [
     { id: "index", label: "#", width: 42, minWidth: 38 },
     ...visibleFields.map(field => ({
@@ -4301,14 +4307,33 @@ function DictionaryTestDataPanel({ table, fields, storageKey }: { table?: Projec
   ], [visibleFields]);
   const columnResize = useDictionaryResizableColumns(storageKey, columns);
   useEffect(() => {
+    let cancelled = false;
+    const tableId = table?.id;
     setUploadedFile(null);
     setUploadedDraftRows(null);
     setSyncedRows(null);
     setUploadError("");
     setUploadStatus(null);
     setUploadOpen(false);
-  }, [table?.id]);
+    if (!tableId) return () => { cancelled = true; };
+    void restoreDictionaryUploadedTestFile(projectId, tableId, parseConfig)
+      .then(file => {
+        if (cancelled) return;
+        if (!file) return;
+        const parsed = parseDictionaryUploadedTestFile(file.text, visibleFields, file.delimiter);
+        setUploadedFile(file);
+        setUploadedDraftRows(parsed);
+        setSyncedRows(parsed);
+        setUploadStatus({ tone: "success", message: `已恢复上次上传文件，并同步 ${parsed.length} 行到测试数据表格` });
+      })
+      .catch(errorValue => {
+        if (cancelled) return;
+        setUploadError(errorValue instanceof Error ? errorValue.message : String(errorValue));
+      });
+    return () => { cancelled = true; };
+  }, [projectId, table?.id, parseConfig, visibleFields]);
   const activeRows = syncedRows ?? importedTestData?.rows ?? [];
+  const hasUploadedDraftRows = Boolean(uploadedDraftRows?.length);
   const importedRows = activeRows.slice(0, 12);
   const rows = importedRows.length
     ? importedRows.map((row, rowIndex) => ({
@@ -4328,21 +4353,22 @@ function DictionaryTestDataPanel({ table, fields, storageKey }: { table?: Projec
     <div className="prj-pm-dict-test-table-wrap">
       <div className="prj-pm-dict-test-summary">
         <div className="prj-pm-dict-test-summary__meta">
-          <strong>{syncedRows && uploadedFile ? uploadedFile.file.name : importedTestData?.sourceFileName || table?.tableName || "测试文件"}</strong>
+          <strong>{syncedRows && uploadedFile ? uploadedFile.fileName : importedTestData?.sourceFileName || table?.tableName || "测试文件"}</strong>
           <span>{syncedRows ? `${syncedRows.length} 行` : `${importedTestData?.recordCount ?? 0} 行`}</span>
           <span>展示 {rows.length} 行</span>
           <span>{[uploadedFile?.encoding || parseConfig.encoding, (uploadedFile?.delimiter || parseConfig.delimiter) ? `分隔符 ${uploadedFile?.delimiter || parseConfig.delimiter}` : ""].filter(Boolean).join(" / ")}</span>
-          {uploadedDraftRows ? <span>待同步 {uploadedDraftRows.length} 行</span> : null}
+          {hasUploadedDraftRows ? <span>待同步 {uploadedDraftRows?.length ?? 0} 行</span> : null}
           {uploadStatus ? <em className={`prj-pm-dict-test-summary__status is-${uploadStatus.tone}`}>{uploadStatus.message}</em> : null}
         </div>
         <div className="prj-pm-dict-test-summary__actions">
-          {uploadedDraftRows ? (
+          {hasUploadedDraftRows && uploadedDraftRows ? (
             <button
               type="button"
               className="is-primary"
               onClick={() => {
                 setSyncedRows(uploadedDraftRows);
-                setUploadStatus({ tone: "success", message: `已同步 ${uploadedDraftRows.length} 行到测试数据表格` });
+                const nextStatus: DictionaryUploadStatus = { tone: "success", message: `已同步 ${uploadedDraftRows.length} 行到测试数据表格` };
+                setUploadStatus(nextStatus);
               }}>
               同步到测试数据
             </button>
@@ -4407,12 +4433,29 @@ function DictionaryTestDataPanel({ table, fields, storageKey }: { table?: Projec
           config={parseConfig}
           uploadedFile={uploadedFile}
           error={uploadError}
+          busy={uploadBusy}
           onClose={() => setUploadOpen(false)}
-          onFileLoaded={file => {
-            setUploadedFile(file);
-            setUploadedDraftRows(null);
-            setUploadError("");
-            setUploadStatus({ tone: "info", message: "文件已上传，请点击解析" });
+          onFileLoaded={async file => {
+            if (!table?.id) {
+              setUploadError("请先选择表元。");
+              return;
+            }
+            setUploadBusy(true);
+            try {
+              const meta = await api.uploadProjectDictionaryTestFile(projectId, table.id, file.file);
+              const savedFile = { ...file, fileName: meta.fileName, fileSize: meta.fileSize, savedAt: meta.uploadedAt, downloadUrl: meta.downloadUrl };
+              setUploadedFile(savedFile);
+              setUploadedDraftRows(null);
+              setSyncedRows(null);
+              setUploadError("");
+              setUploadStatus({ tone: "info", message: "文件已上传到本地目录，请点击解析" });
+            } catch (errorValue) {
+              const message = errorValue instanceof Error ? errorValue.message : String(errorValue);
+              setUploadError(message);
+              setUploadStatus({ tone: "error", message });
+            } finally {
+              setUploadBusy(false);
+            }
           }}
           status={uploadStatus}
           onError={message => {
@@ -4422,15 +4465,17 @@ function DictionaryTestDataPanel({ table, fields, storageKey }: { table?: Projec
           onParse={() => {
             if (!uploadedFile) {
               setUploadError("请先选择测试文件。");
-              setUploadStatus({ tone: "error", message: "请先选择测试文件" });
+              const nextStatus: DictionaryUploadStatus = { tone: "error", message: "请先选择测试文件" };
+              setUploadStatus(nextStatus);
               return;
             }
             const parsed = parseDictionaryUploadedTestFile(uploadedFile.text, visibleFields, uploadedFile.delimiter);
             setUploadedDraftRows(parsed);
             setUploadError(parsed.length ? "" : "文件没有解析出可展示的数据。");
-            setUploadStatus(parsed.length
+            const nextStatus: DictionaryUploadStatus = parsed.length
               ? { tone: "success", message: `解析成功，已生成 ${parsed.length} 行，点击“同步到测试数据”后展示到表格` }
-              : { tone: "error", message: "文件没有解析出可展示的数据" });
+              : { tone: "error", message: "文件没有解析出可展示的数据" };
+            setUploadStatus(nextStatus);
           }}
         />
       )}
@@ -4443,6 +4488,7 @@ function DictionaryTestFileUploadDialog({
   config,
   uploadedFile,
   error,
+  busy,
   status,
   onClose,
   onFileLoaded,
@@ -4453,17 +4499,23 @@ function DictionaryTestFileUploadDialog({
   config: { encoding: string; delimiter: string };
   uploadedFile: DictionaryUploadedTestFile | null;
   error: string;
+  busy: boolean;
   status: DictionaryUploadStatus | null;
   onClose: () => void;
-  onFileLoaded: (file: DictionaryUploadedTestFile) => void;
+  onFileLoaded: (file: DictionaryUploadedTestFile & { file: File }) => void | Promise<void>;
   onError: (message: string) => void;
   onParse: () => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const downloadUrl = useMemo(() => uploadedFile ? URL.createObjectURL(uploadedFile.file) : "", [uploadedFile]);
+  const downloadUrl = useMemo(() => {
+    if (!uploadedFile) return "";
+    if (uploadedFile.downloadUrl) return uploadedFile.downloadUrl;
+    const blob = uploadedFile.file ?? new Blob([uploadedFile.text], { type: "text/plain;charset=utf-8" });
+    return URL.createObjectURL(blob);
+  }, [uploadedFile]);
 
   useEffect(() => () => {
-    if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+    if (downloadUrl && !uploadedFile?.downloadUrl) URL.revokeObjectURL(downloadUrl);
   }, [downloadUrl]);
 
   const loadFile = async (file: File) => {
@@ -4471,12 +4523,15 @@ function DictionaryTestFileUploadDialog({
       const encoding = normalizeDictionaryTextEncoding(config.encoding);
       const buffer = await file.arrayBuffer();
       const text = decodeDictionaryTextFile(buffer, encoding);
-      onFileLoaded({
+      await onFileLoaded({
         file,
+        fileName: file.name,
+        fileSize: file.size,
         text,
         preview: text.split(/\r\n|\n|\r/).slice(0, 80).join("\n"),
         encoding,
         delimiter: config.delimiter,
+        savedAt: new Date().toISOString(),
       });
     } catch (errorValue) {
       onError(errorValue instanceof Error ? errorValue.message : String(errorValue));
@@ -4503,14 +4558,14 @@ function DictionaryTestFileUploadDialog({
               if (file) void loadFile(file);
             }}
           />
-          <button type="button" onClick={() => fileInputRef.current?.click()}>选择文件</button>
-          <button type="button" disabled={!uploadedFile} onClick={onParse}>解析</button>
-          {uploadedFile && downloadUrl ? <a href={downloadUrl} download={uploadedFile.file.name}>下载</a> : <span>下载</span>}
+          <button type="button" disabled={busy} onClick={() => fileInputRef.current?.click()}>{busy ? "上传中" : "选择文件"}</button>
+          <button type="button" disabled={!uploadedFile || busy} onClick={onParse}>解析</button>
+          {uploadedFile && downloadUrl ? <a href={downloadUrl} download={uploadedFile.fileName}>下载原文件</a> : <span>下载原文件</span>}
         </div>
         <dl className="prj-pm-dict-upload-modal__meta">
           <dt>字符集</dt><dd>{normalizeDictionaryTextEncoding(config.encoding)}</dd>
           <dt>分隔符</dt><dd>{config.delimiter || "未配置"}</dd>
-          <dt>文件</dt><dd>{uploadedFile ? `${uploadedFile.file.name} / ${formatFileSize(uploadedFile.file.size)}` : "未选择"}</dd>
+          <dt>文件</dt><dd>{uploadedFile ? `${uploadedFile.fileName} / ${formatFileSize(uploadedFile.fileSize)}` : "未选择"}</dd>
         </dl>
         {status && !error ? <p className={`prj-pm-dict-upload-modal__status is-${status.tone}`}>{status.message}</p> : null}
         {error ? <p className="prj-pm-dict-upload-modal__error">{error}</p> : null}
@@ -5126,6 +5181,37 @@ function decodeDictionaryTextFile(buffer: ArrayBuffer, encoding: string): string
   } catch {
     return new TextDecoder("utf-8").decode(buffer).replace(/^\uFEFF/, "");
   }
+}
+
+async function restoreDictionaryUploadedTestFile(
+  projectId: string,
+  tableId: string,
+  config: { encoding: string; delimiter: string },
+): Promise<DictionaryUploadedTestFile | null> {
+  const meta = await api.getProjectDictionaryTestFile(projectId, tableId);
+  if (!meta) return null;
+  const response = await fetch(meta.downloadUrl);
+  if (!response.ok) throw new Error(`读取测试文件失败：${response.status}`);
+  const text = decodeDictionaryTextFile(await response.arrayBuffer(), normalizeDictionaryTextEncoding(config.encoding));
+  return dictionaryUploadedFileFromMeta(meta, text, config);
+}
+
+function dictionaryUploadedFileFromMeta(
+  meta: ProjectDictionaryTestFileMeta,
+  text: string,
+  config: { encoding: string; delimiter: string },
+): DictionaryUploadedTestFile {
+  const encoding = normalizeDictionaryTextEncoding(config.encoding);
+  return {
+    fileName: meta.fileName,
+    fileSize: meta.fileSize,
+    text,
+    preview: text.split(/\r\n|\n|\r/).slice(0, 80).join("\n"),
+    encoding,
+    delimiter: config.delimiter,
+    savedAt: meta.uploadedAt,
+    downloadUrl: meta.downloadUrl,
+  };
 }
 
 function parseDictionaryUploadedTestFile(

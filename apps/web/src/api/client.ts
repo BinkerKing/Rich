@@ -9,6 +9,13 @@ export type AiStreamEvent<TResult> =
   | { type: "done"; result: TResult }
   | { type: "error"; message: string };
 
+export type ProjectDictionaryTestFileMeta = {
+  fileName: string;
+  fileSize: number;
+  uploadedAt: string;
+  downloadUrl: string;
+};
+
 async function* sseStream<TResult>(
   path: string,
   body: Record<string, unknown>,
@@ -496,6 +503,29 @@ export const api = {
     }
     const json = await r.json() as { files: Array<{ name: string; src: string; size: number }> };
     return json.files;
+  },
+  async getProjectDictionaryTestFile(projectId: string, tableId: string): Promise<ProjectDictionaryTestFileMeta | null> {
+    const r = await fetch(`/api/project-dictionary-test-files/${encodeURIComponent(projectId)}/${encodeURIComponent(tableId)}`);
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      throw new Error(`getProjectDictionaryTestFile ${r.status}: ${t}`);
+    }
+    const json = await r.json() as { file: ProjectDictionaryTestFileMeta | null };
+    return json.file;
+  },
+  async uploadProjectDictionaryTestFile(projectId: string, tableId: string, file: File): Promise<ProjectDictionaryTestFileMeta> {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    const r = await fetch(`/api/project-dictionary-test-files/${encodeURIComponent(projectId)}/${encodeURIComponent(tableId)}`, {
+      method: "POST",
+      body: form,
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      throw new Error(`uploadProjectDictionaryTestFile ${r.status}: ${t}`);
+    }
+    const json = await r.json() as { file: ProjectDictionaryTestFileMeta };
+    return json.file;
   },
   /** Remove a previously uploaded attachment. */
   async deleteAttachment(elementId: string, filename: string): Promise<void> {
