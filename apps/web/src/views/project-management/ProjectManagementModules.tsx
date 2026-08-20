@@ -4026,30 +4026,35 @@ function DictionaryRelationsPanel({ fields }: { fields: ProjectDictionaryFieldHi
 }
 
 function DictionaryTestDataPanel({ fields }: { fields: ProjectDictionaryFieldHit[] }) {
-  const rows = fields.slice(0, 12).map((field, index) => ({
-    field,
-    value: sampleDictionaryValue(field, index),
+  const visibleFields = fields.slice(0, 32);
+  const rows = Array.from({ length: 12 }, (_, rowIndex) => ({
+    id: `sample-${rowIndex}`,
+    values: visibleFields.map(field => sampleDictionaryValue(field, rowIndex)),
   }));
+  if (visibleFields.length === 0) {
+    return <div className="prj-pm-dict__grid-empty">请选择左侧表后查看测试数据。</div>;
+  }
   return (
     <div className="prj-pm-dict-test-table-wrap">
       <table className="prj-pm-dict-test-table">
         <thead>
           <tr>
-            <th>字段名</th>
-            <th>中文名</th>
-            <th>类型</th>
-            <th>样例值</th>
-            <th>校验说明</th>
+            <th className="prj-pm-dict-test-table__row-head">#</th>
+            {visibleFields.map(field => (
+              <th key={field.id}>
+                <strong>{field.fieldName || "-"}</strong>
+                <span>{[field.fieldType, field.fieldLength, field.formatPattern].filter(Boolean).join(" / ") || field.fieldCn || "未维护类型"}</span>
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {rows.map(row => (
-            <tr key={row.field.id}>
-              <td>{row.field.fieldName}</td>
-              <td>{row.field.fieldCn || "-"}</td>
-              <td>{[row.field.fieldType, row.field.fieldLength, row.field.formatPattern].filter(Boolean).join(" / ") || "-"}</td>
-              <td>{row.value}</td>
-              <td>{row.field.codeValue ? `码值：${compactText(row.field.codeValue)}` : "按字段类型与长度校验"}</td>
+            <tr key={row.id}>
+              <td className="prj-pm-dict-test-table__row-head">{Number(row.id.replace("sample-", "")) + 1}</td>
+              {row.values.map((value, index) => (
+                <td key={visibleFields[index]?.id ?? index} className={!value ? "is-null" : ""}>{value || "(NULL)"}</td>
+              ))}
             </tr>
           ))}
         </tbody>
@@ -4563,19 +4568,21 @@ function dictionaryViewSubtitle(
 function dictionaryViewCount(view: DictionaryView, fieldCount: number): string {
   if (view === "field-design") return `${fieldCount} 字段`;
   if (view === "relations") return `${fieldCount} 关系`;
-  if (view === "test-data") return `${Math.min(fieldCount, 12)} 样例`;
+  if (view === "test-data") return "12 行样例";
   if (view === "table-info") return "表属性";
   return `${fieldCount} 字段`;
 }
 
 function sampleDictionaryValue(field: ProjectDictionaryFieldHit, index: number): string {
-  const codeItem = getDictionaryCodeItems(field)[0];
+  const codeItems = getDictionaryCodeItems(field);
+  const codeItem = codeItems[index % Math.max(codeItems.length, 1)];
   if (codeItem?.value) return codeItem.value;
   const code = field.codeValue?.match(/[A-Za-z]?\d{1,6}[A-Za-z]?/)?.[0];
-  if (code) return code;
+  if (code) return index === 0 ? code : `${code}_${String(index + 1).padStart(2, "0")}`;
   const type = `${field.fieldType || ""}${field.fieldLength || ""}`;
-  if (/日期|date/i.test(type)) return `2026-01-${String(index + 1).padStart(2, "0")}`;
-  if (/n|number|数值|金额/i.test(type)) return String(index + 1);
+  if (/time|datetime|timestamp|时间/i.test(type)) return `2026-08-${String(index + 1).padStart(2, "0")} 09:30:00`;
+  if (/日期|date/i.test(type)) return `2026-08-${String(index + 1).padStart(2, "0")}`;
+  if (/int|number|decimal|numeric|float|double|数值|金额|数量|order/i.test(type)) return String(index + 1);
   const prefix = field.fieldName.replace(/[^A-Za-z0-9]/g, "").slice(0, 6) || "VAL";
   return `${prefix}${String(index + 1).padStart(3, "0")}`;
 }
