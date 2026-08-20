@@ -570,7 +570,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
                   onSelect={openTable}
                   onTogglePin={togglePinnedTable}
                 />
-                <button type="button" className="prj-pm-dict-refresh" onClick={refreshDictionary} disabled={loading}>{loading ? "刷新中..." : "刷新"}</button>
+                <button type="button" className="prj-pm-dict-refresh" aria-label={loading ? "刷新中" : "刷新"} title={loading ? "刷新中" : "刷新"} onClick={refreshDictionary} disabled={loading}>↻</button>
               </div>
               <DictionarySystemOverview
                 system={selectedSystem}
@@ -602,7 +602,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
                   onSelect={openTable}
                   onTogglePin={togglePinnedTable}
                 />
-                <button type="button" className="prj-pm-dict-refresh" onClick={refreshDictionary} disabled={loading}>{loading ? "刷新中..." : "刷新"}</button>
+                <button type="button" className="prj-pm-dict-refresh" aria-label={loading ? "刷新中" : "刷新"} title={loading ? "刷新中" : "刷新"} onClick={refreshDictionary} disabled={loading}>↻</button>
               </div>
               <div className="prj-pm-dict__tabs">
                 <button type="button" className={activeView === "field-design" ? "is-active" : ""} onClick={() => setActiveView("field-design")}>字段设计</button>
