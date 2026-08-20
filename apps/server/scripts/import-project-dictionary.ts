@@ -33,6 +33,8 @@ interface SourceField {
   tableLayer?: string;
   sourceKind?: string;
   sourceType?: string;
+  fileType?: string;
+  file_type?: string;
   tableDescription?: string;
   tableCaliber?: string;
   fieldName?: string;
@@ -205,12 +207,14 @@ async function importDictionary(pg: PgPool, projectId: string, source: Normalize
     if (tableKeys.has(tableKey)) continue;
     const tableId = stableId("pm-table", projectId, tableKey);
     tableKeys.set(tableKey, tableId);
+    const tableFileType = normalizeFileType(field.fileType ?? field.file_type ?? tableName);
+    const tableSourceKind = tableFileType ? "文件" : normalizeTableSourceKind(field.sourceKind ?? field.sourceType);
     await pg.query(`
       INSERT INTO pm_data_tables (
         id, project_id, system_id, database_name, schema_name, table_name, table_cn,
-        table_group, data_layer, source_kind, description, caliber, extra, created_at, updated_at
+        table_group, data_layer, source_kind, file_type, description, caliber, extra, created_at, updated_at
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$14)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,$15)
       ON CONFLICT (id) DO UPDATE SET
         system_id=EXCLUDED.system_id,
         database_name=EXCLUDED.database_name,
@@ -220,6 +224,7 @@ async function importDictionary(pg: PgPool, projectId: string, source: Normalize
         table_group=EXCLUDED.table_group,
         data_layer=EXCLUDED.data_layer,
         source_kind=EXCLUDED.source_kind,
+        file_type=EXCLUDED.file_type,
         description=EXCLUDED.description,
         caliber=EXCLUDED.caliber,
         extra=EXCLUDED.extra,
@@ -234,10 +239,11 @@ async function importDictionary(pg: PgPool, projectId: string, source: Normalize
       optionalText(field.tableCn),
       optionalText(field.tableGroup ?? field.group ?? field.category),
       normalizeTableDataLayer(field.dataLayer ?? field.tableLayer),
-      normalizeTableSourceKind(field.sourceKind ?? field.sourceType),
+      tableSourceKind,
+      tableFileType,
       optionalText(field.tableDescription),
       optionalText(field.tableCaliber),
-      JSON.stringify({ sourceTableKey: tableKey }),
+      JSON.stringify({ sourceTableKey: tableKey, ...(tableFileType ? { fileType: tableFileType } : {}) }),
       now,
     ]);
     await upsertSearchIndex(pg, {
@@ -465,6 +471,16 @@ function normalizeTableSourceKind(value: unknown): string {
   if (/文件|file|txt|csv|excel|xlsx|xml|json/i.test(raw)) return "文件";
   if (/库|表|database|db|table|sql/i.test(raw)) return "数据库";
   return raw;
+}
+
+function normalizeFileType(value: unknown): string | null {
+  const raw = text(value).toLowerCase();
+  if (!raw) return null;
+  if (/(^|\.|\s|_)txt$|text file|文本/.test(raw)) return "txt";
+  if (/(^|\.|\s|_)csv$/.test(raw)) return "csv";
+  if (/(^|\.|\s|_)xml$|xml/.test(raw)) return "xml";
+  if (/(^|\.|\s|_)(xls|xlsx)$|excel|电子表格/.test(raw)) return "excel";
+  return null;
 }
 
 function yes(value: unknown): boolean {

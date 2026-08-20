@@ -92,6 +92,7 @@ interface TableRow {
   table_group: string | null;
   data_layer: string | null;
   source_kind: string | null;
+  file_type: string | null;
   description: string | null;
   caliber: string | null;
   field_count: number;
@@ -305,7 +306,7 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
   async listDictionaryTables(projectId: string, systemId?: string): Promise<ProjectDictionaryTable[]> {
     const rows = this.db.prepare(
       `SELECT
-         t.id, t.system_id, t.table_name, t.table_cn, t.table_group, t.data_layer, t.source_kind, t.description, t.caliber,
+         t.id, t.system_id, t.table_name, t.table_cn, t.table_group, t.data_layer, t.source_kind, t.file_type, t.description, t.caliber,
          count(DISTINCT f.id) AS field_count
        FROM pm_data_tables t
        LEFT JOIN pm_data_fields f ON f.table_id = t.id AND f.project_id = t.project_id
@@ -322,6 +323,7 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
       tableGroup: row.table_group ?? undefined,
       dataLayer: row.data_layer ?? undefined,
       sourceKind: row.source_kind ?? undefined,
+      fileType: row.file_type ?? undefined,
       description: row.description ?? undefined,
       caliber: row.caliber ?? undefined,
       fieldCount: row.field_count,

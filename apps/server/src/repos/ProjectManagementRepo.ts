@@ -43,6 +43,7 @@ export interface ProjectDictionaryTable {
   tableGroup?: string;
   dataLayer?: string;
   sourceKind?: string;
+  fileType?: string;
   description?: string;
   caliber?: string;
   fieldCount: number;

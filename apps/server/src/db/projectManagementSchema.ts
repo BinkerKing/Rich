@@ -28,6 +28,7 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     table_group TEXT,
     data_layer TEXT,
     source_kind TEXT,
+    file_type TEXT,
     description TEXT,
     caliber TEXT,
     extra JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -40,6 +41,7 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
   ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS table_group TEXT;
   ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS data_layer TEXT;
   ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS source_kind TEXT;
+  ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS file_type TEXT;
 
   CREATE TABLE IF NOT EXISTS pm_data_fields (
     id TEXT PRIMARY KEY,
@@ -269,6 +271,7 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
     table_group TEXT,
     data_layer TEXT,
     source_kind TEXT,
+    file_type TEXT,
     description TEXT,
     caliber TEXT,
     extra TEXT NOT NULL DEFAULT '{}',

@@ -435,6 +435,7 @@ function applySchema(db: Database.Database) {
   ensureColumn(db, "pm_data_tables", "table_group", "TEXT");
   ensureColumn(db, "pm_data_tables", "data_layer", "TEXT");
   ensureColumn(db, "pm_data_tables", "source_kind", "TEXT");
+  ensureColumn(db, "pm_data_tables", "file_type", "TEXT");
   ensureColumn(db, "pm_data_fields", "format_pattern", "TEXT");
 }
 

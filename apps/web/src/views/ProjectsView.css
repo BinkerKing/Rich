@@ -4992,13 +4992,14 @@
   --dict-summary-c3: 170px;
   --dict-summary-c4: 120px;
   --dict-summary-c5: 110px;
-  --dict-summary-c6: 78px;
-  --dict-summary-c7: 320px;
-  --dict-summary-c8: 360px;
+  --dict-summary-c6: 96px;
+  --dict-summary-c7: 78px;
+  --dict-summary-c8: 320px;
+  --dict-summary-c9: 360px;
   --dict-summary-width: calc(
     var(--dict-summary-c1) + var(--dict-summary-c2) + var(--dict-summary-c3) +
     var(--dict-summary-c4) + var(--dict-summary-c5) + var(--dict-summary-c6) +
-    var(--dict-summary-c7) + var(--dict-summary-c8)
+    var(--dict-summary-c7) + var(--dict-summary-c8) + var(--dict-summary-c9)
   );
   flex: 1 1 auto;
   min-height: 0;
@@ -5013,7 +5014,7 @@
   grid-template-columns:
     var(--dict-summary-c1) var(--dict-summary-c2) var(--dict-summary-c3)
     var(--dict-summary-c4) var(--dict-summary-c5) var(--dict-summary-c6)
-    var(--dict-summary-c7) var(--dict-summary-c8);
+    var(--dict-summary-c7) var(--dict-summary-c8) var(--dict-summary-c9);
   width: var(--dict-summary-width);
   min-width: max(100%, var(--dict-summary-width));
 }

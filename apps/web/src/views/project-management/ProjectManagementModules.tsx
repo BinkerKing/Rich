@@ -3380,6 +3380,7 @@ function DictionarySystemOverview({
     { id: "tableName", label: "英文表名", width: 170, minWidth: 130 },
     { id: "dataLayer", label: "数据层级", width: 120, minWidth: 86 },
     { id: "sourceKind", label: "载体类型", width: 110, minWidth: 82 },
+    { id: "fileType", label: "文件类型", width: 96, minWidth: 78 },
     { id: "fieldCount", label: "字段数", width: 78, minWidth: 64 },
     { id: "description", label: "说明", width: 320, minWidth: 180 },
     { id: "caliber", label: "口径", width: 360, minWidth: 180 },
@@ -3392,9 +3393,10 @@ function DictionarySystemOverview({
     "--dict-summary-c3": `${columnResize.columnWidth("tableName")}px`,
     "--dict-summary-c4": `${columnResize.columnWidth("dataLayer")}px`,
     "--dict-summary-c5": `${columnResize.columnWidth("sourceKind")}px`,
-    "--dict-summary-c6": `${columnResize.columnWidth("fieldCount")}px`,
-    "--dict-summary-c7": `${columnResize.columnWidth("description")}px`,
-    "--dict-summary-c8": `${columnResize.columnWidth("caliber")}px`,
+    "--dict-summary-c6": `${columnResize.columnWidth("fileType")}px`,
+    "--dict-summary-c7": `${columnResize.columnWidth("fieldCount")}px`,
+    "--dict-summary-c8": `${columnResize.columnWidth("description")}px`,
+    "--dict-summary-c9": `${columnResize.columnWidth("caliber")}px`,
     "--dict-summary-width": `${columnResize.totalWidth + indexColumnWidth - columnResize.columnWidth("index")}px`,
   }) as CSSProperties, [columnResize, indexColumnWidth]);
   if (!system) {
@@ -3448,6 +3450,7 @@ function DictionarySystemOverview({
               <code>{table.tableName}</code>
               <span>{table.dataLayer || "源表层"}</span>
               <span>{table.sourceKind || "数据库"}</span>
+              <span>{table.fileType || "-"}</span>
               <em>{table.fieldCount}</em>
               <span>{compactText(table.description)}</span>
               <span>{compactText(table.caliber)}</span>
@@ -4179,6 +4182,7 @@ function DictionaryTablePropertyContent({ table }: { table: ProjectDictionaryTab
           <span>分组</span><strong>{table.tableGroup || "未分组"}</strong>
           <span>数据层级</span><strong>{table.dataLayer || "源表层"}</strong>
           <span>载体类型</span><strong>{table.sourceKind || "数据库"}</strong>
+          <span>文件类型</span><strong>{table.fileType || "-"}</strong>
           <span>字段数</span><strong>{table.fieldCount}</strong>
         </div>
       </section>
@@ -4357,6 +4361,10 @@ function DictionaryTableInfoPanel({ table, fields }: { table?: ProjectDictionary
         <article>
           <span>载体类型</span>
           <strong>{table.sourceKind || "数据库"}</strong>
+        </article>
+        <article>
+          <span>文件类型</span>
+          <strong>{table.fileType || "-"}</strong>
         </article>
         <article>
           <span>字段数量</span>
