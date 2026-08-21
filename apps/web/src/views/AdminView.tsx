@@ -1680,72 +1680,73 @@ function ImprovementsTab() {
         </div>
       </header>
 
-      <p className="admin-pane__desc">
-        当 Hermes 想做某事但发现 Rich 缺能力时，会通过 MCP 工具 <code>create_improvement</code> 在这里
-        建一条「待改造」。你改完后点「已改造」按钮，Hermes 下次会自己来验证（或你直接跟 Hermes 说
-        <em>「id=imp-xxx 改好了帮我验证」</em>）。
-      </p>
+      <div className="imp-scroll">
+        <p className="admin-pane__desc">
+          当 Hermes 想做某事但发现 Rich 缺能力时，会通过 MCP 工具 <code>create_improvement</code> 在这里
+          建一条「待改造」。你改完后点「已改造」按钮，Hermes 下次会自己来验证（或你直接跟 Hermes 说
+          <em>「id=imp-xxx 改好了帮我验证」</em>）。
+        </p>
 
-      <nav className="imp-filters">
-        {(["all", "pending", "ready_to_verify", "verified", "rejected"] as const).map(s => (
-          <button
-            key={s}
-            type="button"
-            className={`imp-filter${statusFilter === s ? " is-active" : ""}`}
-            onClick={() => setStatusFilter(s)}
-          >
-            {s === "all" ? "全部" : STATUS_LABEL[s]}
-            {s !== "all" && counts[s] != null && <span className="imp-filter__count">{counts[s]}</span>}
-          </button>
-        ))}
-      </nav>
-
-      {showNew && (
-        <div className="imp-new">
-          <input
-            value={newTitle}
-            onChange={e => setNewTitle(e.target.value)}
-            placeholder="任务标题，例如：新增 attach_mindmap MCP 工具"
-          />
-          <textarea
-            value={newReason}
-            onChange={e => setNewReason(e.target.value)}
-            placeholder="为什么需要这个改造？缺什么能力 / 受阻于什么？"
-            rows={2}
-          />
-          <textarea
-            value={newDescription}
-            onChange={e => setNewDescription(e.target.value)}
-            placeholder="详细描述（可选）"
-            rows={3}
-          />
-          <div className="imp-new-row">
-            <label>
-              优先级
-              <select value={newPriority} onChange={e => setNewPriority(e.target.value as ImpPriority)}>
-                <option value="low">低</option>
-                <option value="medium">中</option>
-                <option value="high">高</option>
-              </select>
-            </label>
-            <button type="button" className="imp-primary" onClick={() => void submitNew()} disabled={!newTitle.trim()}>
-              建立任务
+        <nav className="imp-filters">
+          {(["all", "pending", "ready_to_verify", "verified", "rejected"] as const).map(s => (
+            <button
+              key={s}
+              type="button"
+              className={`imp-filter${statusFilter === s ? " is-active" : ""}`}
+              onClick={() => setStatusFilter(s)}
+            >
+              {s === "all" ? "全部" : STATUS_LABEL[s]}
+              {s !== "all" && counts[s] != null && <span className="imp-filter__count">{counts[s]}</span>}
             </button>
+          ))}
+        </nav>
+
+        {showNew && (
+          <div className="imp-new">
+            <input
+              value={newTitle}
+              onChange={e => setNewTitle(e.target.value)}
+              placeholder="任务标题，例如：新增 attach_mindmap MCP 工具"
+            />
+            <textarea
+              value={newReason}
+              onChange={e => setNewReason(e.target.value)}
+              placeholder="为什么需要这个改造？缺什么能力 / 受阻于什么？"
+              rows={2}
+            />
+            <textarea
+              value={newDescription}
+              onChange={e => setNewDescription(e.target.value)}
+              placeholder="详细描述（可选）"
+              rows={3}
+            />
+            <div className="imp-new-row">
+              <label>
+                优先级
+                <select value={newPriority} onChange={e => setNewPriority(e.target.value as ImpPriority)}>
+                  <option value="low">低</option>
+                  <option value="medium">中</option>
+                  <option value="high">高</option>
+                </select>
+              </label>
+              <button type="button" className="imp-primary" onClick={() => void submitNew()} disabled={!newTitle.trim()}>
+                建立任务
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {error && <div className="admin-error">⚠ {error}</div>}
+        {error && <div className="admin-error">⚠ {error}</div>}
 
-      {items.length === 0 && !loading && !error && (
-        <div className="admin-empty">
-          目前没有改造任务。<br />
-          Hermes 在 chat 里碰到能力缺口时会自动建一条。或者点上面「+ 新建」手动建。
-        </div>
-      )}
+        {items.length === 0 && !loading && !error && (
+          <div className="admin-empty">
+            目前没有改造任务。<br />
+            Hermes 在 chat 里碰到能力缺口时会自动建一条。或者点上面「+ 新建」手动建。
+          </div>
+        )}
 
-      <div className="imp-list">
-        {items.map(item => (
+        <div className="imp-list">
+          {items.map(item => (
           <article key={item.id} className={`imp-card imp-card--${item.status}`}>
             <header className="imp-card__head">
               <div className="imp-card__title">
@@ -1855,7 +1856,8 @@ function ImprovementsTab() {
               </div>
             </footer>
           </article>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
