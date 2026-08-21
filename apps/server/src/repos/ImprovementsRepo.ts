@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
  *
  * Status machine:
  *   pending          — Hermes (or the user) filed a gap; no fix yet
+ *   ready_to_develop — PRD/tasks reviewed; an agent may claim and implement it
  *   ready_to_verify  — Developer says "I shipped the fix"; Hermes should test
  *   verified         — Hermes confirmed the fix works
  *   rejected         — Hermes tested but it still doesn't work; back to dev
@@ -19,6 +20,7 @@ import { randomUUID } from "node:crypto";
 
 export type ImprovementStatus =
   | "pending"
+  | "ready_to_develop"
   | "ready_to_verify"
   | "verified"
   | "rejected";
@@ -31,11 +33,21 @@ export interface VerificationEntry {
   notes?: string;
 }
 
+export interface ImprovementDevTask {
+  id: string;
+  title: string;
+  detail?: string;
+  status?: "todo" | "doing" | "done" | "blocked";
+  priority?: ImprovementPriority;
+}
+
 export interface ImprovementTask {
   id: string;
   title: string;
   description: string;
   reason: string;
+  prdContent: string;
+  tasks: ImprovementDevTask[];
   status: ImprovementStatus;
   priority?: ImprovementPriority;
   category?: string;
@@ -63,6 +75,8 @@ export interface CreateImprovementInput {
   category?: string;
   createdBy?: "hermes" | "user";
   relatedFiles?: string[];
+  prdContent?: string;
+  tasks?: ImprovementDevTask[];
 }
 
 export interface UpdateImprovementInput {
@@ -73,6 +87,8 @@ export interface UpdateImprovementInput {
   priority?: ImprovementPriority | null;
   category?: string | null;
   relatedFiles?: string[] | null;
+  prdContent?: string;
+  tasks?: ImprovementDevTask[] | null;
   /** If provided AND status is being set to "verified" or "rejected",
    *  appends an audit entry to verifications. */
   verificationNotes?: string;
@@ -104,6 +120,8 @@ interface Row {
   title: string;
   description: string;
   reason: string;
+  prd_content: string;
+  tasks_json: string;
   status: string;
   priority: string | null;
   category: string | null;
@@ -130,11 +148,28 @@ export class ImprovementsRepo implements ImprovementsStore {
         if (Array.isArray(parsed)) relatedFiles = parsed.filter((x: unknown) => typeof x === "string");
       } catch { /* ignore */ }
     }
+    let tasks: ImprovementDevTask[] = [];
+    try {
+      const parsed = JSON.parse(row.tasks_json || "[]");
+      if (Array.isArray(parsed)) {
+        tasks = parsed
+          .filter((x: unknown): x is ImprovementDevTask => Boolean(x) && typeof x === "object" && typeof (x as ImprovementDevTask).title === "string")
+          .map((x, index) => ({
+            id: typeof x.id === "string" && x.id ? x.id : `task-${index + 1}`,
+            title: x.title,
+            detail: typeof x.detail === "string" ? x.detail : undefined,
+            status: x.status,
+            priority: x.priority,
+          }));
+      }
+    } catch { tasks = []; }
     return {
       id: row.id,
       title: row.title,
       description: row.description,
       reason: row.reason,
+      prdContent: row.prd_content ?? "",
+      tasks,
       status: row.status as ImprovementStatus,
       priority: row.priority as ImprovementPriority | undefined ?? undefined,
       category: row.category ?? undefined,
@@ -172,8 +207,8 @@ export class ImprovementsRepo implements ImprovementsStore {
     this.db.prepare(`
       INSERT INTO improvement_tasks
         (id, title, description, reason, status, priority, category,
-         created_by, related_files, verifications_json, requested_at, updated_at)
-      VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, '[]', ?, ?)
+         created_by, related_files, prd_content, tasks_json, verifications_json, requested_at, updated_at)
+      VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, '[]', ?, ?)
     `).run(
       id,
       input.title,
@@ -183,6 +218,8 @@ export class ImprovementsRepo implements ImprovementsStore {
       input.category ?? null,
       input.createdBy ?? "hermes",
       input.relatedFiles ? JSON.stringify(input.relatedFiles) : null,
+      input.prdContent ?? "",
+      JSON.stringify(input.tasks ?? []),
       now,
       now,
     );
@@ -198,6 +235,8 @@ export class ImprovementsRepo implements ImprovementsStore {
     if (patch.description !== undefined) next.description = patch.description;
     if (patch.reason !== undefined) next.reason = patch.reason;
     if (patch.status !== undefined) next.status = patch.status;
+    if (patch.prdContent !== undefined) next.prdContent = patch.prdContent;
+    if (patch.tasks !== undefined) next.tasks = patch.tasks ?? [];
     if (patch.priority !== undefined) next.priority = patch.priority ?? undefined;
     if (patch.category !== undefined) next.category = patch.category ?? undefined;
     if (patch.relatedFiles !== undefined) next.relatedFiles = patch.relatedFiles ?? undefined;
@@ -216,7 +255,7 @@ export class ImprovementsRepo implements ImprovementsStore {
     this.db.prepare(`
       UPDATE improvement_tasks
       SET title=?, description=?, reason=?, status=?, priority=?, category=?,
-          related_files=?, verifications_json=?, updated_at=?
+          related_files=?, prd_content=?, tasks_json=?, verifications_json=?, updated_at=?
       WHERE id=?
     `).run(
       next.title,
@@ -226,6 +265,8 @@ export class ImprovementsRepo implements ImprovementsStore {
       next.priority ?? null,
       next.category ?? null,
       next.relatedFiles ? JSON.stringify(next.relatedFiles) : null,
+      next.prdContent,
+      JSON.stringify(next.tasks),
       JSON.stringify(next.verifications),
       next.updatedAt,
       id,
@@ -242,7 +283,7 @@ export class ImprovementsRepo implements ImprovementsStore {
     const rows = this.db.prepare(
       "SELECT status, COUNT(*) AS n FROM improvement_tasks GROUP BY status",
     ).all() as Array<{ status: string; n: number }>;
-    const out: Record<string, number> = { pending: 0, ready_to_verify: 0, verified: 0, rejected: 0 };
+    const out: Record<string, number> = { pending: 0, ready_to_develop: 0, ready_to_verify: 0, verified: 0, rejected: 0 };
     for (const r of rows) out[r.status] = r.n;
     return out;
   }

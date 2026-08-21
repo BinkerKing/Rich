@@ -139,6 +139,7 @@ function applySchema(db: Database.Database) {
 
     -- System-improvement task board. Used by the workflow:
     --   Hermes hits a missing capability → INSERT row with status='pending'
+    --   User reviews PRD/tasks → UPDATE status='ready_to_develop'
     --   Developer ships the fix → UPDATE status='ready_to_verify'
     --   Hermes verifies → UPDATE status='verified' or 'rejected' + verification note
     -- verifications_json is a JSON array of {ts, result, notes} audit entries.
@@ -147,6 +148,8 @@ function applySchema(db: Database.Database) {
       title         TEXT NOT NULL,
       description   TEXT NOT NULL DEFAULT '',
       reason        TEXT NOT NULL DEFAULT '',
+      prd_content   TEXT NOT NULL DEFAULT '',
+      tasks_json    TEXT NOT NULL DEFAULT '[]',
       status        TEXT NOT NULL DEFAULT 'pending',
       priority      TEXT,
       category      TEXT,
@@ -431,6 +434,8 @@ function applySchema(db: Database.Database) {
   ensureColumn(db, "qa", "anchor", "TEXT");
   ensureColumn(db, "improvement_tasks", "assigned_agent_id", "TEXT");
   ensureColumn(db, "improvement_tasks", "assigned_at", "TEXT");
+  ensureColumn(db, "improvement_tasks", "prd_content", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, "improvement_tasks", "tasks_json", "TEXT NOT NULL DEFAULT '[]'");
   ensureColumn(db, "elements", "status", "TEXT");
   ensureColumn(db, "pm_data_tables", "table_group", "TEXT");
   ensureColumn(db, "pm_data_tables", "data_layer", "TEXT");

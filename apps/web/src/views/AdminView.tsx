@@ -1525,14 +1525,24 @@ function CronTab() {
 
 /* ----------------------------- Improvements Tab ---------------------------- */
 
-type ImpStatus = "pending" | "ready_to_verify" | "verified" | "rejected";
+type ImpStatus = "pending" | "ready_to_develop" | "ready_to_verify" | "verified" | "rejected";
 type ImpPriority = "low" | "medium" | "high";
+
+interface ImprovementDevTask {
+  id: string;
+  title: string;
+  detail?: string;
+  status?: "todo" | "doing" | "done" | "blocked";
+  priority?: ImpPriority;
+}
 
 interface Improvement {
   id: string;
   title: string;
   description: string;
   reason: string;
+  prdContent: string;
+  tasks: ImprovementDevTask[];
   status: ImpStatus;
   priority?: ImpPriority;
   category?: string;
@@ -1547,11 +1557,36 @@ interface Improvement {
 }
 
 const STATUS_LABEL: Record<ImpStatus, string> = {
-  pending: "待改造",
+  pending: "待分析",
+  ready_to_develop: "待开发",
   ready_to_verify: "已改造 · 待验证",
   verified: "已验证",
   rejected: "验证未通过",
 };
+
+const DEV_TASK_STATUS_LABEL: Record<NonNullable<ImprovementDevTask["status"]>, string> = {
+  todo: "待做",
+  doing: "进行中",
+  done: "完成",
+  blocked: "阻塞",
+};
+
+function parseDevTasksText(text: string): ImprovementDevTask[] {
+  return text
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .slice(0, 100)
+    .map((line, index) => ({
+      id: `task-${index + 1}`,
+      title: line.replace(/^\d+[.)、\s-]*/, ""),
+      status: "todo",
+    }));
+}
+
+function devTasksToText(tasks: ImprovementDevTask[] | undefined): string {
+  return (tasks ?? []).map(task => task.title).join("\n");
+}
 
 function ImprovementsTab() {
   const [items, setItems] = useState<Improvement[]>([]);
@@ -1563,6 +1598,8 @@ function ImprovementsTab() {
   const [newTitle, setNewTitle] = useState("");
   const [newReason, setNewReason] = useState("");
   const [newDescription, setNewDescription] = useState("");
+  const [newPrdContent, setNewPrdContent] = useState("");
+  const [newTasksText, setNewTasksText] = useState("");
   const [newPriority, setNewPriority] = useState<ImpPriority>("medium");
   /** 本机 Rich.app 的 agent-id（点"认领"时默认用它）；启动时从 /api/agent-id 拉一次。 */
   const [myAgentId, setMyAgentId] = useState<string>("");
@@ -1604,6 +1641,22 @@ function ImprovementsTab() {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
+    });
+    await load();
+  }
+
+  async function updatePlanning(item: Improvement) {
+    const prdContent = prompt("PRD 内容", item.prdContent ?? "");
+    if (prdContent == null) return;
+    const tasksText = prompt("Task 列表（一行一个）", devTasksToText(item.tasks));
+    if (tasksText == null) return;
+    await fetch(`/api/improvements/${item.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        prdContent,
+        tasks: parseDevTasksText(tasksText),
+      }),
     });
     await load();
   }
@@ -1655,6 +1708,8 @@ function ImprovementsTab() {
         title: newTitle.trim(),
         reason: newReason.trim() || undefined,
         description: newDescription.trim() || undefined,
+        prdContent: newPrdContent.trim() || undefined,
+        tasks: parseDevTasksText(newTasksText),
         priority: newPriority,
         createdBy: "user",
       }),
@@ -1662,6 +1717,8 @@ function ImprovementsTab() {
     setNewTitle("");
     setNewReason("");
     setNewDescription("");
+    setNewPrdContent("");
+    setNewTasksText("");
     setShowNew(false);
     await load();
   }
@@ -1688,7 +1745,7 @@ function ImprovementsTab() {
         </p>
 
         <nav className="imp-filters">
-          {(["all", "pending", "ready_to_verify", "verified", "rejected"] as const).map(s => (
+          {(["all", "pending", "ready_to_develop", "ready_to_verify", "verified", "rejected"] as const).map(s => (
             <button
               key={s}
               type="button"
@@ -1719,6 +1776,18 @@ function ImprovementsTab() {
               onChange={e => setNewDescription(e.target.value)}
               placeholder="详细描述（可选）"
               rows={3}
+            />
+            <textarea
+              value={newPrdContent}
+              onChange={e => setNewPrdContent(e.target.value)}
+              placeholder="PRD 内容（可选）：AI 优化需求后沉淀在这里"
+              rows={5}
+            />
+            <textarea
+              value={newTasksText}
+              onChange={e => setNewTasksText(e.target.value)}
+              placeholder="Task 拆分（可选）：一行一个任务，保存后会结构化"
+              rows={4}
             />
             <div className="imp-new-row">
               <label>
@@ -1783,6 +1852,28 @@ function ImprovementsTab() {
                 <p>{item.description}</p>
               </div>
             )}
+            {item.prdContent && (
+              <div className="imp-card__section imp-card__section--prd">
+                <span className="imp-card__label">PRD</span>
+                <p>{item.prdContent}</p>
+              </div>
+            )}
+            {item.tasks && item.tasks.length > 0 && (
+              <div className="imp-card__section">
+                <span className="imp-card__label">Task</span>
+                <ol className="imp-devtasks">
+                  {item.tasks.map(task => (
+                    <li key={task.id}>
+                      <span className={`imp-devtask-status imp-devtask-status--${task.status ?? "todo"}`}>
+                        {DEV_TASK_STATUS_LABEL[task.status ?? "todo"]}
+                      </span>
+                      <strong>{task.title}</strong>
+                      {task.detail && <p>{task.detail}</p>}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
             {item.relatedFiles && item.relatedFiles.length > 0 && (
               <div className="imp-card__section">
                 <span className="imp-card__label">相关文件</span>
@@ -1824,6 +1915,11 @@ function ImprovementsTab() {
                   </button>
                 )}
                 {item.status === "pending" && (
+                  <button type="button" className="imp-primary" onClick={() => void patchStatus(item.id, "ready_to_develop")}>
+                    开发
+                  </button>
+                )}
+                {item.status === "ready_to_develop" && (
                   <button type="button" onClick={() => void patchStatus(item.id, "ready_to_verify")}>
                     标记已改造
                   </button>
@@ -1846,10 +1942,13 @@ function ImprovementsTab() {
                   </>
                 )}
                 {(item.status === "verified" || item.status === "rejected") && (
-                  <button type="button" onClick={() => void patchStatus(item.id, "ready_to_verify")}>
-                    重新待验证
+                  <button type="button" onClick={() => void patchStatus(item.id, item.status === "rejected" ? "ready_to_develop" : "ready_to_verify")}>
+                    {item.status === "rejected" ? "重新开发" : "重新待验证"}
                   </button>
                 )}
+                <button type="button" onClick={() => void updatePlanning(item)}>
+                  编辑PRD/Task
+                </button>
                 <button type="button" className="imp-ghost" onClick={() => void removeItem(item.id)}>
                   删除
                 </button>

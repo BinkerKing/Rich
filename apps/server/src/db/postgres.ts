@@ -129,6 +129,8 @@ async function applySchema(pool: Pool): Promise<void> {
       title TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
       reason TEXT NOT NULL DEFAULT '',
+      prd_content TEXT NOT NULL DEFAULT '',
+      tasks_json TEXT NOT NULL DEFAULT '[]',
       status TEXT NOT NULL DEFAULT 'pending',
       priority TEXT,
       category TEXT,
@@ -144,6 +146,8 @@ async function applySchema(pool: Pool): Promise<void> {
     -- 对老库幂等加列（CREATE TABLE 已建表时不会触发，新增字段必须 ALTER）
     ALTER TABLE improvement_tasks ADD COLUMN IF NOT EXISTS assigned_agent_id TEXT;
     ALTER TABLE improvement_tasks ADD COLUMN IF NOT EXISTS assigned_at TEXT;
+    ALTER TABLE improvement_tasks ADD COLUMN IF NOT EXISTS prd_content TEXT NOT NULL DEFAULT '';
+    ALTER TABLE improvement_tasks ADD COLUMN IF NOT EXISTS tasks_json TEXT NOT NULL DEFAULT '[]';
     CREATE INDEX IF NOT EXISTS idx_improvement_tasks_status ON improvement_tasks(status, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_improvement_tasks_assigned ON improvement_tasks(assigned_agent_id);
 

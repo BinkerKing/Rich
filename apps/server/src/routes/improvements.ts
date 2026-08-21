@@ -18,13 +18,22 @@ import { eventBus } from "../lib/eventBus.js";
  * connected UI re-hydrates within ~500ms.
  */
 
-const ImprovementStatusEnum = z.enum(["pending", "ready_to_verify", "verified", "rejected"]);
+const ImprovementStatusEnum = z.enum(["pending", "ready_to_develop", "ready_to_verify", "verified", "rejected"]);
 const ImprovementPriorityEnum = z.enum(["low", "medium", "high"]);
+const DevTaskSchema = z.object({
+  id: z.string().min(1).max(80),
+  title: z.string().min(1).max(220),
+  detail: z.string().max(4000).optional(),
+  status: z.enum(["todo", "doing", "done", "blocked"]).optional(),
+  priority: ImprovementPriorityEnum.optional(),
+});
 
 const CreateSchema = z.object({
   title: z.string().min(1).max(160),
   description: z.string().max(4000).optional(),
   reason: z.string().max(2000).optional(),
+  prdContent: z.string().max(30000).optional(),
+  tasks: z.array(DevTaskSchema).max(100).optional(),
   priority: ImprovementPriorityEnum.optional(),
   category: z.string().max(60).optional(),
   createdBy: z.enum(["hermes", "user"]).optional(),
@@ -35,6 +44,8 @@ const UpdateSchema = z.object({
   title: z.string().min(1).max(160).optional(),
   description: z.string().max(4000).optional(),
   reason: z.string().max(2000).optional(),
+  prdContent: z.string().max(30000).optional(),
+  tasks: z.array(DevTaskSchema).max(100).nullable().optional(),
   status: ImprovementStatusEnum.optional(),
   priority: ImprovementPriorityEnum.nullable().optional(),
   category: z.string().max(60).nullable().optional(),
@@ -48,7 +59,7 @@ export function improvementsRoutes(repo: ImprovementsStore): Hono {
   r.get("/", async (c) => {
     const statusQ = c.req.query("status");
     const limitQ = c.req.query("limit");
-    const status = statusQ && (["pending", "ready_to_verify", "verified", "rejected"] as const).includes(statusQ as ImprovementStatus)
+    const status = statusQ && (["pending", "ready_to_develop", "ready_to_verify", "verified", "rejected"] as const).includes(statusQ as ImprovementStatus)
       ? statusQ as ImprovementStatus : undefined;
     const limit = limitQ ? Math.min(500, Math.max(1, Number(limitQ))) : 200;
     const items = await repo.list({ status, limit });

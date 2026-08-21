@@ -1181,19 +1181,21 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
   // The intended workflow:
   //   1. Hermes hits a capability gap → calls `create_improvement` to file
   //      a 待改造 task. The dev gets visibility via Rich's admin UI.
-  //   2. After shipping the fix, the dev marks status='ready_to_verify' (in
+  //   2. Hermes/user refines the gap into PRD + implementation tasks, then
+  //      status='ready_to_develop' so agents can claim and implement it.
+  //   3. After shipping the fix, the dev marks status='ready_to_verify' (in
   //      UI) or asks Hermes "I shipped X, mark it ready" (Hermes calls
   //      `update_improvement`).
-  //   3. Hermes verifies by attempting the original failing flow. Result:
+  //   4. Hermes verifies by attempting the original failing flow. Result:
   //      status='verified' (pass) or 'rejected' (fail, with notes).
   if (deps.improvements) {
     const improvements = deps.improvements;
 
     server.tool(
       "list_improvements",
-      "List Rich system-improvement tasks (capability gaps Hermes filed, plus their status). Use this BEFORE filing a new one — if a similar task is already pending or ready_to_verify, append to it via update_improvement instead of creating a duplicate. Status flow: pending → ready_to_verify → verified | rejected.",
+      "List Rich system-improvement tasks (capability gaps Hermes filed, plus their PRD/tasks/status). Use this BEFORE filing a new one — if a similar task is already pending, ready_to_develop, or ready_to_verify, append to it via update_improvement instead of creating a duplicate. Status flow: pending → ready_to_develop → ready_to_verify → verified | rejected.",
       {
-        status: z.enum(["pending", "ready_to_verify", "verified", "rejected"]).optional()
+        status: z.enum(["pending", "ready_to_develop", "ready_to_verify", "verified", "rejected"]).optional()
           .describe("Filter by status. Omit to see all."),
         limit: z.number().int().min(1).max(200).default(50),
       },
@@ -1206,24 +1208,35 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
 
     server.tool(
       "create_improvement",
-      "File a NEW system-improvement task — use this when you (Hermes) try to do something for the user and discover Rich is missing the necessary capability. Capture: a one-line `title`, full `description` of what the user wanted, and `reason` describing exactly which capability/tool/UI was missing. Status starts at 'pending'. Returns the new task with its id.",
+      "File a NEW system-improvement task — use this when you (Hermes) try to do something for the user and discover Rich is missing the necessary capability. Capture: a one-line `title`, full `description` of what the user wanted, `reason` describing the missing capability, and optionally `prd_content` plus decomposed `tasks` when you have already analyzed it. Status starts at 'pending'. After user review, set status='ready_to_develop'.",
       {
         title: z.string().min(3).max(160).describe("One-line summary, e.g. '新增 attach_mindmap MCP 工具'"),
         description: z.string().max(4000).optional()
           .describe("What did the user ask you to do? What is the desired end-state?"),
         reason: z.string().max(2000).optional()
           .describe("Exactly what capability is missing? e.g. 'MCP 没有 attach_mindmap 工具，无法给元素挂 PPT section'"),
+        prd_content: z.string().max(30000).optional()
+          .describe("PRD produced after analyzing the user's requirement. Include goal, scope, UX/API/data changes, acceptance criteria, and risks."),
+        tasks: z.array(z.object({
+          id: z.string().min(1).max(80),
+          title: z.string().min(1).max(220),
+          detail: z.string().max(4000).optional(),
+          status: z.enum(["todo", "doing", "done", "blocked"]).optional(),
+          priority: z.enum(["low", "medium", "high"]).optional(),
+        })).max(100).optional().describe("Implementation tasks decomposed from the PRD. Keep each task independently claimable/testable."),
         priority: z.enum(["low", "medium", "high"]).optional(),
         category: z.string().max(60).optional()
           .describe("Free-form, e.g. 'mcp-tool' / 'ui' / 'integration' / 'data-model'"),
         related_files: z.array(z.string()).max(20).optional()
           .describe("Optional code-path hints for the dev — files likely to need editing"),
       },
-      async ({ title, description, reason, priority, category, related_files }) => {
+      async ({ title, description, reason, prd_content, tasks, priority, category, related_files }) => {
         const created = await improvements.create({
           title,
           description,
           reason,
+          prdContent: prd_content,
+          tasks,
           priority,
           category,
           relatedFiles: related_files,
@@ -1236,21 +1249,29 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
 
     server.tool(
       "update_improvement",
-      "Update an existing improvement task. Typical transitions: (1) user shipped fix → status='ready_to_verify'; (2) you ran the flow and it works → status='verified' + brief verification_notes; (3) you tried but it still fails → status='rejected' + verification_notes explaining what failed so the dev can iterate. You can also amend title/description/reason. ALWAYS list_improvements first to confirm the id.",
+      "Update an existing improvement task. Typical transitions: (1) analyze requirement → fill `prd_content` and `tasks`; (2) user reviewed PRD/tasks → status='ready_to_develop'; (3) dev shipped fix → status='ready_to_verify'; (4) verification pass/fail → status='verified' or 'rejected' with verification_notes. ALWAYS list_improvements first to confirm the id.",
       {
         id: z.string().min(1),
         title: z.string().min(3).max(160).optional(),
         description: z.string().max(4000).optional(),
         reason: z.string().max(2000).optional(),
-        status: z.enum(["pending", "ready_to_verify", "verified", "rejected"]).optional(),
+        prd_content: z.string().max(30000).optional(),
+        tasks: z.array(z.object({
+          id: z.string().min(1).max(80),
+          title: z.string().min(1).max(220),
+          detail: z.string().max(4000).optional(),
+          status: z.enum(["todo", "doing", "done", "blocked"]).optional(),
+          priority: z.enum(["low", "medium", "high"]).optional(),
+        })).max(100).optional(),
+        status: z.enum(["pending", "ready_to_develop", "ready_to_verify", "verified", "rejected"]).optional(),
         priority: z.enum(["low", "medium", "high"]).optional(),
         category: z.string().max(60).optional(),
         verification_notes: z.string().max(2000).optional()
           .describe("When transitioning to verified/rejected: explain what you tested and the outcome. Stored in the audit trail."),
       },
-      async ({ id, title, description, reason, status, priority, category, verification_notes }) => {
+      async ({ id, title, description, reason, prd_content, tasks, status, priority, category, verification_notes }) => {
         const updated = await improvements.update(id, {
-          title, description, reason, status, priority, category,
+          title, description, reason, prdContent: prd_content, tasks, status, priority, category,
           verificationNotes: verification_notes,
         });
         if (!updated) {
@@ -1277,7 +1298,7 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
 
     server.tool(
       "claim_improvement",
-      "ATOMIC claim — call this BEFORE you start verifying or otherwise working on an improvement task to prevent duplicate work across multiple Hermes / Codex / Claude Code agents that share the same Rich backend. Returns ok=true with the task if you got it, or ok=false with conflict.current_agent_id if someone else already has it (in which case SKIP this task and look at another pending one). Same agent re-calling is idempotent (200). agent_id defaults to '<hostname>-mcp' if omitted, but you should pass your own stable id like '<hostname>-hermes'.",
+      "ATOMIC claim — call this BEFORE you start developing, verifying, or otherwise working on an improvement task to prevent duplicate work across multiple Hermes / Codex / Claude Code agents that share the same Rich backend. Returns ok=true with the task if you got it, or ok=false with conflict.current_agent_id if someone else already has it (in which case SKIP this task and look at another pending/ready_to_develop task). Same agent re-calling is idempotent (200). agent_id defaults to '<hostname>-mcp' if omitted, but you should pass your own stable id like '<hostname>-hermes'.",
       {
         id: z.string().min(1).describe("Improvement task id, e.g. 'imp-c561511e'"),
         agent_id: z.string().min(1).max(120).optional()
