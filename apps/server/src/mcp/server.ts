@@ -25,6 +25,7 @@ import { eventBus } from "../lib/eventBus.js";
 import { registerPlanTools } from "./planTools.js";
 import { registerPracticeTools } from "./practiceTools.js";
 import { registerCorpusTools } from "./corpusTools.js";
+import { registerProjectManagementTools } from "./projectManagementTools.js";
 import {
   listMascotAnimations, playMascotAnimation, getMascotState,
 } from "../lib/mascotState.js";
@@ -81,6 +82,9 @@ export interface BuildMcpDeps {
   /** Optional — when present, exposes plan / goal / task management tools
    *  for Hermes to control the 计划管理 module via MCP. */
   greatMe?: import("../repos/GreatMeRepo.js").GreatMeRepo | null;
+  /** Optional — exposes 项目管理 modules, data dictionary, and Mapping
+   *  metadata to Hermes / other MCP agents. */
+  projectManagement?: import("../repos/ProjectManagementRepo.js").ProjectManagementRepo | null;
 }
 
 /** Drain a structured-AI stream to a single Promise. Used by Layer-2
@@ -1440,6 +1444,13 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
   // analytics blockers, and ask AI for a 推进 strategy.
   if (deps.greatMe) {
     registerPlanTools(server, deps.greatMe, deps.adapters, eventBus);
+  }
+
+  // ───── 项目管理 tools ─────────────────────────
+  // Exposes workflow/scenario/environment/deployment/monitoring/version/todo
+  // module CRUD plus data-dictionary read/search/rectification tools.
+  if (deps.projectManagement) {
+    registerProjectManagementTools(server, deps.projectManagement);
   }
 
   // ───── AI 语料模板 tools ─────────────────────────

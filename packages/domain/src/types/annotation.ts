@@ -12,7 +12,7 @@ export interface AnnotationAnalysis {
 }
 
 /**
- * A user-applied text mark on an element body. Persisted in annotations.jsonl
+ * A user-applied text mark on an element body. Persisted in Rich's database
  * and re-applied each render by searching for `text` (optionally disambiguated
  * by `contextBefore` / `contextAfter`) within the body article.
  */

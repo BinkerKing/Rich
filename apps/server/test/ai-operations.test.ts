@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { buildApp } from "../src/index.js";
+import { openDb } from "../src/db/sqlite.js";
+import { SqliteElementsRepo } from "../src/repos/SqliteElementsRepo.js";
 import type { AIAdapter, StreamEvent, GenerateArgs } from "../src/ai/adapter.js";
 
 class ScriptedAdapter implements AIAdapter {
@@ -20,19 +22,15 @@ const TEST_EL_ID = "test.attention";
 
 let dir: string;
 
-beforeEach(() => {
+beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), "ke-ops-"));
-  mkdirSync(join(dir, "elements"), { recursive: true });
-  writeFileSync(
-    join(dir, "elements", `${TEST_EL_ID}.json`),
-    JSON.stringify({
-      id: TEST_EL_ID,
-      type: "concept",
-      title: "注意力",
-      content: { oneSentence: "原始定义", coreExplain: "...", whyMatters: "..." },
-      metadata: { createdAt: "", updatedAt: "", generatedBy: "ai", richness: 2 },
-    }),
-  );
+  const db = openDb(join(dir, "ke.db"));
+  await new SqliteElementsRepo(db).put({
+    id: TEST_EL_ID, type: "concept", title: "注意力",
+    content: { oneSentence: "原始定义", coreExplain: "...", whyMatters: "..." },
+    metadata: { createdAt: "", updatedAt: "", generatedBy: "ai", richness: 2 },
+  });
+  db.close();
 });
 
 describe("AI operation routes", () => {

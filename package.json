@@ -3,13 +3,17 @@
   "version": "0.0.1",
   "private": true,
   "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=22 <23"
+  },
   "scripts": {
     "dev": "pnpm -r --parallel run dev",
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "corpus": "node scripts/rich-corpus.mjs",
     "rich": "node scripts/rich-cli.mjs",
-    "typecheck": "pnpm -r run typecheck"
+    "typecheck": "pnpm -r run typecheck",
+    "rebuild:sqlite": "pnpm --filter @ke/server rebuild better-sqlite3"
   },
   "devDependencies": {
     "typescript": "^5.4.0"

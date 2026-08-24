@@ -108,20 +108,10 @@ function openLocalFile(target: string) {
   const child = spawn(command, args, { detached: true, stdio: "ignore" });
   child.unref();
 }
-import { JsonElementsRepo } from "./repos/JsonElementsRepo.js";
-import { JsonRelationsRepo } from "./repos/JsonRelationsRepo.js";
-import { JsonPathsRepo } from "./repos/JsonPathsRepo.js";
-import { JsonSignalsRepo } from "./repos/JsonSignalsRepo.js";
-import { JsonQARepo } from "./repos/JsonQARepo.js";
-import { JsonAnnotationsRepo } from "./repos/JsonAnnotationsRepo.js";
 import { annotationsRoutes } from "./routes/annotations.js";
 import { imagesRoutes } from "./routes/images.js";
 import { attachmentsRoutes } from "./routes/attachments.js";
 import { mindmapsRoutes } from "./routes/mindmaps.js";
-import { JsonStateRepo } from "./repos/JsonStateRepo.js";
-import { JsonCorpusRepo } from "./repos/JsonCorpusRepo.js";
-import { CachedElementsRepo } from "./repos/CachedElementsRepo.js";
-import { CachedRelationsRepo } from "./repos/CachedRelationsRepo.js";
 import { SqliteElementsRepo } from "./repos/SqliteElementsRepo.js";
 import { SqliteRelationsRepo } from "./repos/SqliteRelationsRepo.js";
 import { SqlitePathsRepo } from "./repos/SqlitePathsRepo.js";
@@ -181,7 +171,6 @@ import { lockScreenTool } from "./tools/lockScreen.js";
 import { toolboxRoutes } from "./routes/toolbox.js";
 import { mascotRoutes } from "./routes/mascot.js";
 import { SqliteGreatMeRepo } from "./repos/SqliteGreatMeRepo.js";
-import { JsonGreatMeRepo } from "./repos/JsonGreatMeRepo.js";
 import type { GreatMeRepo } from "./repos/GreatMeRepo.js";
 import { PostgresElementsRepo } from "./repos/PostgresElementsRepo.js";
 import { PostgresRelationsRepo } from "./repos/PostgresRelationsRepo.js";
@@ -200,7 +189,6 @@ import { PostgresInvocationsRepo } from "./repos/PostgresInvocationsRepo.js";
 import { PostgresImprovementsRepo } from "./repos/PostgresImprovementsRepo.js";
 import { getAgentId } from "./lib/agentId.js";
 import type { ProjectManagementRepo } from "./repos/ProjectManagementRepo.js";
-import { EmptyProjectManagementRepo } from "./repos/EmptyProjectManagementRepo.js";
 import { PostgresProjectManagementRepo } from "./repos/PostgresProjectManagementRepo.js";
 import { SqliteProjectManagementRepo } from "./repos/SqliteProjectManagementRepo.js";
 
@@ -212,8 +200,7 @@ export interface BuildAppOptions {
 }
 
 export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, opts: BuildAppOptions = {}) {
-  // Storage backend selection. SQLite by default; legacy JSON files via KE_STORAGE=json.
-  // For multi-machine Rich nodes, KE_STORAGE=postgres uses DATABASE_URL / KE_DATABASE_URL.
+  // Storage backend selection. SQLite by default; PostgreSQL supports multi-machine Rich nodes.
   const storage = (process.env.KE_STORAGE ?? "sqlite").toLowerCase();
   let elements: ElementsRepo;
   let relations: RelationsRepo;
@@ -234,18 +221,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let chatConversations: ChatConversationsRepo | null = null;
   /** Body Insights 健康档案 —— V0.1 只支持 postgres（数据敏感、需跨机同步） */
   let healthRepo: HealthRepo | null = null;
-  if (storage === "json") {
-    elements = new CachedElementsRepo(new JsonElementsRepo(root));
-    relations = new CachedRelationsRepo(new JsonRelationsRepo(root));
-    paths = new JsonPathsRepo(root);
-    signals = new JsonSignalsRepo(root);
-    qa = new JsonQARepo(root);
-    annotations = new JsonAnnotationsRepo(root);
-    state = new JsonStateRepo(root);
-    corpus = new JsonCorpusRepo(root);
-    greatMe = new JsonGreatMeRepo(root);
-    projectManagement = new EmptyProjectManagementRepo();
-  } else if (storage === "postgres") {
+  if (storage === "postgres") {
     const connectionString = process.env.DATABASE_URL ?? process.env.KE_DATABASE_URL;
     if (!connectionString) {
       throw new Error("KE_STORAGE=postgres requires DATABASE_URL or KE_DATABASE_URL");
@@ -267,7 +243,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     chatConversations = new PostgresChatConversationsRepo(pg);
     healthRepo = new PostgresHealthRepo(pg);
     projectManagement = new PostgresProjectManagementRepo(pg);
-  } else {
+  } else if (storage === "sqlite") {
     const dbPath = process.env.KE_SQLITE_PATH ?? join(root, "ke.db");
     const db = openDb(dbPath);
     elements = new SqliteElementsRepo(db);
@@ -285,6 +261,8 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     chatAttachments = new SqliteChatAttachmentsRepo(db);
     chatConversations = new SqliteChatConversationsRepo(db);
     projectManagement = new SqliteProjectManagementRepo(db);
+  } else {
+    throw new Error(`Unsupported KE_STORAGE=${storage}. Use sqlite or postgres.`);
   }
 
   // Toolbox runtime constructed below (after `log` is defined).
@@ -395,6 +373,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     adapters: ai, aiDir: manualsDir, improvements, corpus,
     toolRuntime,
     greatMe,
+    projectManagement,
   });
 
   // Agent-id endpoint：前端读这个值在 admin UI 默认填进 claim 表单。

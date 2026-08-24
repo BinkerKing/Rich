@@ -29,6 +29,7 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     data_layer TEXT,
     source_kind TEXT,
     file_type TEXT,
+    usage_status TEXT,
     description TEXT,
     caliber TEXT,
     extra JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -42,6 +43,7 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
   ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS data_layer TEXT;
   ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS source_kind TEXT;
   ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS file_type TEXT;
+  ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS usage_status TEXT;
 
   CREATE TABLE IF NOT EXISTS pm_data_fields (
     id TEXT PRIMARY KEY,
@@ -53,6 +55,9 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     field_type TEXT,
     field_length TEXT,
     format_pattern TEXT,
+    carrier_kind TEXT,
+    field_order INTEGER,
+    source_field_order INTEGER,
     nullable TEXT,
     primary_key BOOLEAN NOT NULL DEFAULT false,
     required BOOLEAN NOT NULL DEFAULT false,
@@ -74,6 +79,9 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_pm_fields_name_trgm ON pm_data_fields USING GIN (field_name gin_trgm_ops);
   CREATE INDEX IF NOT EXISTS idx_pm_fields_cn_trgm ON pm_data_fields USING GIN (field_cn gin_trgm_ops);
   ALTER TABLE pm_data_fields ADD COLUMN IF NOT EXISTS format_pattern TEXT;
+  ALTER TABLE pm_data_fields ADD COLUMN IF NOT EXISTS carrier_kind TEXT;
+  ALTER TABLE pm_data_fields ADD COLUMN IF NOT EXISTS field_order INTEGER;
+  ALTER TABLE pm_data_fields ADD COLUMN IF NOT EXISTS source_field_order INTEGER;
 
   CREATE TABLE IF NOT EXISTS pm_code_sets (
     id TEXT PRIMARY KEY,
@@ -111,6 +119,83 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_pm_field_code_sets_field ON pm_field_code_sets(project_id, field_id);
   CREATE INDEX IF NOT EXISTS idx_pm_field_code_sets_set ON pm_field_code_sets(project_id, code_set_id);
+
+  CREATE TABLE IF NOT EXISTS pm_dictionary_template_versions (
+    id TEXT PRIMARY KEY,
+    project_id TEXT,
+    version TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft',
+    title TEXT NOT NULL,
+    change_summary TEXT,
+    content JSONB NOT NULL DEFAULT '{}'::jsonb,
+    effective_at TEXT,
+    created_by TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_pm_dictionary_template_version_scope
+    ON pm_dictionary_template_versions(COALESCE(project_id, ''), version);
+  CREATE INDEX IF NOT EXISTS idx_pm_dictionary_template_status
+    ON pm_dictionary_template_versions(project_id, status, updated_at DESC);
+
+  CREATE TABLE IF NOT EXISTS pm_dictionary_template_rules (
+    id TEXT PRIMARY KEY,
+    version_id TEXT NOT NULL REFERENCES pm_dictionary_template_versions(id) ON DELETE CASCADE,
+    meta_type TEXT NOT NULL,
+    property_key TEXT NOT NULL,
+    property_label TEXT NOT NULL,
+    required BOOLEAN NOT NULL DEFAULT false,
+    value_type TEXT NOT NULL DEFAULT 'text',
+    allowed_values JSONB NOT NULL DEFAULT '[]'::jsonb,
+    validation JSONB NOT NULL DEFAULT '{}'::jsonb,
+    fill_instruction TEXT NOT NULL DEFAULT '',
+    prohibited_instruction TEXT,
+    example_value TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_pm_dictionary_template_rule_key
+    ON pm_dictionary_template_rules(version_id, meta_type, property_key);
+  CREATE INDEX IF NOT EXISTS idx_pm_dictionary_template_rule_type
+    ON pm_dictionary_template_rules(version_id, meta_type, sort_order);
+
+  CREATE TABLE IF NOT EXISTS pm_dictionary_template_changes (
+    id TEXT PRIMARY KEY,
+    version_id TEXT REFERENCES pm_dictionary_template_versions(id) ON DELETE SET NULL,
+    change_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    impact_scope JSONB NOT NULL DEFAULT '[]'::jsonb,
+    status TEXT NOT NULL DEFAULT 'draft',
+    proposed_by TEXT,
+    approved_by TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_dictionary_template_changes_version
+    ON pm_dictionary_template_changes(version_id, status, updated_at DESC);
+
+  CREATE TABLE IF NOT EXISTS pm_dictionary_rectifications (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    property_key TEXT NOT NULL,
+    requirement TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open',
+    resolution_note TEXT,
+    created_by TEXT,
+    resolved_by TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    resolved_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_dictionary_rectifications_target
+    ON pm_dictionary_rectifications(project_id, entity_type, entity_id, property_key, status);
+  CREATE INDEX IF NOT EXISTS idx_pm_dictionary_rectifications_status
+    ON pm_dictionary_rectifications(project_id, status, updated_at DESC);
 
   CREATE TABLE IF NOT EXISTS pm_mapping_rules (
     id TEXT PRIMARY KEY,
@@ -178,6 +263,50 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_pm_mapping_action_source_fields_action ON pm_mapping_action_source_fields(project_id, action_id);
   CREATE INDEX IF NOT EXISTS idx_pm_mapping_action_source_fields_source ON pm_mapping_action_source_fields(project_id, source_field_id);
+
+  CREATE TABLE IF NOT EXISTS pm_mapping_temp_tables (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    target_table_id TEXT REFERENCES pm_data_tables(id) ON DELETE CASCADE,
+    table_name TEXT NOT NULL,
+    table_cn TEXT,
+    logic_text TEXT,
+    converted_sql TEXT,
+    remark TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    raw JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  ALTER TABLE pm_mapping_temp_tables
+    ALTER COLUMN raw TYPE JSONB USING raw::jsonb,
+    ALTER COLUMN raw SET DEFAULT '{}'::jsonb;
+  CREATE INDEX IF NOT EXISTS idx_pm_mapping_temp_tables_target
+    ON pm_mapping_temp_tables(project_id, target_table_id, sort_order);
+
+  CREATE TABLE IF NOT EXISTS pm_mapping_temp_fields (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    temp_table_id TEXT REFERENCES pm_mapping_temp_tables(id) ON DELETE CASCADE,
+    field_name TEXT NOT NULL,
+    field_cn TEXT,
+    field_type TEXT,
+    field_length TEXT,
+    logic_text TEXT,
+    converted_sql TEXT,
+    remark TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    raw JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  ALTER TABLE pm_mapping_temp_fields
+    ALTER COLUMN raw TYPE JSONB USING raw::jsonb,
+    ALTER COLUMN raw SET DEFAULT '{}'::jsonb;
+  CREATE INDEX IF NOT EXISTS idx_pm_mapping_temp_fields_table
+    ON pm_mapping_temp_fields(project_id, temp_table_id, sort_order);
+  CREATE INDEX IF NOT EXISTS idx_pm_mapping_temp_fields_ref
+    ON pm_mapping_temp_fields(project_id, temp_table_id, field_name);
 
   CREATE TABLE IF NOT EXISTS pm_modules (
     id TEXT PRIMARY KEY,
@@ -272,6 +401,7 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
     data_layer TEXT,
     source_kind TEXT,
     file_type TEXT,
+    usage_status TEXT,
     description TEXT,
     caliber TEXT,
     extra TEXT NOT NULL DEFAULT '{}',
@@ -292,6 +422,9 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
     field_type TEXT,
     field_length TEXT,
     format_pattern TEXT,
+    carrier_kind TEXT,
+    field_order INTEGER,
+    source_field_order INTEGER,
     nullable TEXT,
     primary_key INTEGER NOT NULL DEFAULT 0,
     required INTEGER NOT NULL DEFAULT 0,
@@ -349,6 +482,83 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_pm_field_code_sets_field ON pm_field_code_sets(project_id, field_id);
   CREATE INDEX IF NOT EXISTS idx_pm_field_code_sets_set ON pm_field_code_sets(project_id, code_set_id);
+
+  CREATE TABLE IF NOT EXISTS pm_dictionary_template_versions (
+    id TEXT PRIMARY KEY,
+    project_id TEXT,
+    version TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft',
+    title TEXT NOT NULL,
+    change_summary TEXT,
+    content TEXT NOT NULL DEFAULT '{}',
+    effective_at TEXT,
+    created_by TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_pm_dictionary_template_version_scope
+    ON pm_dictionary_template_versions(project_id, version);
+  CREATE INDEX IF NOT EXISTS idx_pm_dictionary_template_status
+    ON pm_dictionary_template_versions(project_id, status, updated_at DESC);
+
+  CREATE TABLE IF NOT EXISTS pm_dictionary_template_rules (
+    id TEXT PRIMARY KEY,
+    version_id TEXT NOT NULL REFERENCES pm_dictionary_template_versions(id) ON DELETE CASCADE,
+    meta_type TEXT NOT NULL,
+    property_key TEXT NOT NULL,
+    property_label TEXT NOT NULL,
+    required INTEGER NOT NULL DEFAULT 0,
+    value_type TEXT NOT NULL DEFAULT 'text',
+    allowed_values TEXT NOT NULL DEFAULT '[]',
+    validation TEXT NOT NULL DEFAULT '{}',
+    fill_instruction TEXT NOT NULL DEFAULT '',
+    prohibited_instruction TEXT,
+    example_value TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_pm_dictionary_template_rule_key
+    ON pm_dictionary_template_rules(version_id, meta_type, property_key);
+  CREATE INDEX IF NOT EXISTS idx_pm_dictionary_template_rule_type
+    ON pm_dictionary_template_rules(version_id, meta_type, sort_order);
+
+  CREATE TABLE IF NOT EXISTS pm_dictionary_template_changes (
+    id TEXT PRIMARY KEY,
+    version_id TEXT REFERENCES pm_dictionary_template_versions(id) ON DELETE SET NULL,
+    change_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    impact_scope TEXT NOT NULL DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'draft',
+    proposed_by TEXT,
+    approved_by TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_dictionary_template_changes_version
+    ON pm_dictionary_template_changes(version_id, status, updated_at DESC);
+
+  CREATE TABLE IF NOT EXISTS pm_dictionary_rectifications (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    property_key TEXT NOT NULL,
+    requirement TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open',
+    resolution_note TEXT,
+    created_by TEXT,
+    resolved_by TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    resolved_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_dictionary_rectifications_target
+    ON pm_dictionary_rectifications(project_id, entity_type, entity_id, property_key, status);
+  CREATE INDEX IF NOT EXISTS idx_pm_dictionary_rectifications_status
+    ON pm_dictionary_rectifications(project_id, status, updated_at DESC);
 
   CREATE TABLE IF NOT EXISTS pm_mapping_rules (
     id TEXT PRIMARY KEY,

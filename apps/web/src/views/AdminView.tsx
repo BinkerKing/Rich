@@ -163,6 +163,25 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
     ],
   },
   {
+    id: "project-dictionary-template",
+    page: "项目管理 / 数据字典 / 受控模板",
+    scene: "维护库元、表元、字段元、码值元、场景和 Mapping；变更 Mapping 模板规范。",
+    manual: [
+      "写入前必须读取当前 published 数据字典模板版本；draft/review 版本不能作为正式录入依据。",
+      "属性缺失、类型或固定码值不合法时，返回缺失项并停止写入，不得自行补业务含义。",
+      "模板外的新属性、枚举值或填写方式，必须先创建变更记录，再发布新模板版本。",
+      "整改项先绑定到具体元和属性；同类整改反复出现时，汇总整改要求和修复结果，形成模板改进建议，确认后才发布新版本。",
+      "字段、表、库、码值、场景和 Mapping 的详细规则见 docs/PROJECT_DICTIONARY_MAPPING_RULES.md。",
+    ],
+    cli: [
+      "DB: pm_dictionary_template_versions（只读当前 published 版本）",
+      "DB: pm_dictionary_template_rules（按元类型读取属性约束）",
+      "DB: pm_dictionary_template_changes（记录、评审和发布模板变更）",
+      "DB: pm_dictionary_rectifications（记录属性级整改、修复和复核状态）",
+      "DOC: docs/PROJECT_DICTIONARY_MAPPING_RULES.md",
+    ],
+  },
+  {
     id: "toolbox",
     page: "工具箱",
     scene: "锁屏、延迟执行、小工具调用、系统动作。",

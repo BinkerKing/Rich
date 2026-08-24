@@ -8,11 +8,14 @@ import {
   type ProjectDictionaryMappingRule,
   type ProjectDictionaryMappingRulePatch,
   type ProjectDictionaryMappingSourceFieldInput,
+  type ProjectDictionaryMappingTempTable,
+  type ProjectDictionaryMappingTempTableInput,
   type ProjectDictionaryMappingValidation,
   type ProjectDictionaryRectification,
   type ProjectDictionaryRectificationInput,
   type ProjectDictionaryRectificationPatch,
   type ProjectDictionarySystem,
+  type ProjectDictionarySystemPatch,
   type ProjectDictionaryTable,
   type ProjectManagementModuleKey,
   type ProjectManagementRepo,
@@ -34,6 +37,10 @@ export class EmptyProjectManagementRepo implements ProjectManagementRepo {
 
   async listDictionarySystems(): Promise<ProjectDictionarySystem[]> {
     return [];
+  }
+
+  async updateDictionarySystem(_projectId: string, _systemId: string, _patch: ProjectDictionarySystemPatch): Promise<ProjectDictionarySystem | null> {
+    return null;
   }
 
   async searchAll(): Promise<ProjectManagementSearchHit[]> {
@@ -173,5 +180,17 @@ export class EmptyProjectManagementRepo implements ProjectManagementRepo {
       missingSqlRules: 0,
       issues: [],
     };
+  }
+
+  async listDictionaryMappingTempTables(): Promise<ProjectDictionaryMappingTempTable[]> {
+    return [];
+  }
+
+  async replaceDictionaryMappingTempTables(
+    _projectId: string,
+    _targetTableId: string,
+    _tempTables: ProjectDictionaryMappingTempTableInput[],
+  ): Promise<ProjectDictionaryMappingTempTable[]> {
+    return [];
   }
 }

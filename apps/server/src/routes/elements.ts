@@ -272,7 +272,7 @@ export function elementsRoutes(deps: ElementsRoutesDeps): Hono {
       return c.json(restored);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.startsWith("no such version")) return c.json({ error: msg }, 404);
+      if (msg.startsWith("No version")) return c.json({ error: msg }, 404);
       throw err;
     }
   });

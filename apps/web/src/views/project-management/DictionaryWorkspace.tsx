@@ -1,0 +1,1017 @@
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import type { Element } from "@ke/domain";
+import {
+  api,
+  type ProjectDictionaryFieldHit,
+  type ProjectDictionaryMappingTempTable,
+  type ProjectDictionaryMappingSqlValidationResult,
+  type ProjectDictionaryRectification,
+  type ProjectDictionaryRectificationInput,
+  type ProjectDictionarySystem,
+  type ProjectDictionaryTable,
+  type ProjectManagementSummary,
+} from "../../api/client.js";
+import { DictionaryTestDataPanel } from "./dictionary/DictionaryTestDataPanel.js";
+import { sortDictionaryFieldsByTemplateOrder } from "./dictionary/DictionaryMetadata.js";
+import {
+  DictionaryFieldGrid,
+  DictionaryMappingPanel,
+  DictionaryPropertyViewer,
+  DictionaryRelationsPanel,
+  DictionaryTableInfoPanel,
+  DictionaryTempTablePanel,
+  collectDictionaryMappingRefLabels,
+  dictionaryPropertyLabel,
+  dictionaryRectificationStatusLabel,
+  dictionaryTempTablesToFieldHits,
+  isDictionaryTempField,
+} from "./dictionary/DictionaryComponents.js";
+import {
+  DictionarySystemOverview,
+  DictionarySystemTitleRail,
+  DictionaryTableTitleRail,
+} from "./dictionary/DictionarySystemPanels.js";
+
+type DictionaryView = "field-design" | "mapping" | "temp-table" | "relations" | "test-data" | "table-info";
+type DictionarySourceRef = { label: string; field?: ProjectDictionaryFieldHit };
+type DictionaryTableRef = { label: string; table?: ProjectDictionaryTable };
+type DictionarySqlConversion = { status: "complete" | "blocked" | "invalid"; sql?: string; reason?: string };
+type DictionaryPropertyPayload = {
+  kind: "fieldDetail" | "tableDetail" | "systemDetail" | "description" | "codeValue" | "formatPattern" | "mappingLogic" | "mappingCaliber" | "sourceRefs" | "generic";
+  title: string; subtitle?: string; value: string; remark?: string;
+  system?: ProjectDictionarySystem; table?: ProjectDictionaryTable; field?: ProjectDictionaryFieldHit;
+  refs?: DictionarySourceRef[]; tableRefs?: DictionaryTableRef[]; sqlConversion?: DictionarySqlConversion;
+  sqlValidation?: ProjectDictionaryMappingSqlValidationResult["caliber"] | ProjectDictionaryMappingSqlValidationResult["fields"][number];
+  sqlValidationBusy?: boolean;
+};
+type DictionaryRectificationTarget = Pick<ProjectDictionaryRectificationInput, "entityType" | "entityId" | "propertyKey"> & { label: string; currentValue?: string };
+type DictionaryTreeDragState = { kind: "system"; id: string } | { kind: "table"; id: string; systemId: string };
+type DictionaryWorkspaceState = { selectedSystemId: string; expandedSystemIds: string[]; selectedTableId: string; openTableTitleIds: string[] };
+type DictionaryTreeDragEvent = { dataTransfer: DataTransfer; preventDefault: () => void };
+
+export function DictionarySection({ project, summary }: { project: Element; summary: ProjectManagementSummary | null }) {
+  const rememberedWorkspace = useMemo(() => loadDictionaryWorkspaceState(project.id), [project.id]);
+  const [systems, setSystems] = useState<ProjectDictionarySystem[]>([]);
+  const [selectedSystemId, setSelectedSystemId] = useState<string>(rememberedWorkspace.selectedSystemId);
+  const [expandedSystemIds, setExpandedSystemIds] = useState<string[]>(rememberedWorkspace.expandedSystemIds);
+  const [tables, setTables] = useState<ProjectDictionaryTable[]>([]);
+  const [tableTrees, setTableTrees] = useState<Record<string, ProjectDictionaryTable[]>>({});
+  const [selectedTableId, setSelectedTableId] = useState<string>(rememberedWorkspace.selectedTableId);
+  const [activeView, setActiveView] = useState<DictionaryView>(() => rememberedWorkspace.selectedTableId
+    ? loadDictionaryTableViews(project.id)[rememberedWorkspace.selectedTableId] || "field-design"
+    : "field-design");
+  const [viewByTableId, setViewByTableId] = useState<Record<string, DictionaryView>>(() => loadDictionaryTableViews(project.id));
+  const [query, setQuery] = useState("");
+  const [tableFields, setTableFields] = useState<ProjectDictionaryFieldHit[]>([]);
+  const [mappingRefFields, setMappingRefFields] = useState<ProjectDictionaryFieldHit[]>([]);
+  const [tempTables, setTempTables] = useState<ProjectDictionaryMappingTempTable[]>([]);
+  const [results, setResults] = useState<ProjectDictionaryFieldHit[]>([]);
+  const [selectedFieldId, setSelectedFieldId] = useState<string>("");
+  const [propertyViewer, setPropertyViewer] = useState<DictionaryPropertyPayload | null>(null);
+  const [rectifications, setRectifications] = useState<ProjectDictionaryRectification[]>([]);
+  const [rectificationMenu, setRectificationMenu] = useState<(DictionaryRectificationTarget & { x: number; y: number }) | null>(null);
+  const [rectificationDraft, setRectificationDraft] = useState<DictionaryRectificationTarget | null>(null);
+  const [rectificationRequirement, setRectificationRequirement] = useState("");
+  const [rectificationBusy, setRectificationBusy] = useState(false);
+  const [tableCache, setTableCache] = useState<Record<string, ProjectDictionaryTable>>({});
+  const [pinnedSystemIds, setPinnedSystemIds] = useState<string[]>(() => loadPinnedDictionarySystems(project.id));
+  const [pinnedTableIds, setPinnedTableIds] = useState<string[]>(() => loadPinnedDictionaryTables(project.id));
+  const [openTableTitleIds, setOpenTableTitleIds] = useState<string[]>(rememberedWorkspace.openTableTitleIds);
+  const [systemOrderIds, setSystemOrderIds] = useState<string[]>(() => loadDictionarySystemOrder(project.id));
+  const [tableOrderBySystem, setTableOrderBySystem] = useState<Record<string, string[]>>(() => loadDictionaryTableOrder(project.id));
+  const [treeDrag, setTreeDrag] = useState<DictionaryTreeDragState | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const tableNavigationStackRef = useRef<string[]>(rememberedWorkspace.selectedTableId ? [rememberedWorkspace.selectedTableId] : []);
+  useEffect(() => {
+    let cancelled = false;
+    setError(null);
+    void api.listProjectDictionarySystems(project.id)
+      .then(next => {
+        if (cancelled) return;
+        const rememberedOrder = loadDictionarySystemOrder(project.id);
+        const orderedNext = applyDictionaryItemOrder(next, rememberedOrder);
+        setSystems(next);
+        setTableTrees({});
+        setSelectedSystemId(current => current || orderedNext[0]?.id || "");
+        setExpandedSystemIds(current => current.length > 0 ? current : orderedNext[0]?.id ? [orderedNext[0].id] : []);
+      })
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+    return () => { cancelled = true; };
+  }, [project.id, refreshKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api.listProjectDictionaryRectifications(project.id)
+      .then(next => { if (!cancelled) setRectifications(next); })
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+    return () => { cancelled = true; };
+  }, [project.id, refreshKey]);
+
+  useEffect(() => {
+    const savedWorkspace = loadDictionaryWorkspaceState(project.id);
+    const savedViews = loadDictionaryTableViews(project.id);
+    setPinnedSystemIds(loadPinnedDictionarySystems(project.id));
+    setPinnedTableIds(loadPinnedDictionaryTables(project.id));
+    setOpenTableTitleIds(savedWorkspace.openTableTitleIds);
+    setViewByTableId(savedViews);
+    setSelectedSystemId(savedWorkspace.selectedSystemId);
+    setExpandedSystemIds(savedWorkspace.expandedSystemIds);
+    setSelectedTableId(savedWorkspace.selectedTableId);
+    setActiveView(savedWorkspace.selectedTableId ? savedViews[savedWorkspace.selectedTableId] || "field-design" : "field-design");
+    setSystemOrderIds(loadDictionarySystemOrder(project.id));
+    setTableOrderBySystem(loadDictionaryTableOrder(project.id));
+  }, [project.id]);
+
+  useEffect(() => {
+    saveDictionaryWorkspaceState(project.id, {
+      selectedSystemId,
+      expandedSystemIds,
+      selectedTableId,
+      openTableTitleIds,
+    });
+  }, [expandedSystemIds, openTableTitleIds, project.id, selectedSystemId, selectedTableId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api.listProjectDictionaryTables(project.id, selectedSystemId || undefined)
+      .then(next => {
+        if (cancelled) return;
+        setTables(next);
+        setTableTrees(current => ({ ...current, [selectedSystemId]: next }));
+        setTableCache(current => {
+          const merged = { ...current };
+          next.forEach(table => { merged[table.id] = table; });
+          return merged;
+        });
+        setSelectedTableId(current => current && next.some(table => table.id === current) ? current : "");
+      })
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+    return () => { cancelled = true; };
+  }, [project.id, refreshKey, selectedSystemId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const unloadedSystemIds = expandedSystemIds.filter(systemId => systemId && systemId !== selectedSystemId);
+    if (unloadedSystemIds.length === 0) return () => { cancelled = true; };
+    void Promise.all(unloadedSystemIds.map(async systemId => ({
+      systemId,
+      tables: await api.listProjectDictionaryTables(project.id, systemId),
+    })))
+      .then(next => {
+        if (cancelled) return;
+        setTableTrees(current => ({
+          ...current,
+          ...Object.fromEntries(next.map(item => [item.systemId, item.tables])),
+        }));
+        setTableCache(current => {
+          const merged = { ...current };
+          next.forEach(item => item.tables.forEach(table => { merged[table.id] = table; }));
+          return merged;
+        });
+      })
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+    return () => { cancelled = true; };
+  }, [expandedSystemIds, project.id, refreshKey, selectedSystemId]);
+
+  useEffect(() => {
+    if (systems.length === 0) return;
+    setPinnedSystemIds(current => {
+      const validIds = new Set(systems.map(system => system.id));
+      const next = current.filter(id => validIds.has(id));
+      if (next.length !== current.length) savePinnedDictionarySystems(project.id, next);
+      return next;
+    });
+  }, [project.id, systems]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!query.trim()) {
+      setResults([]);
+      setLoading(false);
+      return () => { cancelled = true; };
+    }
+    setLoading(true);
+    const timer = window.setTimeout(() => {
+      void api.searchProjectDictionaryFields(project.id, query, 40)
+        .then(next => { if (!cancelled) setResults(next.results); })
+        .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); })
+        .finally(() => { if (!cancelled) setLoading(false); });
+    }, 180);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [project.id, query, refreshKey]);
+
+  useEffect(() => {
+    if (!selectedTableId) {
+      setTableFields([]);
+      setMappingRefFields([]);
+      setTempTables([]);
+      setPropertyViewer(null);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    void api.listProjectDictionaryFields(project.id, selectedTableId)
+      .then(next => {
+        if (cancelled) return;
+        const sorted = sortDictionaryFieldsByTemplateOrder(next);
+        setTableFields(sorted);
+        setSelectedFieldId(current => sorted.some(field => field.id === current) ? current : sorted[0]?.id || "");
+        setPropertyViewer(current => {
+          if (current?.kind !== "fieldDetail" || !current.field) return current;
+          const updated = sorted.find(field => field.id === current.field?.id);
+          return updated ? { ...current, field: updated, value: [updated.description, updated.codeValue, updated.remark].filter(Boolean).join("\n") } : current;
+        });
+      })
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [project.id, refreshKey, selectedTableId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedTableId) {
+      setTempTables([]);
+      return () => { cancelled = true; };
+    }
+    void api.listProjectDictionaryMappingTempTables(project.id, selectedTableId)
+      .then(next => { if (!cancelled) setTempTables(next); })
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+    return () => { cancelled = true; };
+  }, [project.id, refreshKey, selectedTableId]);
+
+  const dictionary = summary?.dictionary ?? { systems: 0, tables: 0, fields: 0 };
+  const orderedSystems = useMemo(() => applyDictionaryItemOrder(systems, systemOrderIds), [systems, systemOrderIds]);
+  const orderedTables = useMemo(
+    () => applyDictionaryItemOrder(tables, tableOrderBySystem[selectedSystemId] ?? []),
+    [selectedSystemId, tableOrderBySystem, tables],
+  );
+  const rectificationIndex = useMemo(() => new Map(
+    rectifications
+      .filter(item => item.status !== "cancelled")
+      .map(item => [`${item.entityType}:${item.entityId}:${item.propertyKey}`, item] as const),
+  ), [rectifications]);
+  const selectedSystem = orderedSystems.find(system => system.id === selectedSystemId);
+  const selectedTable = orderedTables.find(table => table.id === selectedTableId) ?? tableCache[selectedTableId];
+
+  useEffect(() => {
+    let cancelled = false;
+    if (activeView !== "mapping") {
+      setMappingRefFields([...tableFields, ...dictionaryTempTablesToFieldHits(selectedSystem, selectedTable, tempTables)]);
+      return () => { cancelled = true; };
+    }
+    const refs = collectDictionaryMappingRefLabels(selectedTable, tableFields);
+    if (refs.length === 0) {
+      setMappingRefFields([...tableFields, ...dictionaryTempTablesToFieldHits(selectedSystem, selectedTable, tempTables)]);
+      return () => { cancelled = true; };
+    }
+    void api.resolveProjectDictionaryFieldRefs(project.id, refs)
+      .then(next => {
+        if (cancelled) return;
+        const byId = new Map<string, ProjectDictionaryFieldHit>();
+        tableFields.forEach(field => byId.set(field.id, field));
+        dictionaryTempTablesToFieldHits(selectedSystem, selectedTable, tempTables).forEach(field => byId.set(field.id, field));
+        next.forEach(field => byId.set(field.id, field));
+        setMappingRefFields(Array.from(byId.values()));
+      })
+      .catch(e => {
+        if (!cancelled) {
+          setMappingRefFields(tableFields);
+          setError(e instanceof Error ? e.message : String(e));
+        }
+      });
+    return () => { cancelled = true; };
+  }, [activeView, project.id, selectedSystem, selectedTable, tableFields, tempTables]);
+
+  const titleSystems = useMemo(() => {
+    const byId = new Map(orderedSystems.map(system => [system.id, system]));
+    const pinned = pinnedSystemIds.map(id => byId.get(id)).filter((system): system is ProjectDictionarySystem => Boolean(system));
+    if (selectedSystem && !selectedTable && !pinned.some(system => system.id === selectedSystem.id)) {
+      return [...pinned, selectedSystem];
+    }
+    return pinned;
+  }, [orderedSystems, pinnedSystemIds, selectedSystem, selectedTable]);
+  const titleTables = useMemo(() => {
+    const byId = new Map([...Object.values(tableCache), ...orderedTables].map(table => [table.id, table] as const));
+    const ids = [...pinnedTableIds, ...openTableTitleIds];
+    if (selectedTableId && !ids.includes(selectedTableId)) ids.push(selectedTableId);
+    const seen = new Set<string>();
+    return ids.flatMap(id => {
+      if (seen.has(id)) return [];
+      seen.add(id);
+      const table = byId.get(id);
+      return table ? [table] : [];
+    });
+  }, [openTableTitleIds, orderedTables, pinnedTableIds, selectedTableId, tableCache]);
+  const rememberOpenTableTitle = (tableId: string) => {
+    setOpenTableTitleIds(current => {
+      const withoutTarget = current.filter(id => id !== tableId);
+      const currentWasOpen = current.includes(tableId);
+      const previousTableNeedsTitle = selectedTableId
+        && selectedTableId !== tableId
+        && !pinnedTableIds.includes(selectedTableId)
+        && !withoutTarget.includes(selectedTableId);
+      const withPrevious = previousTableNeedsTitle ? [...withoutTarget, selectedTableId] : withoutTarget;
+      if (currentWasOpen) return current;
+      if (pinnedTableIds.includes(tableId)) return withPrevious;
+      return [...withPrevious, tableId];
+    });
+  };
+  const openTable = (tableId: string) => {
+    if (selectedTableId !== tableId) setPropertyViewer(null);
+    if (selectedTableId && selectedTableId !== tableId) {
+      tableNavigationStackRef.current = [
+        ...tableNavigationStackRef.current.filter(id => id !== selectedTableId),
+        selectedTableId,
+      ].slice(-30);
+    }
+    const tablePageAlreadyOpen = selectedTableId === tableId || pinnedTableIds.includes(tableId) || openTableTitleIds.includes(tableId);
+    const table = Object.values(tableTrees).flat().find(item => item.id === tableId)
+      ?? tables.find(item => item.id === tableId)
+      ?? tableCache[tableId];
+    if (table) {
+      setTableCache(current => current[table.id] ? current : { ...current, [table.id]: table });
+      if (table.systemId) setSelectedSystemId(table.systemId);
+    }
+    rememberOpenTableTitle(tableId);
+    if (!tablePageAlreadyOpen) {
+      setViewByTableId(current => {
+        if (!(tableId in current)) return current;
+        const next = { ...current };
+        delete next[tableId];
+        saveDictionaryTableViews(project.id, next);
+        return next;
+      });
+    }
+    setSelectedTableId(tableId);
+    setActiveView(tablePageAlreadyOpen ? viewByTableId[tableId] || "field-design" : "field-design");
+    setQuery("");
+  };
+  const selectDictionaryView = (view: DictionaryView) => {
+    if (activeView !== view) setPropertyViewer(null);
+    setActiveView(view);
+    if (!selectedTableId) return;
+    setViewByTableId(current => {
+      if (current[selectedTableId] === view) return current;
+      const next = { ...current, [selectedTableId]: view };
+      saveDictionaryTableViews(project.id, next);
+      return next;
+    });
+  };
+  const visibleFields = query.trim()
+    ? results
+    : tableFields;
+  const refreshDictionary = () => {
+    setError(null);
+    setRefreshKey(current => current + 1);
+  };
+  const openSystem = (systemId: string) => {
+    setPropertyViewer(null);
+    setSelectedSystemId(systemId);
+    setExpandedSystemIds(current => current.includes(systemId) ? current : [...current, systemId]);
+    setSelectedTableId("");
+    setActiveView("field-design");
+    setSelectedFieldId("");
+    setQuery("");
+  };
+  const toggleSystemExpanded = (systemId: string) => {
+    setExpandedSystemIds(current => current.includes(systemId)
+      ? current.filter(id => id !== systemId)
+      : [...current, systemId]);
+  };
+  const handleSystemClick = (system: ProjectDictionarySystem) => {
+    setPropertyViewer(null);
+    setSelectedSystemId(system.id);
+    toggleSystemExpanded(system.id);
+    setSelectedTableId("");
+    setActiveView("field-design");
+    setSelectedFieldId("");
+    setQuery("");
+  };
+  const togglePinnedSystem = (systemId: string) => {
+    setPinnedSystemIds(current => {
+      const next = current.includes(systemId)
+        ? current.filter(id => id !== systemId)
+        : [...current, systemId];
+      savePinnedDictionarySystems(project.id, next);
+      return next;
+    });
+  };
+  const togglePinnedTable = (tableId: string) => {
+    setPinnedTableIds(current => {
+      const next = current.includes(tableId)
+        ? current.filter(id => id !== tableId)
+        : [...current, tableId];
+      savePinnedDictionaryTables(project.id, next);
+      return next;
+    });
+  };
+  const closeTableTitle = (tableId: string) => {
+    const nextOpenIds = openTableTitleIds.filter(id => id !== tableId);
+    const nextPinnedIds = pinnedTableIds.filter(id => id !== tableId);
+    setOpenTableTitleIds(nextOpenIds);
+    setPinnedTableIds(() => {
+      savePinnedDictionaryTables(project.id, nextPinnedIds);
+      return nextPinnedIds;
+    });
+    setViewByTableId(current => {
+      if (!(tableId in current)) return current;
+      const next = { ...current };
+      delete next[tableId];
+      saveDictionaryTableViews(project.id, next);
+      return next;
+    });
+
+    if (selectedTableId !== tableId) return;
+    tableNavigationStackRef.current = tableNavigationStackRef.current.filter(id => id !== tableId);
+    const fallbackCandidates = [...nextPinnedIds, ...nextOpenIds].filter(id => id !== tableId);
+    const fallbackId = [...tableNavigationStackRef.current]
+      .reverse()
+      .find(id => fallbackCandidates.includes(id))
+      ?? fallbackCandidates.at(-1);
+    if (!fallbackId) {
+      setPropertyViewer(null);
+      setSelectedTableId("");
+      setActiveView("field-design");
+      setSelectedFieldId("");
+      setQuery("");
+      return;
+    }
+    const fallbackTable = Object.values(tableTrees).flat().find(item => item.id === fallbackId)
+      ?? tables.find(item => item.id === fallbackId)
+      ?? tableCache[fallbackId];
+    if (fallbackTable?.systemId) setSelectedSystemId(fallbackTable.systemId);
+    setPropertyViewer(null);
+    setSelectedTableId(fallbackId);
+    setActiveView(viewByTableId[fallbackId] || "field-design");
+    setSelectedFieldId("");
+    setQuery("");
+  };
+  const inspectSystem = (system: ProjectDictionarySystem) => {
+    setPropertyViewer({
+      kind: "systemDetail",
+      title: "库详情",
+      subtitle: system.name || system.code,
+      value: [system.code, system.name, system.type, system.assetLayer].filter(Boolean).join("\n"),
+      system,
+    });
+  };
+  const openRectificationMenu = (event: ReactMouseEvent<HTMLElement>, target: DictionaryRectificationTarget) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setRectificationMenu({ ...target, x: event.clientX, y: event.clientY });
+  };
+  const rectificationFor = (target: DictionaryRectificationTarget) => rectificationIndex.get(`${target.entityType}:${target.entityId}:${target.propertyKey}`);
+  const createRectification = async () => {
+    if (!rectificationDraft || !rectificationRequirement.trim()) return;
+    setRectificationBusy(true);
+    setError(null);
+    try {
+      const created = await api.createProjectDictionaryRectification(project.id, {
+        entityType: rectificationDraft.entityType,
+        entityId: rectificationDraft.entityId,
+        propertyKey: rectificationDraft.propertyKey,
+        requirement: rectificationRequirement.trim(),
+        createdBy: "Rich 用户",
+      });
+      setRectifications(current => [created, ...current]);
+      setRectificationDraft(null);
+      setRectificationRequirement("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRectificationBusy(false);
+    }
+  };
+  const updateRectificationStatus = async (record: ProjectDictionaryRectification, status: ProjectDictionaryRectification["status"]) => {
+    setRectificationBusy(true);
+    setError(null);
+    try {
+      const updated = await api.updateProjectDictionaryRectification(project.id, record.id, {
+        status,
+        resolvedBy: status === "open" ? null : "Rich 用户",
+      });
+      setRectifications(current => current.map(item => item.id === updated.id ? updated : item));
+      setRectificationMenu(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRectificationBusy(false);
+    }
+  };
+  const inspectTable = (table: ProjectDictionaryTable) => {
+    setPropertyViewer({
+      kind: "tableDetail",
+      title: "表详情",
+      subtitle: `${table.tableCn || table.tableName} / ${table.tableName}`,
+      value: [table.description, table.caliber].filter(Boolean).join("\n"),
+      table,
+    });
+  };
+  const openLinkedDictionaryField = (field: ProjectDictionaryFieldHit) => {
+    if (isDictionaryTempField(field)) {
+      setPropertyViewer({
+        kind: "fieldDetail",
+        title: "临时字段详情",
+        subtitle: `${field.tableCn || field.tableName || "临时表"} / ${field.fieldName}`,
+        value: [field.description, field.remark].filter(Boolean).join("\n"),
+        field,
+      });
+      return;
+    }
+    if (field.systemId) setSelectedSystemId(field.systemId);
+    if (field.tableId) {
+      const tableId = field.tableId;
+      if (field.tableName || field.tableCn) {
+        setTableCache(current => current[tableId]
+          ? current
+          : {
+              ...current,
+              [tableId]: {
+                id: tableId,
+                systemId: field.systemId || selectedSystemId,
+                tableName: field.tableName || "",
+                tableCn: field.tableCn || field.tableName || "",
+                description: "",
+                tableType: "",
+                carrierType: "",
+                dataLayer: "",
+                caliber: "",
+                fieldCount: 0,
+              },
+            });
+      }
+      rememberOpenTableTitle(tableId);
+      setSelectedTableId(tableId);
+    }
+    setActiveView("field-design");
+    const targetTableId = field.tableId || selectedTableId;
+    if (targetTableId) {
+      setViewByTableId(current => {
+        if (current[targetTableId] === "field-design") return current;
+        const next = { ...current, [targetTableId]: "field-design" as DictionaryView };
+        saveDictionaryTableViews(project.id, next);
+        return next;
+      });
+    }
+    setSelectedFieldId(field.id);
+    setQuery("");
+    setPropertyViewer({
+      kind: "fieldDetail",
+      title: "字段详情",
+      subtitle: `${field.tableCn || field.tableName || "字段"} / ${field.fieldName}`,
+      value: [field.description, field.codeValue, field.remark].filter(Boolean).join("\n"),
+      field,
+    });
+  };
+  const getTreeTables = (systemId: string) => applyDictionaryItemOrder(
+    tableTrees[systemId] ?? (selectedSystemId === systemId ? orderedTables : []),
+    tableOrderBySystem[systemId] ?? [],
+  );
+  const startTreeDrag = (event: DictionaryTreeDragEvent, next: DictionaryTreeDragState) => {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", next.id);
+    setTreeDrag(next);
+  };
+  const allowTreeDrop = (event: DictionaryTreeDragEvent, target: DictionaryTreeDragState) => {
+    if (!treeDrag || treeDrag.kind !== target.kind) return;
+    if (treeDrag.kind === "table" && (target.kind !== "table" || treeDrag.systemId !== target.systemId)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  };
+  const dropSystem = (event: DictionaryTreeDragEvent, targetSystemId: string) => {
+    if (treeDrag?.kind !== "system") return;
+    event.preventDefault();
+    const next = reorderDictionaryIds(orderedSystems.map(system => system.id), treeDrag.id, targetSystemId);
+    setSystemOrderIds(next);
+    saveDictionarySystemOrder(project.id, next);
+    setTreeDrag(null);
+  };
+  const dropTable = (event: DictionaryTreeDragEvent, systemId: string, targetTableId: string) => {
+    if (treeDrag?.kind !== "table" || treeDrag.systemId !== systemId) return;
+    event.preventDefault();
+    const next = reorderDictionaryIds(getTreeTables(systemId).map(table => table.id), treeDrag.id, targetTableId);
+    setTableOrderBySystem(current => {
+      const merged = { ...current, [systemId]: next };
+      saveDictionaryTableOrder(project.id, merged);
+      return merged;
+    });
+    setTreeDrag(null);
+  };
+
+  return (
+    <div className="prj-pm-dict prj-pm-dict-workbench">
+      {error && <div className="prj-pm-error">{error}</div>}
+
+      <div className="prj-pm-dict__layout no-inspector">
+        <aside className="prj-pm-dict__systems">
+          {systems.length === 0 ? (
+            <div className="prj-pm-empty">还没有导入首都银行一表通 Mapping 数据。</div>
+          ) : (
+            orderedSystems.map(system => (
+              <div
+                className={`prj-pm-dict__tree-group${treeDrag?.kind === "system" && treeDrag.id === system.id ? " is-dragging" : ""}`}
+                key={system.id}
+                draggable
+                onDragStart={event => startTreeDrag(event, { kind: "system", id: system.id })}
+                onDragOver={event => allowTreeDrop(event, { kind: "system", id: system.id })}
+                onDrop={event => dropSystem(event, system.id)}
+                onDragEnd={() => setTreeDrag(null)}>
+                <button
+                  type="button"
+                  className={`prj-pm-dict__system${selectedSystemId === system.id ? " is-active" : ""}`}
+                  onClick={() => handleSystemClick(system)}
+                  onContextMenu={event => openRectificationMenu(event, {
+                    entityType: "library", entityId: system.id, propertyKey: "entity",
+                    label: `库：${system.name || system.code}`,
+                  })}>
+                  <span>{expandedSystemIds.includes(system.id) ? "▾" : "▸"}</span>
+                  <b>{system.code || system.name}</b>
+                  <small>{system.assetLayer || system.type || "mapping"}</small>
+                  <em>{system.tableCount} / {system.fieldCount}</em>
+                </button>
+                {expandedSystemIds.includes(system.id) && (
+                  <div className="prj-pm-dict__table-tree">
+                    {getTreeTables(system.id).map(table => (
+                      <button
+                        key={table.id}
+                        type="button"
+                        className={[
+                          selectedTableId === table.id ? "is-active" : "",
+                          treeDrag?.kind === "table" && treeDrag.id === table.id ? "is-dragging" : "",
+                        ].filter(Boolean).join(" ")}
+                        draggable
+                        onDragStart={event => {
+                          event.stopPropagation();
+                          startTreeDrag(event, { kind: "table", id: table.id, systemId: system.id });
+                        }}
+                        onDragOver={event => allowTreeDrop(event, { kind: "table", id: table.id, systemId: system.id })}
+                        onDrop={event => {
+                          if (treeDrag?.kind !== "table") return;
+                          event.stopPropagation();
+                          dropTable(event, system.id, table.id);
+                        }}
+                        onDragEnd={() => setTreeDrag(null)}
+                        onClick={() => openTable(table.id)}
+                        onContextMenu={event => openRectificationMenu(event, {
+                          entityType: "table", entityId: table.id, propertyKey: "entity",
+                          label: `表：${table.tableCn || table.tableName}`,
+                        })}>
+                        <span>{table.tableCn || table.tableName}</span>
+                        <code>{table.tableName}</code>
+                        <em>{table.fieldCount}</em>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </aside>
+
+        <section className={[
+          "prj-pm-dict__workspace",
+          !query.trim() && !selectedTable ? "is-system-overview" : "",
+          titleTables.length > 0 || titleSystems.length > 0 ? "has-table-rail" : "",
+          titleTables.length > 0 && titleSystems.length > 0 ? "has-system-and-table-rail" : "",
+        ].filter(Boolean).join(" ")}>
+          {!query.trim() && !selectedTable ? (
+            <>
+              <div className="prj-pm-dict-title-rail-combo">
+                <DictionarySystemTitleRail
+                  systems={titleSystems}
+                  selectedSystemId={selectedSystemId}
+                  selectedTableId={selectedTableId}
+                  pinnedSystemIds={pinnedSystemIds}
+                  onSelect={(systemId) => {
+                    const system = orderedSystems.find(item => item.id === systemId);
+                    openSystem(systemId);
+                    if (system) inspectSystem(system);
+                  }}
+                  onTogglePin={togglePinnedSystem}
+                />
+                <DictionaryTableTitleRail
+                  tables={titleTables}
+                  selectedTableId={selectedTableId}
+                  pinnedTableIds={pinnedTableIds}
+                  onSelect={openTable}
+                  onTogglePin={togglePinnedTable}
+                  onClose={closeTableTitle}
+                />
+                <button type="button" className="prj-pm-dict-refresh" aria-label={loading ? "刷新中" : "刷新"} title={loading ? "刷新中" : "刷新"} onClick={refreshDictionary} disabled={loading}>↻</button>
+              </div>
+              <DictionarySystemOverview
+                projectId={project.id}
+                system={selectedSystem}
+                tables={orderedTables}
+                dictionary={dictionary}
+                onSystemSaved={(nextSystem) => setSystems(current => current.map(item => item.id === nextSystem.id ? nextSystem : item))}
+                onInspectTable={inspectTable}
+                onOpenTable={openTable}
+              />
+            </>
+          ) : (
+            <>
+              <div className="prj-pm-dict-title-rail-combo">
+                <DictionarySystemTitleRail
+                  systems={titleSystems}
+                  selectedSystemId={selectedSystemId}
+                  selectedTableId={selectedTableId}
+                  pinnedSystemIds={pinnedSystemIds}
+                  onSelect={(systemId) => {
+                    const system = orderedSystems.find(item => item.id === systemId);
+                    openSystem(systemId);
+                    if (system) inspectSystem(system);
+                  }}
+                  onTogglePin={togglePinnedSystem}
+                />
+                <DictionaryTableTitleRail
+                  tables={titleTables}
+                  selectedTableId={selectedTableId}
+                  pinnedTableIds={pinnedTableIds}
+                  onSelect={openTable}
+                  onTogglePin={togglePinnedTable}
+                  onClose={closeTableTitle}
+                />
+                <button type="button" className="prj-pm-dict-refresh" aria-label={loading ? "刷新中" : "刷新"} title={loading ? "刷新中" : "刷新"} onClick={refreshDictionary} disabled={loading}>↻</button>
+              </div>
+              <div className="prj-pm-dict__tabs">
+                <button type="button" className={activeView === "field-design" ? "is-active" : ""} onClick={() => selectDictionaryView("field-design")}>字段设计</button>
+                <button type="button" className={activeView === "mapping" ? "is-active" : ""} onClick={() => selectDictionaryView("mapping")}>Mapping</button>
+                <button type="button" className={activeView === "temp-table" ? "is-active" : ""} onClick={() => selectDictionaryView("temp-table")}>临时表</button>
+                <button type="button" className={activeView === "relations" ? "is-active" : ""} onClick={() => selectDictionaryView("relations")}>关联关系</button>
+                <button type="button" className={activeView === "test-data" ? "is-active" : ""} onClick={() => selectDictionaryView("test-data")}>测试数据</button>
+                <button type="button" className={activeView === "table-info" ? "is-active" : ""} onClick={() => selectDictionaryView("table-info")}>表说明</button>
+              </div>
+              {activeView === "field-design" && (
+                <DictionaryFieldGrid
+                  fields={visibleFields}
+                  loading={loading}
+                  storageKey={`dictionary-field-grid:${project.id}:${selectedTableId || "search"}`}
+                  selectedFieldId={selectedFieldId}
+                  onSelectField={setSelectedFieldId}
+                  onInspectProperty={setPropertyViewer}
+                  rectificationIndex={rectificationIndex}
+                  onRectify={openRectificationMenu}
+                />
+              )}
+              {activeView === "mapping" && (
+                <DictionaryMappingPanel
+                  projectId={project.id}
+                  system={selectedSystem}
+                  table={selectedTable}
+                  fields={visibleFields}
+                  allFields={mappingRefFields}
+                  onInspectProperty={setPropertyViewer}
+                  onOpenFieldRef={openLinkedDictionaryField}
+                  onOpenTableRef={openTable}
+                  rectificationIndex={rectificationIndex}
+                  onRectify={openRectificationMenu}
+                />
+              )}
+              {activeView === "temp-table" && (
+                <DictionaryTempTablePanel
+                  projectId={project.id}
+                  table={selectedTable}
+                  tempTables={tempTables}
+                  onSaved={setTempTables}
+                />
+              )}
+              {activeView === "relations" && <DictionaryRelationsPanel fields={visibleFields} />}
+              {activeView === "test-data" && <DictionaryTestDataPanel key={selectedTableId || "search"} projectId={project.id} table={selectedTable} fields={visibleFields} storageKey={`dictionary-test-data:${project.id}:${selectedTableId || "search"}`} />}
+              {activeView === "table-info" && <DictionaryTableInfoPanel table={selectedTable} fields={visibleFields} />}
+            </>
+          )}
+        </section>
+
+      </div>
+      <DictionaryPropertyViewer
+        payload={propertyViewer}
+        onClose={() => setPropertyViewer(null)}
+        onOpenFieldRef={openLinkedDictionaryField}
+        onOpenTableRef={openTable}
+      />
+      {rectificationMenu && (() => {
+        const existing = rectificationFor(rectificationMenu);
+        return (
+          <div className="prj-pm-dict-rectification-menu" style={{ left: rectificationMenu.x, top: rectificationMenu.y }}>
+            <strong>{rectificationMenu.label}</strong>
+            {existing ? (
+              <>
+                <span className={`is-${existing.status}`}>{dictionaryRectificationStatusLabel(existing.status)}</span>
+                <p>{existing.requirement}</p>
+                {existing.status === "open" && <button type="button" disabled={rectificationBusy} onClick={() => void updateRectificationStatus(existing, "fixed")}>标记已修复</button>}
+                {existing.status === "fixed" && <button type="button" disabled={rectificationBusy} onClick={() => void updateRectificationStatus(existing, "verified")}>通过复核</button>}
+                {existing.status !== "open" && <button type="button" disabled={rectificationBusy} onClick={() => void updateRectificationStatus(existing, "open")}>重新打开</button>}
+              </>
+            ) : (
+              <button type="button" onClick={() => { setRectificationDraft(rectificationMenu); setRectificationRequirement(""); setRectificationMenu(null); }}>标记整改</button>
+            )}
+            <button type="button" className="is-subtle" onClick={() => setRectificationMenu(null)}>取消</button>
+          </div>
+        );
+      })()}
+      {rectificationDraft && (
+        <div className="prj-pm-dict-rectification-modal" role="dialog" aria-modal="true" aria-label="标记数据字典整改">
+          <div>
+            <header><strong>标记整改</strong><span>{rectificationDraft.label}</span></header>
+            <p>属性：{dictionaryPropertyLabel(rectificationDraft.propertyKey)}</p>
+            {rectificationDraft.currentValue && <pre>{rectificationDraft.currentValue}</pre>}
+            <textarea autoFocus value={rectificationRequirement} onChange={event => setRectificationRequirement(event.target.value)} placeholder="写下需要整改的规则、目标或核验要求" />
+            <footer>
+              <button type="button" onClick={() => setRectificationDraft(null)}>取消</button>
+              <button type="button" className="is-primary" disabled={rectificationBusy || !rectificationRequirement.trim()} onClick={() => void createRectification()}>{rectificationBusy ? "保存中..." : "保存整改"}</button>
+            </footer>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function pinnedDictionarySystemsKey(projectId: string) {
+  return `rich-project-dictionary-pinned-systems:${projectId}`;
+}
+
+function loadPinnedDictionarySystems(projectId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(pinnedDictionarySystemsKey(projectId)) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter(id => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePinnedDictionarySystems(projectId: string, systemIds: string[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(pinnedDictionarySystemsKey(projectId), JSON.stringify(systemIds));
+  } catch {
+    // Pinned system titles are a UI convenience; failing to persist them is safe.
+  }
+}
+
+function pinnedDictionaryTablesKey(projectId: string) {
+  return `rich-project-dictionary-pinned-tables:${projectId}`;
+}
+
+
+function loadPinnedDictionaryTables(projectId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(pinnedDictionaryTablesKey(projectId)) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter(id => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePinnedDictionaryTables(projectId: string, tableIds: string[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(pinnedDictionaryTablesKey(projectId), JSON.stringify(tableIds));
+  } catch {
+    // Pinned table titles are a UI convenience; failing to persist them is safe.
+  }
+}
+
+function dictionaryWorkspaceStateKey(projectId: string) {
+  return `rich-project-dictionary-workspace:${projectId}`;
+}
+
+function loadDictionaryWorkspaceState(projectId: string): DictionaryWorkspaceState {
+  if (typeof window === "undefined") return { selectedSystemId: "", expandedSystemIds: [], selectedTableId: "", openTableTitleIds: [] };
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(dictionaryWorkspaceStateKey(projectId)) ?? "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { selectedSystemId: "", expandedSystemIds: [], selectedTableId: "", openTableTitleIds: [] };
+    }
+    const record = parsed as Record<string, unknown>;
+    return {
+      selectedSystemId: typeof record.selectedSystemId === "string" ? record.selectedSystemId : "",
+      expandedSystemIds: Array.isArray(record.expandedSystemIds) ? record.expandedSystemIds.filter(id => typeof id === "string") : [],
+      selectedTableId: typeof record.selectedTableId === "string" ? record.selectedTableId : "",
+      openTableTitleIds: Array.isArray(record.openTableTitleIds) ? record.openTableTitleIds.filter(id => typeof id === "string") : [],
+    };
+  } catch {
+    return { selectedSystemId: "", expandedSystemIds: [], selectedTableId: "", openTableTitleIds: [] };
+  }
+}
+
+function saveDictionaryWorkspaceState(projectId: string, state: DictionaryWorkspaceState) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(dictionaryWorkspaceStateKey(projectId), JSON.stringify({
+      selectedSystemId: state.selectedSystemId,
+      expandedSystemIds: Array.from(new Set(state.expandedSystemIds.filter(Boolean))),
+      selectedTableId: state.selectedTableId,
+      openTableTitleIds: Array.from(new Set(state.openTableTitleIds.filter(Boolean))),
+    }));
+  } catch {
+    // Workspace memory is best-effort; navigation remains usable without persistence.
+  }
+}
+
+function dictionaryTableViewsKey(projectId: string) {
+  return `rich-project-dictionary-table-views:${projectId}`;
+}
+
+function loadDictionaryTableViews(projectId: string): Record<string, DictionaryView> {
+  if (typeof window === "undefined") return {};
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(dictionaryTableViewsKey(projectId)) ?? "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const validViews = new Set<DictionaryView>(["field-design", "mapping", "temp-table", "relations", "test-data", "table-info"]);
+    return Object.fromEntries(Object.entries(parsed).filter((entry): entry is [string, DictionaryView] => (
+      typeof entry[0] === "string" && typeof entry[1] === "string" && validViews.has(entry[1] as DictionaryView)
+    )));
+  } catch {
+    return {};
+  }
+}
+
+function saveDictionaryTableViews(projectId: string, views: Record<string, DictionaryView>) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(dictionaryTableViewsKey(projectId), JSON.stringify(views));
+  } catch {
+    // Per-table view memory is a UI convenience; the current view remains usable without persistence.
+  }
+}
+
+function dictionarySystemOrderKey(projectId: string) {
+  return `rich-project-dictionary-system-order:${projectId}`;
+}
+
+function loadDictionarySystemOrder(projectId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(dictionarySystemOrderKey(projectId)) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter(id => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDictionarySystemOrder(projectId: string, systemIds: string[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(dictionarySystemOrderKey(projectId), JSON.stringify(systemIds));
+  } catch {
+    // Dictionary tree order is a local convenience; failing to persist it is safe.
+  }
+}
+
+function dictionaryTableOrderKey(projectId: string) {
+  return `rich-project-dictionary-table-order:${projectId}`;
+}
+
+function loadDictionaryTableOrder(projectId: string): Record<string, string[]> {
+  if (typeof window === "undefined") return {};
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(dictionaryTableOrderKey(projectId)) ?? "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed)
+      .filter(([systemId, tableIds]) => typeof systemId === "string" && Array.isArray(tableIds))
+      .map(([systemId, tableIds]) => [systemId, (tableIds as unknown[]).filter((id): id is string => typeof id === "string")]));
+  } catch {
+    return {};
+  }
+}
+
+function saveDictionaryTableOrder(projectId: string, tableOrderBySystem: Record<string, string[]>) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(dictionaryTableOrderKey(projectId), JSON.stringify(tableOrderBySystem));
+  } catch {
+    // Dictionary tree order is a local convenience; failing to persist it is safe.
+  }
+}
+
+function applyDictionaryItemOrder<T extends { id: string }>(items: T[], orderIds: string[]): T[] {
+  if (orderIds.length === 0 || items.length < 2) return items;
+  const byId = new Map(items.map(item => [item.id, item]));
+  const ordered = orderIds.flatMap(id => {
+    const item = byId.get(id);
+    if (!item) return [];
+    byId.delete(id);
+    return [item];
+  });
+  return [...ordered, ...items.filter(item => byId.has(item.id))];
+}
+
+function reorderDictionaryIds(ids: string[], activeId: string, targetId: string): string[] {
+  if (activeId === targetId) return ids;
+  const from = ids.indexOf(activeId);
+  const to = ids.indexOf(targetId);
+  if (from < 0 || to < 0) return ids;
+  const next = [...ids];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}

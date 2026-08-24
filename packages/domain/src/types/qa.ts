@@ -10,7 +10,7 @@ export type QAAnchor =
   | { type: "element" };
 
 /**
- * A Q&A entry attached to an element. Persisted append-only in qa.jsonl
+ * A Q&A entry attached to an element. Persisted in Rich's database
  * and surfaced under each element as a "答疑" history.
  */
 export interface QARecord {

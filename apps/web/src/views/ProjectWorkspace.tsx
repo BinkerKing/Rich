@@ -20,16 +20,20 @@ import {
   TodosSection,
   WorkflowSection,
   type ProjectManagementSection,
-} from "./project-management/ProjectManagementModules.js";
+} from "./project-management/index.js";
 
 interface Props { projectId: string }
 
 export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const project = useStore(s => s.elements.get(projectId));
-  const [section, setSection] = useState<ProjectManagementSection>("dictionary");
+  const [section, setSection] = useState<ProjectManagementSection>(() => loadProjectManagementWorkspaceSection(projectId));
   const [summary, setSummary] = useState<ProjectManagementSummary | null>(null);
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);
+
+  useEffect(() => {
+    setSection(loadProjectManagementWorkspaceSection(projectId));
+  }, [projectId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +63,10 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
     if (target?.closest?.("button, a, input, textarea, select, [role='button'], [role='tab'], [contenteditable='true']")) return;
     window.location.href = "rich://window/toggle-maximize";
   };
+  const selectSection = (next: ProjectManagementSection) => {
+    setSection(next);
+    saveProjectManagementWorkspaceSection(projectId, next);
+  };
 
   return (
     <div className="prj-ws">
@@ -76,7 +84,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
               data-section={s.id}
               aria-selected={section === s.id}
               className={`prj-ws__nav-btn${section === s.id ? " is-active" : ""}`}
-              onClick={() => setSection(s.id)}>
+              onClick={() => selectSection(s.id)}>
               <span className="prj-ws__nav-icon" aria-hidden="true">{s.icon}</span>
               <span className="prj-ws__nav-label">{s.label}</span>
             </button>
@@ -98,7 +106,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
         <div className={`prj-ws__head-search${searchVisible ? " is-open" : ""}`}>
           <ProjectManagementSearchBar
             projectId={project.id}
-            onJump={setSection}
+            onJump={selectSection}
             autoFocusSignal={searchFocusSignal}
           />
         </div>
@@ -119,6 +127,30 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
       </div>
     </div>
   );
+}
+
+function projectManagementWorkspaceSectionKey(projectId: string) {
+  return `rich-project-management-section:${projectId}`;
+}
+
+function loadProjectManagementWorkspaceSection(projectId: string): ProjectManagementSection {
+  if (typeof window === "undefined") return "dictionary";
+  try {
+    const saved = window.localStorage.getItem(projectManagementWorkspaceSectionKey(projectId));
+    const valid = new Set(PROJECT_MANAGEMENT_SECTIONS.map(section => section.id));
+    return saved && valid.has(saved as ProjectManagementSection) ? saved as ProjectManagementSection : "dictionary";
+  } catch {
+    return "dictionary";
+  }
+}
+
+function saveProjectManagementWorkspaceSection(projectId: string, section: ProjectManagementSection) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(projectManagementWorkspaceSectionKey(projectId), section);
+  } catch {
+    // Workspace memory is a UI convenience; the current section still works without persistence.
+  }
 }
 
 // ── 概览 section ────────────────────────────────────────────────

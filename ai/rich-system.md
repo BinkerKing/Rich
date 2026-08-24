@@ -24,7 +24,7 @@
 | AI 早报 | 生成 AI 新闻、补热门 Skill、沉淀应用建议 | 信息汇报类先套 `information-briefing`；推荐块用 `dot-list` 或 `markdown` | `pnpm corpus prompt information-briefing`; `update_section_blocks`; `pnpm rich -- ai news-generate-daily --json ...` |
 | 导图 PPT | 文稿转导图、管理 PPT 展示图 | PPT 是 element-backed；不要另建孤立数据 | `pnpm rich -- mindmaps list`; `pnpm rich -- mindmaps attach --json ...`; `get_subtree` |
 | 计划管理 | 目标拆解、每日任务、周复盘、推进建议、批量清理 | 先看计划状态；完成任务用 `task_complete`；新目标用 `plan_decompose`；后台维护或服务离线时用计划管理 CLI | MCP: `plan_list`; `plan_get`; `task_list`; `task_complete`; `plan_decompose`; `analyze_progress`。CLI: `pnpm --filter @ke/server run plan -- ...` |
-| 项目管理·数据字典 | 银行监管报送 Mapping、字段设计、场景口径、字段血缘、码值说明 | 先读 `docs/PROJECT_DICTIONARY_MAPPING_RULES.md`；Mapping 必须按场景 title、口径、字段 Mapping 表、涉及字段、逻辑维护 | 目前优先通过项目管理 API / 数据导入脚本维护；新增 CLI 前用 `pnpm rich -- api ...` 兜底 |
+| 项目管理 | 数据字典、作业流程、场景手册、环境配置、部署步骤、监控预警、代码版本、项目代办、文件夹 | 先读 `docs/PROJECT_MANAGEMENT_MCP_MANUAL.md`；数据字典 / Mapping 再读 `docs/PROJECT_DICTIONARY_MAPPING_RULES.md`；Mapping 必须按场景 title、口径、字段 Mapping 表、涉及字段、逻辑维护 | MCP: `project_management_summary`; `project_management_search`; `project_management_list_items`; `project_management_create_item`; `project_management_update_item`; `project_management_delete_item`; `project_management_reorder_items`; `project_dictionary_search_fields`; `project_dictionary_get_field`; `project_dictionary_resolve_field_refs`; `project_dictionary_create_rectification` |
 | 项目实战 | 实战项目、PRD、开发任务、整改建议 | practice → group → typed children；新增子项优先传 group id | `practice_list`; `practice_get`; `practice_create`; `practice_add_child`; `draft_prd`; `draft_child`; CLI `pnpm rich -- ai guided-practice --json ...` |
 | 工具箱 | 锁屏、延迟执行、小工具调用 | 先列工具 schema，再调用 | `list_toolbox_tools`; `invoke_toolbox_tool`; `pnpm rich -- toolbox ...` |
 | 后台 | 语料、学习手册、系统改造任务 | 语料解决“怎么说”，学习手册解决“怎么用 Rich” | `get_rich_system_manual`; `pnpm corpus ...`; `pnpm rich -- improvements ...`; `create_improvement`; `claim_improvement`; `update_improvement` |
@@ -102,9 +102,11 @@ pnpm corpus patch system-status-report --field styleGuide --value "先给结论�
 
 Hermes 收到用户对表达方式的反馈时，应更新语料模板，而不是只在当前对话里临时改。
 
-## 项目管理数据字典 / Mapping
+## 项目管理 MCP / 数据字典 / Mapping
 
-处理项目管理里的数据字典、字段设计、Mapping 场景、码值说明、字段血缘前，必须先读 `docs/PROJECT_DICTIONARY_MAPPING_RULES.md`。这份文档是用户正在沉淀的 Mapping 模版规则，后续用户提出的新要求应先写入该手册，再决定是否固化成 UI、数据库结构或 CLI。
+处理项目管理里的作业流程、场景手册、环境配置、部署步骤、监控预警、代码版本、项目代办、文件夹时，优先使用 `project_management_*` MCP 工具。完整工具说明见 `docs/PROJECT_MANAGEMENT_MCP_MANUAL.md`。
+
+处理数据字典、字段设计、Mapping 场景、码值说明、字段血缘前，必须先读 `docs/PROJECT_DICTIONARY_MAPPING_RULES.md`。这份文档是用户正在沉淀的 Mapping 模版规则，后续用户提出的新要求应先写入该手册，再决定是否固化成 UI、数据库结构或 CLI。
 
 ## 计划管理 CLI
 

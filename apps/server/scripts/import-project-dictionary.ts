@@ -476,10 +476,10 @@ function normalizeTableSourceKind(value: unknown): string {
 function normalizeFileType(value: unknown): string | null {
   const raw = text(value).toLowerCase();
   if (!raw) return null;
-  if (/(^|\.|\s|_)txt$|text file|文本/.test(raw)) return "txt";
-  if (/(^|\.|\s|_)csv$/.test(raw)) return "csv";
-  if (/(^|\.|\s|_)xml$|xml/.test(raw)) return "xml";
-  if (/(^|\.|\s|_)(xls|xlsx)$|excel|电子表格/.test(raw)) return "excel";
+  if (/(^|\\.|\\s|_)txt$|text file|文本/.test(raw)) return "txt";
+  if (/(^|\\.|\\s|_)csv$/.test(raw)) return "csv";
+  if (/(^|\\.|\\s|_)xml$|xml/.test(raw)) return "xml";
+  if (/(^|\\.|\\s|_)(xls|xlsx)$|excel|电子表格/.test(raw)) return "excel";
   return null;
 }
 

@@ -4,6 +4,10 @@ Personal infinite-learning system. Phase 1 — foundation sprint complete (`v0.0
 
 ## Quick start
 
+Use Node.js 22 LTS (the required version is recorded in `.nvmrc`). If native
+dependencies were installed under a different Node version, run
+`pnpm rebuild:sqlite` after switching to Node 22.
+
 ```bash
 pnpm install
 pnpm --filter @ke/server dev   # http://localhost:3001
@@ -33,7 +37,7 @@ docs/
 - ✅ End-to-end vertical slice: input topic → mock generation → render polished tree
 - ✅ Real AI `generate-tree` via Claude Code SDK + Codex CLI subprocess (SSE streaming)
 - ✅ Real AI `refine` / `expand` / `extend` / `path` endpoints (SSE, per-element session continuity)
-- ✅ Relations + Paths persistence (`data/relations.jsonl`, `data/paths/*.json`)
+- ✅ Relations + Paths persistence (SQLite by default; PostgreSQL for multi-machine use)
 - ✅ 29 tests passing (domain + repos + AI ops + extractJson)
 - ✅ Center switching is pure JS (no AI call)
 - ⬜ Frontend element-operation buttons wired to these endpoints (next sprint)
@@ -48,4 +52,3 @@ docs/
 | `pnpm dev` | run web + server in parallel |
 | `pnpm test` | run all package tests |
 | `pnpm typecheck` | typecheck all packages |
-| `pnpm dlx tsx scripts/build-seed.ts` | regenerate seed data |

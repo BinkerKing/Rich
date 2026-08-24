@@ -441,7 +441,11 @@ function applySchema(db: Database.Database) {
   ensureColumn(db, "pm_data_tables", "data_layer", "TEXT");
   ensureColumn(db, "pm_data_tables", "source_kind", "TEXT");
   ensureColumn(db, "pm_data_tables", "file_type", "TEXT");
+  ensureColumn(db, "pm_data_tables", "usage_status", "TEXT");
   ensureColumn(db, "pm_data_fields", "format_pattern", "TEXT");
+  ensureColumn(db, "pm_data_fields", "carrier_kind", "TEXT");
+  ensureColumn(db, "pm_data_fields", "field_order", "INTEGER");
+  ensureColumn(db, "pm_data_fields", "source_field_order", "INTEGER");
 }
 
 function ensureColumn(db: Database.Database, table: string, column: string, type: string) {

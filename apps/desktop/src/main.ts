@@ -243,8 +243,9 @@ function appIconPath(): string | undefined {
 function setDockIconIfAvailable() {
   if (process.platform !== "darwin" || !app.dock) return;
   try {
-    (app as unknown as { setActivationPolicy?: (policy: "regular" | "accessory" | "prohibited") => boolean }).setActivationPolicy?.("regular");
+    const result = (app as unknown as { setActivationPolicy?: (policy: "regular" | "accessory" | "prohibited") => boolean }).setActivationPolicy?.("regular");
     app.dock.show();
+    flog(`dock regular policy applied, result=${String(result)}`);
   } catch (error) {
     flog(`dock show failed: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -252,6 +253,17 @@ function setDockIconIfAvailable() {
   if (!iconPath) return;
   const icon = nativeImage.createFromPath(iconPath);
   if (!icon.isEmpty()) app.dock.setIcon(icon);
+}
+
+function ensureDockApplication(context: string) {
+  if (process.platform !== "darwin" || !app.dock) return;
+  try {
+    const result = (app as unknown as { setActivationPolicy?: (policy: "regular" | "accessory" | "prohibited") => boolean }).setActivationPolicy?.("regular");
+    app.dock.show();
+    flog(`dock ensured ${context}, result=${String(result)}`);
+  } catch (error) {
+    flog(`dock ensure failed ${context}: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 // ----- Step 3: Boot the server -------------------------------------------
@@ -329,8 +341,10 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
   });
   win.setSkipTaskbar(false);
   win.once("ready-to-show", () => {
+    ensureDockApplication("main ready-to-show");
     if (process.platform === "darwin") app.show();
     win.show();
+    setTimeout(() => ensureDockApplication("main shown"), 500);
   });
 
   // macOS dock-icon UX: pressing the red close button should HIDE the window
@@ -390,6 +404,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
       .tv-topbar,
       .learning-sidebar,
       .prj-ws__head,
+      .prj-ws__nav,
       .prj__head,
       .apps-launcher__head,
       .app-launcher__head,
@@ -655,24 +670,28 @@ function toggleOverlay() {
   setOverlayVisible(!overlayVisible);
 }
 
-/** Toggle the main Rich window: if it's currently visible AND focused, send
- *  it (and the whole Rich app on macOS) to the background; otherwise bring
- *  it forward. Same idiom as the chat overlay's Cmd+Shift+Space — modifier
- *  key acts as a switch. */
-function bringRichToFront(mainWin: BrowserWindow) {
+function showRichMainWindow(mainWin: BrowserWindow) {
   if (mainWin.isDestroyed()) return;
-  const visibleAndFocused = mainWin.isVisible() && mainWin.isFocused() && !mainWin.isMinimized();
-  if (visibleAndFocused) {
-    mainWin.hide();
-    if (process.platform === "darwin") app.hide();
-    return;
-  }
+  ensureDockApplication("show main window");
   if (process.platform === "darwin") app.show();
   if (mainWin.isMinimized()) mainWin.restore();
   if (!mainWin.isVisible()) mainWin.show();
   mainWin.moveTop();
   mainWin.focus();
   app.focus({ steal: true });
+}
+
+/** Toggle the main Rich window from the global shortcut. Normal app
+ *  activation must always reveal the window; it should never reuse this
+ *  toggle path because macOS can mark the window focused during activation. */
+function toggleRichMainWindow(mainWin: BrowserWindow) {
+  if (mainWin.isDestroyed()) return;
+  const visibleAndFocused = mainWin.isVisible() && mainWin.isFocused() && !mainWin.isMinimized();
+  if (visibleAndFocused) {
+    mainWin.hide();
+    return;
+  }
+  showRichMainWindow(mainWin);
 }
 
 function setupRichSummonShortcut(mainWin: BrowserWindow) {
@@ -684,7 +703,7 @@ function setupRichSummonShortcut(mainWin: BrowserWindow) {
   //      the natural "twin" — same modifier, different key, distinct intent.
   const shortcuts = ["CommandOrControl+Shift+Return"];
   for (const accelerator of shortcuts) {
-    const ok = globalShortcut.register(accelerator, () => bringRichToFront(mainWin));
+    const ok = globalShortcut.register(accelerator, () => toggleRichMainWindow(mainWin));
     console.log(`[ke-desktop] summon shortcut ${accelerator}: ${ok ? "registered" : "failed"}`);
     if (!ok) {
       console.warn(`[ke-desktop] summon shortcut ${accelerator} failed; another app may already own it.`);
@@ -804,21 +823,7 @@ function createChatWindow(port: number): BrowserWindow {
 }
 
 function hideChatAndApp() {
-  // Spotlight/Raycast-style dismissal: send the entire Rich app to the
-  // background so the user's previous app pops back to the foreground.
-  // CRITICAL ORDERING — on macOS, app.hide() hides ALL Rich windows in a
-  // single compositor frame (atomic). If we call chatWindow.hide() first
-  // and THEN app.hide(), there's a 1-2 frame gap where the chat overlay
-  // is gone but the main window underneath has been revealed — which the
-  // user sees as a brief flash of the main control panel. Calling
-  // app.hide() alone handles both windows without that gap.
-  if (process.platform === "darwin") {
-    app.hide();
-    return;
-  }
-  // Non-darwin platforms (Linux/Windows) don't have app.hide; explicitly
-  // hide just the chat window. The main window's own visibility doesn't
-  // change because there's no equivalent "app behind" concept.
+  ensureDockApplication("hide chat");
   if (chatWindow && !chatWindow.isDestroyed() && chatWindow.isVisible()) {
     chatWindow.hide();
   }
@@ -974,7 +979,7 @@ function setupTray(mainWin: BrowserWindow) {
   tray.setContextMenu(Menu.buildFromTemplate([
     {
       label: "显示 Rich",
-      click: () => { mainWin.show(); mainWin.focus(); },
+      click: () => showRichMainWindow(mainWin),
     },
     {
       label: "显示/隐藏透明悬浮层",
@@ -991,7 +996,7 @@ function setupTray(mainWin: BrowserWindow) {
 
   tray.on("click", () => {
     if (mainWin.isVisible() && mainWin.isFocused()) mainWin.hide();
-    else { mainWin.show(); mainWin.focus(); }
+    else showRichMainWindow(mainWin);
   });
 
   // Variable-interval animation. We chain setTimeout instead of using
@@ -1030,6 +1035,7 @@ app.whenReady().then(async () => {
     setupRichSummonShortcut(mainWin);
     setupChatOverlay(port);
     setupTray(mainWin);
+    setTimeout(() => ensureDockApplication("startup settled"), 1000);
     flog(`startup ok, port=${port}, tray=${tray ? "yes" : "no"}`);
 
     // Minimal menu so Cmd+Q etc. work; let the renderer handle most actions.
@@ -1086,11 +1092,11 @@ app.on("activate", async () => {
   //      the EXISTING server port; don't allocate a new one.
   if (process.platform === "darwin") app.show();
   if (mainWindow && !mainWindow.isDestroyed()) {
-    bringRichToFront(mainWindow);
+    showRichMainWindow(mainWindow);
     return;
   }
   if (serverPort != null) {
     const win = await openMainWindow(serverPort);
-    bringRichToFront(win);
+    showRichMainWindow(win);
   }
 });

@@ -10,6 +10,7 @@ export * from "./types/plan.js";
 export * from "./types/chatVisualBlock.js";
 export * from "./types/chatAttachment.js";
 export * from "./types/health.js";
+export * from "./types/projectDictionary.js";
 export * from "./plan.js";
 export * from "./elementTypes/concept.js";
 export * from "./elementTypes/topic.js";

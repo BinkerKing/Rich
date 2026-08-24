@@ -807,6 +807,27 @@ export const api = {
     if (!r.ok) throw new Error(`listProjectDictionarySystems ${r.status}`);
     return r.json();
   },
+  async updateProjectDictionarySystem(projectId: string, systemId: string, patch: ProjectDictionarySystemPatch): Promise<ProjectDictionarySystem> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/systems/${encodeURIComponent(systemId)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!r.ok) throw new Error(`updateProjectDictionarySystem ${r.status}`);
+    return r.json();
+  },
+  async testProjectDictionarySystemConnection(projectId: string, systemId: string, patch: ProjectDictionarySystemPatch): Promise<ProjectDictionaryConnectionTestResult> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/systems/${encodeURIComponent(systemId)}/entity/test-connection`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!r.ok) {
+      const json = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(json.error || `testProjectDictionarySystemConnection ${r.status}`);
+    }
+    return r.json();
+  },
   async listProjectDictionaryTables(projectId: string, systemId?: string): Promise<ProjectDictionaryTable[]> {
     const params = new URLSearchParams();
     if (systemId) params.set("systemId", systemId);
@@ -818,6 +839,132 @@ export const api = {
   async listProjectDictionaryFields(projectId: string, tableId: string): Promise<ProjectDictionaryFieldHit[]> {
     const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/fields`, { cache: "no-store" });
     if (!r.ok) throw new Error(`listProjectDictionaryFields ${r.status}`);
+    return r.json();
+  },
+  async listProjectDictionaryMappingTempTables(projectId: string, tableId: string): Promise<ProjectDictionaryMappingTempTable[]> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/mapping/temp-tables`, { cache: "no-store" });
+    if (!r.ok) throw new Error(`listProjectDictionaryMappingTempTables ${r.status}`);
+    return r.json();
+  },
+  async replaceProjectDictionaryMappingTempTables(
+    projectId: string,
+    tableId: string,
+    tempTables: ProjectDictionaryMappingTempTableInput[],
+  ): Promise<ProjectDictionaryMappingTempTable[]> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/mapping/temp-tables`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ tempTables }),
+    });
+    if (!r.ok) throw new Error(`replaceProjectDictionaryMappingTempTables ${r.status}`);
+    return r.json();
+  },
+  async createProjectDictionaryEntityTable(projectId: string, tableId: string): Promise<ProjectDictionaryEntitySyncResult> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/entity/create`, { method: "POST" });
+    if (!r.ok) {
+      const json = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(json.error || `createProjectDictionaryEntityTable ${r.status}`);
+    }
+    return r.json();
+  },
+  async inspectProjectDictionaryEntitySchema(projectId: string, tableId: string): Promise<ProjectDictionaryEntitySchemaStatusResult> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/entity/schema`, { method: "POST" });
+    if (!r.ok) {
+      const json = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(json.error || `inspectProjectDictionaryEntitySchema ${r.status}`);
+    }
+    return r.json();
+  },
+  async writeProjectDictionaryEntityTestData(
+    projectId: string,
+    tableId: string,
+    rows: Array<Record<string, unknown>>,
+  ): Promise<ProjectDictionaryEntitySyncResult> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/entity/test-data`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ rows }),
+    });
+    if (!r.ok) {
+      const json = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(json.error || `writeProjectDictionaryEntityTestData ${r.status}`);
+    }
+    return r.json();
+  },
+  async queryProjectDictionaryEntityTestData(
+    projectId: string,
+    tableId: string,
+    input: { page: number; pageSize: number; searchFieldId?: string; search?: string },
+  ): Promise<ProjectDictionaryEntityTestDataQueryResult> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/entity/query`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!r.ok) {
+      const json = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(json.error || `queryProjectDictionaryEntityTestData ${r.status}`);
+    }
+    return r.json();
+  },
+  async extractProjectDictionaryEntityTestData(
+    projectId: string,
+    tableId: string,
+    input: { limit?: number; runtimeParams?: Record<string, unknown> } = {},
+  ): Promise<ProjectDictionaryEntityExtractionJob> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/entity/extract`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!r.ok) {
+      const json = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(json.error || `extractProjectDictionaryEntityTestData ${r.status}`);
+    }
+    return r.json();
+  },
+  async prepareProjectDictionaryEntityExtractionSql(
+    projectId: string,
+    tableId: string,
+    input: { limit?: number; runtimeParams?: Record<string, unknown> } = {},
+  ): Promise<ProjectDictionaryEntityExtractionPrepareResult> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/entity/extract/prepare`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!r.ok) {
+      const json = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(json.error || `prepareProjectDictionaryEntityExtractionSql ${r.status}`);
+    }
+    return r.json();
+  },
+  async getProjectDictionaryEntityExtractionJob(
+    projectId: string,
+    tableId: string,
+    jobId: string,
+  ): Promise<ProjectDictionaryEntityExtractionJob> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/entity/extract/${encodeURIComponent(jobId)}`);
+    if (!r.ok) {
+      const json = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(json.error || `getProjectDictionaryEntityExtractionJob ${r.status}`);
+    }
+    return r.json();
+  },
+  async validateProjectDictionaryMappingSql(
+    projectId: string,
+    tableId: string,
+    input: { caliber?: string; fieldRules?: Array<{ fieldId: string; logic: string }>; runtimeParams?: Record<string, unknown> } = {},
+  ): Promise<ProjectDictionaryMappingSqlValidationResult> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/mapping/sql-validate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!r.ok) {
+      const json = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(json.error || `validateProjectDictionaryMappingSql ${r.status}`);
+    }
     return r.json();
   },
   async resolveProjectDictionaryFieldRefs(projectId: string, refs: string[]): Promise<ProjectDictionaryFieldHit[]> {
@@ -839,6 +986,36 @@ export const api = {
   async getProjectDictionaryField(projectId: string, fieldId: string): Promise<ProjectDictionaryFieldDetail> {
     const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/fields/${encodeURIComponent(fieldId)}`, { cache: "no-store" });
     if (!r.ok) throw new Error(`getProjectDictionaryField ${r.status}`);
+    return r.json();
+  },
+  async listProjectDictionaryRectifications(projectId: string): Promise<ProjectDictionaryRectification[]> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/rectifications`, { cache: "no-store" });
+    if (!r.ok) throw new Error(`listProjectDictionaryRectifications ${r.status}`);
+    return r.json();
+  },
+  async createProjectDictionaryRectification(
+    projectId: string,
+    input: ProjectDictionaryRectificationInput,
+  ): Promise<ProjectDictionaryRectification> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/rectifications`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!r.ok) throw new Error(`createProjectDictionaryRectification ${r.status}`);
+    return r.json();
+  },
+  async updateProjectDictionaryRectification(
+    projectId: string,
+    rectificationId: string,
+    patch: ProjectDictionaryRectificationPatch,
+  ): Promise<ProjectDictionaryRectification> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/rectifications/${encodeURIComponent(rectificationId)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!r.ok) throw new Error(`updateProjectDictionaryRectification ${r.status}`);
     return r.json();
   },
 };
@@ -943,8 +1120,43 @@ export interface ProjectDictionarySystem {
   name: string;
   type?: string;
   assetLayer?: string;
+  extra?: Record<string, unknown>;
+  dbType?: ProjectDictionaryDatabaseType;
+  sqlDialect?: ProjectDictionarySqlDialect;
+  connection?: ProjectDictionaryConnectionConfig;
+  entitySyncPolicy?: ProjectDictionaryEntitySyncPolicy;
   fieldCount: number;
   tableCount: number;
+}
+
+export type ProjectDictionaryDatabaseType = "postgresql" | "sqlserver" | "unknown";
+export type ProjectDictionarySqlDialect = "postgresql" | "sqlserver";
+export type ProjectDictionaryEntitySyncPolicy = "metadata_only" | "create_schema_allowed" | "create_table_allowed" | "insert_test_data_allowed" | "readonly";
+
+export interface ProjectDictionaryConnectionConfig {
+  host?: string;
+  port?: number;
+  database?: string;
+  schema?: string;
+  username?: string;
+  password?: string;
+  secretRef?: string;
+  ssl?: boolean;
+}
+
+export interface ProjectDictionarySystemPatch {
+  type?: string | null;
+  assetLayer?: string | null;
+  extra?: Record<string, unknown>;
+}
+
+export interface ProjectDictionaryConnectionTestResult {
+  ok: true;
+  dialect: ProjectDictionarySqlDialect;
+  database: string;
+  schema?: string;
+  schemaExists?: boolean;
+  message: string;
 }
 
 export interface ProjectDictionaryTable {
@@ -956,9 +1168,171 @@ export interface ProjectDictionaryTable {
   dataLayer?: string;
   sourceKind?: string;
   fileType?: string;
+  usageStatus?: string;
   description?: string;
   caliber?: string;
+  extra?: Record<string, unknown>;
   fieldCount: number;
+}
+
+export interface ProjectDictionaryEntitySyncResult {
+  ok: true;
+  dialect: "postgresql" | "sqlserver";
+  tableName: string;
+  sql: string;
+  affectedRows?: number;
+  message: string;
+  validationIssues?: ProjectDictionaryExtractionValidationIssue[];
+}
+
+export interface ProjectDictionaryEntityExtractionJob {
+  ok: true;
+  id: string;
+  projectId: string;
+  tableId: string;
+  status: "running" | "success" | "error";
+  message: string;
+  startedAt: string;
+  finishedAt?: string;
+  result?: ProjectDictionaryEntitySyncResult;
+  error?: string;
+}
+
+export interface ProjectDictionaryEntityExtractionPrepareResult {
+  ok: true;
+  dialect: "postgresql" | "sqlserver";
+  tableName: string;
+  ready: boolean;
+  sql: string;
+  message: string;
+  runtimeParamNames?: string[];
+  caliber: {
+    status: "valid" | "invalid";
+    sql?: string;
+    error?: string;
+  };
+  validationIssues?: ProjectDictionaryExtractionValidationIssue[];
+  statementError?: string;
+}
+
+export interface ProjectDictionaryMappingSqlValidationField {
+  fieldId: string;
+  fieldName: string;
+  fieldCn?: string;
+  logicFingerprint?: string;
+  status: "valid" | "invalid" | "skipped";
+  sql?: string;
+  error?: string;
+}
+
+export interface ProjectDictionaryMappingSqlValidationResult {
+  ok: boolean;
+  dialect: "postgresql" | "sqlserver";
+  sourceKind?: "file" | "database";
+  message: string;
+  caliber: {
+    status: "valid" | "invalid";
+    sql?: string;
+    error?: string;
+  };
+  fields: ProjectDictionaryMappingSqlValidationField[];
+}
+
+export interface ProjectDictionaryMappingTempField {
+  id: string;
+  projectId: string;
+  tempTableId: string;
+  fieldName: string;
+  fieldCn?: string;
+  fieldType?: string;
+  fieldLength?: string;
+  logicText?: string;
+  convertedSql?: string;
+  remark?: string;
+  sortOrder: number;
+  raw?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectDictionaryMappingTempTable {
+  id: string;
+  projectId: string;
+  targetTableId: string;
+  tableName: string;
+  tableCn?: string;
+  logicText?: string;
+  convertedSql?: string;
+  remark?: string;
+  sortOrder: number;
+  raw?: Record<string, unknown>;
+  fields: ProjectDictionaryMappingTempField[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectDictionaryMappingTempFieldInput {
+  id?: string;
+  fieldName: string;
+  fieldCn?: string | null;
+  fieldType?: string | null;
+  fieldLength?: string | null;
+  logicText?: string | null;
+  convertedSql?: string | null;
+  remark?: string | null;
+  sortOrder?: number;
+  raw?: Record<string, unknown>;
+}
+
+export interface ProjectDictionaryMappingTempTableInput {
+  id?: string;
+  tableName: string;
+  tableCn?: string | null;
+  logicText?: string | null;
+  convertedSql?: string | null;
+  remark?: string | null;
+  sortOrder?: number;
+  raw?: Record<string, unknown>;
+  fields?: ProjectDictionaryMappingTempFieldInput[];
+}
+
+export interface ProjectDictionaryExtractionValidationIssue {
+  kind: "invalid_rule" | "unsupported_op" | "missing_source" | "empty_required" | "evaluate_error";
+  fieldId: string;
+  fieldName: string;
+  fieldCn?: string;
+  message: string;
+}
+
+export interface ProjectDictionaryEntitySchemaIssue {
+  kind: "missing" | "extra" | "type_mismatch";
+  columnName: string;
+  fieldName?: string;
+  expectedType?: string;
+  actualType?: string;
+  message: string;
+}
+
+export interface ProjectDictionaryEntitySchemaStatusResult {
+  ok: true;
+  dialect: "postgresql" | "sqlserver";
+  tableName: string;
+  connectionOk: true;
+  tableExists: boolean;
+  schemaSynced: boolean;
+  issues: ProjectDictionaryEntitySchemaIssue[];
+  message: string;
+}
+
+export interface ProjectDictionaryEntityTestDataQueryResult {
+  ok: true;
+  dialect: "postgresql" | "sqlserver";
+  tableName: string;
+  page: number;
+  pageSize: number;
+  total: number;
+  rows: Array<{ lineNumber: number; values: Record<string, unknown> }>;
+  message: string;
 }
 
 export interface ProjectDictionaryCodeItem {
@@ -990,6 +1364,9 @@ export interface ProjectDictionaryFieldHit {
   fieldType?: string;
   fieldLength?: string;
   formatPattern?: string;
+  carrierKind?: string;
+  fieldOrder?: number;
+  sourceFieldOrder?: number;
   description?: string;
   acquireLogic?: string;
   codeValue?: string;
@@ -998,7 +1375,9 @@ export interface ProjectDictionaryFieldHit {
   codeItems?: ProjectDictionaryCodeItem[];
   mappedTable?: string;
   mappedField?: string;
+  mappedFieldCn?: string;
   remark?: string;
+  extra?: Record<string, unknown>;
   score: number;
 }
 
@@ -1021,6 +1400,38 @@ export interface ProjectDictionaryFieldDetail extends ProjectDictionaryFieldHit 
   systemAssetLayer?: string;
   systemDescription?: string;
   extra?: Record<string, unknown>;
+}
+
+export type ProjectDictionaryRectificationStatus = "open" | "fixed" | "verified" | "cancelled";
+
+export interface ProjectDictionaryRectification {
+  id: string;
+  projectId: string;
+  entityType: "library" | "table" | "field" | "codeSet" | "mapping";
+  entityId: string;
+  propertyKey: string;
+  requirement: string;
+  status: ProjectDictionaryRectificationStatus;
+  resolutionNote?: string;
+  createdBy?: string;
+  resolvedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string;
+}
+
+export interface ProjectDictionaryRectificationInput {
+  entityType: ProjectDictionaryRectification["entityType"];
+  entityId: string;
+  propertyKey: string;
+  requirement: string;
+  createdBy?: string;
+}
+
+export interface ProjectDictionaryRectificationPatch {
+  status?: ProjectDictionaryRectificationStatus;
+  resolutionNote?: string | null;
+  resolvedBy?: string | null;
 }
 
 export interface ProjectDictionaryFieldSearchResult {

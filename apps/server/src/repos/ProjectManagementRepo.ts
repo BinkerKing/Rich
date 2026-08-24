@@ -31,8 +31,101 @@ export interface ProjectDictionarySystem {
   name: string;
   type?: string;
   assetLayer?: string;
+  extra?: Record<string, unknown>;
+  dbType?: "postgresql" | "sqlserver" | "unknown";
+  sqlDialect?: "postgresql" | "sqlserver";
+  connection?: ProjectDictionaryConnectionConfig;
+  entitySyncPolicy?: "metadata_only" | "create_schema_allowed" | "create_table_allowed" | "insert_test_data_allowed" | "readonly";
   fieldCount: number;
   tableCount: number;
+}
+
+export interface ProjectDictionaryConnectionConfig {
+  host?: string;
+  port?: number;
+  database?: string;
+  schema?: string;
+  username?: string;
+  password?: string;
+  secretRef?: string;
+  ssl?: boolean;
+}
+
+export interface ProjectDictionarySystemPatch {
+  type?: string | null;
+  assetLayer?: string | null;
+  extra?: Record<string, unknown>;
+}
+
+export function projectDictionarySystemFromRow(row: {
+  id: string;
+  code: string | null;
+  name: string;
+  type: string | null;
+  asset_layer: string | null;
+  extra?: Record<string, unknown> | string | null;
+  table_count: string | number;
+  field_count: string | number;
+}): ProjectDictionarySystem {
+  const extra = normalizeDictionarySystemExtra(row.extra);
+  const dbConfig = normalizeDictionaryDatabaseConfig(extra);
+  return {
+    id: row.id,
+    code: row.code ?? "",
+    name: row.name,
+    type: row.type ?? undefined,
+    assetLayer: row.asset_layer ?? undefined,
+    extra,
+    dbType: dbConfig.dbType,
+    sqlDialect: dbConfig.sqlDialect,
+    connection: dbConfig.connection,
+    entitySyncPolicy: dbConfig.entitySyncPolicy,
+    tableCount: Number(row.table_count),
+    fieldCount: Number(row.field_count),
+  };
+}
+
+function normalizeDictionarySystemExtra(value: Record<string, unknown> | string | null | undefined): Record<string, unknown> | undefined {
+  if (!value) return undefined;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return value && typeof value === "object" && !Array.isArray(value) ? value : undefined;
+}
+
+export function normalizeDictionaryDatabaseConfig(extra?: Record<string, unknown>): Pick<ProjectDictionarySystem, "dbType" | "sqlDialect" | "connection" | "entitySyncPolicy"> {
+  const rawDbType = typeof extra?.dbType === "string" ? extra.dbType.toLowerCase() : "";
+  const dbType = rawDbType === "postgres" || rawDbType === "postgresql"
+    ? "postgresql"
+    : rawDbType === "sqlserver" || rawDbType === "mssql"
+      ? "sqlserver"
+      : rawDbType
+        ? "unknown"
+        : undefined;
+  const rawDialect = typeof extra?.sqlDialect === "string" ? extra.sqlDialect.toLowerCase() : "";
+  const sqlDialect = rawDialect === "postgres" || rawDialect === "postgresql"
+    ? "postgresql"
+    : rawDialect === "sqlserver" || rawDialect === "mssql"
+      ? "sqlserver"
+      : dbType === "postgresql" || dbType === "sqlserver"
+        ? dbType
+        : undefined;
+  const rawConnection = extra?.connection;
+  const connection = rawConnection && typeof rawConnection === "object" && !Array.isArray(rawConnection)
+    ? rawConnection as ProjectDictionaryConnectionConfig
+    : undefined;
+  const rawPolicy = typeof extra?.entitySyncPolicy === "string" ? extra.entitySyncPolicy : "";
+  const entitySyncPolicy = rawPolicy === "create_schema_allowed" || rawPolicy === "create_table_allowed" || rawPolicy === "insert_test_data_allowed" || rawPolicy === "readonly"
+    ? rawPolicy
+    : rawPolicy === "metadata_only"
+      ? "metadata_only"
+      : undefined;
+  return { dbType, sqlDialect, connection, entitySyncPolicy };
 }
 
 export interface ProjectDictionaryTable {
@@ -267,6 +360,64 @@ export interface ProjectDictionaryMappingValidation {
   issues: ProjectDictionaryMappingValidationIssue[];
 }
 
+export interface ProjectDictionaryMappingTempField {
+  id: string;
+  projectId: string;
+  tempTableId: string;
+  fieldName: string;
+  fieldCn?: string;
+  fieldType?: string;
+  fieldLength?: string;
+  logicText?: string;
+  convertedSql?: string;
+  remark?: string;
+  sortOrder: number;
+  raw?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectDictionaryMappingTempTable {
+  id: string;
+  projectId: string;
+  targetTableId: string;
+  tableName: string;
+  tableCn?: string;
+  logicText?: string;
+  convertedSql?: string;
+  remark?: string;
+  sortOrder: number;
+  raw?: Record<string, unknown>;
+  fields: ProjectDictionaryMappingTempField[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectDictionaryMappingTempFieldInput {
+  id?: string;
+  fieldName: string;
+  fieldCn?: string | null;
+  fieldType?: string | null;
+  fieldLength?: string | null;
+  logicText?: string | null;
+  convertedSql?: string | null;
+  remark?: string | null;
+  sortOrder?: number;
+  raw?: Record<string, unknown>;
+}
+
+export interface ProjectDictionaryMappingTempTableInput {
+  id?: string;
+  tableName: string;
+  tableCn?: string | null;
+  logicText?: string | null;
+  convertedSql?: string | null;
+  remark?: string | null;
+  sortOrder?: number;
+  raw?: Record<string, unknown>;
+  fields?: ProjectDictionaryMappingTempFieldInput[];
+}
+
 export interface ProjectManagementSearchHit {
   id: string;
   moduleKey: ProjectManagementModuleKey;
@@ -318,6 +469,7 @@ export interface ProjectManagementRepo {
   deleteModuleItem(projectId: string, itemId: string): Promise<boolean>;
   reorderModuleItems(projectId: string, moduleKey: ProjectManagementModuleKey, itemIds: string[]): Promise<void>;
   listDictionarySystems(projectId: string): Promise<ProjectDictionarySystem[]>;
+  updateDictionarySystem(projectId: string, systemId: string, patch: ProjectDictionarySystemPatch): Promise<ProjectDictionarySystem | null>;
   listDictionaryTables(projectId: string, systemId?: string): Promise<ProjectDictionaryTable[]>;
   listDictionaryFields(projectId: string, tableId: string): Promise<ProjectDictionaryFieldHit[]>;
   resolveDictionaryFieldRefs(projectId: string, refs: string[]): Promise<ProjectDictionaryFieldHit[]>;
@@ -333,6 +485,8 @@ export interface ProjectManagementRepo {
   replaceDictionaryMappingActions(projectId: string, mappingRuleId: string, actions: ProjectDictionaryMappingActionInput[]): Promise<ProjectDictionaryMappingRule | null>;
   replaceDictionaryMappingSourceFields(projectId: string, mappingRuleId: string, sourceFields: ProjectDictionaryMappingSourceFieldInput[]): Promise<ProjectDictionaryMappingRule | null>;
   validateDictionaryMappingTable(projectId: string, tableId: string): Promise<ProjectDictionaryMappingValidation>;
+  listDictionaryMappingTempTables(projectId: string, targetTableId: string): Promise<ProjectDictionaryMappingTempTable[]>;
+  replaceDictionaryMappingTempTables(projectId: string, targetTableId: string, tempTables: ProjectDictionaryMappingTempTableInput[]): Promise<ProjectDictionaryMappingTempTable[]>;
 }
 
 export const PROJECT_MANAGEMENT_MODULES: Array<{ key: ProjectManagementModuleKey; label: string }> = [

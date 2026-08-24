@@ -5,8 +5,6 @@ import { tmpdir } from "node:os";
 import { buildApp } from "../src/index.js";
 import type { AIAdapter, GenerateArgs, StreamEvent } from "../src/ai/adapter.js";
 
-process.env.KE_STORAGE = "json";
-
 class FakeHermesAdapter implements AIAdapter {
   readonly name = "hermes" as const;
   prompts: string[] = [];

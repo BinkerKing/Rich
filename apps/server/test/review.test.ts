@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { buildApp } from "../src/index.js";
+import { openDb } from "../src/db/sqlite.js";
 import type { AIAdapter, GenerateArgs, StreamEvent } from "../src/ai/adapter.js";
 
 class ScriptedAdapter implements AIAdapter {
@@ -38,15 +39,17 @@ beforeEach(() => {
   dataDir = mkdtempSync(join(tmpdir(), "ke-review-data-"));
   aiDir = mkdtempSync(join(tmpdir(), "ke-review-ai-"));
   writeFileSync(join(aiDir, "knowledge.md"), MANUAL_SAMPLE);
-  // seed some signals
-  mkdirSync(dataDir, { recursive: true });
-  const signalsFile = join(dataDir, "signals.jsonl");
   const events = [
     { ts: new Date().toISOString(), type: "op.completed", manual: "knowledge", op: "refine", elementId: "x" },
     { ts: new Date().toISOString(), type: "user.reverted", manual: "knowledge", elementId: "x", data: { fromTimestamp: "t1" } },
     { ts: new Date().toISOString(), type: "user.reverted", manual: "knowledge", elementId: "y", data: { fromTimestamp: "t2" } },
   ];
-  writeFileSync(signalsFile, events.map(e => JSON.stringify(e)).join("\n") + "\n");
+  const db = openDb(join(dataDir, "ke.db"));
+  const insert = db.prepare("INSERT INTO signals (ts, type, manual, element_id, op, data) VALUES (?, ?, ?, ?, ?, ?)");
+  for (const event of events) {
+    insert.run(event.ts, event.type, event.manual, event.elementId, event.op ?? null, event.data ? JSON.stringify(event.data) : null);
+  }
+  db.close();
 });
 
 describe("POST /api/ai/review", () => {

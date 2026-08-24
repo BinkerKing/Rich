@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { buildApp } from "../src/index.js";
+import { openDb } from "../src/db/sqlite.js";
+import { SqliteElementsRepo } from "../src/repos/SqliteElementsRepo.js";
 import type { AIAdapter, StreamEvent, GenerateArgs } from "../src/ai/adapter.js";
 
 class FakeAdapter implements AIAdapter {
@@ -27,19 +29,15 @@ class FakeAdapter implements AIAdapter {
 
 let dir: string;
 
-beforeEach(() => {
+beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), "ke-routes-"));
-  mkdirSync(join(dir, "elements"), { recursive: true });
-  writeFileSync(
-    join(dir, "elements", "seed.json"),
-    JSON.stringify({
-      id: "seed",
-      type: "concept",
-      title: "Seed",
-      content: { oneSentence: "x", coreExplain: "y", whyMatters: "z" },
-      metadata: { createdAt: "", updatedAt: "", generatedBy: "ai", richness: 2 },
-    }),
-  );
+  const db = openDb(join(dir, "ke.db"));
+  await new SqliteElementsRepo(db).put({
+    id: "seed", type: "concept", title: "Seed",
+    content: { oneSentence: "x", coreExplain: "y", whyMatters: "z" },
+    metadata: { createdAt: "", updatedAt: "", generatedBy: "ai", richness: 2 },
+  });
+  db.close();
 });
 
 describe("Core API routes", () => {
@@ -67,15 +65,12 @@ describe("Core API routes", () => {
     expect(res.status).toBe(404);
   });
 
-  it("GET /api/health reports adapter availability + uptime", async () => {
+  it("GET /api/health reports that health features require PostgreSQL", async () => {
     const app = buildApp(dir, [new FakeAdapter()]);
     const res = await app.request("/api/health");
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(503);
     const body = await res.json();
-    expect(body.ok).toBe(true);
-    expect(body.adapters).toEqual([{ name: "claude-code", available: true }]);
-    expect(typeof body.uptimeSec).toBe("number");
-    expect(typeof body.childProcesses).toBe("number");
+    expect(body.error).toContain("KE_STORAGE=postgres");
   });
 
   it("GET /api/ai/models lists adapters", async () => {

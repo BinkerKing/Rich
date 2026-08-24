@@ -1,6 +1,5 @@
 import { join } from "node:path";
 import type { GreatMeRepo } from "../repos/GreatMeRepo.js";
-import { JsonGreatMeRepo } from "../repos/JsonGreatMeRepo.js";
 import { SqliteGreatMeRepo } from "../repos/SqliteGreatMeRepo.js";
 import { PostgresGreatMeRepo } from "../repos/PostgresGreatMeRepo.js";
 import { openDb } from "../db/sqlite.js";
@@ -377,7 +376,6 @@ export function helpText(): string {
 
 export async function openGreatMeRepoFromEnv(root = join(process.cwd(), "data")): Promise<{ repo: GreatMeRepo; close: () => Promise<void> }> {
   const storage = process.env.KE_STORAGE ?? "sqlite";
-  if (storage === "json") return { repo: new JsonGreatMeRepo(root), close: async () => {} };
   if (storage === "postgres") {
     const connectionString = process.env.DATABASE_URL ?? process.env.KE_DATABASE_URL;
     if (!connectionString) throw new Error("KE_STORAGE=postgres requires DATABASE_URL or KE_DATABASE_URL");
@@ -385,6 +383,7 @@ export async function openGreatMeRepoFromEnv(root = join(process.cwd(), "data"))
     await pg.ready;
     return { repo: new PostgresGreatMeRepo(pg), close: async () => { await pg.pool.end(); } };
   }
+  if (storage !== "sqlite") throw new Error(`Unsupported KE_STORAGE=${storage}. Use sqlite or postgres.`);
   const db = openDb(process.env.KE_SQLITE_PATH ?? join(root, "ke.db"));
   return { repo: new SqliteGreatMeRepo(db), close: async () => { db.close(); } };
 }

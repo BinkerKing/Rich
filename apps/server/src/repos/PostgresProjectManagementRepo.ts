@@ -3,6 +3,7 @@ import type { PgPool } from "../db/postgres.js";
 import {
   PROJECT_MANAGEMENT_MODULES,
   parseDictionaryCodeItems,
+  projectDictionarySystemFromRow,
   type ProjectDictionaryMappingAction,
   type ProjectDictionaryMappingActionInput,
   type ProjectDictionaryMappingActionPatch,
@@ -10,6 +11,9 @@ import {
   type ProjectDictionaryMappingRulePatch,
   type ProjectDictionaryMappingSourceField,
   type ProjectDictionaryMappingSourceFieldInput,
+  type ProjectDictionaryMappingTempField,
+  type ProjectDictionaryMappingTempTable,
+  type ProjectDictionaryMappingTempTableInput,
   type ProjectDictionaryMappingValidation,
   type ProjectDictionaryMappingValidationIssue,
   type ProjectDictionaryRectification,
@@ -18,6 +22,7 @@ import {
   type ProjectDictionaryFieldDetail,
   type ProjectDictionaryFieldHit,
   type ProjectDictionarySystem,
+  type ProjectDictionarySystemPatch,
   type ProjectDictionaryTable,
   type ProjectManagementModuleKey,
   type ProjectManagementRepo,
@@ -70,6 +75,7 @@ interface SystemRow {
   name: string;
   type: string | null;
   asset_layer: string | null;
+  extra: Record<string, unknown> | null;
   field_count: string | number;
   table_count: string | number;
 }
@@ -166,6 +172,38 @@ interface MappingActionRow {
 interface MappingActionSourceFieldRow {
   action_id: string;
   source_field_id: string;
+}
+
+interface MappingTempTableRow {
+  id: string;
+  project_id: string;
+  target_table_id: string;
+  table_name: string;
+  table_cn: string | null;
+  logic_text: string | null;
+  converted_sql: string | null;
+  remark: string | null;
+  sort_order: string | number;
+  raw: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface MappingTempFieldRow {
+  id: string;
+  project_id: string;
+  temp_table_id: string;
+  field_name: string;
+  field_cn: string | null;
+  field_type: string | null;
+  field_length: string | null;
+  logic_text: string | null;
+  converted_sql: string | null;
+  remark: string | null;
+  sort_order: string | number;
+  raw: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface TableRow {
@@ -369,7 +407,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
   async listDictionarySystems(projectId: string): Promise<ProjectDictionarySystem[]> {
     const result = await this.pg.query<SystemRow>(
       `SELECT
-         s.id, s.code, s.name, s.type, s.asset_layer,
+         s.id, s.code, s.name, s.type, s.asset_layer, s.extra,
          COALESCE(tc.table_count, 0) AS table_count,
          COALESCE(fc.field_count, 0) AS field_count
        FROM pm_data_systems s
@@ -389,15 +427,31 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
        ORDER BY s.name ASC`,
       [projectId],
     );
-    return result.rows.map(row => ({
-      id: row.id,
-      code: row.code ?? "",
-      name: row.name,
-      type: row.type ?? undefined,
-      assetLayer: row.asset_layer ?? undefined,
-      tableCount: Number(row.table_count),
-      fieldCount: Number(row.field_count),
-    }));
+    return result.rows.map(row => projectDictionarySystemFromRow(row));
+  }
+
+  async updateDictionarySystem(projectId: string, systemId: string, patch: ProjectDictionarySystemPatch): Promise<ProjectDictionarySystem | null> {
+    const current = await this.pg.query<SystemRow>(
+      `SELECT id, code, name, type, asset_layer, extra, 0 AS table_count, 0 AS field_count
+         FROM pm_data_systems
+        WHERE project_id=$1 AND id=$2
+        LIMIT 1`,
+      [projectId, systemId],
+    );
+    const row = current.rows[0];
+    if (!row) return null;
+    const now = new Date().toISOString();
+    const nextType = patch.type === undefined ? row.type : patch.type;
+    const nextAssetLayer = patch.assetLayer === undefined ? row.asset_layer : patch.assetLayer;
+    const nextExtra = patch.extra === undefined ? row.extra ?? {} : patch.extra ?? {};
+    await this.pg.query(
+      `UPDATE pm_data_systems
+          SET type=$3, asset_layer=$4, extra=$5::jsonb, updated_at=$6
+        WHERE project_id=$1 AND id=$2`,
+      [projectId, systemId, nextType, nextAssetLayer, JSON.stringify(nextExtra), now],
+    );
+    const systems = await this.listDictionarySystems(projectId);
+    return systems.find(system => system.id === systemId) ?? null;
   }
 
   private async getModuleItem(projectId: string, itemId: string): Promise<ProjectModuleItem | null> {
@@ -524,7 +578,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
       fieldOrder: row.field_order == null ? undefined : Number(row.field_order),
       sourceFieldOrder: row.source_field_order == null ? undefined : Number(row.source_field_order),
       description: row.description ?? undefined,
-      acquireLogic: row.acquire_logic?.trim() ? row.acquire_logic : mappingSnippets.get(row.id) ?? undefined,
+      acquireLogic: mappingSnippets.get(row.id) ?? (row.acquire_logic?.trim() ? row.acquire_logic : undefined),
       codeValue: row.code_value ?? undefined,
       ...codeSetFromRow(row),
       mappedTable: row.mapped_table ?? undefined,
@@ -1058,6 +1112,76 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
     return validateMappingRules(projectId, tableId, await this.listDictionaryMappingRules(projectId, tableId));
   }
 
+  async listDictionaryMappingTempTables(projectId: string, targetTableId: string): Promise<ProjectDictionaryMappingTempTable[]> {
+    const result = await this.pg.query<MappingTempTableRow>(
+      `SELECT id, project_id, target_table_id, table_name, table_cn, logic_text, converted_sql,
+              remark, sort_order, raw, created_at, updated_at
+         FROM pm_mapping_temp_tables
+        WHERE project_id = $1 AND target_table_id = $2
+        ORDER BY sort_order ASC, id ASC`,
+      [projectId, targetTableId],
+    );
+    return await this.hydrateMappingTempTables(projectId, result.rows);
+  }
+
+  async replaceDictionaryMappingTempTables(
+    projectId: string,
+    targetTableId: string,
+    tempTables: ProjectDictionaryMappingTempTableInput[],
+  ): Promise<ProjectDictionaryMappingTempTable[]> {
+    const now = new Date().toISOString();
+    await this.pg.query(`DELETE FROM pm_mapping_temp_tables WHERE project_id = $1 AND target_table_id = $2`, [projectId, targetTableId]);
+    for (let tableIndex = 0; tableIndex < tempTables.length; tableIndex += 1) {
+      const tempTable = tempTables[tableIndex];
+      const tableId = tempTable.id ?? `pm-map-temp-table-${randomUUID()}`;
+      await this.pg.query(
+        `INSERT INTO pm_mapping_temp_tables (
+           id, project_id, target_table_id, table_name, table_cn, logic_text, converted_sql,
+           remark, sort_order, raw, created_at, updated_at
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$11)`,
+        [
+          tableId,
+          projectId,
+          targetTableId,
+          tempTable.tableName,
+          tempTable.tableCn ?? null,
+          tempTable.logicText ?? null,
+          tempTable.convertedSql ?? null,
+          tempTable.remark ?? null,
+          tempTable.sortOrder ?? tableIndex,
+          JSON.stringify(tempTable.raw ?? {}),
+          now,
+        ],
+      );
+      for (let fieldIndex = 0; fieldIndex < (tempTable.fields ?? []).length; fieldIndex += 1) {
+        const field = tempTable.fields?.[fieldIndex];
+        if (!field) continue;
+        await this.pg.query(
+          `INSERT INTO pm_mapping_temp_fields (
+             id, project_id, temp_table_id, field_name, field_cn, field_type, field_length,
+             logic_text, converted_sql, remark, sort_order, raw, created_at, updated_at
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$13)`,
+          [
+            field.id ?? `pm-map-temp-field-${randomUUID()}`,
+            projectId,
+            tableId,
+            field.fieldName,
+            field.fieldCn ?? null,
+            field.fieldType ?? null,
+            field.fieldLength ?? null,
+            field.logicText ?? null,
+            field.convertedSql ?? null,
+            field.remark ?? null,
+            field.sortOrder ?? fieldIndex,
+            JSON.stringify(field.raw ?? {}),
+            now,
+          ],
+        );
+      }
+    }
+    return await this.listDictionaryMappingTempTables(projectId, targetTableId);
+  }
+
   private async hydrateMappingRules(projectId: string, rows: MappingRuleRow[]): Promise<ProjectDictionaryMappingRule[]> {
     if (rows.length === 0) return [];
     const ids = rows.map(row => row.id);
@@ -1113,6 +1237,21 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
       [projectId, actionId],
     );
     return mappingActionFromRow(row, links.rows.map(link => link.source_field_id));
+  }
+
+  private async hydrateMappingTempTables(projectId: string, rows: MappingTempTableRow[]): Promise<ProjectDictionaryMappingTempTable[]> {
+    if (rows.length === 0) return [];
+    const ids = rows.map(row => row.id);
+    const fieldResult = await this.pg.query<MappingTempFieldRow>(
+      `SELECT id, project_id, temp_table_id, field_name, field_cn, field_type, field_length,
+              logic_text, converted_sql, remark, sort_order, raw, created_at, updated_at
+         FROM pm_mapping_temp_fields
+        WHERE project_id = $1 AND temp_table_id = ANY($2::text[])
+        ORDER BY sort_order ASC, id ASC`,
+      [projectId, ids],
+    );
+    const fieldsByTable = groupBy(fieldResult.rows.map(mappingTempFieldFromRow), field => field.tempTableId);
+    return rows.map(row => mappingTempTableFromRow(row, fieldsByTable.get(row.id) ?? []));
   }
 }
 
@@ -1171,6 +1310,43 @@ function mappingActionFromRow(row: MappingActionRow, sourceFieldIds: string[]): 
     sortOrder: Number(row.sort_order),
     raw: row.raw ?? undefined,
     sourceFieldIds,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mappingTempTableFromRow(row: MappingTempTableRow, fields: ProjectDictionaryMappingTempField[]): ProjectDictionaryMappingTempTable {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    targetTableId: row.target_table_id,
+    tableName: row.table_name,
+    tableCn: row.table_cn ?? undefined,
+    logicText: row.logic_text ?? undefined,
+    convertedSql: row.converted_sql ?? undefined,
+    remark: row.remark ?? undefined,
+    sortOrder: Number(row.sort_order),
+    raw: row.raw ?? undefined,
+    fields,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mappingTempFieldFromRow(row: MappingTempFieldRow): ProjectDictionaryMappingTempField {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    tempTableId: row.temp_table_id,
+    fieldName: row.field_name,
+    fieldCn: row.field_cn ?? undefined,
+    fieldType: row.field_type ?? undefined,
+    fieldLength: row.field_length ?? undefined,
+    logicText: row.logic_text ?? undefined,
+    convertedSql: row.converted_sql ?? undefined,
+    remark: row.remark ?? undefined,
+    sortOrder: Number(row.sort_order),
+    raw: row.raw ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
