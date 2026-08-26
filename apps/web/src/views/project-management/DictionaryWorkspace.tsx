@@ -257,6 +257,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
   ), [rectifications]);
   const selectedSystem = orderedSystems.find(system => system.id === selectedSystemId);
   const selectedTable = orderedTables.find(table => table.id === selectedTableId) ?? tableCache[selectedTableId];
+  const mappingAvailable = dictionaryTableSupportsMapping(selectedTable);
 
   useEffect(() => {
     let cancelled = false;
@@ -348,7 +349,8 @@ export function DictionarySection({ project, summary }: { project: Element; summ
       });
     }
     setSelectedTableId(tableId);
-    setActiveView(tablePageAlreadyOpen ? viewByTableId[tableId] || "field-design" : "field-design");
+    const rememberedView = tablePageAlreadyOpen ? viewByTableId[tableId] || "field-design" : "field-design";
+    setActiveView(dictionaryTableSupportsMapping(table) || !["mapping", "temp-table", "relations"].includes(rememberedView) ? rememberedView : "field-design");
     setQuery("");
   };
   const selectDictionaryView = (view: DictionaryView) => {
@@ -362,6 +364,9 @@ export function DictionarySection({ project, summary }: { project: Element; summ
       return next;
     });
   };
+  useEffect(() => {
+    if (!mappingAvailable && ["mapping", "temp-table", "relations"].includes(activeView)) setActiveView("field-design");
+  }, [activeView, mappingAvailable]);
   const visibleFields = query.trim()
     ? results
     : tableFields;
@@ -537,8 +542,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
                 tableName: field.tableName || "",
                 tableCn: field.tableCn || field.tableName || "",
                 description: "",
-                tableType: "",
-                carrierType: "",
+                tableType: undefined,
                 dataLayer: "",
                 caliber: "",
                 fieldCount: 0,
@@ -572,6 +576,8 @@ export function DictionarySection({ project, summary }: { project: Element; summ
     tableTrees[systemId] ?? (selectedSystemId === systemId ? orderedTables : []),
     tableOrderBySystem[systemId] ?? [],
   );
+  const getVisibleTreeTables = (systemId: string) => getTreeTables(systemId)
+    .filter(dictionaryTableIsInUse);
   const startTreeDrag = (event: DictionaryTreeDragEvent, next: DictionaryTreeDragState) => {
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", next.id);
@@ -636,7 +642,7 @@ export function DictionarySection({ project, summary }: { project: Element; summ
                 </button>
                 {expandedSystemIds.includes(system.id) && (
                   <div className="prj-pm-dict__table-tree">
-                    {getTreeTables(system.id).map(table => (
+                    {getVisibleTreeTables(system.id).map(table => (
                       <button
                         key={table.id}
                         type="button"
@@ -741,9 +747,9 @@ export function DictionarySection({ project, summary }: { project: Element; summ
               </div>
               <div className="prj-pm-dict__tabs">
                 <button type="button" className={activeView === "field-design" ? "is-active" : ""} onClick={() => selectDictionaryView("field-design")}>字段设计</button>
-                <button type="button" className={activeView === "mapping" ? "is-active" : ""} onClick={() => selectDictionaryView("mapping")}>Mapping</button>
-                <button type="button" className={activeView === "temp-table" ? "is-active" : ""} onClick={() => selectDictionaryView("temp-table")}>临时表</button>
-                <button type="button" className={activeView === "relations" ? "is-active" : ""} onClick={() => selectDictionaryView("relations")}>关联关系</button>
+                {mappingAvailable && <button type="button" className={activeView === "mapping" ? "is-active" : ""} onClick={() => selectDictionaryView("mapping")}>Mapping</button>}
+                {mappingAvailable && <button type="button" className={activeView === "temp-table" ? "is-active" : ""} onClick={() => selectDictionaryView("temp-table")}>临时表</button>}
+                {mappingAvailable && <button type="button" className={activeView === "relations" ? "is-active" : ""} onClick={() => selectDictionaryView("relations")}>关联关系</button>}
                 <button type="button" className={activeView === "test-data" ? "is-active" : ""} onClick={() => selectDictionaryView("test-data")}>测试数据</button>
                 <button type="button" className={activeView === "table-info" ? "is-active" : ""} onClick={() => selectDictionaryView("table-info")}>表说明</button>
               </div>
@@ -831,6 +837,15 @@ export function DictionarySection({ project, summary }: { project: Element; summ
       )}
     </div>
   );
+}
+
+function dictionaryTableIsInUse(table: ProjectDictionaryTable): boolean {
+  return ["使用", "是", "yes", "true", "1", "active", "启用"]
+    .includes(table.usageStatus?.trim().toLocaleLowerCase() || "");
+}
+
+function dictionaryTableSupportsMapping(table?: ProjectDictionaryTable): boolean {
+  return !["源文件", "码值表"].includes(table?.tableType ?? "");
 }
 
 function pinnedDictionarySystemsKey(projectId: string) {

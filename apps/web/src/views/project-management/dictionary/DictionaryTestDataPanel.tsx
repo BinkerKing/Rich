@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import * as XLSX from "xlsx";
 import {
   api,
   type ProjectDictionaryEntityExtractionPrepareResult,
@@ -35,6 +37,7 @@ type DictionaryUploadedTestFile = {
   preview: string;
   encoding: string;
   delimiter: string;
+  parsedRows?: DictionaryImportedTestData["rows"];
   savedAt?: string;
   downloadUrl?: string;
 };
@@ -42,6 +45,7 @@ type DictionaryUploadedTestFile = {
 type DictionaryUploadStatus = { tone: "info" | "success" | "error"; message: string };
 
 type DictionaryTestDataFeedback = {
+  mappingSignature?: string;
   uploadStatus: DictionaryUploadStatus | null;
   extractionIssues: ProjectDictionaryExtractionValidationIssue[];
   extractionJobId?: string;
@@ -65,8 +69,26 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
   const visibleFields = useMemo(() => fields, [fields]);
   const parseConfig = useMemo(() => getDictionaryFileParseConfig(table), [table]);
   const dataSourceKind = getDictionaryTestDataSourceKind(table);
+  const isFileSource = table?.tableType === "源文件";
+  const isCodeTable = table?.tableType === "码值表";
+  const supportsTestFileUpload = isFileSource || isCodeTable;
+  const supportsMappingExtraction = !isFileSource && !isCodeTable;
+  const usesDatabaseEntity = Boolean(table?.id);
+  // 表签切换时 fields 会短暂保留上一张表或为空；此时不能用错误的字段集合覆盖当前表的抽取缓存。
+  const currentTableId = table?.id;
+  const isCurrentTableFieldSetReady = Boolean(currentTableId)
+    && visibleFields.length > 0
+    && visibleFields.every(field => field.tableId === currentTableId);
   const runtimeParamNames = useMemo(() => collectDictionaryRuntimeParameters(table, visibleFields), [table, visibleFields]);
-  const initialFeedback = useMemo(() => loadDictionaryTestDataFeedback(storageKey), [storageKey]);
+  const mappingRuntimeSignature = useMemo(() => [
+    table?.id ?? "",
+    table?.caliber ?? "",
+    ...visibleFields.map(field => `${field.id}:${field.acquireLogic ?? ""}`),
+  ].join("|"), [table?.id, table?.caliber, visibleFields]);
+  const initialFeedback = useMemo(
+    () => loadDictionaryTestDataFeedback(storageKey, mappingRuntimeSignature),
+    [mappingRuntimeSignature, storageKey],
+  );
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<DictionaryUploadedTestFile | null>(null);
   const [uploadedDraftRows, setUploadedDraftRows] = useState<DictionaryImportedTestData["rows"] | null>(null);
@@ -91,10 +113,13 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
   const [appliedSearch, setAppliedSearch] = useState<{ fieldId: string; value: string }>({ fieldId: "", value: "" });
   const [runtimeParams, setRuntimeParams] = useState<Record<string, string>>(initialFeedback.runtimeParams ?? {});
   const [extractionPrepare, setExtractionPrepare] = useState<DictionaryExtractionPrepareState>(initialFeedback.extractionPrepare ?? { status: "idle" });
+  const [isExtractionDetailsCollapsed, setIsExtractionDetailsCollapsed] = useState(false);
   const activeRuntimeParamNames = useMemo(() => Array.from(new Set([
     ...runtimeParamNames,
     ...(extractionPrepare.prepare?.runtimeParamNames ?? []),
   ])).filter(isDictionaryRuntimeParameterName).sort((a, b) => a.localeCompare(b)), [extractionPrepare.prepare?.runtimeParamNames, runtimeParamNames]);
+  const runtimeParamTypes = extractionPrepare.prepare?.runtimeParamTypes ?? {};
+  const hasCollapsibleExtractionDetails = usesDatabaseEntity && supportsMappingExtraction && extractionPrepare.status !== "idle";
   const columns = useMemo<DictionaryResizableColumn[]>(() => [
     { id: "index", label: "#", width: 42, minWidth: 38 },
     ...visibleFields.map(field => ({
@@ -112,13 +137,11 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
     field.fieldLength,
     field.formatPattern,
   ].join(":")).join("|"), [visibleFields]);
-  const mappingRuntimeSignature = useMemo(() => [
-    table?.id ?? "",
-    table?.caliber ?? "",
-    ...visibleFields.map(field => `${field.id}:${field.acquireLogic ?? ""}`),
-  ].join("|"), [table?.id, table?.caliber, visibleFields]);
+  const restoredFileTableKeyRef = useRef("");
 
-  const mappingRuntimeSignatureRef = useRef(mappingRuntimeSignature);
+  useEffect(() => {
+    setIsExtractionDetailsCollapsed(false);
+  }, [table?.id]);
 
   const rememberFeedback = useCallback((
     nextStatus: DictionaryUploadStatus | null,
@@ -134,6 +157,7 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
     setExtractionPrepare(nextPrepare);
     setExtractionRunStatus(nextRunStatus);
     saveDictionaryTestDataFeedback(storageKey, {
+      mappingSignature: mappingRuntimeSignature,
       uploadStatus: nextStatus,
       extractionIssues: nextIssues,
       extractionJobId: nextJobId || undefined,
@@ -141,7 +165,7 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
       extractionRunStatus: nextRunStatus,
       runtimeParams: nextRuntimeParams,
     });
-  }, [extractionPrepare, extractionRunStatus, runtimeParams, storageKey]);
+  }, [extractionPrepare, extractionRunStatus, mappingRuntimeSignature, runtimeParams, storageKey]);
 
   const rememberRunFeedback = useCallback((
     nextRunStatus: DictionaryUploadStatus | null,
@@ -152,6 +176,7 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
     setExtractionIssues(nextIssues);
     setActiveExtractionJobId(nextJobId);
     saveDictionaryTestDataFeedback(storageKey, {
+      mappingSignature: mappingRuntimeSignature,
       uploadStatus,
       extractionIssues: nextIssues,
       extractionJobId: nextJobId || undefined,
@@ -159,10 +184,11 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
       extractionRunStatus: nextRunStatus,
       runtimeParams,
     });
-  }, [activeExtractionJobId, extractionIssues, extractionPrepare, runtimeParams, storageKey, uploadStatus]);
+  }, [activeExtractionJobId, extractionIssues, extractionPrepare, mappingRuntimeSignature, runtimeParams, storageKey, uploadStatus]);
 
-  useEffect(() => {
-    const feedback = loadDictionaryTestDataFeedback(storageKey);
+  useLayoutEffect(() => {
+    if (!isCurrentTableFieldSetReady) return;
+    const feedback = loadDictionaryTestDataFeedback(storageKey, mappingRuntimeSignature);
     setPage(1);
     setSearchFieldId("");
     setSearchDraft("");
@@ -177,29 +203,15 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
     setRuntimeParams(feedback.runtimeParams ?? {});
     setExtractionPrepare(feedback.extractionPrepare ?? { status: "idle" });
     setExtractionRunStatus(feedback.extractionRunStatus ?? null);
-    mappingRuntimeSignatureRef.current = mappingRuntimeSignature;
-  }, [storageKey, table?.id, dataSourceKind, mappingRuntimeSignature]);
+  }, [dataSourceKind, isCurrentTableFieldSetReady, mappingRuntimeSignature, storageKey, table?.id]);
 
   useEffect(() => {
-    if (mappingRuntimeSignatureRef.current === mappingRuntimeSignature) return;
-    mappingRuntimeSignatureRef.current = mappingRuntimeSignature;
-    const nextPrepare: DictionaryExtractionPrepareState = { status: "idle" };
-    setExtractionPrepare(nextPrepare);
-    setExtractionRunStatus(null);
-    saveDictionaryTestDataFeedback(storageKey, {
-      uploadStatus,
-      extractionIssues: [],
-      extractionPrepare: nextPrepare,
-      extractionRunStatus: null,
-      runtimeParams,
-    });
-  }, [extractionIssues, mappingRuntimeSignature, runtimeParams, storageKey, uploadStatus]);
-
-  useEffect(() => {
+    if (!isCurrentTableFieldSetReady) return;
     setRuntimeParams(current => {
       const next: Record<string, string> = {};
       activeRuntimeParamNames.forEach(name => { next[name] = current[name] ?? ""; });
       saveDictionaryTestDataFeedback(storageKey, {
+        mappingSignature: mappingRuntimeSignature,
         uploadStatus,
         extractionIssues,
         extractionJobId: activeExtractionJobId || undefined,
@@ -209,7 +221,7 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
       });
       return next;
     });
-  }, [activeExtractionJobId, activeRuntimeParamNames, extractionIssues, extractionPrepare, extractionRunStatus, storageKey, uploadStatus]);
+  }, [activeExtractionJobId, activeRuntimeParamNames, extractionIssues, extractionPrepare, extractionRunStatus, isCurrentTableFieldSetReady, mappingRuntimeSignature, storageKey, uploadStatus]);
 
   useEffect(() => {
     if (!table?.id || !activeExtractionJobId) return undefined;
@@ -221,6 +233,7 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
         if (cancelled) return;
         if (job.status === "running") {
           saveDictionaryTestDataFeedback(storageKey, {
+            mappingSignature: mappingRuntimeSignature,
             uploadStatus,
             extractionIssues,
             extractionJobId: job.id,
@@ -250,16 +263,22 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
       cancelled = true;
       if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [activeExtractionJobId, extractionIssues, extractionPrepare, projectId, rememberRunFeedback, runtimeParams, storageKey, table?.id, uploadStatus]);
+  }, [activeExtractionJobId, extractionIssues, extractionPrepare, mappingRuntimeSignature, projectId, rememberRunFeedback, runtimeParams, storageKey, table?.id, uploadStatus]);
+
+  useEffect(() => {
+    setUploadOpen(false);
+  }, [table?.id]);
 
   useEffect(() => {
     let cancelled = false;
     const tableId = table?.id;
+    const tableKey = `${projectId}:${tableId ?? ""}`;
+    if (restoredFileTableKeyRef.current === tableKey) return () => { cancelled = true; };
+    restoredFileTableKeyRef.current = tableKey;
     setUploadedFile(null);
     setUploadedDraftRows(null);
     setSyncedRows(null);
     setUploadError("");
-    setUploadOpen(false);
     setEntityBusy(null);
     if (!tableId || dataSourceKind !== "file") return () => { cancelled = true; };
     void restoreDictionaryUploadedTestFile(projectId, tableId, parseConfig)
@@ -280,7 +299,7 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
 
   useEffect(() => {
     let cancelled = false;
-    if (!table?.id || dataSourceKind !== "database" || visibleFields.length === 0) return () => { cancelled = true; };
+    if (!table?.id || !usesDatabaseEntity || visibleFields.length === 0) return () => { cancelled = true; };
     setQueryBusy(true);
     setQueryError("");
     void api.inspectProjectDictionaryEntitySchema(projectId, table.id).then(status => {
@@ -311,7 +330,7 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
       if (!cancelled) setQueryBusy(false);
     });
     return () => { cancelled = true; };
-  }, [projectId, table?.id, dataSourceKind, visibleFields.length, fieldSchemaSignature, page, pageSize, appliedSearch]);
+  }, [projectId, table?.id, usesDatabaseEntity, visibleFields.length, fieldSchemaSignature, page, pageSize, appliedSearch]);
 
   const activeRows = syncedRows ?? [];
   const hasUploadedDraftRows = Boolean(uploadedDraftRows?.length);
@@ -323,7 +342,7 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
     if (!field) return activeRows;
     return activeRows.filter(row => stringifyTestDataValue(row.values?.[field.fieldName]).toLowerCase().includes(searchText));
   }, [activeRows, appliedSearch, dataSourceKind, visibleFields]);
-  const totalRows = dataSourceKind === "database" ? databaseTotal : filteredFileRows.length;
+  const totalRows = usesDatabaseEntity ? databaseTotal : filteredFileRows.length;
   const maxPage = Math.max(1, Math.ceil(totalRows / pageSize));
   useEffect(() => {
     if (page > maxPage) setPage(maxPage);
@@ -332,7 +351,7 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
     setPageJumpDraft(String(page));
   }, [page]);
   const pagedFileRows = dataSourceKind === "file" ? filteredFileRows.slice((page - 1) * pageSize, page * pageSize) : [];
-  const rows: DictionaryTestDataRowView[] = dataSourceKind === "database"
+  const rows: DictionaryTestDataRowView[] = usesDatabaseEntity
     ? databaseRows.map((row, rowIndex) => ({
       id: `database-${row.lineNumber ?? rowIndex + 1}`,
       indexLabel: String(row.lineNumber ?? (page - 1) * pageSize + rowIndex + 1),
@@ -344,10 +363,11 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
       values: visibleFields.map(field => stringifyTestDataValue(row.values?.[field.fieldName])),
     }));
   const canSearch = Boolean(searchDraft.trim() && searchFieldId);
-  const extractionIssueFieldKeys = useMemo(() => new Set(extractionIssues.flatMap(issue => [
+  const visibleExtractionIssues = supportsMappingExtraction ? extractionIssues : [];
+  const extractionIssueFieldKeys = useMemo(() => new Set(visibleExtractionIssues.flatMap(issue => [
     issue.fieldId,
     issue.fieldName,
-  ].filter(Boolean))), [extractionIssues]);
+  ].filter(Boolean))), [visibleExtractionIssues]);
   const missingRuntimeParamNames = activeRuntimeParamNames.filter(name => !runtimeParams[name]?.trim());
   const prepareMappingExtraction = useCallback(async () => {
     if (!table?.id) return;
@@ -411,14 +431,19 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
   }
   return (
     <div className="prj-pm-dict-test-table-wrap">
-      <div className="prj-pm-dict-test-summary">
+      <div
+        className={`prj-pm-dict-test-summary ${hasCollapsibleExtractionDetails && isExtractionDetailsCollapsed ? "is-extraction-collapsed" : ""}`}
+        onDoubleClick={() => {
+          if (hasCollapsibleExtractionDetails) setIsExtractionDetailsCollapsed(current => !current);
+        }}
+        title={hasCollapsibleExtractionDetails ? "双击收起或展开存储过程与运行参数" : undefined}>
         <div className="prj-pm-dict-test-summary__meta">
           <strong>{dataSourceKind === "file" ? uploadedFile?.fileName || table?.tableName || "测试文件" : table?.tableName || "实体表"}</strong>
           <span>{dataSourceKind === "file" ? "文件数据" : "数据库实体表"}</span>
           <span>共 {totalRows} 行</span>
           <span>第 {page} / {maxPage} 页，展示 {rows.length} 行</span>
           {dataSourceKind === "file" ? <span>{[uploadedFile?.encoding || parseConfig.encoding, (uploadedFile?.delimiter || parseConfig.delimiter) ? `分隔符 ${uploadedFile?.delimiter || parseConfig.delimiter}` : ""].filter(Boolean).join(" / ")}</span> : null}
-          {dataSourceKind === "database" && entitySchemaStatus ? (
+          {usesDatabaseEntity && entitySchemaStatus ? (
             <span className={`prj-pm-dict-test-summary__entity-state ${entitySchemaStatus.schemaSynced ? "is-ok" : "is-warn"}`}>
               {entitySchemaStatus.tableExists ? entitySchemaStatus.schemaSynced ? "实体表已创建，结构一致" : `实体表结构不一致 ${entitySchemaStatus.issues.length} 处` : "实体表未创建"}
             </span>
@@ -428,7 +453,7 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
           {queryError ? <em className="prj-pm-dict-test-summary__status is-error">{queryError}</em> : null}
         </div>
         <div className="prj-pm-dict-test-summary__actions">
-          {dataSourceKind === "database" ? (
+          {usesDatabaseEntity ? (
             <>
               <button
                 type="button"
@@ -449,34 +474,48 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
                 disabled={!table?.id || Boolean(entityBusy)}>
                 {entityBusy === "create" ? "更新中" : "更新实体表"}
               </button>
-              <button
-                type="button"
-                className="is-primary"
-                onClick={prepareMappingExtraction}
-                disabled={!table?.id || Boolean(entityBusy) || Boolean(activeExtractionJobId)}>
-                {entityBusy === "prepareExtract" ? "准备中" : extractionPrepare.status === "ready" ? "重新准备" : "抽数准备"}
-              </button>
+              {supportsMappingExtraction ? (
+                <button
+                  type="button"
+                  className="is-primary"
+                  onClick={prepareMappingExtraction}
+                  disabled={!table?.id || Boolean(entityBusy) || Boolean(activeExtractionJobId)}>
+                  {entityBusy === "prepareExtract" ? "准备中" : extractionPrepare.status === "ready" ? "重新准备" : "抽数准备"}
+                </button>
+              ) : null}
               <button type="button" className="is-primary" onClick={() => setAppliedSearch(current => ({ ...current }))} disabled={queryBusy}>
                 {queryBusy ? "读取中" : "刷新数据"}
               </button>
             </>
           ) : null}
-          {dataSourceKind === "file" && hasUploadedDraftRows && uploadedDraftRows ? (
+          {supportsTestFileUpload && hasUploadedDraftRows && uploadedDraftRows ? (
             <button
               type="button"
               className="is-primary"
-              onClick={() => {
-                setSyncedRows(uploadedDraftRows);
-                const nextStatus: DictionaryUploadStatus = { tone: "success", message: `已同步 ${uploadedDraftRows.length} 行到测试数据表格` };
-                rememberFeedback(nextStatus);
-              }}>
-              同步到测试数据
+              onClick={async () => {
+                if (!table?.id) return;
+                setEntityBusy("write");
+                try {
+                  const result = await api.replaceProjectDictionaryEntityTestData(projectId, table.id, uploadedDraftRows.map(row => row.values ?? {}));
+                  setSyncedRows(uploadedDraftRows);
+                  setUploadedDraftRows(null);
+                  setAppliedSearch(current => ({ ...current }));
+                  rememberFeedback({ tone: "success", message: result.message });
+                } catch (errorValue) {
+                  rememberFeedback({ tone: "error", message: errorValue instanceof Error ? errorValue.message : String(errorValue) });
+                } finally {
+                  setEntityBusy(null);
+                }
+              }}
+              disabled={Boolean(entityBusy)}>
+              同步到数据库
             </button>
           ) : null}
-          {dataSourceKind === "file" ? <button type="button" onClick={() => setUploadOpen(true)}>上传测试文件</button> : null}
+          {isCodeTable ? <button type="button" onClick={() => downloadDictionaryCodeTableTemplate(table, visibleFields)}>下载 Excel 模板</button> : null}
+          {supportsTestFileUpload ? <button type="button" onClick={() => setUploadOpen(true)}>上传测试数据</button> : null}
         </div>
       </div>
-      {dataSourceKind === "database" && extractionPrepare.status !== "idle" ? (
+      {hasCollapsibleExtractionDetails && !isExtractionDetailsCollapsed ? (
         <div className={`prj-pm-dict-test-prepared-sql is-${extractionPrepare.status}`}>
           <strong>{extractionPrepare.status === "ready" ? "存储过程创建完成" : "存储过程创建失败"}</strong>
           {extractionPrepare.prepare?.sql ? <pre>{extractionPrepare.prepare.sql}</pre> : null}
@@ -484,23 +523,25 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
           {extractionPrepare.prepare?.statementError ? <span>{extractionPrepare.prepare.statementError}</span> : null}
         </div>
       ) : null}
-      {dataSourceKind === "database" && extractionPrepare.status === "ready" ? (
+      {usesDatabaseEntity && supportsMappingExtraction && extractionPrepare.status === "ready" && !isExtractionDetailsCollapsed ? (
         <div className="prj-pm-dict-test-runtime-params">
           <div className="prj-pm-dict-test-runtime-params__row">
             <strong>运行参数</strong>
             <span className="prj-pm-dict-test-runtime-params__hint">
               {activeRuntimeParamNames.length ? "请填写运行参数后执行数据抽取" : "无需运行参数，可直接执行数据抽取"}
             </span>
-            {activeRuntimeParamNames.map(name => (
+              {activeRuntimeParamNames.map(name => (
               <label key={name} className="prj-pm-dict-test-runtime-params__field">
-                <span>{name}</span>
+                <span>{name}{runtimeParamTypes[name] ? ` / ${runtimeParamTypes[name]}` : ""}</span>
                 <input
+                  type={dictionaryRuntimeParameterInputType(runtimeParamTypes[name])}
                   value={runtimeParams[name] ?? ""}
                   onChange={event => {
                     const value = event.target.value;
                     setRuntimeParams(current => {
                       const next = { ...current, [name]: value };
                       saveDictionaryTestDataFeedback(storageKey, {
+                        mappingSignature: mappingRuntimeSignature,
                         uploadStatus,
                         extractionIssues,
                         extractionJobId: activeExtractionJobId || undefined,
@@ -511,13 +552,13 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
                       return next;
                     });
                   }}
-                  placeholder={`填写 ${name}`}
+                  placeholder={/date/i.test(name) ? "填写 YYYYMMDD，例如 20260825" : `填写 ${name}`}
                 />
               </label>
             ))}
             <button
               type="button"
-              className="is-primary prj-pm-dict-test-runtime-params__action"
+              className="is-primary is-extract prj-pm-dict-test-runtime-params__action"
               onClick={runPreparedExtraction}
               disabled={!table?.id || Boolean(entityBusy) || Boolean(activeExtractionJobId)}>
               {activeExtractionJobId ? "后台抽取中" : entityBusy === "extract" ? "执行中" : "数据抽取"}
@@ -530,7 +571,7 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
           ) : null}
         </div>
       ) : null}
-      {dataSourceKind === "database" && entitySchemaStatus && entitySchemaStatus.issues.length ? (
+      {usesDatabaseEntity && entitySchemaStatus && entitySchemaStatus.issues.length ? (
         <div className="prj-pm-dict-test-entity-issues">
           <strong>实体表结构差异</strong>
           {entitySchemaStatus.issues.map(issue => (
@@ -540,10 +581,10 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
           ))}
         </div>
       ) : null}
-      {extractionIssues.length ? (
+      {visibleExtractionIssues.length ? (
         <div className="prj-pm-dict-test-extraction-issues">
           <strong>抽取逻辑问题</strong>
-          {extractionIssues.map(issue => (
+          {visibleExtractionIssues.map(issue => (
             <span key={`${issue.kind}-${issue.fieldId}-${issue.message}`}>
               {[issue.fieldName, issue.fieldCn].filter(Boolean).join(" / ")}：{issue.message}
             </span>
@@ -666,16 +707,18 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
         </table>
         {rows.length === 0 ? (
           <div className="prj-pm-dict-test-table__empty">
-            {dataSourceKind === "file"
-              ? "文件类型表必须先上传并解析测试文件，才会展示测试数据。"
+            {isFileSource
+              ? "文件类型表必须先更新实体表、上传并同步测试文件，才会展示测试数据。"
               : "数据库类型表必须配置实体库连接并存在对应实体表，才会展示测试数据。"}
           </div>
         ) : null}
       </div>
-      {dataSourceKind === "file" && uploadOpen && (
+      {supportsTestFileUpload && uploadOpen && (
         <DictionaryTestFileUploadDialog
           tableName={table?.tableName || "测试文件"}
           config={parseConfig}
+          format={isCodeTable ? "excel" : "text"}
+          fields={visibleFields}
           uploadedFile={uploadedFile}
           error={uploadError}
           busy={uploadBusy}
@@ -714,13 +757,13 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
               rememberFeedback(nextStatus);
               return;
             }
-            const parsed = parseDictionaryUploadedTestFile(uploadedFile.text, visibleFields, uploadedFile.delimiter);
-            setUploadedDraftRows(null);
-            setSyncedRows(parsed);
+            const parsed = uploadedFile.parsedRows ?? parseDictionaryUploadedTestFile(uploadedFile.text, visibleFields, uploadedFile.delimiter);
+            setUploadedDraftRows(parsed);
+            setSyncedRows(null);
             setPage(1);
             setUploadError(parsed.length ? "" : "文件没有解析出可展示的数据。");
             const nextStatus: DictionaryUploadStatus = parsed.length
-              ? { tone: "success", message: `解析成功，已展示 ${parsed.length} 行测试数据` }
+              ? { tone: "success", message: `解析成功，待同步 ${parsed.length} 行到数据库` }
               : { tone: "error", message: "文件没有解析出可展示的数据" };
             rememberFeedback(nextStatus);
           }}
@@ -730,9 +773,52 @@ export function DictionaryTestDataPanel({ projectId, table, fields, storageKey }
   );
 }
 
+function downloadDictionaryCodeTableTemplate(table: ProjectDictionaryTable | undefined, fields: ProjectDictionaryFieldHit[]) {
+  const worksheet = XLSX.utils.aoa_to_sheet([fields.map(field => field.fieldName)]);
+  worksheet["!cols"] = fields.map(field => ({ wch: Math.max(12, field.fieldName.length + 2) }));
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "码值数据");
+  XLSX.writeFile(workbook, `${table?.tableName || "码值表"}_测试数据模板.xlsx`);
+}
+
+function parseDictionaryExcelTestFile(buffer: ArrayBuffer, fields: ProjectDictionaryFieldHit[]): DictionaryImportedTestData["rows"] {
+  const workbook = XLSX.read(buffer, { type: "array", cellText: false, cellDates: false });
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) throw new Error("Excel 中没有可解析的工作表。");
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName]!, { header: 1, defval: "", raw: false });
+  const headers = (rows[0] ?? []).map(value => String(value).trim());
+  if (!headers.length) throw new Error("Excel 第一行必须是字段名。");
+  const fieldIndexes = fields.map(field => headers.indexOf(field.fieldName));
+  const missing = fields.filter((_, index) => fieldIndexes[index] < 0).map(field => field.fieldName);
+  if (missing.length) throw new Error(`Excel 缺少字段列：${missing.join("、")}`);
+  return rows.slice(1).filter(row => row.some(value => String(value).trim())).map((row, index) => ({
+    lineNumber: index + 2,
+    values: Object.fromEntries(fields.map((field, fieldIndex) => [field.fieldName, row[fieldIndexes[fieldIndex]!] ?? ""])),
+    rawColumns: row,
+    extraColumns: headers.reduce<unknown[]>((extra, _header, headerIndex) => {
+      if (!fieldIndexes.includes(headerIndex)) extra.push(row[headerIndex] ?? "");
+      return extra;
+    }, []),
+  }));
+}
+
+function formatDictionaryExcelPreview(rows: DictionaryImportedTestData["rows"], fields: ProjectDictionaryFieldHit[]) {
+  const headers = fields.map(field => field.fieldName).join("\t");
+  const body = (rows ?? []).slice(0, 80).map(row => fields.map(field => stringifyTestDataValue(row.values?.[field.fieldName])).join("\t"));
+  return [headers, ...body].join("\n");
+}
+
+function dictionaryRuntimeParameterInputType(sqlType?: string): "date" | "number" | "text" {
+  if (/\bdate\b/i.test(sqlType || "") && !/time/i.test(sqlType || "")) return "date";
+  if (/\b(decimal|numeric|number|int|bigint|float|double)\b/i.test(sqlType || "")) return "number";
+  return "text";
+}
+
 function DictionaryTestFileUploadDialog({
   tableName,
   config,
+  format,
+  fields,
   uploadedFile,
   error,
   busy,
@@ -744,6 +830,8 @@ function DictionaryTestFileUploadDialog({
 }: {
   tableName: string;
   config: { encoding: string; delimiter: string };
+  format: "text" | "excel";
+  fields: ProjectDictionaryFieldHit[];
   uploadedFile: DictionaryUploadedTestFile | null;
   error: string;
   busy: boolean;
@@ -767,8 +855,23 @@ function DictionaryTestFileUploadDialog({
 
   const loadFile = async (file: File) => {
     try {
-      const encoding = normalizeDictionaryTextEncoding(config.encoding);
       const buffer = await file.arrayBuffer();
+      if (format === "excel") {
+        const parsedRows = parseDictionaryExcelTestFile(buffer, fields);
+        await onFileLoaded({
+          file,
+          fileName: file.name,
+          fileSize: file.size,
+          text: "",
+          preview: formatDictionaryExcelPreview(parsedRows, fields),
+          encoding: "Excel",
+          delimiter: "",
+          parsedRows,
+          savedAt: new Date().toISOString(),
+        });
+        return;
+      }
+      const encoding = normalizeDictionaryTextEncoding(config.encoding);
       const text = decodeDictionaryTextFile(buffer, encoding);
       await onFileLoaded({
         file,
@@ -785,7 +888,7 @@ function DictionaryTestFileUploadDialog({
     }
   };
 
-  return (
+  return createPortal(
     <div className="prj-pm-dict-upload-modal" role="dialog" aria-modal="true" aria-label="上传测试文件">
       <section>
         <header>
@@ -797,21 +900,22 @@ function DictionaryTestFileUploadDialog({
         </header>
         <div className="prj-pm-dict-upload-modal__actions">
           <input
+            id="dictionary-test-file-input"
             ref={fileInputRef}
             type="file"
-            accept=".txt,.csv,.xml,.xls,.xlsx,text/plain,text/csv,text/xml,application/xml"
+            accept={format === "excel" ? ".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : ".txt,.csv,.xml,text/plain,text/csv,text/xml,application/xml"}
             onChange={event => {
               const file = event.currentTarget.files?.[0];
               if (file) void loadFile(file);
             }}
           />
-          <button type="button" disabled={busy} onClick={() => fileInputRef.current?.click()}>{busy ? "上传中" : "选择文件"}</button>
+          <label htmlFor="dictionary-test-file-input" className={busy ? "is-disabled" : ""}>{busy ? "上传中" : "选择文件"}</label>
           <button type="button" disabled={!uploadedFile || busy} onClick={onParse}>解析</button>
           {uploadedFile && downloadUrl ? <a href={downloadUrl} download={uploadedFile.fileName}>下载原文件</a> : <span>下载原文件</span>}
         </div>
         <dl className="prj-pm-dict-upload-modal__meta">
-          <dt>字符集</dt><dd>{normalizeDictionaryTextEncoding(config.encoding)}</dd>
-          <dt>分隔符</dt><dd>{config.delimiter || "未配置"}</dd>
+          <dt>{format === "excel" ? "格式" : "字符集"}</dt><dd>{format === "excel" ? "Excel（首个工作表）" : normalizeDictionaryTextEncoding(config.encoding)}</dd>
+          <dt>{format === "excel" ? "字段匹配" : "分隔符"}</dt><dd>{format === "excel" ? "首行字段名" : config.delimiter || "未配置"}</dd>
           <dt>文件</dt><dd>{uploadedFile ? `${uploadedFile.fileName} / ${formatFileSize(uploadedFile.fileSize)}` : "未选择"}</dd>
         </dl>
         {status && !error ? <p className={`prj-pm-dict-upload-modal__status is-${status.tone}`}>{status.message}</p> : null}
@@ -819,6 +923,7 @@ function DictionaryTestFileUploadDialog({
         <pre>{uploadedFile?.preview || "选择文件后在这里预览前 80 行内容。"}</pre>
       </section>
     </div>
+    , document.body,
   );
 }
 
@@ -878,7 +983,7 @@ function dictionaryTestDataFeedbackKey(storageKey: string) {
   return `rich-project-dictionary-test-data-feedback:${storageKey}`;
 }
 
-function loadDictionaryTestDataFeedback(storageKey: string): DictionaryTestDataFeedback {
+function loadDictionaryTestDataFeedback(storageKey: string, mappingSignature?: string): DictionaryTestDataFeedback {
   if (typeof window === "undefined") return { uploadStatus: null, extractionIssues: [] };
   try {
     const parsed = JSON.parse(window.localStorage.getItem(dictionaryTestDataFeedbackKey(storageKey)) ?? "{}");
@@ -909,7 +1014,11 @@ function loadDictionaryTestDataFeedback(storageKey: string): DictionaryTestDataF
     const runtimeParams = record.runtimeParams && typeof record.runtimeParams === "object" && !Array.isArray(record.runtimeParams)
       ? Object.fromEntries(Object.entries(record.runtimeParams as Record<string, unknown>).filter(([, value]) => typeof value === "string")) as Record<string, string>
       : undefined;
-    return { uploadStatus, extractionIssues, extractionJobId, extractionPrepare, extractionRunStatus, runtimeParams };
+    const isCurrentMapping = Boolean(mappingSignature) && record.mappingSignature === mappingSignature;
+    if (!isCurrentMapping) {
+      return { uploadStatus, extractionIssues: [], runtimeParams };
+    }
+    return { mappingSignature, uploadStatus, extractionIssues, extractionJobId, extractionPrepare, extractionRunStatus, runtimeParams };
   } catch {
     return { uploadStatus: null, extractionIssues: [] };
   }

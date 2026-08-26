@@ -8,6 +8,7 @@ import {
   normalizeDictionaryDatabaseConfig,
   type ProjectDictionaryFieldDetail,
   type ProjectDictionaryMappingRule,
+  type ProjectDictionaryMappingScenario,
   type ProjectDictionaryMappingTempTableInput,
   type ProjectDictionaryRectificationInput,
   type ProjectDictionaryRectificationPatch,
@@ -18,6 +19,7 @@ import {
 } from "../repos/ProjectManagementRepo.js";
 import {
   createDictionaryEntityTable,
+  replaceDictionaryEntityTestData,
   extractDictionaryEntityTestData,
   inspectDictionaryEntitySchema,
   prepareDictionaryEntityExtractionSql,
@@ -32,6 +34,10 @@ import {
   type DictionaryExecutionJobStore,
   type DictionaryExecutionJob,
 } from "../modules/project-dictionary/index.js";
+import {
+  getProjectDescription,
+  saveProjectDescription,
+} from "../modules/project-description/projectDescriptionService.js";
 
 const ASSET_MIMES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -75,6 +81,16 @@ export function projectManagementRoutes(repo: ProjectManagementRepo, options: Pr
   r.get("/:projectId/summary", async c => {
     const projectId = c.req.param("projectId");
     return c.json(await repo.getSummary(projectId));
+  });
+
+  r.get("/:projectId/description", async c => {
+    return c.json(await getProjectDescription(repo, c.req.param("projectId")));
+  });
+
+  r.put("/:projectId/description", async c => {
+    const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    if (typeof body.html !== "string") return c.json({ error: "html required" }, 400);
+    return c.json(await saveProjectDescription(repo, c.req.param("projectId"), body.html));
   });
 
   r.get("/:projectId/search", async c => {
@@ -226,6 +242,19 @@ export function projectManagementRoutes(repo: ProjectManagementRepo, options: Pr
     return c.json(await repo.listDictionaryMappingTempTables(projectId, tableId));
   });
 
+  r.get("/:projectId/dictionary/tables/:tableId/mapping/scenarios", async c => {
+    const projectId = c.req.param("projectId");
+    const tableId = c.req.param("tableId");
+    const [scenarios, rules] = await Promise.all([
+      repo.listDictionaryMappingScenarios(projectId, tableId),
+      repo.listDictionaryMappingRules(projectId, tableId),
+    ]);
+    return c.json(scenarios.map(scenario => ({
+      ...scenario,
+      rules: rules.filter(rule => rule.scenarioId === scenario.id),
+    })));
+  });
+
   r.put("/:projectId/dictionary/tables/:tableId/mapping/temp-tables", async c => {
     const projectId = c.req.param("projectId");
     const tableId = c.req.param("tableId");
@@ -268,6 +297,22 @@ export function projectManagementRoutes(repo: ProjectManagementRepo, options: Pr
     try {
       const target = await loadDictionaryEntityTarget(repo, projectId, tableId);
       const result = await writeDictionaryEntityTestData({ ...target, rows: rows.slice(0, 1000) });
+      return c.json(result);
+    } catch (errorValue) {
+      return c.json({ error: errorValue instanceof Error ? errorValue.message : String(errorValue) }, 400);
+    }
+  });
+
+  r.post("/:projectId/dictionary/tables/:tableId/entity/test-data/replace", async c => {
+    const projectId = c.req.param("projectId");
+    const tableId = c.req.param("tableId");
+    const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    const rows = Array.isArray(body.rows)
+      ? body.rows.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object" && !Array.isArray(row))
+      : [];
+    try {
+      const target = await loadDictionaryEntityTarget(repo, projectId, tableId);
+      const result = await replaceDictionaryEntityTestData({ ...target, rows: rows.slice(0, 1000) });
       return c.json(result);
     } catch (errorValue) {
       return c.json({ error: errorValue instanceof Error ? errorValue.message : String(errorValue) }, 400);
@@ -471,47 +516,52 @@ function mergeDictionarySystemExtraForTest(system: ProjectDictionarySystem, extr
   };
 }
 
-async function loadDictionaryEntityTarget(repo: ProjectManagementRepo, projectId: string, tableId: string) {
+export async function loadDictionaryEntityTarget(repo: ProjectManagementRepo, projectId: string, tableId: string) {
   const tables = await repo.listDictionaryTables(projectId);
   const table = tables.find(item => item.id === tableId);
   if (!table) throw new Error("表元不存在");
   const systems = await repo.listDictionarySystems(projectId);
   const system = systems.find(item => item.id === table.systemId);
   if (!system) throw new Error("当前表未绑定库元");
+  const sharedTestEntitySystemId = typeof system.extra?.testEntitySystemId === "string" ? system.extra.testEntitySystemId : "";
+  const sharedTestEntitySystem = sharedTestEntitySystemId ? systems.find(item => item.id === sharedTestEntitySystemId) : undefined;
+  const entitySystem = sharedTestEntitySystem
+    ? {
+      ...system,
+      dbType: sharedTestEntitySystem.dbType,
+      sqlDialect: sharedTestEntitySystem.sqlDialect,
+      connection: sharedTestEntitySystem.connection,
+      entitySyncPolicy: sharedTestEntitySystem.entitySyncPolicy,
+    }
+    : system;
   const fieldHits = await repo.listDictionaryFields(projectId, tableId);
   const fields = (await Promise.all(fieldHits.map(field => repo.getDictionaryField(projectId, field.id))))
     .filter((field): field is NonNullable<typeof field> => Boolean(field));
-  const mappingRules = await repo.listDictionaryMappingRules(projectId, tableId);
-  const tableMappingRules = mappingRules.filter(rule => !rule.fieldId);
-  const derivedTableMappingRules = deriveDictionaryTableMappingRulesFromFieldRules(mappingRules);
-  const tableWithMapping = applyDictionaryTableMappingRules(
-    table,
-    mergeDictionaryTableMappingRules(tableMappingRules, derivedTableMappingRules),
-  );
+  const [mappingScenarios, mappingRules] = await Promise.all([
+    repo.listDictionaryMappingScenarios(projectId, tableId),
+    repo.listDictionaryMappingRules(projectId, tableId),
+  ]);
+  const scenarios = [...mappingScenarios].sort((left, right) => left.sortOrder - right.sortOrder);
+  const tableWithMapping = {
+    ...table,
+    // 抽数、SQL 验证与页面展示必须共用场景表；不再从旧字段文本推导口径。
+    caliber: scenarios.map((scenario, index) => formatDictionaryStructuredScenario(scenario, index, "口径")).join("\n\n"),
+  };
   const mappingByFieldId = new Map<string, ProjectDictionaryMappingRule[]>();
-  for (const rule of mappingRules.filter(rule => rule.fieldId)) {
+  for (const rule of mappingRules.filter(rule => rule.fieldId && rule.scenarioId)) {
     const rules = mappingByFieldId.get(rule.fieldId!) ?? [];
     rules.push(rule);
     mappingByFieldId.set(rule.fieldId!, rules);
   }
   const fieldsWithMapping = fields.map((field): ProjectDictionaryFieldDetail => {
     const rules = (mappingByFieldId.get(field.id) ?? []).sort((left, right) => left.sortOrder - right.sortOrder);
-    if (rules.length === 0) return field;
-    if (rules.length === 1) {
-      const rule = rules[0]!;
-      return {
-        ...field,
-        acquireLogic: rule.logicText?.trim() || field.acquireLogic,
-        remark: rule.remark ?? field.remark,
-        extra: {
-          ...(field.extra ?? {}),
-          mappingRuleId: rule.id,
-        },
-      };
-    }
+    const rulesByScenarioId = new Map(rules.map(rule => [rule.scenarioId, rule]));
     return {
       ...field,
-      acquireLogic: rules.map((rule, index) => formatDictionaryScenarioMappingRule(rule, index, "逻辑")).join("\n\n"),
+      acquireLogic: scenarios.map((scenario, index) => {
+        const rule = rulesByScenarioId.get(scenario.id);
+        return formatDictionaryStructuredScenario(scenario, index, "逻辑", rule?.logicText);
+      }).join("\n\n"),
       remark: rules.map(rule => rule.remark).find(remark => remark !== undefined) ?? field.remark,
       extra: {
         ...(field.extra ?? {}),
@@ -519,134 +569,21 @@ async function loadDictionaryEntityTarget(repo: ProjectManagementRepo, projectId
       },
     };
   });
-  return { system, table: tableWithMapping, fields: fieldsWithMapping };
+  return { system: entitySystem, table: tableWithMapping, fields: fieldsWithMapping };
 }
 
-function applyDictionaryTableMappingRules(
-  table: ProjectDictionaryTable,
-  rules: ProjectDictionaryMappingRule[],
-): ProjectDictionaryTable {
-  const sortedRules = [...rules].sort((left, right) => left.sortOrder - right.sortOrder);
-  if (sortedRules.length === 0) return table;
-  return {
-    ...table,
-    caliber: sortedRules.map((rule, index) => formatDictionaryScenarioMappingRule(rule, index, "口径")).join("\n\n"),
-  };
-}
-
-function mergeDictionaryTableMappingRules(
-  tableRules: ProjectDictionaryMappingRule[],
-  derivedRules: ProjectDictionaryMappingRule[],
-): ProjectDictionaryMappingRule[] {
-  if (tableRules.length === 0) return derivedRules;
-  if (derivedRules.length === 0) return tableRules;
-
-  const merged = new Map<string, ProjectDictionaryMappingRule>();
-  tableRules.forEach((rule, index) => {
-    merged.set(dictionaryMappingRuleScenarioKey(rule, index), rule);
-  });
-  derivedRules.forEach((rule, index) => {
-    const key = dictionaryMappingRuleScenarioKey(rule, index);
-    const existing = merged.get(key);
-    if (!existing || !dictionaryMappingRuleHasCaliberJson(existing)) {
-      merged.set(key, rule);
-    }
-  });
-  return Array.from(merged.values()).sort((left, right) => left.sortOrder - right.sortOrder);
-}
-
-function deriveDictionaryTableMappingRulesFromFieldRules(rules: ProjectDictionaryMappingRule[]): ProjectDictionaryMappingRule[] {
-  const derived = new Map<string, ProjectDictionaryMappingRule>();
-  const sortedRules = rules
-    .filter(rule => rule.fieldId)
-    .sort((left, right) => left.sortOrder - right.sortOrder);
-  for (const rule of sortedRules) {
-    const condition = dictionaryMappingRuleRawCondition(rule);
-    if (!condition) continue;
-    const scenarioTitle = dictionaryMappingRuleRawScenarioTitle(rule);
-    const key = scenarioTitle ? dictionaryMappingScenarioTitleKey(scenarioTitle) : `rule_${rule.sortOrder}`;
-    if (derived.has(key)) continue;
-    derived.set(key, {
-      ...rule,
-      id: `derived-table-caliber-${rule.id}`,
-      fieldId: undefined,
-      logicText: condition,
-      convertedSql: undefined,
-      remark: undefined,
-      sourceFields: [],
-      actions: [],
-      raw: {
-        ...(rule.raw ?? {}),
-        scenarioName: scenarioTitle || undefined,
-      },
-    });
-  }
-  return Array.from(derived.values());
-}
-
-function dictionaryMappingRuleScenarioKey(rule: ProjectDictionaryMappingRule, index: number): string {
-  const title = dictionaryMappingRuleRawScenarioTitle(rule);
-  if (title) return dictionaryMappingScenarioTitleKey(title);
-  const displayTitle = dictionaryMappingRuleScenarioTitle(rule, index);
-  return dictionaryMappingScenarioTitleKey(displayTitle) || `rule_${rule.sortOrder}`;
-}
-
-function dictionaryMappingScenarioTitleKey(title: string): string {
-  const normalized = title.replace(/\s+/g, "").toLowerCase();
-  const match = normalized.match(/^场景(\d+)/);
-  return match ? `scenario_${Number(match[1])}` : normalized;
-}
-
-function dictionaryMappingRuleHasCaliberJson(rule: ProjectDictionaryMappingRule): boolean {
-  return dictionaryMappingTextLooksLikeCaliberJson(rule.logicText)
-    || dictionaryMappingTextLooksLikeCaliberJson(dictionaryMappingRuleRawCondition(rule));
-}
-
-function dictionaryMappingTextLooksLikeCaliberJson(value: unknown): boolean {
-  const text = typeof value === "string" ? value.trim() : "";
-  if (!text.startsWith("{")) return false;
-  try {
-    const parsed = JSON.parse(text) as { op?: unknown };
-    const op = typeof parsed.op === "string" ? parsed.op.trim().toLowerCase() : "";
-    return ["dataset", "full_extract", "query_scope", "scope"].includes(op);
-  } catch {
-    return false;
-  }
-}
-
-function formatDictionaryScenarioMappingRule(rule: ProjectDictionaryMappingRule, index: number, logicLabel: "逻辑" | "口径"): string {
-  const lines = [dictionaryMappingRuleScenarioTitle(rule, index)];
-  const logicText = rule.logicText?.trim();
-  if (logicText) lines.push(`${logicLabel}：${logicText}`);
-  const remark = rule.remark?.trim();
-  if (remark) lines.push(`备注：${remark}`);
+function formatDictionaryStructuredScenario(
+  scenario: ProjectDictionaryMappingScenario,
+  index: number,
+  label: "逻辑" | "口径",
+  logicText?: string,
+): string {
+  const title = /^场景\s*\d+/.test(scenario.title)
+    ? scenario.title
+    : `场景${index + 1} ${scenario.title}`;
+  const value = label === "口径" ? scenario.caliber?.trim() : logicText?.trim() || '{"op":"null"}';
+  const lines = [title];
+  if (value) lines.push(`${label}：${value}`);
+  if (scenario.remark?.trim()) lines.push(`备注：${scenario.remark.trim()}`);
   return lines.join("\n");
-}
-
-function dictionaryMappingRuleRawCondition(rule: ProjectDictionaryMappingRule): string {
-  const rawCondition = rule.raw?.condition;
-  if (typeof rawCondition === "string") return rawCondition.trim();
-  if (rawCondition && typeof rawCondition === "object" && !Array.isArray(rawCondition)) {
-    return JSON.stringify(rawCondition);
-  }
-  return "";
-}
-
-function dictionaryMappingRuleRawScenarioTitle(rule: ProjectDictionaryMappingRule): string {
-  const raw = rule.raw ?? {};
-  return [
-    raw.scenarioName,
-    raw.sceneName,
-    raw.scenario,
-    raw.scene,
-    raw.title,
-    raw.name,
-  ].map(value => typeof value === "string" ? value.trim() : "").find(Boolean) || "";
-}
-
-function dictionaryMappingRuleScenarioTitle(rule: ProjectDictionaryMappingRule, index: number): string {
-  const rawTitle = dictionaryMappingRuleRawScenarioTitle(rule);
-  const fallback = `场景${index + 1}`;
-  if (!rawTitle) return fallback;
-  return /^场景\s*\d+/.test(rawTitle) ? rawTitle : `${fallback} ${rawTitle}`;
 }

@@ -260,6 +260,7 @@ function DictionarySystemDatabaseConfig({
   onSystemSaved: (system: ProjectDictionarySystem) => void;
 }) {
   const [draft, setDraft] = useState<DictionarySystemDbDraft>(() => dictionarySystemDbDraftFromSystem(system));
+  const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [status, setStatus] = useState<{ tone: "success" | "error"; text: string } | null>(null);
@@ -307,16 +308,23 @@ function DictionarySystemDatabaseConfig({
   return (
     <section className="prj-pm-dict-db-config">
       <header>
-        <div>
-          <strong>实体库配置</strong>
-          <span>首轮支持 PostgreSQL / SQL Server，SQL 组装会按这里的方言生成。</span>
-        </div>
-        <div className="prj-pm-dict-db-config__actions">
+        <button
+          type="button"
+          className="prj-pm-dict-db-config__toggle"
+          aria-expanded={expanded}
+          onClick={() => setExpanded(current => !current)}>
+          <span>
+            <strong>实体库配置</strong>
+            <span>首轮支持 PostgreSQL / SQL Server，SQL 组装会按这里的方言生成。</span>
+          </span>
+          <span className="prj-pm-dict-db-config__toggle-icon" aria-hidden="true">{expanded ? "⌃" : "⌄"}</span>
+        </button>
+        {expanded ? <div className="prj-pm-dict-db-config__actions">
           <button type="button" onClick={testConnection} disabled={saving || testing}>{testing ? "测试中" : "测试连接"}</button>
           <button type="button" onClick={save} disabled={saving || testing}>{saving ? "保存中" : "保存配置"}</button>
-        </div>
+        </div> : null}
       </header>
-      <div className="prj-pm-dict-db-config__grid">
+      {expanded ? <><div className="prj-pm-dict-db-config__grid">
         <label>
           <span>数据库类型</span>
           <select value={draft.dbType} onChange={event => setField("dbType", event.target.value as DictionarySystemDbDraft["dbType"])}>
@@ -368,7 +376,7 @@ function DictionarySystemDatabaseConfig({
           <span>SSL</span>
         </label>
       </div>
-      {status ? <p className={`prj-pm-dict-db-config__status is-${status.tone}`}>{status.text}</p> : null}
+      {status ? <p className={`prj-pm-dict-db-config__status is-${status.tone}`}>{status.text}</p> : null}</> : null}
     </section>
   );
 }

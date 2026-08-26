@@ -158,6 +158,12 @@ function renderDictionaryJsonLogic(
     nodes.push(` ${rule.name || "-"}`);
   } else if (rule.op === "runtime_context") {
     nodes.push(` ${rule.name || "依赖运行时上下文"}`);
+  } else if ((rule.op === "required_lookup" || rule.op === "lookup_or_error") && rule.source && rule.lookup) {
+    nodes.push(" ");
+    renderSource(rule.source, "source");
+    nodes.push(" 匹配码表 ");
+    renderSource(rule.lookup, "lookup");
+    nodes.push("，未命中则报错");
   } else if (rule.op === "substring_marker" && rule.source) {
     nodes.push(" ");
     nodes.push("从 ");
@@ -596,6 +602,9 @@ function renderDictionaryJsonValue(
     if ((op === "direct" || op === "直取") && value.source) {
       return renderDictionarySourceToken(value.source, refs, onOpenFieldRef, `${keyPrefix}-direct-source`);
     }
+    if (op === "param") {
+      return <span className="prj-pm-dict-ref-chip">入参 {value.name || "-"}</span>;
+    }
     if ((op === "split_part" || op === "分隔取段") && value.source) {
       return <>{renderDictionarySourceToken(value.source, refs, onOpenFieldRef, `${keyPrefix}-split-source`)} 按 {value.delimiter} 取第 {value.index} 段</>;
     }
@@ -688,6 +697,9 @@ function renderDictionaryJsonValueCn(
     if ((op === "direct" || op === "直取") && value.source) {
       return renderDictionarySourceTokenCn(value.source, refs, onOpenFieldRef, `${keyPrefix}-direct-source`);
     }
+    if (op === "param") {
+      return <span className="prj-pm-dict-ref-chip">入参 {value.name || "-"}</span>;
+    }
     if ((op === "split_part" || op === "分隔取段") && value.source) {
       return <>{renderDictionarySourceTokenCn(value.source, refs, onOpenFieldRef, `${keyPrefix}-split-source`)} 按 {value.delimiter} 取第 {value.index} 段</>;
     }
@@ -765,6 +777,8 @@ function dictionaryJsonOpLabel(op: string): string {
     coalesce: "空值兜底",
     date_parse: "日期解析",
     param: "参数",
+    required_lookup: "必填码表匹配",
+    lookup_or_error: "必填码表匹配",
     substring_marker: "标记截取",
     runtime_context: "运行时上下文",
     split_part: "分隔取段",
@@ -787,6 +801,7 @@ function dictionaryLogicActionTone(op: string): string {
   if (["case", "判断", "condition", "条件"].includes(normalized)) return "condition";
   if (["sql", "expr", "计算"].includes(normalized)) return "sql";
   if (["code_mapping", "码值映射", "codemapping"].includes(normalized)) return "code";
+  if (["required_lookup", "lookup_or_error"].includes(normalized)) return "code";
   if (["cast", "abs_cast", "coalesce_cast", "coalesce", "date_parse", "substring_marker", "split_part", "类型转换", "绝对值转换", "空值转换", "空值兜底", "日期解析", "标记截取", "分隔取段"].includes(normalized)) return "transform";
   if (["round", "divide", "multiply", "add", "subtract", "nullif", "四舍五入", "除法", "乘法", "加法", "减法", "空值保护"].includes(normalized)) return "math";
   if (["literal", "default", "const", "默认值", "常量"].includes(normalized)) return "literal";

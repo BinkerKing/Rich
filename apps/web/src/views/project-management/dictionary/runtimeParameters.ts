@@ -5,6 +5,11 @@ export function isDictionaryRuntimeParameterName(name?: string): boolean {
   return Boolean(text && !/^(null|true|false|undefined)$/i.test(text));
 }
 
+export function isDictionarySystemRuntimeContextName(name?: string): boolean {
+  return ["currenttimestamp", "currenttime", "now", "currentdate", "today", "当前时间", "系统时间", "当前日期", "系统日期"]
+    .includes((name?.trim() || "").replace(/[\s_.-]/g, "").toLowerCase());
+}
+
 function runtimeParameterName(value?: string): string {
   return value?.trim().match(/^:([A-Za-z_][\w$]*)$/)?.[1] || "";
 }
@@ -34,7 +39,8 @@ function runtimeParametersInJson(value: unknown): string[] {
       const name = runtimeParameterName(record.source);
       if (isDictionaryRuntimeParameterName(name)) names.add(name);
     }
-    if (typeof record.op === "string" && /^(param|runtime_context)$/i.test(record.op) && typeof record.name === "string" && isDictionaryRuntimeParameterName(record.name)) names.add(record.name.trim());
+    if (typeof record.op === "string" && /^(param|runtime_context)$/i.test(record.op) && typeof record.name === "string" && isDictionaryRuntimeParameterName(record.name)
+      && (record.op.toLowerCase() !== "runtime_context" || !isDictionarySystemRuntimeContextName(record.name))) names.add(record.name.trim());
     Object.values(record).forEach(visit);
   };
   visit(value);

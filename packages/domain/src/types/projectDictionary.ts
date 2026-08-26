@@ -47,9 +47,18 @@ export type DictionaryMappingJsonRule = {
   index?: number;
   length?: number;
   marker?: string;
+  lookup?: string;
   stripQuotes?: boolean;
   emptyAs?: unknown;
   scale?: number;
+  /** Aggregate function used by group_aggregate: sum/count/avg/min/max. */
+  aggregate?: string;
+  /** Relative date unit used by relative_date_boundary. */
+  unit?: "day" | "month" | "year";
+  /** Signed offset from source before applying the boundary. */
+  offset?: number;
+  /** Boundary used by relative_date_boundary. */
+  boundary?: "start" | "end";
   when?: Array<{ if?: DictionaryMappingJsonCondition; then?: DictionaryMappingJsonRuleValue }>;
   else?: DictionaryMappingJsonRuleValue;
 };
@@ -62,12 +71,20 @@ export type DictionaryCaliberSelectLatest = {
   order_by?: DictionaryCaliberOrderExpression[];
   limit?: number;
 };
+export type DictionaryCaliberSelectLatestDateGroup = {
+  latest_date: string;
+  current_date: string;
+  partition_by: Array<{ latest: string; current: string }>;
+  exclude_self?: { latest: string; current: string };
+  date_format?: string;
+};
 export type DictionaryCaliberJoin = {
   type?: string;
   table?: DictionaryCaliberTableReference;
   alias?: string;
   on?: DictionaryMappingJsonCondition;
   select_latest?: DictionaryCaliberSelectLatest;
+  select_latest_date_group?: DictionaryCaliberSelectLatestDateGroup;
 };
 export type DictionaryCaliberRule = {
   op?: string;
@@ -77,6 +94,8 @@ export type DictionaryCaliberRule = {
   group_by?: DictionaryCaliberExpression[];
   order_by?: DictionaryCaliberOrderExpression[];
   limit?: number;
+  /** Union compatible source scopes. Each branch currently represents the same primary source table. */
+  union_all?: Array<Pick<DictionaryCaliberRule, "from" | "where" | "order_by" | "limit">>;
   remark?: string;
 };
 
@@ -100,7 +119,7 @@ export function parseDictionaryCaliberRule(caliber?: string): DictionaryCaliberR
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
     const rule = parsed as DictionaryCaliberRule;
     const op = rule.op?.trim().toLowerCase().replace(/[\s-]+/g, "_") || "dataset";
-    return ["full_extract", "dataset", "query_scope", "scope"].includes(op) ? { ...rule, op } : null;
+    return ["full_extract", "dataset", "query_scope", "scope", "union_all"].includes(op) ? { ...rule, op } : null;
   } catch {
     return null;
   }

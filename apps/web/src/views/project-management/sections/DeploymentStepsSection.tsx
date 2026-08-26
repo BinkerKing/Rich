@@ -169,7 +169,7 @@ export function ProjectDeploymentStepsSection({ project, summary }: { project: E
   };
 
   return (
-    <div className={`deployment-workspace prj-pm-legacy-skin${editing ? " is-editing" : ""}`}>
+    <div className={`deployment-workspace prj-pm-legacy-skin${items.length === 0 ? " is-empty" : ""}${editing ? " is-editing" : ""}`}>
       {error && <div className="prj-pm-error">{error}</div>}
 
       {items.length === 0 ? (

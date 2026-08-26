@@ -7,7 +7,9 @@ export function replaceDictionaryRuntimePlaceholdersForValidation(
   sql: string,
   dialect: DictionarySqlDialect,
 ): string {
-  const placeholder = dialect === "sqlserver" ? "CAST(N'' AS NVARCHAR(MAX))" : "''::text";
+  // PostgreSQL 的无类型 NULL 会按比较上下文推断为 date/timestamp/number 等正确类型。
+  // 不能固定为 text，否则会把有效的日期参数比较误判为 varchar = timestamp。
+  const placeholder = dialect === "sqlserver" ? "CAST(NULL AS NVARCHAR(MAX))" : "NULL";
   let result = "";
   for (let index = 0; index < sql.length;) {
     const char = sql[index];
@@ -70,18 +72,28 @@ async function queryDictionaryValidationSql(
   }
 }
 
+function dictionaryValidationSqlWithTempTables(
+  sql: string,
+  dialect: DictionarySqlDialect,
+  tempTableSetupSql: string[] = [],
+): string {
+  if (tempTableSetupSql.length === 0) return sql;
+  return `${tempTableSetupSql.join(";\n\n")};\n\n${sql}`;
+}
+
 export function validateDictionarySqlExpression(
   system: ProjectDictionarySystem,
   expression: string,
   fromSql: string,
   dialect: DictionarySqlDialect,
+  tempTableSetupSql?: string[],
 ): Promise<string | null> {
   const sql = dialect === "sqlserver"
     ? `SELECT TOP (1) ${expression} AS value ${fromSql}`
     : `SELECT ${expression} AS value ${fromSql} LIMIT 1`;
   return queryDictionaryValidationSql(
     system,
-    replaceDictionaryRuntimePlaceholdersForValidation(sql, dialect),
+    replaceDictionaryRuntimePlaceholdersForValidation(dictionaryValidationSqlWithTempTables(sql, dialect, tempTableSetupSql), dialect),
     dialect,
   );
 }
@@ -90,13 +102,14 @@ export function validateDictionaryCaliberSql(
   system: ProjectDictionarySystem,
   fromSql: string,
   dialect: DictionarySqlDialect,
+  tempTableSetupSql?: string[],
 ): Promise<string | null> {
   const sql = dialect === "sqlserver"
     ? `SELECT TOP (1) 1 AS value ${fromSql}`
     : `SELECT 1 AS value ${fromSql} LIMIT 1`;
   return queryDictionaryValidationSql(
     system,
-    replaceDictionaryRuntimePlaceholdersForValidation(sql, dialect),
+    replaceDictionaryRuntimePlaceholdersForValidation(dictionaryValidationSqlWithTempTables(sql, dialect, tempTableSetupSql), dialect),
     dialect,
   );
 }
@@ -105,13 +118,14 @@ export function validateDictionaryStatementSql(
   system: ProjectDictionarySystem,
   sql: string,
   dialect: DictionarySqlDialect,
+  tempTableSetupSql?: string[],
 ): Promise<string | null> {
   const validationSql = replaceDictionaryRuntimePlaceholdersForValidation(sql, dialect);
   return queryDictionaryValidationSql(
     system,
     dialect === "sqlserver"
-      ? `SET PARSEONLY ON;\n${validationSql};\nSET PARSEONLY OFF;`
-      : `EXPLAIN ${validationSql}`,
+      ? `SET PARSEONLY ON;\n${dictionaryValidationSqlWithTempTables(validationSql, dialect, tempTableSetupSql)};\nSET PARSEONLY OFF;`
+      : dictionaryValidationSqlWithTempTables(`EXPLAIN ${validationSql}`, dialect, tempTableSetupSql),
     dialect,
   );
 }

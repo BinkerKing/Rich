@@ -5,8 +5,12 @@ import {
   type ProjectDictionaryRectification,
   type ProjectManagementModuleKey,
   type ProjectManagementRepo,
+  type ProjectModuleItem,
   type ProjectModuleItemPatch,
 } from "../repos/ProjectManagementRepo.js";
+import { validateDictionaryMappingSql } from "../modules/project-dictionary/application/entityService.js";
+import { loadDictionaryEntityTarget } from "../routes/projectManagement.js";
+import { getProjectDescription, saveProjectDescription } from "../modules/project-description/projectDescriptionService.js";
 
 const moduleKeys = PROJECT_MANAGEMENT_MODULES.map(module => module.key) as [
   ProjectManagementModuleKey,
@@ -18,6 +22,7 @@ const rectificationEntityTypeSchema = z.enum(["library", "table", "field", "code
 const rectificationStatusSchema = z.enum(["open", "fixed", "verified", "cancelled"]);
 const mappingStatusSchema = z.enum(["draft", "complete", "unable_to_convert", "invalid", "manual", "blocked"]);
 const mappingRawSchema = z.record(z.string(), z.unknown());
+const todoStatusSchema = z.enum(["todo", "doing", "done"]);
 const mappingSourceFieldInputSchema = z.object({
   id: z.string().min(1).optional(),
   field_id: z.string().min(1).nullable().optional(),
@@ -38,6 +43,29 @@ const mappingActionInputSchema = z.object({
   sort_order: z.number().int().optional(),
   raw: mappingRawSchema.optional(),
   source_field_ids: z.array(z.string().min(1)).max(200).optional(),
+});
+const mappingTempFieldInputSchema = z.object({
+  id: z.string().min(1).optional(),
+  field_name: z.string().min(1).max(160),
+  field_cn: z.string().max(500).nullable().optional(),
+  field_type: z.string().max(120).nullable().optional(),
+  field_length: z.string().max(80).nullable().optional(),
+  logic_text: z.string().max(32_000).nullable().optional(),
+  converted_sql: z.string().max(32_000).nullable().optional(),
+  remark: z.string().max(4_000).nullable().optional(),
+  sort_order: z.number().int().optional(),
+  raw: mappingRawSchema.optional(),
+});
+const mappingTempTableInputSchema = z.object({
+  id: z.string().min(1).optional(),
+  table_name: z.string().min(1).max(160),
+  table_cn: z.string().max(500).nullable().optional(),
+  logic_text: z.string().max(32_000).nullable().optional(),
+  converted_sql: z.string().max(100_000).nullable().optional(),
+  remark: z.string().max(4_000).nullable().optional(),
+  sort_order: z.number().int().optional(),
+  raw: mappingRawSchema.optional(),
+  fields: z.array(mappingTempFieldInputSchema).max(500).default([]),
 });
 
 function jsonResult(value: unknown) {
@@ -62,6 +90,25 @@ function compactProjectModuleItemPatch(input: {
     sortOrder: input.sort_order,
     content: input.content,
   };
+}
+
+function projectTodoOriginal(item: ProjectModuleItem): Record<string, unknown> {
+  const original = item.content.original;
+  return original && typeof original === "object" && !Array.isArray(original)
+    ? original as Record<string, unknown>
+    : {};
+}
+
+function projectTodoSubtitle(status: string, owner: string): string {
+  return [status, owner].filter(Boolean).join(" · ");
+}
+
+function projectTodoString(value: string | null | undefined): string {
+  return value ?? "";
+}
+
+function projectTodoMatchesStatus(item: ProjectModuleItem, status?: z.infer<typeof todoStatusSchema>): boolean {
+  return !status || String(projectTodoOriginal(item).status || "todo").trim().toLowerCase() === status;
 }
 
 function compactMappingRulePatch(input: {
@@ -112,6 +159,28 @@ function compactMappingActionPatch(input: {
   };
 }
 
+function compactDictionaryFieldPatch(input: Record<string, unknown>): Parameters<NonNullable<ProjectManagementRepo["updateDictionaryField"]>>[2] {
+  return {
+    fieldCn: input.field_cn as string | null | undefined,
+    fieldType: input.field_type as string | null | undefined,
+    fieldLength: input.field_length as string | null | undefined,
+    formatPattern: input.format_pattern as string | null | undefined,
+    nullable: input.nullable as string | null | undefined,
+    primaryKey: input.primary_key as boolean | undefined,
+    required: input.required as boolean | undefined,
+    description: input.description as string | null | undefined,
+    acquireLogic: input.acquire_logic as string | null | undefined,
+    validationRule: input.validation_rule as string | null | undefined,
+    codeValue: input.code_value as string | null | undefined,
+    mappedTable: input.mapped_table as string | null | undefined,
+    mappedField: input.mapped_field as string | null | undefined,
+    mappedFieldCn: input.mapped_field_cn as string | null | undefined,
+    dataSource: input.data_source as string | null | undefined,
+    remark: input.remark as string | null | undefined,
+    extra: input.extra as Record<string, unknown> | undefined,
+  };
+}
+
 function compactMappingActionInputs(actions: z.infer<typeof mappingActionInputSchema>[]): Parameters<ProjectManagementRepo["replaceDictionaryMappingActions"]>[2] {
   return actions.map(action => ({
     id: action.id,
@@ -139,7 +208,51 @@ function compactMappingSourceFieldInputs(sourceFields: z.infer<typeof mappingSou
   }));
 }
 
+function compactMappingTempTableInputs(tempTables: z.infer<typeof mappingTempTableInputSchema>[]): Parameters<ProjectManagementRepo["replaceDictionaryMappingTempTables"]>[2] {
+  return tempTables.map(tempTable => ({
+    id: tempTable.id,
+    tableName: tempTable.table_name,
+    tableCn: tempTable.table_cn,
+    logicText: tempTable.logic_text,
+    convertedSql: tempTable.converted_sql,
+    remark: tempTable.remark,
+    sortOrder: tempTable.sort_order,
+    raw: tempTable.raw,
+    fields: tempTable.fields.map(field => ({
+      id: field.id,
+      fieldName: field.field_name,
+      fieldCn: field.field_cn,
+      fieldType: field.field_type,
+      fieldLength: field.field_length,
+      logicText: field.logic_text,
+      convertedSql: field.converted_sql,
+      remark: field.remark,
+      sortOrder: field.sort_order,
+      raw: field.raw,
+    })),
+  }));
+}
+
 export function registerProjectManagementTools(server: McpServer, repo: ProjectManagementRepo): void {
+  server.tool(
+    "project_management_get_description",
+    "Read the canonical rich-text project description and its plain-text AI context. Call this first when joining an unfamiliar Rich project.",
+    {
+      project_id: z.string().min(1).describe("Rich project id."),
+    },
+    async ({ project_id }) => jsonResult(await getProjectDescription(repo, project_id)),
+  );
+
+  server.tool(
+    "project_management_update_description",
+    "Replace the canonical project description shown in 项目说明. Send the complete rich-text HTML content; the result includes both rendered HTML and plain-text AI context.",
+    {
+      project_id: z.string().min(1).describe("Rich project id."),
+      html: z.string().max(500_000).describe("Complete rich-text HTML for 项目说明. Use an empty string to clear it."),
+    },
+    async ({ project_id, html }) => jsonResult(await saveProjectDescription(repo, project_id, html)),
+  );
+
   server.tool(
     "project_management_summary",
     "Get the module counts and data-dictionary counts for one Rich project-management project. Call this first to understand what content exists.",
@@ -151,7 +264,7 @@ export function registerProjectManagementTools(server: McpServer, repo: ProjectM
 
   server.tool(
     "project_management_search",
-    "Search across the project-management app: data dictionary, workflow, scenario manual, environment config, deployment steps, monitoring, code versions, todos, and folders. Use this before updating or deleting when you only know text.",
+    "Search across the project-management app: project description, data dictionary, workflow, scenario manual, environment config, deployment steps, monitoring, code versions, todos, and folders. Use this before updating or deleting when you only know text.",
     {
       project_id: z.string().min(1),
       query: z.string().min(1),
@@ -166,7 +279,7 @@ export function registerProjectManagementTools(server: McpServer, repo: ProjectM
 
   server.tool(
     "project_management_list_items",
-    "List structured items from a project-management module. This covers 作业流程, 场景手册, 环境配置, 部署步骤, 监控预警, 代码版本, 项目代办 and 文件夹. For nested modules pass parent_id.",
+    "List structured items from a project-management module. This covers 项目说明, 作业流程, 场景手册, 环境配置, 部署步骤, 监控预警, 代码版本, 项目代办 and 文件夹. For nested modules pass parent_id.",
     {
       project_id: z.string().min(1),
       module_key: moduleKeySchema,
@@ -254,6 +367,128 @@ export function registerProjectManagementTools(server: McpServer, repo: ProjectM
   );
 
   server.tool(
+    "project_todo_list",
+    "List project todos in board order. Optionally filter by todo/doing/done status or exact owner. Use this before updating or deleting a todo when you need its id.",
+    {
+      project_id: z.string().min(1),
+      status: todoStatusSchema.optional(),
+      owner: z.string().min(1).max(240).optional(),
+    },
+    async ({ project_id, status, owner }) => {
+      const todos = await repo.listModuleItems(project_id, "todos");
+      return jsonResult(todos.filter(todo => {
+        const original = projectTodoOriginal(todo);
+        return projectTodoMatchesStatus(todo, status)
+          && (!owner || String(original.owner || "").trim() === owner);
+      }));
+    },
+  );
+
+  server.tool(
+    "project_todo_get",
+    "Get one project todo by id, including title, status, owner, priority, dueAt, description and preserved original metadata.",
+    {
+      project_id: z.string().min(1),
+      todo_id: z.string().min(1),
+    },
+    async ({ project_id, todo_id }) => {
+      const todo = (await repo.listModuleItems(project_id, "todos")).find(item => item.id === todo_id);
+      if (!todo) return errorResult(`Project todo ${todo_id} not found`);
+      return jsonResult(todo);
+    },
+  );
+
+  server.tool(
+    "project_todo_create",
+    "Create a project todo. The UI-compatible fields are title, status, owner, priority, due_at and description.",
+    {
+      project_id: z.string().min(1),
+      title: z.string().min(1).max(240),
+      status: todoStatusSchema.default("todo"),
+      owner: z.string().max(240).optional(),
+      priority: z.string().max(120).optional(),
+      due_at: z.string().max(120).optional(),
+      description: z.string().max(16_000).optional(),
+      sort_order: z.number().int().optional(),
+    },
+    async ({ project_id, title, status, owner, priority, due_at, description, sort_order }) => {
+      const original = {
+        title,
+        status,
+        owner: owner ?? "",
+        priority: priority ?? "普通",
+        dueAt: due_at ?? "",
+        description: description ?? "",
+      };
+      const todo = await repo.createModuleItem(project_id, {
+        moduleKey: "todos",
+        title,
+        subtitle: projectTodoSubtitle(status, original.owner),
+        sortOrder: sort_order,
+        content: { original },
+      });
+      return jsonResult({ ok: true, todo });
+    },
+  );
+
+  server.tool(
+    "project_todo_update",
+    "Patch one project todo. Omitted fields are preserved; pass null for owner, priority, due_at or description to clear that field.",
+    {
+      project_id: z.string().min(1),
+      todo_id: z.string().min(1),
+      title: z.string().min(1).max(240).optional(),
+      status: todoStatusSchema.optional(),
+      owner: z.string().max(240).nullable().optional(),
+      priority: z.string().max(120).nullable().optional(),
+      due_at: z.string().max(120).nullable().optional(),
+      description: z.string().max(16_000).nullable().optional(),
+      sort_order: z.number().int().optional(),
+    },
+    async ({ project_id, todo_id, title, status, owner, priority, due_at, description, sort_order }) => {
+      const current = (await repo.listModuleItems(project_id, "todos")).find(item => item.id === todo_id);
+      if (!current) return errorResult(`Project todo ${todo_id} not found`);
+      const currentOriginal = projectTodoOriginal(current);
+      const nextTitle = title ?? String(currentOriginal.title || current.title || "未命名待办");
+      const nextStatus = status ?? String(currentOriginal.status || "todo");
+      const nextOwner = owner === undefined ? String(currentOriginal.owner || "") : projectTodoString(owner);
+      const nextOriginal = {
+        ...currentOriginal,
+        title: nextTitle,
+        status: nextStatus,
+        owner: nextOwner,
+        priority: priority === undefined ? String(currentOriginal.priority || "") : projectTodoString(priority),
+        dueAt: due_at === undefined ? String(currentOriginal.dueAt || currentOriginal.deadline || "") : projectTodoString(due_at),
+        description: description === undefined ? String(currentOriginal.description || "") : projectTodoString(description),
+      };
+      const todo = await repo.updateModuleItem(project_id, todo_id, {
+        title: nextTitle,
+        subtitle: projectTodoSubtitle(nextStatus, nextOwner),
+        sortOrder: sort_order,
+        content: { ...current.content, original: nextOriginal },
+      });
+      if (!todo) return errorResult(`Project todo ${todo_id} not found`);
+      return jsonResult({ ok: true, todo });
+    },
+  );
+
+  server.tool(
+    "project_todo_delete",
+    "Delete one project todo. Call only after the user explicitly asked to delete it and you have confirmed the todo id.",
+    {
+      project_id: z.string().min(1),
+      todo_id: z.string().min(1),
+    },
+    async ({ project_id, todo_id }) => {
+      const exists = (await repo.listModuleItems(project_id, "todos")).some(item => item.id === todo_id);
+      if (!exists) return errorResult(`Project todo ${todo_id} not found`);
+      const ok = await repo.deleteModuleItem(project_id, todo_id);
+      if (!ok) return errorResult(`Project todo ${todo_id} not found`);
+      return jsonResult({ ok: true, id: todo_id });
+    },
+  );
+
+  server.tool(
     "project_dictionary_list_systems",
     "List data-dictionary libraries/systems for a project. Use this before reading table or field metadata.",
     {
@@ -270,6 +505,47 @@ export function registerProjectManagementTools(server: McpServer, repo: ProjectM
       system_id: z.string().min(1).optional(),
     },
     async ({ project_id, system_id }) => jsonResult(await repo.listDictionaryTables(project_id, system_id)),
+  );
+
+  server.tool(
+    "project_dictionary_update_table",
+    "Patch data-dictionary table metadata. Supports all common table fields; supplied extra metadata is merged without removing existing keys.",
+    {
+      project_id: z.string().min(1),
+      table_id: z.string().min(1),
+      system_id: z.string().min(1).nullable().optional(),
+      table_name: z.string().min(1).max(500).optional(),
+      table_cn: z.string().max(1000).nullable().optional(),
+      table_group: z.string().max(500).nullable().optional(),
+      data_layer: z.string().max(500).nullable().optional(),
+      table_type: z.string().max(500).nullable().optional(),
+      source_kind: z.enum(["文件", "数据库"]).nullable().optional(),
+      file_type: z.enum(["txt", "xml", "csv", "excel"]).nullable().optional(),
+      has_mapping: z.boolean().optional(),
+      usage_status: z.string().max(120).nullable().optional(),
+      description: z.string().max(20_000).nullable().optional(),
+      caliber: z.string().max(100_000).nullable().optional(),
+      extra: mappingRawSchema.optional(),
+    },
+    async ({ project_id, table_id, system_id, table_name, table_cn, table_group, data_layer, table_type, source_kind, file_type, has_mapping, usage_status, description, caliber, extra }) => {
+      const table = await repo.updateDictionaryTable(project_id, table_id, {
+        systemId: system_id,
+        tableName: table_name,
+        tableCn: table_cn,
+        tableGroup: table_group,
+        dataLayer: data_layer,
+        tableType: table_type,
+        sourceKind: source_kind,
+        fileType: file_type,
+        hasMapping: has_mapping,
+        usageStatus: usage_status,
+        description,
+        caliber,
+        extra,
+      });
+      if (!table) return errorResult(`Project dictionary table ${table_id} not found`);
+      return jsonResult({ ok: true, table });
+    },
   );
 
   server.tool(
@@ -293,6 +569,22 @@ export function registerProjectManagementTools(server: McpServer, repo: ProjectM
       const field = await repo.getDictionaryField(project_id, field_id);
       if (!field) return errorResult(`Project dictionary field ${field_id} not found`);
       return jsonResult(field);
+    },
+  );
+
+  server.tool(
+    "project_dictionary_update_field",
+    "Patch field metadata (type, length, nullability, Mapping references, logic, validation and descriptions). Read the field first and provide only properties to change.",
+    {
+      project_id: z.string().min(1), field_id: z.string().min(1),
+      field_cn: z.string().max(500).nullable().optional(), field_type: z.string().max(120).nullable().optional(), field_length: z.string().max(80).nullable().optional(), format_pattern: z.string().max(500).nullable().optional(), nullable: z.string().max(80).nullable().optional(),
+      primary_key: z.boolean().optional(), required: z.boolean().optional(), description: z.string().max(8000).nullable().optional(), acquire_logic: z.string().max(16000).nullable().optional(), validation_rule: z.string().max(8000).nullable().optional(), code_value: z.string().max(8000).nullable().optional(),
+      mapped_table: z.string().max(500).nullable().optional(), mapped_field: z.string().max(500).nullable().optional(), mapped_field_cn: z.string().max(500).nullable().optional(), data_source: z.string().max(2000).nullable().optional(), remark: z.string().max(8000).nullable().optional(), extra: mappingRawSchema.optional(),
+    },
+    async input => {
+      const field = await repo.updateDictionaryField(input.project_id, input.field_id, compactDictionaryFieldPatch(input));
+      if (!field) return errorResult(`Project dictionary field ${input.field_id} not found`);
+      return jsonResult({ ok: true, field });
     },
   );
 
@@ -375,6 +667,70 @@ export function registerProjectManagementTools(server: McpServer, repo: ProjectM
       const record = await repo.updateDictionaryRectification(project_id, rectification_id, patch);
       if (!record) return errorResult(`Project dictionary rectification ${rectification_id} not found`);
       return jsonResult({ ok: true, record });
+    },
+  );
+
+  server.tool(
+    "project_dictionary_list_mapping_scenarios",
+    "List the structured Mapping scenarios for one dictionary table. Each scenario owns its caliber and can be joined to field Mapping rules by scenario_id.",
+    {
+      project_id: z.string().min(1),
+      table_id: z.string().min(1),
+    },
+    async ({ project_id, table_id }) => jsonResult({
+      project_id,
+      table_id,
+      scenarios: await repo.listDictionaryMappingScenarios(project_id, table_id),
+    }),
+  );
+
+  server.tool(
+    "project_dictionary_create_mapping_scenario",
+    "Create one structured Mapping scenario for a dictionary table. Then assign its field rules with project_dictionary_update_mapping_rule.",
+    {
+      project_id: z.string().min(1),
+      table_id: z.string().min(1),
+      title: z.string().min(1).max(240),
+      caliber: z.string().max(100_000).nullable().optional(),
+      remark: z.string().max(8000).nullable().optional(),
+      sort_order: z.number().int().optional(),
+      raw: mappingRawSchema.optional(),
+    },
+    async ({ project_id, table_id, title, caliber, remark, sort_order, raw }) => jsonResult({
+      ok: true,
+      scenario: await repo.createDictionaryMappingScenario(project_id, { tableId: table_id, title, caliber, remark, sortOrder: sort_order, raw }),
+    }),
+  );
+
+  server.tool(
+    "project_dictionary_update_mapping_scenario",
+    "Patch the title, caliber, remark, order, or raw metadata of one structured Mapping scenario.",
+    {
+      project_id: z.string().min(1),
+      scenario_id: z.string().min(1),
+      title: z.string().min(1).max(240).optional(),
+      caliber: z.string().max(100_000).nullable().optional(),
+      remark: z.string().max(8000).nullable().optional(),
+      sort_order: z.number().int().optional(),
+      raw: mappingRawSchema.optional(),
+    },
+    async ({ project_id, scenario_id, title, caliber, remark, sort_order, raw }) => {
+      const scenario = await repo.updateDictionaryMappingScenario(project_id, scenario_id, { title, caliber, remark, sortOrder: sort_order, raw });
+      if (!scenario) return errorResult(`Project dictionary mapping scenario ${scenario_id} not found`);
+      return jsonResult({ ok: true, scenario });
+    },
+  );
+
+  server.tool(
+    "project_dictionary_delete_mapping_scenario",
+    "Delete one Mapping scenario. Its field Mapping rules are retained but unassigned, so they can be moved to another scenario.",
+    {
+      project_id: z.string().min(1),
+      scenario_id: z.string().min(1),
+    },
+    async ({ project_id, scenario_id }) => {
+      const deleted = await repo.deleteDictionaryMappingScenario(project_id, scenario_id);
+      return deleted ? jsonResult({ ok: true, scenario_id }) : errorResult(`Project dictionary mapping scenario ${scenario_id} not found`);
     },
   );
 
@@ -510,5 +866,58 @@ export function registerProjectManagementTools(server: McpServer, repo: ProjectM
       table_id: z.string().min(1),
     },
     async ({ project_id, table_id }) => jsonResult(await repo.validateDictionaryMappingTable(project_id, table_id)),
+  );
+
+  server.tool(
+    "project_dictionary_list_mapping_temp_tables",
+    "List Mapping temporary tables and their fields for one target dictionary table.",
+    {
+      project_id: z.string().min(1),
+      table_id: z.string().min(1),
+    },
+    async ({ project_id, table_id }) => jsonResult({
+      project_id,
+      table_id,
+      temp_tables: await repo.listDictionaryMappingTempTables(project_id, table_id),
+    }),
+  );
+
+  server.tool(
+    "project_dictionary_replace_mapping_temp_tables",
+    "Replace all Mapping temporary tables and their fields for one target table. Each temporary table must provide converted_sql as a SELECT query (or logic_text plus field converted_sql expressions); the extraction procedure creates these tables before running the target Mapping.",
+    {
+      project_id: z.string().min(1),
+      table_id: z.string().min(1),
+      temp_tables: z.array(mappingTempTableInputSchema).max(100),
+    },
+    async ({ project_id, table_id, temp_tables }) => jsonResult({
+      ok: true,
+      project_id,
+      table_id,
+      temp_tables: await repo.replaceDictionaryMappingTempTables(project_id, table_id, compactMappingTempTableInputs(temp_tables)),
+    }),
+  );
+
+  server.tool(
+    "project_dictionary_validate_mapping_sql",
+    "Compile and validate a table's Mapping SQL against its configured database. Returns caliber SQL and per-field validation results. Optional caliber and field_rules validate unsaved edits without changing metadata.",
+    {
+      project_id: z.string().min(1),
+      table_id: z.string().min(1),
+      caliber: z.string().max(100_000).optional(),
+      field_rules: z.array(z.object({ field_id: z.string().min(1), logic: z.string().max(100_000) })).max(500).optional(),
+      runtime_params: mappingRawSchema.optional(),
+    },
+    async ({ project_id, table_id, caliber, field_rules, runtime_params }) => {
+      const target = await loadDictionaryEntityTarget(repo, project_id, table_id);
+      return jsonResult(await validateDictionaryMappingSql({
+        ...target,
+        projectId: project_id,
+        repo,
+        caliber,
+        fieldRules: field_rules?.map(rule => ({ fieldId: rule.field_id, logic: rule.logic })),
+        runtimeParams: runtime_params,
+      }));
+    },
   );
 }

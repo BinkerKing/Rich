@@ -6,13 +6,13 @@ describe("project dictionary SQL validator", () => {
     expect(replaceDictionaryRuntimePlaceholdersForValidation(
       "SELECT :reportDate::date, ':literal', value::text",
       "postgresql",
-    )).toBe("SELECT ''::text::date, ':literal', value::text");
+    )).toBe("SELECT NULL::text::date, ':literal', value::text");
   });
 
   it("uses a SQL Server-compatible validation literal", () => {
     expect(replaceDictionaryRuntimePlaceholdersForValidation(
       "SELECT :tenantId, schema_name.table_name",
       "sqlserver",
-    )).toBe("SELECT CAST(N'' AS NVARCHAR(MAX)), schema_name.table_name");
+    )).toBe("SELECT CAST(NULL AS NVARCHAR(MAX)), schema_name.table_name");
   });
 });

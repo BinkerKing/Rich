@@ -26,6 +26,8 @@ export function normalizeDictionaryExtractionOp(op: string): string {
     "类型转换": "cast",
     "空值兜底": "coalesce",
     "全表抽取": "full_extract",
+    "分组聚合": "group_aggregate",
+    "相对日期边界": "relative_date_boundary",
   };
   return aliases[normalized] || normalized;
 }
@@ -93,6 +95,11 @@ export function validateDictionaryExtractionJsonRule(rule: DictionaryMappingJson
     case "runtime_context":
       if (!dictionaryEntityString(rule.name)) errors.push(`${path}.${op} 缺少 name`);
       break;
+    case "required_lookup":
+    case "lookup_or_error":
+      requireSource();
+      if (!dictionaryEntityString(rule.lookup)) errors.push(`${path}.${op} 缺少 lookup`);
+      break;
     case "substring_marker":
       requireSource();
       if (!dictionaryEntityString(rule.marker)) errors.push(`${path}.substring_marker 缺少 marker`);
@@ -129,6 +136,18 @@ export function validateDictionaryExtractionJsonRule(rule: DictionaryMappingJson
       break;
     case "concat":
       if (!rule.sources?.length) errors.push(`${path}.concat 缺少 sources`);
+      break;
+    case "group_aggregate":
+      requireSource();
+      if (!/^(sum|count|avg|min|max)$/i.test(dictionaryEntityString(rule.aggregate))) {
+        errors.push(`${path}.group_aggregate aggregate 仅支持 sum/count/avg/min/max`);
+      }
+      break;
+    case "relative_date_boundary":
+      requireSource();
+      if (rule.unit && !["day", "month", "year"].includes(rule.unit)) errors.push(`${path}.relative_date_boundary unit 仅支持 day/month/year`);
+      if (rule.boundary && !["start", "end"].includes(rule.boundary)) errors.push(`${path}.relative_date_boundary boundary 仅支持 start/end`);
+      if (rule.offset !== undefined && (!Number.isFinite(rule.offset) || !Number.isInteger(rule.offset))) errors.push(`${path}.relative_date_boundary offset 必须是整数`);
       break;
     case "sql":
     case "expr":

@@ -469,8 +469,7 @@ function normalizeTableSourceKind(value: unknown): string {
   const raw = text(value);
   if (!raw) return "数据库";
   if (/文件|file|txt|csv|excel|xlsx|xml|json/i.test(raw)) return "文件";
-  if (/库|表|database|db|table|sql/i.test(raw)) return "数据库";
-  return raw;
+  return "数据库";
 }
 
 function normalizeFileType(value: unknown): string | null {

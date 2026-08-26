@@ -8,7 +8,9 @@ export const PROJECT_MANAGEMENT_SECTIONS: Array<{
   label: string;
   icon: string;
 }> = [
+  { id: "description", label: "项目说明", icon: "◆" },
   { id: "dictionary", label: "数据字典", icon: "▦" },
+  { id: "automation", label: "数据自动化", icon: "▶" },
   { id: "workflow", label: "作业流程", icon: "⇄" },
   { id: "scenarios", label: "场景手册", icon: "▤" },
   { id: "environments", label: "环境配置", icon: "◎" },

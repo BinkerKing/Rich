@@ -10,6 +10,7 @@ export {
 } from "./schemaService.js";
 export {
   queryDictionaryEntityTestData,
+  replaceDictionaryEntityTestData,
   writeDictionaryEntityTestData,
 } from "./testDataService.js";
 export {

@@ -311,7 +311,10 @@ async function insertSystems(pg: Pool): Promise<void> {
     await pg.query(`
       INSERT INTO pm_data_systems (id, project_id, code, name, type, asset_layer, description, extra, created_at, updated_at)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$9)
-    `, [id, PROJECT_ID, code, name, type, assetLayer, description, JSON.stringify({ evidence: ["vtb_ods physical schema", "SAFE 1.4 specification", "SAFE1 Java (middle layer only)"] }), NOW]);
+    `, [id, PROJECT_ID, code, name, type, assetLayer, description, JSON.stringify({
+      evidence: ["vtb_ods physical schema", "SAFE 1.4 specification", "SAFE1 Java (middle layer only)"],
+      ...(id === "vtb-safe-src" ? { testEntitySystemId: "vtb-safe-middle" } : {}),
+    }), NOW]);
   }
 }
 

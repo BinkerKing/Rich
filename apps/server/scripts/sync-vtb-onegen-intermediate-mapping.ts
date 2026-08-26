@@ -24,6 +24,11 @@ const HBM_FILES_BY_TABLE: Record<string, string> = {
   FAEBaseInfo: `${ONEGEN_SRC_ROOT}/net/riking/aboq/model/FAEBaseInfo.hbm.xml`,
   FAEManage: `${ONEGEN_SRC_ROOT}/net/riking/aboq/model/FAEManage.hbm.xml`,
 };
+
+const CONFIRMED_FIELD_LENGTH_OVERRIDES: Record<string, string> = {
+  "CFACATab.DebtorCode": "18",
+  "CFADATab.DebtorCode": "18",
+};
 const FIELD_CN_FALLBACKS: Record<string, string> = {
   ActionType: "操作类型",
   ActionDesc: "修改/删除原因或申报无误理由",
@@ -94,6 +99,89 @@ const FIELD_CN_FALLBACKS: Record<string, string> = {
 };
 const NOW = new Date().toISOString();
 
+const STRUCTURED_EXTRACTION_CALIBERS = [
+  {
+    tableName: "FAEBaseInfo",
+    scenario: "JSH结汇",
+    remark: "t 为当日交易，p 为按关联编号匹配的 T-1 交易，c 为客户主数据。",
+    rule: {
+      op: "dataset",
+      from: { table: "TransactionTab", alias: "t" },
+      joins: [
+        {
+          type: "inner",
+          table: { table: "TransactionTab", alias: "p" },
+          on: {
+            and: [
+              { source: "p.refNo", eq: { source: "t.refNo" } },
+              { source: "p.Id", ne: { source: "t.Id" } },
+            ],
+          },
+          select_latest_date_group: {
+            latest_date: "p.transactionDate",
+            current_date: "t.transactionDate",
+            partition_by: [{ latest: "p.refNo", current: "t.refNo" }],
+            exclude_self: { latest: "p.Id", current: "t.Id" },
+            date_format: "YYYYMMDD",
+          },
+        },
+        { type: "left", table: { table: "Customer", alias: "c" }, on: { source: "c.bankCustomerCode", eq: { source: "p.customerCode" } } },
+      ],
+      where: { source: "t.transactionType", like: "04%" },
+    },
+  },
+  {
+    tableName: "FAEBaseInfo",
+    scenario: "JSH购汇",
+    remark: "t 为当日交易，p 为按关联编号匹配的 T-1 交易，c 为客户主数据。",
+    rule: {
+      op: "dataset",
+      from: { table: "TransactionTab", alias: "t" },
+      joins: [
+        {
+          type: "inner",
+          table: { table: "TransactionTab", alias: "p" },
+          on: {
+            and: [
+              { source: "p.refNo", eq: { source: "t.refNo" } },
+              { source: "p.Id", ne: { source: "t.Id" } },
+            ],
+          },
+          select_latest_date_group: {
+            latest_date: "p.transactionDate",
+            current_date: "t.transactionDate",
+            partition_by: [{ latest: "p.refNo", current: "t.refNo" }],
+            exclude_self: { latest: "p.Id", current: "t.Id" },
+            date_format: "YYYYMMDD",
+          },
+        },
+        { type: "left", table: { table: "Customer", alias: "c" }, on: { source: "c.bankCustomerCode", eq: { source: "p.customerCode" } } },
+      ],
+      where: { source: "t.transactionType", like: "03%" },
+    },
+  },
+  {
+    tableName: "FAEManage",
+    scenario: "结汇用途明细",
+    remark: "f 为已生成的结售汇基础信息，t 为当日交易，u/x 分别为用途码和交易编码。",
+    rule: {
+      op: "dataset",
+      from: { table: "FAEBaseInfo", alias: "f" },
+      joins: [
+        { type: "inner", table: { table: "TransactionTab", alias: "t" }, on: { source: "t.refNo", eq: { source: "f.BusCode" } } },
+        { type: "inner", table: { table: "UseType", alias: "u" }, on: { source: "u.useTypeCode", eq: { source: "t.useType" } } },
+        { type: "left", table: { table: "TxCode", alias: "x" }, on: { source: "x.txCode", eq: { source: "t.bopTxCode" } } },
+      ],
+      where: {
+        and: [
+          { source: "f.jghFlag", eq: "1" },
+          { source: "t.useType", ne: null },
+        ],
+      },
+    },
+  },
+] as const;
+
 type TableSpec = {
   tableName: string;
   tableCn: string;
@@ -140,6 +228,8 @@ async function main(): Promise<void> {
     await insertCodeSets(client, codeSets);
     await bindFieldCodeSets(client, fields);
     await insertMappings(client, mappings);
+    await insertStructuredExtractionCalibers(client);
+    await applyRequiredLookupMappings(client);
     await insertRectifications(client, rectifications);
     await rebuildSearchIndex(client);
     await client.query("COMMIT");
@@ -217,7 +307,7 @@ function enrichFieldsWithHbm(fields: FieldSpec[], hbmDefinitions: Map<string, Hb
       ...field,
       fieldCn: fallbackFieldCn(field),
       fieldType: definition.fieldType,
-      fieldLength: definition.fieldLength,
+      fieldLength: CONFIRMED_FIELD_LENGTH_OVERRIDES[`${field.tableName}.${field.fieldName}`] ?? definition.fieldLength,
       formatPattern: definition.formatPattern,
       evidence: appendEvidence(field.evidence, definition.evidence),
     };
@@ -691,6 +781,49 @@ async function insertMappings(client: PoolClient, mappings: MappingSpec[]): Prom
       );
     }
   }
+}
+
+async function insertStructuredExtractionCalibers(client: PoolClient): Promise<void> {
+  for (const [index, caliber] of STRUCTURED_EXTRACTION_CALIBERS.entries()) {
+    const id = `vtb-onegen-middle-map-${caliber.tableName.toLowerCase()}-caliber-${index + 1}`;
+    await client.query(
+      `
+        INSERT INTO pm_mapping_rules (
+          id, project_id, system_id, table_id, field_id, status, logic_text, converted_sql,
+          remark, sort_order, raw, created_at, updated_at
+        ) VALUES ($1,$2,$3,$4,NULL,'published',$5,NULL,$6,$7,$8::jsonb,$9,$9)
+        ON CONFLICT (id) DO UPDATE SET
+          logic_text=EXCLUDED.logic_text,
+          remark=EXCLUDED.remark,
+          sort_order=EXCLUDED.sort_order,
+          raw=EXCLUDED.raw,
+          updated_at=EXCLUDED.updated_at
+      `,
+      [
+        id,
+        PROJECT_ID,
+        SYSTEM_ID,
+        tableId(caliber.tableName),
+        JSON.stringify(caliber.rule),
+        caliber.remark,
+        index + 1,
+        JSON.stringify({ scenario: caliber.scenario, structuredCaliber: true, importedBy: "codex-onegen-middle-sync" }),
+        NOW,
+      ],
+    );
+  }
+}
+
+async function applyRequiredLookupMappings(client: PoolClient): Promise<void> {
+  await client.query(
+    `UPDATE pm_mapping_rules
+        SET logic_text=$3,
+            converted_sql='required_lookup(TransactionTab.bopTxCode, TxCode.Id)',
+            updated_at=$4
+      WHERE project_id=$1 AND table_id=$2
+        AND field_id IN (SELECT id FROM pm_data_fields WHERE project_id=$1 AND table_id=$2 AND field_name='TxCodeId')`,
+    [PROJECT_ID, tableId("FAEManage"), JSON.stringify({ op: "required_lookup", source: "t.bopTxCode", lookup: "x.Id" }), NOW],
+  );
 }
 
 async function insertRectifications(

@@ -8,6 +8,9 @@ import {
   type ProjectDictionaryMappingActionInput,
   type ProjectDictionaryMappingActionPatch,
   type ProjectDictionaryMappingRule,
+  type ProjectDictionaryMappingScenario,
+  type ProjectDictionaryMappingScenarioInput,
+  type ProjectDictionaryMappingScenarioPatch,
   type ProjectDictionaryMappingRulePatch,
   type ProjectDictionaryMappingSourceField,
   type ProjectDictionaryMappingSourceFieldInput,
@@ -20,10 +23,12 @@ import {
   type ProjectDictionaryRectificationInput,
   type ProjectDictionaryRectificationPatch,
   type ProjectDictionaryFieldDetail,
+  type ProjectDictionaryFieldPatch,
   type ProjectDictionaryFieldHit,
   type ProjectDictionarySystem,
   type ProjectDictionarySystemPatch,
   type ProjectDictionaryTable,
+  type ProjectDictionaryTablePatch,
   type ProjectManagementModuleKey,
   type ProjectManagementRepo,
   type ProjectManagementSearchHit,
@@ -139,6 +144,19 @@ interface MappingRuleRow {
   updated_at: string;
 }
 
+interface MappingScenarioRow {
+  id: string;
+  project_id: string;
+  table_id: string;
+  title: string;
+  caliber: string | null;
+  remark: string | null;
+  sort_order: string | number;
+  raw: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface MappingSourceFieldRow {
   id: string;
   project_id: string;
@@ -213,8 +231,10 @@ interface TableRow {
   table_cn: string | null;
   table_group: string | null;
   data_layer: string | null;
+  table_type: string | null;
   source_kind: string | null;
   file_type: string | null;
+  has_mapping: boolean;
   usage_status: string | null;
   description: string | null;
   caliber: string | null;
@@ -497,7 +517,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
     if (systemId) params.push(systemId);
     const result = await this.pg.query<TableRow>(
       `SELECT
-         t.id, t.system_id, t.table_name, t.table_cn, t.table_group, t.data_layer, t.source_kind, t.file_type, t.usage_status, t.description, t.caliber, t.extra,
+         t.id, t.system_id, t.table_name, t.table_cn, t.table_group, t.data_layer, t.table_type, t.source_kind, t.file_type, t.has_mapping, t.usage_status, t.description, t.caliber, t.extra,
          COALESCE(fc.field_count, 0) AS field_count
        FROM pm_data_tables t
        LEFT JOIN (
@@ -518,14 +538,47 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
       tableCn: row.table_cn ?? undefined,
       tableGroup: row.table_group ?? undefined,
       dataLayer: row.data_layer ?? undefined,
+      tableType: row.table_type ?? undefined,
       sourceKind: row.source_kind ?? undefined,
       fileType: row.file_type ?? undefined,
+      hasMapping: row.has_mapping,
       usageStatus: row.usage_status ?? undefined,
       description: row.description ?? undefined,
       caliber: row.caliber ?? undefined,
       extra: row.extra ?? undefined,
       fieldCount: Number(row.field_count),
     }));
+  }
+
+  async updateDictionaryTable(projectId: string, tableId: string, patch: ProjectDictionaryTablePatch): Promise<ProjectDictionaryTable | null> {
+    const current = (await this.listDictionaryTables(projectId)).find(table => table.id === tableId);
+    if (!current) return null;
+    await this.pg.query(
+      `UPDATE pm_data_tables
+       SET system_id=$3, table_name=$4, table_cn=$5, table_group=$6, data_layer=$7, table_type=$8,
+           source_kind=$9, file_type=$10, has_mapping=$11, usage_status=$12, description=$13,
+           caliber=$14, extra=$15::jsonb, updated_at=$16
+       WHERE project_id=$1 AND id=$2`,
+      [
+        projectId,
+        tableId,
+        patch.systemId === undefined ? current.systemId ?? null : patch.systemId,
+        patch.tableName ?? current.tableName,
+        patch.tableCn === undefined ? current.tableCn ?? null : patch.tableCn,
+        patch.tableGroup === undefined ? current.tableGroup ?? null : patch.tableGroup,
+        patch.dataLayer === undefined ? current.dataLayer ?? null : patch.dataLayer,
+        patch.tableType === undefined ? current.tableType ?? null : patch.tableType,
+        patch.sourceKind === undefined ? current.sourceKind ?? null : patch.sourceKind,
+        patch.fileType === undefined ? current.fileType ?? null : patch.fileType,
+        patch.hasMapping ?? current.hasMapping,
+        patch.usageStatus === undefined ? current.usageStatus ?? null : patch.usageStatus,
+        patch.description === undefined ? current.description ?? null : patch.description,
+        patch.caliber === undefined ? current.caliber ?? null : patch.caliber,
+        JSON.stringify(patch.extra === undefined ? current.extra ?? {} : { ...current.extra, ...patch.extra }),
+        new Date().toISOString(),
+      ],
+    );
+    return (await this.listDictionaryTables(projectId)).find(table => table.id === tableId) ?? null;
   }
 
   async listDictionaryFields(projectId: string, tableId: string): Promise<ProjectDictionaryFieldHit[]> {
@@ -835,6 +888,38 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
     };
   }
 
+  async updateDictionaryField(projectId: string, fieldId: string, patch: ProjectDictionaryFieldPatch): Promise<ProjectDictionaryFieldDetail | null> {
+    const current = await this.getDictionaryField(projectId, fieldId);
+    if (!current) return null;
+    const now = new Date().toISOString();
+    await this.pg.query(
+      `UPDATE pm_data_fields SET
+         field_cn=$3, field_type=$4, field_length=$5, format_pattern=$6, nullable=$7,
+         primary_key=$8, required=$9, description=$10, acquire_logic=$11, validation_rule=$12,
+         code_value=$13, mapped_table=$14, mapped_field=$15, mapped_field_cn=$16,
+         data_source=$17, remark=$18, extra=$19::jsonb, updated_at=$20
+       WHERE project_id=$1 AND id=$2`,
+      [projectId, fieldId,
+        patch.fieldCn === undefined ? current.fieldCn ?? null : patch.fieldCn,
+        patch.fieldType === undefined ? current.fieldType ?? null : patch.fieldType,
+        patch.fieldLength === undefined ? current.fieldLength ?? null : patch.fieldLength,
+        patch.formatPattern === undefined ? current.formatPattern ?? null : patch.formatPattern,
+        patch.nullable === undefined ? current.nullable ?? null : patch.nullable,
+        patch.primaryKey ?? current.primaryKey, patch.required ?? current.required,
+        patch.description === undefined ? current.description ?? null : patch.description,
+        patch.acquireLogic === undefined ? current.acquireLogic ?? null : patch.acquireLogic,
+        patch.validationRule === undefined ? current.validationRule ?? null : patch.validationRule,
+        patch.codeValue === undefined ? current.codeValue ?? null : patch.codeValue,
+        patch.mappedTable === undefined ? current.mappedTable ?? null : patch.mappedTable,
+        patch.mappedField === undefined ? current.mappedField ?? null : patch.mappedField,
+        patch.mappedFieldCn === undefined ? current.mappedFieldCn ?? null : patch.mappedFieldCn,
+        patch.dataSource === undefined ? current.dataSource ?? null : patch.dataSource,
+        patch.remark === undefined ? current.remark ?? null : patch.remark,
+        JSON.stringify(patch.extra === undefined ? current.extra ?? {} : patch.extra), now],
+    );
+    return await this.getDictionaryField(projectId, fieldId);
+  }
+
   async listDictionaryRectifications(projectId: string): Promise<ProjectDictionaryRectification[]> {
     const result = await this.pg.query<DictionaryRectificationRow>(
       `SELECT id, project_id, entity_type, entity_id, property_key, requirement, status,
@@ -916,6 +1001,48 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
       [projectId, tableId],
     );
     return await this.hydrateMappingRules(projectId, result.rows);
+  }
+
+  async listDictionaryMappingScenarios(projectId: string, tableId: string): Promise<ProjectDictionaryMappingScenario[]> {
+    const result = await this.pg.query<MappingScenarioRow>(
+      `SELECT id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at
+         FROM pm_mapping_scenarios WHERE project_id=$1 AND table_id=$2 ORDER BY sort_order, id`,
+      [projectId, tableId],
+    );
+    return result.rows.map(row => ({ id: row.id, projectId: row.project_id, tableId: row.table_id, title: row.title, caliber: row.caliber ?? undefined, remark: row.remark ?? undefined, sortOrder: Number(row.sort_order), raw: row.raw ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at }));
+  }
+
+  async createDictionaryMappingScenario(projectId: string, input: ProjectDictionaryMappingScenarioInput): Promise<ProjectDictionaryMappingScenario> {
+    const now = new Date().toISOString();
+    const id = input.id ?? `pm-map-scenario-${randomUUID()}`;
+    const result = await this.pg.query<MappingScenarioRow>(
+      `INSERT INTO pm_mapping_scenarios (id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$9)
+       RETURNING id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at`,
+      [id, projectId, input.tableId, input.title, input.caliber ?? null, input.remark ?? null, input.sortOrder ?? 0, JSON.stringify(input.raw ?? {}), now],
+    );
+    const row = result.rows[0];
+    return { id: row.id, projectId: row.project_id, tableId: row.table_id, title: row.title, caliber: row.caliber ?? undefined, remark: row.remark ?? undefined, sortOrder: Number(row.sort_order), raw: row.raw ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at };
+  }
+
+  async updateDictionaryMappingScenario(projectId: string, scenarioId: string, patch: ProjectDictionaryMappingScenarioPatch): Promise<ProjectDictionaryMappingScenario | null> {
+    const existing = await this.pg.query<MappingScenarioRow>(`SELECT id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at FROM pm_mapping_scenarios WHERE project_id=$1 AND id=$2`, [projectId, scenarioId]);
+    const current = existing.rows[0];
+    if (!current) return null;
+    const result = await this.pg.query<MappingScenarioRow>(
+      `UPDATE pm_mapping_scenarios SET title=$3, caliber=$4, remark=$5, sort_order=$6, raw=$7::jsonb, updated_at=$8
+        WHERE project_id=$1 AND id=$2
+        RETURNING id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at`,
+      [projectId, scenarioId, patch.title ?? current.title, patch.caliber === undefined ? current.caliber : patch.caliber, patch.remark === undefined ? current.remark : patch.remark, patch.sortOrder ?? current.sort_order, JSON.stringify(patch.raw ?? current.raw ?? {}), new Date().toISOString()],
+    );
+    const row = result.rows[0];
+    return row ? { id: row.id, projectId: row.project_id, tableId: row.table_id, title: row.title, caliber: row.caliber ?? undefined, remark: row.remark ?? undefined, sortOrder: Number(row.sort_order), raw: row.raw ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at } : null;
+  }
+
+  async deleteDictionaryMappingScenario(projectId: string, scenarioId: string): Promise<boolean> {
+    await this.pg.query(`UPDATE pm_mapping_rules SET scenario_id=NULL WHERE project_id=$1 AND scenario_id=$2`, [projectId, scenarioId]);
+    const result = await this.pg.query(`DELETE FROM pm_mapping_scenarios WHERE project_id=$1 AND id=$2`, [projectId, scenarioId]);
+    return (result.rowCount ?? 0) > 0;
   }
 
   async getDictionaryMappingRule(projectId: string, mappingRuleId: string): Promise<ProjectDictionaryMappingRule | null> {

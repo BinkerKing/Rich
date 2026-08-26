@@ -195,6 +195,14 @@ function buildDictionaryJsonSqlExpression(rule: DictionaryMappingJsonRule, refs:
     }
     case "param":
       return rule.name ? `:${sanitizeDictionarySqlIdentifier(rule.name) || rule.name}` : "";
+    case "required_lookup":
+    case "lookup_or_error": {
+      const source = rule.source ? getDictionaryJsonSourceSqlName(rule.source, refs) : "";
+      const lookup = rule.lookup ? getDictionaryJsonSourceSqlName(rule.lookup, refs) : "";
+      if (!source || !lookup) return "";
+      const nonEmpty = dialect === "sqlserver" ? `CONVERT(nvarchar(max), ${source}) <> ''` : `(${source})::text <> ''`;
+      return `CASE WHEN ${source} IS NOT NULL AND ${nonEmpty} THEN ${lookup} ELSE NULL END`;
+    }
     case "substring_marker": {
       const source = rule.source ? getDictionaryJsonSourceSqlName(rule.source, refs) : "";
       if (!source || !rule.marker || !rule.length) return "";

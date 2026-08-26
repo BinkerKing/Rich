@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildDictionaryEntityCreateTableSql,
+  dictionaryEntityFieldsForTestEntity,
   diffDictionaryEntitySchema,
   mapDictionaryEntityColumnType,
 } from "../src/modules/project-dictionary/schema/schemaSql.js";
@@ -37,5 +38,16 @@ describe("project dictionary schema SQL", () => {
   it("builds a qualified create-table statement without changing the public model", () => {
     expect(buildDictionaryEntityCreateTableSql(system, table, [field({ required: true })], "postgresql"))
       .toContain('CREATE TABLE IF NOT EXISTS "vtb"."customer"');
+  });
+
+  it("materializes file sources as dot-safe VARCHAR(500) test tables", () => {
+    const sourceFile = { id: "source-file", tableName: "AIF2.TXT", sourceKind: "文件", extra: { entitySchema: "vtb" } } as ProjectDictionaryTable;
+    const entityFields = dictionaryEntityFieldsForTestEntity(sourceFile, [field({ fieldType: "text", fieldLength: undefined })]);
+
+    expect(entityFields[0]).toMatchObject({ fieldType: "varchar", fieldLength: "500" });
+    expect(buildDictionaryEntityCreateTableSql(system, sourceFile, entityFields, "postgresql"))
+      .toContain('CREATE TABLE IF NOT EXISTS "vtb"."AIF2_TXT"');
+    expect(buildDictionaryEntityCreateTableSql(system, sourceFile, entityFields, "postgresql"))
+      .toContain('"customerCode" VARCHAR(500)');
   });
 });

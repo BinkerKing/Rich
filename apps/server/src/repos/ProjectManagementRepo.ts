@@ -1,5 +1,7 @@
 export type ProjectManagementModuleKey =
+  | "description"
   | "dictionary"
+  | "automation"
   | "workflow"
   | "scenarios"
   | "environments"
@@ -135,13 +137,32 @@ export interface ProjectDictionaryTable {
   tableCn?: string;
   tableGroup?: string;
   dataLayer?: string;
+  tableType?: string;
   sourceKind?: string;
   fileType?: string;
+  hasMapping?: boolean;
   usageStatus?: string;
   description?: string;
   caliber?: string;
   extra?: Record<string, unknown>;
   fieldCount: number;
+}
+
+export interface ProjectDictionaryTablePatch {
+  systemId?: string | null;
+  tableName?: string;
+  tableCn?: string | null;
+  tableGroup?: string | null;
+  dataLayer?: string | null;
+  tableType?: string | null;
+  sourceKind?: "文件" | "数据库" | null;
+  fileType?: "txt" | "xml" | "csv" | "excel" | null;
+  hasMapping?: boolean;
+  usageStatus?: string | null;
+  description?: string | null;
+  caliber?: string | null;
+  /** Merged with existing metadata so callers can patch individual flags safely. */
+  extra?: Record<string, unknown>;
 }
 
 export interface ProjectDictionaryCodeItem {
@@ -211,6 +232,26 @@ export interface ProjectDictionaryFieldDetail extends ProjectDictionaryFieldHit 
   extra?: Record<string, unknown>;
 }
 
+export interface ProjectDictionaryFieldPatch {
+  fieldCn?: string | null;
+  fieldType?: string | null;
+  fieldLength?: string | null;
+  formatPattern?: string | null;
+  nullable?: string | null;
+  primaryKey?: boolean;
+  required?: boolean;
+  description?: string | null;
+  acquireLogic?: string | null;
+  validationRule?: string | null;
+  codeValue?: string | null;
+  mappedTable?: string | null;
+  mappedField?: string | null;
+  mappedFieldCn?: string | null;
+  dataSource?: string | null;
+  remark?: string | null;
+  extra?: Record<string, unknown>;
+}
+
 export type ProjectDictionaryRectificationStatus = "open" | "fixed" | "verified" | "cancelled";
 
 export interface ProjectDictionaryRectification {
@@ -256,6 +297,37 @@ export interface ProjectDictionaryMappingSourceField {
   raw?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProjectDictionaryMappingScenario {
+  id: string;
+  projectId: string;
+  tableId: string;
+  title: string;
+  caliber?: string;
+  remark?: string;
+  sortOrder: number;
+  raw?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectDictionaryMappingScenarioInput {
+  id?: string;
+  tableId: string;
+  title: string;
+  caliber?: string | null;
+  remark?: string | null;
+  sortOrder?: number;
+  raw?: Record<string, unknown>;
+}
+
+export interface ProjectDictionaryMappingScenarioPatch {
+  title?: string;
+  caliber?: string | null;
+  remark?: string | null;
+  sortOrder?: number;
+  raw?: Record<string, unknown>;
 }
 
 export interface ProjectDictionaryMappingAction {
@@ -471,14 +543,20 @@ export interface ProjectManagementRepo {
   listDictionarySystems(projectId: string): Promise<ProjectDictionarySystem[]>;
   updateDictionarySystem(projectId: string, systemId: string, patch: ProjectDictionarySystemPatch): Promise<ProjectDictionarySystem | null>;
   listDictionaryTables(projectId: string, systemId?: string): Promise<ProjectDictionaryTable[]>;
+  updateDictionaryTable(projectId: string, tableId: string, patch: ProjectDictionaryTablePatch): Promise<ProjectDictionaryTable | null>;
   listDictionaryFields(projectId: string, tableId: string): Promise<ProjectDictionaryFieldHit[]>;
   resolveDictionaryFieldRefs(projectId: string, refs: string[]): Promise<ProjectDictionaryFieldHit[]>;
   searchDictionaryFields(projectId: string, query: string, limit: number): Promise<ProjectDictionaryFieldHit[]>;
   getDictionaryField(projectId: string, fieldId: string): Promise<ProjectDictionaryFieldDetail | null>;
+  updateDictionaryField(projectId: string, fieldId: string, patch: ProjectDictionaryFieldPatch): Promise<ProjectDictionaryFieldDetail | null>;
   listDictionaryRectifications(projectId: string): Promise<ProjectDictionaryRectification[]>;
   createDictionaryRectification(projectId: string, input: ProjectDictionaryRectificationInput): Promise<ProjectDictionaryRectification>;
   updateDictionaryRectification(projectId: string, rectificationId: string, patch: ProjectDictionaryRectificationPatch): Promise<ProjectDictionaryRectification | null>;
   listDictionaryMappingRules(projectId: string, tableId: string): Promise<ProjectDictionaryMappingRule[]>;
+  listDictionaryMappingScenarios(projectId: string, tableId: string): Promise<ProjectDictionaryMappingScenario[]>;
+  createDictionaryMappingScenario(projectId: string, input: ProjectDictionaryMappingScenarioInput): Promise<ProjectDictionaryMappingScenario>;
+  updateDictionaryMappingScenario(projectId: string, scenarioId: string, patch: ProjectDictionaryMappingScenarioPatch): Promise<ProjectDictionaryMappingScenario | null>;
+  deleteDictionaryMappingScenario(projectId: string, scenarioId: string): Promise<boolean>;
   getDictionaryMappingRule(projectId: string, mappingRuleId: string): Promise<ProjectDictionaryMappingRule | null>;
   updateDictionaryMappingRule(projectId: string, mappingRuleId: string, patch: ProjectDictionaryMappingRulePatch): Promise<ProjectDictionaryMappingRule | null>;
   updateDictionaryMappingAction(projectId: string, actionId: string, patch: ProjectDictionaryMappingActionPatch): Promise<ProjectDictionaryMappingAction | null>;
@@ -490,7 +568,9 @@ export interface ProjectManagementRepo {
 }
 
 export const PROJECT_MANAGEMENT_MODULES: Array<{ key: ProjectManagementModuleKey; label: string }> = [
+  { key: "description", label: "项目说明" },
   { key: "dictionary", label: "数据字典" },
+  { key: "automation", label: "数据自动化" },
   { key: "workflow", label: "作业流程" },
   { key: "scenarios", label: "场景手册" },
   { key: "environments", label: "环境配置" },

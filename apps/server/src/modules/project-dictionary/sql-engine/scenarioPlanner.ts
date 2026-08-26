@@ -8,6 +8,35 @@ export type DictionaryExtractionScenarioVariant = {
   remark?: string;
 };
 
+export function deriveDictionaryExtractionTableCaliberFromFields(
+  fields: ProjectDictionaryFieldDetail[],
+): string | undefined {
+  const scenarios = new Map<string, { title: string; caliber: string; remark?: string }>();
+  for (const field of fields) {
+    for (const piece of splitDictionaryExtractionScenarioTexts(field.acquireLogic)) {
+      const caliber = extractDictionaryExtractionScenarioCaliber(piece);
+      if (!isDictionaryExtractionCaliberJson(caliber)) continue;
+      const title = extractDictionaryExtractionScenarioTitle(piece) || "场景1";
+      const key = normalizeDictionaryExtractionScenarioKey(title) || "scenario_1";
+      if (scenarios.has(key)) continue;
+      scenarios.set(key, {
+        title,
+        caliber,
+        remark: extractDictionaryExtractionScenarioRemark(piece) || undefined,
+      });
+    }
+  }
+  const sorted = Array.from(scenarios.values())
+    .sort((left, right) => dictionaryExtractionScenarioSortWeight(left.title) - dictionaryExtractionScenarioSortWeight(right.title));
+  if (sorted.length === 0) return undefined;
+  if (sorted.length === 1) return sorted[0]?.caliber;
+  return sorted.map(scenario => [
+    scenario.title,
+    `口径：${scenario.caliber}`,
+    scenario.remark ? `备注：${scenario.remark}` : "",
+  ].filter(Boolean).join("\n")).join("\n\n");
+}
+
 export function buildDictionaryExtractionScenarioVariants(
   table: ProjectDictionaryTable,
   fields: ProjectDictionaryFieldDetail[],
@@ -40,7 +69,9 @@ export function buildDictionaryExtractionScenarioVariants(
     return [{
       title,
       table: caliber ? { ...table, caliber } : table,
-      fields,
+      fields: fields.map(field => dictionaryEntityString(field.acquireLogic).trim()
+        ? field
+        : { ...field, acquireLogic: '{"op":"null"}' }),
       remark,
     }];
   }
@@ -58,8 +89,8 @@ export function buildDictionaryExtractionScenarioVariants(
           return { ...field, acquireLogic: extractDictionaryExtractionScenarioLogic(scenarioPiece) };
         }
         const hasExplicitScenario = pieces.some(piece => extractDictionaryExtractionScenarioTitle(piece));
-        return hasExplicitScenario
-          ? { ...field, acquireLogic: "" }
+        return hasExplicitScenario || !dictionaryEntityString(field.acquireLogic).trim()
+          ? { ...field, acquireLogic: '{"op":"null"}' }
           : field;
       });
       return {
@@ -242,7 +273,8 @@ function isDictionaryExtractionCaliberJson(text: string): boolean {
       || "group_by" in parsed
       || "order_by" in parsed
       || "limit" in parsed
-      || "select_latest" in parsed;
+      || "select_latest" in parsed
+      || "union_all" in parsed;
   } catch {
     return false;
   }

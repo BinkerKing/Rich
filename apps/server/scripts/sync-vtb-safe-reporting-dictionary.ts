@@ -115,7 +115,7 @@ function parseTables(markdown: string): TableSpec[] {
       tableCn: cleanOptional(row[2]),
       tableGroup: cleanOptional(row[3]),
       dataLayer: cleanOptional(row[4]) ?? "报表层",
-      sourceKind: normalizeCarrier(cleanOptional(row[5])) ?? "数据库表",
+      sourceKind: normalizeCarrier(cleanOptional(row[5])) ?? "数据库",
       caliber: cleanOptional(row[6]),
       evidence: cleanOptional(row[10]),
       remark: cleanOptional(row[11]),
@@ -405,8 +405,7 @@ function cleanOptional(value?: string): string | null {
 
 function normalizeCarrier(value: string | null): string | null {
   if (!value) return null;
-  if (value === "数据库") return "数据库表";
-  return value;
+  return /文件|file|txt|csv|excel|xlsx|xml/i.test(value) ? "文件" : "数据库";
 }
 
 function moduleForTable(table: TableSpec): ReportingModule {

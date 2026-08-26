@@ -441,11 +441,42 @@ function applySchema(db: Database.Database) {
   ensureColumn(db, "pm_data_tables", "data_layer", "TEXT");
   ensureColumn(db, "pm_data_tables", "source_kind", "TEXT");
   ensureColumn(db, "pm_data_tables", "file_type", "TEXT");
+  ensureColumn(db, "pm_data_tables", "has_mapping", "INTEGER");
+  db.exec(`
+    UPDATE pm_data_tables
+       SET has_mapping = CASE
+         WHEN lower(coalesce(source_kind, '')) LIKE '%文件%'
+           OR lower(coalesce(source_kind, '')) LIKE '%file%'
+           OR lower(coalesce(source_kind, '')) LIKE '%码表%'
+           OR lower(coalesce(source_kind, '')) LIKE '%code table%'
+           OR lower(coalesce(file_type, '')) NOT IN ('', '-', 'database')
+           OR lower(coalesce(table_group, '')) LIKE '%码表%'
+           OR lower(coalesce(table_group, '')) LIKE '%code table%'
+         THEN 0 ELSE 1 END
+     WHERE has_mapping IS NULL
+  `);
+  db.exec(`
+    UPDATE pm_data_tables
+       SET file_type = CASE
+         WHEN lower(coalesce(file_type, '')) IN ('txt', 'text') OR lower(table_name) LIKE '%.txt' THEN 'txt'
+         WHEN lower(coalesce(file_type, '')) = 'xml' OR lower(table_name) LIKE '%.xml' THEN 'xml'
+         WHEN lower(coalesce(file_type, '')) = 'csv' OR lower(table_name) LIKE '%.csv' THEN 'csv'
+         WHEN lower(coalesce(file_type, '')) IN ('excel', 'xls', 'xlsx') OR lower(table_name) LIKE '%.xls' OR lower(table_name) LIKE '%.xlsx' THEN 'excel'
+         ELSE NULL END,
+           source_kind = CASE
+             WHEN lower(coalesce(source_kind, '')) LIKE '%文件%'
+               OR lower(coalesce(source_kind, '')) LIKE '%file%'
+               OR lower(coalesce(file_type, '')) IN ('txt', 'text', 'xml', 'csv', 'excel', 'xls', 'xlsx')
+               OR lower(table_name) LIKE '%.txt' OR lower(table_name) LIKE '%.xml' OR lower(table_name) LIKE '%.csv'
+               OR lower(table_name) LIKE '%.xls' OR lower(table_name) LIKE '%.xlsx'
+             THEN '文件' ELSE '数据库' END
+  `);
   ensureColumn(db, "pm_data_tables", "usage_status", "TEXT");
   ensureColumn(db, "pm_data_fields", "format_pattern", "TEXT");
   ensureColumn(db, "pm_data_fields", "carrier_kind", "TEXT");
   ensureColumn(db, "pm_data_fields", "field_order", "INTEGER");
   ensureColumn(db, "pm_data_fields", "source_field_order", "INTEGER");
+  ensureColumn(db, "pm_automation_runs", "runtime_params", "TEXT NOT NULL DEFAULT '{}'");
 }
 
 function ensureColumn(db: Database.Database, table: string, column: string, type: string) {

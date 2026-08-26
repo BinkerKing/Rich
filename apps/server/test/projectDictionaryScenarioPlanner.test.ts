@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildDictionaryExtractionScenarioVariants,
+  deriveDictionaryExtractionTableCaliberFromFields,
   formatDictionaryExtractionScenarioSqlComment,
 } from "../src/modules/project-dictionary/sql-engine/scenarioPlanner.js";
 import type { ProjectDictionaryFieldDetail, ProjectDictionaryTable } from "../src/repos/ProjectManagementRepo.js";
@@ -25,8 +26,48 @@ describe("project dictionary scenario planner", () => {
     expect(variants[1]?.fields[0]?.acquireLogic).toBe("source_b.amount");
   });
 
+  it("uses the same NULL fallback as Mapping SQL validation for missing scenario rules", () => {
+    const variants = buildDictionaryExtractionScenarioVariants(table, [
+      field,
+      { id: "missing-rule", fieldName: "action_type", acquireLogic: "" } as ProjectDictionaryFieldDetail,
+    ]);
+
+    expect(variants).toHaveLength(2);
+    expect(variants.flatMap(item => item.fields.filter(field => field.id === "missing-rule")))
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({ acquireLogic: '{"op":"null"}' }),
+      ]));
+  });
+
+  it("uses the NULL fallback when the table has only one scenario", () => {
+    const variants = buildDictionaryExtractionScenarioVariants({
+      ...table,
+      caliber: "场景1：主流程\n口径：{\"from\":\"source_a\"}",
+    }, [
+      { id: "missing-rule", fieldName: "action_type", acquireLogic: "" } as ProjectDictionaryFieldDetail,
+    ]);
+
+    expect(variants[0]?.fields[0]).toEqual(expect.objectContaining({ acquireLogic: '{"op":"null"}' }));
+  });
+
   it("formats scenario comments with remarks", () => {
     const variants = buildDictionaryExtractionScenarioVariants(table, [field]);
     expect(formatDictionaryExtractionScenarioSqlComment(variants[1], 1)).toBe("-- 场景2 补录\n-- 备注：补录数据");
+  });
+
+  it("derives the executable table caliber from the same field scenario shown by the dictionary UI", () => {
+    const fields = [{
+      id: "debtor-code",
+      fieldName: "DebtorCode",
+      acquireLogic: [
+        "场景1：国内外汇贷款签约",
+        "取数范围描述：{\"op\":\"dataset\",\"from\":{\"table\":\"TransactionTab\"},\"joins\":[{\"type\":\"left\",\"table\":\"Customer\"}]}",
+        "逻辑：{\"op\":\"coalesce\",\"source\":\"Customer.enCode\",\"default\":\"\"}",
+      ].join("\n"),
+    }] as ProjectDictionaryFieldDetail[];
+
+    expect(deriveDictionaryExtractionTableCaliberFromFields(fields)).toBe(
+      "{\"op\":\"dataset\",\"from\":{\"table\":\"TransactionTab\"},\"joins\":[{\"type\":\"left\",\"table\":\"Customer\"}]}",
+    );
   });
 });

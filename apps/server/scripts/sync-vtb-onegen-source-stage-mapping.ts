@@ -194,7 +194,7 @@ async function upsertStageTables(client: PoolClient, sourceTables: SourceTable[]
         INSERT INTO pm_data_tables (
           id, project_id, system_id, table_name, table_cn, data_layer, source_kind, usage_status,
           description, caliber, extra, created_at, updated_at
-        ) VALUES ($1,$2,'vtb-safe-stage',$3,$4,'贴源层','数据库表','使用',$5,$6,$7::jsonb,$8,$8)
+        ) VALUES ($1,$2,'vtb-safe-stage',$3,$4,'贴源层','数据库','使用',$5,$6,$7::jsonb,$8,$8)
         ON CONFLICT (id) DO UPDATE SET
           table_cn=EXCLUDED.table_cn,
           usage_status=EXCLUDED.usage_status,

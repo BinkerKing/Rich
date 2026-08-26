@@ -562,7 +562,6 @@ export function ProjectRichTextEditor({
           event.preventDefault();
           void uploadAndInsert(imageFiles);
         }}
-        dangerouslySetInnerHTML={{ __html: value || "" }}
       />
     </div>
   );

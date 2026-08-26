@@ -35,7 +35,8 @@ export function isSupportedDictionaryExtractionOp(op: string): boolean {
     "direct", "literal", "default", "const", "null", "empty", "random", "db_generated",
     "code_mapping", "case", "cast", "abs_cast", "coalesce", "coalesce_cast", "date_parse",
     "param", "runtime_context", "substring_marker", "split_part", "round", "divide", "multiply",
-    "subtract", "add", "nullif", "concat",
+    "subtract", "add", "nullif", "concat", "required_lookup", "lookup_or_error",
+    "group_aggregate", "relative_date_boundary",
   ]).has(normalizeDictionaryExtractionOp(op));
 }
 
@@ -115,11 +116,12 @@ function canResolveDictionaryExtractionSourceRef(ref: string, context: Dictionar
   const sourceRef = parseDictionaryExtractionRef(ref);
   if (!sourceRef.fieldName) return false;
   if (isDictionaryExtractionRuntimeTable(sourceRef.tableName)) return true;
+  const tableSource = findDictionaryExtractionSqlTableSource(sourceRef.tableName, context);
+  if (tableSource) return Boolean(findDictionaryExtractionFieldByName(tableSource.fields, sourceRef.fieldName));
   if (isDictionaryExtractionTableRef(sourceRef.tableName, context.targetTable)) {
     return Boolean(findDictionaryExtractionFieldByName(context.targetFields, sourceRef.fieldName));
   }
-  const tableSource = findDictionaryExtractionSqlTableSource(sourceRef.tableName, context);
-  return Boolean(tableSource && findDictionaryExtractionFieldByName(tableSource.fields, sourceRef.fieldName));
+  return false;
 }
 
 export function coerceDictionaryExtractionExpressionForTarget(
@@ -140,10 +142,21 @@ export function coerceDictionaryExtractionExpressionForTarget(
       ? expression
       : buildDictionaryExtractionTimestampCoerceSql(expression, dialect);
   }
-  if (targetType === "integer" || targetType === "int" || targetType === "bigint") return `CAST(${expression} AS ${dialect === "sqlserver" ? targetType.toUpperCase() : targetType.toUpperCase()})`;
-  if (targetType.startsWith("numeric") || targetType.startsWith("decimal")) return `CAST(${expression} AS ${targetType.toUpperCase()})`;
+  if (targetType === "integer" || targetType === "int" || targetType === "bigint") return buildDictionaryExtractionNumericCoerceSql(expression, targetType.toUpperCase(), dialect);
+  if (targetType.startsWith("numeric") || targetType.startsWith("decimal")) return buildDictionaryExtractionNumericCoerceSql(expression, targetType.toUpperCase(), dialect);
   if (targetType === "boolean" || targetType === "bit") return `CAST(${expression} AS ${dialect === "sqlserver" ? "BIT" : "BOOLEAN"})`;
   return expression;
+}
+
+function buildDictionaryExtractionNumericCoerceSql(
+  expression: string,
+  targetType: string,
+  dialect: "postgresql" | "sqlserver",
+): string {
+  if (dialect === "sqlserver") {
+    return `CAST(NULLIF(LTRIM(RTRIM(CONVERT(nvarchar(max), ${expression}))), '') AS ${targetType})`;
+  }
+  return `CAST(NULLIF(BTRIM((${expression})::text), '') AS ${targetType})`;
 }
 
 function isDictionaryExtractionTypedSqlExpression(expression: string, targetType: "date" | "timestamp", dialect: "postgresql" | "sqlserver"): boolean {
@@ -225,11 +238,11 @@ function buildDictionaryExtractionRuleSqlExpression(
   }
   if (op === "cast") {
     const value = buildDictionaryExtractionValueSqlExpression(rule.value as DictionaryMappingRuleValue | undefined ?? (rule.source ? { source: rule.source } : undefined), targetField, context);
-    return value && rule.to ? `CAST(${value} AS ${rule.to})` : "";
+    return value && rule.to ? buildDictionaryExtractionExplicitCastSql(value, rule.to, context.dialect) : "";
   }
   if (op === "abs_cast") {
     const source = dictionaryExtractionSourceSqlExpression(rule.source, context);
-    return source && rule.to ? `ABS(CAST(${source} AS ${rule.to}))` : "";
+    return source && rule.to ? `ABS(${buildDictionaryExtractionExplicitCastSql(source, rule.to, context.dialect)})` : "";
   }
   if (op === "coalesce_cast") {
     const source = dictionaryExtractionSourceSqlExpression(rule.source, context);
@@ -246,7 +259,18 @@ function buildDictionaryExtractionRuleSqlExpression(
     const source = dictionaryExtractionSourceSqlExpression(rule.source, context);
     return source && rule.from ? buildDictionaryExtractionDateParseSql(source, rule.from, context.dialect) : "";
   }
-  if (op === "param" || op === "runtime_context") return dictionaryExtractionRuntimeSqlExpression(rule.name, context);
+  if (op === "required_lookup" || op === "lookup_or_error") {
+    const source = dictionaryExtractionSourceSqlExpression(rule.source, context);
+    const lookup = dictionaryExtractionSourceSqlExpression(rule.lookup, context);
+    if (!source || !lookup) return "";
+    const nonEmpty = context.dialect === "sqlserver"
+      ? `CONVERT(nvarchar(max), ${source}) <> ''`
+      : `(${source})::text <> ''`;
+    return `CASE WHEN ${source} IS NOT NULL AND ${nonEmpty} THEN ${lookup} ELSE NULL END`;
+  }
+  if (op === "param") return dictionaryExtractionRuntimeSqlExpression(rule.name, context);
+  if (op === "runtime_context") return dictionaryExtractionSystemRuntimeContextSqlExpression(rule.name, context.dialect)
+    || dictionaryExtractionRuntimeSqlExpression(rule.name, context);
   if (op === "substring_marker") {
     const source = dictionaryExtractionSourceSqlExpression(rule.source, context);
     if (!source || !rule.marker || !rule.length) return "";
@@ -283,7 +307,26 @@ function buildDictionaryExtractionRuleSqlExpression(
     const pieces = (rule.sources ?? []).map(source => dictionaryExtractionSourceSqlExpression(source, context)).filter(Boolean);
     return pieces.length ? `CONCAT(${pieces.join(", ")})` : "";
   }
+  if (op === "group_aggregate") {
+    const source = dictionaryExtractionSourceSqlExpression(rule.source, context);
+    const aggregate = dictionaryEntityString(rule.aggregate).toUpperCase();
+    return source && /^(SUM|COUNT|AVG|MIN|MAX)$/.test(aggregate) ? `${aggregate}(${source})` : "";
+  }
+  if (op === "relative_date_boundary") {
+    const source = dictionaryExtractionSourceSqlExpression(rule.source, context);
+    return source ? buildDictionaryExtractionRelativeDateBoundarySql(source, rule.unit, rule.offset, rule.boundary, context.dialect) : "";
+  }
   return "";
+}
+
+function buildDictionaryExtractionExplicitCastSql(
+  expression: string,
+  targetType: string,
+  dialect: "postgresql" | "sqlserver",
+): string {
+  return /^(?:numeric|decimal|number|int|integer|bigint)\b/i.test(targetType.trim())
+    ? buildDictionaryExtractionNumericCoerceSql(expression, targetType, dialect)
+    : `CAST(${expression} AS ${targetType})`;
 }
 
 function buildDictionaryExtractionValueSqlExpression(
@@ -375,12 +418,25 @@ function coerceDictionaryExtractionRuntimeComparisonExpression(
   expression: string,
   context: DictionaryExtractionSqlContext,
 ): string {
+  const peerRuntimeParamName = dictionaryExtractionRuleValueRuntimeParamName(peerValue);
+  if (peerRuntimeParamName) {
+    const valueMeta = dictionaryExtractionSourceFieldMetaFromRuleValue(value, context);
+    const valueType = valueMeta ? dictionaryExtractionFieldSqlType(valueMeta, context.dialect) : "";
+    if ((valueType.includes("char") || valueType === "text" || valueType === "nvarchar(max)") && /date|time/i.test(peerRuntimeParamName)) {
+      return buildDictionaryExtractionTimestampCoerceSql(expression, context.dialect);
+    }
+  }
   if (!dictionaryExtractionRuleValueRuntimeParamName(value)) return expression;
   const peerMeta = dictionaryExtractionSourceFieldMetaFromRuleValue(peerValue, context);
   if (!peerMeta) return expression;
   const peerType = dictionaryExtractionFieldSqlType(peerMeta, context.dialect);
   if (peerType === "date") return buildDictionaryExtractionDateCoerceSql(expression, context.dialect);
   if (peerType === "timestamp" || peerType === "datetime2") return buildDictionaryExtractionTimestampCoerceSql(expression, context.dialect);
+  // 源字段虽以字符列保存日期（如 YYYYMMDD）时，另一侧日期参数也必须先解析；
+  // 否则源侧已转 timestamp、参数仍是 TEXT，会生成 timestamp = text。
+  if ((peerType.includes("char") || peerType === "text" || peerType === "nvarchar(max)") && /date|time/i.test(dictionaryExtractionRuleValueRuntimeParamName(value))) {
+    return buildDictionaryExtractionTimestampCoerceSql(expression, context.dialect);
+  }
   return expression;
 }
 
@@ -406,23 +462,23 @@ function dictionaryExtractionSourceFieldMetaFromRuleValue(
   if (!source || dictionaryExtractionRuntimeParamName(source)) return null;
   const sourceRef = parseDictionaryExtractionRef(source);
   if (!sourceRef.fieldName || isDictionaryExtractionRuntimeTable(sourceRef.tableName)) return null;
-  if (isDictionaryExtractionTableRef(sourceRef.tableName, context.targetTable)) {
-    const field = findDictionaryExtractionFieldByName(context.targetFields, sourceRef.fieldName);
+  const tableSource = findDictionaryExtractionSqlTableSource(sourceRef.tableName, context);
+  if (tableSource) {
+    const field = findDictionaryExtractionFieldByName(tableSource.fields, sourceRef.fieldName);
     if (!field) return null;
-    const columnName = dictionaryEntityColumnName(field);
+    const columnName = resolveDictionaryEntityColumnName(field, tableSource.columns);
     return {
       field,
-      column: context.targetColumns.find(column => normalizeDictionaryExtractionKey(column.columnName) === normalizeDictionaryExtractionKey(columnName)),
+      column: tableSource.columns.find(column => normalizeDictionaryExtractionKey(column.columnName) === normalizeDictionaryExtractionKey(columnName)),
     };
   }
-  const tableSource = findDictionaryExtractionSqlTableSource(sourceRef.tableName, context);
-  if (!tableSource) return null;
-  const field = findDictionaryExtractionFieldByName(tableSource.fields, sourceRef.fieldName);
+  if (!isDictionaryExtractionTableRef(sourceRef.tableName, context.targetTable)) return null;
+  const field = findDictionaryExtractionFieldByName(context.targetFields, sourceRef.fieldName);
   if (!field) return null;
-  const columnName = resolveDictionaryEntityColumnName(field, tableSource.columns);
+  const columnName = dictionaryEntityColumnName(field);
   return {
     field,
-    column: tableSource.columns.find(column => normalizeDictionaryExtractionKey(column.columnName) === normalizeDictionaryExtractionKey(columnName)),
+    column: context.targetColumns.find(column => normalizeDictionaryExtractionKey(column.columnName) === normalizeDictionaryExtractionKey(columnName)),
   };
 }
 
@@ -442,16 +498,16 @@ export function dictionaryExtractionSourceSqlExpression(ref: string | undefined,
   const sourceRef = parseDictionaryExtractionRef(ref);
   if (!sourceRef.fieldName) return "";
   if (isDictionaryExtractionRuntimeTable(sourceRef.tableName)) return dictionaryExtractionRuntimeSqlExpression(sourceRef.fieldName, context);
-  if (isDictionaryExtractionTableRef(sourceRef.tableName, context.targetTable)) {
-    const targetField = findDictionaryExtractionFieldByName(context.targetFields, sourceRef.fieldName);
-    if (!targetField) throw new Error(`关联的目标字段不存在：${sourceRef.tableName}.${sourceRef.fieldName}`);
-    return `(${buildDictionaryExtractionFieldSqlExpression(targetField, context)})`;
-  }
   const tableSource = findDictionaryExtractionSqlTableSource(sourceRef.tableName, context);
   if (tableSource) {
     const sourceField = findDictionaryExtractionFieldByName(tableSource.fields, sourceRef.fieldName);
     if (!sourceField) throw new Error(`关联的上游字段不存在：${sourceRef.tableName || tableSource.table.tableName}.${sourceRef.fieldName}`);
     return `${quoteDictionaryEntityIdentifier(tableSource.alias, context.dialect)}.${quoteDictionaryEntityIdentifier(resolveDictionaryEntityColumnName(sourceField, tableSource.columns), context.dialect)}`;
+  }
+  if (isDictionaryExtractionTableRef(sourceRef.tableName, context.targetTable)) {
+    const targetField = findDictionaryExtractionFieldByName(context.targetFields, sourceRef.fieldName);
+    if (!targetField) throw new Error(`关联的目标字段不存在：${sourceRef.tableName}.${sourceRef.fieldName}`);
+    return `(${buildDictionaryExtractionFieldSqlExpression(targetField, context)})`;
   }
   throw new Error(`关联的上游表不在当前口径 FROM 中：${sourceRef.tableName}.${sourceRef.fieldName}`);
 }
@@ -513,7 +569,7 @@ function replaceDictionaryExtractionSqlIdentifierToken(text: string, token: stri
   return text.replace(new RegExp(`(^|[^\\w$.])(${escaped})(?![\\w$])`, "gi"), (_match, prefix) => `${prefix}${replacement}`);
 }
 
-function findDictionaryExtractionSqlTableSource(tableName: string, context: DictionaryExtractionSqlContext): DictionaryExtractionSqlTableSource | undefined {
+export function findDictionaryExtractionSqlTableSource(tableName: string, context: DictionaryExtractionSqlContext): DictionaryExtractionSqlTableSource | undefined {
   if (!tableName) return findDictionaryExtractionPrimaryTableSource(context);
   const keys = dictionaryExtractionTableRefKeys(tableName);
   for (const key of keys) {
@@ -558,7 +614,6 @@ export function isDictionaryExtractionTableRef(tableName: string, table: Project
     table.tableName,
     table.tableCn,
     dictionaryEntityString(table.extra?.entityTableName),
-    dictionaryEntityString(table.extra?.sourceFile),
   ].some(value => {
     const normalized = normalizeDictionaryExtractionKey(value);
     return normalized && keys.includes(normalized);
@@ -594,6 +649,20 @@ function dictionaryExtractionRuntimeSqlExpression(name: string | undefined, cont
   throw new Error(`需要填写运行参数：${name || "-"}`);
 }
 
+function dictionaryExtractionSystemRuntimeContextSqlExpression(
+  name: string | undefined,
+  dialect: "postgresql" | "sqlserver",
+): string {
+  const key = normalizeDictionaryExtractionKey(name);
+  if (["currenttimestamp", "currenttime", "now", "当前时间", "系统时间"].includes(key)) {
+    return dialect === "sqlserver" ? "SYSDATETIME()" : "CURRENT_TIMESTAMP";
+  }
+  if (["currentdate", "today", "当前日期", "系统日期"].includes(key)) {
+    return dialect === "sqlserver" ? "CAST(GETDATE() AS DATE)" : "CURRENT_DATE";
+  }
+  return "";
+}
+
 export function formatDictionaryExtractionSqlLiteral(value: unknown, dialect: "postgresql" | "sqlserver"): string {
   if (value === null || value === undefined) return "NULL";
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
@@ -612,6 +681,31 @@ function buildDictionaryExtractionDateParseSql(source: string, format: string, d
     if (/^YYYY-MM-DD$/i.test(format)) return `CONVERT(date, ${source}, 23)`;
   }
   return `TO_DATE(${source}, ${formatDictionaryExtractionSqlLiteral(format, dialect)})`;
+}
+
+function buildDictionaryExtractionRelativeDateBoundarySql(
+  source: string,
+  unit: "day" | "month" | "year" | undefined,
+  offset: number | undefined,
+  boundary: "start" | "end" | undefined,
+  dialect: "postgresql" | "sqlserver",
+): string {
+  const normalizedUnit = unit ?? "day";
+  const normalizedOffset = Number.isInteger(offset) ? offset : 0;
+  const normalizedBoundary = boundary ?? "start";
+  if (dialect === "sqlserver") {
+    const shifted = `DATEADD(${normalizedUnit}, ${normalizedOffset}, CAST(${source} AS date))`;
+    if (normalizedUnit === "day") return shifted;
+    if (normalizedUnit === "month") return normalizedBoundary === "end" ? `EOMONTH(${shifted})` : `DATEFROMPARTS(YEAR(${shifted}), MONTH(${shifted}), 1)`;
+    return normalizedBoundary === "end" ? `DATEFROMPARTS(YEAR(${shifted}), 12, 31)` : `DATEFROMPARTS(YEAR(${shifted}), 1, 1)`;
+  }
+  const shifted = `(${source})::date + (${normalizedOffset} * INTERVAL '1 ${normalizedUnit}')`;
+  if (normalizedUnit === "day") return `(${shifted})::date`;
+  const truncated = `DATE_TRUNC('${normalizedUnit}', ${shifted})`;
+  if (normalizedBoundary === "start") return `(${truncated})::date`;
+  return normalizedUnit === "month"
+    ? `(${truncated} + INTERVAL '1 month - 1 day')::date`
+    : `(${truncated} + INTERVAL '1 year - 1 day')::date`;
 }
 
 function buildDictionaryExtractionDateCoerceSql(source: string, dialect: "postgresql" | "sqlserver"): string {
@@ -637,7 +731,8 @@ function buildDictionaryExtractionTimestampCoerceSql(source: string, dialect: "p
     `WHEN ${source} IS NULL OR (${source})::text = '' THEN NULL`,
     `WHEN (${source})::text ~ '^\\d{8}$' THEN TO_DATE((${source})::text, 'YYYYMMDD')::timestamp`,
     `WHEN (${source})::text ~ '^\\d{4}-\\d{2}-\\d{2}' THEN (${source})::timestamp`,
-    `ELSE (${source})::timestamp`,
+    // 源文件中可能有 "2026" 一类不完整日期；不能让单条脏数据终止整批抽取。
+    "ELSE NULL",
     "END",
   ].join(" ");
 }

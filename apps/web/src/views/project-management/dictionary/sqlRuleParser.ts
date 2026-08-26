@@ -138,6 +138,11 @@ function validateDictionaryJsonRule(rule: DictionaryMappingJsonRule, path = "规
     case "param":
       if (!isNonEmptyString(rule.name)) errors.push(`${path}.param 缺少 name`);
       break;
+    case "required_lookup":
+    case "lookup_or_error":
+      requireSource();
+      if (!isNonEmptyString(rule.lookup)) errors.push(`${path}.${rule.op} 缺少 lookup`);
+      break;
     case "substring_marker":
       requireSource();
       if (!isNonEmptyString(rule.marker)) errors.push(`${path}.substring_marker 缺少 marker`);

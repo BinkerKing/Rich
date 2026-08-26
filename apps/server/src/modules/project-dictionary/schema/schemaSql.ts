@@ -35,6 +35,20 @@ function logicText(field: ProjectDictionaryFieldDetail): string {
 }
 const normalizedOp = (value: string) => ({ "数据库生成": "db_generated" }[value.trim().replace(/\s+/g, "").toLowerCase()] || value.trim().replace(/\s+/g, "").toLowerCase());
 
+export function isDictionaryEntityFileSource(table: ProjectDictionaryTable): boolean {
+  const sourceKind = text(table.sourceKind).toLowerCase();
+  const fileType = text(table.fileType).toLowerCase();
+  return /文件|file/.test(sourceKind) || Boolean(fileType && fileType !== "-" && fileType !== "database");
+}
+
+export function dictionaryEntityFieldsForTestEntity(
+  table: ProjectDictionaryTable,
+  fields: ProjectDictionaryFieldDetail[],
+): ProjectDictionaryFieldDetail[] {
+  if (!isDictionaryEntityFileSource(table)) return fields;
+  return fields.map(field => ({ ...field, fieldType: "varchar", fieldLength: "500" }));
+}
+
 export function buildDictionaryEntityCreateTableSql(system: ProjectDictionarySystem, table: ProjectDictionaryTable, fields: ProjectDictionaryFieldDetail[], dialect: ImplementedDictionaryDialect): string {
   const usable = fields.filter(field => field.fieldName?.trim());
   if (!usable.length) throw new Error("当前表没有字段元，无法创建实体表");
@@ -129,7 +143,10 @@ export function dictionaryEntityQualifiedTableName(system: ProjectDictionarySyst
   return [parts.schema, parts.tableName].filter(Boolean).map(part => quoteDictionaryEntityIdentifier(part, dialect)).join(".");
 }
 export function dictionaryEntityObjectParts(system: ProjectDictionarySystem | undefined, table: ProjectDictionaryTable, dialect: ImplementedDictionaryDialect): { schema: string; tableName: string } {
-  return { schema: text(table.extra?.entitySchema) || system?.connection?.schema || (dialect === "sqlserver" ? "dbo" : ""), tableName: text(table.extra?.entityTableName) || table.tableName };
+  const configuredName = text(table.extra?.entityTableName);
+  const logicalName = configuredName || table.tableName;
+  const tableName = isDictionaryEntityFileSource(table) ? logicalName.replaceAll(".", "_") : logicalName;
+  return { schema: text(table.extra?.entitySchema) || system?.connection?.schema || (dialect === "sqlserver" ? "dbo" : ""), tableName };
 }
 
 export function dictionaryEntityColumnMetaType(column: DictionaryEntityColumnMeta, dialect: ImplementedDictionaryDialect): string {

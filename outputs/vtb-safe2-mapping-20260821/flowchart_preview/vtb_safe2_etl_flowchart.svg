@@ -1,0 +1,458 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2450" height="1680" viewBox="0 0 2450 1680">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#334155"/>
+    </marker>
+    <style>
+      text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK SC", "Microsoft YaHei", Arial, sans-serif; }
+    </style>
+  </defs>
+  <rect width="100%" height="100%" fill="#FFFFFF"/>
+  <text x="70" y="54" font-size="30" font-weight="800" fill="#0F172A">VTB 二代 SAFE 数据自动化 ETL 流程图</text>
+  <text x="70" y="82" font-size="15" fill="#475569">二代口径：源文件入库到贴源层后，由 PostgreSQL 存储过程加工到中间层、报表层，并最终生成 XML 报文。</text>
+  
+    <rect x="50" y="92" width="300" height="40" rx="8" fill="#0F172A"/>
+    <text x="70" y="118" font-size="18" font-weight="700" fill="#FFFFFF">源文件层</text>
+  
+    <rect x="410" y="92" width="300" height="40" rx="8" fill="#0F172A"/>
+    <text x="430" y="118" font-size="18" font-weight="700" fill="#FFFFFF">贴源层</text>
+  
+    <rect x="790" y="92" width="300" height="40" rx="8" fill="#0F172A"/>
+    <text x="810" y="118" font-size="18" font-weight="700" fill="#FFFFFF">中间层</text>
+  
+    <rect x="1220" y="92" width="300" height="40" rx="8" fill="#0F172A"/>
+    <text x="1240" y="118" font-size="18" font-weight="700" fill="#FFFFFF">报表层</text>
+  
+    <rect x="1750" y="92" width="300" height="40" rx="8" fill="#0F172A"/>
+    <text x="1770" y="118" font-size="18" font-weight="700" fill="#FFFFFF">报文层</text>
+  
+  <g id="AIF2">
+    <rect x="70" y="180" width="260" height="60" rx="10" fill="#E8F3FF" stroke="#334155" stroke-width="1.4"/>
+    <text x="84" y="204" font-size="18" font-weight="700" fill="#0F172A">AIF2.TXT</text>
+    <text x="84" y="227" font-size="14" fill="#475569">[源文件]账户信息</text>
+  </g>
+
+  <g id="BLN2">
+    <rect x="70" y="270" width="260" height="60" rx="10" fill="#E8F3FF" stroke="#334155" stroke-width="1.4"/>
+    <text x="84" y="294" font-size="18" font-weight="700" fill="#0F172A">BLN2.TXT</text>
+    <text x="84" y="317" font-size="14" fill="#475569">[源文件]余额信息</text>
+  </g>
+
+  <g id="CIF2">
+    <rect x="70" y="360" width="260" height="60" rx="10" fill="#E8F3FF" stroke="#334155" stroke-width="1.4"/>
+    <text x="84" y="384" font-size="18" font-weight="700" fill="#0F172A">CIF2.TXT</text>
+    <text x="84" y="407" font-size="14" fill="#475569">[源文件]客户信息</text>
+  </g>
+
+  <g id="TRN2">
+    <rect x="70" y="450" width="260" height="60" rx="10" fill="#E8F3FF" stroke="#334155" stroke-width="1.4"/>
+    <text x="84" y="474" font-size="18" font-weight="700" fill="#0F172A">TRN2.TXT</text>
+    <text x="84" y="497" font-size="14" fill="#475569">[源文件]交易信息</text>
+  </g>
+
+  <g id="AifTab">
+    <rect x="430" y="180" width="260" height="60" rx="10" fill="#EAF7EA" stroke="#334155" stroke-width="1.4"/>
+    <text x="444" y="204" font-size="18" font-weight="700" fill="#0F172A">AifTab</text>
+    <text x="444" y="227" font-size="14" fill="#475569">[贴源]账户信息</text>
+  </g>
+
+  <g id="BlnTab">
+    <rect x="430" y="270" width="260" height="60" rx="10" fill="#EAF7EA" stroke="#334155" stroke-width="1.4"/>
+    <text x="444" y="294" font-size="18" font-weight="700" fill="#0F172A">BlnTab</text>
+    <text x="444" y="317" font-size="14" fill="#475569">[贴源]余额信息</text>
+  </g>
+
+  <g id="CifTab">
+    <rect x="430" y="360" width="260" height="60" rx="10" fill="#EAF7EA" stroke="#334155" stroke-width="1.4"/>
+    <text x="444" y="384" font-size="18" font-weight="700" fill="#0F172A">CifTab</text>
+    <text x="444" y="407" font-size="14" fill="#475569">[贴源]客户信息</text>
+  </g>
+
+  <g id="TransactionTab">
+    <rect x="430" y="450" width="260" height="60" rx="10" fill="#EAF7EA" stroke="#334155" stroke-width="1.4"/>
+    <text x="444" y="474" font-size="18" font-weight="700" fill="#0F172A">TransactionTab</text>
+    <text x="444" y="497" font-size="14" fill="#475569">[贴源]交易信息</text>
+  </g>
+
+  <g id="CFACATab">
+    <rect x="810" y="150" width="300" height="54" rx="10" fill="#FFF6DE" stroke="#334155" stroke-width="1.4"/>
+    <text x="824" y="174" font-size="18" font-weight="700" fill="#0F172A">CFACATab</text>
+    <text x="824" y="197" font-size="14" fill="#475569">[中间层]国内外汇贷款签约前置</text>
+  </g>
+
+  <g id="CFACBTab">
+    <rect x="810" y="220" width="300" height="54" rx="10" fill="#FFF6DE" stroke="#334155" stroke-width="1.4"/>
+    <text x="824" y="244" font-size="18" font-weight="700" fill="#0F172A">CFACBTab</text>
+    <text x="824" y="267" font-size="14" fill="#475569">[中间层]国内外汇贷款变动前置</text>
+  </g>
+
+  <g id="CFADATab">
+    <rect x="810" y="290" width="300" height="54" rx="10" fill="#FFF6DE" stroke="#334155" stroke-width="1.4"/>
+    <text x="824" y="314" font-size="18" font-weight="700" fill="#0F172A">CFADATab</text>
+    <text x="824" y="337" font-size="14" fill="#475569">[中间层]外保内贷签约前置</text>
+  </g>
+
+  <g id="CFADBTab">
+    <rect x="810" y="360" width="300" height="54" rx="10" fill="#FFF6DE" stroke="#334155" stroke-width="1.4"/>
+    <text x="824" y="384" font-size="18" font-weight="700" fill="#0F172A">CFADBTab</text>
+    <text x="824" y="407" font-size="14" fill="#475569">[中间层]外保内贷变动前置</text>
+  </g>
+
+  <g id="FAEBaseInfo">
+    <rect x="810" y="500" width="300" height="54" rx="10" fill="#FFF6DE" stroke="#334155" stroke-width="1.4"/>
+    <text x="824" y="524" font-size="18" font-weight="700" fill="#0F172A">FAEBaseInfo</text>
+    <text x="824" y="547" font-size="14" fill="#475569">[报表前置]结售汇基础信息</text>
+  </g>
+
+  <g id="FAEManage">
+    <rect x="810" y="570" width="300" height="54" rx="10" fill="#FFF6DE" stroke="#334155" stroke-width="1.4"/>
+    <text x="824" y="594" font-size="18" font-weight="700" fill="#0F172A">FAEManage</text>
+    <text x="824" y="617" font-size="14" fill="#475569">[报表前置]结汇资金用途明细</text>
+  </g>
+
+  <g id="FalWarehouse">
+    <rect x="810" y="710" width="300" height="54" rx="10" fill="#FFF6DE" stroke="#334155" stroke-width="1.4"/>
+    <text x="824" y="734" font-size="18" font-weight="700" fill="#0F172A">FalWarehouse / EXD-CFA派生</text>
+    <text x="824" y="757" font-size="14" fill="#475569">FAL白名单加工仓</text>
+  </g>
+
+  <g id="BopStage">
+    <rect x="810" y="830" width="300" height="54" rx="10" fill="#FFF6DE" stroke="#334155" stroke-width="1.4"/>
+    <text x="824" y="854" font-size="18" font-weight="700" fill="#0F172A">BopTransaction / BOP stage</text>
+    <text x="824" y="877" font-size="14" fill="#475569">当前未确认正式BOP报送</text>
+  </g>
+
+  <g id="ExdStage">
+    <rect x="810" y="910" width="300" height="54" rx="10" fill="#FFF6DE" stroke="#334155" stroke-width="1.4"/>
+    <text x="824" y="934" font-size="18" font-weight="700" fill="#0F172A">EXD stage / contracts</text>
+    <text x="824" y="957" font-size="14" fill="#475569">当前作为FAL/CFA支撑链路</text>
+  </g>
+
+  <g id="ACCCA">
+    <rect x="1240" y="145" width="290" height="56" rx="10" fill="#F2ECFF" stroke="#334155" stroke-width="1.4"/>
+    <text x="1254" y="169" font-size="18" font-weight="700" fill="#0F172A">T_SAFE_ACCCA</text>
+    <text x="1254" y="192" font-size="14" fill="#475569">[报表]账户开关户信息</text>
+  </g>
+
+  <g id="ACCCB">
+    <rect x="1240" y="215" width="290" height="56" rx="10" fill="#F2ECFF" stroke="#334155" stroke-width="1.4"/>
+    <text x="1254" y="239" font-size="18" font-weight="700" fill="#0F172A">T_SAFE_ACCCB</text>
+    <text x="1254" y="262" font-size="14" fill="#475569">[报表]账户收支余信息</text>
+  </g>
+
+  <g id="CFACA">
+    <rect x="1240" y="330" width="290" height="56" rx="10" fill="#F2ECFF" stroke="#334155" stroke-width="1.4"/>
+    <text x="1254" y="354" font-size="18" font-weight="700" fill="#0F172A">T_SAFE_CFAC_A</text>
+    <text x="1254" y="377" font-size="14" fill="#475569">[报表]国内外汇贷款签约</text>
+  </g>
+
+  <g id="CFACB">
+    <rect x="1240" y="400" width="290" height="56" rx="10" fill="#F2ECFF" stroke="#334155" stroke-width="1.4"/>
+    <text x="1254" y="424" font-size="18" font-weight="700" fill="#0F172A">T_SAFE_CFAC_B</text>
+    <text x="1254" y="447" font-size="14" fill="#475569">[报表]国内外汇贷款变动</text>
+  </g>
+
+  <g id="CFADA">
+    <rect x="1240" y="470" width="290" height="56" rx="10" fill="#F2ECFF" stroke="#334155" stroke-width="1.4"/>
+    <text x="1254" y="494" font-size="18" font-weight="700" fill="#0F172A">T_SAFE_CFAD_A</text>
+    <text x="1254" y="517" font-size="14" fill="#475569">[报表]外保内贷签约</text>
+  </g>
+
+  <g id="CFADB">
+    <rect x="1240" y="540" width="290" height="56" rx="10" fill="#F2ECFF" stroke="#334155" stroke-width="1.4"/>
+    <text x="1254" y="564" font-size="18" font-weight="700" fill="#0F172A">T_SAFE_CFAD_B</text>
+    <text x="1254" y="587" font-size="14" fill="#475569">[报表]外保内贷变动/履约</text>
+  </g>
+
+  <g id="CFADFogu">
+    <rect x="1240" y="610" width="290" height="56" rx="10" fill="#F2ECFF" stroke="#334155" stroke-width="1.4"/>
+    <text x="1254" y="634" font-size="18" font-weight="700" fill="#0F172A">T_SAFE_CFADA_FOGUCODEINFO</text>
+    <text x="1254" y="657" font-size="14" fill="#475569">[报表]境外担保人信息</text>
+  </g>
+
+  <g id="FALZB">
+    <rect x="1240" y="740" width="290" height="56" rx="10" fill="#F2ECFF" stroke="#334155" stroke-width="1.4"/>
+    <text x="1254" y="764" font-size="18" font-weight="700" fill="#0F172A">T_SAFE_FAL_Z02</text>
+    <text x="1254" y="787" font-size="14" fill="#475569">[报表]Z02业务概览</text>
+  </g>
+
+  <g id="FALDB">
+    <rect x="1240" y="810" width="290" height="56" rx="10" fill="#F2ECFF" stroke="#334155" stroke-width="1.4"/>
+    <text x="1254" y="834" font-size="18" font-weight="700" fill="#0F172A">T_SAFE_FALD_02</text>
+    <text x="1254" y="857" font-size="14" fill="#475569">[报表]D02贷款</text>
+  </g>
+
+  <g id="FALDE">
+    <rect x="1240" y="880" width="290" height="56" rx="10" fill="#F2ECFF" stroke="#334155" stroke-width="1.4"/>
+    <text x="1254" y="904" font-size="18" font-weight="700" fill="#0F172A">T_SAFE_FALD_0501</text>
+    <text x="1254" y="927" font-size="14" fill="#475569">[报表]D05-1境外机构存款</text>
+  </g>
+
+  <g id="FALDK">
+    <rect x="1240" y="950" width="290" height="56" rx="10" fill="#F2ECFF" stroke="#334155" stroke-width="1.4"/>
+    <text x="1254" y="974" font-size="18" font-weight="700" fill="#0F172A">T_SAFE_FALD_09</text>
+    <text x="1254" y="997" font-size="14" fill="#475569">[报表]D09减值准备余额</text>
+  </g>
+
+  <g id="FALFA">
+    <rect x="1240" y="1020" width="290" height="56" rx="10" fill="#F2ECFF" stroke="#334155" stroke-width="1.4"/>
+    <text x="1254" y="1044" font-size="18" font-weight="700" fill="#0F172A">T_SAFE_FALF_01</text>
+    <text x="1254" y="1067" font-size="14" fill="#475569">[报表]F01出口票据单证</text>
+  </g>
+
+  <g id="JSHD">
+    <rect x="1240" y="1160" width="290" height="56" rx="10" fill="#F2ECFF" stroke="#334155" stroke-width="1.4"/>
+    <text x="1254" y="1184" font-size="18" font-weight="700" fill="#0F172A">T_SAFE_JSHD</text>
+    <text x="1254" y="1207" font-size="14" fill="#475569">[报表]结汇基础信息</text>
+  </g>
+
+  <g id="JSHF">
+    <rect x="1240" y="1230" width="290" height="56" rx="10" fill="#F2ECFF" stroke="#334155" stroke-width="1.4"/>
+    <text x="1254" y="1254" font-size="18" font-weight="700" fill="#0F172A">T_SAFE_JSHD_F</text>
+    <text x="1254" y="1277" font-size="14" fill="#475569">[报表]结汇管理信息</text>
+  </g>
+
+  <g id="JSHE">
+    <rect x="1240" y="1300" width="290" height="56" rx="10" fill="#F2ECFF" stroke="#334155" stroke-width="1.4"/>
+    <text x="1254" y="1324" font-size="18" font-weight="700" fill="#0F172A">T_SAFE_JSHE</text>
+    <text x="1254" y="1347" font-size="14" fill="#475569">[报表]购汇基础信息</text>
+  </g>
+
+  <g id="MACCCA">
+    <rect x="1770" y="145" width="230" height="56" rx="10" fill="#FFECEC" stroke="#334155" stroke-width="1.4"/>
+    <text x="1784" y="169" font-size="18" font-weight="700" fill="#0F172A">ACCCA</text>
+    <text x="1784" y="192" font-size="14" fill="#475569">账户开关户XML报文</text>
+  </g>
+
+  <g id="MACCCB">
+    <rect x="1770" y="215" width="230" height="56" rx="10" fill="#FFECEC" stroke="#334155" stroke-width="1.4"/>
+    <text x="1784" y="239" font-size="18" font-weight="700" fill="#0F172A">ACCCB</text>
+    <text x="1784" y="262" font-size="14" fill="#475569">账户收支余XML报文</text>
+  </g>
+
+  <g id="MCFACA">
+    <rect x="1770" y="330" width="230" height="56" rx="10" fill="#FFECEC" stroke="#334155" stroke-width="1.4"/>
+    <text x="1784" y="354" font-size="18" font-weight="700" fill="#0F172A">CFACA</text>
+    <text x="1784" y="377" font-size="14" fill="#475569">国内外汇贷款签约报文</text>
+  </g>
+
+  <g id="MCFACB">
+    <rect x="1770" y="400" width="230" height="56" rx="10" fill="#FFECEC" stroke="#334155" stroke-width="1.4"/>
+    <text x="1784" y="424" font-size="18" font-weight="700" fill="#0F172A">CFACB</text>
+    <text x="1784" y="447" font-size="14" fill="#475569">国内外汇贷款变动报文</text>
+  </g>
+
+  <g id="MCFADA">
+    <rect x="1770" y="500" width="230" height="56" rx="10" fill="#FFECEC" stroke="#334155" stroke-width="1.4"/>
+    <text x="1784" y="524" font-size="18" font-weight="700" fill="#0F172A">CFADA</text>
+    <text x="1784" y="547" font-size="14" fill="#475569">外保内贷签约报文</text>
+  </g>
+
+  <g id="MCFADB">
+    <rect x="1770" y="570" width="230" height="56" rx="10" fill="#FFECEC" stroke="#334155" stroke-width="1.4"/>
+    <text x="1784" y="594" font-size="18" font-weight="700" fill="#0F172A">CFADB</text>
+    <text x="1784" y="617" font-size="14" fill="#475569">外保内贷变动报文</text>
+  </g>
+
+  <g id="MFALZB">
+    <rect x="1770" y="740" width="230" height="56" rx="10" fill="#FFECEC" stroke="#334155" stroke-width="1.4"/>
+    <text x="1784" y="764" font-size="18" font-weight="700" fill="#0F172A">FALZB</text>
+    <text x="1784" y="787" font-size="14" fill="#475569">Z02 XML报文</text>
+  </g>
+
+  <g id="MFALDB">
+    <rect x="1770" y="810" width="230" height="56" rx="10" fill="#FFECEC" stroke="#334155" stroke-width="1.4"/>
+    <text x="1784" y="834" font-size="18" font-weight="700" fill="#0F172A">FALDB</text>
+    <text x="1784" y="857" font-size="14" fill="#475569">D02 XML报文</text>
+  </g>
+
+  <g id="MFALDE">
+    <rect x="1770" y="880" width="230" height="56" rx="10" fill="#FFECEC" stroke="#334155" stroke-width="1.4"/>
+    <text x="1784" y="904" font-size="18" font-weight="700" fill="#0F172A">FALDE</text>
+    <text x="1784" y="927" font-size="14" fill="#475569">D05-1 XML报文</text>
+  </g>
+
+  <g id="MFALDK">
+    <rect x="1770" y="950" width="230" height="56" rx="10" fill="#FFECEC" stroke="#334155" stroke-width="1.4"/>
+    <text x="1784" y="974" font-size="18" font-weight="700" fill="#0F172A">FALDK</text>
+    <text x="1784" y="997" font-size="14" fill="#475569">D09 XML报文</text>
+  </g>
+
+  <g id="MFALFA">
+    <rect x="1770" y="1020" width="230" height="56" rx="10" fill="#FFECEC" stroke="#334155" stroke-width="1.4"/>
+    <text x="1784" y="1044" font-size="18" font-weight="700" fill="#0F172A">FALFA</text>
+    <text x="1784" y="1067" font-size="14" fill="#475569">F01 XML报文</text>
+  </g>
+
+  <g id="MJSHD">
+    <rect x="1770" y="1160" width="230" height="56" rx="10" fill="#FFECEC" stroke="#334155" stroke-width="1.4"/>
+    <text x="1784" y="1184" font-size="18" font-weight="700" fill="#0F172A">JSHD</text>
+    <text x="1784" y="1207" font-size="14" fill="#475569">结汇基础XML报文</text>
+  </g>
+
+  <g id="MJSHF">
+    <rect x="1770" y="1230" width="230" height="56" rx="10" fill="#FFECEC" stroke="#334155" stroke-width="1.4"/>
+    <text x="1784" y="1254" font-size="18" font-weight="700" fill="#0F172A">JSHF</text>
+    <text x="1784" y="1277" font-size="14" fill="#475569">结汇管理XML报文</text>
+  </g>
+
+  <g id="MJSHE">
+    <rect x="1770" y="1300" width="230" height="56" rx="10" fill="#FFECEC" stroke="#334155" stroke-width="1.4"/>
+    <text x="1784" y="1324" font-size="18" font-weight="700" fill="#0F172A">JSHE</text>
+    <text x="1784" y="1347" font-size="14" fill="#475569">购汇基础XML报文</text>
+  </g>
+  
+  <path d="M 330 210 C 380 210, 380 210, 422 210" fill="none" stroke="#E8F3FF" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="352" y="204" font-size="11" fill="#E8F3FF">文件入库</text>
+
+  <path d="M 330 300 C 380 300, 380 300, 422 300" fill="none" stroke="#E8F3FF" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="352" y="294" font-size="11" fill="#E8F3FF">文件入库</text>
+
+  <path d="M 330 390 C 380 390, 380 390, 422 390" fill="none" stroke="#E8F3FF" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="352" y="384" font-size="11" fill="#E8F3FF">文件入库</text>
+
+  <path d="M 330 480 C 380 480, 380 480, 422 480" fill="none" stroke="#E8F3FF" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="352" y="474" font-size="11" fill="#E8F3FF">文件入库</text>
+
+  <path d="M 690 210 C 965 210, 965 173, 1232 173" fill="none" stroke="#2563EB" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="937" y="185.5" font-size="11" fill="#2563EB">账户+客户</text>
+
+  <path d="M 690 390 C 965 390, 965 173, 1232 173" fill="none" stroke="#2563EB" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="937" y="275.5" font-size="11" fill="#2563EB">客户补充</text>
+
+  <path d="M 690 300 C 965 300, 965 243, 1232 243" fill="none" stroke="#2563EB" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="937" y="265.5" font-size="11" fill="#2563EB">余额</text>
+
+  <path d="M 690 480 C 965 480, 965 243, 1232 243" fill="none" stroke="#2563EB" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="937" y="355.5" font-size="11" fill="#2563EB">借贷发生额</text>
+
+  <path d="M 1530 173 C 1570 173, 1570 243, 1232 243" fill="none" stroke="#2563EB" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1357" y="202" font-size="11" fill="#2563EB">账户主表关联</text>
+
+  <path d="M 690 480 C 750 480, 750 177, 802 177" fill="none" stroke="#059669" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="722" y="322.5" font-size="11" fill="#059669">LOAN ISSUE</text>
+
+  <path d="M 690 480 C 750 480, 750 247, 802 247" fill="none" stroke="#059669" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="722" y="357.5" font-size="11" fill="#059669">还本/付息/提款</text>
+
+  <path d="M 690 480 C 750 480, 750 317, 802 317" fill="none" stroke="#059669" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="722" y="392.5" font-size="11" fill="#059669">外保内贷签约</text>
+
+  <path d="M 690 480 C 750 480, 750 387, 802 387" fill="none" stroke="#059669" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="722" y="427.5" font-size="11" fill="#059669">外保内贷变动</text>
+
+  <path d="M 690 210 C 750 210, 750 177, 802 177" fill="none" stroke="#059669" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="722" y="187.5" font-size="11" fill="#059669">账户辅助</text>
+
+  <path d="M 690 390 C 750 390, 750 317, 802 317" fill="none" stroke="#059669" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="722" y="347.5" font-size="11" fill="#059669">客户辅助</text>
+
+  <path d="M 1110 177 C 1175 177, 1175 358, 1232 358" fill="none" stroke="#059669" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1147" y="261.5" font-size="11" fill="#059669">前置转正式</text>
+
+  <path d="M 1110 247 C 1175 247, 1175 428, 1232 428" fill="none" stroke="#059669" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1147" y="331.5" font-size="11" fill="#059669">前置转正式</text>
+
+  <path d="M 1110 317 C 1175 317, 1175 498, 1232 498" fill="none" stroke="#059669" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1147" y="401.5" font-size="11" fill="#059669">前置转正式</text>
+
+  <path d="M 1110 387 C 1175 387, 1175 568, 1232 568" fill="none" stroke="#059669" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1147" y="471.5" font-size="11" fill="#059669">前置转正式</text>
+
+  <path d="M 1110 317 C 1175 317, 1175 638, 1232 638" fill="none" stroke="#059669" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1147" y="471.5" font-size="11" fill="#059669">担保人明细</text>
+
+  <path d="M 690 480 C 750 480, 750 737, 802 737" fill="none" stroke="#D97706" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="722" y="602.5" font-size="11" fill="#D97706">交易派生</text>
+
+  <path d="M 1110 937 C 1150 937, 1150 737, 802 737" fill="none" stroke="#D97706" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="932" y="831" font-size="11" fill="#D97706">EXD/CFA支撑</text>
+
+  <path d="M 1110 737 C 1175 737, 1175 768, 1232 768" fill="none" stroke="#D97706" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1147" y="746.5" font-size="11" fill="#D97706">白名单Z02</text>
+
+  <path d="M 1110 737 C 1175 737, 1175 838, 1232 838" fill="none" stroke="#D97706" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1147" y="781.5" font-size="11" fill="#D97706">fal_no=D02</text>
+
+  <path d="M 1110 737 C 1175 737, 1175 908, 1232 908" fill="none" stroke="#D97706" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1147" y="816.5" font-size="11" fill="#D97706">D0501派生</text>
+
+  <path d="M 1110 737 C 1175 737, 1175 978, 1232 978" fill="none" stroke="#D97706" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1147" y="851.5" font-size="11" fill="#D97706">fal_no=D09</text>
+
+  <path d="M 1110 737 C 1175 737, 1175 1048, 1232 1048" fill="none" stroke="#D97706" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1147" y="886.5" font-size="11" fill="#D97706">fal_no=F01</text>
+
+  <path d="M 690 480 C 750 480, 750 527, 802 527" fill="none" stroke="#DC2626" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="722" y="497.5" font-size="11" fill="#DC2626">结/购汇配对</text>
+
+  <path d="M 1110 527 C 1150 527, 1150 597, 802 597" fill="none" stroke="#DC2626" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="932" y="556" font-size="11" fill="#DC2626">结汇用途</text>
+
+  <path d="M 1110 527 C 1175 527, 1175 1188, 1232 1188" fill="none" stroke="#DC2626" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1147" y="851.5" font-size="11" fill="#DC2626">基础信息</text>
+
+  <path d="M 1110 597 C 1175 597, 1175 1258, 1232 1258" fill="none" stroke="#DC2626" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1147" y="921.5" font-size="11" fill="#DC2626">管理信息</text>
+
+  <path d="M 1110 527 C 1175 527, 1175 1328, 1232 1328" fill="none" stroke="#DC2626" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1147" y="921.5" font-size="11" fill="#DC2626">基础信息</text>
+
+  <path d="M 690 480 C 750 480, 750 857, 802 857" fill="none" stroke="#64748B" stroke-width="2.1" marker-end="url(#arrow)" stroke-dasharray="7 6"/>
+  <text x="722" y="662.5" font-size="11" fill="#64748B">BOP待判定</text>
+
+  <path d="M 690 480 C 750 480, 750 937, 802 937" fill="none" stroke="#64748B" stroke-width="2.1" marker-end="url(#arrow)" stroke-dasharray="7 6"/>
+  <text x="722" y="702.5" font-size="11" fill="#64748B">EXD支撑</text>
+
+  <path d="M 1530 173 C 1650 173, 1650 173, 1762 173" fill="none" stroke="#2563EB" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1622" y="167" font-size="11" fill="#2563EB">XML</text>
+
+  <path d="M 1530 243 C 1650 243, 1650 243, 1762 243" fill="none" stroke="#2563EB" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1622" y="237" font-size="11" fill="#2563EB">XML</text>
+
+  <path d="M 1530 358 C 1650 358, 1650 358, 1762 358" fill="none" stroke="#059669" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1622" y="352" font-size="11" fill="#059669">XML</text>
+
+  <path d="M 1530 428 C 1650 428, 1650 428, 1762 428" fill="none" stroke="#059669" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1622" y="422" font-size="11" fill="#059669">XML</text>
+
+  <path d="M 1530 498 C 1650 498, 1650 528, 1762 528" fill="none" stroke="#059669" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1622" y="507" font-size="11" fill="#059669">XML</text>
+
+  <path d="M 1530 638 C 1650 638, 1650 528, 1762 528" fill="none" stroke="#059669" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1622" y="577" font-size="11" fill="#059669">子节点</text>
+
+  <path d="M 1530 568 C 1650 568, 1650 598, 1762 598" fill="none" stroke="#059669" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1622" y="577" font-size="11" fill="#059669">XML</text>
+
+  <path d="M 1530 768 C 1650 768, 1650 768, 1762 768" fill="none" stroke="#D97706" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1622" y="762" font-size="11" fill="#D97706">XML</text>
+
+  <path d="M 1530 838 C 1650 838, 1650 838, 1762 838" fill="none" stroke="#D97706" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1622" y="832" font-size="11" fill="#D97706">XML</text>
+
+  <path d="M 1530 908 C 1650 908, 1650 908, 1762 908" fill="none" stroke="#D97706" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1622" y="902" font-size="11" fill="#D97706">XML</text>
+
+  <path d="M 1530 978 C 1650 978, 1650 978, 1762 978" fill="none" stroke="#D97706" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1622" y="972" font-size="11" fill="#D97706">XML</text>
+
+  <path d="M 1530 1048 C 1650 1048, 1650 1048, 1762 1048" fill="none" stroke="#D97706" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1622" y="1042" font-size="11" fill="#D97706">XML</text>
+
+  <path d="M 1530 1188 C 1650 1188, 1650 1188, 1762 1188" fill="none" stroke="#DC2626" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1622" y="1182" font-size="11" fill="#DC2626">XML</text>
+
+  <path d="M 1530 1258 C 1650 1258, 1650 1258, 1762 1258" fill="none" stroke="#DC2626" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1622" y="1252" font-size="11" fill="#DC2626">XML</text>
+
+  <path d="M 1530 1328 C 1650 1328, 1650 1328, 1762 1328" fill="none" stroke="#DC2626" stroke-width="2.1" marker-end="url(#arrow)" />
+  <text x="1622" y="1322" font-size="11" fill="#DC2626">XML</text>
+  <g transform="translate(70,1510)">
+    <rect x="0" y="0" width="860" height="90" rx="12" fill="#F8FAFC" stroke="#CBD5E1"/>
+    <text x="18" y="30" font-size="16" font-weight="700" fill="#0F172A">说明</text>
+    <text x="18" y="56" font-size="14" fill="#475569">实线：VTB 二代自动化主链路；虚线：当前为支撑链路或待判定链路，未纳入 VTB 最终自动报送。</text>
+    <text x="18" y="78" font-size="14" fill="#475569">模块颜色：ACC 蓝色，CFA 绿色，FAL 橙色，JSH 红色，支撑/待确认灰色。</text>
+  </g>
+</svg>

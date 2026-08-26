@@ -47,6 +47,7 @@ import {
   api,
   type ProjectDictionaryFieldDetail,
   type ProjectDictionaryFieldHit,
+  type ProjectDictionaryMappingScenario as StoredDictionaryMappingScenario,
   type ProjectDictionaryMappingSqlValidationResult,
   type ProjectDictionaryMappingTempFieldInput,
   type ProjectDictionaryMappingTempTable,
@@ -234,7 +235,34 @@ export function DictionaryMappingPanel({
   const sqlDialect = getDictionarySystemSqlDialect(system);
   const fieldRefIndex = useMemo(() => buildDictionaryFieldRefIndex(allFields), [allFields]);
   const tableRefIndex = useMemo(() => buildDictionaryTableRefIndex(table, allFields), [table, allFields]);
-  const scenarios = useMemo(() => buildDictionaryMappingScenarios(table, fields, fieldRefIndex), [table, fields, fieldRefIndex]);
+  const [storedScenarios, setStoredScenarios] = useState<StoredDictionaryMappingScenario[]>([]);
+  const [scenarioLoadState, setScenarioLoadState] = useState<"loading" | "ready" | "error">("loading");
+  useEffect(() => {
+    if (!table) { setStoredScenarios([]); setScenarioLoadState("ready"); return; }
+    let active = true;
+    setScenarioLoadState("loading");
+    void api.listProjectDictionaryMappingScenarios(projectId, table.id)
+      .then(items => { if (active) { setStoredScenarios(items); setScenarioLoadState("ready"); } })
+      .catch(() => { if (active) { setStoredScenarios([]); setScenarioLoadState("error"); } });
+    return () => { active = false; };
+  }, [projectId, table]);
+  const scenarios = useMemo(() => {
+    return storedScenarios.map(scenario => ({
+      key: scenario.id,
+      title: scenario.title,
+      caliber: scenario.caliber || table?.caliber || table?.description || "当前场景暂未维护独立业务口径。",
+      rules: fields.map(field => {
+        const rule = scenario.rules.find(item => item.fieldId === field.id);
+        return {
+          field,
+          logic: rule?.logicText || '{"op":"null"}',
+          convertedSql: rule?.convertedSql,
+          remark: rule?.remark,
+          sourceRefs: bindDictionarySourceRefs(extractMappingSourceRefs(field, rule?.logicText || ""), fieldRefIndex),
+        };
+      }),
+    })).sort((a, b) => a.title.localeCompare(b.title, "zh-CN"));
+  }, [fieldRefIndex, fields, storedScenarios, table]);
   const [activeScenarioKey, setActiveScenarioKey] = useState("");
   const [sqlValidation, setSqlValidation] = useState<ProjectDictionaryMappingSqlValidationResult | null>(null);
   const [sqlValidationBusy, setSqlValidationBusy] = useState(false);
@@ -356,7 +384,7 @@ export function DictionaryMappingPanel({
   return (
     <div className="prj-pm-dict-mapping">
       {scenarios.length === 0 ? (
-        <div className="prj-pm-dict__grid-empty">当前表暂未维护 Mapping 场景。</div>
+        <div className="prj-pm-dict__grid-empty">{scenarioLoadState === "error" ? "Mapping 场景读取失败，请检查场景表数据或重新刷新。" : scenarioLoadState === "loading" ? "正在读取 Mapping 场景…" : "当前表暂未维护结构化 Mapping 场景。"}</div>
       ) : (
         <>
           <div className="prj-pm-dict-mapping__scenario-tabs" role="tablist" aria-label="Mapping 场景">
@@ -1271,8 +1299,10 @@ function DictionaryTablePropertyContent({ table }: { table: ProjectDictionaryTab
           <span>英文名</span><code>{table.tableName}</code>
           <span>分组</span><strong>{table.tableGroup || "未分组"}</strong>
           <span>数据层级</span><strong>{table.dataLayer || "源表层"}</strong>
+          <span>表类型</span><strong>{table.tableType || "未标注"}</strong>
           <span>载体类型</span><strong>{table.sourceKind || "数据库"}</strong>
           <span>文件类型</span><strong>{table.fileType || "-"}</strong>
+          <span>是否有Mapping</span><strong>{table.hasMapping === false ? "否" : "是"}</strong>
           <span>是否使用</span><strong>{table.usageStatus || "待确认"}</strong>
           <span>字段数</span><strong>{table.fieldCount}</strong>
         </div>
@@ -1392,12 +1422,20 @@ export function DictionaryTableInfoPanel({ table, fields }: { table?: ProjectDic
           <strong>{table.dataLayer || "源表层"}</strong>
         </article>
         <article>
+          <span>表类型</span>
+          <strong>{table.tableType || "未标注"}</strong>
+        </article>
+        <article>
           <span>载体类型</span>
           <strong>{table.sourceKind || "数据库"}</strong>
         </article>
         <article>
           <span>文件类型</span>
           <strong>{table.fileType || "-"}</strong>
+        </article>
+        <article>
+          <span>是否有Mapping</span>
+          <strong>{table.hasMapping === false ? "否" : "是"}</strong>
         </article>
         <article>
           <span>是否使用</span>
@@ -1570,35 +1608,51 @@ type DictionaryMappingScenario = {
   rules: DictionaryMappingRule[];
 };
 
-function buildDictionaryMappingScenarios(
+export function buildDictionaryMappingScenarios(
   table: ProjectDictionaryTable | undefined,
   fields: ProjectDictionaryFieldHit[],
   fieldRefIndex: Map<string, ProjectDictionaryFieldHit>,
 ): DictionaryMappingScenario[] {
-  const groups = new Map<string, DictionaryMappingScenario>();
-  fields.forEach(field => {
-    if (!hasDictionaryMappingEvidence(field)) return;
-    const pieces = splitMappingScenarioTexts(field.acquireLogic);
-    pieces.forEach((piece, index) => {
-      const title = extractMappingScenarioTitle(piece, index);
-      const key = normalizeMappingScenarioKey(title);
-      const current = groups.get(key) ?? {
+  const fieldPieces = fields.map(field => ({ field, pieces: splitMappingScenarioTexts(field.acquireLogic) }));
+  const scenarioTitles = new Map<string, string>();
+  fieldPieces.forEach(({ pieces }) => pieces.forEach(piece => {
+    const title = extractExplicitMappingScenarioTitle(piece);
+    if (title && !isDefaultMappingScenarioTitle(title)) scenarioTitles.set(normalizeMappingScenarioKey(title), title);
+  }));
+  if (scenarioTitles.size === 0) scenarioTitles.set("scenario1", "场景1");
+
+  return Array.from(scenarioTitles.entries())
+    .map(([key, title]) => {
+      const rules = fieldPieces.map(({ field, pieces }) => {
+        const matchingPiece = pieces.find(piece => {
+          const pieceTitle = extractExplicitMappingScenarioTitle(piece);
+          return pieceTitle && !isDefaultMappingScenarioTitle(pieceTitle) && normalizeMappingScenarioKey(pieceTitle) === key;
+        });
+        const defaultPiece = pieces.find(piece => isDefaultMappingScenarioTitle(extractExplicitMappingScenarioTitle(piece))
+          && mappingScenarioNumber(extractExplicitMappingScenarioTitle(piece)) === mappingScenarioNumber(title));
+        const hasBusinessScenario = pieces.some(piece => {
+          const pieceTitle = extractExplicitMappingScenarioTitle(piece);
+          return pieceTitle && !isDefaultMappingScenarioTitle(pieceTitle);
+        });
+        const sharedPiece = pieces.find(piece => !extractExplicitMappingScenarioTitle(piece));
+        const piece = matchingPiece ?? defaultPiece ?? (hasBusinessScenario ? sharedPiece || "" : pieces[0] || "");
+        return {
+          field,
+          logic: extractMappingRuleLogic(piece) || '{"op":"null"}',
+          convertedSql: extractMappingConvertedSql(piece),
+          remark: extractMappingRemark(piece),
+          sourceRefs: bindDictionarySourceRefs(extractMappingSourceRefs(field, piece), fieldRefIndex),
+        };
+      });
+      const scenarioPiece = fieldPieces.flatMap(item => item.pieces).find(piece => normalizeMappingScenarioKey(extractExplicitMappingScenarioTitle(piece) || "") === key) || "";
+      return {
         key,
         title,
-        caliber: extractMappingCaliber(piece) || table?.caliber || table?.description || "当前场景暂未维护独立业务口径。",
-        rules: [],
+        caliber: extractMappingCaliber(scenarioPiece) || table?.caliber || table?.description || "当前场景暂未维护独立业务口径。",
+        rules,
       };
-      if (!groups.has(key)) groups.set(key, current);
-      current.rules.push({
-        field,
-        logic: extractMappingRuleLogic(piece) || "按涉及字段直取或按规则生成目标字段。",
-        convertedSql: extractMappingConvertedSql(piece),
-        remark: extractMappingRemark(piece),
-        sourceRefs: bindDictionarySourceRefs(extractMappingSourceRefs(field, piece), fieldRefIndex),
-      });
-    });
-  });
-  return Array.from(groups.values()).sort((a, b) => scenarioSortWeight(a.title) - scenarioSortWeight(b.title));
+    })
+    .sort((a, b) => scenarioSortWeight(a.title) - scenarioSortWeight(b.title));
 }
 
 function dictionaryMappingSqlValidationFingerprint(scenario: DictionaryMappingScenario): string {
@@ -1680,11 +1734,18 @@ function splitMappingScenarioTexts(value?: string): string[] {
   return pieces.length ? pieces : [text];
 }
 
-function extractMappingScenarioTitle(text: string, index: number): string {
+function extractExplicitMappingScenarioTitle(text: string): string | undefined {
   const firstLine = text.split(/\r?\n/).map(line => line.trim()).find(Boolean);
   const match = firstLine?.match(/^(场景\s*\d+)(?:[：:：\s-]*(.*))?$/);
-  if (match) return [match[1].replace(/\s+/g, ""), match[2]].filter(Boolean).join(" ");
-  return `场景${index + 1}`;
+  return match ? [match[1].replace(/\s+/g, ""), match[2]].filter(Boolean).join(" ") : undefined;
+}
+
+function isDefaultMappingScenarioTitle(title?: string): boolean {
+  return /(?:^|\s)(默认场景|default(?:\s+scenario)?)$/i.test(title?.trim() || "");
+}
+
+function mappingScenarioNumber(title?: string): string {
+  return title?.match(/^场景\s*(\d+)/)?.[1] || "";
 }
 
 function normalizeMappingScenarioKey(title: string): string {

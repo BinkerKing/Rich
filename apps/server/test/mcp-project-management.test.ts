@@ -3,13 +3,17 @@ import { buildMcpServer } from "../src/mcp/server.js";
 import type {
   ProjectDictionaryFieldDetail,
   ProjectDictionaryFieldHit,
+  ProjectDictionaryFieldPatch,
   ProjectDictionaryMappingAction,
   ProjectDictionaryMappingActionInput,
   ProjectDictionaryMappingActionPatch,
   ProjectDictionaryMappingRule,
   ProjectDictionaryMappingRulePatch,
   ProjectDictionaryMappingSourceFieldInput,
+  ProjectDictionaryMappingTempTable,
+  ProjectDictionaryMappingTempTableInput,
   ProjectDictionaryMappingValidation,
+  ProjectDictionaryTable,
   ProjectManagementModuleKey,
   ProjectManagementRepo,
   ProjectModuleItem,
@@ -26,6 +30,8 @@ function textOf(result: unknown): string {
 function makeProjectManagementRepo(): ProjectManagementRepo {
   const items = new Map<string, ProjectModuleItem>();
   const mappingRules = new Map<string, ProjectDictionaryMappingRule>();
+  let tempTables: ProjectDictionaryMappingTempTable[] = [];
+  let tables: ProjectDictionaryTable[] = [{ id: "table-1", systemId: "sys-1", tableName: "BLZCCZ", tableCn: "不良资产处置", dataLayer: "源表层", sourceKind: "数据库", usageStatus: "未使用", extra: { existingFlag: true }, fieldCount: 1 }];
   const fields: ProjectDictionaryFieldHit[] = [{
     id: "field-1",
     tableId: "table-1",
@@ -144,7 +150,29 @@ function makeProjectManagementRepo(): ProjectManagementRepo {
       return [{ id: "sys-1", code: "YBT", name: "sys-ybt", type: "source system", assetLayer: "source layer", fieldCount: fields.length, tableCount: 1 }];
     },
     async listDictionaryTables() {
-      return [{ id: "table-1", systemId: "sys-1", tableName: "BLZCCZ", tableCn: "不良资产处置", dataLayer: "源表层", sourceKind: "数据库", fieldCount: fields.length }];
+      return tables.map(table => ({ ...table, fieldCount: fields.length }));
+    },
+    async updateDictionaryTable(_projectId, tableId, patch) {
+      const index = tables.findIndex(table => table.id === tableId);
+      if (index < 0) return null;
+      const current = tables[index]!;
+      tables[index] = {
+        ...current,
+        systemId: patch.systemId === undefined ? current.systemId : patch.systemId ?? undefined,
+        tableName: patch.tableName ?? current.tableName,
+        tableCn: patch.tableCn === undefined ? current.tableCn : patch.tableCn ?? undefined,
+        tableGroup: patch.tableGroup === undefined ? current.tableGroup : patch.tableGroup ?? undefined,
+        dataLayer: patch.dataLayer === undefined ? current.dataLayer : patch.dataLayer ?? undefined,
+        tableType: patch.tableType === undefined ? current.tableType : patch.tableType ?? undefined,
+        sourceKind: patch.sourceKind === undefined ? current.sourceKind : patch.sourceKind ?? undefined,
+        fileType: patch.fileType === undefined ? current.fileType : patch.fileType ?? undefined,
+        hasMapping: patch.hasMapping ?? current.hasMapping,
+        usageStatus: patch.usageStatus === undefined ? current.usageStatus : patch.usageStatus ?? undefined,
+        description: patch.description === undefined ? current.description : patch.description ?? undefined,
+        caliber: patch.caliber === undefined ? current.caliber : patch.caliber ?? undefined,
+        extra: patch.extra === undefined ? current.extra : { ...current.extra, ...patch.extra },
+      };
+      return { ...tables[index]!, fieldCount: fields.length };
     },
     async listDictionaryFields() { return fields; },
     async resolveDictionaryFieldRefs(_projectId, refs) {
@@ -158,6 +186,20 @@ function makeProjectManagementRepo(): ProjectManagementRepo {
     async getDictionaryField(_projectId, fieldId): Promise<ProjectDictionaryFieldDetail | null> {
       const field = fields.find(item => item.id === fieldId);
       return field ? { ...field, primaryKey: false, required: false } : null;
+    },
+    async updateDictionaryField(_projectId, fieldId, patch: ProjectDictionaryFieldPatch): Promise<ProjectDictionaryFieldDetail | null> {
+      const index = fields.findIndex(item => item.id === fieldId);
+      if (index < 0) return null;
+      const current = fields[index]!;
+      fields[index] = {
+        ...current,
+        fieldCn: patch.fieldCn ?? current.fieldCn,
+        fieldType: patch.fieldType ?? current.fieldType,
+        fieldLength: patch.fieldLength ?? current.fieldLength,
+        formatPattern: patch.formatPattern ?? current.formatPattern,
+        description: patch.description ?? current.description,
+      };
+      return { ...fields[index]!, primaryKey: patch.primaryKey ?? false, required: patch.required ?? false };
     },
     async listDictionaryRectifications() { return []; },
     async createDictionaryRectification(projectId, input) {
@@ -284,6 +326,43 @@ function makeProjectManagementRepo(): ProjectManagementRepo {
         issues: [],
       };
     },
+    async listDictionaryMappingTempTables(_projectId, tableId) {
+      return tempTables.filter(tempTable => tempTable.targetTableId === tableId);
+    },
+    async replaceDictionaryMappingTempTables(projectId, tableId, inputs: ProjectDictionaryMappingTempTableInput[]) {
+      const now = "2026-08-20T00:02:00.000Z";
+      tempTables = inputs.map((input, tableIndex) => ({
+        id: input.id ?? `temp-${tableIndex + 1}`,
+        projectId,
+        targetTableId: tableId,
+        tableName: input.tableName,
+        tableCn: input.tableCn ?? undefined,
+        logicText: input.logicText ?? undefined,
+        convertedSql: input.convertedSql ?? undefined,
+        remark: input.remark ?? undefined,
+        sortOrder: input.sortOrder ?? tableIndex,
+        raw: input.raw,
+        fields: (input.fields ?? []).map((field, fieldIndex) => ({
+          id: field.id ?? `temp-field-${tableIndex + 1}-${fieldIndex + 1}`,
+          projectId,
+          tempTableId: input.id ?? `temp-${tableIndex + 1}`,
+          fieldName: field.fieldName,
+          fieldCn: field.fieldCn ?? undefined,
+          fieldType: field.fieldType ?? undefined,
+          fieldLength: field.fieldLength ?? undefined,
+          logicText: field.logicText ?? undefined,
+          convertedSql: field.convertedSql ?? undefined,
+          remark: field.remark ?? undefined,
+          sortOrder: field.sortOrder ?? fieldIndex,
+          raw: field.raw,
+          createdAt: now,
+          updatedAt: now,
+        })),
+        createdAt: now,
+        updatedAt: now,
+      }));
+      return tempTables;
+    },
   };
 }
 
@@ -302,6 +381,48 @@ function makeDeps(projectManagement: ProjectManagementRepo) {
 }
 
 describe("MCP project-management tools", () => {
+  it("lets AI read the canonical project description directly", async () => {
+    const repo = makeProjectManagementRepo();
+    await repo.createModuleItem("capital-bank-ybt", {
+      moduleKey: "description",
+      title: "项目说明",
+      content: { html: "<h3>银保通</h3><p>银行保险项目</p>" },
+    });
+    const server = buildMcpServer(makeDeps(repo));
+    const getDescription = tool(server, "project_management_get_description");
+
+    const result = JSON.parse(textOf(await getDescription.handler({
+      project_id: "capital-bank-ybt",
+    }))) as { html: string; text: string };
+
+    expect(result.html).toContain("银保通");
+    expect(result.text).toBe("银保通\n银行保险项目");
+  });
+
+  it("updates the canonical project description through MCP", async () => {
+    const repo = makeProjectManagementRepo();
+    const server = buildMcpServer(makeDeps(repo));
+    const updateDescription = tool(server, "project_management_update_description");
+    const getDescription = tool(server, "project_management_get_description");
+
+    expect(updateDescription.inputSchema.safeParse({
+      project_id: "capital-bank-ybt",
+      html: "<h2>二代 SAFE</h2><p>数据治理项目</p>",
+    }).success).toBe(true);
+
+    const updated = JSON.parse(textOf(await updateDescription.handler({
+      project_id: "capital-bank-ybt",
+      html: "<h2>二代 SAFE</h2><p>数据治理项目</p>",
+    }))) as { html: string; text: string };
+    const readBack = JSON.parse(textOf(await getDescription.handler({
+      project_id: "capital-bank-ybt",
+    }))) as { html: string; text: string };
+
+    expect(updated.html).toContain("二代 SAFE");
+    expect(updated.text).toBe("二代 SAFE\n数据治理项目");
+    expect(readBack).toMatchObject(updated);
+  });
+
   it("registers module CRUD tools and writes through the project-management repo", async () => {
     const server = buildMcpServer(makeDeps(makeProjectManagementRepo()));
     const create = tool(server, "project_management_create_item");
@@ -337,6 +458,54 @@ describe("MCP project-management tools", () => {
     expect(listed[0].title).toBe("源系统自动抽数");
   });
 
+  it("provides dedicated project-todo CRUD tools with UI-compatible fields", async () => {
+    const server = buildMcpServer(makeDeps(makeProjectManagementRepo()));
+    const create = tool(server, "project_todo_create");
+    const list = tool(server, "project_todo_list");
+    const get = tool(server, "project_todo_get");
+    const update = tool(server, "project_todo_update");
+    const remove = tool(server, "project_todo_delete");
+
+    expect(create.inputSchema.safeParse({
+      project_id: "capital-bank-ybt",
+      title: "核对抽取结果",
+      status: "doing",
+      owner: "Rich",
+      priority: "高",
+      due_at: "2026-08-30",
+      description: "对比临时表和目标表数据。",
+    }).success).toBe(true);
+
+    const created = JSON.parse(textOf(await create.handler({
+      project_id: "capital-bank-ybt",
+      title: "核对抽取结果",
+      status: "doing",
+      owner: "Rich",
+      priority: "高",
+      due_at: "2026-08-30",
+      description: "对比临时表和目标表数据。",
+    }))) as { todo: ProjectModuleItem };
+    expect(created.todo.content.original).toMatchObject({ status: "doing", owner: "Rich", dueAt: "2026-08-30" });
+
+    const listed = JSON.parse(textOf(await list.handler({ project_id: "capital-bank-ybt", status: "doing" }))) as ProjectModuleItem[];
+    expect(listed).toHaveLength(1);
+    const fetched = JSON.parse(textOf(await get.handler({ project_id: "capital-bank-ybt", todo_id: created.todo.id }))) as ProjectModuleItem;
+    expect(fetched.title).toBe("核对抽取结果");
+
+    const updated = JSON.parse(textOf(await update.handler({
+      project_id: "capital-bank-ybt",
+      todo_id: created.todo.id,
+      status: "done",
+      owner: null,
+    }))) as { todo: ProjectModuleItem };
+    expect(updated.todo.content.original).toMatchObject({ status: "done", owner: "", priority: "高" });
+
+    const removed = JSON.parse(textOf(await remove.handler({ project_id: "capital-bank-ybt", todo_id: created.todo.id }))) as { ok: boolean };
+    expect(removed.ok).toBe(true);
+    const afterDelete = JSON.parse(textOf(await list.handler({ project_id: "capital-bank-ybt" }))) as ProjectModuleItem[];
+    expect(afterDelete).toHaveLength(0);
+  });
+
   it("exposes data-dictionary search and field detail tools", async () => {
     const server = buildMcpServer(makeDeps(makeProjectManagementRepo()));
     const search = tool(server, "project_dictionary_search_fields");
@@ -357,17 +526,64 @@ describe("MCP project-management tools", () => {
     expect(detail.formatPattern).toBe("数字，精度20,2");
   });
 
+  it("updates data-dictionary field metadata through MCP", async () => {
+    const server = buildMcpServer(makeDeps(makeProjectManagementRepo()));
+    const updateField = tool(server, "project_dictionary_update_field");
+    const updated = JSON.parse(textOf(await updateField.handler({
+      project_id: "capital-bank-ybt",
+      field_id: "field-1",
+      field_length: "24,2",
+    }))) as { ok: boolean; field: ProjectDictionaryFieldDetail };
+
+    expect(updated.ok).toBe(true);
+    expect(updated.field.fieldLength).toBe("24,2");
+  });
+
+  it("updates table usage status and merges extra metadata through MCP", async () => {
+    const server = buildMcpServer(makeDeps(makeProjectManagementRepo()));
+    const updateTable = tool(server, "project_dictionary_update_table");
+    expect(updateTable.inputSchema.safeParse({
+      project_id: "vtb-二代safe",
+      table_id: "table-1",
+      table_cn: "不良资产处置明细",
+      table_group: "监管报表",
+      table_type: "报表表",
+      usage_status: "使用",
+      extra: { vtbWillReport: true },
+    }).success).toBe(true);
+
+    const updated = JSON.parse(textOf(await updateTable.handler({
+      project_id: "vtb-二代safe",
+      table_id: "table-1",
+      table_cn: "不良资产处置明细",
+      table_group: "监管报表",
+      table_type: "报表表",
+      usage_status: "使用",
+      extra: { vtbWillReport: true },
+    }))) as { ok: boolean; table: { tableCn?: string; tableGroup?: string; tableType?: string; usageStatus?: string; extra?: Record<string, unknown> } };
+    expect(updated).toMatchObject({
+      ok: true,
+      table: { tableCn: "不良资产处置明细", tableGroup: "监管报表", tableType: "报表表", usageStatus: "使用", extra: { existingFlag: true, vtbWillReport: true } },
+    });
+  });
+
   it("exposes mapping-rule MCP tools", async () => {
     const server = buildMcpServer(makeDeps(makeProjectManagementRepo()));
     const listRules = tool(server, "project_dictionary_list_mapping_rules");
     const updateRule = tool(server, "project_dictionary_update_mapping_rule");
     const validateTable = tool(server, "project_dictionary_validate_mapping_table");
+    const validateSql = tool(server, "project_dictionary_validate_mapping_sql");
 
     const listed = JSON.parse(textOf(await listRules.handler({
       project_id: "capital-bank-ybt",
       table_id: "table-1",
     }))) as { rules: ProjectDictionaryMappingRule[] };
     expect(listed.rules[0].id).toBe("mapping-1");
+    expect(validateSql.inputSchema.safeParse({
+      project_id: "capital-bank-ybt",
+      table_id: "table-1",
+      field_rules: [{ field_id: "field-1", logic: '{"op":"direct","source":"BLZCCZ.G080009"}' }],
+    }).success).toBe(true);
 
     const updated = JSON.parse(textOf(await updateRule.handler({
       project_id: "capital-bank-ybt",
@@ -384,5 +600,32 @@ describe("MCP project-management tools", () => {
     }))) as ProjectDictionaryMappingValidation;
     expect(validation.totalRules).toBe(1);
     expect(validation.completeRules).toBe(1);
+  });
+
+  it("replaces Mapping temporary tables and fields through MCP", async () => {
+    const server = buildMcpServer(makeDeps(makeProjectManagementRepo()));
+    const replace = tool(server, "project_dictionary_replace_mapping_temp_tables");
+    expect(replace.inputSchema.safeParse({
+      project_id: "capital-bank-ybt",
+      table_id: "table-1",
+      temp_tables: [{
+        table_name: "tmp_transaction",
+        converted_sql: "SELECT transaction_id, amount FROM source_transaction",
+        fields: [{ field_name: "transaction_id", field_type: "varchar" }],
+      }],
+    }).success).toBe(true);
+
+    const result = JSON.parse(textOf(await replace.handler({
+      project_id: "capital-bank-ybt",
+      table_id: "table-1",
+      temp_tables: [{
+        table_name: "tmp_transaction",
+        converted_sql: "SELECT transaction_id, amount FROM source_transaction",
+        fields: [{ field_name: "transaction_id", field_type: "varchar" }],
+      }],
+    }))) as { ok: boolean; temp_tables: ProjectDictionaryMappingTempTable[] };
+    expect(result.ok).toBe(true);
+    expect(result.temp_tables[0]?.tableName).toBe("tmp_transaction");
+    expect(result.temp_tables[0]?.fields[0]?.fieldName).toBe("transaction_id");
   });
 });

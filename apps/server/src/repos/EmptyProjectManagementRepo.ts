@@ -2,10 +2,14 @@ import {
   PROJECT_MANAGEMENT_MODULES,
   type ProjectDictionaryFieldDetail,
   type ProjectDictionaryFieldHit,
+  type ProjectDictionaryFieldPatch,
   type ProjectDictionaryMappingAction,
   type ProjectDictionaryMappingActionInput,
   type ProjectDictionaryMappingActionPatch,
   type ProjectDictionaryMappingRule,
+  type ProjectDictionaryMappingScenario,
+  type ProjectDictionaryMappingScenarioInput,
+  type ProjectDictionaryMappingScenarioPatch,
   type ProjectDictionaryMappingRulePatch,
   type ProjectDictionaryMappingSourceFieldInput,
   type ProjectDictionaryMappingTempTable,
@@ -17,6 +21,7 @@ import {
   type ProjectDictionarySystem,
   type ProjectDictionarySystemPatch,
   type ProjectDictionaryTable,
+  type ProjectDictionaryTablePatch,
   type ProjectManagementModuleKey,
   type ProjectManagementRepo,
   type ProjectManagementSearchHit,
@@ -81,6 +86,10 @@ export class EmptyProjectManagementRepo implements ProjectManagementRepo {
     return [];
   }
 
+  async updateDictionaryTable(_projectId: string, _tableId: string, _patch: ProjectDictionaryTablePatch): Promise<ProjectDictionaryTable | null> {
+    return null;
+  }
+
   async listDictionaryFields(): Promise<ProjectDictionaryFieldHit[]> {
     return [];
   }
@@ -94,6 +103,10 @@ export class EmptyProjectManagementRepo implements ProjectManagementRepo {
   }
 
   async getDictionaryField(): Promise<ProjectDictionaryFieldDetail | null> {
+    return null;
+  }
+
+  async updateDictionaryField(_projectId: string, _fieldId: string, _patch: ProjectDictionaryFieldPatch): Promise<ProjectDictionaryFieldDetail | null> {
     return null;
   }
 
@@ -130,6 +143,23 @@ export class EmptyProjectManagementRepo implements ProjectManagementRepo {
 
   async listDictionaryMappingRules(): Promise<ProjectDictionaryMappingRule[]> {
     return [];
+  }
+
+  async listDictionaryMappingScenarios(): Promise<ProjectDictionaryMappingScenario[]> {
+    return [];
+  }
+
+  async createDictionaryMappingScenario(projectId: string, input: ProjectDictionaryMappingScenarioInput): Promise<ProjectDictionaryMappingScenario> {
+    const now = new Date().toISOString();
+    return { id: input.id ?? "pm-map-scenario-empty", projectId, tableId: input.tableId, title: input.title, caliber: input.caliber ?? undefined, remark: input.remark ?? undefined, sortOrder: input.sortOrder ?? 0, raw: input.raw, createdAt: now, updatedAt: now };
+  }
+
+  async updateDictionaryMappingScenario(): Promise<ProjectDictionaryMappingScenario | null> {
+    return null;
+  }
+
+  async deleteDictionaryMappingScenario(): Promise<boolean> {
+    return false;
   }
 
   async getDictionaryMappingRule(): Promise<ProjectDictionaryMappingRule | null> {

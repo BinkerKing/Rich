@@ -1,5 +1,6 @@
 export {
   queryDictionaryEntityTestData,
+  replaceDictionaryEntityTestData,
   writeDictionaryEntityTestData,
 } from "../../../services/projectDictionaryEntitySync.js";
 

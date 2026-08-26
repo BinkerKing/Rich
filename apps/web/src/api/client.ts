@@ -746,6 +746,20 @@ export const api = {
     if (!r.ok) throw new Error(`getProjectManagementSummary ${r.status}`);
     return r.json();
   },
+  async getProjectDescription(projectId: string): Promise<ProjectDescription> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/description`);
+    if (!r.ok) throw new Error(`getProjectDescription ${r.status}`);
+    return r.json();
+  },
+  async saveProjectDescription(projectId: string, html: string): Promise<ProjectDescription> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/description`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ html }),
+    });
+    if (!r.ok) throw new Error(`saveProjectDescription ${r.status}`);
+    return r.json();
+  },
   async searchProjectManagement(projectId: string, query: string, limit = 30): Promise<ProjectManagementSearchResult> {
     const params = new URLSearchParams({ q: query, limit: String(limit) });
     const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/search?${params.toString()}`);
@@ -802,6 +816,51 @@ export const api = {
     });
     if (!r.ok) throw new Error(`reorderProjectManagementModuleItems ${r.status}`);
   },
+  async listProjectAutomationPlans(projectId: string): Promise<ProjectAutomationPlan[]> {
+    return projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/plans`);
+  },
+  async createProjectAutomationPlan(projectId: string, input: { name: string; description?: string }): Promise<ProjectAutomationPlan> {
+    return projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/plans`, { method: "POST", body: JSON.stringify(input) });
+  },
+  async getProjectAutomationPlan(projectId: string, planId: string): Promise<ProjectAutomationPlanDetail> {
+    return projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/plans/${encodeURIComponent(planId)}`);
+  },
+  async checkProjectAutomationPlan(projectId: string, planId: string): Promise<ProjectAutomationPlanInspection> {
+    return projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/plans/${encodeURIComponent(planId)}/check`, { method: "POST" });
+  },
+  async deleteProjectAutomationPlan(projectId: string, planId: string): Promise<void> {
+    await projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/plans/${encodeURIComponent(planId)}`, { method: "DELETE" });
+  },
+  async createProjectAutomationGroup(projectId: string, planId: string, input: { name: string; sortOrder?: number }): Promise<ProjectAutomationGroup> {
+    return projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/plans/${encodeURIComponent(planId)}/groups`, { method: "POST", body: JSON.stringify(input) });
+  },
+  async deleteProjectAutomationGroup(projectId: string, groupId: string): Promise<void> {
+    await projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/groups/${encodeURIComponent(groupId)}`, { method: "DELETE" });
+  },
+  async reorderProjectAutomationGroups(projectId: string, planId: string, groupIds: string[]): Promise<void> {
+    await projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/plans/${encodeURIComponent(planId)}/groups/reorder`, { method: "POST", body: JSON.stringify({ groupIds }) });
+  },
+  async addProjectAutomationItem(projectId: string, planId: string, groupId: string, tableId: string): Promise<ProjectAutomationItem> {
+    return projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/plans/${encodeURIComponent(planId)}/groups/${encodeURIComponent(groupId)}/items`, { method: "POST", body: JSON.stringify({ tableId }) });
+  },
+  async removeProjectAutomationItem(projectId: string, itemId: string): Promise<void> {
+    await projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/items/${encodeURIComponent(itemId)}`, { method: "DELETE" });
+  },
+  async reorderProjectAutomationItems(projectId: string, groupId: string, itemIds: string[]): Promise<void> {
+    await projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/groups/${encodeURIComponent(groupId)}/items/reorder`, { method: "POST", body: JSON.stringify({ itemIds }) });
+  },
+  async listProjectAutomationRuns(projectId: string, planId: string): Promise<ProjectAutomationRun[]> {
+    return projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/plans/${encodeURIComponent(planId)}/runs`);
+  },
+  async startProjectAutomationRun(projectId: string, planId: string, runtimeParams: Record<string, unknown> = {}): Promise<ProjectAutomationRun> {
+    return projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/plans/${encodeURIComponent(planId)}/runs`, { method: "POST", body: JSON.stringify({ runtimeParams }) });
+  },
+  async getProjectAutomationRun(projectId: string, runId: string): Promise<ProjectAutomationRun> {
+    return projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/runs/${encodeURIComponent(runId)}`);
+  },
+  async resumeProjectAutomationRun(projectId: string, runId: string, runtimeParams: Record<string, unknown> = {}): Promise<ProjectAutomationRun> {
+    return projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/runs/${encodeURIComponent(runId)}/resume`, { method: "POST", body: JSON.stringify({ runtimeParams }) });
+  },
   async listProjectDictionarySystems(projectId: string): Promise<ProjectDictionarySystem[]> {
     const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/systems`, { cache: "no-store" });
     if (!r.ok) throw new Error(`listProjectDictionarySystems ${r.status}`);
@@ -846,6 +905,11 @@ export const api = {
     if (!r.ok) throw new Error(`listProjectDictionaryMappingTempTables ${r.status}`);
     return r.json();
   },
+  async listProjectDictionaryMappingScenarios(projectId: string, tableId: string): Promise<ProjectDictionaryMappingScenario[]> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/mapping/scenarios`, { cache: "no-store" });
+    if (!r.ok) throw new Error(`listProjectDictionaryMappingScenarios ${r.status}`);
+    return r.json();
+  },
   async replaceProjectDictionaryMappingTempTables(
     projectId: string,
     tableId: string,
@@ -888,6 +952,22 @@ export const api = {
     if (!r.ok) {
       const json = await r.json().catch(() => ({})) as { error?: string };
       throw new Error(json.error || `writeProjectDictionaryEntityTestData ${r.status}`);
+    }
+    return r.json();
+  },
+  async replaceProjectDictionaryEntityTestData(
+    projectId: string,
+    tableId: string,
+    rows: Array<Record<string, unknown>>,
+  ): Promise<ProjectDictionaryEntitySyncResult> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/entity/test-data/replace`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ rows }),
+    });
+    if (!r.ok) {
+      const json = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(json.error || `replaceProjectDictionaryEntityTestData ${r.status}`);
     }
     return r.json();
   },
@@ -1020,6 +1100,19 @@ export const api = {
   },
 };
 
+async function projectAutomationRequest<T>(url: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(url, {
+    cache: "no-store",
+    ...init,
+    headers: init.body ? { "content-type": "application/json", ...init.headers } : init.headers,
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({})) as { error?: string };
+    throw new Error(body.error || `数据自动化请求失败 (${response.status})`);
+  }
+  return (response.status === 204 ? undefined : await response.json()) as T;
+}
+
 export interface ProjectFolderNode {
   path: string;
   name: string;
@@ -1048,7 +1141,9 @@ export interface ProjectFolderMkdirsResult {
 }
 
 export type ProjectManagementModuleKey =
+  | "description"
   | "dictionary"
+  | "automation"
   | "workflow"
   | "scenarios"
   | "environments"
@@ -1057,6 +1152,95 @@ export type ProjectManagementModuleKey =
   | "codeVersions"
   | "todos"
   | "folder";
+
+export type ProjectAutomationStep = "validate_sql" | "sync_table" | "prepare_extraction" | "extract";
+export type ProjectAutomationExecutionStatus = "pending" | "running" | "success" | "error";
+
+export interface ProjectAutomationPlan {
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectAutomationItem {
+  id: string;
+  projectId: string;
+  planId: string;
+  groupId: string;
+  tableId: string;
+  tableName: string;
+  tableCn?: string;
+  systemId?: string;
+  systemName?: string;
+  sortOrder: number;
+}
+
+export interface ProjectAutomationGroup {
+  id: string;
+  projectId: string;
+  planId: string;
+  name: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  items: ProjectAutomationItem[];
+}
+
+export interface ProjectAutomationPlanDetail extends ProjectAutomationPlan {
+  groups: ProjectAutomationGroup[];
+}
+
+export interface ProjectAutomationPlanInspection {
+  planId: string;
+  ready: boolean;
+  checkedAt: string;
+  parameters: Array<{ name: string; types: string[]; tableIds: string[] }>;
+  items: Array<{
+    tableId: string;
+    tableName: string;
+    groupId: string;
+    groupName: string;
+    ready: boolean;
+    parameterNames: string[];
+    message?: string;
+    error?: string;
+  }>;
+}
+
+export interface ProjectAutomationRunItem {
+  id: string;
+  tableId: string;
+  tableName: string;
+  groupId: string;
+  groupName: string;
+  groupOrder: number;
+  itemOrder: number;
+  status: ProjectAutomationExecutionStatus;
+  steps: Array<{ step: ProjectAutomationStep; status: ProjectAutomationExecutionStatus; error?: string; startedAt?: string; finishedAt?: string }>;
+  affectedRows?: number;
+  failedStep?: ProjectAutomationStep;
+  error?: string;
+  startedAt?: string;
+  finishedAt?: string;
+}
+
+export interface ProjectAutomationRun {
+  id: string;
+  projectId: string;
+  planId: string;
+  planName: string;
+  status: "running" | "paused" | "success";
+  error?: string;
+  startedAt: string;
+  finishedAt?: string;
+  updatedAt: string;
+  runtimeParams?: Record<string, unknown>;
+  items: ProjectAutomationRunItem[];
+}
 
 export interface ProjectManagementSummary {
   projectId: string;
@@ -1083,6 +1267,14 @@ export interface ProjectManagementSearchHit {
 export interface ProjectManagementSearchResult {
   query: string;
   results: ProjectManagementSearchHit[];
+}
+
+export interface ProjectDescription {
+  projectId: string;
+  html: string;
+  text: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ProjectModuleItem {
@@ -1166,8 +1358,10 @@ export interface ProjectDictionaryTable {
   tableCn?: string;
   tableGroup?: string;
   dataLayer?: string;
+  tableType?: string;
   sourceKind?: string;
   fileType?: string;
+  hasMapping?: boolean;
   usageStatus?: string;
   description?: string;
   caliber?: string;
@@ -1206,6 +1400,7 @@ export interface ProjectDictionaryEntityExtractionPrepareResult {
   sql: string;
   message: string;
   runtimeParamNames?: string[];
+  runtimeParamTypes?: Record<string, string>;
   caliber: {
     status: "valid" | "invalid";
     sql?: string;
@@ -1253,6 +1448,26 @@ export interface ProjectDictionaryMappingTempField {
   raw?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProjectDictionaryMappingRuleSummary {
+  id: string;
+  fieldId?: string;
+  logicText?: string;
+  convertedSql?: string;
+  remark?: string;
+  sortOrder: number;
+}
+
+export interface ProjectDictionaryMappingScenario {
+  id: string;
+  projectId: string;
+  tableId: string;
+  title: string;
+  caliber?: string;
+  remark?: string;
+  sortOrder: number;
+  rules: ProjectDictionaryMappingRuleSummary[];
 }
 
 export interface ProjectDictionaryMappingTempTable {

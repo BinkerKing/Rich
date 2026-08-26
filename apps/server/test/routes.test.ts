@@ -65,6 +65,36 @@ describe("Core API routes", () => {
     expect(res.status).toBe(404);
   });
 
+  it("mounts the project automation API with the configured storage backend", async () => {
+    const app = buildApp(dir);
+    const response = await app.request("/api/project-management/project-a/automation/plans");
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual([]);
+  });
+
+  it("stores one project description and exposes it to search", async () => {
+    const app = buildApp(dir);
+    const empty = await app.request("/api/project-management/project-a/description");
+    expect(empty.status).toBe(200);
+    await expect(empty.json()).resolves.toMatchObject({ projectId: "project-a", html: "", text: "" });
+
+    const saved = await app.request("/api/project-management/project-a/description", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ html: "<h3>Rich 项目</h3><p>统一数据治理平台</p>" }),
+    });
+    expect(saved.status).toBe(200);
+    await expect(saved.json()).resolves.toMatchObject({
+      projectId: "project-a",
+      html: "<h3>Rich 项目</h3><p>统一数据治理平台</p>",
+      text: "Rich 项目\n统一数据治理平台",
+    });
+
+    const search = await app.request("/api/project-management/project-a/search?q=数据治理");
+    expect(search.status).toBe(200);
+    expect((await search.json()).results[0]).toMatchObject({ moduleKey: "description", title: "项目说明" });
+  });
+
   it("GET /api/health reports that health features require PostgreSQL", async () => {
     const app = buildApp(dir, [new FakeAdapter()]);
     const res = await app.request("/api/health");

@@ -26,6 +26,7 @@ export type DictionaryEntityExtractionPrepareResult = {
   sql: string;
   message: string;
   runtimeParamNames?: string[];
+  runtimeParamTypes?: Record<string, string>;
   caliber: { status: "valid" | "invalid"; sql?: string; error?: string };
   validationIssues?: DictionaryEntityExtractionValidationIssue[];
   statementError?: string;

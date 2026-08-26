@@ -8,6 +8,8 @@ export { EnvironmentsSection } from "./sections/EnvironmentsSection.js";
 export { ScenariosSection } from "./sections/ScenariosSection.js";
 export { WorkflowSection } from "./sections/WorkflowSection.js";
 export { DictionarySection } from "./DictionaryWorkspace.js";
+export { AutomationSection } from "./AutomationWorkspace.js";
+export { ProjectDescriptionSection } from "./ProjectDescriptionSection.js";
 export {
   PROJECT_MANAGEMENT_SECTIONS,
   ProjectManagementSearchBar,

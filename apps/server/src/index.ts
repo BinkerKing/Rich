@@ -191,6 +191,10 @@ import { getAgentId } from "./lib/agentId.js";
 import type { ProjectManagementRepo } from "./repos/ProjectManagementRepo.js";
 import { PostgresProjectManagementRepo } from "./repos/PostgresProjectManagementRepo.js";
 import { SqliteProjectManagementRepo } from "./repos/SqliteProjectManagementRepo.js";
+import type { ProjectAutomationRepo } from "./modules/project-automation/contracts.js";
+import { PostgresProjectAutomationRepo } from "./modules/project-automation/infrastructure/PostgresProjectAutomationRepo.js";
+import { SqliteProjectAutomationRepo } from "./modules/project-automation/infrastructure/SqliteProjectAutomationRepo.js";
+import { projectAutomationRoutes } from "./modules/project-automation/presentation/routes.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -214,6 +218,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let improvements: ImprovementsStore | null = null;
   let invocations: InvocationsStore | null = null;
   let projectManagement: ProjectManagementRepo;
+  let projectAutomation: ProjectAutomationRepo;
   /** chat_visual_blocks 仅 sqlite + postgres 后端支持；json 模式下保持 null。 */
   let chatVisualBlocks: ChatVisualBlocksRepo | null = null;
   /** chat_attachments 同上 —— bytea 存储需要数据库后端 */
@@ -243,6 +248,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     chatConversations = new PostgresChatConversationsRepo(pg);
     healthRepo = new PostgresHealthRepo(pg);
     projectManagement = new PostgresProjectManagementRepo(pg);
+    projectAutomation = new PostgresProjectAutomationRepo(pg);
   } else if (storage === "sqlite") {
     const dbPath = process.env.KE_SQLITE_PATH ?? join(root, "ke.db");
     const db = openDb(dbPath);
@@ -261,6 +267,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     chatAttachments = new SqliteChatAttachmentsRepo(db);
     chatConversations = new SqliteChatConversationsRepo(db);
     projectManagement = new SqliteProjectManagementRepo(db);
+    projectAutomation = new SqliteProjectAutomationRepo(db);
   } else {
     throw new Error(`Unsupported KE_STORAGE=${storage}. Use sqlite or postgres.`);
   }
@@ -321,6 +328,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/health", healthRoutes(healthRepo));
   app.route("/api/projects", projectsRoutes(elements));
   app.route("/api/project-management", projectManagementRoutes(projectManagement));
+  app.route("/api/project-management", projectAutomationRoutes(projectManagement, projectAutomation));
   app.route("/api/project-dictionary-test-files", projectDictionaryTestFilesRoutes());
   app.route("/api/riking-projects", rikingProjectsRoutes(root));
 

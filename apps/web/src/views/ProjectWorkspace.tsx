@@ -9,11 +9,13 @@ import {
 } from "../api/client.js";
 import { TopologyCanvas } from "./TopologyCanvas.js";
 import {
+  AutomationSection,
   CodeVersionsSection,
   DictionarySection,
   EnvironmentsSection,
   MonitoringSection,
   ProjectDeploymentStepsSection,
+  ProjectDescriptionSection,
   ProjectManagementSearchBar,
   PROJECT_MANAGEMENT_SECTIONS,
   ScenariosSection,
@@ -67,6 +69,10 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
     setSection(next);
     saveProjectManagementWorkspaceSection(projectId, next);
   };
+  const openDictionaryMapping = (tableId: string, systemId?: string) => {
+    saveDictionaryMappingTarget(project.id, tableId, systemId);
+    selectSection("dictionary");
+  };
 
   return (
     <div className="prj-ws">
@@ -114,7 +120,9 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
 
       <div className="prj-ws__main">
         <div className="prj-ws__body">
+          {section === "description" && <ProjectDescriptionSection projectId={project.id} />}
           {section === "dictionary" && <DictionarySection project={project} summary={summary} />}
+          {section === "automation" && <AutomationSection projectId={project.id} onOpenMapping={openDictionaryMapping} />}
           {section === "workflow" && <WorkflowSection project={project} summary={summary} />}
           {section === "scenarios" && <ScenariosSection project={project} summary={summary} />}
           {section === "environments" && <EnvironmentsSection project={project} summary={summary} />}
@@ -150,6 +158,32 @@ function saveProjectManagementWorkspaceSection(projectId: string, section: Proje
     window.localStorage.setItem(projectManagementWorkspaceSectionKey(projectId), section);
   } catch {
     // Workspace memory is a UI convenience; the current section still works without persistence.
+  }
+}
+
+function saveDictionaryMappingTarget(projectId: string, tableId: string, systemId?: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const workspaceKey = `rich-project-dictionary-workspace:${projectId}`;
+    const current = JSON.parse(window.localStorage.getItem(workspaceKey) ?? "{}") as Record<string, unknown>;
+    const openTableTitleIds = Array.isArray(current.openTableTitleIds)
+      ? current.openTableTitleIds.filter((id): id is string => typeof id === "string")
+      : [];
+    const expandedSystemIds = Array.isArray(current.expandedSystemIds)
+      ? current.expandedSystemIds.filter((id): id is string => typeof id === "string")
+      : [];
+    window.localStorage.setItem(workspaceKey, JSON.stringify({
+      ...current,
+      selectedTableId: tableId,
+      selectedSystemId: systemId || (typeof current.selectedSystemId === "string" ? current.selectedSystemId : ""),
+      openTableTitleIds: Array.from(new Set([...openTableTitleIds, tableId])),
+      expandedSystemIds: systemId ? Array.from(new Set([...expandedSystemIds, systemId])) : expandedSystemIds,
+    }));
+    const viewsKey = `rich-project-dictionary-table-views:${projectId}`;
+    const views = JSON.parse(window.localStorage.getItem(viewsKey) ?? "{}") as Record<string, unknown>;
+    window.localStorage.setItem(viewsKey, JSON.stringify({ ...views, [tableId]: "mapping" }));
+  } catch {
+    // Mapping navigation still switches to the dictionary when local UI memory is unavailable.
   }
 }
 
@@ -446,9 +480,10 @@ const RECOMMENDED_STRUCTURE: Array<{ path: string; desc: string }> = [
   { path: "01-项目管理",                  desc: "项目计划 / 日报 / 周报 / 会议纪要" },
   { path: "01-项目管理/日报",             desc: "" },
   { path: "01-项目管理/周报",             desc: "" },
-  { path: "02-架构与分析",                desc: "BA 业务分析、系统架构" },
-  { path: "02-架构与分析/业务架构",       desc: "" },
-  { path: "02-架构与分析/系统架构",       desc: "" },
+  { path: "01-项目管理/发文",             desc: "对外发文、通知、函件及回执" },
+  { path: "02-架构与分析",                desc: "需求范围、产品文档" },
+  { path: "02-架构与分析/需求范围",       desc: "" },
+  { path: "02-架构与分析/产品文档",       desc: "" },
   { path: "03-Mapping",                   desc: "数据映射模板（当前生效版本 + _archive 历史版本）" },
   { path: "03-Mapping/_archive",          desc: "" },
   { path: "04-环境与部署",                desc: "按环境分目录" },
@@ -462,8 +497,10 @@ const RECOMMENDED_STRUCTURE: Array<{ path: string; desc: string }> = [
   { path: "06-版本管理",                  desc: "" },
   { path: "07-联调与测试",                desc: "" },
   { path: "07-联调与测试/SQL脚本",        desc: "" },
+  { path: "07-联调与测试/测试数据",       desc: "测试文件、构造数据与测试结果" },
   { path: "08-培训与交付",                desc: "" },
-  { path: "99-临时",                      desc: "正在编辑 / 不确定归类的文件先丢这" },
+  { path: "09-银行材料",                  desc: "银行提供的规范、模板、样例及往来材料" },
+  { path: "99-未分类",                    desc: "暂无法归类的文件先放这里，后续再整理" },
 ];
 
 type ProjectContentWithFolderScan = ProjectContent & {

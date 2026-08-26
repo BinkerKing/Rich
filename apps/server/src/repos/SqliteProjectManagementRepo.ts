@@ -8,6 +8,9 @@ import {
   type ProjectDictionaryMappingActionInput,
   type ProjectDictionaryMappingActionPatch,
   type ProjectDictionaryMappingRule,
+  type ProjectDictionaryMappingScenario,
+  type ProjectDictionaryMappingScenarioInput,
+  type ProjectDictionaryMappingScenarioPatch,
   type ProjectDictionaryMappingRulePatch,
   type ProjectDictionaryMappingSourceField,
   type ProjectDictionaryMappingSourceFieldInput,
@@ -21,9 +24,11 @@ import {
   type ProjectDictionaryRectificationPatch,
   type ProjectDictionaryFieldDetail,
   type ProjectDictionaryFieldHit,
+  type ProjectDictionaryFieldPatch,
   type ProjectDictionarySystem,
   type ProjectDictionarySystemPatch,
   type ProjectDictionaryTable,
+  type ProjectDictionaryTablePatch,
   type ProjectManagementModuleKey,
   type ProjectManagementRepo,
   type ProjectManagementSearchHit,
@@ -136,6 +141,11 @@ interface MappingRuleRow {
   updated_at: string;
 }
 
+interface MappingScenarioRow {
+  id: string; project_id: string; table_id: string; title: string; caliber: string | null; remark: string | null;
+  sort_order: number; raw: string | null; created_at: string; updated_at: string;
+}
+
 interface MappingSourceFieldRow {
   id: string;
   project_id: string;
@@ -210,8 +220,10 @@ interface TableRow {
   table_cn: string | null;
   table_group: string | null;
   data_layer: string | null;
+  table_type: string | null;
   source_kind: string | null;
   file_type: string | null;
+  has_mapping: number;
   usage_status: string | null;
   description: string | null;
   caliber: string | null;
@@ -465,7 +477,7 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
   async listDictionaryTables(projectId: string, systemId?: string): Promise<ProjectDictionaryTable[]> {
     const rows = this.db.prepare(
       `SELECT
-         t.id, t.system_id, t.table_name, t.table_cn, t.table_group, t.data_layer, t.source_kind, t.file_type, t.usage_status, t.description, t.caliber, t.extra,
+         t.id, t.system_id, t.table_name, t.table_cn, t.table_group, t.data_layer, t.table_type, t.source_kind, t.file_type, t.has_mapping, t.usage_status, t.description, t.caliber, t.extra,
          coalesce(fc.field_count, 0) AS field_count
        FROM pm_data_tables t
        LEFT JOIN (
@@ -485,14 +497,46 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
       tableCn: row.table_cn ?? undefined,
       tableGroup: row.table_group ?? undefined,
       dataLayer: row.data_layer ?? undefined,
+      tableType: row.table_type ?? undefined,
       sourceKind: row.source_kind ?? undefined,
       fileType: row.file_type ?? undefined,
+      hasMapping: Boolean(row.has_mapping),
       usageStatus: row.usage_status ?? undefined,
       description: row.description ?? undefined,
       caliber: row.caliber ?? undefined,
       extra: parseJsonObject(row.extra),
       fieldCount: row.field_count,
     }));
+  }
+
+  async updateDictionaryTable(projectId: string, tableId: string, patch: ProjectDictionaryTablePatch): Promise<ProjectDictionaryTable | null> {
+    const current = (await this.listDictionaryTables(projectId)).find(table => table.id === tableId);
+    if (!current) return null;
+    this.db.prepare(
+      `UPDATE pm_data_tables SET
+         system_id=?, table_name=?, table_cn=?, table_group=?, data_layer=?, table_type=?,
+         source_kind=?, file_type=?, has_mapping=?, usage_status=?, description=?, caliber=?,
+         extra=?, updated_at=?
+       WHERE project_id=? AND id=?`,
+    ).run(
+      patch.systemId === undefined ? current.systemId ?? null : patch.systemId,
+      patch.tableName ?? current.tableName,
+      patch.tableCn === undefined ? current.tableCn ?? null : patch.tableCn,
+      patch.tableGroup === undefined ? current.tableGroup ?? null : patch.tableGroup,
+      patch.dataLayer === undefined ? current.dataLayer ?? null : patch.dataLayer,
+      patch.tableType === undefined ? current.tableType ?? null : patch.tableType,
+      patch.sourceKind === undefined ? current.sourceKind ?? null : patch.sourceKind,
+      patch.fileType === undefined ? current.fileType ?? null : patch.fileType,
+      Number(patch.hasMapping ?? current.hasMapping),
+      patch.usageStatus === undefined ? current.usageStatus ?? null : patch.usageStatus,
+      patch.description === undefined ? current.description ?? null : patch.description,
+      patch.caliber === undefined ? current.caliber ?? null : patch.caliber,
+      JSON.stringify(patch.extra === undefined ? current.extra ?? {} : { ...current.extra, ...patch.extra }),
+      new Date().toISOString(),
+      projectId,
+      tableId,
+    );
+    return (await this.listDictionaryTables(projectId)).find(table => table.id === tableId) ?? null;
   }
 
   async listDictionaryFields(projectId: string, tableId: string): Promise<ProjectDictionaryFieldHit[]> {
@@ -742,6 +786,38 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
     };
   }
 
+  async updateDictionaryField(projectId: string, fieldId: string, patch: ProjectDictionaryFieldPatch): Promise<ProjectDictionaryFieldDetail | null> {
+    const current = await this.getDictionaryField(projectId, fieldId);
+    if (!current) return null;
+    this.db.prepare(
+      `UPDATE pm_data_fields SET
+         field_cn=?, field_type=?, field_length=?, format_pattern=?, nullable=?,
+         primary_key=?, required=?, description=?, acquire_logic=?, validation_rule=?,
+         code_value=?, mapped_table=?, mapped_field=?, mapped_field_cn=?,
+         data_source=?, remark=?, extra=?, updated_at=?
+       WHERE project_id=? AND id=?`,
+    ).run(
+      patch.fieldCn === undefined ? current.fieldCn ?? null : patch.fieldCn,
+      patch.fieldType === undefined ? current.fieldType ?? null : patch.fieldType,
+      patch.fieldLength === undefined ? current.fieldLength ?? null : patch.fieldLength,
+      patch.formatPattern === undefined ? current.formatPattern ?? null : patch.formatPattern,
+      patch.nullable === undefined ? current.nullable ?? null : patch.nullable,
+      Number(patch.primaryKey ?? current.primaryKey), Number(patch.required ?? current.required),
+      patch.description === undefined ? current.description ?? null : patch.description,
+      patch.acquireLogic === undefined ? current.acquireLogic ?? null : patch.acquireLogic,
+      patch.validationRule === undefined ? current.validationRule ?? null : patch.validationRule,
+      patch.codeValue === undefined ? current.codeValue ?? null : patch.codeValue,
+      patch.mappedTable === undefined ? current.mappedTable ?? null : patch.mappedTable,
+      patch.mappedField === undefined ? current.mappedField ?? null : patch.mappedField,
+      patch.mappedFieldCn === undefined ? current.mappedFieldCn ?? null : patch.mappedFieldCn,
+      patch.dataSource === undefined ? current.dataSource ?? null : patch.dataSource,
+      patch.remark === undefined ? current.remark ?? null : patch.remark,
+      JSON.stringify(patch.extra === undefined ? current.extra ?? {} : patch.extra), new Date().toISOString(),
+      projectId, fieldId,
+    );
+    return this.getDictionaryField(projectId, fieldId);
+  }
+
   async listDictionaryRectifications(projectId: string): Promise<ProjectDictionaryRectification[]> {
     const rows = this.db.prepare(
       `SELECT id, project_id, entity_type, entity_id, property_key, requirement, status,
@@ -826,6 +902,35 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
         ORDER BY sort_order ASC, id ASC`,
     ).all(projectId, tableId) as MappingRuleRow[];
     return this.hydrateMappingRules(projectId, rows);
+  }
+
+  async listDictionaryMappingScenarios(projectId: string, tableId: string): Promise<ProjectDictionaryMappingScenario[]> {
+    const rows = this.db.prepare(`SELECT id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at FROM pm_mapping_scenarios WHERE project_id=? AND table_id=? ORDER BY sort_order, id`).all(projectId, tableId) as MappingScenarioRow[];
+    return rows.map(row => ({ id: row.id, projectId: row.project_id, tableId: row.table_id, title: row.title, caliber: row.caliber ?? undefined, remark: row.remark ?? undefined, sortOrder: row.sort_order, raw: parseJsonObject(row.raw), createdAt: row.created_at, updatedAt: row.updated_at }));
+  }
+
+  async createDictionaryMappingScenario(projectId: string, input: ProjectDictionaryMappingScenarioInput): Promise<ProjectDictionaryMappingScenario> {
+    const now = new Date().toISOString();
+    const id = input.id ?? `pm-map-scenario-${randomUUID()}`;
+    this.db.prepare(`INSERT INTO pm_mapping_scenarios (id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`).run(id, projectId, input.tableId, input.title, input.caliber ?? null, input.remark ?? null, input.sortOrder ?? 0, JSON.stringify(input.raw ?? {}), now, now);
+    return { id, projectId, tableId: input.tableId, title: input.title, caliber: input.caliber ?? undefined, remark: input.remark ?? undefined, sortOrder: input.sortOrder ?? 0, raw: input.raw, createdAt: now, updatedAt: now };
+  }
+
+  async updateDictionaryMappingScenario(projectId: string, scenarioId: string, patch: ProjectDictionaryMappingScenarioPatch): Promise<ProjectDictionaryMappingScenario | null> {
+    const current = this.db.prepare(`SELECT id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at FROM pm_mapping_scenarios WHERE project_id=? AND id=?`).get(projectId, scenarioId) as MappingScenarioRow | undefined;
+    if (!current) return null;
+    const raw = patch.raw ?? parseJsonObject(current.raw) ?? {};
+    const now = new Date().toISOString();
+    this.db.prepare(`UPDATE pm_mapping_scenarios SET title=?, caliber=?, remark=?, sort_order=?, raw=?, updated_at=? WHERE project_id=? AND id=?`).run(patch.title ?? current.title, patch.caliber === undefined ? current.caliber : patch.caliber, patch.remark === undefined ? current.remark : patch.remark, patch.sortOrder ?? current.sort_order, JSON.stringify(raw), now, projectId, scenarioId);
+    return { id: current.id, projectId: current.project_id, tableId: current.table_id, title: patch.title ?? current.title, caliber: patch.caliber === undefined ? current.caliber ?? undefined : patch.caliber ?? undefined, remark: patch.remark === undefined ? current.remark ?? undefined : patch.remark ?? undefined, sortOrder: patch.sortOrder ?? current.sort_order, raw, createdAt: current.created_at, updatedAt: now };
+  }
+
+  async deleteDictionaryMappingScenario(projectId: string, scenarioId: string): Promise<boolean> {
+    const transaction = this.db.transaction(() => {
+      this.db.prepare(`UPDATE pm_mapping_rules SET scenario_id=NULL WHERE project_id=? AND scenario_id=?`).run(projectId, scenarioId);
+      return this.db.prepare(`DELETE FROM pm_mapping_scenarios WHERE project_id=? AND id=?`).run(projectId, scenarioId).changes > 0;
+    });
+    return transaction();
   }
 
   async getDictionaryMappingRule(projectId: string, mappingRuleId: string): Promise<ProjectDictionaryMappingRule | null> {

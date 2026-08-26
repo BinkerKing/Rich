@@ -27,8 +27,10 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     table_cn TEXT,
     table_group TEXT,
     data_layer TEXT,
+    table_type TEXT,
     source_kind TEXT,
     file_type TEXT,
+    has_mapping BOOLEAN NOT NULL DEFAULT true,
     usage_status TEXT,
     description TEXT,
     caliber TEXT,
@@ -41,8 +43,56 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_pm_tables_cn_trgm ON pm_data_tables USING GIN (table_cn gin_trgm_ops);
   ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS table_group TEXT;
   ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS data_layer TEXT;
+  ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS table_type TEXT;
   ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS source_kind TEXT;
   ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS file_type TEXT;
+  ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS has_mapping BOOLEAN;
+  UPDATE pm_data_tables
+     SET has_mapping = CASE
+       WHEN lower(coalesce(source_kind, '')) ~ '(文件|file|码表|code[[:space:]]*table)'
+         OR lower(coalesce(file_type, '')) NOT IN ('', '-', 'database')
+         OR lower(coalesce(table_group, '')) ~ '(码表|code[[:space:]]*table)'
+       THEN false ELSE true END
+   WHERE has_mapping IS NULL;
+  ALTER TABLE pm_data_tables ALTER COLUMN has_mapping SET DEFAULT true;
+  ALTER TABLE pm_data_tables ALTER COLUMN has_mapping SET NOT NULL;
+  WITH normalized AS (
+    SELECT id,
+      CASE
+        WHEN lower(coalesce(file_type, '')) IN ('txt', 'text') OR lower(table_name) ~ '\\.txt$' THEN 'txt'
+        WHEN lower(coalesce(file_type, '')) = 'xml' OR lower(table_name) ~ '\\.xml$' THEN 'xml'
+        WHEN lower(coalesce(file_type, '')) = 'csv' OR lower(table_name) ~ '\\.csv$' THEN 'csv'
+        WHEN lower(coalesce(file_type, '')) IN ('excel', 'xls', 'xlsx') OR lower(table_name) ~ '\\.(xls|xlsx)$' THEN 'excel'
+        ELSE NULL END AS normalized_file_type,
+      CASE
+        WHEN lower(coalesce(source_kind, '')) ~ '(文件|file)'
+          OR lower(coalesce(file_type, '')) IN ('txt', 'text', 'xml', 'csv', 'excel', 'xls', 'xlsx')
+          OR lower(table_name) ~ '\\.(txt|xml|csv|xls|xlsx)$'
+        THEN '文件' ELSE '数据库' END AS normalized_source_kind
+    FROM pm_data_tables
+  )
+  UPDATE pm_data_tables AS target
+     SET source_kind = normalized.normalized_source_kind,
+         file_type = normalized.normalized_file_type
+    FROM normalized
+   WHERE target.id = normalized.id
+     AND (target.source_kind IS DISTINCT FROM normalized.normalized_source_kind
+       OR target.file_type IS DISTINCT FROM normalized.normalized_file_type);
+  UPDATE pm_data_tables
+     SET table_type = CASE
+       WHEN coalesce(table_group, '') ~ '(码表|码值)' OR coalesce(table_cn, '') ~ '(码表|码值)' OR lower(table_name) ~ '(code|codemap|usetype)' THEN '码值表'
+       WHEN coalesce(data_layer, '') ~ '报文' AND (coalesce(source_kind, '') ~ '(文件|file)' OR coalesce(file_type, '') <> '') THEN '报文文件'
+       WHEN coalesce(data_layer, '') ~ '报文' THEN '报文表'
+       WHEN coalesce(data_layer, '') ~ '配置' OR coalesce(table_cn, '') ~ '配置' OR lower(table_name) ~ '(config|setting|parameter)' THEN '配置表'
+       WHEN coalesce(data_layer, '') ~ '系统' THEN '系统表'
+       WHEN coalesce(data_layer, '') ~ '贴源' THEN '贴源表'
+       WHEN coalesce(data_layer, '') ~ '中间' THEN '中间表'
+       WHEN coalesce(data_layer, '') ~ '前置' THEN '前置表'
+       WHEN coalesce(data_layer, '') ~ '报表' THEN '报表表'
+       WHEN coalesce(data_layer, '') ~ '源' OR coalesce(source_kind, '') ~ '(文件|file)' OR coalesce(file_type, '') <> '' THEN '源文件'
+       ELSE NULL
+     END
+   WHERE coalesce(trim(table_type), '') = '';
   ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS usage_status TEXT;
 
   CREATE TABLE IF NOT EXISTS pm_data_fields (
@@ -197,6 +247,21 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_pm_dictionary_rectifications_status
     ON pm_dictionary_rectifications(project_id, status, updated_at DESC);
 
+  CREATE TABLE IF NOT EXISTS pm_mapping_scenarios (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    table_id TEXT NOT NULL REFERENCES pm_data_tables(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    caliber TEXT,
+    remark TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    raw JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(project_id, table_id, title)
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_mapping_scenarios_table ON pm_mapping_scenarios(project_id, table_id, sort_order);
+
   CREATE TABLE IF NOT EXISTS pm_mapping_rules (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL,
@@ -217,6 +282,87 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_pm_mapping_rules_project_field ON pm_mapping_rules(project_id, field_id);
   CREATE INDEX IF NOT EXISTS idx_pm_mapping_rules_status ON pm_mapping_rules(project_id, status);
   CREATE INDEX IF NOT EXISTS idx_pm_mapping_rules_logic_trgm ON pm_mapping_rules USING GIN (logic_text gin_trgm_ops);
+  ALTER TABLE pm_mapping_rules
+    ALTER COLUMN raw TYPE JSONB USING CASE
+      WHEN raw IS NULL OR btrim(raw::text) = '' THEN '{}'::jsonb
+      ELSE raw::jsonb
+    END,
+    ALTER COLUMN raw SET DEFAULT '{}'::jsonb;
+
+  INSERT INTO pm_mapping_scenarios (id, project_id, table_id, title, caliber, sort_order, raw, created_at, updated_at)
+  SELECT 'pm-map-scenario-' || md5(project_id || ':' || table_id || ':' || jsonb_extract_path_text(raw::jsonb, 'scenario')),
+         project_id, table_id, jsonb_extract_path_text(raw::jsonb, 'scenario'), min(nullif(jsonb_extract_path_text(raw::jsonb, 'condition'), '')), min(sort_order),
+         jsonb_build_object('migratedFrom', 'pm_mapping_rules'), min(created_at), max(updated_at)
+    FROM pm_mapping_rules
+   WHERE table_id IS NOT NULL AND coalesce(jsonb_extract_path_text(raw::jsonb, 'scenario'), '') <> ''
+   GROUP BY project_id, table_id, jsonb_extract_path_text(raw::jsonb, 'scenario')
+  ON CONFLICT (project_id, table_id, title) DO NOTHING;
+  UPDATE pm_mapping_rules rule
+     SET scenario_id = scenario.id
+    FROM pm_mapping_scenarios scenario
+   WHERE rule.project_id = scenario.project_id
+     AND rule.table_id = scenario.table_id
+     AND coalesce(jsonb_extract_path_text(rule.raw::jsonb, 'scenario'), '') = scenario.title
+     AND rule.scenario_id IS DISTINCT FROM scenario.id;
+
+  -- 历史字段 Mapping 在引入场景表之前没有 scenario 标识。仅为已声明 has_mapping
+  -- 且尚未维护任何结构化场景的表补一个默认场景，避免源文件、码表等无 Mapping 表被误展示。
+  INSERT INTO pm_mapping_scenarios (id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at)
+  SELECT 'pm-map-scenario-default-' || md5(rule.project_id || ':' || rule.table_id),
+         rule.project_id, rule.table_id, '默认场景', table_meta.caliber, '由历史字段 Mapping 自动迁移。', 0,
+         '{"migratedFrom":"legacyFieldMappings"}'::jsonb, min(rule.created_at), max(rule.updated_at)
+    FROM pm_mapping_rules rule
+    JOIN pm_data_tables table_meta ON table_meta.id = rule.table_id AND table_meta.project_id = rule.project_id
+   WHERE table_meta.has_mapping IS TRUE
+     AND rule.scenario_id IS NULL
+     AND NOT EXISTS (
+       SELECT 1 FROM pm_mapping_scenarios existing
+        WHERE existing.project_id = rule.project_id AND existing.table_id = rule.table_id
+     )
+   GROUP BY rule.project_id, rule.table_id, table_meta.caliber
+  ON CONFLICT (project_id, table_id, title) DO NOTHING;
+  UPDATE pm_mapping_rules rule
+     SET scenario_id = scenario.id
+    FROM pm_mapping_scenarios scenario
+   WHERE rule.project_id = scenario.project_id
+     AND rule.table_id = scenario.table_id
+     AND rule.scenario_id IS NULL
+     AND scenario.raw->>'migratedFrom' = 'legacyFieldMappings';
+
+  -- 更早的导入版本把 Mapping 直接保存于 pm_data_fields.acquire_logic，尚未产生
+  -- pm_mapping_rules。将其完整迁移为“默认场景 → 字段动作”，保留无逻辑字段以便
+  -- 新界面明确展示为空，而不是回退读取旧字段。
+  INSERT INTO pm_mapping_scenarios (id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at)
+  SELECT 'pm-map-scenario-field-' || md5(table_meta.project_id || ':' || table_meta.id),
+         table_meta.project_id, table_meta.id, '默认场景', table_meta.caliber, '由历史字段元 Mapping 自动迁移。', 0,
+         '{"migratedFrom":"pm_data_fields"}'::jsonb, min(field.created_at), max(field.updated_at)
+    FROM pm_data_tables table_meta
+    JOIN pm_data_fields field ON field.project_id = table_meta.project_id AND field.table_id = table_meta.id
+   WHERE table_meta.has_mapping IS TRUE
+     AND NOT EXISTS (
+       SELECT 1 FROM pm_mapping_scenarios existing
+        WHERE existing.project_id = table_meta.project_id AND existing.table_id = table_meta.id
+     )
+     AND EXISTS (
+       SELECT 1 FROM pm_data_fields mapped
+        WHERE mapped.project_id = table_meta.project_id AND mapped.table_id = table_meta.id
+          AND (nullif(btrim(mapped.acquire_logic), '') IS NOT NULL OR nullif(btrim(mapped.mapped_field), '') IS NOT NULL)
+     )
+   GROUP BY table_meta.project_id, table_meta.id, table_meta.caliber;
+  INSERT INTO pm_mapping_rules (id, project_id, scenario_id, system_id, table_id, field_id, status, logic_text, sort_order, raw, created_at, updated_at)
+  SELECT 'pm-map-rule-field-' || md5(field.project_id || ':' || field.table_id || ':' || field.id),
+         field.project_id, scenario.id, field.system_id, field.table_id, field.id, 'active',
+         coalesce(nullif(btrim(field.acquire_logic), ''), jsonb_build_object('op', 'direct', 'source', concat_ws('.', nullif(field.mapped_table, ''), field.mapped_field))::text),
+         coalesce(field.field_order, 0), '{"migratedFrom":"pm_data_fields"}'::jsonb, field.created_at, field.updated_at
+    FROM pm_data_fields field
+    JOIN pm_mapping_scenarios scenario
+      ON scenario.project_id = field.project_id AND scenario.table_id = field.table_id
+     AND scenario.raw->>'migratedFrom' = 'pm_data_fields'
+   WHERE NOT EXISTS (
+     SELECT 1 FROM pm_mapping_rules existing
+      WHERE existing.project_id = field.project_id AND existing.field_id = field.id AND existing.scenario_id = scenario.id
+   )
+  ON CONFLICT (id) DO NOTHING;
 
   CREATE TABLE IF NOT EXISTS pm_mapping_source_fields (
     id TEXT PRIMARY KEY,
@@ -278,6 +424,7 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
+  ALTER TABLE pm_mapping_temp_tables ADD COLUMN IF NOT EXISTS scenario_id TEXT REFERENCES pm_mapping_scenarios(id) ON DELETE SET NULL;
   ALTER TABLE pm_mapping_temp_tables
     ALTER COLUMN raw TYPE JSONB USING raw::jsonb,
     ALTER COLUMN raw SET DEFAULT '{}'::jsonb;
@@ -335,6 +482,75 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_pm_items_project_key ON pm_module_items(project_id, module_key, sort_order);
   CREATE INDEX IF NOT EXISTS idx_pm_items_parent ON pm_module_items(parent_id, sort_order);
+
+  CREATE TABLE IF NOT EXISTS pm_automation_plans (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_automation_plans_project ON pm_automation_plans(project_id, sort_order);
+
+  CREATE TABLE IF NOT EXISTS pm_automation_groups (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    plan_id TEXT NOT NULL REFERENCES pm_automation_plans(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_automation_groups_plan ON pm_automation_groups(project_id, plan_id, sort_order);
+
+  CREATE TABLE IF NOT EXISTS pm_automation_items (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    plan_id TEXT NOT NULL REFERENCES pm_automation_plans(id) ON DELETE CASCADE,
+    group_id TEXT NOT NULL REFERENCES pm_automation_groups(id) ON DELETE CASCADE,
+    table_id TEXT NOT NULL REFERENCES pm_data_tables(id) ON DELETE CASCADE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(plan_id, table_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_automation_items_group ON pm_automation_items(project_id, group_id, sort_order);
+
+  CREATE TABLE IF NOT EXISTS pm_automation_runs (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    plan_id TEXT NOT NULL,
+    plan_name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    error TEXT,
+    runtime_params JSONB NOT NULL DEFAULT '{}'::jsonb,
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    updated_at TEXT NOT NULL
+  );
+  ALTER TABLE pm_automation_runs ADD COLUMN IF NOT EXISTS runtime_params JSONB NOT NULL DEFAULT '{}'::jsonb;
+  CREATE INDEX IF NOT EXISTS idx_pm_automation_runs_plan ON pm_automation_runs(project_id, plan_id, started_at DESC);
+
+  CREATE TABLE IF NOT EXISTS pm_automation_run_items (
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES pm_automation_runs(id) ON DELETE CASCADE,
+    table_id TEXT NOT NULL,
+    table_name TEXT NOT NULL,
+    group_id TEXT NOT NULL,
+    group_name TEXT NOT NULL,
+    group_order INTEGER NOT NULL,
+    item_order INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    steps JSONB NOT NULL DEFAULT '[]'::jsonb,
+    affected_rows INTEGER,
+    failed_step TEXT,
+    error TEXT,
+    started_at TEXT,
+    finished_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_automation_run_items_run ON pm_automation_run_items(run_id, group_order, item_order);
 
   CREATE TABLE IF NOT EXISTS pm_search_index (
     id TEXT PRIMARY KEY,
@@ -401,6 +617,7 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
     data_layer TEXT,
     source_kind TEXT,
     file_type TEXT,
+    has_mapping INTEGER NOT NULL DEFAULT 1,
     usage_status TEXT,
     description TEXT,
     caliber TEXT,
@@ -560,6 +777,21 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_pm_dictionary_rectifications_status
     ON pm_dictionary_rectifications(project_id, status, updated_at DESC);
 
+  CREATE TABLE IF NOT EXISTS pm_mapping_scenarios (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    table_id TEXT NOT NULL REFERENCES pm_data_tables(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    caliber TEXT,
+    remark TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    raw TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(project_id, table_id, title)
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_mapping_scenarios_table ON pm_mapping_scenarios(project_id, table_id, sort_order);
+
   CREATE TABLE IF NOT EXISTS pm_mapping_rules (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL,
@@ -579,6 +811,74 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_pm_mapping_rules_project_table ON pm_mapping_rules(project_id, table_id, sort_order);
   CREATE INDEX IF NOT EXISTS idx_pm_mapping_rules_project_field ON pm_mapping_rules(project_id, field_id);
   CREATE INDEX IF NOT EXISTS idx_pm_mapping_rules_status ON pm_mapping_rules(project_id, status);
+  INSERT OR IGNORE INTO pm_mapping_scenarios (id, project_id, table_id, title, caliber, sort_order, raw, created_at, updated_at)
+  SELECT 'pm-map-scenario-' || lower(hex(randomblob(16))), project_id, table_id,
+         json_extract(raw, '$.scenario'), json_extract(raw, '$.condition'), min(sort_order),
+         '{"migratedFrom":"pm_mapping_rules"}', min(created_at), max(updated_at)
+    FROM pm_mapping_rules
+   WHERE table_id IS NOT NULL AND coalesce(json_extract(raw, '$.scenario'), '') <> ''
+   GROUP BY project_id, table_id, json_extract(raw, '$.scenario');
+  UPDATE pm_mapping_rules
+     SET scenario_id = (SELECT id FROM pm_mapping_scenarios scenario
+                         WHERE scenario.project_id = pm_mapping_rules.project_id
+                           AND scenario.table_id = pm_mapping_rules.table_id
+                           AND scenario.title = json_extract(pm_mapping_rules.raw, '$.scenario'))
+   WHERE scenario_id IS NULL AND coalesce(json_extract(raw, '$.scenario'), '') <> '';
+
+  -- 历史字段 Mapping 在引入场景表之前没有 scenario 标识。仅为已声明 has_mapping
+  -- 且尚未维护任何结构化场景的表补一个默认场景，避免源文件、码表等无 Mapping 表被误展示。
+  INSERT OR IGNORE INTO pm_mapping_scenarios (id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at)
+  SELECT 'pm-map-scenario-default-' || lower(hex(randomblob(16))),
+         rule.project_id, rule.table_id, '默认场景', table_meta.caliber, '由历史字段 Mapping 自动迁移。', 0,
+         '{"migratedFrom":"legacyFieldMappings"}', min(rule.created_at), max(rule.updated_at)
+    FROM pm_mapping_rules rule
+    JOIN pm_data_tables table_meta ON table_meta.id = rule.table_id AND table_meta.project_id = rule.project_id
+   WHERE table_meta.has_mapping = 1
+     AND rule.scenario_id IS NULL
+     AND NOT EXISTS (
+       SELECT 1 FROM pm_mapping_scenarios existing
+        WHERE existing.project_id = rule.project_id AND existing.table_id = rule.table_id
+     )
+   GROUP BY rule.project_id, rule.table_id, table_meta.caliber;
+  UPDATE pm_mapping_rules
+     SET scenario_id = (SELECT id FROM pm_mapping_scenarios scenario
+                         WHERE scenario.project_id = pm_mapping_rules.project_id
+                           AND scenario.table_id = pm_mapping_rules.table_id
+                           AND json_extract(scenario.raw, '$.migratedFrom') = 'legacyFieldMappings')
+   WHERE scenario_id IS NULL;
+
+  -- 更早的导入版本把 Mapping 直接保存于 pm_data_fields.acquire_logic，尚未产生
+  -- pm_mapping_rules。将其完整迁移为“默认场景 → 字段动作”。
+  INSERT OR IGNORE INTO pm_mapping_scenarios (id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at)
+  SELECT 'pm-map-scenario-field-' || lower(hex(randomblob(16))),
+         table_meta.project_id, table_meta.id, '默认场景', table_meta.caliber, '由历史字段元 Mapping 自动迁移。', 0,
+         '{"migratedFrom":"pm_data_fields"}', min(field.created_at), max(field.updated_at)
+    FROM pm_data_tables table_meta
+    JOIN pm_data_fields field ON field.project_id = table_meta.project_id AND field.table_id = table_meta.id
+   WHERE table_meta.has_mapping = 1
+     AND NOT EXISTS (
+       SELECT 1 FROM pm_mapping_scenarios existing
+        WHERE existing.project_id = table_meta.project_id AND existing.table_id = table_meta.id
+     )
+     AND EXISTS (
+       SELECT 1 FROM pm_data_fields mapped
+        WHERE mapped.project_id = table_meta.project_id AND mapped.table_id = table_meta.id
+          AND (nullif(trim(mapped.acquire_logic), '') IS NOT NULL OR nullif(trim(mapped.mapped_field), '') IS NOT NULL)
+     )
+   GROUP BY table_meta.project_id, table_meta.id, table_meta.caliber;
+  INSERT OR IGNORE INTO pm_mapping_rules (id, project_id, scenario_id, system_id, table_id, field_id, status, logic_text, sort_order, raw, created_at, updated_at)
+  SELECT 'pm-map-rule-field-' || lower(hex(randomblob(16))),
+         field.project_id, scenario.id, field.system_id, field.table_id, field.id, 'active',
+         coalesce(nullif(trim(field.acquire_logic), ''), json_object('op', 'direct', 'source', trim(coalesce(field.mapped_table || '.', '') || field.mapped_field, '.'))),
+         coalesce(field.field_order, 0), '{"migratedFrom":"pm_data_fields"}', field.created_at, field.updated_at
+    FROM pm_data_fields field
+    JOIN pm_mapping_scenarios scenario
+      ON scenario.project_id = field.project_id AND scenario.table_id = field.table_id
+     AND json_extract(scenario.raw, '$.migratedFrom') = 'pm_data_fields'
+   WHERE NOT EXISTS (
+     SELECT 1 FROM pm_mapping_rules existing
+      WHERE existing.project_id = field.project_id AND existing.field_id = field.id AND existing.scenario_id = scenario.id
+   );
 
   CREATE TABLE IF NOT EXISTS pm_mapping_source_fields (
     id TEXT PRIMARY KEY,
@@ -653,6 +953,74 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_pm_items_project_key ON pm_module_items(project_id, module_key, sort_order);
   CREATE INDEX IF NOT EXISTS idx_pm_items_parent ON pm_module_items(parent_id, sort_order);
+
+  CREATE TABLE IF NOT EXISTS pm_automation_plans (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_automation_plans_project ON pm_automation_plans(project_id, sort_order);
+
+  CREATE TABLE IF NOT EXISTS pm_automation_groups (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    plan_id TEXT NOT NULL REFERENCES pm_automation_plans(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_automation_groups_plan ON pm_automation_groups(project_id, plan_id, sort_order);
+
+  CREATE TABLE IF NOT EXISTS pm_automation_items (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    plan_id TEXT NOT NULL REFERENCES pm_automation_plans(id) ON DELETE CASCADE,
+    group_id TEXT NOT NULL REFERENCES pm_automation_groups(id) ON DELETE CASCADE,
+    table_id TEXT NOT NULL REFERENCES pm_data_tables(id) ON DELETE CASCADE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(plan_id, table_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_automation_items_group ON pm_automation_items(project_id, group_id, sort_order);
+
+  CREATE TABLE IF NOT EXISTS pm_automation_runs (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    plan_id TEXT NOT NULL,
+    plan_name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    error TEXT,
+    runtime_params TEXT NOT NULL DEFAULT '{}',
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_automation_runs_plan ON pm_automation_runs(project_id, plan_id, started_at DESC);
+
+  CREATE TABLE IF NOT EXISTS pm_automation_run_items (
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL REFERENCES pm_automation_runs(id) ON DELETE CASCADE,
+    table_id TEXT NOT NULL,
+    table_name TEXT NOT NULL,
+    group_id TEXT NOT NULL,
+    group_name TEXT NOT NULL,
+    group_order INTEGER NOT NULL,
+    item_order INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    steps TEXT NOT NULL DEFAULT '[]',
+    affected_rows INTEGER,
+    failed_step TEXT,
+    error TEXT,
+    started_at TEXT,
+    finished_at TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_automation_run_items_run ON pm_automation_run_items(run_id, group_order, item_order);
 
   CREATE TABLE IF NOT EXISTS pm_search_index (
     id TEXT PRIMARY KEY,
