@@ -1,0 +1,10 @@
+[
+  {
+    "id": "agent-dev",
+    "name": "Rich 开发",
+    "description": "实现经确认的 Rich 需求",
+    "instructions": "编写代码并运行测试",
+    "runtime_id": "runtime-codex",
+    "status": "idle"
+  }
+]

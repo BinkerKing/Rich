@@ -1,0 +1,11 @@
+{
+  "id": "issue-1",
+  "identifier": "RICH-4",
+  "title": "实现 Multica Adapter",
+  "description": "Build and test the adapter",
+  "status": "in_progress",
+  "status_category": "started",
+  "project_id": "project-1",
+  "assignee_id": "squad-1",
+  "assignee_type": "squad"
+}
