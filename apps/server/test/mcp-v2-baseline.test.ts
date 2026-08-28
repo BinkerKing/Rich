@@ -45,13 +45,13 @@ describe("MCP 2.0 migration baseline", () => {
     );
   });
 
-  it("covers all six scenarios with fifty realistic selection cases", () => {
+  it("covers all seven scenarios with fifty-four realistic selection cases", () => {
     const cases = readFixture<ToolSelectionCase[]>("tool-selection-cases.json");
 
-    expect(cases).toHaveLength(50);
-    expect(new Set(cases.map(item => item.id)).size).toBe(50);
+    expect(cases).toHaveLength(54);
+    expect(new Set(cases.map(item => item.id)).size).toBe(54);
     expect(new Set(cases.map(item => item.scenario))).toEqual(
-      new Set(["query", "capture", "manage", "plan", "delegate", "review"]),
+      new Set(["query", "capture", "manage", "plan", "team", "delegate", "review"]),
     );
     expect(cases.every(item => item.prompt.trim().length >= 8)).toBe(true);
     expect(cases.every(item => item.expectedTool.startsWith("rich_"))).toBe(true);

@@ -104,13 +104,13 @@ if (argv.includes("workspace") && argv.includes("list")) {
     const large = executable(directory, "large", "process.stdout.write(JSON.stringify({ value: 'x'.repeat(500) }))");
     const invalid = executable(directory, "invalid", "process.stdout.write('not-json')");
 
-    await expect(new MulticaCommandRunner({ executable: failed, workspaceId: "w", timeoutMs: 1_000, maxOutputBytes: 100 }).runJson(["agent", "list"]))
+    await expect(new MulticaCommandRunner({ executable: failed, workspaceId: "w", timeoutMs: 5_000, maxOutputBytes: 100 }).runJson(["agent", "list"]))
       .rejects.toThrow(/exit code 2/i);
     await expect(new MulticaCommandRunner({ executable: slow, workspaceId: "w", timeoutMs: 20, maxOutputBytes: 100 }).runJson(["agent", "list"]))
       .rejects.toThrow(/timed out/i);
-    await expect(new MulticaCommandRunner({ executable: large, workspaceId: "w", timeoutMs: 1_000, maxOutputBytes: 100 }).runJson(["agent", "list"]))
+    await expect(new MulticaCommandRunner({ executable: large, workspaceId: "w", timeoutMs: 5_000, maxOutputBytes: 100 }).runJson(["agent", "list"]))
       .rejects.toThrow(/output limit/i);
-    await expect(new MulticaCommandRunner({ executable: invalid, workspaceId: "w", timeoutMs: 1_000, maxOutputBytes: 100 }).runJson(["agent", "list"]))
+    await expect(new MulticaCommandRunner({ executable: invalid, workspaceId: "w", timeoutMs: 5_000, maxOutputBytes: 100 }).runJson(["agent", "list"]))
       .rejects.toThrow(/valid JSON/i);
   });
 });
