@@ -1,74 +1,54 @@
-# Rich CLI Coverage
+# Rich CLI 与 MCP 2.0 覆盖边界
 
-This audit maps Rich UI operations to CLI/MCP entry points. The rule is:
+Rich 的可操作入口分两层：
 
-- Data mutation, AI generation, system action, uploads, and deletions must have CLI/MCP coverage.
-- Pure UI operations do not need CLI: open/close modal, switch tab, filter list, select card, scroll, copy, local text formatting inside an open editor before save.
-- If a new button calls `/api/...`, it is automatically covered by the generic CLI fallback:
+| 入口 | 面向对象 | 作用 |
+| --- | --- | --- |
+| MCP 2.0 `/mcp` | Hermes、Codex 等模型 | 提供少量场景化工具、参数校验、写安全、任务跟踪和统一结果 |
+| Rich CLI | 人、shell、定时脚本、外部 Agent | 调用 Rich HTTP/SSE、上传文件、执行离线维护和未纳入 MCP 的细粒度操作 |
+
+MCP 不是 CLI 的包装清单，也不追求把每个按钮或 API 都变成模型工具。完整 MCP 工具见 `docs/RICH_MCP_V2_CATALOG.md`。
+
+## MCP 2.0 覆盖
+
+- 全局检索和概览：`rich_context_search`、`rich_context_get_overview`
+- 对话信息沉淀：`rich_knowledge_capture`、`rich_project_organize_conversation`
+- 精确资源管理：knowledge、project、dictionary、planning、practice、automation 六个 `rich_*_manage`
+- 分析规划：`rich_project_analyze_and_plan`
+- Agent 工作账本：`rich_work_delegate`、`rich_work_get_status`、`rich_work_list`、`rich_work_cancel`
+- 验收与经验：`rich_work_review_result`、`rich_learning_capture`
+
+## CLI 覆盖
+
+统一在线入口：
 
 ```bash
+pnpm rich -- health
 pnpm rich -- api <METHOD> /api/<path> --json '{"body":"when needed"}'
 pnpm rich -- sse POST /api/<stream-path> --json '{"body":"when needed"}'
+pnpm rich -- upload /api/<path> --file <path>
 ```
 
-## Existing CLI Layers
+主要语义命令：
 
-| Layer | Use |
+| 区域 | CLI 示例 |
 | --- | --- |
-| `pnpm rich -- ...` | Unified CLI for Rich API/SSE operations. Covers UI-backed HTTP operations. |
-| `pnpm corpus ...` | Focused AI corpus template CLI. Kept for short template workflows. |
-| `pnpm --filter @ke/server run plan -- ...` | Offline/server-side GreatMe plan CLI. Uses `KE_STORAGE` to select backend. |
-| Rich MCP tools | Preferred for Hermes/Codex when available, especially knowledge tree, plan management, practice projects, toolbox, corpus, improvements. |
+| 聊天与历史 | `pnpm rich -- chat stream --json ...`；`pnpm rich -- api GET /api/chat/conversations` |
+| 知识元素 | `pnpm rich -- elements list|get|create|patch|delete ...` |
+| 关系与排序 | `pnpm rich -- elements move ...`；`pnpm rich -- relations reorder ...` |
+| 导图 | `pnpm rich -- mindmaps list|get|attach|generate|retry-cover ...` |
+| AI 操作 | `pnpm rich -- ai refine|expand|news-generate-daily|guided-practice ...` |
+| 附件 | `pnpm rich -- chat-attachments upload ...`；`pnpm rich -- attachments upload ...` |
+| 工具箱 | `pnpm rich -- toolbox tools|invoke|cancel ...` |
+| 后台 | `pnpm rich -- admin engine|ops|signals|manuals` |
+| 语料 | `pnpm corpus ...` 或 `pnpm rich -- corpus ...` |
+| 系统改进 | `pnpm rich -- improvements ...` |
+| 离线计划 | `pnpm --filter @ke/server run plan -- ...` |
 
-## Button Coverage By Area
+## 选择规则
 
-| UI area | Button operation | CLI / MCP |
-| --- | --- | --- |
-| Home / global chat | Send text or image message | `pnpm rich -- chat stream --json '{"messages":[...]}'`; attachments via `pnpm rich -- chat-attachments upload --file image.png` |
-| Home / global chat | Attach image | `pnpm rich -- chat-attachments upload --file image.png` |
-| Home / global chat | Play mascot animation | `pnpm rich -- mascot play --json '{"name":"dance","durationMs":3000}'`; MCP `play_mascot_animation` |
-| Home / history | View/select history | `pnpm rich -- api GET /api/chat/conversations`; `pnpm rich -- api GET /api/chat/conversations/<id>/messages` |
-| Knowledge tree | List/read topics | `pnpm rich -- elements list`; MCP `list_topics`, `get_element`, `get_subtree` |
-| Knowledge tree | Create element | `pnpm rich -- elements create --json '{"title":"...","type":"topic","parentId":"..."}'`; MCP `create_element` |
-| Knowledge tree | Edit title/type/difficulty/content | `pnpm rich -- elements patch <id> --json '{...}'`; MCP `update_element`, `update_section_blocks` |
-| Knowledge tree | Delete element | `pnpm rich -- elements delete <id>`; MCP `delete_element` |
-| Knowledge tree | Move/reparent/reorder | `pnpm rich -- elements move <id> --json '{"newParentId":"..."}'`; `pnpm rich -- relations reorder --json '{"parentId":"...","childIds":[...]}'`; MCP `reparent_element`, `reorder_children` |
-| Knowledge tree | Refine/feedback/expand/extend/path | `pnpm rich -- ai refine|feedback|expand|extend|path --json '{...}'`; MCP `refine`, `expand`, `extend`, `generate_paths` |
-| Knowledge tree | Ask/mark/analyze annotations | `pnpm rich -- ai ask --json '{...}'`; `pnpm rich -- annotations create/delete`; MCP `write_annotation`, `list_qa`, `write_qa` |
-| AI news | Generate daily news | `pnpm rich -- ai news-generate-daily --json '{"date":"YYYY-MM-DD","model":"codex"}'`; MCP `generate_news` |
-| AI news | Edit news element or add Skill section | `pnpm rich -- elements sections <id> --json '{"sections":[...]}'`; MCP `update_section_blocks` |
-| Mindmap PPT | List/open deck | `pnpm rich -- mindmaps list`; `pnpm rich -- mindmaps get <id>` |
-| Mindmap PPT | Attach existing element as deck | `pnpm rich -- mindmaps attach --json '{"elementId":"..."}'`; MCP `attach_mindmap` |
-| Mindmap PPT | Generate from prose | `pnpm rich -- mindmaps generate --json '{"prose":"...","titleHint":"..."}'` |
-| Mindmap PPT | Retry cover / hide / disable image / disable text / detach | `pnpm rich -- mindmaps retry-cover|toggle-hidden|toggle-image|toggle-text|detach <elementId> --json '{"deckRootId":"..."}'` |
-| Plan management | List/get/create/update/delete plans/goals/tasks | `pnpm --filter @ke/server run plan -- ...`; `pnpm rich -- great-me get/put`; MCP `plan_*`, `goal_*`, `task_*` |
-| Plan management | AI decompose/progress/review | `pnpm rich -- ai decompose-plan|analyze-progress|draft-review --json '{...}'`; MCP `plan_decompose`, `analyze_progress` |
-| Practice projects | Create/list/read practice | MCP `practice_create`, `practice_list`, `practice_get`; API fallback `pnpm rich -- elements create ...` |
-| Practice projects | Add/patch/delete group or child | MCP `practice_add_group`, `practice_add_child`, `practice_patch_child`, `practice_delete_child`, `practice_rename_group`, `practice_delete_group` |
-| Practice projects | Draft PRD/child/adjust child | `pnpm rich -- ai draft-prd|draft-child|adjust-child --json '{...}'`; MCP `draft_prd`, `practice_draft_child`, `practice_adjust_child` |
-| Practice projects | Guided project kickoff with Hermes | `pnpm rich -- ai guided-practice --json '{"stage":"goal","userInput":"...","draft":{},"messages":[],"model":"hermes"}'`; then persist with `practice_create` / `practice_add_child` or `pnpm rich -- elements create ...` |
-| Practice media | Upload project image/material | `pnpm rich -- upload /api/images/<practiceId>/upload --file image.png --field file`; attachments via `pnpm rich -- attachments upload <elementId> --file file.pdf` |
-| Toolbox | List/invoke/cancel tools | `pnpm rich -- toolbox tools`; `pnpm rich -- toolbox invoke --json '{"tool":"...","args":{}}'`; `pnpm rich -- toolbox cancel <id>`; MCP `list_toolbox_tools`, `invoke_toolbox_tool` |
-| Admin monitor | Engine/ops/signals/manuals | `pnpm rich -- admin engine|ops|signals|manuals`; MCP `list_signals` |
-| AI corpus | List/get/upsert/delete/reset templates | `pnpm corpus ...`; `pnpm rich -- corpus ...`; MCP `corpus_*` |
-| Improvements | Create/claim/release/update/delete system tasks | `pnpm rich -- improvements ...`; MCP `create_improvement`, `claim_improvement`, `update_improvement`, `release_improvement`, `delete_improvement` |
-| Cron | View cron jobs | `pnpm rich -- cron jobs` |
-| Health data | Profile/weight/workout/meal/sleep/mood/timeline | Generic fallback: `pnpm rich -- api GET /api/health/<resource>` and `pnpm rich -- api POST /api/health/<resource> --json '{...}'` |
-
-## Known UI-Only Buttons
-
-These do not need CLI because they do not change Rich state or perform an external action:
-
-- Switch tab, open/close modal, cancel modal, collapse/expand local tree nodes.
-- Select an element/card, scroll history, preview a modal image, open fullscreen preview.
-- Local text editor toolbar actions before save. The persisted operation is `elements sections`.
-- History row selection and history overlay toggle. Durable chat history itself is backend data and can be read through `/api/chat/conversations`.
-
-## Agent Rule
-
-When an AI employee needs to perform a Rich operation:
-
-1. Prefer MCP if the matching semantic tool exists.
-2. Use `pnpm rich -- <semantic-command>` when operating from shell or when MCP is unavailable.
-3. Use `pnpm rich -- api ...` or `pnpm rich -- sse ...` only as fallback for newly added endpoints that do not yet have a semantic command.
-4. After mutation, verify with a read command, for example `elements get`, `practice_get`, `plan_get`, or `toolbox invocations`.
+1. 对话中的知识、项目、规划、委派和验收优先使用 MCP 2.0。
+2. shell 自动化、上传、SSE、离线维护和 MCP 未覆盖的精细业务操作使用 CLI。
+3. 新增后端按钮即使尚无语义命令，也必须能通过通用 `api`/`sse`/`upload` CLI 操作。
+4. 纯 UI 行为不需要 CLI：切换标签、开关弹窗、筛选、滚动、预览和保存前的本地编辑。
+5. 写入后必须读取验证；CLI 和 MCP 都遵守同一规则。

@@ -1,113 +1,31 @@
-# Rich MCP Server — Hermes Integration
+# Rich MCP 2.0
 
-Rich exposes its knowledge tree to external AI agents via the
-**Model Context Protocol** (MCP). Mounted at `/mcp` on Rich's main
-HTTP server, sharing the SAME in-memory repos and AI adapter as the
-Rich UI — so an agent-driven edit lands in the same SQLite the UI
-reads from.
-
-## Connecting Hermes
-
-Add to `~/.hermes/config.yaml`:
+Rich 在主服务的 `/mcp` 暴露 MCP 2.0，使用无会话的 Streamable HTTP。Hermes、Codex 等客户端继续使用原 URL：
 
 ```yaml
-provider: codex                 # use your existing Codex OAuth as the LLM
-default: codex
-
 mcp_servers:
   rich:
     url: http://127.0.0.1:31515/mcp
 ```
 
-> **Port note**: 31515 is the default. If your machine had something
-> on that port at Rich startup, Rich auto-shifted up. Check the
-> actual URL with:
->
-> ```bash
-> cat ~/Library/Application\ Support/Rich/data/.mcp-url
-> ```
+生产入口位于 `apps/server/src/mcp-v2/`。本目录只保留迁移说明；旧工具注册代码将在 MCP 2.0 最终清理中删除。
 
-Rich.app must be running for Hermes to reach the MCP server.
+## 设计
 
-## Tools
+- 场景优先：完整用户结果使用 capture、plan、delegate、review 场景工具。
+- 资源工具：对象和动作已经明确时，使用对应 `rich_*_manage`。
+- 统一信封：所有工具返回 `ok/action/data|error/refs/changes/verification/warnings`。
+- 写安全：真实写入必须有 `context.requestId`；支持 `options.dryRun`；删除、取消和整体替换需要 `options.confirmDestructive=true`。
+- 工作跟踪：外部 Agent ID 与 Rich 本地任务 ID 分开保存。Rich ID 是查询、验收和经验沉淀的主键。
+- 委派边界：MCP 2.0 默认使用不可用适配器，不会伪造任务。Multica CLI 适配器是后续独立工作。
 
-### Layer 1 — Synchronous data ops
+## 维护
 
-| Tool | What it does |
-|------|--------------|
-| `list_topics` | Lists all top-level elements |
-| `get_element` | Reads one element + sections |
-| `get_subtree` | Element + descendants up to `depth` |
-| `create_element` | New element (top-level or as child) |
-| `update_element` | Patch title / subtitle / domain / content |
-| `delete_element` | Cascade delete element + descendants |
-
-### Layer 2 — Fire-and-forget AI ops
-
-Each tool returns `{ task_id, status: "queued", kind }` immediately.
-The AI work runs in the background. Poll `get_task({ task_id })`
-until `status === "done"` or `"error"`.
-
-| Tool | What it does |
-|------|--------------|
-| `refine` | Deepen an element's content |
-| `expand` | Generate children under a parent |
-| `extend` | Generate sibling concepts in a direction |
-| `generate_paths` | Build curated learning paths for a center |
-
-### Status helpers
-
-| Tool | What it does |
-|------|--------------|
-| `get_task` | Status + result for one task_id |
-| `list_tasks` | Recent tasks (filter by status / kind) |
-
-## Example Hermes session
-
-```
-You: 看一下我的知识库,然后帮我把"高铁科普"细化一下
-Hermes (via Codex):
-  → tool_call: list_topics()
-  ← [{ id: "tour-railway", title: "高铁科普", ... }, ...]
-  → tool_call: refine({ element_id: "tour-railway", target_richness: 4 })
-  ← { task_id: "mcp-abc123", status: "queued", kind: "refine" }
-  → tool_call: get_task({ task_id: "mcp-abc123" })
-  ← { status: "running" }
-  ... (wait ~30s, poll again) ...
-  → tool_call: get_task({ task_id: "mcp-abc123" })
-  ← { status: "done", result: { element_id: "tour-railway", content_updated: true } }
-You: 写好了!
-```
-
-## Implementation notes
-
-- **Transport**: Web Standard Streamable HTTP (stateless mode). Each
-  request gets a fresh transport instance — the SDK rejects reuse.
-- **Tools**: Defined via `McpServer.tool()` in
-  `apps/server/src/mcp/server.ts`. Adding a new tool = 30 lines.
-- **Task tracking**: In-memory `Map<taskId, TaskRecord>` in
-  `apps/server/src/mcp/tasks.ts`. No persistence — process restart
-  drops queued/running tasks.
-- **LLM routing**: Layer 2 tools use Rich's scenario model router
-  (`knowledge`, `planning`, `analysis`, `content`, `project-practice`).
-  Pass `model: "claude-code" | "codex" | "hermes"` in tool args to
-  override a specific call.
-
-## Debugging
+完整目录见 `docs/RICH_MCP_V2_CATALOG.md`，由下列命令生成：
 
 ```bash
-# Confirm the MCP URL Rich is publishing
-cat ~/Library/Application\ Support/Rich/data/.mcp-url
-
-# List exposed tools (raw JSON-RPC)
-curl -X POST $(cat ~/Library/Application\ Support/Rich/data/.mcp-url) \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json,text/event-stream" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq .
-
-# Call a tool directly
-curl -X POST $(cat ~/Library/Application\ Support/Rich/data/.mcp-url) \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json,text/event-stream" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_topics","arguments":{}}}' | jq .
+pnpm --filter @ke/server mcp:docs
+pnpm --filter @ke/server mcp:docs -- --check
 ```
+
+新增工具必须通过注册表上限（40）、Schema 预算、50 条场景选择测试和 HTTP transport 测试。
