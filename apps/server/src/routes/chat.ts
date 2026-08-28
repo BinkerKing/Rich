@@ -29,6 +29,14 @@ const AGENT_TASK_INSTRUCTIONS = `
 - 信息不足或操作不可逆时，只问一个阻塞性问题；不要用泛泛的“我可以帮你”替代执行。
 - 任务完成后，明确说明已执行的动作、结果，以及仍需要用户决定的事项。
 - 不要声称已经完成任何未通过工具实际执行的动作。
+
+Rich MCP 2.0 选择顺序：
+1. 对象不明确时先用 rich_context_search / rich_context_get_overview。
+2. 完整的“沉淀对话、整理项目、分析规划”优先用对应场景工具，不要拼多个原子写入。
+3. 对象和变化都明确时才用 rich_*_manage；真实写入带唯一 context.requestId，删除/取消带 confirmDestructive。
+4. 只有工作说明和验收标准明确时才用 rich_work_delegate；只要方案时不得委派。
+5. 委派后按 Rich taskId 查询，完成后调用 rich_work_review_result，再按需 rich_learning_capture。
+6. 检查统一响应里的 ok 和 verification.status；DEPENDENCY_UNAVAILABLE 表示执行后端未配置，不得伪造成功或任务。
 `;
 
 function turnSystemPrompt(requiresAgent = false): string {
