@@ -164,6 +164,12 @@ describe("MulticaProjectWorkbenchService reads", () => {
       resources: [expect.objectContaining({ execution_mode: "in_place" })],
     });
     expect(commands.calls.some(call => call.args[0] === "runtime" && call.args[1] === "get")).toBe(false);
+    expect(commands.calls.filter(call => call.args[0] === "agent").map(call => call.args.slice(0, 4))).toEqual([
+      ["agent", "get", "agent-pm", "--output"],
+      ["agent", "mcp", "list", "agent-pm"],
+      ["agent", "get", "agent-ba", "--output"],
+      ["agent", "mcp", "list", "agent-ba"],
+    ]);
     await expect(service.getIssue("vtb-二代safe", "vtb-1")).resolves.toMatchObject({
       issue: { id: "vtb-1", parent_id: "parent-1" },
       children: [{ id: "child-1" }],

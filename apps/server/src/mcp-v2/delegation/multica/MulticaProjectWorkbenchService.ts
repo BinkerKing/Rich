@@ -111,20 +111,21 @@ export class MulticaProjectWorkbenchService {
       this.commands.runJson(["runtime", "list", "--output", "json"]),
     ]);
     const runtimes = extractArray(runtimesValue, ["runtimes", "data", "items"]);
-    const agents = await Promise.all(binding.agents.map(async configured => {
+    const agents = [];
+    for (const configured of binding.agents) {
       const agentValue = await this.commands.runJson(["agent", "get", configured.agentId, "--output", "json"]);
       const agent = extractObject(agentValue, ["agent", "data"]);
       const runtimeId = text(agent.runtime_id);
       const mcpValue = await this.commands.runJson(["agent", "mcp", "list", configured.agentId, "--output", "json"]);
       const runtime = runtimes.find(candidate => candidate.id === runtimeId) ?? {};
-      return {
+      agents.push({
         ...agent,
         role: configured.role,
         runtime_name: text(runtime.name),
         runtime_provider: text(runtime.provider),
         mcp_servers: extractArray(mcpValue, ["servers", "mcp_servers", "data", "items"]),
-      };
-    }));
+      });
+    }
     return multicaTeamSnapshotSchema.parse({
       project: extractObject(projectValue, ["project", "data"]),
       squad: extractObject(squadValue, ["squad", "data"]),
