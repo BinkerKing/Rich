@@ -1,4 +1,6 @@
-import type Database from "better-sqlite3";
+import Database from "better-sqlite3";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import type { MulticaSyncState, MulticaWorkbenchSnapshot, MulticaWorkbenchSnapshotRepo } from "./MulticaWorkbenchSnapshotRepo.js";
 
 interface SnapshotRow { rich_project_id: string; snapshot_key: string; payload_json: string; updated_at: string }
@@ -6,6 +8,8 @@ interface SyncRow { rich_project_id: string; status: MulticaSyncState["status"];
 
 export class SqliteMulticaWorkbenchSnapshotRepo implements MulticaWorkbenchSnapshotRepo {
   constructor(private readonly db: Database.Database) {}
+
+  close(): void { this.db.close(); }
 
   get<T>(richProjectId: string, key: string): MulticaWorkbenchSnapshot<T> | null {
     const row = this.db.prepare(`SELECT rich_project_id, snapshot_key, payload_json, updated_at
@@ -40,6 +44,30 @@ export class SqliteMulticaWorkbenchSnapshotRepo implements MulticaWorkbenchSnaps
         last_success_at = excluded.last_success_at, error = excluded.error`)
       .run(state.richProjectId, state.status, state.lastAttemptAt ?? null, state.lastSuccessAt ?? null, state.error ?? null);
   }
+}
+
+export function openSqliteMulticaWorkbenchSnapshotRepo(filePath: string): SqliteMulticaWorkbenchSnapshotRepo {
+  mkdirSync(dirname(filePath), { recursive: true });
+  const db = new Database(filePath);
+  db.pragma("journal_mode = WAL");
+  db.pragma("foreign_keys = ON");
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS multica_workbench_snapshots (
+      rich_project_id TEXT NOT NULL,
+      snapshot_key TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (rich_project_id, snapshot_key)
+    );
+    CREATE TABLE IF NOT EXISTS multica_workbench_sync_state (
+      rich_project_id TEXT PRIMARY KEY,
+      status TEXT NOT NULL,
+      last_attempt_at TEXT,
+      last_success_at TEXT,
+      error TEXT
+    );
+  `);
+  return new SqliteMulticaWorkbenchSnapshotRepo(db);
 }
 
 function hydrateSync(row: SyncRow): MulticaSyncState {

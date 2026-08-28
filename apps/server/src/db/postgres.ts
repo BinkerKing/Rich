@@ -232,22 +232,6 @@ async function applySchema(pool: Pool): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_multica_team_plans_project ON multica_team_plans(rich_project_id, created_at DESC);
 
-    CREATE TABLE IF NOT EXISTS multica_workbench_snapshots (
-      rich_project_id TEXT NOT NULL,
-      snapshot_key TEXT NOT NULL,
-      payload_json JSONB NOT NULL,
-      updated_at TEXT NOT NULL,
-      PRIMARY KEY (rich_project_id, snapshot_key)
-    );
-
-    CREATE TABLE IF NOT EXISTS multica_workbench_sync_state (
-      rich_project_id TEXT PRIMARY KEY,
-      status TEXT NOT NULL,
-      last_attempt_at TEXT,
-      last_success_at TEXT,
-      error TEXT
-    );
-
     -- Rich 首页动画展示系统 v0.1：visual 块独立持久化
     CREATE TABLE IF NOT EXISTS chat_visual_blocks (
       id                TEXT PRIMARY KEY,

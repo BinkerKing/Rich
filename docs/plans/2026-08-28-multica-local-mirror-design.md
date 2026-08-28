@@ -12,7 +12,7 @@ Rich 项目代办不再把页面读取直接绑定到 Multica CLI。Multica 继�
 4. 小队、任务详情、评论、时间线、执行记录、Usage、PR、标签、属性、附件、元数据和订阅者按资源键保存；已有快照时立即返回，并在后台刷新。
 5. Rich 发起写操作后，清理受影响的任务详情快照并立即对账看板，避免读取旧数据。
 
-SQLite 与 PostgreSQL 使用相同的两张逻辑表：`multica_workbench_snapshots` 保存 JSON 快照，`multica_workbench_sync_state` 保存连接状态、最后尝试时间、最后成功时间和错误摘要。
+镜像始终写入 Rich 数据目录中的独立 `multica-workbench.db`，不跟随 Rich 主数据使用的 PostgreSQL 或 SQLite 配置。文件内的 `multica_workbench_snapshots` 保存 JSON 快照，`multica_workbench_sync_state` 保存连接状态、最后尝试时间、最后成功时间和错误摘要。
 
 ## 连接灯
 

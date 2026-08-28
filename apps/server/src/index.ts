@@ -154,9 +154,7 @@ import { mountMcpV2 } from "./mcp-v2/transport.js";
 import type { MulticaBindingRepo } from "./mcp-v2/delegation/multica/MulticaBindingRepo.js";
 import { SqliteMulticaBindingRepo } from "./mcp-v2/delegation/multica/SqliteMulticaBindingRepo.js";
 import { PostgresMulticaBindingRepo } from "./mcp-v2/delegation/multica/PostgresMulticaBindingRepo.js";
-import type { MulticaWorkbenchSnapshotRepo } from "./mcp-v2/delegation/multica/MulticaWorkbenchSnapshotRepo.js";
-import { SqliteMulticaWorkbenchSnapshotRepo } from "./mcp-v2/delegation/multica/SqliteMulticaWorkbenchSnapshotRepo.js";
-import { PostgresMulticaWorkbenchSnapshotRepo } from "./mcp-v2/delegation/multica/PostgresMulticaWorkbenchSnapshotRepo.js";
+import { openSqliteMulticaWorkbenchSnapshotRepo } from "./mcp-v2/delegation/multica/SqliteMulticaWorkbenchSnapshotRepo.js";
 import { createMulticaIntegration } from "./mcp-v2/delegation/multica/createMulticaIntegration.js";
 import { MulticaTaskSynchronizer } from "./mcp-v2/delegation/multica/MulticaTaskSynchronizer.js";
 import type { McpOperationRepo } from "./repos/McpOperationRepo.js";
@@ -238,7 +236,6 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let mcpOperationRepo: McpOperationRepo;
   let mcpTaskRepo: McpTaskRepo;
   let multicaBindingRepo: MulticaBindingRepo;
-  let multicaSnapshots: MulticaWorkbenchSnapshotRepo;
   /** chat_visual_blocks 仅 sqlite + postgres 后端支持；json 模式下保持 null。 */
   let chatVisualBlocks: ChatVisualBlocksRepo | null = null;
   /** chat_attachments 同上 —— bytea 存储需要数据库后端 */
@@ -272,7 +269,6 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     mcpOperationRepo = new PostgresMcpOperationRepo(pg);
     mcpTaskRepo = new PostgresMcpTaskRepo(pg);
     multicaBindingRepo = new PostgresMulticaBindingRepo(pg);
-    multicaSnapshots = new PostgresMulticaWorkbenchSnapshotRepo(pg);
   } else if (storage === "sqlite") {
     const dbPath = process.env.KE_SQLITE_PATH ?? join(root, "ke.db");
     const db = openDb(dbPath);
@@ -295,7 +291,6 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     mcpOperationRepo = new SqliteMcpOperationRepo(db);
     mcpTaskRepo = new SqliteMcpTaskRepo(db);
     multicaBindingRepo = new SqliteMulticaBindingRepo(db);
-    multicaSnapshots = new SqliteMulticaWorkbenchSnapshotRepo(db);
   } else {
     throw new Error(`Unsupported KE_STORAGE=${storage}. Use sqlite or postgres.`);
   }
@@ -311,6 +306,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   ];
   loadAIEngineSettings();
   const log = logger ?? opts.logger ?? noopLogger;
+  const multicaSnapshots = openSqliteMulticaWorkbenchSnapshotRepo(join(root, "multica-workbench.db"));
   const multica = createMulticaIntegration(multicaBindingRepo, {
     snapshots: multicaSnapshots,
     syncIntervalMs: Number(process.env.RICH_MULTICA_WORKBENCH_SYNC_INTERVAL_MS) || 5_000,
