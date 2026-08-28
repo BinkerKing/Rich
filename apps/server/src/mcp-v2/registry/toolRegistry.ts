@@ -9,7 +9,7 @@ import type {
 
 const RICH_TOOL_NAME = /^rich_[a-z0-9]+_[a-z0-9_]+$/;
 
-export interface RichToolRegistration<TInput = unknown, TOutput = unknown> {
+export interface RichToolRegistration<TInput = unknown> {
   name: string;
   title: string;
   description: string;
@@ -18,7 +18,7 @@ export interface RichToolRegistration<TInput = unknown, TOutput = unknown> {
   annotations: RichToolAnnotations;
   examples: RichToolExample[];
   verification: string;
-  handler: (input: TInput) => Promise<RichToolResponse<TOutput>>;
+  handler: (input: TInput) => Promise<RichToolResponse<unknown>>;
 }
 
 export interface RichToolRegistryOptions {
@@ -27,13 +27,13 @@ export interface RichToolRegistryOptions {
 
 export class RichToolRegistry {
   private readonly maxTools: number;
-  private readonly registrations = new Map<string, RichToolRegistration<any, any>>();
+  private readonly registrations = new Map<string, RichToolRegistration<any>>();
 
   constructor(options: RichToolRegistryOptions = {}) {
     this.maxTools = options.maxTools ?? 40;
   }
 
-  register<TInput, TOutput>(registration: RichToolRegistration<TInput, TOutput>): void {
+  register<TInput>(registration: RichToolRegistration<TInput>): void {
     validateRegistration(registration);
     if (this.registrations.has(registration.name)) {
       throw new Error(`Tool ${registration.name} is already registered.`);
@@ -78,7 +78,7 @@ export class RichToolRegistry {
   }
 }
 
-function validateRegistration<TInput, TOutput>(registration: RichToolRegistration<TInput, TOutput>): void {
+function validateRegistration<TInput>(registration: RichToolRegistration<TInput>): void {
   if (!RICH_TOOL_NAME.test(registration.name)) {
     throw new Error(`Tool name must match rich_<domain>_<action>: ${registration.name}`);
   }
