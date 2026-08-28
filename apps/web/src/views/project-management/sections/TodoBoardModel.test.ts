@@ -20,9 +20,10 @@ test("按状态和 position 分组任务", () => {
   assert.deepEqual(groups.get("todo")?.map(issue => issue.id), ["a", "b"]);
 });
 
-test("跨列拖动只改变状态，同列拖动生成相对排序", () => {
+test("跨列拖动改变状态后保留落点顺序，同列拖动只生成相对排序", () => {
   assert.deepEqual(planMulticaDrop({ issueId: "a", fromStatus: "todo", toStatus: "in_progress", beforeId: "b" }), [
     { kind: "status", issueId: "a", status: "in_progress" },
+    { kind: "reorder", issueId: "a", beforeId: "b" },
   ]);
   assert.deepEqual(planMulticaDrop({ issueId: "a", fromStatus: "todo", toStatus: "todo", afterId: "b" }), [
     { kind: "reorder", issueId: "a", afterId: "b" },

@@ -47,13 +47,8 @@ export type MulticaDropCommand =
   | { kind: "reorder"; issueId: string; beforeId?: string; afterId?: string; edge?: "top" | "bottom" };
 
 export function planMulticaDrop(input: { issueId: string; fromStatus: string; toStatus: string; beforeId?: string; afterId?: string; edge?: "top" | "bottom" }): MulticaDropCommand[] {
-  if (input.fromStatus !== input.toStatus) return [{ kind: "status", issueId: input.issueId, status: input.toStatus }];
-  return [{ kind: "reorder", issueId: input.issueId, ...(input.beforeId ? { beforeId: input.beforeId } : {}), ...(input.afterId ? { afterId: input.afterId } : {}), ...(input.edge ? { edge: input.edge } : {}) }];
-}
-
-/** Temporary compatibility for the old Todo section; removed with the Multica board component. */
-export type TodoBoardStatus = "planned" | "todo" | "doing" | "review" | "done";
-export function normalizeBoardStatus(value: Record<string, unknown>): TodoBoardStatus {
-  const status = typeof value.status === "string" ? value.status : "todo";
-  return (["planned", "todo", "doing", "review", "done"] as string[]).includes(status) ? status as TodoBoardStatus : "todo";
+  const reorder: MulticaDropCommand = { kind: "reorder", issueId: input.issueId, ...(input.beforeId ? { beforeId: input.beforeId } : {}), ...(input.afterId ? { afterId: input.afterId } : {}), ...(input.edge ? { edge: input.edge } : {}) };
+  return input.fromStatus === input.toStatus
+    ? [reorder]
+    : [{ kind: "status", issueId: input.issueId, status: input.toStatus }, reorder];
 }

@@ -914,6 +914,18 @@ export const api = {
   async cancelMulticaRun(projectId: string, issueId: string, runId: string): Promise<unknown> {
     return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/runs/${encodeURIComponent(runId)}/cancel`, { method: "POST", body: "{}" });
   },
+  async setMulticaLabel(projectId: string, issueId: string, labelId: string, attached: boolean): Promise<unknown> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/labels/${encodeURIComponent(labelId)}`, { method: "POST", body: JSON.stringify({ attached }) });
+  },
+  async setMulticaProperty(projectId: string, issueId: string, property: string, value: string | null): Promise<unknown> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/properties/${encodeURIComponent(property)}`, { method: "PUT", body: JSON.stringify({ value }) });
+  },
+  async setMulticaMetadata(projectId: string, issueId: string, key: string, value?: string | number | boolean): Promise<unknown> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/metadata/${encodeURIComponent(key)}`, { method: "PUT", body: JSON.stringify({ value }) });
+  },
+  async setMulticaSubscriber(projectId: string, issueId: string, actorId: string, subscribed: boolean): Promise<unknown> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/subscribers/${encodeURIComponent(actorId)}`, { method: "POST", body: JSON.stringify({ subscribed }) });
+  },
   async listProjectAutomationPlans(projectId: string): Promise<ProjectAutomationPlan[]> {
     return projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/plans`);
   },
