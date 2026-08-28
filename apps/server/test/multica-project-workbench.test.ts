@@ -126,6 +126,13 @@ class WorkbenchCommands implements MulticaCommandPort {
     if (command === "issue property list") return [{ id: "property-1", name: "Risk", value: "low" }] as T;
     if (command === "issue label list") return [{ id: "label-1", name: "analysis" }] as T;
     if (command === "issue subscriber list") return [{ id: "agent-pm", name: "沈砚" }] as T;
+    if (args[0] === "issue" && args[1] === "create") {
+      const issue = { id: "vtb-new", title: flag(args, "--title"), status: flag(args, "--status") || "backlog", project_id: flag(args, "--project") };
+      this.issues.push(issue as (typeof this.issues)[number]);
+      return structuredClone(issue) as T;
+    }
+    if (args[0] === "issue" && ["update", "status", "reorder", "assign", "rerun", "cancel-task"].includes(args[1])) return { ok: true, id: args[2] } as T;
+    if (args[0] === "issue" && ["comment", "label", "property", "metadata", "subscriber"].includes(args[1])) return { ok: true } as T;
     throw new Error(`Unexpected command: ${args.join(" ")}`);
   }
 }
@@ -168,3 +175,87 @@ describe("MulticaProjectWorkbenchService reads", () => {
     await expect(service.getSubscribers("vtb-二代safe", "vtb-1")).resolves.toEqual([expect.objectContaining({ id: "agent-pm" })]);
   });
 });
+
+describe("MulticaProjectWorkbenchService mutations", () => {
+  it("creates Issues only inside the bound Multica Project and sends long text through stdin", async () => {
+    const commands = new WorkbenchCommands();
+    const service = new MulticaProjectWorkbenchService(commands, new WorkbenchBindings());
+
+    await service.createIssue("vtb-二代safe", {
+      title: "分析项目规范",
+      description: "多行\n说明",
+      status: "backlog",
+      priority: "high",
+      assigneeId: "squad-vtb",
+      attachmentPaths: ["/tmp/brief.md"],
+    });
+
+    expect(commands.calls.at(-1)).toEqual({
+      args: ["issue", "create", "--title", "分析项目规范", "--project", "multica-vtb", "--status", "backlog", "--priority", "high", "--assignee-id", "squad-vtb", "--attachment", "/tmp/brief.md", "--description-stdin", "--output", "json"],
+      stdin: "多行\n说明",
+    });
+  });
+
+  it("guards and maps every Issue mutation to its narrow Multica CLI command", async () => {
+    const commands = new WorkbenchCommands();
+    const service = new MulticaProjectWorkbenchService(commands, new WorkbenchBindings());
+
+    await service.updateIssue("vtb-二代safe", "vtb-1", { title: "新标题", description: "多行\n说明", dueDate: "2026-09-01" });
+    expect(commands.calls.at(-1)).toEqual({
+      args: ["issue", "update", "vtb-1", "--title", "新标题", "--due-date", "2026-09-01", "--description-stdin", "--output", "json"],
+      stdin: "多行\n说明",
+    });
+    await service.setStatus("vtb-二代safe", "vtb-1", "in_review");
+    await service.reorderIssue("vtb-二代safe", "vtb-1", { beforeId: "vtb-2" });
+    await service.assignIssue("vtb-二代safe", "vtb-1", "agent-pm");
+    await service.addComment("vtb-二代safe", "vtb-1", "请复核\n目录", "comment-parent", ["/tmp/evidence.md"]);
+    await service.resolveComment("vtb-二代safe", "vtb-1", "comment-1", true);
+    await service.resolveComment("vtb-二代safe", "vtb-1", "comment-1", false);
+    await service.rerunIssue("vtb-二代safe", "vtb-1");
+    await service.cancelRun("vtb-二代safe", "vtb-1", "run-1");
+    await service.setLabel("vtb-二代safe", "vtb-1", "label-1", true);
+    await service.setLabel("vtb-二代safe", "vtb-1", "label-1", false);
+    await service.setProperty("vtb-二代safe", "vtb-1", "Risk", "low");
+    await service.setProperty("vtb-二代safe", "vtb-1", "Risk", null);
+    await service.setMetadata("vtb-二代safe", "vtb-1", "scope", "analysis");
+    await service.setMetadata("vtb-二代safe", "vtb-1", "read_only", true);
+    await service.setMetadata("vtb-二代safe", "vtb-1", "scope", undefined);
+    await service.setSubscriber("vtb-二代safe", "vtb-1", "agent-pm", true);
+    await service.setSubscriber("vtb-二代safe", "vtb-1", "agent-pm", false);
+
+    const mutations = commands.calls.filter(call => call.args[0] === "issue" && call.args[1] !== "get").map(call => call.args);
+    expect(mutations).toEqual([
+      ["issue", "update", "vtb-1", "--title", "新标题", "--due-date", "2026-09-01", "--description-stdin", "--output", "json"],
+      ["issue", "status", "vtb-1", "in_review", "--output", "json"],
+      ["issue", "reorder", "vtb-1", "--before", "vtb-2", "--output", "json"],
+      ["issue", "assign", "vtb-1", "--to-id", "agent-pm", "--output", "json"],
+      ["issue", "comment", "add", "vtb-1", "--parent", "comment-parent", "--attachment", "/tmp/evidence.md", "--content-stdin", "--output", "json"],
+      ["issue", "comment", "resolve", "comment-1", "--output", "json"],
+      ["issue", "comment", "unresolve", "comment-1", "--output", "json"],
+      ["issue", "rerun", "vtb-1", "--output", "json"],
+      ["issue", "cancel-task", "run-1", "--issue", "vtb-1", "--output", "json"],
+      ["issue", "label", "add", "vtb-1", "label-1", "--output", "json"],
+      ["issue", "label", "remove", "vtb-1", "label-1", "--output", "json"],
+      ["issue", "property", "set", "vtb-1", "--name", "Risk", "--value", "low", "--output", "json"],
+      ["issue", "property", "unset", "vtb-1", "--name", "Risk", "--output", "json"],
+      ["issue", "metadata", "set", "vtb-1", "--key", "scope", "--value", "analysis", "--type", "string", "--output", "json"],
+      ["issue", "metadata", "set", "vtb-1", "--key", "read_only", "--value", "true", "--type", "bool", "--output", "json"],
+      ["issue", "metadata", "delete", "vtb-1", "--key", "scope", "--output", "json"],
+      ["issue", "subscriber", "add", "vtb-1", "--user-id", "agent-pm", "--output", "json"],
+      ["issue", "subscriber", "remove", "vtb-1", "--user-id", "agent-pm", "--output", "json"],
+    ]);
+  });
+
+  it("rejects mutations for Issues outside the bound Project before writing", async () => {
+    const commands = new WorkbenchCommands();
+    const service = new MulticaProjectWorkbenchService(commands, new WorkbenchBindings());
+
+    await expect(service.setStatus("vtb-二代safe", "other-1", "done")).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(commands.calls.some(call => call.args[1] === "status")).toBe(false);
+  });
+});
+
+function flag(args: string[], name: string): string {
+  const index = args.indexOf(name);
+  return index >= 0 ? args[index + 1] ?? "" : "";
+}

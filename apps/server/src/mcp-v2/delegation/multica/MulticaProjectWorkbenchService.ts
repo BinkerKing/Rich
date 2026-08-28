@@ -33,6 +33,35 @@ interface WorkbenchOptions {
   now?: () => string;
 }
 
+export interface CreateMulticaIssueInput {
+  title: string;
+  description?: string;
+  status?: string;
+  priority?: string;
+  assigneeId?: string;
+  parentId?: string;
+  stage?: number;
+  startDate?: string;
+  dueDate?: string;
+  attachmentPaths?: string[];
+}
+
+export interface UpdateMulticaIssueInput {
+  title?: string;
+  description?: string;
+  priority?: string;
+  parentId?: string | null;
+  stage?: number;
+  startDate?: string | null;
+  dueDate?: string | null;
+}
+
+export interface ReorderMulticaIssueInput {
+  beforeId?: string;
+  afterId?: string;
+  edge?: "top" | "bottom";
+}
+
 const STATUS_CATALOG = [
   { id: "backlog", name: "待规划", category: "backlog", color: "#8b94a7", position: 0 },
   { id: "todo", name: "待办", category: "unstarted", color: "#6ea8fe", position: 1 },
@@ -173,6 +202,112 @@ export class MulticaProjectWorkbenchService {
     return extractArray(value, ["subscribers", "data", "items"]).map(item => multicaActorSchema.parse(item));
   }
 
+  async createIssue(projectId: string, input: CreateMulticaIssueInput): Promise<MulticaWorkbenchIssue> {
+    const binding = await this.binding(projectId);
+    if (!input.title.trim()) throw new RichMcpError("VALIDATION_ERROR", "Issue title is required.");
+    const args = ["issue", "create", "--title", input.title, "--project", binding.projectId];
+    pushValue(args, "--status", input.status);
+    pushValue(args, "--priority", input.priority);
+    pushValue(args, "--assignee-id", input.assigneeId);
+    pushValue(args, "--parent", input.parentId);
+    if (input.stage !== undefined) args.push("--stage", String(input.stage));
+    pushValue(args, "--start-date", input.startDate);
+    pushValue(args, "--due-date", input.dueDate);
+    for (const path of input.attachmentPaths ?? []) args.push("--attachment", path);
+    if (input.description !== undefined) args.push("--description-stdin");
+    args.push("--output", "json");
+    const value = await this.commands.runJson(args, input.description !== undefined ? { stdin: input.description } : undefined);
+    return multicaWorkbenchIssueSchema.parse(extractObject(value, ["issue", "data"]));
+  }
+
+  async updateIssue(projectId: string, issueId: string, input: UpdateMulticaIssueInput): Promise<unknown> {
+    await this.ownedIssue(projectId, issueId);
+    const args = ["issue", "update", issueId];
+    pushValue(args, "--title", input.title);
+    pushValue(args, "--priority", input.priority);
+    if (input.parentId !== undefined) args.push("--parent", input.parentId ?? "");
+    if (input.stage !== undefined) args.push("--stage", String(input.stage));
+    if (input.startDate !== undefined) args.push("--start-date", input.startDate ?? "");
+    if (input.dueDate !== undefined) args.push("--due-date", input.dueDate ?? "");
+    if (input.description !== undefined) args.push("--description-stdin");
+    args.push("--output", "json");
+    return this.commands.runJson(args, input.description !== undefined ? { stdin: input.description } : undefined);
+  }
+
+  async setStatus(projectId: string, issueId: string, status: string): Promise<unknown> {
+    await this.ownedIssue(projectId, issueId);
+    return this.commands.runJson(["issue", "status", issueId, status, "--output", "json"]);
+  }
+
+  async reorderIssue(projectId: string, issueId: string, input: ReorderMulticaIssueInput): Promise<unknown> {
+    await this.ownedIssue(projectId, issueId);
+    const targets = [input.beforeId, input.afterId, input.edge].filter(Boolean);
+    if (targets.length !== 1) throw new RichMcpError("VALIDATION_ERROR", "Reorder requires exactly one target.");
+    const args = ["issue", "reorder", issueId];
+    if (input.beforeId) args.push("--before", input.beforeId);
+    if (input.afterId) args.push("--after", input.afterId);
+    if (input.edge) args.push(`--${input.edge}`);
+    args.push("--output", "json");
+    return this.commands.runJson(args);
+  }
+
+  async assignIssue(projectId: string, issueId: string, assigneeId: string | null): Promise<unknown> {
+    await this.ownedIssue(projectId, issueId);
+    return this.commands.runJson(assigneeId
+      ? ["issue", "assign", issueId, "--to-id", assigneeId, "--output", "json"]
+      : ["issue", "assign", issueId, "--unassign", "--output", "json"]);
+  }
+
+  async addComment(projectId: string, issueId: string, content: string, parentId?: string, attachmentPaths: string[] = []): Promise<unknown> {
+    await this.ownedIssue(projectId, issueId);
+    const args = ["issue", "comment", "add", issueId];
+    pushValue(args, "--parent", parentId);
+    for (const path of attachmentPaths) args.push("--attachment", path);
+    args.push("--content-stdin", "--output", "json");
+    return this.commands.runJson(args, { stdin: content });
+  }
+
+  async resolveComment(projectId: string, issueId: string, commentId: string, resolved: boolean): Promise<unknown> {
+    await this.ownedIssue(projectId, issueId);
+    return this.commands.runJson(["issue", "comment", resolved ? "resolve" : "unresolve", commentId, "--output", "json"]);
+  }
+
+  async rerunIssue(projectId: string, issueId: string): Promise<unknown> {
+    await this.ownedIssue(projectId, issueId);
+    return this.commands.runJson(["issue", "rerun", issueId, "--output", "json"]);
+  }
+
+  async cancelRun(projectId: string, issueId: string, runId: string): Promise<unknown> {
+    await this.ownedIssue(projectId, issueId);
+    return this.commands.runJson(["issue", "cancel-task", runId, "--issue", issueId, "--output", "json"]);
+  }
+
+  async setLabel(projectId: string, issueId: string, labelId: string, attached: boolean): Promise<unknown> {
+    await this.ownedIssue(projectId, issueId);
+    return this.commands.runJson(["issue", "label", attached ? "add" : "remove", issueId, labelId, "--output", "json"]);
+  }
+
+  async setProperty(projectId: string, issueId: string, property: string, value: string | null): Promise<unknown> {
+    await this.ownedIssue(projectId, issueId);
+    return this.commands.runJson(value === null
+      ? ["issue", "property", "unset", issueId, "--name", property, "--output", "json"]
+      : ["issue", "property", "set", issueId, "--name", property, "--value", value, "--output", "json"]);
+  }
+
+  async setMetadata(projectId: string, issueId: string, key: string, value: string | number | boolean | undefined): Promise<unknown> {
+    await this.ownedIssue(projectId, issueId);
+    if (value === undefined) return this.commands.runJson(["issue", "metadata", "delete", issueId, "--key", key, "--output", "json"]);
+    const valueType = typeof value === "boolean" ? "bool" : typeof value;
+    return this.commands.runJson([
+      "issue", "metadata", "set", issueId, "--key", key, "--value", String(value), "--type", valueType, "--output", "json",
+    ]);
+  }
+
+  async setSubscriber(projectId: string, issueId: string, actorId: string, subscribed: boolean): Promise<unknown> {
+    await this.ownedIssue(projectId, issueId);
+    return this.commands.runJson(["issue", "subscriber", subscribed ? "add" : "remove", issueId, "--user-id", actorId, "--output", "json"]);
+  }
+
   private async binding(projectId: string): Promise<MulticaProjectBinding> {
     const binding = await this.bindings.getBinding(projectId);
     if (!binding) throw new RichMcpError("CONFLICT", `Rich project ${projectId} is not connected to Multica.`);
@@ -243,4 +378,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function text(value: unknown): string | undefined {
   return typeof value === "string" && value ? value : undefined;
+}
+
+function pushValue(args: string[], flag: string, value: string | undefined): void {
+  if (value !== undefined) args.push(flag, value);
 }
