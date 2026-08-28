@@ -848,6 +848,72 @@ export const api = {
     });
     if (!r.ok) throw new Error(`reorderProjectManagementModuleItems ${r.status}`);
   },
+  async getMulticaBoard(projectId: string): Promise<MulticaBoardSnapshot> {
+    return multicaRequest(projectId, "/board");
+  },
+  async getMulticaTeam(projectId: string): Promise<MulticaTeamSnapshot> {
+    return multicaRequest(projectId, "/team");
+  },
+  async getMulticaIssue(projectId: string, issueId: string): Promise<MulticaIssueDetailSnapshot> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}`);
+  },
+  async getMulticaTimeline(projectId: string, issueId: string): Promise<MulticaTimelineEntry[]> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/timeline`);
+  },
+  async getMulticaComments(projectId: string, issueId: string): Promise<MulticaComment[]> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/comments`);
+  },
+  async getMulticaRuns(projectId: string, issueId: string): Promise<MulticaRun[]> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/runs`);
+  },
+  async getMulticaRunMessages(projectId: string, issueId: string, runId: string, since?: number): Promise<MulticaRunMessage[]> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/runs/${encodeURIComponent(runId)}/messages${since === undefined ? "" : `?since=${since}`}`);
+  },
+  async getMulticaPullRequests(projectId: string, issueId: string): Promise<MulticaPullRequest[]> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/pull-requests`);
+  },
+  async getMulticaUsage(projectId: string, issueId: string): Promise<MulticaUsage> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/usage`);
+  },
+  async getMulticaMetadata(projectId: string, issueId: string): Promise<Record<string, unknown>> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/metadata`);
+  },
+  async getMulticaProperties(projectId: string, issueId: string): Promise<Array<Record<string, unknown>>> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/properties`);
+  },
+  async getMulticaLabels(projectId: string, issueId: string): Promise<MulticaLabel[]> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/labels`);
+  },
+  async getMulticaSubscribers(projectId: string, issueId: string): Promise<MulticaActor[]> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/subscribers`);
+  },
+  async createMulticaIssue(projectId: string, input: Record<string, unknown>): Promise<MulticaIssue> {
+    return multicaRequest(projectId, "/issues", { method: "POST", body: JSON.stringify(input) });
+  },
+  async updateMulticaIssue(projectId: string, issueId: string, patch: Record<string, unknown>): Promise<unknown> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}`, { method: "PATCH", body: JSON.stringify(patch) });
+  },
+  async setMulticaIssueStatus(projectId: string, issueId: string, status: string): Promise<unknown> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/status`, { method: "POST", body: JSON.stringify({ status }) });
+  },
+  async reorderMulticaIssue(projectId: string, issueId: string, target: { beforeId?: string; afterId?: string; edge?: "top" | "bottom" }): Promise<unknown> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/reorder`, { method: "POST", body: JSON.stringify(target) });
+  },
+  async assignMulticaIssue(projectId: string, issueId: string, assigneeId: string | null): Promise<unknown> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/assign`, { method: "POST", body: JSON.stringify({ assigneeId }) });
+  },
+  async addMulticaComment(projectId: string, issueId: string, content: string, parentId?: string): Promise<unknown> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/comments`, { method: "POST", body: JSON.stringify({ content, parentId }) });
+  },
+  async resolveMulticaComment(projectId: string, issueId: string, commentId: string, resolved: boolean): Promise<unknown> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/comments/${encodeURIComponent(commentId)}/resolve`, { method: "POST", body: JSON.stringify({ resolved }) });
+  },
+  async rerunMulticaIssue(projectId: string, issueId: string): Promise<unknown> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/rerun`, { method: "POST", body: "{}" });
+  },
+  async cancelMulticaRun(projectId: string, issueId: string, runId: string): Promise<unknown> {
+    return multicaRequest(projectId, `/issues/${encodeURIComponent(issueId)}/runs/${encodeURIComponent(runId)}/cancel`, { method: "POST", body: "{}" });
+  },
   async listProjectAutomationPlans(projectId: string): Promise<ProjectAutomationPlan[]> {
     return projectAutomationRequest(`/api/project-management/${encodeURIComponent(projectId)}/automation/plans`);
   },
@@ -1149,6 +1215,20 @@ export const api = {
   },
 };
 
+async function multicaRequest<T>(projectId: string, path: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/multica${path}`, {
+    cache: "no-store",
+    ...init,
+    headers: init.body ? { "content-type": "application/json", ...init.headers } : init.headers,
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({})) as { error?: { message?: string } | string };
+    const message = typeof body.error === "string" ? body.error : body.error?.message;
+    throw new Error(message ?? `Multica ${path} failed (${response.status})`);
+  }
+  return await response.json() as T;
+}
+
 async function projectAutomationRequest<T>(url: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(url, {
     cache: "no-store",
@@ -1190,6 +1270,62 @@ export interface ProjectFolderMkdirsResult {
   skipped: Array<{ path: string; reason: string }>;
   count: number;
   manual?: { path: string; created: boolean };
+}
+
+export interface MulticaProject {
+  id: string; title: string; description?: string | null; status?: string | null; [key: string]: unknown;
+}
+export interface MulticaStatus {
+  id: string; name: string; category?: string | null; color?: string | null; position?: number; [key: string]: unknown;
+}
+export interface MulticaActor {
+  id: string; name?: string; type?: string; avatar_url?: string | null; [key: string]: unknown;
+}
+export interface MulticaLabel {
+  id: string; name: string; color?: string | null; [key: string]: unknown;
+}
+export interface MulticaAttachment {
+  id: string; name: string; size?: number | null; content_type?: string | null; url?: string | null; created_at?: string | null; [key: string]: unknown;
+}
+export interface MulticaIssue {
+  id: string; identifier?: string | null; title: string; description?: string | null; status: string; status_category?: string | null;
+  priority?: string | null; position?: number; project_id?: string | null; parent_id?: string | null; assignee_id?: string | null;
+  assignee_type?: string | null; start_date?: string | null; due_date?: string | null; created_at?: string | null; updated_at?: string | null;
+  labels?: MulticaLabel[]; attachments?: MulticaAttachment[]; [key: string]: unknown;
+}
+export interface MulticaAgent {
+  id: string; name: string; role?: string; model?: string | null; runtime_id?: string | null; runtime_name?: string | null;
+  runtime_provider?: string | null; mcp_servers?: Array<{ id: string; name?: string; [key: string]: unknown }>; [key: string]: unknown;
+}
+export interface MulticaTeamSnapshot {
+  project?: MulticaProject;
+  squad: { id: string; name: string; leader_id?: string | null; description?: string | null; instructions?: string | null; [key: string]: unknown };
+  agents: MulticaAgent[];
+  resources: Array<{ id: string; type?: string; local_path?: string | null; execution_mode?: string | null; [key: string]: unknown }>;
+  [key: string]: unknown;
+}
+export interface MulticaBoardSnapshot {
+  project: MulticaProject; team?: MulticaTeamSnapshot; statuses: MulticaStatus[]; issues: MulticaIssue[]; syncedAt: string;
+}
+export interface MulticaComment {
+  id: string; body?: string; content?: string; parent_id?: string | null; resolved?: boolean; author?: MulticaActor | null;
+  created_at?: string | null; updated_at?: string | null; attachments?: MulticaAttachment[]; [key: string]: unknown;
+}
+export interface MulticaTimelineEntry {
+  id: string; type: string; created_at?: string | null; actor?: MulticaActor | null; data?: Record<string, unknown>; [key: string]: unknown;
+}
+export interface MulticaRun {
+  id: string; status: string; created_at?: string | null; started_at?: string | null; completed_at?: string | null; agent_id?: string | null; [key: string]: unknown;
+}
+export interface MulticaRunMessage {
+  id: string; run_id: string; sequence: number; role?: string; type?: string; content?: unknown; created_at?: string | null; [key: string]: unknown;
+}
+export interface MulticaPullRequest { id: string; title?: string; state?: string; url?: string | null; number?: number; [key: string]: unknown; }
+export interface MulticaUsage { input_tokens?: number; output_tokens?: number; total_tokens?: number; cost?: number; [key: string]: unknown; }
+export interface MulticaIssueDetailSnapshot {
+  issue: MulticaIssue; children: MulticaIssue[]; attachments: MulticaAttachment[]; comments: MulticaComment[]; timeline: MulticaTimelineEntry[];
+  runs: MulticaRun[]; runMessages: MulticaRunMessage[]; pullRequests: MulticaPullRequest[]; usage: MulticaUsage;
+  metadata: Record<string, unknown>; properties: Array<Record<string, unknown>>; subscribers: MulticaActor[]; syncedAt: string;
 }
 
 export type ProjectManagementModuleKey =

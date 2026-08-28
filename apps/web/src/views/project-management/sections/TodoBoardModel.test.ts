@@ -1,19 +1,33 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { normalizeBoardStatus } from "./TodoBoardModel.js";
+import { buildMulticaStatuses, groupMulticaIssues, planMulticaDrop } from "./TodoBoardModel.js";
 
-test("将既有三列任务映射到新看板状态", () => {
-  assert.equal(normalizeBoardStatus({ status: "todo" }), "todo");
-  assert.equal(normalizeBoardStatus({ status: "doing" }), "doing");
-  assert.equal(normalizeBoardStatus({ status: "done" }), "done");
+test("按 Multica 标准顺序构建状态并保留实际出现的未知状态", () => {
+  const statuses = buildMulticaStatuses([
+    { id: "in_progress", name: "进行中", position: 2 },
+  ], [
+    { id: "a", title: "A", status: "waiting_external" },
+  ]);
+  assert.deepEqual(statuses.slice(0, 5).map(status => status.id), ["backlog", "todo", "in_progress", "in_review", "done"]);
+  assert.equal(statuses.at(-1)?.id, "waiting_external");
 });
 
-test("保留待规划和审核中的新看板状态", () => {
-  assert.equal(normalizeBoardStatus({ status: "planned" }), "planned");
-  assert.equal(normalizeBoardStatus({ status: "review" }), "review");
+test("按状态和 position 分组任务", () => {
+  const groups = groupMulticaIssues([
+    { id: "b", title: "B", status: "todo", position: 20 },
+    { id: "a", title: "A", status: "todo", position: 10 },
+  ]);
+  assert.deepEqual(groups.get("todo")?.map(issue => issue.id), ["a", "b"]);
 });
 
-test("缺失或未知状态归入待办", () => {
-  assert.equal(normalizeBoardStatus({}), "todo");
-  assert.equal(normalizeBoardStatus({ status: "unknown" }), "todo");
+test("跨列拖动只改变状态，同列拖动生成相对排序", () => {
+  assert.deepEqual(planMulticaDrop({ issueId: "a", fromStatus: "todo", toStatus: "in_progress", beforeId: "b" }), [
+    { kind: "status", issueId: "a", status: "in_progress" },
+  ]);
+  assert.deepEqual(planMulticaDrop({ issueId: "a", fromStatus: "todo", toStatus: "todo", afterId: "b" }), [
+    { kind: "reorder", issueId: "a", afterId: "b" },
+  ]);
+  assert.deepEqual(planMulticaDrop({ issueId: "a", fromStatus: "todo", toStatus: "todo", edge: "bottom" }), [
+    { kind: "reorder", issueId: "a", edge: "bottom" },
+  ]);
 });
