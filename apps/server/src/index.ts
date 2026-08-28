@@ -151,6 +151,11 @@ import { createAIContextProvider } from "./ai/contextProvider.js";
 import { createLogger, noopLogger, type Logger } from "./lib/logger.js";
 import { installShutdownHandlers, childRegistry } from "./lib/childRegistry.js";
 import { mountMcpV2 } from "./mcp-v2/transport.js";
+import type { MulticaBindingRepo } from "./mcp-v2/delegation/multica/MulticaBindingRepo.js";
+import { SqliteMulticaBindingRepo } from "./mcp-v2/delegation/multica/SqliteMulticaBindingRepo.js";
+import { PostgresMulticaBindingRepo } from "./mcp-v2/delegation/multica/PostgresMulticaBindingRepo.js";
+import { createMulticaIntegration } from "./mcp-v2/delegation/multica/createMulticaIntegration.js";
+import { MulticaTaskSynchronizer } from "./mcp-v2/delegation/multica/MulticaTaskSynchronizer.js";
 import type { McpOperationRepo } from "./repos/McpOperationRepo.js";
 import type { McpTaskRepo } from "./repos/McpTaskRepo.js";
 import { SqliteMcpOperationRepo } from "./repos/SqliteMcpOperationRepo.js";
@@ -227,6 +232,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let projectAutomation: ProjectAutomationRepo;
   let mcpOperationRepo: McpOperationRepo;
   let mcpTaskRepo: McpTaskRepo;
+  let multicaBindingRepo: MulticaBindingRepo;
   /** chat_visual_blocks 仅 sqlite + postgres 后端支持；json 模式下保持 null。 */
   let chatVisualBlocks: ChatVisualBlocksRepo | null = null;
   /** chat_attachments 同上 —— bytea 存储需要数据库后端 */
@@ -259,6 +265,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     projectAutomation = new PostgresProjectAutomationRepo(pg);
     mcpOperationRepo = new PostgresMcpOperationRepo(pg);
     mcpTaskRepo = new PostgresMcpTaskRepo(pg);
+    multicaBindingRepo = new PostgresMulticaBindingRepo(pg);
   } else if (storage === "sqlite") {
     const dbPath = process.env.KE_SQLITE_PATH ?? join(root, "ke.db");
     const db = openDb(dbPath);
@@ -280,6 +287,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     projectAutomation = new SqliteProjectAutomationRepo(db);
     mcpOperationRepo = new SqliteMcpOperationRepo(db);
     mcpTaskRepo = new SqliteMcpTaskRepo(db);
+    multicaBindingRepo = new SqliteMulticaBindingRepo(db);
   } else {
     throw new Error(`Unsupported KE_STORAGE=${storage}. Use sqlite or postgres.`);
   }
@@ -295,6 +303,14 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   ];
   loadAIEngineSettings();
   const log = logger ?? opts.logger ?? noopLogger;
+  const multica = createMulticaIntegration(multicaBindingRepo);
+  const multicaTaskSynchronizer = new MulticaTaskSynchronizer(mcpTaskRepo, multica.delegationAdapter, {
+    intervalMs: Number(process.env.RICH_MULTICA_SYNC_INTERVAL_MS) || 30_000,
+    onError: error => log.warn("multica.task_sync.failed", {
+      error: error instanceof Error ? error.message : String(error),
+    }),
+  });
+  multicaTaskSynchronizer.start();
   const manualsDir = opts.aiDir ?? aiDir();
   // ─── Toolbox runtime (gracefully no-op if SQLite repo missing) ──
   const toolRuntime = invocations ? new ToolRuntime(invocations) : null;
@@ -395,6 +411,8 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     taskRepo: mcpTaskRepo,
     greatMe,
     projectAutomation,
+    delegationAdapter: multica.delegationAdapter,
+    executionTeams: multica.executionTeams,
   }, {
     onError: error => log.error("mcp.v2.transport.failed", {
       error: error instanceof Error ? error.message : String(error),
