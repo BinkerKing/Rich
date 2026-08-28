@@ -171,6 +171,7 @@ import { healthRoutes } from "./routes/health.js";
 import { createReminderTicker } from "./lib/reminderTicker.js";
 import { projectsRoutes } from "./routes/projects.js";
 import { projectManagementRoutes } from "./routes/projectManagement.js";
+import { multicaProjectWorkbenchRoutes } from "./routes/multicaProjectWorkbench.js";
 import { projectDictionaryTestFilesRoutes } from "./routes/projectDictionaryTestFiles.js";
 import { rikingProjectsRoutes } from "./routes/rikingProjects.js";
 import { cronRoutes } from "./routes/cron.js";
@@ -206,6 +207,7 @@ import type { ProjectAutomationRepo } from "./modules/project-automation/contrac
 import { PostgresProjectAutomationRepo } from "./modules/project-automation/infrastructure/PostgresProjectAutomationRepo.js";
 import { SqliteProjectAutomationRepo } from "./modules/project-automation/infrastructure/SqliteProjectAutomationRepo.js";
 import { projectAutomationRoutes } from "./modules/project-automation/presentation/routes.js";
+import { PersistentTaskService } from "./mcp-v2/tasks/persistentTaskService.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -304,6 +306,10 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   loadAIEngineSettings();
   const log = logger ?? opts.logger ?? noopLogger;
   const multica = createMulticaIntegration(multicaBindingRepo);
+  const multicaWorkTasks = new PersistentTaskService(mcpTaskRepo, {
+    cancelExternal: task => multica.delegationAdapter.cancel(task.externalTaskId!),
+    getExternalStatus: task => multica.delegationAdapter.getStatus(task.externalTaskId!),
+  });
   const multicaTaskSynchronizer = new MulticaTaskSynchronizer(mcpTaskRepo, multica.delegationAdapter, {
     intervalMs: Number(process.env.RICH_MULTICA_SYNC_INTERVAL_MS) || 30_000,
     onError: error => log.warn("multica.task_sync.failed", {
@@ -357,6 +363,12 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/projects", projectsRoutes(elements, projectManagement));
   app.route("/api/project-management", projectManagementRoutes(projectManagement));
   app.route("/api/project-management", projectAutomationRoutes(projectManagement, projectAutomation));
+  app.route("/api/project-management", multicaProjectWorkbenchRoutes({
+    workbench: multica.workbench,
+    teams: multica.executionTeams,
+    delegation: multica.delegationAdapter,
+    tasks: multicaWorkTasks,
+  }));
   app.route("/api/project-dictionary-test-files", projectDictionaryTestFilesRoutes());
   app.route("/api/riking-projects", rikingProjectsRoutes(root));
 
@@ -413,6 +425,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     projectAutomation,
     delegationAdapter: multica.delegationAdapter,
     executionTeams: multica.executionTeams,
+    taskService: multicaWorkTasks,
   }, {
     onError: error => log.error("mcp.v2.transport.failed", {
       error: error instanceof Error ? error.message : String(error),

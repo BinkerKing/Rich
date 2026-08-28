@@ -25,6 +25,7 @@ export interface BuildMcpV2Deps {
   projectAutomation?: ProjectAutomationRepo;
   delegationAdapter?: WorkDelegationPort;
   executionTeams?: ExecutionTeamAdministrationPort;
+  taskService?: PersistentTaskService;
 }
 
 export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
@@ -32,7 +33,7 @@ export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
   const adapter = deps.delegationAdapter ?? new UnavailableDelegationAdapter(
     "Agent delegation is not configured. Install and configure a Multica CLI adapter before delegating work.",
   );
-  const tasks = new PersistentTaskService(deps.taskRepo, {
+  const tasks = deps.taskService ?? new PersistentTaskService(deps.taskRepo, {
     cancelExternal: task => adapter.cancel(task.externalTaskId!),
     getExternalStatus: task => adapter.getStatus(task.externalTaskId!),
   });

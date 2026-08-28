@@ -28,6 +28,7 @@ describe("Multica production integration", () => {
     const integration = createMulticaIntegration(new MemoryRepo(), { commands });
     expect(integration.executionTeams).toBeTruthy();
     expect(integration.delegationAdapter.backend).toBe("multica-cli");
+    expect(integration.workbench).toBeTruthy();
   });
 
   it("does not discover or execute the CLI during construction", () => {

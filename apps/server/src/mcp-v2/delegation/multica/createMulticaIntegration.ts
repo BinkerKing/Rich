@@ -5,6 +5,7 @@ import type { MulticaBindingRepo } from "./MulticaBindingRepo.js";
 import { MulticaAdministrationService } from "./MulticaAdministrationService.js";
 import { MulticaCliAdapter } from "./MulticaCliAdapter.js";
 import { MulticaCommandRunner } from "./MulticaCommandRunner.js";
+import { MulticaProjectWorkbenchService } from "./MulticaProjectWorkbenchService.js";
 import { discoverMulticaExecutable, parseSupportedMulticaVersion } from "./MulticaExecutableDiscovery.js";
 import { multicaCliConfigFromEnv } from "./config.js";
 import type { MulticaCommandPort } from "./types.js";
@@ -19,6 +20,7 @@ export interface MulticaIntegration {
   commands: MulticaCommandPort;
   executionTeams: ExecutionTeamAdministrationPort;
   delegationAdapter: WorkDelegationPort;
+  workbench: MulticaProjectWorkbenchService;
 }
 
 export function createMulticaIntegration(
@@ -33,6 +35,7 @@ export function createMulticaIntegration(
     commands,
     executionTeams: new MulticaAdministrationService(commands, bindings),
     delegationAdapter: new MulticaCliAdapter(commands, bindings),
+    workbench: new MulticaProjectWorkbenchService(commands, bindings),
   };
 }
 
