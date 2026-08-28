@@ -75,11 +75,13 @@ function makeRegistry() {
 }
 
 describe("MCP 2.0 read resource tools", () => {
-  it("registers four stable read-oriented entry points", () => {
+  it("registers the core read and resource-management entry points", () => {
     expect(makeRegistry().listDefinitions().map(tool => tool.name)).toEqual([
       "rich_context_get_overview",
       "rich_context_search",
+      "rich_dictionary_manage",
       "rich_knowledge_manage",
+      "rich_practice_manage",
       "rich_project_manage",
     ]);
   });
