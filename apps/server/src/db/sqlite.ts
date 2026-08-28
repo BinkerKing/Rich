@@ -220,6 +220,25 @@ function applySchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_mcp_tasks_status ON mcp_tasks(status, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_mcp_tasks_external ON mcp_tasks(backend, external_task_id);
 
+    CREATE TABLE IF NOT EXISTS multica_project_bindings (
+      rich_project_id TEXT PRIMARY KEY,
+      binding_json    TEXT NOT NULL,
+      created_at      TEXT NOT NULL,
+      updated_at      TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS multica_team_plans (
+      id                    TEXT PRIMARY KEY,
+      rich_project_id       TEXT NOT NULL,
+      request_json          TEXT NOT NULL,
+      plan_json             TEXT NOT NULL,
+      status                TEXT NOT NULL,
+      created_at            TEXT NOT NULL,
+      applied_at            TEXT,
+      resolved_binding_json TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_multica_team_plans_project ON multica_team_plans(rich_project_id, created_at DESC);
+
     -- Rich 首页动画展示系统 v0.1：visual 块独立持久化（Markdown ascii 围栏内的图）。
     -- 一条 chat message 可对应 0..N 个 visual 块；orderInMessage 保留在 message 内的出现次序。
     -- payload 是 JSON：ascii / caption / parsed 三个字段
