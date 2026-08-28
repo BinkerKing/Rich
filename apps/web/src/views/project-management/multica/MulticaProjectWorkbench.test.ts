@@ -19,6 +19,9 @@ test("Multica 看板使用源码一致的列宽、卡片密度和品牌归属", 
   assert.match(board, /Multica 已连接/);
   assert.match(board, /connectionView/);
   assert.match(styles, /multica-workbench__connection\.is-connected/);
+  assert.match(board, /className="multica-workbench__subtitle"/);
+  assert.match(styles, /\.multica-workbench__subtitle\s*\{/);
+  assert.doesNotMatch(styles, /\.multica-workbench__toolbar\s*>\s*div\s*>\s*span/);
   assert.match(board, /visibilitychange/);
   assert.doesNotMatch(todos, /createProjectManagementModuleItem/);
 });

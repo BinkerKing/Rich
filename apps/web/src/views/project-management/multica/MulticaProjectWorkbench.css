@@ -18,7 +18,7 @@
 .multica-workbench__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex: 0 0 auto; min-height: 78px; padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,.075); background: #181a1e; }
 .multica-workbench__toolbar p { margin: 0 0 4px; color: #75a8f8; font: 700 10px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing: .08em; }
 .multica-workbench__toolbar h2 { margin: 0; color: #f6f8fc; font-size: 20px; line-height: 1.2; }
-.multica-workbench__toolbar > div > span { display: block; margin-top: 6px; color: #88909d; font-size: 12px; }
+.multica-workbench__subtitle { display: block; margin-top: 6px; color: #88909d; font-size: 12px; }
 .multica-workbench__controls { display: flex; align-items: center; gap: 7px; }
 .multica-workbench__controls button,.multica-workbench__controls label,.multica-workbench__agent,.multica-workbench__connection { min-height: 31px; box-sizing: border-box; border: 1px solid rgba(255,255,255,.09); border-radius: 7px; padding: 6px 10px; color: #a0a8b4; background: #17191d; font-size: 12px; }
 .multica-workbench__controls button { cursor: pointer; }
