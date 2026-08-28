@@ -177,6 +177,18 @@ async function applySchema(pool: Pool): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_tool_invocations_status_ts ON tool_invocations(status, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_tool_invocations_tool ON tool_invocations(tool_name, created_at DESC);
 
+    CREATE TABLE IF NOT EXISTS mcp_operation_log (
+      tool_name TEXT NOT NULL,
+      request_id TEXT NOT NULL,
+      input_hash TEXT NOT NULL,
+      status TEXT NOT NULL,
+      response_json TEXT,
+      created_at TEXT NOT NULL,
+      completed_at TEXT,
+      PRIMARY KEY (tool_name, request_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_mcp_operation_status ON mcp_operation_log(status, created_at DESC);
+
     -- Rich 首页动画展示系统 v0.1：visual 块独立持久化
     CREATE TABLE IF NOT EXISTS chat_visual_blocks (
       id                TEXT PRIMARY KEY,
