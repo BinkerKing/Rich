@@ -97,3 +97,15 @@ rich_context_search / rich_context_get_overview
 ```
 
 Rich 任务 ID 是平台内跟踪和验收主键。外部任务 ID 只用于 Multica/Codex 等适配器同步。未配置委派适配器时，`rich_work_delegate` 返回 `DEPENDENCY_UNAVAILABLE`，不会创建虚假任务。
+
+## Multica 项目工作台
+
+项目应用中的“项目代办”是绑定 Multica Project 的实时工作台，不再读写 Rich 本地 Todo 副本。Multica 是 Issue、状态、排序、负责人、评论、Timeline、Run、执行消息、附件、Pull Request、属性、标签、元数据、订阅者和 Usage 的唯一事实源。
+
+- 看板前台激活时每 5 秒同步，窗口在后台时每 30 秒同步，重新获得焦点后立即同步。
+- 创建、编辑、拖动、评论、指派、取消和重跑都直接回写 Multica，成功后立即重新读取。
+- CLI 或 Profile 暂时不可用时，Rich 保留上次成功内容并显示错误及重试入口，不把失败显示成空任务。
+- “小队”面板展示 Project、Squad、Leader、成员、模型、Runtime、成员 MCP 和目录资源；只有配置了 Rich MCP 的成员可以维护 Rich 项目资料。
+- 任务详情采用 Multica 的主内容、时间线和右侧属性栏结构，界面保留 `Powered by Multica` 归属。
+
+Hermes 仍优先使用 `rich_execution_team_plan`、`rich_execution_team_apply` 和 `rich_work_delegate`。Rich CLI 提供同一套服务的人工和自动化入口；前台不直接执行原始 Multica CLI，也不持有 Workspace/Profile 配置。

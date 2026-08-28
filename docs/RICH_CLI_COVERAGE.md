@@ -54,3 +54,24 @@ pnpm rich -- upload /api/<path> --file <path>
 3. 新增后端按钮即使尚无语义命令，也必须能通过通用 `api`/`sse`/`upload` CLI 操作。
 4. 纯 UI 行为不需要 CLI：切换标签、开关弹窗、筛选、滚动、预览和保存前的本地编辑。
 5. 写入后必须读取验证；CLI 和 MCP 都遵守同一规则。
+
+## Multica 项目闭环
+
+```bash
+# 1. 只读规划：返回 planId 和将复用/创建的 Project、Agent、Squad、MCP、目录资源
+pnpm rich -- multica team plan <projectId> --file team.json --raw
+
+# 2. 用户确认后应用同一个计划
+pnpm rich -- multica team apply <projectId> --confirmed --json '{"planId":"<planId>"}' --raw
+
+# 3. 向绑定的默认 Squad 发布任务
+pnpm rich -- multica work delegate <projectId> --file task.json --raw
+
+# 4. 用 Rich taskId 跟踪，或强制同步当前 Project
+pnpm rich -- multica work status <projectId> <taskId> --raw
+pnpm rich -- multica project sync <projectId> --raw
+```
+
+这些命令调用 Rich Server，与 Hermes MCP 共享团队规划、绑定仓库、委派适配器和幂等规则；它们不会绕过 Rich 直接拼 Multica 原生命令。`team apply` 必须同时提供已返回的 `planId` 和 `--confirmed`。长任务说明应放在权限受限的 JSON 文件中，不出现在 shell 历史里。
+
+项目“代办”页读取相同绑定并实时展示 Multica 工作台。Multica 数据不会复制到 `project_management_items/todos`，因此不存在本地看板与 Multica 双主冲突。

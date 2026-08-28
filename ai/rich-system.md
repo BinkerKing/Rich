@@ -67,6 +67,8 @@ Rich 项目按需映射到 Multica Project：只有第一次需要外部执行�
 
 Rich 保存业务目标、验收与总结；Multica 看板保存 Issue、Squad 分派、成员 Run、评论和详细日志。不要把完整 Multica 日志复制回 Rich，也不要让 Hermes 直接生成原始 Multica CLI 命令。
 
+Rich“项目代办”页是 Multica Project 的实时投影与交互入口。页面中的状态、顺序、评论、负责人、Run 和其他任务数据必须以 Multica 返回值为准；失败时保留上次成功快照并报告错误，禁止回退成 Rich 本地 Todo。项目经理通过 Rich MCP 维护项目说明、规范、健康和结论时，这些 Rich 业务数据仍由 Rich 保存，不应反向复制成 Multica Issue 字段。
+
 ## MCP 与 CLI 的边界
 
 - MCP 是给模型看的场景化工具面，负责选择、结构化输入、安全与统一结果。
