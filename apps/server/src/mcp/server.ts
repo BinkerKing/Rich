@@ -26,6 +26,7 @@ import { registerPlanTools } from "./planTools.js";
 import { registerPracticeTools } from "./practiceTools.js";
 import { registerCorpusTools } from "./corpusTools.js";
 import { registerProjectManagementTools } from "./projectManagementTools.js";
+import { registerProjectAutomationTools } from "./projectAutomationTools.js";
 import {
   listMascotAnimations, playMascotAnimation, getMascotState,
 } from "../lib/mascotState.js";
@@ -85,6 +86,8 @@ export interface BuildMcpDeps {
   /** Optional — exposes 项目管理 modules, data dictionary, and Mapping
    *  metadata to Hermes / other MCP agents. */
   projectManagement?: import("../repos/ProjectManagementRepo.js").ProjectManagementRepo | null;
+  /** Optional — exposes 数据自动化 plan/group/item records to MCP clients. */
+  projectAutomation?: import("../modules/project-automation/contracts.js").ProjectAutomationRepo | null;
 }
 
 /** Drain a structured-AI stream to a single Promise. Used by Layer-2
@@ -1451,6 +1454,9 @@ export function buildMcpServer(deps: BuildMcpDeps): McpServer {
   // module CRUD plus data-dictionary read/search/rectification tools.
   if (deps.projectManagement) {
     registerProjectManagementTools(server, deps.projectManagement);
+  }
+  if (deps.projectAutomation && deps.projectManagement) {
+    registerProjectAutomationTools(server, deps.projectAutomation, deps.projectManagement);
   }
 
   // ───── AI 语料模板 tools ─────────────────────────

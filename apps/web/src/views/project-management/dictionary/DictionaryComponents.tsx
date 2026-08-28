@@ -49,9 +49,7 @@ import {
   type ProjectDictionaryFieldHit,
   type ProjectDictionaryMappingScenario as StoredDictionaryMappingScenario,
   type ProjectDictionaryMappingSqlValidationResult,
-  type ProjectDictionaryMappingTempFieldInput,
   type ProjectDictionaryMappingTempTable,
-  type ProjectDictionaryMappingTempTableInput,
   type ProjectDictionaryRectification,
   type ProjectDictionaryRectificationInput,
   type ProjectDictionarySystem,
@@ -155,6 +153,7 @@ export function DictionaryFieldGrid({
     { id: "formatPattern", label: "格式", width: 140, minWidth: 92 },
     { id: "description", label: "字段说明", width: 320, minWidth: 160 },
     { id: "codeValue", label: "码值说明", width: 280, minWidth: 140 },
+    { id: "verificationStatus", label: "验证状态", width: 100, minWidth: 82 },
     { id: "remark", label: "备注", width: 220, minWidth: 120 },
   ], []);
   const columnResize = useDictionaryResizableColumns(storageKey, columns, loadDictionaryColumnWidths, saveDictionaryColumnWidths);
@@ -167,7 +166,8 @@ export function DictionaryFieldGrid({
     "--dict-grid-c6": `${columnResize.columnWidth("formatPattern")}px`,
     "--dict-grid-c7": `${columnResize.columnWidth("description")}px`,
     "--dict-grid-c8": `${columnResize.columnWidth("codeValue")}px`,
-    "--dict-grid-c9": `${columnResize.columnWidth("remark")}px`,
+    "--dict-grid-c9": `${columnResize.columnWidth("verificationStatus")}px`,
+    "--dict-grid-c10": `${columnResize.columnWidth("remark")}px`,
     "--dict-grid-width": `${columnResize.totalWidth}px`,
   }) as CSSProperties, [columnResize]);
 
@@ -201,6 +201,7 @@ export function DictionaryFieldGrid({
             <span className={cellClass(field, "format_pattern")} onContextMenu={event => onRectify(event, target(field, "format_pattern", "格式", field.formatPattern))}>{compactText(field.formatPattern)}</span>
             <span className={cellClass(field, "description")} onContextMenu={event => onRectify(event, target(field, "description", "字段说明", dictionaryFieldDescription(field)))}>{compactText(dictionaryFieldDescription(field))}</span>
             <span className={cellClass(field, "code_value")} onContextMenu={event => onRectify(event, target(field, "code_value", "码值说明", field.codeValue))}>{formatCodeValueSummary(field)}</span>
+            <span className={`prj-pm-dict-verification is-${field.verificationStatus || "未验证"}`}>{field.verificationStatus || "未验证"}</span>
             <span className={cellClass(field, "remark")} onContextMenu={event => onRectify(event, target(field, "remark", "备注", field.remark))}>{compactText(field.remark)}</span>
           </button>
         ))}
@@ -258,6 +259,8 @@ export function DictionaryMappingPanel({
           logic: rule?.logicText || '{"op":"null"}',
           convertedSql: rule?.convertedSql,
           remark: rule?.remark,
+          verificationStatus: rule?.verificationStatus || "未验证",
+          verificationRemark: rule?.verificationRemark,
           sourceRefs: bindDictionarySourceRefs(extractMappingSourceRefs(field, rule?.logicText || ""), fieldRefIndex),
         };
       }),
@@ -287,6 +290,7 @@ export function DictionaryMappingPanel({
     { id: "fieldCn", label: "中文名", width: 150, minWidth: 110 },
     { id: "logic", label: "逻辑", width: 640, minWidth: 240 },
     { id: "sql", label: "SQL转换", width: 420, minWidth: 220 },
+    { id: "verificationStatus", label: "验证状态", width: 100, minWidth: 82 },
     { id: "remark", label: "备注", width: 220, minWidth: 120 },
   ], []);
   const mappingColumnResize = useDictionaryResizableColumns(
@@ -301,7 +305,8 @@ export function DictionaryMappingPanel({
     "--dict-map-c3": `${mappingColumnResize.columnWidth("fieldCn")}px`,
     "--dict-map-c4": `${mappingColumnResize.columnWidth("logic")}px`,
     "--dict-map-c5": `${mappingColumnResize.columnWidth("sql")}px`,
-    "--dict-map-c6": `${mappingColumnResize.columnWidth("remark")}px`,
+    "--dict-map-c6": `${mappingColumnResize.columnWidth("verificationStatus")}px`,
+    "--dict-map-c7": `${mappingColumnResize.columnWidth("remark")}px`,
     "--dict-map-width": `${mappingColumnResize.totalWidth}px`,
   }) as CSSProperties, [mappingColumnResize]);
 
@@ -468,7 +473,10 @@ export function DictionaryMappingPanel({
                         dictionaryMappingRuleLogicFingerprint(rule.logic),
                       ));
                       const tableRemark = rule.remark?.trim() || "";
-                      const detailRemark = buildDictionaryMappingDisplayRemark(rule);
+                      const detailRemark = [
+                        buildDictionaryMappingDisplayRemark(rule),
+                        rule.verificationRemark?.trim() ? `验证备注：${rule.verificationRemark}` : "",
+                      ].filter(Boolean).join("\n\n");
                       const mappingRectification = rectificationIndex.get(`mapping:${rule.field.id}:${activeScenario.key}`)
                         ?? rectificationIndex.get(`mapping:${rule.field.id}:logic`);
                       return (
@@ -522,6 +530,10 @@ export function DictionaryMappingPanel({
                           </td>
                           <td>
                             <DictionarySqlConversionBadge conversion={sqlConversion} validation={sqlValidationField} validationBusy={sqlValidationBusy} sourceKind={sqlValidation?.sourceKind} />
+                          </td>
+                          <td>
+                            <span className={`prj-pm-dict-verification is-${rule.verificationStatus}`}>{rule.verificationStatus}</span>
+                            {rule.verificationRemark?.trim() ? <small className="prj-pm-dict-verification__remark">{rule.verificationRemark}</small> : null}
                           </td>
                           <td className="prj-pm-dict-mapping-table__remark">{tableRemark || "-"}</td>
                         </tr>
@@ -696,162 +708,236 @@ function DictionaryCaliberDetail({
   );
 }
 
-type DictionaryTempTableDraft = ProjectDictionaryMappingTempTableInput & {
-  fields: ProjectDictionaryMappingTempFieldInput[];
-};
-
 export function DictionaryTempTablePanel({
   projectId,
+  system,
   table,
   tempTables,
-  onSaved,
+  allFields,
+  onInspectProperty,
+  onOpenFieldRef,
+  onOpenTableRef,
 }: {
   projectId: string;
+  system?: ProjectDictionarySystem;
   table?: ProjectDictionaryTable;
   tempTables: ProjectDictionaryMappingTempTable[];
-  onSaved: (tempTables: ProjectDictionaryMappingTempTable[]) => void;
+  allFields: ProjectDictionaryFieldHit[];
+  onInspectProperty: (payload: DictionaryPropertyPayload) => void;
+  onOpenFieldRef: (field: ProjectDictionaryFieldHit) => void;
+  onOpenTableRef: (tableId: string) => void;
 }) {
-  const [drafts, setDrafts] = useState<DictionaryTempTableDraft[]>(() => dictionaryTempTablesToDrafts(tempTables));
-  const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState("");
-
+  const sqlDialect = getDictionarySystemSqlDialect(system);
+  const fieldRefIndex = useMemo(() => buildDictionaryFieldRefIndex(allFields), [allFields]);
+  const tableRefIndex = useMemo(() => buildDictionaryTableRefIndex(table, allFields), [allFields, table]);
+  const orderedTempTables = useMemo(
+    () => tempTables.slice().sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
+    [tempTables],
+  );
+  const [activeTempTableId, setActiveTempTableId] = useState("");
   useEffect(() => {
-    setDrafts(dictionaryTempTablesToDrafts(tempTables));
-    setStatus("");
-  }, [table?.id, tempTables]);
-
-  const patchTable = (tableIndex: number, patch: Partial<DictionaryTempTableDraft>) => {
-    setDrafts(current => current.map((item, index) => index === tableIndex ? { ...item, ...patch } : item));
-  };
-  const patchField = (tableIndex: number, fieldIndex: number, patch: Partial<ProjectDictionaryMappingTempFieldInput>) => {
-    setDrafts(current => current.map((item, index) => index === tableIndex
-      ? { ...item, fields: item.fields.map((field, nextIndex) => nextIndex === fieldIndex ? { ...field, ...patch } : field) }
-      : item));
-  };
-  const addTempTable = () => {
-    setDrafts(current => [...current, createDictionaryTempTableDraft(current.length, table)]);
-  };
-  const removeTempTable = (tableIndex: number) => {
-    setDrafts(current => current.filter((_, index) => index !== tableIndex));
-  };
-  const addTempField = (tableIndex: number) => {
-    setDrafts(current => current.map((item, index) => index === tableIndex
-      ? { ...item, fields: [...item.fields, createDictionaryTempFieldDraft(item.fields.length)] }
-      : item));
-  };
-  const removeTempField = (tableIndex: number, fieldIndex: number) => {
-    setDrafts(current => current.map((item, index) => index === tableIndex
-      ? { ...item, fields: item.fields.filter((_, nextIndex) => nextIndex !== fieldIndex) }
-      : item));
-  };
-  const saveTempTables = async () => {
-    if (!table?.id) return;
-    const normalized = normalizeDictionaryTempTableDrafts(drafts);
-    const firstMissingTable = normalized.find(item => !item.tableName.trim());
-    const firstMissingField = normalized.flatMap(item => item.fields ?? []).find(field => !field.fieldName.trim());
-    if (firstMissingTable) {
-      setStatus("临时表英文名不能为空。");
-      return;
-    }
-    if (firstMissingField) {
-      setStatus("临时字段英文名不能为空。");
-      return;
-    }
-    setBusy(true);
-    setStatus("");
+    setActiveTempTableId(current => (
+      orderedTempTables.some(item => item.id === current) ? current : orderedTempTables[0]?.id || ""
+    ));
+  }, [orderedTempTables]);
+  const tempTable = orderedTempTables.find(item => item.id === activeTempTableId) ?? orderedTempTables[0];
+  const tempRules = useMemo<DictionaryMappingRule[]>(() => (tempTable?.fields ?? []).map(field => {
+    const targetField: ProjectDictionaryFieldHit = {
+      id: field.id,
+      systemId: table?.systemId,
+      tableId: table?.id,
+      tableName: tempTable?.tableName,
+      tableCn: tempTable?.tableCn,
+      fieldName: field.fieldName,
+      fieldCn: field.fieldCn,
+      fieldType: field.fieldType,
+      fieldLength: field.fieldLength,
+      remark: field.remark,
+      score: 0,
+    };
+    const logic = field.logicText || "";
+    return {
+      field: targetField,
+      logic,
+      convertedSql: field.convertedSql,
+      remark: field.remark,
+      sourceRefs: bindDictionarySourceRefs(extractMappingSourceRefs(targetField, logic), fieldRefIndex),
+    };
+  }), [fieldRefIndex, table, tempTable]);
+  const activeCaliber = useMemo(
+    () => tempTable ? buildDictionaryCaliberView(tempTable.logicText || "", fieldRefIndex, tableRefIndex, sqlDialect) : null,
+    [fieldRefIndex, sqlDialect, tableRefIndex, tempTable],
+  );
+  const [sqlValidation, setSqlValidation] = useState<ProjectDictionaryMappingSqlValidationResult | null>(null);
+  const [sqlValidationBusy, setSqlValidationBusy] = useState(false);
+  const [sqlValidationMessage, setSqlValidationMessage] = useState("");
+  useEffect(() => {
+    setSqlValidation(null);
+    setSqlValidationMessage("");
+  }, [tempTable?.id, tempTable?.logicText, tempTable?.updatedAt]);
+  const validateSql = useCallback(async () => {
+    if (!table || !tempTable) return;
+    setSqlValidationBusy(true);
+    setSqlValidationMessage("");
     try {
-      const saved = await api.replaceProjectDictionaryMappingTempTables(projectId, table.id, normalized);
-      onSaved(saved);
-      setStatus(`已保存 ${saved.length} 张临时表。`);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error));
+      const result = await api.validateProjectDictionaryTempTableSql(projectId, table.id, tempTable.id);
+      setSqlValidation(result);
+      setSqlValidationMessage(result.message);
+    } catch (errorValue) {
+      setSqlValidation(null);
+      setSqlValidationMessage(errorValue instanceof Error ? errorValue.message : String(errorValue));
     } finally {
-      setBusy(false);
+      setSqlValidationBusy(false);
     }
-  };
+  }, [projectId, table, tempTable]);
+  useEffect(() => {
+    if (!tempTable || sqlValidation || sqlValidationBusy) return;
+    void validateSql();
+  }, [sqlValidation, sqlValidationBusy, tempTable, validateSql]);
+  const validationByFieldAndLogic = useMemo(() => {
+    const map = new Map<string, NonNullable<ProjectDictionaryMappingSqlValidationResult["fields"]>[number]>();
+    sqlValidation?.fields.forEach(item => {
+      if (!item.logicFingerprint) return;
+      map.set(dictionaryMappingRuleValidationKey(item.fieldId, item.logicFingerprint), item);
+    });
+    return map;
+  }, [sqlValidation]);
+  const tempMappingColumns = useMemo<DictionaryResizableColumn[]>(() => [
+    { id: "index", label: "", width: 42, minWidth: 38 },
+    { id: "fieldName", label: "字段名", width: 150, minWidth: 110 },
+    { id: "fieldCn", label: "中文名", width: 150, minWidth: 110 },
+    { id: "logic", label: "逻辑", width: 640, minWidth: 240 },
+    { id: "sql", label: "SQL转换", width: 420, minWidth: 220 },
+    { id: "remark", label: "备注", width: 220, minWidth: 120 },
+  ], []);
+  const tempMappingColumnResize = useDictionaryResizableColumns(
+    `dictionary-temp-table:${table?.id || "empty"}`,
+    tempMappingColumns,
+    loadDictionaryColumnWidths,
+    saveDictionaryColumnWidths,
+  );
+  const tempMappingTableStyle = useMemo(() => ({
+    "--dict-map-c1": `${tempMappingColumnResize.columnWidth("index")}px`,
+    "--dict-map-c2": `${tempMappingColumnResize.columnWidth("fieldName")}px`,
+    "--dict-map-c3": `${tempMappingColumnResize.columnWidth("fieldCn")}px`,
+    "--dict-map-c4": `${tempMappingColumnResize.columnWidth("logic")}px`,
+    "--dict-map-c5": `${tempMappingColumnResize.columnWidth("sql")}px`,
+    "--dict-map-c6": `${tempMappingColumnResize.columnWidth("remark")}px`,
+    "--dict-map-width": `${tempMappingColumnResize.totalWidth}px`,
+  }) as CSSProperties, [tempMappingColumnResize]);
 
   if (!table) {
-    return <div className="prj-pm-dict-temp__empty">请选择一张表后维护临时表。</div>;
+    return <div className="prj-pm-dict-temp__empty">请选择一张表后查看临时表。</div>;
   }
 
   return (
-    <div className="prj-pm-dict-temp">
-      <header className="prj-pm-dict-temp__toolbar">
-        <div>
-          <strong>临时表</strong>
-          <span>仅供 {table.tableCn || table.tableName} 的 Mapping 使用</span>
-        </div>
-        <div>
-          <button type="button" onClick={addTempTable}>新增临时表</button>
-          <button type="button" className="is-primary" onClick={saveTempTables} disabled={busy}>
-            {busy ? "保存中" : "保存临时表"}
-          </button>
-        </div>
-      </header>
-      {status && <p className={`prj-pm-dict-temp__status${/失败|错误|不能为空|failed|error/i.test(status) ? " is-error" : ""}`}>{status}</p>}
-      {drafts.length === 0 ? (
-        <div className="prj-pm-dict-temp__empty">当前表暂未配置临时表。复杂 Mapping 需要中间结果时，可以先新增一张临时表。</div>
+    <div className="prj-pm-dict-mapping">
+      {orderedTempTables.length === 0 ? (
+        <div className="prj-pm-dict__grid-empty">当前表暂未配置临时表。</div>
       ) : (
-        drafts.map((draft, tableIndex) => (
-          <section className="prj-pm-dict-temp__card" key={draft.id || `temp-table-${tableIndex}`}>
-            <div className="prj-pm-dict-temp__card-head">
-              <strong>{ensureDictionaryTempTableLabel(draft.tableCn || draft.tableName || `临时表${tableIndex + 1}`)}</strong>
-              <button type="button" onClick={() => removeTempTable(tableIndex)}>删除临时表</button>
-            </div>
-            <div className="prj-pm-dict-temp__form">
-              <label>
-                <span>英文名</span>
-                <input value={draft.tableName} onChange={event => patchTable(tableIndex, { tableName: event.target.value })} placeholder="tmp_transaction_base" />
-              </label>
-              <label>
-                <span>中文名</span>
-                <input value={draft.tableCn ?? ""} onChange={event => patchTable(tableIndex, { tableCn: event.target.value })} placeholder="[临时表]交易基础数据" />
-              </label>
-              <label>
-                <span>逻辑</span>
-                <textarea value={draft.logicText ?? ""} onChange={event => patchTable(tableIndex, { logicText: event.target.value })} placeholder='{"op":"full_extract","from":"TRN2.TXT"}' />
-              </label>
-              <label>
-                <span>SQL转换</span>
-                <textarea value={draft.convertedSql ?? ""} onChange={event => patchTable(tableIndex, { convertedSql: event.target.value })} placeholder="FROM TRN2.TXT" />
-              </label>
-              <label className="is-wide">
-                <span>备注</span>
-                <textarea value={draft.remark ?? ""} onChange={event => patchTable(tableIndex, { remark: event.target.value })} placeholder="说明这张临时表的用途、来源和使用边界" />
-              </label>
-            </div>
-            <div className="prj-pm-dict-temp__field-toolbar">
-              <strong>临时字段</strong>
-              <button type="button" onClick={() => addTempField(tableIndex)}>新增字段</button>
-            </div>
-            <div className="prj-pm-dict-temp__field-table">
-              <div className="prj-pm-dict-temp__field-head">
-                <span>英文名</span>
-                <span>中文名</span>
-                <span>类型</span>
-                <span>长度</span>
-                <span>逻辑</span>
-                <span>SQL</span>
-                <span>备注</span>
-                <span />
+        <>
+          <div className="prj-pm-dict-mapping__scenario-tabs" role="tablist" aria-label="临时表场景">
+            {orderedTempTables.map((tableItem, tableIndex) => (
+              <button
+                key={tableItem.id}
+                type="button"
+                role="tab"
+                aria-selected={tempTable?.id === tableItem.id}
+                className={tempTable?.id === tableItem.id ? "is-active" : ""}
+                onClick={() => setActiveTempTableId(tableItem.id)}>
+                <strong>{ensureDictionaryTempTableLabel(tableItem.tableCn || `临时表${tableIndex + 1}`)}</strong>
+              </button>
+            ))}
+          </div>
+          {tempTable && (
+            <section className="prj-pm-dict-mapping__scenario" key={tempTable.id}>
+              <details className="prj-pm-dict-mapping__caliber" open>
+                <summary>
+                  <span>口径</span>
+                  <em>{ensureDictionaryTempTableLabel(tempTable.tableCn || "临时表")} · {tempTable.tableName || "-"}</em>
+                  <button
+                    type="button"
+                    className="prj-pm-dict-mapping__validate-btn"
+                    onClick={event => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      void validateSql();
+                    }}
+                    disabled={sqlValidationBusy}>
+                    {sqlValidationBusy ? "验证中" : "验证SQL"}
+                  </button>
+                  {sqlValidationMessage ? (
+                    <small className={`prj-pm-dict-mapping__validate-message${sqlValidation?.ok ? " is-ok" : " is-error"}`}>
+                      {sqlValidationMessage}
+                    </small>
+                  ) : null}
+                </summary>
+                {activeCaliber ? (
+                  <DictionaryCaliberSummaryRow
+                    caliber={activeCaliber}
+                    validation={sqlValidation?.caliber}
+                    sourceKind={sqlValidation?.sourceKind}
+                    validationBusy={sqlValidationBusy}
+                    rawText={tempTable.logicText || ""}
+                    onOpenFieldRef={onOpenFieldRef}
+                    onOpenTableRef={onOpenTableRef}
+                    onOpenDetail={() => onInspectProperty({
+                      kind: "mappingCaliber",
+                      title: "临时表口径详情",
+                      subtitle: `${ensureDictionaryTempTableLabel(tempTable.tableCn || "临时表")} · ${tempTable.tableName || "-"}`,
+                      value: tempTable.logicText || "",
+                      remark: tempTable.remark,
+                      refs: activeCaliber.fieldRefs,
+                      tableRefs: activeCaliber.tableRefs,
+                      sqlConversion: activeCaliber.conversion,
+                      sqlValidation: sqlValidation?.caliber,
+                      sqlValidationBusy,
+                    })}
+                  />
+                ) : null}
+                <p className="prj-pm-dict-temp__scenario-remark">备注：{tempTable.remark || "-"}</p>
+              </details>
+              <div className="prj-pm-dict-mapping-table-wrap">
+                <table className="prj-pm-dict-mapping-table" style={tempMappingTableStyle}>
+                <thead>
+                  <tr className="prj-pm-dict-mapping-table__head">
+                    {tempMappingColumns.map(column => (
+                      <th key={column.id}>
+                        <DictionaryResizableHeadCell column={column} onResizeStart={tempMappingColumnResize.startResize} />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tempTable.fields.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="prj-pm-dict-temp__no-fields">暂无字段。</td>
+                    </tr>
+                  ) : (
+                    tempRules.map((rule, fieldIndex) => {
+                      const sqlConversion = convertDictionaryMappingRuleToSql(rule, sqlDialect);
+                      const sqlValidationField = validationByFieldAndLogic.get(dictionaryMappingRuleValidationKey(
+                        rule.field.id,
+                        dictionaryMappingRuleLogicFingerprint(rule.logic),
+                      ));
+                      return (
+                        <tr key={rule.field.id} className="prj-pm-dict-mapping-table__row">
+                          <td>{fieldIndex + 1}</td>
+                          <td><strong>{rule.field.fieldName || "-"}</strong></td>
+                          <td><strong>{rule.field.fieldCn || "-"}</strong></td>
+                          <td className="prj-pm-dict-mapping-table__text">{renderDictionaryLogicWithRefs(rule.logic, rule.sourceRefs, onOpenFieldRef)}</td>
+                          <td><DictionarySqlConversionBadge conversion={sqlConversion} validation={sqlValidationField} validationBusy={sqlValidationBusy} sourceKind={sqlValidation?.sourceKind} /></td>
+                          <td className="prj-pm-dict-mapping-table__remark">{rule.remark || "-"}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
               </div>
-              {draft.fields.length === 0 ? (
-                <p>暂无字段。</p>
-              ) : draft.fields.map((field, fieldIndex) => (
-                <div className="prj-pm-dict-temp__field-row" key={field.id || `temp-field-${fieldIndex}`}>
-                  <input value={field.fieldName} onChange={event => patchField(tableIndex, fieldIndex, { fieldName: event.target.value })} placeholder="field_name" />
-                  <input value={field.fieldCn ?? ""} onChange={event => patchField(tableIndex, fieldIndex, { fieldCn: event.target.value })} placeholder="字段中文名" />
-                  <input value={field.fieldType ?? ""} onChange={event => patchField(tableIndex, fieldIndex, { fieldType: event.target.value })} placeholder="varchar" />
-                  <input value={field.fieldLength ?? ""} onChange={event => patchField(tableIndex, fieldIndex, { fieldLength: event.target.value })} placeholder="100" />
-                  <textarea value={field.logicText ?? ""} onChange={event => patchField(tableIndex, fieldIndex, { logicText: event.target.value })} placeholder='{"op":"direct","source":"TRN2.TXT.reference_number"}' />
-                  <textarea value={field.convertedSql ?? ""} onChange={event => patchField(tableIndex, fieldIndex, { convertedSql: event.target.value })} placeholder="TRN2.TXT.reference_number AS fieldName" />
-                  <textarea value={field.remark ?? ""} onChange={event => patchField(tableIndex, fieldIndex, { remark: event.target.value })} placeholder="备注" />
-                  <button type="button" onClick={() => removeTempField(tableIndex, fieldIndex)}>删除</button>
-                </div>
-              ))}
-            </div>
-          </section>
-        ))
+            </section>
+          )}
+        </>
       )}
     </div>
   );
@@ -1304,6 +1390,7 @@ function DictionaryTablePropertyContent({ table }: { table: ProjectDictionaryTab
           <span>文件类型</span><strong>{table.fileType || "-"}</strong>
           <span>是否有Mapping</span><strong>{table.hasMapping === false ? "否" : "是"}</strong>
           <span>是否使用</span><strong>{table.usageStatus || "待确认"}</strong>
+          <span>验证状态</span><strong>{table.verificationStatus || "未验证"}</strong>
           <span>字段数</span><strong>{table.fieldCount}</strong>
         </div>
       </section>
@@ -1325,6 +1412,12 @@ function DictionaryTablePropertyContent({ table }: { table: ProjectDictionaryTab
             <span>{table.tableCn || table.tableName}</span>
           </header>
           <p>{table.caliber}</p>
+        </section>
+      ) : null}
+      {table.verificationRemark?.trim() ? (
+        <section className="prj-pm-dict-field-popover__section is-remark">
+          <header><strong>验证备注</strong><span>{table.verificationStatus || "未验证"}</span></header>
+          <p>{table.verificationRemark}</p>
         </section>
       ) : null}
     </div>
@@ -1445,6 +1538,10 @@ export function DictionaryTableInfoPanel({ table, fields }: { table?: ProjectDic
           <span>字段数量</span>
           <strong>{table.fieldCount || fields.length}</strong>
         </article>
+        <article>
+          <span>验证状态</span>
+          <strong>{table.verificationStatus || "未验证"}</strong>
+        </article>
       </section>
 
       <section className="prj-pm-dict-table-info__section">
@@ -1461,6 +1558,14 @@ export function DictionaryTableInfoPanel({ table, fields }: { table?: ProjectDic
           <span>{table.tableCn || table.tableName}</span>
         </header>
         <p>{table.caliber || "暂无表口径。"}</p>
+      </section>
+
+      <section className="prj-pm-dict-table-info__section">
+        <header>
+          <strong>验证备注</strong>
+          <span>{table.verificationStatus || "未验证"}</span>
+        </header>
+        <p>{table.verificationRemark || "暂无验证备注。"}</p>
       </section>
 
       <DictionaryFileSourceBlock table={table} />
@@ -1515,6 +1620,8 @@ function DictionaryFieldInspector({ field }: { field: ProjectDictionaryFieldDeta
       <DictionaryDetailBlock title="取数与加工逻辑" value={field.acquireLogic} important />
       <DictionaryDetailBlock title="映射目标" value={mapping} />
       <DictionaryDetailBlock title="校验规则" value={field.validationRule} />
+      <DictionaryDetailBlock title="验证状态" value={field.verificationStatus || "未验证"} />
+      <DictionaryDetailBlock title="验证备注" value={field.verificationRemark} />
       <DictionaryCodeValueBlock field={field} />
       <DictionaryDetailBlock title="数据来源" value={field.dataSource} />
       <DictionaryDetailBlock title="备注" value={field.remark} />
@@ -1901,90 +2008,6 @@ function findDictionaryTableByRef(label: string, tableRefIndex: Map<string, Proj
     if (match) return match;
   }
   return tableRefIndex.get(normalizeDictionaryRefKey(parts.at(-1) ?? ""));
-}
-
-function dictionaryTempTablesToDrafts(tempTables: ProjectDictionaryMappingTempTable[]): DictionaryTempTableDraft[] {
-  return tempTables
-    .slice()
-    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    .map(table => ({
-      id: table.id,
-      tableName: table.tableName,
-      tableCn: table.tableCn,
-      logicText: table.logicText,
-      convertedSql: table.convertedSql,
-      remark: table.remark,
-      sortOrder: table.sortOrder,
-      raw: table.raw,
-      fields: table.fields
-        .slice()
-        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-        .map(field => ({
-          id: field.id,
-          fieldName: field.fieldName,
-          fieldCn: field.fieldCn,
-          fieldType: field.fieldType,
-          fieldLength: field.fieldLength,
-          logicText: field.logicText,
-          convertedSql: field.convertedSql,
-          remark: field.remark,
-          sortOrder: field.sortOrder,
-          raw: field.raw,
-        })),
-    }));
-}
-
-function createDictionaryTempTableDraft(index: number, table?: ProjectDictionaryTable): DictionaryTempTableDraft {
-  const baseName = table?.tableName ? `tmp_${table.tableName}` : "tmp_mapping";
-  return {
-    tableName: `${baseName}_${index + 1}`,
-    tableCn: `[临时表]${table?.tableCn || table?.tableName || `临时表${index + 1}`}`,
-    logicText: "",
-    convertedSql: "",
-    remark: "",
-    sortOrder: index,
-    raw: {},
-    fields: [createDictionaryTempFieldDraft(0)],
-  };
-}
-
-function createDictionaryTempFieldDraft(index: number): ProjectDictionaryMappingTempFieldInput {
-  return {
-    fieldName: `field_${index + 1}`,
-    fieldCn: "",
-    fieldType: "varchar",
-    fieldLength: "100",
-    logicText: "",
-    convertedSql: "",
-    remark: "",
-    sortOrder: index,
-    raw: {},
-  };
-}
-
-function normalizeDictionaryTempTableDrafts(drafts: DictionaryTempTableDraft[]): ProjectDictionaryMappingTempTableInput[] {
-  return drafts.map((draft, tableIndex) => ({
-    id: draft.id,
-    tableName: draft.tableName.trim(),
-    tableCn: ensureDictionaryTempTableLabel((draft.tableCn || draft.tableName).trim()),
-    logicText: draft.logicText?.trim() || null,
-    convertedSql: draft.convertedSql?.trim() || null,
-    remark: draft.remark?.trim() || null,
-    sortOrder: tableIndex,
-    raw: draft.raw ?? {},
-    fields: draft.fields.map((field, fieldIndex) => ({
-      id: field.id,
-      fieldName: field.fieldName.trim(),
-      fieldCn: field.fieldCn?.trim() || null,
-      fieldType: field.fieldType?.trim() || null,
-      fieldLength: field.fieldLength?.trim() || null,
-      logicText: field.logicText?.trim() || null,
-      convertedSql: field.convertedSql?.trim() || null,
-      remark: field.remark?.trim() || null,
-      sortOrder: fieldIndex,
-      raw: field.raw ?? {},
-    })),
-  }));
 }
 
 function ensureDictionaryTempTableLabel(value: string): string {

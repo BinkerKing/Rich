@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ProjectListView } from "./ProjectListView.js";
 import { ProjectWorkspace } from "./ProjectWorkspace.js";
+import { consumeShortcutOpen, SHORTCUT_OPEN_EVENT, type ShortcutTarget } from "../lib/shortcutEngine.js";
 import "./ProjectsView.css";
 
 /**
@@ -15,7 +16,19 @@ import "./ProjectsView.css";
  *   - project  = 生产项目运维，关注部署 / 凭证 / 代码 / 待办 / 答疑 / 文件夹 / 报告
  */
 export function ProjectsView(): ReactNode {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    const target = consumeShortcutOpen();
+    return target?.kind === "project" ? target.id : null;
+  });
+
+  useEffect(() => {
+    const onShortcutOpen = (event: Event) => {
+      const target = (event as CustomEvent<ShortcutTarget>).detail;
+      if (target?.kind === "project") setSelectedId(target.id);
+    };
+    window.addEventListener(SHORTCUT_OPEN_EVENT, onShortcutOpen as EventListener);
+    return () => window.removeEventListener(SHORTCUT_OPEN_EVENT, onShortcutOpen as EventListener);
+  }, []);
 
   useEffect(() => {
     if (!selectedId) return;

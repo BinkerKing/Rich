@@ -20,10 +20,22 @@
 
 /** project 元 content —— 顶层项目节点 */
 export interface ProjectContent {
+  /** 兼容早期自由文本分组；新项目分区使用 groupId。 */
+  group?: string;
+  /** 项目选择页分区记录的 id。空值归入“未分组”。 */
+  groupId?: string;
+  /** 同一分区内的展示顺序。 */
+  groupPosition?: number;
+  /** Rich 窗口内快速打开此项目的组合键。 */
+  shortcut?: string;
   description?: string;            // 项目简介 (markdown)
   status?: "active" | "paused" | "archived";
   /** 本地代码 / 文件根目录路径，供文件夹整理用 */
   localFolder?: string;
+  /** 项目 SVN 仓库路径或 URL，仅记录绑定信息，不保存凭据。 */
+  svnPath?: string;
+  /** 项目 GitHub 仓库路径或 URL，仅记录绑定信息，不保存凭据。 */
+  githubPath?: string;
   /** 业务负责人 / 项目角色 */
   owner?: string;
   /** 起始日 / 上线日 */

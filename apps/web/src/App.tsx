@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "./state/store.js";
 import { InputView } from "./views/InputView.js";
 import { TreeView } from "./views/TreeView.js";
@@ -23,6 +23,7 @@ import { MascotDock } from "./components/MascotDock.js";
 import { FloatingTaskDock } from "./components/FloatingTaskDock.js";
 import { connectServerEvents } from "./lib/serverEvents.js";
 import { RICH_NAV_EVENT, RICH_NAV_STORAGE_KEY, type RichNavigationPayload } from "./lib/richNavigation.js";
+import { requestShortcutOpen, useShortcutEngine } from "./lib/shortcutEngine.js";
 
 export function App() {
   const [hashRoute, setHashRoute] = useState(() =>
@@ -59,6 +60,18 @@ function MainApp() {
   const exitToHome = useStore(s => s.exitToHome);
   const setAppView = useStore(s => s.setAppView);
   const enterAtElement = useStore(s => s.enterAtElement);
+  const elements = useStore(s => s.elements);
+  const projectShortcuts = useMemo(() => Array.from(elements.values())
+    .filter(element => element.type === "project" && (element.tags ?? []).includes("project-management"))
+    .flatMap(element => {
+      const shortcut = (element.content as { shortcut?: string } | null)?.shortcut;
+      return shortcut ? [{ id: element.id, shortcut, target: { kind: "project", id: element.id } }] : [];
+    }), [elements]);
+  useShortcutEngine(projectShortcuts, target => {
+    if (target.kind !== "project") return;
+    requestShortcutOpen(target);
+    setAppView("projects");
+  });
   useEffect(() => { void hydrate(); }, [hydrate]);
   // Subscribe to backend SSE so Hermes-driven (or any server-side) writes
   // re-hydrate the UI within ~500ms. Closed on unmount.

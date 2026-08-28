@@ -37,6 +37,12 @@ import {
   type ProjectModuleItemPatch,
   type ProjectModuleItem,
 } from "./ProjectManagementRepo.js";
+import {
+  dictionaryFieldMatchesOwnContent,
+  dictionaryTableMatchesOwnContent,
+  dictionaryTableSearchScore,
+  projectManagementSearchDestination,
+} from "./projectManagementSearch.js";
 
 interface CountRow {
   key: string;
@@ -105,6 +111,8 @@ interface FieldRow {
   acquire_logic: string | null;
   code_value: string | null;
   remark: string | null;
+  verification_status: string | null;
+  verification_remark: string | null;
   mapped_table: string | null;
   mapped_field: string | null;
   mapped_field_cn?: string | null;
@@ -135,6 +143,8 @@ interface MappingRuleRow {
   logic_text: string | null;
   converted_sql: string | null;
   remark: string | null;
+  verification_status: string | null;
+  verification_remark: string | null;
   sort_order: number;
   raw: string | null;
   created_at: string;
@@ -225,6 +235,8 @@ interface TableRow {
   file_type: string | null;
   has_mapping: number;
   usage_status: string | null;
+  verification_status: string | null;
+  verification_remark: string | null;
   description: string | null;
   caliber: string | null;
   extra: string | null;
@@ -314,7 +326,8 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
        ORDER BY score DESC, updated_at DESC
        LIMIT ?`,
     ).all(...(q ? [q, q, like, projectId, like, boundedLimit] : ["", "", "", projectId, boundedLimit])) as SearchRow[];
-    return rows.map(row => ({
+    // Dictionary entities are searched from their normalized tables below; legacy generic-index rows would duplicate them.
+    const moduleHits = rows.filter(row => row.module_key !== "dictionary").map(row => ({
       id: row.id,
       moduleKey: row.module_key as ProjectManagementSearchHit["moduleKey"],
       entityType: row.entity_type,
@@ -324,7 +337,41 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
       excerpt: excerpt(row.body),
       score: row.score,
       updatedAt: row.updated_at,
+      destination: projectManagementSearchDestination({ moduleKey: row.module_key as ProjectManagementSearchHit["moduleKey"], entityType: row.entity_type, entityId: row.entity_id }),
     }));
+    if (!q) return moduleHits;
+    const tableHits = (await this.listDictionaryTables(projectId))
+      .filter(table => dictionaryTableMatchesOwnContent(table, query))
+      .map(table => ({
+        id: `dictionary-table:${table.id}`,
+        moduleKey: "dictionary" as const,
+        entityType: "dictionaryTable",
+        entityId: table.id,
+        title: table.tableCn ? `${table.tableCn} · ${table.tableName}` : table.tableName,
+        subtitle: [table.tableGroup, table.dataLayer, table.sourceKind].filter(Boolean).join(" / ") || undefined,
+        excerpt: excerpt([table.description, table.caliber].filter(Boolean).join(" ")),
+        score: dictionaryTableSearchScore(table, query),
+        updatedAt: "",
+        destination: projectManagementSearchDestination({ moduleKey: "dictionary", entityType: "dictionaryTable", entityId: table.id, systemId: table.systemId }),
+      }));
+    const matchedTableIds = new Set(tableHits.map(hit => hit.entityId));
+    const dictionaryHits = (await this.searchDictionaryFields(projectId, query, boundedLimit))
+      .filter(field => dictionaryFieldMatchesOwnContent(field, query) && !matchedTableIds.has(field.tableId ?? ""))
+      .map(field => ({
+      id: `dictionary-field:${field.id}`,
+      moduleKey: "dictionary" as const,
+      entityType: "dictionaryField",
+      entityId: field.id,
+      title: field.fieldCn ? `${field.fieldName} · ${field.fieldCn}` : field.fieldName,
+      subtitle: [field.systemCode || field.systemName, field.tableCn || field.tableName].filter(Boolean).join(" / ") || undefined,
+      excerpt: excerpt([field.description, field.codeValue, field.remark].filter(Boolean).join(" ")),
+      score: field.fieldName.toLowerCase() === q ? 100 : field.fieldCn?.toLowerCase() === q ? 96 : Math.max(40, field.score),
+      updatedAt: "",
+      destination: projectManagementSearchDestination({ moduleKey: "dictionary", entityType: "dictionaryField", entityId: field.id, systemId: field.systemId, tableId: field.tableId }),
+      }));
+    return [...moduleHits, ...tableHits, ...dictionaryHits]
+      .sort((left, right) => right.score - left.score || right.updatedAt.localeCompare(left.updatedAt))
+      .slice(0, boundedLimit);
   }
 
   async listModuleItems(projectId: string, moduleKey: ProjectManagementModuleKey, parentId?: string): Promise<ProjectModuleItem[]> {
@@ -338,10 +385,20 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
     return rows.map(moduleItemFromRow);
   }
 
+  async listAllModuleItems(projectId: string, moduleKey: ProjectManagementModuleKey): Promise<ProjectModuleItem[]> {
+    const rows = this.db.prepare(
+      `SELECT id, project_id, module_key, parent_id, title, subtitle, sort_order, content, created_at, updated_at
+         FROM pm_module_items
+        WHERE project_id = ? AND module_key = ?
+        ORDER BY sort_order ASC, updated_at DESC`,
+    ).all(projectId, moduleKey) as ModuleItemRow[];
+    return rows.map(moduleItemFromRow);
+  }
+
   async createModuleItem(projectId: string, input: ProjectModuleItemInput): Promise<ProjectModuleItem> {
     const now = new Date().toISOString();
     const id = `pm-item-${randomUUID()}`;
-    const title = input.title.trim() || "未命名事项";
+    const title = input.title.trim() || (input.moduleKey === "todos" ? "" : "未命名事项");
     const content = input.content ?? {};
     this.db.prepare(
       `INSERT INTO pm_module_items (id, project_id, module_key, parent_id, title, subtitle, sort_order, content, created_at, updated_at)
@@ -357,7 +414,7 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
     const current = this.getModuleItem(projectId, itemId);
     if (!current) return null;
     const now = new Date().toISOString();
-    const title = patch.title === undefined ? current.title : patch.title.trim() || "未命名事项";
+    const title = patch.title === undefined ? current.title : patch.title.trim() || (current.moduleKey === "todos" ? "" : "未命名事项");
     const subtitle = patch.subtitle === undefined ? current.subtitle ?? null : patch.subtitle ?? null;
     const parentId = patch.parentId === undefined ? current.parentId ?? null : patch.parentId ?? null;
     const sortOrder = patch.sortOrder === undefined ? current.sortOrder : patch.sortOrder;
@@ -477,7 +534,7 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
   async listDictionaryTables(projectId: string, systemId?: string): Promise<ProjectDictionaryTable[]> {
     const rows = this.db.prepare(
       `SELECT
-         t.id, t.system_id, t.table_name, t.table_cn, t.table_group, t.data_layer, t.table_type, t.source_kind, t.file_type, t.has_mapping, t.usage_status, t.description, t.caliber, t.extra,
+         t.id, t.system_id, t.table_name, t.table_cn, t.table_group, t.data_layer, t.table_type, t.source_kind, t.file_type, t.has_mapping, t.usage_status, t.verification_status, t.verification_remark, t.description, t.caliber, t.extra,
          coalesce(fc.field_count, 0) AS field_count
        FROM pm_data_tables t
        LEFT JOIN (
@@ -502,6 +559,8 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
       fileType: row.file_type ?? undefined,
       hasMapping: Boolean(row.has_mapping),
       usageStatus: row.usage_status ?? undefined,
+      verificationStatus: verificationStatus(row.verification_status),
+      verificationRemark: row.verification_remark ?? undefined,
       description: row.description ?? undefined,
       caliber: row.caliber ?? undefined,
       extra: parseJsonObject(row.extra),
@@ -515,7 +574,7 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
     this.db.prepare(
       `UPDATE pm_data_tables SET
          system_id=?, table_name=?, table_cn=?, table_group=?, data_layer=?, table_type=?,
-         source_kind=?, file_type=?, has_mapping=?, usage_status=?, description=?, caliber=?,
+         source_kind=?, file_type=?, has_mapping=?, usage_status=?, verification_status=?, verification_remark=?, description=?, caliber=?,
          extra=?, updated_at=?
        WHERE project_id=? AND id=?`,
     ).run(
@@ -529,6 +588,8 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
       patch.fileType === undefined ? current.fileType ?? null : patch.fileType,
       Number(patch.hasMapping ?? current.hasMapping),
       patch.usageStatus === undefined ? current.usageStatus ?? null : patch.usageStatus,
+      patch.verificationStatus === undefined ? current.verificationStatus ?? "未验证" : patch.verificationStatus,
+      patch.verificationRemark === undefined ? current.verificationRemark ?? null : patch.verificationRemark,
       patch.description === undefined ? current.description ?? null : patch.description,
       patch.caliber === undefined ? current.caliber ?? null : patch.caliber,
       JSON.stringify(patch.extra === undefined ? current.extra ?? {} : { ...current.extra, ...patch.extra }),
@@ -544,7 +605,7 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
       `SELECT
          f.id, f.system_id, s.name AS system_name, s.code AS system_code,
          f.table_id, t.table_name, t.table_cn,
-         f.field_name, f.field_cn, f.field_type, f.field_length, f.format_pattern, f.carrier_kind, f.field_order, f.source_field_order, f.description, f.acquire_logic, f.code_value, f.remark, f.extra,
+         f.field_name, f.field_cn, f.field_type, f.field_length, f.format_pattern, f.carrier_kind, f.field_order, f.source_field_order, f.description, f.acquire_logic, f.code_value, f.remark, f.verification_status, f.verification_remark, f.extra,
          f.mapped_table, f.mapped_field, f.mapped_field_cn,
          50 AS score
        FROM pm_data_fields f
@@ -581,6 +642,8 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
       mappedField: row.mapped_field ?? undefined,
       mappedFieldCn: row.mapped_field_cn ?? undefined,
       remark: row.remark ?? undefined,
+      verificationStatus: verificationStatus(row.verification_status),
+      verificationRemark: row.verification_remark ?? undefined,
       extra: parseJsonObject(row.extra),
       score: row.score,
     }));
@@ -735,7 +798,7 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
          f.field_name, f.field_cn, f.field_type, f.field_length, f.format_pattern, f.carrier_kind, f.nullable,
          f.primary_key, f.required, f.description, f.acquire_logic, f.validation_rule,
          f.code_value, f.mapped_table, f.mapped_field, f.mapped_field_cn,
-         f.data_source, f.remark, f.extra,
+         f.data_source, f.remark, f.verification_status, f.verification_remark, f.extra,
          t.description AS table_description, t.caliber AS table_caliber,
          t.data_layer AS table_data_layer, t.source_kind AS table_source_kind,
          s.type AS system_type, s.asset_layer AS system_asset_layer, s.description AS system_description,
@@ -781,6 +844,8 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
       mappedFieldCn: row.mapped_field_cn ?? undefined,
       dataSource: row.data_source ?? undefined,
       remark: row.remark ?? undefined,
+      verificationStatus: verificationStatus(row.verification_status),
+      verificationRemark: row.verification_remark ?? undefined,
       extra: parseJsonObject(row.extra),
       score: row.score,
     };
@@ -794,7 +859,7 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
          field_cn=?, field_type=?, field_length=?, format_pattern=?, nullable=?,
          primary_key=?, required=?, description=?, acquire_logic=?, validation_rule=?,
          code_value=?, mapped_table=?, mapped_field=?, mapped_field_cn=?,
-         data_source=?, remark=?, extra=?, updated_at=?
+         data_source=?, remark=?, verification_status=?, verification_remark=?, extra=?, updated_at=?
        WHERE project_id=? AND id=?`,
     ).run(
       patch.fieldCn === undefined ? current.fieldCn ?? null : patch.fieldCn,
@@ -812,6 +877,8 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
       patch.mappedFieldCn === undefined ? current.mappedFieldCn ?? null : patch.mappedFieldCn,
       patch.dataSource === undefined ? current.dataSource ?? null : patch.dataSource,
       patch.remark === undefined ? current.remark ?? null : patch.remark,
+      patch.verificationStatus === undefined ? current.verificationStatus ?? "未验证" : patch.verificationStatus,
+      patch.verificationRemark === undefined ? current.verificationRemark ?? null : patch.verificationRemark,
       JSON.stringify(patch.extra === undefined ? current.extra ?? {} : patch.extra), new Date().toISOString(),
       projectId, fieldId,
     );
@@ -896,7 +963,7 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
   async listDictionaryMappingRules(projectId: string, tableId: string): Promise<ProjectDictionaryMappingRule[]> {
     const rows = this.db.prepare(
       `SELECT id, project_id, scenario_id, system_id, table_id, field_id, status,
-              logic_text, converted_sql, remark, sort_order, raw, created_at, updated_at
+              logic_text, converted_sql, remark, verification_status, verification_remark, sort_order, raw, created_at, updated_at
          FROM pm_mapping_rules
         WHERE project_id = ? AND table_id = ?
         ORDER BY sort_order ASC, id ASC`,
@@ -936,7 +1003,7 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
   async getDictionaryMappingRule(projectId: string, mappingRuleId: string): Promise<ProjectDictionaryMappingRule | null> {
     const row = this.db.prepare(
       `SELECT id, project_id, scenario_id, system_id, table_id, field_id, status,
-              logic_text, converted_sql, remark, sort_order, raw, created_at, updated_at
+              logic_text, converted_sql, remark, verification_status, verification_remark, sort_order, raw, created_at, updated_at
          FROM pm_mapping_rules
         WHERE project_id = ? AND id = ?
         LIMIT 1`,
@@ -952,7 +1019,7 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
   ): Promise<ProjectDictionaryMappingRule | null> {
     const current = this.db.prepare(
       `SELECT id, project_id, scenario_id, system_id, table_id, field_id, status,
-              logic_text, converted_sql, remark, sort_order, raw, created_at, updated_at
+              logic_text, converted_sql, remark, verification_status, verification_remark, sort_order, raw, created_at, updated_at
          FROM pm_mapping_rules
         WHERE project_id = ? AND id = ?
         LIMIT 1`,
@@ -962,7 +1029,7 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
     this.db.prepare(
       `UPDATE pm_mapping_rules
           SET scenario_id = ?, system_id = ?, table_id = ?, field_id = ?, status = ?,
-              logic_text = ?, converted_sql = ?, remark = ?, sort_order = ?, raw = ?, updated_at = ?
+              logic_text = ?, converted_sql = ?, remark = ?, verification_status = ?, verification_remark = ?, sort_order = ?, raw = ?, updated_at = ?
         WHERE project_id = ? AND id = ?`,
     ).run(
       patch.scenarioId === undefined ? current.scenario_id : patch.scenarioId,
@@ -973,6 +1040,8 @@ export class SqliteProjectManagementRepo implements ProjectManagementRepo {
       patch.logicText === undefined ? current.logic_text : patch.logicText,
       patch.convertedSql === undefined ? current.converted_sql : patch.convertedSql,
       patch.remark === undefined ? current.remark : patch.remark,
+      patch.verificationStatus === undefined ? current.verification_status ?? "未验证" : patch.verificationStatus,
+      patch.verificationRemark === undefined ? current.verification_remark : patch.verificationRemark,
       patch.sortOrder ?? current.sort_order,
       patch.raw === undefined ? current.raw : JSON.stringify(patch.raw),
       now,
@@ -1265,6 +1334,8 @@ function mappingRuleFromRow(
     logicText: row.logic_text ?? undefined,
     convertedSql: row.converted_sql ?? undefined,
     remark: row.remark ?? undefined,
+    verificationStatus: verificationStatus(row.verification_status),
+    verificationRemark: row.verification_remark ?? undefined,
     sortOrder: row.sort_order,
     raw: parseJsonObject(row.raw),
     sourceFields,
@@ -1397,6 +1468,10 @@ function validateMappingRules(
 
 function normalizeMappingStatus(status: string): string {
   return status.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function verificationStatus(value?: string | null): "未验证" | "已验证" | "待整改" {
+  return value === "已验证" || value === "待整改" ? value : "未验证";
 }
 
 function groupBy<T>(items: T[], getKey: (item: T) => string): Map<string, T[]> {

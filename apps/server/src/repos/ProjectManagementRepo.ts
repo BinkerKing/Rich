@@ -142,6 +142,8 @@ export interface ProjectDictionaryTable {
   fileType?: string;
   hasMapping?: boolean;
   usageStatus?: string;
+  verificationStatus?: "未验证" | "已验证" | "待整改";
+  verificationRemark?: string;
   description?: string;
   caliber?: string;
   extra?: Record<string, unknown>;
@@ -159,6 +161,8 @@ export interface ProjectDictionaryTablePatch {
   fileType?: "txt" | "xml" | "csv" | "excel" | null;
   hasMapping?: boolean;
   usageStatus?: string | null;
+  verificationStatus?: "未验证" | "已验证" | "待整改" | null;
+  verificationRemark?: string | null;
   description?: string | null;
   caliber?: string | null;
   /** Merged with existing metadata so callers can patch individual flags safely. */
@@ -207,6 +211,8 @@ export interface ProjectDictionaryFieldHit {
   mappedField?: string;
   mappedFieldCn?: string;
   remark?: string;
+  verificationStatus?: "未验证" | "已验证" | "待整改";
+  verificationRemark?: string;
   extra?: Record<string, unknown>;
   score: number;
 }
@@ -249,6 +255,8 @@ export interface ProjectDictionaryFieldPatch {
   mappedFieldCn?: string | null;
   dataSource?: string | null;
   remark?: string | null;
+  verificationStatus?: "未验证" | "已验证" | "待整改" | null;
+  verificationRemark?: string | null;
   extra?: Record<string, unknown>;
 }
 
@@ -357,6 +365,8 @@ export interface ProjectDictionaryMappingRule {
   logicText?: string;
   convertedSql?: string;
   remark?: string;
+  verificationStatus?: "未验证" | "已验证" | "待整改";
+  verificationRemark?: string;
   sortOrder: number;
   raw?: Record<string, unknown>;
   sourceFields: ProjectDictionaryMappingSourceField[];
@@ -374,6 +384,8 @@ export interface ProjectDictionaryMappingRulePatch {
   logicText?: string | null;
   convertedSql?: string | null;
   remark?: string | null;
+  verificationStatus?: "未验证" | "已验证" | "待整改" | null;
+  verificationRemark?: string | null;
   sortOrder?: number;
   raw?: Record<string, unknown>;
 }
@@ -500,6 +512,16 @@ export interface ProjectManagementSearchHit {
   excerpt?: string;
   score: number;
   updatedAt: string;
+  destination: ProjectManagementSearchDestination;
+}
+
+/** UI-independent instruction for opening and focusing a search result. */
+export interface ProjectManagementSearchDestination {
+  section: ProjectManagementModuleKey;
+  entityType: string;
+  entityId: string;
+  systemId?: string;
+  tableId?: string;
 }
 
 export interface ProjectModuleItem {
@@ -536,6 +558,8 @@ export interface ProjectManagementRepo {
   getSummary(projectId: string): Promise<ProjectManagementSummary>;
   searchAll(projectId: string, query: string, limit: number): Promise<ProjectManagementSearchHit[]>;
   listModuleItems(projectId: string, moduleKey: ProjectManagementModuleKey, parentId?: string): Promise<ProjectModuleItem[]>;
+  /** List every item in a module, including nested items. */
+  listAllModuleItems(projectId: string, moduleKey: ProjectManagementModuleKey): Promise<ProjectModuleItem[]>;
   createModuleItem(projectId: string, input: ProjectModuleItemInput): Promise<ProjectModuleItem>;
   updateModuleItem(projectId: string, itemId: string, patch: ProjectModuleItemPatch): Promise<ProjectModuleItem | null>;
   deleteModuleItem(projectId: string, itemId: string): Promise<boolean>;

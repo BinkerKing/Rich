@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import type { DeploymentStepContent, Element, ProjectContent } from "@ke/domain";
 import { useStore } from "../state/store.js";
 import {
   api,
   type ProjectFolderNode,
   type ProjectFolderScanResult,
+  type ProjectModuleItem,
   type ProjectManagementSummary,
 } from "../api/client.js";
 import { TopologyCanvas } from "./TopologyCanvas.js";
@@ -22,6 +23,7 @@ import {
   TodosSection,
   WorkflowSection,
   type ProjectManagementSection,
+  type ProjectManagementSearchTarget,
 } from "./project-management/index.js";
 
 interface Props { projectId: string }
@@ -32,6 +34,10 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const [summary, setSummary] = useState<ProjectManagementSummary | null>(null);
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);
+  const [searchAnchorLeft, setSearchAnchorLeft] = useState<number | null>(null);
+  const [searchTarget, setSearchTarget] = useState<ProjectManagementSearchTarget | null>(null);
+  const workspaceHeaderRef = useRef<HTMLElement | null>(null);
+  const searchButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     setSection(loadProjectManagementWorkspaceSection(projectId));
@@ -73,10 +79,25 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
     saveDictionaryMappingTarget(project.id, tableId, systemId);
     selectSection("dictionary");
   };
+  const navigateSearchResult = (target: ProjectManagementSearchTarget) => {
+    setSearchTarget(target);
+    selectSection(target.section);
+  };
+  const toggleSearch = () => {
+    setSearchVisible(visible => {
+      if (!visible && workspaceHeaderRef.current && searchButtonRef.current) {
+        const header = workspaceHeaderRef.current.getBoundingClientRect();
+        const button = searchButtonRef.current.getBoundingClientRect();
+        setSearchAnchorLeft(Math.min(button.right - header.left + 8, header.width - 280));
+      }
+      return !visible;
+    });
+    setSearchFocusSignal(value => value + 1);
+  };
 
   return (
     <div className="prj-ws">
-      <header className="prj-ws__head" onDoubleClick={toggleWindowMaximize}>
+      <header ref={workspaceHeaderRef} className="prj-ws__head" onDoubleClick={toggleWindowMaximize}>
         <div className="prj-ws__project-title" aria-label="当前项目">
           <span className="prj-ws__title">{project.title}</span>
           <span className={`prj-ws__status prj-ws__status--${c.status ?? "active"}`}>{statusLabel}</span>
@@ -96,23 +117,21 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
             </button>
           ))}
           <button
+            ref={searchButtonRef}
             type="button"
             className={`prj-ws__nav-btn prj-ws__nav-btn--search${searchVisible ? " is-active" : ""}`}
             data-section="globalSearch"
             aria-label="全局搜索"
             title="全局搜索"
-            onClick={() => {
-              setSearchVisible(value => !value);
-              setSearchFocusSignal(value => value + 1);
-            }}>
+            onClick={toggleSearch}>
             <span className="prj-ws__nav-icon" aria-hidden="true">⌕</span>
             <span className="prj-ws__nav-label">全局搜索</span>
           </button>
         </nav>
-        <div className={`prj-ws__head-search${searchVisible ? " is-open" : ""}`}>
+        <div className={`prj-ws__head-search${searchVisible ? " is-open" : ""}`} style={searchAnchorLeft === null ? undefined : { left: `${searchAnchorLeft}px` }}>
           <ProjectManagementSearchBar
             projectId={project.id}
-            onJump={selectSection}
+            onNavigate={navigateSearchResult}
             autoFocusSignal={searchFocusSignal}
           />
         </div>
@@ -121,7 +140,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
       <div className="prj-ws__main">
         <div className="prj-ws__body">
           {section === "description" && <ProjectDescriptionSection projectId={project.id} />}
-          {section === "dictionary" && <DictionarySection project={project} summary={summary} />}
+          {section === "dictionary" && <DictionarySection project={project} summary={summary} searchTarget={searchTarget?.section === "dictionary" ? searchTarget : null} />}
           {section === "automation" && <AutomationSection projectId={project.id} onOpenMapping={openDictionaryMapping} />}
           {section === "workflow" && <WorkflowSection project={project} summary={summary} />}
           {section === "scenarios" && <ScenariosSection project={project} summary={summary} />}
@@ -130,7 +149,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
           {section === "monitoring" && <MonitoringSection project={project} summary={summary} />}
           {section === "codeVersions" && <CodeVersionsSection project={project} summary={summary} />}
           {section === "todos" && <TodosSection project={project} summary={summary} />}
-          {section === "folder" && <FolderSection project={project} />}
+          {section === "folder" && <FolderSection project={project} searchTarget={searchTarget?.section === "folder" ? searchTarget : null} />}
         </div>
       </div>
     </div>
@@ -229,6 +248,7 @@ function OverviewSection({ project }: { project: Element }) {
   function startEdit() {
     setDraft({
       title: project.title,
+      group: c.group ?? "",
       description: c.description ?? "",
       status: c.status ?? "active",
       owner: c.owner ?? "",
@@ -274,6 +294,7 @@ function OverviewSection({ project }: { project: Element }) {
           <>
             {c.description && <p className="prj-overview__desc">{c.description}</p>}
             <dl className="prj-overview__meta">
+              {c.group && (<><dt>项目分组</dt><dd>{c.group}</dd></>)}
               {c.owner && (<><dt>负责人</dt><dd>{c.owner}</dd></>)}
               {c.localFolder && (<><dt>本地目录</dt><dd><code>{c.localFolder}</code></dd></>)}
               {c.startedAt && (<><dt>启动日</dt><dd>{c.startedAt}</dd></>)}
@@ -296,6 +317,11 @@ function OverviewSection({ project }: { project: Element }) {
                 <option value="paused">暂停</option>
                 <option value="archived">已归档</option>
               </select>
+            </label>
+            <label><span>项目分组</span>
+              <input type="text" value={draft.group ?? ""}
+                onChange={e => setDraft(d => ({ ...d, group: e.target.value }))}
+                placeholder="例如：二代 SAFE / 内部工具" />
             </label>
             <label className="prj-form__wide"><span>项目简介</span>
               <textarea rows={3} value={draft.description ?? ""}
@@ -476,31 +502,41 @@ function KPI({ icon, label, primary, sub }: { icon: string; label: string; prima
 //   ─ AI 整理（建议 + 移动）留下一批
 
 const RECOMMENDED_STRUCTURE: Array<{ path: string; desc: string }> = [
-  { path: "00-启动",                      desc: "SOW、启动会议、解决方案等合同前期文档" },
-  { path: "01-项目管理",                  desc: "项目计划 / 日报 / 周报 / 会议纪要" },
-  { path: "01-项目管理/日报",             desc: "" },
-  { path: "01-项目管理/周报",             desc: "" },
-  { path: "01-项目管理/发文",             desc: "对外发文、通知、函件及回执" },
-  { path: "02-架构与分析",                desc: "需求范围、产品文档" },
-  { path: "02-架构与分析/需求范围",       desc: "" },
-  { path: "02-架构与分析/产品文档",       desc: "" },
-  { path: "03-Mapping",                   desc: "数据映射模板（当前生效版本 + _archive 历史版本）" },
-  { path: "03-Mapping/_archive",          desc: "" },
-  { path: "04-环境与部署",                desc: "按环境分目录" },
-  { path: "04-环境与部署/_docs",          desc: "" },
-  { path: "04-环境与部署/dev",            desc: "" },
-  { path: "04-环境与部署/staging",        desc: "" },
-  { path: "04-环境与部署/prod",           desc: "" },
-  { path: "04-环境与部署/升级步骤",       desc: "" },
-  { path: "05-流程配置",                  desc: "" },
-  { path: "05-流程配置/_archive",         desc: "" },
-  { path: "06-版本管理",                  desc: "" },
-  { path: "07-联调与测试",                desc: "" },
-  { path: "07-联调与测试/SQL脚本",        desc: "" },
-  { path: "07-联调与测试/测试数据",       desc: "测试文件、构造数据与测试结果" },
-  { path: "08-培训与交付",                desc: "" },
-  { path: "09-银行材料",                  desc: "银行提供的规范、模板、样例及往来材料" },
-  { path: "99-未分类",                    desc: "暂无法归类的文件先放这里，后续再整理" },
+  { path: "AI项目管理",                 desc: "项目管理手册" },
+  { path: "00-启动",                      desc: "合同、SOW、方案" },
+  { path: "00-启动/合同",                 desc: "" },
+  { path: "00-启动/方案",                 desc: "" },
+  { path: "01-管理",                      desc: "计划与过程资料" },
+  { path: "01-管理/计划",                 desc: "" },
+  { path: "01-管理/日报",                 desc: "" },
+  { path: "01-管理/周报",                 desc: "" },
+  { path: "01-管理/会议",                 desc: "" },
+  { path: "01-管理/问题",                 desc: "风险、问题与变更" },
+  { path: "02-分析",                      desc: "需求、产品、接口" },
+  { path: "02-分析/需求",                 desc: "" },
+  { path: "02-分析/产品",                 desc: "" },
+  { path: "02-分析/接口",                 desc: "" },
+  { path: "03-Mapping",                   desc: "映射与数据字典" },
+  { path: "03-Mapping/字典",              desc: "" },
+  { path: "03-Mapping/分析",              desc: "" },
+  { path: "03-Mapping/归档",              desc: "" },
+  { path: "04-部署",                      desc: "环境、脚本、配置" },
+  { path: "04-部署/环境",                 desc: "" },
+  { path: "04-部署/脚本",                 desc: "" },
+  { path: "04-部署/配置",                 desc: "" },
+  { path: "05-版本",                      desc: "发布与源码" },
+  { path: "05-版本/发布",                 desc: "" },
+  { path: "05-版本/源码",                 desc: "" },
+  { path: "06-测试",                      desc: "测试与联调" },
+  { path: "06-测试/用例",                 desc: "" },
+  { path: "06-测试/数据",                 desc: "" },
+  { path: "06-测试/报告",                 desc: "" },
+  { path: "07-交付",                      desc: "培训、手册、验收" },
+  { path: "07-交付/手册",                 desc: "" },
+  { path: "07-交付/验收",                 desc: "" },
+  { path: "08-材料",                      desc: "客户提供材料" },
+  { path: "08-材料/监管发文",             desc: "" },
+  { path: "99-其他",                      desc: "待整理资料" },
 ];
 
 type ProjectContentWithFolderScan = ProjectContent & {
@@ -555,41 +591,202 @@ function savedFolderScan(content: ProjectContent, folder: string): ProjectFolder
   return scan;
 }
 
-function FolderSection({ project }: { project: Element }) {
+function folderOpenPathsStorageKey(projectId: string) {
+  return `rich:folder-open-paths:${projectId}`;
+}
+
+function folderTreeZoomStorageKey(projectId: string) {
+  return `rich:folder-tree-zoom:${projectId}`;
+}
+
+function loadFolderTreeZoom(projectId: string): number {
+  try {
+    const zoom = Number(window.localStorage.getItem(folderTreeZoomStorageKey(projectId)));
+    return Number.isFinite(zoom) ? Math.min(1.6, Math.max(.8, zoom)) : 1;
+  } catch {
+    return 1;
+  }
+}
+
+function loadFolderOpenPaths(projectId: string): Set<string> {
+  try {
+    const saved = window.localStorage.getItem(folderOpenPathsStorageKey(projectId));
+    if (!saved) return new Set([""]);
+    const paths = JSON.parse(saved);
+    return Array.isArray(paths) ? new Set(paths.filter((path): path is string => typeof path === "string")) : new Set([""]);
+  } catch {
+    return new Set([""]);
+  }
+}
+
+function FolderSection({ project, searchTarget }: { project: Element; searchTarget: ProjectManagementSearchTarget | null }) {
   const hydrate = useStore(s => s.hydrate);
   const c = (project.content ?? {}) as ProjectContentWithFolderScan;
   const folder = c.localFolder ?? "";
 
-  const [bindEditing, setBindEditing] = useState(false);
   const [bindDraft, setBindDraft] = useState(folder);
+  const [svnDraft, setSvnDraft] = useState(c.svnPath ?? "");
+  const [githubDraft, setGithubDraft] = useState(c.githubPath ?? "");
 
   const [scan, setScan] = useState<ProjectFolderScanResult | null>(() => savedFolderScan(c, folder));
   const [scanBusy, setScanBusy] = useState(false);
   const [scanErr, setScanErr] = useState<string | null>(null);
+  const [folderEntries, setFolderEntries] = useState<ProjectModuleItem[]>([]);
+  const [selectedFolderPath, setSelectedFolderPath] = useState<string | null>(null);
+  const [focusedFolderPath, setFocusedFolderPath] = useState<string | null>(null);
+  const [draggingFolderPath, setDraggingFolderPath] = useState<string | null>(null);
+  const [dropTargetPath, setDropTargetPath] = useState<string | null>(null);
+  const [folderMenu, setFolderMenu] = useState<{ item: ProjectModuleItem; x: number; y: number } | null>(null);
+  const [renameTarget, setRenameTarget] = useState<ProjectModuleItem | null>(null);
+  const [pendingFolderAction, setPendingFolderAction] = useState<{ action: string; path: string } | null>(null);
+  const [openFolderPaths, setOpenFolderPaths] = useState(() => loadFolderOpenPaths(project.id));
+  const [folderTreeZoom, setFolderTreeZoom] = useState(() => loadFolderTreeZoom(project.id));
+  const pendingFolderActionRef = useRef(false);
 
   const [creatingDirs, setCreatingDirs] = useState(false);
   const [createResult, setCreateResult] = useState<string | null>(null);
+  const [recommendedStructureOpen, setRecommendedStructureOpen] = useState(false);
+  const [importantOpen, setImportantOpen] = useState(false);
 
   const [selectedDirs, setSelectedDirs] = useState<Set<string>>(
     new Set(RECOMMENDED_STRUCTURE.map(s => s.path)),
   );
 
   useEffect(() => {
+    if (!folderMenu) return;
+    const closeMenu = () => setFolderMenu(null);
+    window.addEventListener("click", closeMenu);
+    return () => window.removeEventListener("click", closeMenu);
+  }, [folderMenu]);
+
+  useEffect(() => {
     setBindDraft(folder);
+    setSvnDraft(c.svnPath ?? "");
+    setGithubDraft(c.githubPath ?? "");
     setScan(savedFolderScan(c, folder));
     setScanErr(null);
   }, [project.id, folder, c.lastFolderScan]);
 
+  useEffect(() => {
+    setOpenFolderPaths(loadFolderOpenPaths(project.id));
+    setFolderTreeZoom(loadFolderTreeZoom(project.id));
+  }, [project.id]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(folderOpenPathsStorageKey(project.id), JSON.stringify([...openFolderPaths]));
+    } catch {
+      // 浏览器存储不可用时保留当前会话中的展开状态。
+    }
+  }, [project.id, openFolderPaths]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(folderTreeZoomStorageKey(project.id), String(folderTreeZoom));
+    } catch {
+      // 浏览器存储不可用时保留当前会话中的缩放比例。
+    }
+  }, [project.id, folderTreeZoom]);
+
+  const toggleFolderOpen = useCallback((path: string) => {
+    setOpenFolderPaths(paths => {
+      const next = new Set(paths);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  }, []);
+
+  const ensureFolderOpen = useCallback((path: string) => {
+    setOpenFolderPaths(paths => paths.has(path) ? paths : new Set(paths).add(path));
+  }, []);
+
+  function setFolderSubtreeOpen(item: ProjectModuleItem, open: boolean) {
+    const path = String(item.content.relativePath ?? "");
+    const root = scan?.root;
+    if (!root || !path) return;
+    const findNode = (node: ProjectFolderNode): ProjectFolderNode | null => {
+      if (node.path === path) return node;
+      for (const child of node.children ?? []) {
+        const found = findNode(child);
+        if (found) return found;
+      }
+      return null;
+    };
+    const target = findNode(root);
+    if (!target) return;
+    const paths: string[] = [];
+    const collect = (node: ProjectFolderNode) => {
+      if (node.kind === "dir") paths.push(node.path);
+      node.children?.forEach(collect);
+    };
+    collect(target);
+    setOpenFolderPaths(current => {
+      const next = new Set(current);
+      paths.forEach(entryPath => open ? next.add(entryPath) : next.delete(entryPath));
+      return next;
+    });
+  }
+
+  async function loadFolderEntries() {
+    const items = await api.listProjectManagementModuleItems(project.id, "folder", undefined, true);
+    setFolderEntries(items.filter(item => item.content.recordType === "folder-entry"));
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    void api.listProjectManagementModuleItems(project.id, "folder", undefined, true)
+      .then(items => { if (!cancelled) setFolderEntries(items.filter(item => item.content.recordType === "folder-entry")); })
+      .catch(() => { if (!cancelled) setFolderEntries([]); });
+    return () => { cancelled = true; };
+  }, [project.id]);
+
+  const folderEntriesByPath = useMemo(() => new Map(
+    folderEntries.map(item => [String(item.content.relativePath ?? ""), item]),
+  ), [folderEntries]);
+  const markedFolderEntries = useMemo(() => folderEntries
+    .filter(item => item.content.marked && item.content.present !== false)
+    .sort((a, b) => String(a.content.relativePath ?? "").localeCompare(String(b.content.relativePath ?? ""), "zh-CN")), [folderEntries]);
+
+  useEffect(() => {
+    if (!searchTarget || searchTarget.entityType !== "folderEntry") return;
+    const target = folderEntries.find(item => item.id === searchTarget.entityId);
+    if (!target) return;
+    const path = String(target.content.relativePath ?? "");
+    if (!path) return;
+    setSelectedFolderPath(path);
+    setFocusedFolderPath(path);
+  }, [folderEntries, searchTarget]);
+
+  function beginFolderAction(action: string, path: string): boolean {
+    if (pendingFolderActionRef.current) {
+      window.alert("文件操作正在同步，请等待完成后再继续操作。");
+      return false;
+    }
+    pendingFolderActionRef.current = true;
+    setPendingFolderAction({ action, path });
+    return true;
+  }
+
+  function finishFolderAction() {
+    pendingFolderActionRef.current = false;
+    setPendingFolderAction(null);
+  }
+
   async function saveBind() {
     const next = bindDraft.trim();
     try {
-      const nextContent: ProjectContentWithFolderScan = { ...c, localFolder: next || undefined };
+      const nextContent: ProjectContentWithFolderScan = {
+        ...c,
+        localFolder: next || undefined,
+        svnPath: svnDraft.trim() || undefined,
+        githubPath: githubDraft.trim() || undefined,
+      };
       if (next !== folder) delete nextContent.lastFolderScan;
       await api.patchElement(project.id, {
         content: nextContent,
       });
       await hydrate();
-      setBindEditing(false);
     } catch (e) {
       window.alert(`保存失败: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -599,8 +796,9 @@ function FolderSection({ project }: { project: Element }) {
     if (!folder) return;
     setScanBusy(true); setScanErr(null);
     try {
-      const result = await api.scanProjectFolder(project.id, 4);
+      const result = await api.scanProjectFolder(project.id);
       setScan(result);
+      await loadFolderEntries();
       await api.patchElement(project.id, {
         content: { ...c, lastFolderScan: result },
       });
@@ -610,6 +808,104 @@ function FolderSection({ project }: { project: Element }) {
     } finally {
       setScanBusy(false);
     }
+  }
+
+  async function saveFolderRemark(item: ProjectModuleItem, remark: string) {
+    const updated = await api.updateProjectManagementModuleItem(project.id, item.id, {
+      content: { ...item.content, remark: remark.trim() || undefined },
+    });
+    setFolderEntries(items => items.map(entry => entry.id === updated.id ? updated : entry));
+  }
+
+  const selectedFolderEntry = selectedFolderPath === null ? null : folderEntriesByPath.get(selectedFolderPath) ?? null;
+
+  async function saveFolderAiNote(item: ProjectModuleItem, aiNote: string) {
+    const updated = await api.updateProjectManagementModuleItem(project.id, item.id, {
+      content: { ...item.content, aiNote: aiNote.trim() || undefined },
+    });
+    setFolderEntries(items => items.map(entry => entry.id === updated.id ? updated : entry));
+  }
+
+  async function moveFolderEntry(item: ProjectModuleItem, target: ProjectModuleItem) {
+    const sourcePath = String(item.content.relativePath ?? "");
+    const targetPath = String(target.content.relativePath ?? "");
+    if (!sourcePath || sourcePath === targetPath || targetPath.startsWith(`${sourcePath}/`)) return;
+    const destinationPath = targetPath ? `${targetPath}/${item.title}` : item.title;
+    if (!beginFolderAction("移动", destinationPath)) return;
+    setScan(current => current ? { ...current, root: moveFolderTreeNode(current.root, sourcePath, targetPath) } : current);
+    setFolderEntries(items => moveFolderEntries(items, sourcePath, destinationPath, target.id));
+    setSelectedFolderPath(destinationPath);
+    setFocusedFolderPath(destinationPath);
+    try {
+      await api.moveProjectFolderEntry(project.id, item.id, target.id);
+      await runScan();
+    } catch (e) {
+      window.alert(`移动失败: ${e instanceof Error ? e.message : String(e)}`);
+      await runScan();
+    } finally {
+      finishFolderAction();
+    }
+  }
+
+  async function renameFolderEntry(item: ProjectModuleItem, name: string): Promise<boolean> {
+    const nextName = name.trim();
+    if (!nextName || nextName === item.title) return true;
+    const sourcePath = String(item.content.relativePath ?? "");
+    if (!sourcePath) return false;
+    const destinationPath = `${sourcePath.split("/").slice(0, -1).join("/")}${sourcePath.includes("/") ? "/" : ""}${nextName}`;
+    if (!beginFolderAction("重命名", destinationPath)) return false;
+    setScan(current => current ? { ...current, root: renameFolderTreeNode(current.root, sourcePath, destinationPath, nextName) } : current);
+    setFolderEntries(items => renameFolderEntries(items, sourcePath, destinationPath, nextName));
+    setSelectedFolderPath(destinationPath);
+    setFocusedFolderPath(destinationPath);
+    try {
+      await api.renameProjectFolderEntry(project.id, item.id, nextName);
+      await runScan();
+      return true;
+    } catch (e) {
+      window.alert(`重命名失败: ${e instanceof Error ? e.message : String(e)}`);
+      await runScan();
+      return false;
+    } finally {
+      finishFolderAction();
+    }
+  }
+
+  async function deleteFolderEntry(item: ProjectModuleItem) {
+    if (!window.confirm(`确定删除“${item.title}”${item.content.kind === "dir" ? "及其全部内容" : ""}吗？此操作会删除真实文件，无法撤销。`)) return;
+    const sourcePath = String(item.content.relativePath ?? "");
+    if (!sourcePath) return;
+    if (!beginFolderAction("删除", sourcePath)) return;
+    setScan(current => current ? { ...current, root: removeFolderTreeNode(current.root, sourcePath) } : current);
+    setFolderEntries(items => items.filter(entry => {
+      const path = String(entry.content.relativePath ?? "");
+      return path !== sourcePath && !path.startsWith(`${sourcePath}/`);
+    }));
+    setSelectedFolderPath(null);
+    setFocusedFolderPath(null);
+    try {
+      await api.deleteProjectFolderEntry(project.id, item.id);
+      await runScan();
+    } catch (e) {
+      window.alert(`删除失败: ${e instanceof Error ? e.message : String(e)}`);
+      await runScan();
+    } finally {
+      finishFolderAction();
+    }
+  }
+
+  async function setFolderIgnored(item: ProjectModuleItem, ignored: boolean) {
+    try {
+      await api.setProjectFolderIgnored(project.id, item.id, ignored);
+      await runScan();
+    } catch (e) { window.alert(`${ignored ? "忽略" : "取消忽略"}失败: ${e instanceof Error ? e.message : String(e)}`); }
+  }
+
+  async function setFolderMarked(item: ProjectModuleItem, marked: boolean) {
+    const updated = await api.updateProjectManagementModuleItem(project.id, item.id, {
+      content: { ...item.content, marked },
+    });
+    setFolderEntries(items => items.map(entry => entry.id === updated.id ? updated : entry));
   }
 
   function toggleDir(p: string) {
@@ -631,7 +927,7 @@ function FolderSection({ project }: { project: Element }) {
     setCreatingDirs(true); setCreateResult(null);
     try {
       const r = await api.mkdirsInProjectFolder(project.id, paths);
-      setCreateResult(`✓ 已建 ${r.created.length} 个目录；跳过 ${r.skipped.length} 个${r.skipped.length > 0 ? `（${r.skipped.map(s => s.path).slice(0, 3).join(", ")}…）` : ""}`);
+      setCreateResult(`✓ 已建 ${r.created.length} 个目录；${r.manual ? r.manual.created ? "已创建 AI项目管理/项目管理手册.md；" : "项目管理手册已保留；" : ""}跳过 ${r.skipped.length} 个${r.skipped.length > 0 ? `（${r.skipped.map(s => s.path).slice(0, 3).join(", ")}…）` : ""}`);
       // 建完自动重扫一次
       void runScan();
     } catch (e) {
@@ -643,53 +939,26 @@ function FolderSection({ project }: { project: Element }) {
 
   return (
     <div className="prj-folder-section">
-      {/* —— 1. 绑定 —— */}
-      <section className="prj-folder-section__bind">
-        <header>
-          <h3>📁 绑定项目目录</h3>
-        </header>
-        {!bindEditing ? (
-          folder ? (
-            <div className="prj-folder-section__bind-row">
-              <code>{folder}</code>
-              <button className="prj-btn-link" onClick={() => { setBindDraft(folder); setBindEditing(true); }}>✎ 改路径</button>
-            </div>
-          ) : (
-            <div className="prj-folder-section__bind-empty">
-              <span>这个项目还没绑定本地目录。绑定后才能扫描 / 建结构 / AI 整理。</span>
-              <button className="prj-btn-primary" onClick={() => { setBindDraft(""); setBindEditing(true); }}>+ 绑定文件夹</button>
-            </div>
-          )
-        ) : (
-          <div className="prj-folder-section__bind-edit">
-            <input type="text" autoFocus
-              placeholder="/Users/你/Documents/项目目录"
-              value={bindDraft}
-              onChange={e => setBindDraft(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Enter") void saveBind();
-                if (e.key === "Escape") setBindEditing(false);
-              }} />
-            <button className="prj-btn-primary" onClick={() => void saveBind()}>保存</button>
-            <button className="prj-btn-link" onClick={() => setBindEditing(false)}>取消</button>
-          </div>
-        )}
-      </section>
-
-      {/* —— 2. 当前目录扫描 —— */}
+      <div className="prj-folder-section__workspace">
+      {/* —— 2. 项目目录扫描 —— */}
       <section className="prj-folder-section__scan">
         <header className="prj-folder-section__row-head">
-          <h3>🔍 当前结构</h3>
-          <div>
-            <button className="prj-btn-primary" disabled={!folder || scanBusy} onClick={() => void runScan()}>
-              {scanBusy ? "扫描中…" : scan ? "刷新结构" : "扫描"}
+          <button className="prj-folder-section__root-select" onClick={() => { setSelectedFolderPath(""); setFocusedFolderPath(""); setRecommendedStructureOpen(false); setImportantOpen(false); }}>
+            📁 项目目录：<code>{folder || "未绑定"}</code>
+          </button>
+          <div className="prj-folder-section__actions">
+            <button className="prj-folder-section__action is-initialize" onClick={() => { setRecommendedStructureOpen(true); setImportantOpen(false); setSelectedFolderPath(null); }}>初始化</button>
+            <button className="prj-folder-section__action is-scan" disabled={!folder || scanBusy || !!pendingFolderAction} onClick={() => void runScan()}>
+              {scanBusy ? "遍历中…" : "遍历"}
             </button>
+            <button className="prj-folder-section__action is-important" onClick={() => { setImportantOpen(true); setRecommendedStructureOpen(false); setSelectedFolderPath(null); }}>重要{markedFolderEntries.length > 0 ? ` (${markedFolderEntries.length})` : ""}</button>
           </div>
         </header>
         {!folder && <div className="prj-folder-section__empty">先绑定项目目录</div>}
         {scanErr && <div className="prj-folder-section__err">⚠ {scanErr}</div>}
+        {pendingFolderAction && <div className="prj-folder-section__sync">⌛ 正在同步：{pendingFolderAction.action} {pendingFolderAction.path}</div>}
         {folder && !scan && !scanBusy && !scanErr && (
-          <div className="prj-folder-section__empty">还没有扫描记录，点右上角「扫描」后会自动记住。</div>
+          <div className="prj-folder-section__empty">还没有目录记录，点右上角「遍历目录」后会逐条入库。</div>
         )}
         {scan && (
           <>
@@ -700,27 +969,37 @@ function FolderSection({ project }: { project: Element }) {
               {scan.warnings.length > 0 && <span className="prj-folder-section__warn">⚠ {scan.warnings.length} 警告</span>}
               <span className="prj-folder-section__time">扫于 {new Date(scan.scannedAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}</span>
             </div>
-            <div className="prj-folder-section__tree">
-              <FolderTree node={scan.root} depth={0} />
+            <div className="prj-folder-section__tree" style={{ fontSize: `${12 * folderTreeZoom}px` }}>
+              <FolderTree node={scan.root} depth={0} entriesByPath={folderEntriesByPath}
+                focusPath={focusedFolderPath} draggingPath={draggingFolderPath} dropTargetPath={dropTargetPath} pendingAction={pendingFolderAction}
+                openPaths={openFolderPaths} onToggleOpen={toggleFolderOpen} onEnsureOpen={ensureFolderOpen}
+                onSelect={path => { const selectedPath = path === "." ? "" : path; setSelectedFolderPath(selectedPath); setFocusedFolderPath(selectedPath); setRecommendedStructureOpen(false); setImportantOpen(false); }} onMove={moveFolderEntry}
+                onDragStart={setDraggingFolderPath} onDragTarget={setDropTargetPath} onDragEnd={() => { setDraggingFolderPath(null); setDropTargetPath(null); }}
+                onContextMenu={(item, x, y) => setFolderMenu({ item, x, y })} />
             </div>
-            {scan.extStats.length > 0 && (
-              <div className="prj-folder-section__ext-stats">
+            <div className="prj-folder-section__ext-bar">
+              {scan.extStats.length > 0 && <div className="prj-folder-section__ext-stats">
                 <span>文件类型 Top {scan.extStats.length}：</span>
                 {scan.extStats.map(s => (
                   <span key={s.ext} className="prj-folder-section__ext-chip">
                     {s.ext} <strong>{s.count}</strong>
                   </span>
                 ))}
+              </div>}
+              <div className="prj-folder-section__tree-zoom" aria-label="目录树缩放">
+                <button type="button" onClick={() => setFolderTreeZoom(zoom => Math.max(.8, Number((zoom - .1).toFixed(1))))} disabled={folderTreeZoom <= .8} title="缩小目录树">−</button>
+                <button type="button" onClick={() => setFolderTreeZoom(zoom => Math.min(1.6, Number((zoom + .1).toFixed(1))))} disabled={folderTreeZoom >= 1.6} title="放大目录树">+</button>
               </div>
-            )}
+            </div>
           </>
         )}
       </section>
 
-      {/* —— 3. 推荐结构 —— */}
-      <section className="prj-folder-section__template">
+      <aside className="prj-folder-section__detail-pane">
+      {/* —— 3. 推荐结构（默认收起）—— */}
+      {recommendedStructureOpen && <section className="prj-folder-section__template">
         <header className="prj-folder-section__row-head">
-          <h3>🪜 推荐目录结构</h3>
+          <h3>🪜 推荐目录结构 <span className="prj-folder-section__template-count">共 {RECOMMENDED_STRUCTURE.length} 项</span></h3>
           <div className="prj-folder-section__template-actions">
             <span className="prj-folder-section__hint">勾选要建的目录，已存在的会跳过</span>
             <button className="prj-btn-link" onClick={() => setSelectedDirs(new Set(RECOMMENDED_STRUCTURE.map(s => s.path)))}>全选</button>
@@ -743,41 +1022,105 @@ function FolderSection({ project }: { project: Element }) {
                 style={{ paddingLeft: `${depth * 18 + 6}px` }}>
                 <label>
                   <input type="checkbox" checked={checked} onChange={() => toggleDir(item.path)} />
-                  <span className="prj-folder-section__template-name">{item.path.split("/").pop()}</span>
+                  <span className="prj-folder-section__template-name" title={item.path}>{item.path.split("/").pop()}</span>
                   {item.desc && <span className="prj-folder-section__template-desc">— {item.desc}</span>}
                 </label>
               </li>
             );
           })}
         </ul>
-      </section>
+      </section>}
 
-      {/* —— 4. AI 整理（下一批） —— */}
-      <section className="prj-folder-section__ai">
-        <h3>🤖 AI 整理 <span className="prj-folder-section__hint">下一批接入</span></h3>
-        <p>扫描当前结构 → AI 分析问题 → 给出 dry-run 重组方案 → 你确认后一键 mv。</p>
-        <button className="prj-btn-link" disabled>⏳ 待接入</button>
-      </section>
+      {importantOpen && <section className="prj-folder-section__important">
+        <header><h3>重要文件与目录 <span>{markedFolderEntries.length} 项</span></h3></header>
+        {markedFolderEntries.length === 0 ? <p className="prj-folder-section__empty">尚未标记重要文件或目录。</p> : <ul>
+          {markedFolderEntries.map(item => (
+            <li key={item.id}>
+              <button onClick={() => setFocusedFolderPath(String(item.content.relativePath ?? ""))}>
+                <span>{item.content.kind === "dir" ? "📁" : "📄"} {item.title}</span>
+                <code>{String(item.content.relativePath ?? "") || "/"}</code>
+              </button>
+            </li>
+          ))}
+        </ul>}
+      </section>}
+
+      {/* —— 4. 选中项信息 / AI 整理 —— */}
+      {!recommendedStructureOpen && !importantOpen && <section className="prj-folder-section__ai">
+        {selectedFolderPath === "" || !folder ? <FolderPathDetails bindDraft={bindDraft} svnDraft={svnDraft} githubDraft={githubDraft}
+          onChangeLocal={setBindDraft} onChangeSvn={setSvnDraft} onChangeGithub={setGithubDraft} onSave={() => void saveBind()} /> : selectedFolderEntry ? <FolderEntryDetails item={selectedFolderEntry} onSaveRemark={saveFolderRemark}
+          onSaveAiNote={saveFolderAiNote} /> : <>
+          <h3>🤖 AI 整理 <span className="prj-folder-section__hint">下一批接入</span></h3>
+          <p>单击文件或目录可查看信息、填写备注与 AI 注释；拖拽文件到目录可移动真实文件。</p>
+        </>}
+      </section>}
+      </aside>
+      </div>
+      {folderMenu && <FolderContextMenu item={folderMenu.item} x={folderMenu.x} y={folderMenu.y} disabled={!!pendingFolderAction} onClose={() => setFolderMenu(null)}
+        onOpen={() => void api.openProjectFolderFile(project.id, folderMenu.item.id).catch(e => window.alert(`打开失败: ${e instanceof Error ? e.message : String(e)}`))}
+        onReveal={() => void api.revealProjectFolderEntry(project.id, folderMenu.item.id).catch(e => window.alert(`访达打开失败: ${e instanceof Error ? e.message : String(e)}`))}
+        onExpand={() => setFolderSubtreeOpen(folderMenu.item, true)} onCollapse={() => setFolderSubtreeOpen(folderMenu.item, false)}
+        onRename={() => setRenameTarget(folderMenu.item)} onDelete={() => void deleteFolderEntry(folderMenu.item)}
+        onIgnore={ignored => void setFolderIgnored(folderMenu.item, ignored)} onMark={marked => void setFolderMarked(folderMenu.item, marked)} />}
+      {renameTarget && <FolderRenameDialog item={renameTarget} onClose={() => setRenameTarget(null)} onRename={name => renameFolderEntry(renameTarget, name)} />}
     </div>
   );
 }
 
-function FolderTree({ node, depth }: { node: ProjectFolderNode; depth: number }) {
-  const [open, setOpen] = useState(depth < 1);   // 默认展开根 + 一级
+function FolderTree({
+  node, depth, entriesByPath, focusPath, draggingPath, dropTargetPath, pendingAction, openPaths, onToggleOpen, onEnsureOpen, onSelect, onMove, onDragStart, onDragTarget, onDragEnd, onContextMenu,
+}: {
+  node: ProjectFolderNode;
+  depth: number;
+  entriesByPath: Map<string, ProjectModuleItem>;
+  focusPath: string | null;
+  draggingPath: string | null;
+  dropTargetPath: string | null;
+  pendingAction: { action: string; path: string } | null;
+  openPaths: Set<string>;
+  onToggleOpen: (path: string) => void;
+  onEnsureOpen: (path: string) => void;
+  onSelect: (path: string) => void;
+  onMove: (item: ProjectModuleItem, target: ProjectModuleItem) => Promise<void>;
+  onDragStart: (path: string) => void;
+  onDragTarget: (path: string | null) => void;
+  onDragEnd: () => void;
+  onContextMenu: (item: ProjectModuleItem, x: number, y: number) => void;
+}) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const entry = entriesByPath.get(node.path);
   const isDir = node.kind === "dir";
+  const isEmptyDir = isDir && (node.children?.length ?? 0) === 0;
+  const open = openPaths.has(node.path);
+  const canAcceptDrop = !!(isDir && entry && draggingPath && draggingPath !== node.path && !node.path.startsWith(`${draggingPath}/`));
+  useEffect(() => {
+    if (focusPath === null) return;
+    const containsFocus = node.path === "" || focusPath === node.path || focusPath.startsWith(`${node.path}/`);
+    if (isDir && containsFocus) onEnsureOpen(node.path);
+    if (focusPath === node.path) requestAnimationFrame(() => rowRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }));
+  }, [focusPath, isDir, node.path, onEnsureOpen]);
+  if (entry?.content.present === false) return null;
+  const isPending = pendingAction?.path === node.path;
   return (
     <div className="prj-tree-node">
-      <div className="prj-tree-row" style={{ paddingLeft: `${depth * 18 + 4}px` }}>
+      <div ref={rowRef} className={`prj-tree-row${focusPath === node.path ? " is-focused" : ""}${draggingPath === node.path ? " is-dragging" : ""}${dropTargetPath === node.path && canAcceptDrop ? " is-drop-target" : ""}${isPending ? " is-pending" : ""}`} style={{ paddingLeft: `${depth * 18 + 4}px` }} onClick={() => onSelect(node.path)}
+        onDoubleClick={() => { if (isDir) onToggleOpen(node.path); }} draggable={!!entry && node.path !== "" && !pendingAction}
+        onDragStart={e => { if (entry) { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", entry.id); onDragStart(node.path); } }}
+        onDragOver={e => { if (canAcceptDrop) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; onDragTarget(node.path); } }}
+        onDragLeave={() => { if (dropTargetPath === node.path) onDragTarget(null); }}
+        onDragEnd={onDragEnd}
+        onDrop={e => { e.preventDefault(); const source = Array.from(entriesByPath.values()).find(item => item.id === e.dataTransfer.getData("text/plain")); onDragEnd(); if (source && entry && source.id !== entry.id && canAcceptDrop) void onMove(source, entry); }}
+        onContextMenu={e => { if (!entry) return; e.preventDefault(); onContextMenu(entry, e.clientX, e.clientY); }}>
         {isDir ? (
           <button
             className="prj-tree-toggle"
-            onClick={() => setOpen(o => !o)}
+            onClick={() => onToggleOpen(node.path)}
             disabled={(node.children?.length ?? 0) === 0}
           >{(node.children?.length ?? 0) === 0 ? "·" : open ? "▾" : "▸"}</button>
         ) : (
           <span className="prj-tree-toggle prj-tree-toggle--leaf">·</span>
         )}
-        <span className={`prj-tree-name prj-tree-name--${node.kind}`}>
+        <span className={`prj-tree-name prj-tree-name--${node.kind}${isEmptyDir ? " is-empty" : ""}${entry?.content.marked ? " is-marked" : ""}`}>
           {isDir ? "📁" : extIcon(node.ext)} {node.name || "(根目录)"}
         </span>
         <span className="prj-tree-meta">
@@ -786,12 +1129,201 @@ function FolderTree({ node, depth }: { node: ProjectFolderNode; depth: number })
             : formatBytes(node.size)}
         </span>
         {node.truncated && <span className="prj-tree-truncated">(已截断)</span>}
+        {node.ignored && <span className="prj-tree-truncated">(已忽略子项)</span>}
+        {dropTargetPath === node.path && canAcceptDrop && <span className="prj-tree-drop-hint">放到此目录</span>}
+        {isPending && <span className="prj-tree-pending">⌛ 同步中</span>}
       </div>
       {isDir && open && node.children && (
         <div>
-          {node.children.map(c => <FolderTree key={c.path} node={c} depth={depth + 1} />)}
+          {node.children.map(c => <FolderTree key={c.path} node={c} depth={depth + 1} entriesByPath={entriesByPath} focusPath={focusPath} draggingPath={draggingPath} dropTargetPath={dropTargetPath} pendingAction={pendingAction} openPaths={openPaths} onToggleOpen={onToggleOpen} onEnsureOpen={onEnsureOpen} onSelect={onSelect} onMove={onMove} onDragStart={onDragStart} onDragTarget={onDragTarget} onDragEnd={onDragEnd} onContextMenu={onContextMenu} />)}
         </div>
       )}
+    </div>
+  );
+}
+
+function moveFolderEntries(items: ProjectModuleItem[], sourcePath: string, destinationPath: string, targetId: string): ProjectModuleItem[] {
+  return items.map(item => {
+    const path = String(item.content.relativePath ?? "");
+    if (path !== sourcePath && !path.startsWith(`${sourcePath}/`)) return item;
+    const suffix = path.slice(sourcePath.length);
+    return {
+      ...item,
+      parentId: path === sourcePath ? targetId : item.parentId,
+      content: { ...item.content, relativePath: `${destinationPath}${suffix}` },
+    };
+  });
+}
+
+function renameFolderEntries(items: ProjectModuleItem[], sourcePath: string, destinationPath: string, name: string): ProjectModuleItem[] {
+  return items.map(item => {
+    const path = String(item.content.relativePath ?? "");
+    if (path !== sourcePath && !path.startsWith(`${sourcePath}/`)) return item;
+    const suffix = path.slice(sourcePath.length);
+    return {
+      ...item,
+      title: path === sourcePath ? name : item.title,
+      content: { ...item.content, relativePath: `${destinationPath}${suffix}` },
+    };
+  });
+}
+
+function moveFolderTreeNode(root: ProjectFolderNode, sourcePath: string, targetPath: string): ProjectFolderNode {
+  const moved = { node: null as ProjectFolderNode | null };
+  const detach = (node: ProjectFolderNode): ProjectFolderNode | null => {
+    if (node.path === sourcePath) { moved.node = node; return null; }
+    if (!node.children) return node;
+    const children = node.children.map(detach).filter((child): child is ProjectFolderNode => child !== null);
+    return children.length === node.children.length ? node : { ...node, children };
+  };
+  const remaining = detach(root);
+  const movedNodeSource = moved.node;
+  if (!remaining || !movedNodeSource) return root;
+  const destinationPath = targetPath ? `${targetPath}/${movedNodeSource.name}` : movedNodeSource.name;
+  const remapPaths = (node: ProjectFolderNode): ProjectFolderNode => ({
+    ...node,
+    path: node.path === sourcePath ? destinationPath : `${destinationPath}${node.path.slice(sourcePath.length)}`,
+    children: node.children?.map(remapPaths),
+  });
+  const movedNode = remapPaths(movedNodeSource);
+  const attach = (node: ProjectFolderNode): ProjectFolderNode => {
+    if (node.path === targetPath) {
+      const children = [...(node.children ?? []), movedNode].sort((a, b) => a.kind === b.kind ? a.name.localeCompare(b.name, "zh-CN") : a.kind === "dir" ? -1 : 1);
+      return { ...node, children };
+    }
+    return node.children ? { ...node, children: node.children.map(attach) } : node;
+  };
+  return attach(remaining);
+}
+
+function renameFolderTreeNode(root: ProjectFolderNode, sourcePath: string, destinationPath: string, name: string): ProjectFolderNode {
+  const remap = (node: ProjectFolderNode): ProjectFolderNode => ({
+    ...node,
+    name: node.path === sourcePath ? name : node.name,
+    path: node.path === sourcePath ? destinationPath : `${destinationPath}${node.path.slice(sourcePath.length)}`,
+    children: node.children?.map(remap),
+  });
+  const visit = (node: ProjectFolderNode): ProjectFolderNode => {
+    if (node.path === sourcePath) return remap(node);
+    return node.children ? { ...node, children: node.children.map(visit) } : node;
+  };
+  return visit(root);
+}
+
+function removeFolderTreeNode(root: ProjectFolderNode, sourcePath: string): ProjectFolderNode {
+  if (!sourcePath || root.path === sourcePath || !root.children) return root;
+  return {
+    ...root,
+    children: root.children
+      .filter(node => node.path !== sourcePath && !node.path.startsWith(`${sourcePath}/`))
+      .map(node => removeFolderTreeNode(node, sourcePath)),
+  };
+}
+
+function FolderEntryDetails({
+  item, onSaveRemark, onSaveAiNote,
+}: {
+  item: ProjectModuleItem;
+  onSaveRemark: (item: ProjectModuleItem, value: string) => Promise<void>;
+  onSaveAiNote: (item: ProjectModuleItem, value: string) => Promise<void>;
+}) {
+  const [remark, setRemark] = useState(typeof item.content.remark === "string" ? item.content.remark : "");
+  const [aiNote, setAiNote] = useState(typeof item.content.aiNote === "string" ? item.content.aiNote : "");
+  useEffect(() => {
+    setRemark(typeof item.content.remark === "string" ? item.content.remark : "");
+    setAiNote(typeof item.content.aiNote === "string" ? item.content.aiNote : "");
+  }, [item.id, item.content.remark, item.content.aiNote]);
+  return (
+    <div className="prj-folder-entry-details">
+      <header><h3>{item.content.kind === "dir" ? "📁" : "📄"} {item.title}</h3></header>
+      <div className="prj-folder-entry-details__meta">{String(item.content.relativePath)} · {item.content.kind === "dir" ? "目录" : typeof item.content.ext === "string" ? item.content.ext : "文件"} · {formatBytes(Number(item.content.size) || 0)}</div>
+      <label>AI 注释<textarea value={aiNote} placeholder="AI 注释（可在此补充或修改）" onChange={e => setAiNote(e.target.value)} onBlur={() => void onSaveAiNote(item, aiNote)} /></label>
+      <label>备注<textarea value={remark} placeholder="文件或目录备注" onChange={e => setRemark(e.target.value)} onBlur={() => void onSaveRemark(item, remark)} /></label>
+    </div>
+  );
+}
+
+function FolderPathDetails({
+  bindDraft, svnDraft, githubDraft, onChangeLocal, onChangeSvn, onChangeGithub, onSave,
+}: {
+  bindDraft: string;
+  svnDraft: string;
+  githubDraft: string;
+  onChangeLocal: (value: string) => void;
+  onChangeSvn: (value: string) => void;
+  onChangeGithub: (value: string) => void;
+  onSave: () => void;
+}) {
+  return (
+    <div className="prj-folder-entry-details prj-folder-path-details">
+      <header><h3>📁 项目路径</h3><button className="prj-btn-primary" onClick={onSave}>保存路径</button></header>
+      <label>项目目录<input autoFocus value={bindDraft} placeholder="/Users/你/Documents/项目目录" onChange={e => onChangeLocal(e.target.value)} /></label>
+      <label>SVN 目录<input value={svnDraft} placeholder="https://svn.example.com/project" onChange={e => onChangeSvn(e.target.value)} /></label>
+      <label>GitHub 目录<input value={githubDraft} placeholder="https://github.com/org/repo" onChange={e => onChangeGithub(e.target.value)} /></label>
+      <p>保存后点击左侧“遍历目录”，即可按新的本地目录读取并入库。</p>
+    </div>
+  );
+}
+
+function FolderContextMenu({
+  item, x, y, disabled, onClose, onOpen, onReveal, onExpand, onCollapse, onRename, onDelete, onIgnore, onMark,
+}: {
+  item: ProjectModuleItem;
+  x: number;
+  y: number;
+  disabled: boolean;
+  onClose: () => void;
+  onOpen: () => void;
+  onReveal: () => void;
+  onExpand: () => void;
+  onCollapse: () => void;
+  onRename: () => void;
+  onDelete: () => void;
+  onIgnore: (ignored: boolean) => void;
+  onMark: (marked: boolean) => void;
+}) {
+  const isDir = item.content.kind === "dir";
+  const run = (action: () => void) => { onClose(); action(); };
+  return (
+    <div className="prj-folder-context-menu" style={{ left: x, top: y }} onContextMenu={e => e.preventDefault()}>
+      {isDir ? <button disabled={disabled} onClick={() => run(() => onIgnore(!item.content.ignored))}>{item.content.ignored ? "关注文件夹" : "忽略文件夹"}</button> : <button disabled={disabled} onClick={() => run(onOpen)}>打开</button>}
+      {isDir && <>
+        <button disabled={disabled} onClick={() => run(onExpand)}>一键展开</button>
+        <button disabled={disabled} onClick={() => run(onCollapse)}>一键收缩</button>
+      </>}
+      <button disabled={disabled} onClick={() => run(onReveal)}>访达</button>
+      <button disabled={disabled} onClick={() => run(onRename)}>重命名</button>
+      <button disabled={disabled} onClick={() => run(() => onMark(!item.content.marked))}>{item.content.marked ? "取消标记" : "标记"}</button>
+      <button disabled={disabled} className="is-danger" onClick={() => run(onDelete)}>删除</button>
+    </div>
+  );
+}
+
+function FolderRenameDialog({
+  item, onClose, onRename,
+}: {
+  item: ProjectModuleItem;
+  onClose: () => void;
+  onRename: (name: string) => Promise<boolean>;
+}) {
+  const [name, setName] = useState(item.title);
+  useEffect(() => { setName(item.title); }, [item.id, item.title]);
+  function submit() {
+    if (!name.trim()) return;
+    void onRename(name);
+    onClose();
+  }
+  return (
+    <div className="prj-folder-rename-dialog" role="presentation" onMouseDown={onClose}>
+      <form role="dialog" aria-modal="true" aria-labelledby="folder-rename-title" onMouseDown={event => event.stopPropagation()} onSubmit={event => { event.preventDefault(); void submit(); }}>
+        <h3 id="folder-rename-title">重命名{item.content.kind === "dir" ? "目录" : "文件"}</h3>
+        <p>{item.content.kind === "dir" ? "📁" : "📄"} {String(item.content.relativePath ?? item.title)}</p>
+        <label>新名称<input autoFocus value={name} onChange={event => setName(event.target.value)} /></label>
+        <footer>
+          <button type="button" className="prj-btn-link" onClick={onClose}>取消</button>
+          <button type="submit" className="prj-btn-primary" disabled={!name.trim()}>确认重命名</button>
+        </footer>
+      </form>
     </div>
   );
 }

@@ -23,6 +23,7 @@ const rectificationStatusSchema = z.enum(["open", "fixed", "verified", "cancelle
 const mappingStatusSchema = z.enum(["draft", "complete", "unable_to_convert", "invalid", "manual", "blocked"]);
 const mappingRawSchema = z.record(z.string(), z.unknown());
 const todoStatusSchema = z.enum(["todo", "doing", "done"]);
+const verificationStatusSchema = z.enum(["未验证", "已验证", "待整改"]);
 const mappingSourceFieldInputSchema = z.object({
   id: z.string().min(1).optional(),
   field_id: z.string().min(1).nullable().optional(),
@@ -111,6 +112,19 @@ function projectTodoMatchesStatus(item: ProjectModuleItem, status?: z.infer<type
   return !status || String(projectTodoOriginal(item).status || "todo").trim().toLowerCase() === status;
 }
 
+function projectTodoSummary(todos: ProjectModuleItem[]) {
+  const counts = { todo: 0, doing: 0, done: 0, highPriority: 0, unassigned: 0, withDueDate: 0 };
+  for (const todo of todos) {
+    const original = projectTodoOriginal(todo);
+    const status = String(original.status || "todo").trim().toLowerCase();
+    if (status === "todo" || status === "doing" || status === "done") counts[status] += 1;
+    if (String(original.priority || "").trim() === "高") counts.highPriority += 1;
+    if (!String(original.owner || "").trim()) counts.unassigned += 1;
+    if (String(original.dueAt || original.deadline || "").trim()) counts.withDueDate += 1;
+  }
+  return { total: todos.length, ...counts };
+}
+
 function compactMappingRulePatch(input: {
   scenario_id?: string | null;
   system_id?: string | null;
@@ -120,6 +134,8 @@ function compactMappingRulePatch(input: {
   logic_text?: string | null;
   converted_sql?: string | null;
   remark?: string | null;
+  verification_status?: "未验证" | "已验证" | "待整改" | null;
+  verification_remark?: string | null;
   sort_order?: number;
   raw?: Record<string, unknown>;
 }): Parameters<ProjectManagementRepo["updateDictionaryMappingRule"]>[2] {
@@ -132,6 +148,8 @@ function compactMappingRulePatch(input: {
     logicText: input.logic_text,
     convertedSql: input.converted_sql,
     remark: input.remark,
+    verificationStatus: input.verification_status,
+    verificationRemark: input.verification_remark,
     sortOrder: input.sort_order,
     raw: input.raw,
   };
@@ -177,6 +195,8 @@ function compactDictionaryFieldPatch(input: Record<string, unknown>): Parameters
     mappedFieldCn: input.mapped_field_cn as string | null | undefined,
     dataSource: input.data_source as string | null | undefined,
     remark: input.remark as string | null | undefined,
+    verificationStatus: input.verification_status as "未验证" | "已验证" | "待整改" | null | undefined,
+    verificationRemark: input.verification_remark as string | null | undefined,
     extra: input.extra as Record<string, unknown> | undefined,
   };
 }
@@ -367,6 +387,15 @@ export function registerProjectManagementTools(server: McpServer, repo: ProjectM
   );
 
   server.tool(
+    "project_todo_summary",
+    "Get an at-a-glance todo summary: total, status counts, high-priority, unassigned and dated todos. Use this before planning or assigning project todos.",
+    {
+      project_id: z.string().min(1),
+    },
+    async ({ project_id }) => jsonResult(projectTodoSummary(await repo.listModuleItems(project_id, "todos"))),
+  );
+
+  server.tool(
     "project_todo_list",
     "List project todos in board order. Optionally filter by todo/doing/done status or exact owner. Use this before updating or deleting a todo when you need its id.",
     {
@@ -498,6 +527,23 @@ export function registerProjectManagementTools(server: McpServer, repo: ProjectM
   );
 
   server.tool(
+    "project_dictionary_update_system",
+    "Patch a data-dictionary system's type, asset layer, or extra connection metadata. Read the system first and preserve unknown extra fields.",
+    {
+      project_id: z.string().min(1),
+      system_id: z.string().min(1),
+      type: z.string().max(500).nullable().optional(),
+      asset_layer: z.string().max(500).nullable().optional(),
+      extra: mappingRawSchema.optional(),
+    },
+    async ({ project_id, system_id, type, asset_layer, extra }) => {
+      const system = await repo.updateDictionarySystem(project_id, system_id, { type, assetLayer: asset_layer, extra });
+      if (!system) return errorResult(`Project dictionary system ${system_id} not found`);
+      return jsonResult({ ok: true, system });
+    },
+  );
+
+  server.tool(
     "project_dictionary_list_tables",
     "List data-dictionary tables/files under a project or one system. A table is a metadata entity and can represent a database table or a file-like source.",
     {
@@ -523,11 +569,13 @@ export function registerProjectManagementTools(server: McpServer, repo: ProjectM
       file_type: z.enum(["txt", "xml", "csv", "excel"]).nullable().optional(),
       has_mapping: z.boolean().optional(),
       usage_status: z.string().max(120).nullable().optional(),
+      verification_status: verificationStatusSchema.nullable().optional(),
+      verification_remark: z.string().max(8000).nullable().optional(),
       description: z.string().max(20_000).nullable().optional(),
       caliber: z.string().max(100_000).nullable().optional(),
       extra: mappingRawSchema.optional(),
     },
-    async ({ project_id, table_id, system_id, table_name, table_cn, table_group, data_layer, table_type, source_kind, file_type, has_mapping, usage_status, description, caliber, extra }) => {
+    async ({ project_id, table_id, system_id, table_name, table_cn, table_group, data_layer, table_type, source_kind, file_type, has_mapping, usage_status, verification_status, verification_remark, description, caliber, extra }) => {
       const table = await repo.updateDictionaryTable(project_id, table_id, {
         systemId: system_id,
         tableName: table_name,
@@ -539,6 +587,8 @@ export function registerProjectManagementTools(server: McpServer, repo: ProjectM
         fileType: file_type,
         hasMapping: has_mapping,
         usageStatus: usage_status,
+        verificationStatus: verification_status,
+        verificationRemark: verification_remark,
         description,
         caliber,
         extra,
@@ -579,7 +629,7 @@ export function registerProjectManagementTools(server: McpServer, repo: ProjectM
       project_id: z.string().min(1), field_id: z.string().min(1),
       field_cn: z.string().max(500).nullable().optional(), field_type: z.string().max(120).nullable().optional(), field_length: z.string().max(80).nullable().optional(), format_pattern: z.string().max(500).nullable().optional(), nullable: z.string().max(80).nullable().optional(),
       primary_key: z.boolean().optional(), required: z.boolean().optional(), description: z.string().max(8000).nullable().optional(), acquire_logic: z.string().max(16000).nullable().optional(), validation_rule: z.string().max(8000).nullable().optional(), code_value: z.string().max(8000).nullable().optional(),
-      mapped_table: z.string().max(500).nullable().optional(), mapped_field: z.string().max(500).nullable().optional(), mapped_field_cn: z.string().max(500).nullable().optional(), data_source: z.string().max(2000).nullable().optional(), remark: z.string().max(8000).nullable().optional(), extra: mappingRawSchema.optional(),
+      mapped_table: z.string().max(500).nullable().optional(), mapped_field: z.string().max(500).nullable().optional(), mapped_field_cn: z.string().max(500).nullable().optional(), data_source: z.string().max(2000).nullable().optional(), remark: z.string().max(8000).nullable().optional(), verification_status: verificationStatusSchema.nullable().optional(), verification_remark: z.string().max(8000).nullable().optional(), extra: mappingRawSchema.optional(),
     },
     async input => {
       const field = await repo.updateDictionaryField(input.project_id, input.field_id, compactDictionaryFieldPatch(input));
@@ -764,7 +814,7 @@ export function registerProjectManagementTools(server: McpServer, repo: ProjectM
 
   server.tool(
     "project_dictionary_update_mapping_rule",
-    "Patch one Mapping 元 rule. Use this for status, logic_text, converted_sql, remark, field binding, and raw scenario metadata. Preserve unknown raw fields.",
+    "Patch one Mapping 元 rule. Use this for status, logic_text, converted_sql, verification status/remark, remark, field binding, and raw scenario metadata. Preserve unknown raw fields.",
     {
       project_id: z.string().min(1),
       mapping_rule_id: z.string().min(1),
@@ -776,10 +826,12 @@ export function registerProjectManagementTools(server: McpServer, repo: ProjectM
       logic_text: z.string().max(16000).nullable().optional(),
       converted_sql: z.string().max(16000).nullable().optional(),
       remark: z.string().max(8000).nullable().optional(),
+      verification_status: verificationStatusSchema.nullable().optional(),
+      verification_remark: z.string().max(8000).nullable().optional(),
       sort_order: z.number().int().optional(),
       raw: mappingRawSchema.optional(),
     },
-    async ({ project_id, mapping_rule_id, scenario_id, system_id, table_id, field_id, status, logic_text, converted_sql, remark, sort_order, raw }) => {
+    async ({ project_id, mapping_rule_id, scenario_id, system_id, table_id, field_id, status, logic_text, converted_sql, remark, verification_status, verification_remark, sort_order, raw }) => {
       const rule = await repo.updateDictionaryMappingRule(project_id, mapping_rule_id, compactMappingRulePatch({
         scenario_id,
         system_id,
@@ -789,6 +841,8 @@ export function registerProjectManagementTools(server: McpServer, repo: ProjectM
         logic_text,
         converted_sql,
         remark,
+        verification_status,
+        verification_remark,
         sort_order,
         raw,
       }));

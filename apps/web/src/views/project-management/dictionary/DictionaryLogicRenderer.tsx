@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Fragment, type ReactNode } from "react";
 import type {
   DictionaryCaliberExpression,
@@ -182,6 +183,18 @@ function renderDictionaryJsonLogic(
   } else if (["round", "四舍五入", "divide", "除法", "multiply", "乘法", "add", "加法", "subtract", "减法", "nullif", "空值保护"].includes(rule.op)) {
     nodes.push(" ");
     nodes.push(renderDictionaryJsonValue(rule, refs, onOpenFieldRef, "expr"));
+  } else if (rule.op === "concat" && rule.sources?.length) {
+    nodes.push(" ");
+    rule.sources.forEach((source, index) => {
+      if (index > 0) {
+        nodes.push(" + ");
+        if (rule.delimiter !== undefined) {
+          nodes.push(<span key={`concat-delimiter-${index}`} className="prj-pm-dict-logic-literal">{rule.delimiter || "(空)"}</span>);
+          nodes.push(" + ");
+        }
+      }
+      renderSource(source, `concat-source-${index}`);
+    });
   } else if ((rule.op === "code_mapping" || rule.op === "码值映射") && rule.source) {
     nodes.push(" ");
     renderSource(rule.source, "source");

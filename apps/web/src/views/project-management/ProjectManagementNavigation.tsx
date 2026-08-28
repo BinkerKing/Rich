@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type ProjectManagementModuleKey, type ProjectManagementSearchHit } from "../../api/client.js";
+import { searchTargetFromHit } from "./searchNavigation.js";
 
 export type ProjectManagementSection = ProjectManagementModuleKey;
+export type ProjectManagementSearchTarget = { section: ProjectManagementSection; entityType: string; entityId: string; systemId?: string; tableId?: string };
 
 export const PROJECT_MANAGEMENT_SECTIONS: Array<{
   id: ProjectManagementSection;
@@ -22,14 +24,15 @@ export const PROJECT_MANAGEMENT_SECTIONS: Array<{
 ];
 
 const moduleLabels = new Map(PROJECT_MANAGEMENT_SECTIONS.map(section => [section.id, section.label]));
+const entityLabels = new Map<string, string>([["moduleItem", "记录"], ["dictionaryField", "字段"], ["dictionaryTable", "数据表"], ["folderEntry", "文件"]]);
 
 export function ProjectManagementSearchBar({
   projectId,
-  onJump,
+  onNavigate,
   autoFocusSignal,
 }: {
   projectId: string;
-  onJump: (section: ProjectManagementSection) => void;
+  onNavigate: (target: ProjectManagementSearchTarget) => void;
   autoFocusSignal?: number;
 }) {
   const [query, setQuery] = useState("");
@@ -64,18 +67,32 @@ export function ProjectManagementSearchBar({
   }, [projectId, query]);
 
   return (
-    <div className="prj-pm-global-search">
-      <label>
-        <span>全局搜索</span>
-        <input ref={inputRef} value={query} onChange={event => setQuery(event.target.value)} onFocus={() => setOpen(query.trim().length > 0)} placeholder="搜索字段、表、口径、码值、流程、场景、部署步骤..." />
+    <div className="prj-pm-global-search" onBlur={event => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
+    }}>
+      <label aria-label="全局搜索">
+        <span className="prj-pm-global-search__icon" aria-hidden="true">⌕</span>
+        <input ref={inputRef} value={query} onChange={event => setQuery(event.target.value)} onFocus={() => setOpen(query.trim().length > 0)} onKeyDown={event => {
+          if (event.key === "Escape") {
+            setOpen(false);
+            inputRef.current?.blur();
+          }
+        }} placeholder="搜索字段、表、文件、口径、流程…" />
+        <kbd>ESC</kbd>
       </label>
       {open && <div className="prj-pm-global-search__results">
-        {results.length === 0 ? <div className="prj-pm-global-search__empty">没有命中内容</div> : results.map(hit => (
-          <button key={hit.id} type="button" onClick={() => { onJump(hit.moduleKey); setOpen(false); }}>
-            <span>{moduleLabels.get(hit.moduleKey) || hit.moduleKey}</span>
-            <strong>{hit.title}</strong>
-            {hit.subtitle && <small>{hit.subtitle}</small>}
-            {hit.excerpt && <p>{hit.excerpt}</p>}
+        <div className="prj-pm-global-search__result-head"><span>搜索结果</span><em>{results.length} 项</em></div>
+        {results.length === 0 ? <div className="prj-pm-global-search__empty">没有找到匹配内容，试试字段英文名、表名或文件名。</div> : results.map(hit => (
+          <button key={hit.id} type="button" onClick={() => {
+            onNavigate(searchTargetFromHit(hit));
+            setOpen(false);
+          }}>
+            <span className="prj-pm-global-search__kind">{entityLabels.get(hit.entityType) || moduleLabels.get(hit.moduleKey) || "记录"}</span>
+            <span className="prj-pm-global-search__content">
+              <strong>{hit.title}</strong>
+              {(hit.subtitle || hit.excerpt) && <small>{hit.subtitle || hit.excerpt}</small>}
+            </span>
+            <span className="prj-pm-global-search__section">{moduleLabels.get(hit.moduleKey) || hit.moduleKey} <b>→</b></span>
           </button>
         ))}
       </div>}

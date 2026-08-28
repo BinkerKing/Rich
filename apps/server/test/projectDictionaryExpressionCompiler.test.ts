@@ -59,6 +59,19 @@ describe("project dictionary expression compiler", () => {
     expect(buildDictionaryExtractionFieldSqlExpression(field, createContext("sqlserver"))).toBe("'2026-08-24'");
   });
 
+  it("keeps concat delimiters in generated SQL", () => {
+    const field = {
+      id: "remark",
+      fieldName: "remark",
+      acquireLogic: '{"op":"concat","sources":["source_orders.report_date","source_orders.report_date"],"delimiter":"|"}',
+    } as ProjectDictionaryFieldDetail;
+
+    expect(buildDictionaryExtractionFieldSqlExpression(field, createContext("postgresql")))
+      .toBe("CONCAT_WS('|', \"s\".\"report_date\", \"s\".\"report_date\")");
+    expect(buildDictionaryExtractionFieldSqlExpression(field, createContext("sqlserver")))
+      .toBe("CONCAT_WS('|', [s].[report_date], [s].[report_date])");
+  });
+
   it("converts blank numeric source values to NULL before casting", () => {
     const field = { id: "amount", fieldName: "amount", fieldType: "decimal", fieldLength: "22,2" } as ProjectDictionaryFieldDetail;
     const column = { columnName: "amount", dataType: "numeric", numericPrecision: 22, numericScale: 2, nullable: true };
@@ -80,6 +93,17 @@ describe("project dictionary expression compiler", () => {
       .toBe('CAST(NULLIF(BTRIM(("s"."report_date")::text), \'\') AS DECIMAL(18,8))');
     expect(buildDictionaryExtractionFieldSqlExpression(field, createContext("sqlserver")))
       .toBe("CAST(NULLIF(LTRIM(RTRIM(CONVERT(nvarchar(max), [s].[report_date]))), '') AS DECIMAL(18,8))");
+  });
+
+  it("uses a text fallback before converting a text source to numeric", () => {
+    const field = {
+      id: "amount",
+      fieldName: "amount",
+      acquireLogic: '{"op":"coalesce_cast","source":"source_orders.report_date","emptyAs":"0","to":"NUMERIC"}',
+    } as ProjectDictionaryFieldDetail;
+
+    expect(buildDictionaryExtractionFieldSqlExpression(field, createContext("postgresql")))
+      .toBe('COALESCE(NULLIF("s"."report_date", \'\'), \'0\')::NUMERIC');
   });
 
   it("prefers a registered join table over recursive target-field resolution", () => {

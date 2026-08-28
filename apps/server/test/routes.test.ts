@@ -72,6 +72,17 @@ describe("Core API routes", () => {
     await expect(response.json()).resolves.toEqual([]);
   });
 
+  it("allows a project todo to start with an empty title", async () => {
+    const app = buildApp(dir);
+    const response = await app.request("/api/project-management/project-a/modules/todos/items", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: "", content: { original: { status: "todo" } } }),
+    });
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({ moduleKey: "todos", title: "", content: { original: { status: "todo" } } });
+  });
+
   it("stores one project description and exposes it to search", async () => {
     const app = buildApp(dir);
     const empty = await app.request("/api/project-management/project-a/description");

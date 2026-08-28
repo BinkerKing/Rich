@@ -110,7 +110,9 @@ export function projectManagementRoutes(repo: ProjectManagementRepo, options: Pr
     if (!PROJECT_MANAGEMENT_MODULES.some(module => module.key === moduleKey)) {
       return c.json({ error: "unknown module" }, 404);
     }
-    return c.json(await repo.listModuleItems(projectId, moduleKey, parentId));
+    return c.json(c.req.query("all") === "1"
+      ? await repo.listAllModuleItems(projectId, moduleKey)
+      : await repo.listModuleItems(projectId, moduleKey, parentId));
   });
 
   r.get("/:projectId/assets/scenario-images/:filename", async c => {
@@ -132,7 +134,7 @@ export function projectManagementRoutes(repo: ProjectManagementRepo, options: Pr
     }
     const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
     const title = typeof body.title === "string" ? body.title.trim() : "";
-    if (!title) return c.json({ error: "title required" }, 400);
+    if (!title && moduleKey !== "todos") return c.json({ error: "title required" }, 400);
     const content = body.content && typeof body.content === "object" && !Array.isArray(body.content)
       ? body.content as Record<string, unknown>
       : {};
@@ -359,6 +361,49 @@ export function projectManagementRoutes(repo: ProjectManagementRepo, options: Pr
         repo,
         caliber: typeof body.caliber === "string" ? body.caliber : undefined,
         fieldRules,
+        runtimeParams: body.runtimeParams && typeof body.runtimeParams === "object" && !Array.isArray(body.runtimeParams)
+          ? body.runtimeParams as Record<string, unknown>
+          : undefined,
+      });
+      return c.json(result);
+    } catch (errorValue) {
+      return c.json({ error: errorValue instanceof Error ? errorValue.message : String(errorValue) }, 400);
+    }
+  });
+
+  r.post("/:projectId/dictionary/tables/:tableId/temp-tables/:tempTableId/sql-validate", async c => {
+    const projectId = c.req.param("projectId");
+    const tableId = c.req.param("tableId");
+    const tempTableId = c.req.param("tempTableId");
+    const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    try {
+      const target = await loadDictionaryEntityTarget(repo, projectId, tableId);
+      const tempTables = await repo.listDictionaryMappingTempTables(projectId, tableId);
+      const tempTable = tempTables.find(item => item.id === tempTableId);
+      if (!tempTable) return c.json({ error: "临时表不存在" }, 404);
+      const fields: ProjectDictionaryFieldDetail[] = tempTable.fields.map(field => ({
+        id: field.id,
+        projectId,
+        systemId: target.table.systemId,
+        tableId,
+        tableName: tempTable.tableName,
+        tableCn: tempTable.tableCn,
+        fieldName: field.fieldName,
+        fieldCn: field.fieldCn,
+        fieldType: field.fieldType,
+        fieldLength: field.fieldLength,
+        acquireLogic: field.logicText,
+        remark: field.remark,
+        score: 0,
+        primaryKey: false,
+        required: false,
+      }));
+      const result = await validateDictionaryMappingSql({
+        ...target,
+        projectId,
+        repo,
+        table: { ...target.table, caliber: tempTable.logicText || "" },
+        fields,
         runtimeParams: body.runtimeParams && typeof body.runtimeParams === "object" && !Array.isArray(body.runtimeParams)
           ? body.runtimeParams as Record<string, unknown>
           : undefined,

@@ -21,6 +21,20 @@ type ContentPart =
 type MessageContent = string | ContentPart[];
 type Message = { role: string; content: MessageContent };
 
+const AGENT_TASK_INSTRUCTIONS = `
+\n## 执行任务模式
+
+这轮用户是在下达任务，不是只要建议。先判断任务是否足够明确：
+- 明确且工具可完成时，立即调用可用的 Rich MCP 工具执行；先读取必要状态，再做最小范围的修改或创建。
+- 信息不足或操作不可逆时，只问一个阻塞性问题；不要用泛泛的“我可以帮你”替代执行。
+- 任务完成后，明确说明已执行的动作、结果，以及仍需要用户决定的事项。
+- 不要声称已经完成任何未通过工具实际执行的动作。
+`;
+
+function turnSystemPrompt(requiresAgent = false): string {
+  return `${buildChatSystemPrompt()}${requiresAgent ? AGENT_TASK_INSTRUCTIONS : ""}`;
+}
+
 function contentToText(content: MessageContent): string {
   if (typeof content === "string") return content;
   return content
@@ -58,8 +72,8 @@ function makeChatOpRecorder(handle: OpHandle | null) {
  *
  * content 允许字符串或多模态 part 数组（OpenAI vision 协议），原样透传到 Hermes。
  */
-function injectSystemPrompt(messages: Message[]): Message[] {
-  const basePrompt = buildChatSystemPrompt();
+function injectSystemPrompt(messages: Message[], requiresAgent = false): Message[] {
+  const basePrompt = turnSystemPrompt(requiresAgent);
   if (messages.length > 0 && messages[0].role === "system") {
     const extraContext = contentToText(messages[0].content).trim();
     return [{
@@ -71,13 +85,14 @@ function injectSystemPrompt(messages: Message[]): Message[] {
   return [sys, ...messages];
 }
 
-function systemPromptWithContext(messages: Message[]): string {
+function systemPromptWithContext(messages: Message[], requiresAgent = false): string {
   const context = messages
     .filter(message => message.role === "system")
     .map(message => contentToText(message.content).trim())
     .filter(Boolean)
     .join("\n\n");
-  return context ? `${buildChatSystemPrompt()}\n\n${context}` : buildChatSystemPrompt();
+  const basePrompt = turnSystemPrompt(requiresAgent);
+  return context ? `${basePrompt}\n\n${context}` : basePrompt;
 }
 
 /**
@@ -185,7 +200,11 @@ export function chatRoutes(
     return undefined;
   }
 
-  async function streamCodexFallback(stream: Parameters<Parameters<typeof streamSSE>[1]>[0], messages: Message[]) {
+  async function streamCodexFallback(
+    stream: Parameters<Parameters<typeof streamSSE>[1]>[0],
+    messages: Message[],
+    requiresAgent = false,
+  ) {
     let fullText = "";
     if (!codexFallback || !(await codexFallback.available())) {
       await stream.writeSSE({
@@ -200,7 +219,7 @@ export function chatRoutes(
     let wroteText = false;
     try {
       for await (const event of codexFallback.stream({
-        systemPrompt: systemPromptWithContext(messages),
+        systemPrompt: systemPromptWithContext(messages, requiresAgent),
         prompt: messagesToFallbackPrompt(messages),
         signal: controller.signal,
       })) {
@@ -235,12 +254,13 @@ export function chatRoutes(
     stream: Parameters<Parameters<typeof streamSSE>[1]>[0],
     messages: Message[],
     hermesMessage: string,
+    requiresAgent = false,
   ): Promise<{ wroteText: boolean; fullText: string }> {
     await stream.writeSSE({
       event: "tool",
       data: JSON.stringify({ name: "codex-fallback", status: "running" }),
     });
-    const result = await streamCodexFallback(stream, messages);
+    const result = await streamCodexFallback(stream, messages, requiresAgent);
     await stream.writeSSE({
       event: "tool",
       data: JSON.stringify({ name: "codex-fallback", status: "completed" }),
@@ -260,12 +280,13 @@ export function chatRoutes(
     messages: Message[],
     scenario: AIScenario,
     signal?: AbortSignal,
+    requiresAgent = false,
   ): Promise<{ wroteText: boolean; fullText: string; sessionId?: string; error?: string }> {
     let wroteText = false;
     let fullText = "";
     let sessionId: string | undefined;
     for await (const event of adapter.stream({
-      systemPrompt: systemPromptWithContext(messages),
+      systemPrompt: systemPromptWithContext(messages, requiresAgent),
       prompt: messagesToFallbackPrompt(messages),
       scenario,
       signal,
@@ -327,7 +348,7 @@ export function chatRoutes(
           body: JSON.stringify({
             model: "hermes-agent",
             stream: false,
-            messages: injectSystemPrompt(contextMessages),
+            messages: injectSystemPrompt(contextMessages, turnPlan.requiresAgent),
           }),
         });
         if (!upstream.ok) {
@@ -339,7 +360,7 @@ export function chatRoutes(
       } else {
         let content = "";
         for await (const event of adapter.stream({
-          systemPrompt: systemPromptWithContext(contextMessages),
+          systemPrompt: systemPromptWithContext(contextMessages, turnPlan.requiresAgent),
           prompt: messagesToFallbackPrompt(contextMessages),
           scenario: turnPlan.scenario,
         })) {
@@ -457,7 +478,7 @@ export function chatRoutes(
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 120_000);
         try {
-          const result = await streamGenericAdapter(stream, adapter, messages, turnPlan.scenario, controller.signal);
+          const result = await streamGenericAdapter(stream, adapter, messages, turnPlan.scenario, controller.signal, turnPlan.requiresAgent);
           if (result.error) {
             await opRecorder.error(result.error);
             await stream.writeSSE({
@@ -498,12 +519,12 @@ export function chatRoutes(
           body: JSON.stringify({
             model: "hermes-agent",
             stream: true,
-            messages: injectSystemPrompt(messages),
+            messages: injectSystemPrompt(messages, turnPlan.requiresAgent),
           }),
         });
       } catch (e) {
         const message = `Hermes unreachable: ${e instanceof Error ? e.message : String(e)}`;
-        const fallback = await streamCodexFallbackWithProgress(stream, messages, message);
+        const fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent);
         if (fallback.wroteText) {
           await conversationsRepo?.appendMessage({
             id: randomUUID(),
@@ -527,7 +548,7 @@ export function chatRoutes(
       if (!upstream.ok || !upstream.body) {
         const detail = await upstream.text().catch(() => "");
         const message = `Hermes ${upstream.status} ${upstream.statusText}${detail ? `: ${detail}` : ""}`;
-        const fallback = await streamCodexFallbackWithProgress(stream, messages, message);
+        const fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent);
         if (fallback.wroteText) {
           await conversationsRepo?.appendMessage({
             id: randomUUID(),
@@ -634,7 +655,7 @@ export function chatRoutes(
             body: JSON.stringify({
               model: "hermes-agent",
               stream: false,
-              messages: injectSystemPrompt(messages),
+              messages: injectSystemPrompt(messages, turnPlan.requiresAgent),
             }),
           });
           if (fallback.ok) {
@@ -663,7 +684,7 @@ export function chatRoutes(
               await opRecorder.error(`Hermes 需要重新授权：${message}`);
               return;
             }
-            const fallbackResult = await streamCodexFallbackWithProgress(stream, messages, message);
+            const fallbackResult = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent);
             sawText = fallbackResult.wroteText;
             if (sawText) {
               usedAdapter = "codex";
@@ -690,7 +711,7 @@ export function chatRoutes(
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         const fallback = !sawText
-          ? await streamCodexFallbackWithProgress(stream, messages, message)
+          ? await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent)
           : { wroteText: false, fullText: "" };
         if (!sawText && fallback.wroteText) {
           usedAdapter = "codex";

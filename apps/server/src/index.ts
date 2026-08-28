@@ -326,7 +326,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/chat-visual-blocks", chatVisualBlocksRoutes(chatVisualBlocks));
   app.route("/api/chat/attachments", chatAttachmentsRoutes(chatAttachments));
   app.route("/api/health", healthRoutes(healthRepo));
-  app.route("/api/projects", projectsRoutes(elements));
+  app.route("/api/projects", projectsRoutes(elements, projectManagement));
   app.route("/api/project-management", projectManagementRoutes(projectManagement));
   app.route("/api/project-management", projectAutomationRoutes(projectManagement, projectAutomation));
   app.route("/api/project-dictionary-test-files", projectDictionaryTestFilesRoutes());
@@ -382,6 +382,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     toolRuntime,
     greatMe,
     projectManagement,
+    projectAutomation,
   });
 
   // Agent-id endpoint：前端读这个值在 admin UI 默认填进 claim 表单。

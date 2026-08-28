@@ -6,7 +6,7 @@ describe("project dictionary SQL validator", () => {
     expect(replaceDictionaryRuntimePlaceholdersForValidation(
       "SELECT :reportDate::date, ':literal', value::text",
       "postgresql",
-    )).toBe("SELECT NULL::text::date, ':literal', value::text");
+    )).toBe("SELECT NULL::date, ':literal', value::text");
   });
 
   it("uses a SQL Server-compatible validation literal", () => {

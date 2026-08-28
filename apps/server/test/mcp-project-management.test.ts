@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildMcpServer } from "../src/mcp/server.js";
+import type { ProjectAutomationRepo } from "../src/modules/project-automation/contracts.js";
 import type {
   ProjectDictionaryFieldDetail,
   ProjectDictionaryFieldHit,
@@ -149,6 +150,16 @@ function makeProjectManagementRepo(): ProjectManagementRepo {
     async listDictionarySystems() {
       return [{ id: "sys-1", code: "YBT", name: "sys-ybt", type: "source system", assetLayer: "source layer", fieldCount: fields.length, tableCount: 1 }];
     },
+    async updateDictionarySystem(_projectId, systemId, patch) {
+      if (systemId !== "sys-1") return null;
+      return {
+        id: systemId, code: "YBT", name: "sys-ybt",
+        type: patch.type === undefined ? "source system" : patch.type ?? undefined,
+        assetLayer: patch.assetLayer === undefined ? "source layer" : patch.assetLayer ?? undefined,
+        extra: patch.extra,
+        fieldCount: fields.length, tableCount: 1,
+      };
+    },
     async listDictionaryTables() {
       return tables.map(table => ({ ...table, fieldCount: fields.length }));
     },
@@ -168,6 +179,8 @@ function makeProjectManagementRepo(): ProjectManagementRepo {
         fileType: patch.fileType === undefined ? current.fileType : patch.fileType ?? undefined,
         hasMapping: patch.hasMapping ?? current.hasMapping,
         usageStatus: patch.usageStatus === undefined ? current.usageStatus : patch.usageStatus ?? undefined,
+        verificationStatus: patch.verificationStatus === undefined ? current.verificationStatus : patch.verificationStatus ?? undefined,
+        verificationRemark: patch.verificationRemark === undefined ? current.verificationRemark : patch.verificationRemark ?? undefined,
         description: patch.description === undefined ? current.description : patch.description ?? undefined,
         caliber: patch.caliber === undefined ? current.caliber : patch.caliber ?? undefined,
         extra: patch.extra === undefined ? current.extra : { ...current.extra, ...patch.extra },
@@ -198,6 +211,8 @@ function makeProjectManagementRepo(): ProjectManagementRepo {
         fieldLength: patch.fieldLength ?? current.fieldLength,
         formatPattern: patch.formatPattern ?? current.formatPattern,
         description: patch.description ?? current.description,
+        verificationStatus: patch.verificationStatus === undefined ? current.verificationStatus : patch.verificationStatus ?? undefined,
+        verificationRemark: patch.verificationRemark === undefined ? current.verificationRemark : patch.verificationRemark ?? undefined,
       };
       return { ...fields[index]!, primaryKey: patch.primaryKey ?? false, required: patch.required ?? false };
     },
@@ -237,6 +252,8 @@ function makeProjectManagementRepo(): ProjectManagementRepo {
         logicText: patch.logicText === undefined ? current.logicText : patch.logicText ?? undefined,
         convertedSql: patch.convertedSql === undefined ? current.convertedSql : patch.convertedSql ?? undefined,
         remark: patch.remark === undefined ? current.remark : patch.remark ?? undefined,
+        verificationStatus: patch.verificationStatus === undefined ? current.verificationStatus : patch.verificationStatus ?? undefined,
+        verificationRemark: patch.verificationRemark === undefined ? current.verificationRemark : patch.verificationRemark ?? undefined,
         sortOrder: patch.sortOrder ?? current.sortOrder,
         raw: patch.raw ?? current.raw,
       };
@@ -380,6 +397,26 @@ function makeDeps(projectManagement: ProjectManagementRepo) {
   } as never;
 }
 
+function makeProjectAutomationRepo(): ProjectAutomationRepo {
+  const plans = new Map<string, { id: string; projectId: string; name: string; description?: string; sortOrder: number; createdAt: string; updatedAt: string; groups: Array<{ id: string; projectId: string; planId: string; name: string; sortOrder: number; createdAt: string; updatedAt: string; items: Array<{ id: string; projectId: string; planId: string; groupId: string; tableId: string; tableName: string; sortOrder: number }> }> }>();
+  const now = "2026-08-20T00:00:00.000Z";
+  return {
+    async listPlans(projectId) { return Array.from(plans.values()).filter(plan => plan.projectId === projectId).map(({ groups: _groups, ...plan }) => plan); },
+    async getPlan(projectId, planId) { const plan = plans.get(planId); return plan?.projectId === projectId ? plan : null; },
+    async createPlan(projectId, input) { const plan = { id: `plan-${plans.size + 1}`, projectId, name: input.name, description: input.description ?? undefined, sortOrder: input.sortOrder ?? plans.size, createdAt: now, updatedAt: now, groups: [] }; plans.set(plan.id, plan); return plan; },
+    async updatePlan(projectId, planId, input) { const plan = plans.get(planId); if (!plan || plan.projectId !== projectId) return null; Object.assign(plan, { name: input.name ?? plan.name, description: input.description === undefined ? plan.description : input.description ?? undefined, sortOrder: input.sortOrder ?? plan.sortOrder, updatedAt: now }); return plan; },
+    async deletePlan(projectId, planId) { const plan = plans.get(planId); return Boolean(plan && plan.projectId === projectId && plans.delete(planId)); },
+    async createGroup(projectId, planId, input) { const plan = plans.get(planId); if (!plan || plan.projectId !== projectId) throw new Error("plan not found"); const group = { id: `group-${plan.groups.length + 1}`, projectId, planId, name: input.name, sortOrder: input.sortOrder ?? plan.groups.length, createdAt: now, updatedAt: now, items: [] }; plan.groups.push(group); return group; },
+    async updateGroup(projectId, groupId, input) { const group = Array.from(plans.values()).flatMap(plan => plan.groups).find(item => item.id === groupId && item.projectId === projectId); if (!group) return null; Object.assign(group, { name: input.name ?? group.name, sortOrder: input.sortOrder ?? group.sortOrder, updatedAt: now }); return group; },
+    async deleteGroup(projectId, groupId) { const plan = Array.from(plans.values()).find(candidate => candidate.projectId === projectId && candidate.groups.some(group => group.id === groupId)); if (!plan) return false; plan.groups = plan.groups.filter(group => group.id !== groupId); return true; },
+    async reorderGroups(projectId, planId, groupIds) { const plan = plans.get(planId); if (plan?.projectId === projectId) groupIds.forEach((id, index) => { const group = plan.groups.find(item => item.id === id); if (group) group.sortOrder = index; }); },
+    async addItem(projectId, planId, groupId, input) { const group = (await this.getPlan(projectId, planId))?.groups.find(item => item.id === groupId); if (!group) throw new Error("group not found"); const item = { id: `item-${group.items.length + 1}`, projectId, planId, groupId, tableId: input.tableId, tableName: input.tableId, sortOrder: input.sortOrder ?? group.items.length }; group.items.push(item); return item; },
+    async removeItem(projectId, itemId) { for (const plan of plans.values()) for (const group of plan.groups) { const index = group.items.findIndex(item => item.id === itemId && item.projectId === projectId); if (index >= 0) { group.items.splice(index, 1); return true; } } return false; },
+    async reorderItems(projectId, groupId, itemIds) { const group = Array.from(plans.values()).flatMap(plan => plan.groups).find(item => item.id === groupId && item.projectId === projectId); itemIds.forEach((id, index) => { const item = group?.items.find(candidate => candidate.id === id); if (item) item.sortOrder = index; }); },
+    async createRun() { throw new Error("not used"); }, async saveRun() {}, async getRun() { return null; }, async listRuns() { return []; },
+  };
+}
+
 describe("MCP project-management tools", () => {
   it("lets AI read the canonical project description directly", async () => {
     const repo = makeProjectManagementRepo();
@@ -461,6 +498,7 @@ describe("MCP project-management tools", () => {
   it("provides dedicated project-todo CRUD tools with UI-compatible fields", async () => {
     const server = buildMcpServer(makeDeps(makeProjectManagementRepo()));
     const create = tool(server, "project_todo_create");
+    const summary = tool(server, "project_todo_summary");
     const list = tool(server, "project_todo_list");
     const get = tool(server, "project_todo_get");
     const update = tool(server, "project_todo_update");
@@ -486,6 +524,9 @@ describe("MCP project-management tools", () => {
       description: "对比临时表和目标表数据。",
     }))) as { todo: ProjectModuleItem };
     expect(created.todo.content.original).toMatchObject({ status: "doing", owner: "Rich", dueAt: "2026-08-30" });
+
+    const todoSummary = JSON.parse(textOf(await summary.handler({ project_id: "capital-bank-ybt" }))) as Record<string, number>;
+    expect(todoSummary).toMatchObject({ total: 1, doing: 1, highPriority: 1, unassigned: 0, withDueDate: 1 });
 
     const listed = JSON.parse(textOf(await list.handler({ project_id: "capital-bank-ybt", status: "doing" }))) as ProjectModuleItem[];
     expect(listed).toHaveLength(1);
@@ -533,10 +574,13 @@ describe("MCP project-management tools", () => {
       project_id: "capital-bank-ybt",
       field_id: "field-1",
       field_length: "24,2",
+      verification_status: "已验证",
+      verification_remark: "字段定义与取数逻辑已核对。",
     }))) as { ok: boolean; field: ProjectDictionaryFieldDetail };
 
     expect(updated.ok).toBe(true);
     expect(updated.field.fieldLength).toBe("24,2");
+    expect(updated.field).toMatchObject({ verificationStatus: "已验证", verificationRemark: "字段定义与取数逻辑已核对。" });
   });
 
   it("updates table usage status and merges extra metadata through MCP", async () => {
@@ -549,6 +593,8 @@ describe("MCP project-management tools", () => {
       table_group: "监管报表",
       table_type: "报表表",
       usage_status: "使用",
+      verification_status: "待整改",
+      verification_remark: "需确认报送范围。",
       extra: { vtbWillReport: true },
     }).success).toBe(true);
 
@@ -559,12 +605,23 @@ describe("MCP project-management tools", () => {
       table_group: "监管报表",
       table_type: "报表表",
       usage_status: "使用",
+      verification_status: "待整改",
+      verification_remark: "需确认报送范围。",
       extra: { vtbWillReport: true },
-    }))) as { ok: boolean; table: { tableCn?: string; tableGroup?: string; tableType?: string; usageStatus?: string; extra?: Record<string, unknown> } };
+    }))) as { ok: boolean; table: { tableCn?: string; tableGroup?: string; tableType?: string; usageStatus?: string; verificationStatus?: string; verificationRemark?: string; extra?: Record<string, unknown> } };
     expect(updated).toMatchObject({
       ok: true,
-      table: { tableCn: "不良资产处置明细", tableGroup: "监管报表", tableType: "报表表", usageStatus: "使用", extra: { existingFlag: true, vtbWillReport: true } },
+      table: { tableCn: "不良资产处置明细", tableGroup: "监管报表", tableType: "报表表", usageStatus: "使用", verificationStatus: "待整改", verificationRemark: "需确认报送范围。", extra: { existingFlag: true, vtbWillReport: true } },
     });
+  });
+
+  it("updates data-dictionary system metadata through MCP", async () => {
+    const server = buildMcpServer(makeDeps(makeProjectManagementRepo()));
+    const updateSystem = tool(server, "project_dictionary_update_system");
+    const result = JSON.parse(textOf(await updateSystem.handler({
+      project_id: "capital-bank-ybt", system_id: "sys-1", asset_layer: "landing", extra: { dbType: "postgresql" },
+    }))) as { ok: boolean; system: { assetLayer?: string; extra?: Record<string, unknown> } };
+    expect(result).toMatchObject({ ok: true, system: { assetLayer: "landing", extra: { dbType: "postgresql" } } });
   });
 
   it("exposes mapping-rule MCP tools", async () => {
@@ -590,9 +647,12 @@ describe("MCP project-management tools", () => {
       mapping_rule_id: "mapping-1",
       status: "complete",
       converted_sql: "G080009",
+      verification_status: "已验证",
+      verification_remark: "SQL 已通过核对。",
     }))) as { rule: ProjectDictionaryMappingRule };
     expect(updated.rule.status).toBe("complete");
     expect(updated.rule.convertedSql).toBe("G080009");
+    expect(updated.rule).toMatchObject({ verificationStatus: "已验证", verificationRemark: "SQL 已通过核对。" });
 
     const validation = JSON.parse(textOf(await validateTable.handler({
       project_id: "capital-bank-ybt",
@@ -627,5 +687,28 @@ describe("MCP project-management tools", () => {
     expect(result.ok).toBe(true);
     expect(result.temp_tables[0]?.tableName).toBe("tmp_transaction");
     expect(result.temp_tables[0]?.fields[0]?.fieldName).toBe("transaction_id");
+  });
+
+  it("provides CRUD MCP tools for data-automation plans, groups, and table items", async () => {
+    const deps = makeDeps(makeProjectManagementRepo()) as { projectAutomation?: ProjectAutomationRepo };
+    deps.projectAutomation = makeProjectAutomationRepo();
+    const server = buildMcpServer(deps as never);
+    const createPlan = tool(server, "project_automation_create_plan");
+    const createGroup = tool(server, "project_automation_create_group");
+    const addItem = tool(server, "project_automation_add_item");
+    const updatePlan = tool(server, "project_automation_update_plan");
+    const removeItem = tool(server, "project_automation_remove_item");
+    const removeGroup = tool(server, "project_automation_delete_group");
+    const removePlan = tool(server, "project_automation_delete_plan");
+
+    const plan = JSON.parse(textOf(await createPlan.handler({ project_id: "capital-bank-ybt", name: "每日抽取" }))).plan;
+    const group = JSON.parse(textOf(await createGroup.handler({ project_id: "capital-bank-ybt", plan_id: plan.id, name: "源数据" }))).group;
+    const item = JSON.parse(textOf(await addItem.handler({ project_id: "capital-bank-ybt", plan_id: plan.id, group_id: group.id, table_id: "table-1" }))).item;
+    const updated = JSON.parse(textOf(await updatePlan.handler({ project_id: "capital-bank-ybt", plan_id: plan.id, description: "每日运行" }))).plan;
+
+    expect(updated.description).toBe("每日运行");
+    expect(JSON.parse(textOf(await removeItem.handler({ project_id: "capital-bank-ybt", item_id: item.id })))).toMatchObject({ ok: true });
+    expect(JSON.parse(textOf(await removeGroup.handler({ project_id: "capital-bank-ybt", group_id: group.id })))).toMatchObject({ ok: true });
+    expect(JSON.parse(textOf(await removePlan.handler({ project_id: "capital-bank-ybt", plan_id: plan.id })))).toMatchObject({ ok: true });
   });
 });

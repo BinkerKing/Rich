@@ -21,6 +21,27 @@ describe("planChatTurn", () => {
     expect(plan.intent).toBe("operate-rich");
   });
 
+  it("routes natural-language project implementation requests to agent-task", () => {
+    const plan = planChatTurn([{
+      role: "user",
+      content: "这是一个客户管理项目，需要你把登录页面和任务看板实现出来",
+    }]);
+    expect(plan.scenario).toBe("agent-task");
+    expect(plan.requiresAgent).toBe(true);
+  });
+
+  it("routes project status requests to agent-task", () => {
+    const plan = planChatTurn([{ role: "user", content: "帮我查看这个项目当前有哪些待办任务" }]);
+    expect(plan.scenario).toBe("agent-task");
+    expect(plan.requiresAgent).toBe(true);
+  });
+
+  it("keeps project-writing requests in content mode", () => {
+    const plan = planChatTurn([{ role: "user", content: "帮我写一份项目方案" }]);
+    expect(plan.scenario).toBe("content");
+    expect(plan.requiresAgent).toBe(false);
+  });
+
   it("routes mapping and sql analysis to data", () => {
     const plan = planChatTurn([{ role: "user", content: "分析一下这个 Mapping 字段抓取 SQL 怎么写" }]);
     expect(plan.scenario).toBe("data");

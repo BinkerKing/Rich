@@ -56,6 +56,10 @@ export class EmptyProjectManagementRepo implements ProjectManagementRepo {
     return [];
   }
 
+  async listAllModuleItems(_projectId: string, _moduleKey: ProjectManagementModuleKey): Promise<ProjectModuleItem[]> {
+    return [];
+  }
+
   async createModuleItem(projectId: string, input: ProjectModuleItemInput): Promise<ProjectModuleItem> {
     const now = new Date().toISOString();
     return {

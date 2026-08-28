@@ -31,6 +31,7 @@ import {
   DictionarySystemTitleRail,
   DictionaryTableTitleRail,
 } from "./dictionary/DictionarySystemPanels.js";
+import type { ProjectManagementSearchTarget } from "./ProjectManagementNavigation.js";
 
 type DictionaryView = "field-design" | "mapping" | "temp-table" | "relations" | "test-data" | "table-info";
 type DictionarySourceRef = { label: string; field?: ProjectDictionaryFieldHit };
@@ -49,7 +50,7 @@ type DictionaryTreeDragState = { kind: "system"; id: string } | { kind: "table";
 type DictionaryWorkspaceState = { selectedSystemId: string; expandedSystemIds: string[]; selectedTableId: string; openTableTitleIds: string[] };
 type DictionaryTreeDragEvent = { dataTransfer: DataTransfer; preventDefault: () => void };
 
-export function DictionarySection({ project, summary }: { project: Element; summary: ProjectManagementSummary | null }) {
+export function DictionarySection({ project, summary, searchTarget }: { project: Element; summary: ProjectManagementSummary | null; searchTarget?: ProjectManagementSearchTarget | null }) {
   const rememberedWorkspace = useMemo(() => loadDictionaryWorkspaceState(project.id), [project.id]);
   const [systems, setSystems] = useState<ProjectDictionarySystem[]>([]);
   const [selectedSystemId, setSelectedSystemId] = useState<string>(rememberedWorkspace.selectedSystemId);
@@ -108,6 +109,40 @@ export function DictionarySection({ project, summary }: { project: Element; summ
       .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
     return () => { cancelled = true; };
   }, [project.id, refreshKey]);
+
+  useEffect(() => {
+    if (!searchTarget || (searchTarget.entityType !== "dictionaryField" && searchTarget.entityType !== "dictionaryTable")) return;
+    if (searchTarget.systemId) {
+      setSelectedSystemId(searchTarget.systemId);
+      setExpandedSystemIds(current => current.includes(searchTarget.systemId!) ? current : [...current, searchTarget.systemId!]);
+    }
+    if (searchTarget.tableId) {
+      setSelectedTableId(searchTarget.tableId);
+      setOpenTableTitleIds(current => current.includes(searchTarget.tableId!) ? current : [...current, searchTarget.tableId!]);
+      setActiveView("field-design");
+    }
+    if (searchTarget.entityType === "dictionaryTable") {
+      setSelectedFieldId("");
+      return;
+    }
+    let cancelled = false;
+    void api.getProjectDictionaryField(project.id, searchTarget.entityId)
+      .then(field => {
+        if (cancelled) return;
+        if (field.systemId) {
+          setSelectedSystemId(field.systemId);
+          setExpandedSystemIds(current => current.includes(field.systemId!) ? current : [...current, field.systemId!]);
+        }
+        if (field.tableId) {
+          setSelectedTableId(field.tableId);
+          setOpenTableTitleIds(current => current.includes(field.tableId!) ? current : [...current, field.tableId!]);
+          setActiveView("field-design");
+        }
+        setSelectedFieldId(field.id);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [project.id, searchTarget]);
 
   useEffect(() => {
     const savedWorkspace = loadDictionaryWorkspaceState(project.id);
@@ -782,9 +817,13 @@ export function DictionarySection({ project, summary }: { project: Element; summ
               {activeView === "temp-table" && (
                 <DictionaryTempTablePanel
                   projectId={project.id}
+                  system={selectedSystem}
                   table={selectedTable}
                   tempTables={tempTables}
-                  onSaved={setTempTables}
+                  allFields={mappingRefFields}
+                  onInspectProperty={setPropertyViewer}
+                  onOpenFieldRef={openLinkedDictionaryField}
+                  onOpenTableRef={openTable}
                 />
               )}
               {activeView === "relations" && <DictionaryRelationsPanel fields={visibleFields} />}

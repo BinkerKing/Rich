@@ -182,7 +182,7 @@ function buildDictionaryJsonSqlExpression(rule: DictionaryMappingJsonRule, refs:
     }
     case "coalesce_cast": {
       const source = rule.source ? getDictionaryJsonSourceSqlName(rule.source, refs) : "";
-      return source && rule.to ? buildDictionaryCoalesceCastSql(source, rule.to, formatDictionarySqlLiteral(typeof rule.emptyAs === "string" ? rule.emptyAs : "0"), dialect) : "";
+      return source && rule.to ? buildDictionaryCoalesceCastSql(source, rule.to, formatDictionaryTextSqlLiteral(typeof rule.emptyAs === "string" ? rule.emptyAs : "0"), dialect) : "";
     }
     case "coalesce": {
       const source = rule.source ? getDictionaryJsonSourceSqlName(rule.source, refs) : "";
@@ -253,14 +253,17 @@ function buildDictionaryJsonSqlExpression(rule: DictionaryMappingJsonRule, refs:
     }
     case "concat": {
       const pieces = (rule.sources ?? []).map(source => getDictionaryJsonSourceSqlName(source, refs)).filter(Boolean);
-      return pieces.length ? `CONCAT(${pieces.join(", ")})` : "";
+      if (!pieces.length) return "";
+      return rule.delimiter !== undefined
+        ? `CONCAT_WS(${formatDictionarySqlLiteral(rule.delimiter)}, ${pieces.join(", ")})`
+        : `CONCAT(${pieces.join(", ")})`;
     }
     case "code_mapping":
     case "码值映射": {
       const source = rule.source ? getDictionaryJsonSourceSqlName(rule.source, refs) : "";
       const entries = Object.entries(rule.map ?? {});
       if (!source || entries.length === 0) return "";
-      const branches = entries.map(([from, to]) => `WHEN ${source} = ${formatDictionarySqlLiteral(from)} THEN ${formatDictionaryJsonSqlValue(to as DictionaryMappingJsonValue, refs, dialect)}`);
+      const branches = entries.map(([from, to]) => `WHEN ${source} = ${formatDictionaryTextSqlLiteral(from)} THEN ${formatDictionaryJsonSqlValue(to as DictionaryMappingJsonValue, refs, dialect)}`);
       return `CASE ${branches.join(" ")} ELSE ${formatDictionaryJsonSqlValue(rule.else, refs, dialect) || "NULL"} END`;
     }
     case "case":
@@ -768,6 +771,10 @@ export function getDictionarySourceRefSqlName(ref: DictionarySourceRef): string 
 export function sanitizeDictionarySqlIdentifier(value?: string): string {
   const text = value?.trim() || "";
   return /^[A-Za-z_][\w$]*$/.test(text) ? text : "";
+}
+
+function formatDictionaryTextSqlLiteral(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
 }
 
 export function buildDictionaryLogicRefCandidates(refs: DictionarySourceRef[]) {

@@ -6,9 +6,9 @@
  *
  * 安全 / 性能限制：
  *   - 只读，绝不写
- *   - 默认排除 .DS_Store / node_modules / .git / dist / build / _archive 等噪音
- *   - 默认 maxDepth=4，避免爆栈或 OOM
- *   - 软上限：最多 5000 个节点；超了截断 + 在节点上挂 truncated=true
+ *   - 默认排除 .DS_Store / .git / .svn / node_modules / dist / build / .class / .java 等噪音
+ *   - 默认完整遍历；节点数上限防止目录过大占用过多资源
+ *   - 软上限：最多 20000 个节点；超了截断 + 在节点上挂 truncated=true
  *   - 单文件 stat 失败不报错，整体跳过
  */
 import { readdir, stat } from "node:fs/promises";
@@ -23,8 +23,10 @@ export interface FolderNode {
   size: number;
   /** dir 才有 */
   children?: FolderNode[];
-  /** dir：是否被截断（超过 5000 节点上限） */
+  /** dir：是否被截断（超过节点上限） */
   truncated?: boolean;
+  /** 该目录被项目手动忽略；保留目录本身但不读取子项。 */
+  ignored?: boolean;
   /** file: 扩展名（小写，含 .） */
   ext?: string;
   mtime?: string;
@@ -45,20 +47,23 @@ export interface ScanResult {
 }
 
 const DEFAULT_EXCLUDE = new Set([
-  ".DS_Store", ".git", "node_modules", "dist", "build", ".next",
+  ".DS_Store", ".git", ".svn", "node_modules", "dist", "build", ".next",
   ".cache", ".vscode", ".idea", "__pycache__", ".pnpm-store",
 ]);
+const DEFAULT_EXCLUDE_EXTENSIONS = new Set([".class", ".java"]);
 
 export interface ScanOptions {
-  maxDepth?: number;           // 默认 4
-  maxNodes?: number;           // 默认 5000
+  maxDepth?: number;           // 默认 1000（实际视为完整遍历）
+  maxNodes?: number;           // 默认 20000
   excludeNames?: Set<string>;  // 排除某些目录/文件名
+  ignoreDirectoryPaths?: Set<string>; // 相对 rootPath 的手动忽略目录
 }
 
 export async function scanFolder(rootPath: string, opts: ScanOptions = {}): Promise<ScanResult> {
-  const maxDepth = opts.maxDepth ?? 4;
-  const maxNodes = opts.maxNodes ?? 5000;
+  const maxDepth = opts.maxDepth ?? 1000;
+  const maxNodes = opts.maxNodes ?? 20000;
   const exclude = opts.excludeNames ?? DEFAULT_EXCLUDE;
+  const ignoredPaths = opts.ignoreDirectoryPaths ?? new Set<string>();
 
   const warnings: string[] = [];
   let totalNodes = 0;
@@ -79,6 +84,10 @@ export async function scanFolder(rootPath: string, opts: ScanOptions = {}): Prom
     };
     totalNodes++;
     totalDirs++;
+    if (ignoredPaths.has(node.path)) {
+      node.ignored = true;
+      return node;
+    }
     if (totalNodes > maxNodes) {
       node.truncated = true;
       return node;
@@ -111,6 +120,7 @@ export async function scanFolder(rootPath: string, opts: ScanOptions = {}): Prom
         node.children!.push(childNode);
       } else if (st.isFile()) {
         const ext = (entry.includes(".") ? entry.slice(entry.lastIndexOf(".")) : "").toLowerCase();
+        if (DEFAULT_EXCLUDE_EXTENSIONS.has(ext)) continue;
         const fileNode: FolderNode = {
           path: relative(rootPath, childAbs),
           name: entry,

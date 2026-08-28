@@ -439,9 +439,16 @@ function applySchema(db: Database.Database) {
   ensureColumn(db, "elements", "status", "TEXT");
   ensureColumn(db, "pm_data_tables", "table_group", "TEXT");
   ensureColumn(db, "pm_data_tables", "data_layer", "TEXT");
+  ensureColumn(db, "pm_data_tables", "table_type", "TEXT");
   ensureColumn(db, "pm_data_tables", "source_kind", "TEXT");
   ensureColumn(db, "pm_data_tables", "file_type", "TEXT");
   ensureColumn(db, "pm_data_tables", "has_mapping", "INTEGER");
+  ensureColumn(db, "pm_data_tables", "verification_status", "TEXT NOT NULL DEFAULT '未验证'");
+  ensureColumn(db, "pm_data_tables", "verification_remark", "TEXT");
+  ensureColumn(db, "pm_data_fields", "verification_status", "TEXT NOT NULL DEFAULT '未验证'");
+  ensureColumn(db, "pm_data_fields", "verification_remark", "TEXT");
+  ensureColumn(db, "pm_mapping_rules", "verification_status", "TEXT NOT NULL DEFAULT '未验证'");
+  ensureColumn(db, "pm_mapping_rules", "verification_remark", "TEXT");
   db.exec(`
     UPDATE pm_data_tables
        SET has_mapping = CASE

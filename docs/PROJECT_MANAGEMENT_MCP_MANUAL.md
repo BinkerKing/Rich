@@ -141,6 +141,48 @@
 }
 ```
 
+## 项目代办工具
+
+代办有专用 MCP，支持看板状态、负责人、优先级、截止日和说明。规划或分派前先看总览；修改、删除前先查对应代办 ID。
+
+### `project_todo_summary`
+
+返回总代办数，以及待办/进行中/已完成、高优先级、未分配负责人、已设截止日的数量。
+
+```json
+{ "project_id": "capital-bank-ybt" }
+```
+
+### `project_todo_list` / `project_todo_get`
+
+按状态或负责人列出代办，或按 ID 读取单个代办。
+
+```json
+{ "project_id": "capital-bank-ybt", "status": "doing", "owner": "Rich" }
+```
+
+### `project_todo_create`
+
+```json
+{
+  "project_id": "capital-bank-ybt",
+  "title": "核对抽取结果",
+  "status": "todo",
+  "owner": "Rich",
+  "priority": "高",
+  "due_at": "2026-08-30",
+  "description": "对比临时表和目标表数据。"
+}
+```
+
+### `project_todo_update` / `project_todo_delete`
+
+更新时只传需要修改的字段；`owner`、`priority`、`due_at`、`description` 传 `null` 可清空。删除必须获得用户明确确认。
+
+```json
+{ "project_id": "capital-bank-ybt", "todo_id": "pm-item-xxx", "status": "done" }
+```
+
 ## 数据字典工具
 
 ### `project_dictionary_list_systems`

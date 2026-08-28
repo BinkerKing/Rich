@@ -305,7 +305,10 @@ function buildDictionaryExtractionRuleSqlExpression(
   }
   if (op === "concat") {
     const pieces = (rule.sources ?? []).map(source => dictionaryExtractionSourceSqlExpression(source, context)).filter(Boolean);
-    return pieces.length ? `CONCAT(${pieces.join(", ")})` : "";
+    if (!pieces.length) return "";
+    return rule.delimiter !== undefined
+      ? `CONCAT_WS(${formatDictionaryExtractionSqlLiteral(rule.delimiter, context.dialect)}, ${pieces.join(", ")})`
+      : `CONCAT(${pieces.join(", ")})`;
   }
   if (op === "group_aggregate") {
     const source = dictionaryExtractionSourceSqlExpression(rule.source, context);

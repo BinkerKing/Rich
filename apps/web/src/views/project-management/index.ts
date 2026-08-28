@@ -14,4 +14,5 @@ export {
   PROJECT_MANAGEMENT_SECTIONS,
   ProjectManagementSearchBar,
   type ProjectManagementSection,
+  type ProjectManagementSearchTarget,
 } from "./ProjectManagementNavigation.js";

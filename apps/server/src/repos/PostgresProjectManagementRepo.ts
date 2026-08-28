@@ -37,6 +37,12 @@ import {
   type ProjectModuleItemPatch,
   type ProjectModuleItem,
 } from "./ProjectManagementRepo.js";
+import {
+  dictionaryFieldMatchesOwnContent,
+  dictionaryTableMatchesOwnContent,
+  dictionaryTableSearchScore,
+  projectManagementSearchDestination,
+} from "./projectManagementSearch.js";
 
 interface CountRow {
   key: string;
@@ -108,6 +114,8 @@ interface FieldRow {
   code_set_name?: string | null;
   code_items?: Array<{ id?: string; value: string; description: string; remark?: string; sortOrder?: number }> | null;
   remark: string | null;
+  verification_status: string | null;
+  verification_remark: string | null;
   mapped_table: string | null;
   mapped_field: string | null;
   mapped_field_cn?: string | null;
@@ -138,6 +146,8 @@ interface MappingRuleRow {
   logic_text: string | null;
   converted_sql: string | null;
   remark: string | null;
+  verification_status: string | null;
+  verification_remark: string | null;
   sort_order: string | number;
   raw: Record<string, unknown> | null;
   created_at: string;
@@ -236,6 +246,8 @@ interface TableRow {
   file_type: string | null;
   has_mapping: boolean;
   usage_status: string | null;
+  verification_status: string | null;
+  verification_remark: string | null;
   description: string | null;
   caliber: string | null;
   extra: Record<string, unknown> | null;
@@ -337,7 +349,8 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
        LIMIT $2`,
       q ? [...params, q, `%${q}%`] : [...params, "", ""],
     );
-    return result.rows.map(row => ({
+    // Dictionary entities are searched from their normalized tables below; legacy generic-index rows would duplicate them.
+    const moduleHits = result.rows.filter(row => row.module_key !== "dictionary").map(row => ({
       id: row.id,
       moduleKey: row.module_key as ProjectManagementSearchHit["moduleKey"],
       entityType: row.entity_type,
@@ -347,7 +360,41 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
       excerpt: excerpt(row.body),
       score: Number(row.score),
       updatedAt: row.updated_at,
+      destination: projectManagementSearchDestination({ moduleKey: row.module_key as ProjectManagementSearchHit["moduleKey"], entityType: row.entity_type, entityId: row.entity_id }),
     }));
+    if (!q) return moduleHits;
+    const tableHits = (await this.listDictionaryTables(projectId))
+      .filter(table => dictionaryTableMatchesOwnContent(table, query))
+      .map(table => ({
+        id: `dictionary-table:${table.id}`,
+        moduleKey: "dictionary" as const,
+        entityType: "dictionaryTable",
+        entityId: table.id,
+        title: table.tableCn ? `${table.tableCn} · ${table.tableName}` : table.tableName,
+        subtitle: [table.tableGroup, table.dataLayer, table.sourceKind].filter(Boolean).join(" / ") || undefined,
+        excerpt: excerpt([table.description, table.caliber].filter(Boolean).join(" ")),
+        score: dictionaryTableSearchScore(table, query),
+        updatedAt: "",
+        destination: projectManagementSearchDestination({ moduleKey: "dictionary", entityType: "dictionaryTable", entityId: table.id, systemId: table.systemId }),
+      }));
+    const matchedTableIds = new Set(tableHits.map(hit => hit.entityId));
+    const dictionaryHits = (await this.searchDictionaryFields(projectId, query, boundedLimit))
+      .filter(field => dictionaryFieldMatchesOwnContent(field, query) && !matchedTableIds.has(field.tableId ?? ""))
+      .map(field => ({
+      id: `dictionary-field:${field.id}`,
+      moduleKey: "dictionary" as const,
+      entityType: "dictionaryField",
+      entityId: field.id,
+      title: field.fieldCn ? `${field.fieldName} · ${field.fieldCn}` : field.fieldName,
+      subtitle: [field.systemCode || field.systemName, field.tableCn || field.tableName].filter(Boolean).join(" / ") || undefined,
+      excerpt: excerpt([field.description, field.codeValue, field.remark].filter(Boolean).join(" ")),
+      score: field.fieldName.toLowerCase() === q.toLowerCase() ? 100 : field.fieldCn?.toLowerCase() === q.toLowerCase() ? 96 : Math.max(40, field.score),
+      updatedAt: "",
+      destination: projectManagementSearchDestination({ moduleKey: "dictionary", entityType: "dictionaryField", entityId: field.id, systemId: field.systemId, tableId: field.tableId }),
+      }));
+    return [...moduleHits, ...tableHits, ...dictionaryHits]
+      .sort((left, right) => right.score - left.score || right.updatedAt.localeCompare(left.updatedAt))
+      .slice(0, boundedLimit);
   }
 
   async listModuleItems(projectId: string, moduleKey: ProjectManagementModuleKey, parentId?: string): Promise<ProjectModuleItem[]> {
@@ -365,10 +412,21 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
     return result.rows.map(moduleItemFromRow);
   }
 
+  async listAllModuleItems(projectId: string, moduleKey: ProjectManagementModuleKey): Promise<ProjectModuleItem[]> {
+    const result = await this.pg.query<ModuleItemRow>(
+      `SELECT id, project_id, module_key, parent_id, title, subtitle, sort_order, content, created_at, updated_at
+         FROM pm_module_items
+        WHERE project_id = $1 AND module_key = $2
+        ORDER BY sort_order ASC, updated_at DESC`,
+      [projectId, moduleKey],
+    );
+    return result.rows.map(moduleItemFromRow);
+  }
+
   async createModuleItem(projectId: string, input: ProjectModuleItemInput): Promise<ProjectModuleItem> {
     const now = new Date().toISOString();
     const id = `pm-item-${randomUUID()}`;
-    const title = input.title.trim() || "未命名事项";
+    const title = input.title.trim() || (input.moduleKey === "todos" ? "" : "未命名事项");
     const content = input.content ?? {};
     await this.pg.query(
       `INSERT INTO pm_module_items (id, project_id, module_key, parent_id, title, subtitle, sort_order, content, created_at, updated_at)
@@ -385,7 +443,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
     const current = await this.getModuleItem(projectId, itemId);
     if (!current) return null;
     const now = new Date().toISOString();
-    const title = patch.title === undefined ? current.title : patch.title.trim() || "未命名事项";
+    const title = patch.title === undefined ? current.title : patch.title.trim() || (current.moduleKey === "todos" ? "" : "未命名事项");
     const subtitle = patch.subtitle === undefined ? current.subtitle ?? null : patch.subtitle ?? null;
     const parentId = patch.parentId === undefined ? current.parentId ?? null : patch.parentId ?? null;
     const sortOrder = patch.sortOrder === undefined ? current.sortOrder : patch.sortOrder;
@@ -517,7 +575,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
     if (systemId) params.push(systemId);
     const result = await this.pg.query<TableRow>(
       `SELECT
-         t.id, t.system_id, t.table_name, t.table_cn, t.table_group, t.data_layer, t.table_type, t.source_kind, t.file_type, t.has_mapping, t.usage_status, t.description, t.caliber, t.extra,
+         t.id, t.system_id, t.table_name, t.table_cn, t.table_group, t.data_layer, t.table_type, t.source_kind, t.file_type, t.has_mapping, t.usage_status, t.verification_status, t.verification_remark, t.description, t.caliber, t.extra,
          COALESCE(fc.field_count, 0) AS field_count
        FROM pm_data_tables t
        LEFT JOIN (
@@ -543,6 +601,8 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
       fileType: row.file_type ?? undefined,
       hasMapping: row.has_mapping,
       usageStatus: row.usage_status ?? undefined,
+      verificationStatus: verificationStatus(row.verification_status),
+      verificationRemark: row.verification_remark ?? undefined,
       description: row.description ?? undefined,
       caliber: row.caliber ?? undefined,
       extra: row.extra ?? undefined,
@@ -556,8 +616,8 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
     await this.pg.query(
       `UPDATE pm_data_tables
        SET system_id=$3, table_name=$4, table_cn=$5, table_group=$6, data_layer=$7, table_type=$8,
-           source_kind=$9, file_type=$10, has_mapping=$11, usage_status=$12, description=$13,
-           caliber=$14, extra=$15::jsonb, updated_at=$16
+           source_kind=$9, file_type=$10, has_mapping=$11, usage_status=$12, verification_status=$13, verification_remark=$14, description=$15,
+           caliber=$16, extra=$17::jsonb, updated_at=$18
        WHERE project_id=$1 AND id=$2`,
       [
         projectId,
@@ -572,6 +632,8 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
         patch.fileType === undefined ? current.fileType ?? null : patch.fileType,
         patch.hasMapping ?? current.hasMapping,
         patch.usageStatus === undefined ? current.usageStatus ?? null : patch.usageStatus,
+        patch.verificationStatus === undefined ? current.verificationStatus ?? "未验证" : patch.verificationStatus,
+        patch.verificationRemark === undefined ? current.verificationRemark ?? null : patch.verificationRemark,
         patch.description === undefined ? current.description ?? null : patch.description,
         patch.caliber === undefined ? current.caliber ?? null : patch.caliber,
         JSON.stringify(patch.extra === undefined ? current.extra ?? {} : { ...current.extra, ...patch.extra }),
@@ -586,7 +648,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
       `SELECT
          f.id, f.system_id, s.name AS system_name, s.code AS system_code,
          f.table_id, t.table_name, t.table_cn,
-         f.field_name, f.field_cn, f.field_type, f.field_length, f.format_pattern, f.carrier_kind, f.field_order, f.source_field_order, f.description, f.acquire_logic, f.code_value, f.remark, f.extra,
+         f.field_name, f.field_cn, f.field_type, f.field_length, f.format_pattern, f.carrier_kind, f.field_order, f.source_field_order, f.description, f.acquire_logic, f.code_value, f.remark, f.verification_status, f.verification_remark, f.extra,
          cs.id AS code_set_id, cs.name AS code_set_name, COALESCE(ci.items, '[]'::json) AS code_items,
          f.mapped_table, f.mapped_field, f.mapped_field_cn,
          50 AS score
@@ -638,6 +700,8 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
       mappedField: row.mapped_field ?? undefined,
       mappedFieldCn: row.mapped_field_cn ?? undefined,
       remark: row.remark ?? undefined,
+      verificationStatus: verificationStatus(row.verification_status),
+      verificationRemark: row.verification_remark ?? undefined,
       extra: row.extra ?? undefined,
       score: Number(row.score),
     }));
@@ -822,7 +886,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
          f.primary_key, f.required, f.description, f.acquire_logic, f.validation_rule,
          f.code_value, cs.id AS code_set_id, cs.name AS code_set_name, COALESCE(ci.items, '[]'::json) AS code_items,
          f.mapped_table, f.mapped_field, f.mapped_field_cn,
-         f.data_source, f.remark, f.extra,
+         f.data_source, f.remark, f.verification_status, f.verification_remark, f.extra,
          t.description AS table_description, t.caliber AS table_caliber,
          t.data_layer AS table_data_layer, t.source_kind AS table_source_kind,
          s.type AS system_type, s.asset_layer AS system_asset_layer, s.description AS system_description,
@@ -883,6 +947,8 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
       mappedFieldCn: row.mapped_field_cn ?? undefined,
       dataSource: row.data_source ?? undefined,
       remark: row.remark ?? undefined,
+      verificationStatus: verificationStatus(row.verification_status),
+      verificationRemark: row.verification_remark ?? undefined,
       extra: row.extra ?? undefined,
       score: Number(row.score),
     };
@@ -897,7 +963,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
          field_cn=$3, field_type=$4, field_length=$5, format_pattern=$6, nullable=$7,
          primary_key=$8, required=$9, description=$10, acquire_logic=$11, validation_rule=$12,
          code_value=$13, mapped_table=$14, mapped_field=$15, mapped_field_cn=$16,
-         data_source=$17, remark=$18, extra=$19::jsonb, updated_at=$20
+         data_source=$17, remark=$18, verification_status=$19, verification_remark=$20, extra=$21::jsonb, updated_at=$22
        WHERE project_id=$1 AND id=$2`,
       [projectId, fieldId,
         patch.fieldCn === undefined ? current.fieldCn ?? null : patch.fieldCn,
@@ -915,6 +981,8 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
         patch.mappedFieldCn === undefined ? current.mappedFieldCn ?? null : patch.mappedFieldCn,
         patch.dataSource === undefined ? current.dataSource ?? null : patch.dataSource,
         patch.remark === undefined ? current.remark ?? null : patch.remark,
+        patch.verificationStatus === undefined ? current.verificationStatus ?? "未验证" : patch.verificationStatus,
+        patch.verificationRemark === undefined ? current.verificationRemark ?? null : patch.verificationRemark,
         JSON.stringify(patch.extra === undefined ? current.extra ?? {} : patch.extra), now],
     );
     return await this.getDictionaryField(projectId, fieldId);
@@ -994,7 +1062,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
   async listDictionaryMappingRules(projectId: string, tableId: string): Promise<ProjectDictionaryMappingRule[]> {
     const result = await this.pg.query<MappingRuleRow>(
       `SELECT id, project_id, scenario_id, system_id, table_id, field_id, status,
-              logic_text, converted_sql, remark, sort_order, raw, created_at, updated_at
+              logic_text, converted_sql, remark, verification_status, verification_remark, sort_order, raw, created_at, updated_at
          FROM pm_mapping_rules
         WHERE project_id = $1 AND table_id = $2
         ORDER BY sort_order ASC, id ASC`,
@@ -1048,7 +1116,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
   async getDictionaryMappingRule(projectId: string, mappingRuleId: string): Promise<ProjectDictionaryMappingRule | null> {
     const result = await this.pg.query<MappingRuleRow>(
       `SELECT id, project_id, scenario_id, system_id, table_id, field_id, status,
-              logic_text, converted_sql, remark, sort_order, raw, created_at, updated_at
+              logic_text, converted_sql, remark, verification_status, verification_remark, sort_order, raw, created_at, updated_at
          FROM pm_mapping_rules
         WHERE project_id = $1 AND id = $2
         LIMIT 1`,
@@ -1066,7 +1134,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
   ): Promise<ProjectDictionaryMappingRule | null> {
     const existing = await this.pg.query<MappingRuleRow>(
       `SELECT id, project_id, scenario_id, system_id, table_id, field_id, status,
-              logic_text, converted_sql, remark, sort_order, raw, created_at, updated_at
+              logic_text, converted_sql, remark, verification_status, verification_remark, sort_order, raw, created_at, updated_at
          FROM pm_mapping_rules
         WHERE project_id = $1 AND id = $2
         LIMIT 1`,
@@ -1078,8 +1146,8 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
     await this.pg.query(
       `UPDATE pm_mapping_rules
           SET scenario_id = $3, system_id = $4, table_id = $5, field_id = $6, status = $7,
-              logic_text = $8, converted_sql = $9, remark = $10, sort_order = $11,
-              raw = $12::jsonb, updated_at = $13
+              logic_text = $8, converted_sql = $9, remark = $10, verification_status = $11, verification_remark = $12, sort_order = $13,
+              raw = $14::jsonb, updated_at = $15
         WHERE project_id = $1 AND id = $2`,
       [
         projectId,
@@ -1092,6 +1160,8 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
         patch.logicText === undefined ? current.logic_text : patch.logicText,
         patch.convertedSql === undefined ? current.converted_sql : patch.convertedSql,
         patch.remark === undefined ? current.remark : patch.remark,
+        patch.verificationStatus === undefined ? current.verification_status ?? "未验证" : patch.verificationStatus,
+        patch.verificationRemark === undefined ? current.verification_remark : patch.verificationRemark,
         patch.sortOrder ?? Number(current.sort_order),
         JSON.stringify(patch.raw === undefined ? current.raw ?? {} : patch.raw),
         now,
@@ -1398,6 +1468,8 @@ function mappingRuleFromRow(
     logicText: row.logic_text ?? undefined,
     convertedSql: row.converted_sql ?? undefined,
     remark: row.remark ?? undefined,
+    verificationStatus: verificationStatus(row.verification_status),
+    verificationRemark: row.verification_remark ?? undefined,
     sortOrder: Number(row.sort_order),
     raw: row.raw ?? undefined,
     sourceFields,
@@ -1530,6 +1602,10 @@ function validateMappingRules(
 
 function normalizeMappingStatus(status: string): string {
   return status.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function verificationStatus(value?: string | null): "未验证" | "已验证" | "待整改" {
+  return value === "已验证" || value === "待整改" ? value : "未验证";
 }
 
 function groupBy<T>(items: T[], getKey: (item: T) => string): Map<string, T[]> {

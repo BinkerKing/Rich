@@ -32,6 +32,8 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     file_type TEXT,
     has_mapping BOOLEAN NOT NULL DEFAULT true,
     usage_status TEXT,
+    verification_status TEXT NOT NULL DEFAULT '未验证',
+    verification_remark TEXT,
     description TEXT,
     caliber TEXT,
     extra JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -94,6 +96,8 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
      END
    WHERE coalesce(trim(table_type), '') = '';
   ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS usage_status TEXT;
+  ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS verification_status TEXT NOT NULL DEFAULT '未验证';
+  ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS verification_remark TEXT;
 
   CREATE TABLE IF NOT EXISTS pm_data_fields (
     id TEXT PRIMARY KEY,
@@ -120,6 +124,8 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     mapped_field_cn TEXT,
     data_source TEXT,
     remark TEXT,
+    verification_status TEXT NOT NULL DEFAULT '未验证',
+    verification_remark TEXT,
     extra JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -132,6 +138,8 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
   ALTER TABLE pm_data_fields ADD COLUMN IF NOT EXISTS carrier_kind TEXT;
   ALTER TABLE pm_data_fields ADD COLUMN IF NOT EXISTS field_order INTEGER;
   ALTER TABLE pm_data_fields ADD COLUMN IF NOT EXISTS source_field_order INTEGER;
+  ALTER TABLE pm_data_fields ADD COLUMN IF NOT EXISTS verification_status TEXT NOT NULL DEFAULT '未验证';
+  ALTER TABLE pm_data_fields ADD COLUMN IF NOT EXISTS verification_remark TEXT;
 
   CREATE TABLE IF NOT EXISTS pm_code_sets (
     id TEXT PRIMARY KEY,
@@ -273,6 +281,8 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     logic_text TEXT,
     converted_sql TEXT,
     remark TEXT,
+    verification_status TEXT NOT NULL DEFAULT '未验证',
+    verification_remark TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0,
     raw JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TEXT NOT NULL,
@@ -288,6 +298,8 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
       ELSE raw::jsonb
     END,
     ALTER COLUMN raw SET DEFAULT '{}'::jsonb;
+  ALTER TABLE pm_mapping_rules ADD COLUMN IF NOT EXISTS verification_status TEXT NOT NULL DEFAULT '未验证';
+  ALTER TABLE pm_mapping_rules ADD COLUMN IF NOT EXISTS verification_remark TEXT;
 
   INSERT INTO pm_mapping_scenarios (id, project_id, table_id, title, caliber, sort_order, raw, created_at, updated_at)
   SELECT 'pm-map-scenario-' || md5(project_id || ':' || table_id || ':' || jsonb_extract_path_text(raw::jsonb, 'scenario')),
@@ -615,10 +627,13 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
     table_cn TEXT,
     table_group TEXT,
     data_layer TEXT,
+    table_type TEXT,
     source_kind TEXT,
     file_type TEXT,
     has_mapping INTEGER NOT NULL DEFAULT 1,
     usage_status TEXT,
+    verification_status TEXT NOT NULL DEFAULT '未验证',
+    verification_remark TEXT,
     description TEXT,
     caliber TEXT,
     extra TEXT NOT NULL DEFAULT '{}',
@@ -654,6 +669,8 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
     mapped_field_cn TEXT,
     data_source TEXT,
     remark TEXT,
+    verification_status TEXT NOT NULL DEFAULT '未验证',
+    verification_remark TEXT,
     extra TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -803,6 +820,8 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
     logic_text TEXT,
     converted_sql TEXT,
     remark TEXT,
+    verification_status TEXT NOT NULL DEFAULT '未验证',
+    verification_remark TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0,
     raw TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL,

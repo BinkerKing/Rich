@@ -49,6 +49,18 @@ async function* sseStream<TResult>(
   }
 }
 
+async function projectFolderAction(projectId: string, action: "move" | "rename" | "delete" | "open" | "ignore" | "reveal", body: Record<string, unknown>): Promise<void> {
+  const r = await fetch(`/api/projects/${encodeURIComponent(projectId)}/folder/${action}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const payload = await r.json().catch(() => ({})) as { error?: string };
+    throw new Error(payload.error ?? `${action}ProjectFolderEntry ${r.status}`);
+  }
+}
+
 // ---------- AI op result types (mirrors server) ----------
 
 export interface GenerateTreeResult {
@@ -703,7 +715,7 @@ export const api = {
   },
 
   // ----- 项目管理 · 文件夹 -----
-  async scanProjectFolder(projectId: string, maxDepth = 4): Promise<ProjectFolderScanResult> {
+  async scanProjectFolder(projectId: string, maxDepth = 1000): Promise<ProjectFolderScanResult> {
     const r = await fetch(`/api/projects/${encodeURIComponent(projectId)}/folder/scan`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -739,6 +751,24 @@ export const api = {
     }
     return r.json();
   },
+  async moveProjectFolderEntry(projectId: string, itemId: string, targetDirectoryId: string): Promise<void> {
+    await projectFolderAction(projectId, "move", { itemId, targetDirectoryId });
+  },
+  async renameProjectFolderEntry(projectId: string, itemId: string, name: string): Promise<void> {
+    await projectFolderAction(projectId, "rename", { itemId, name });
+  },
+  async deleteProjectFolderEntry(projectId: string, itemId: string): Promise<void> {
+    await projectFolderAction(projectId, "delete", { itemId });
+  },
+  async openProjectFolderFile(projectId: string, itemId: string): Promise<void> {
+    await projectFolderAction(projectId, "open", { itemId });
+  },
+  async setProjectFolderIgnored(projectId: string, itemId: string, ignored: boolean): Promise<void> {
+    await projectFolderAction(projectId, "ignore", { itemId, ignored });
+  },
+  async revealProjectFolderEntry(projectId: string, itemId: string): Promise<void> {
+    await projectFolderAction(projectId, "reveal", { itemId });
+  },
 
   // ----- 项目管理 · 新领域模块 -----
   async getProjectManagementSummary(projectId: string): Promise<ProjectManagementSummary> {
@@ -770,9 +800,11 @@ export const api = {
     projectId: string,
     moduleKey: ProjectManagementModuleKey,
     parentId?: string,
+    all = false,
   ): Promise<ProjectModuleItem[]> {
     const params = new URLSearchParams();
     if (parentId) params.set("parentId", parentId);
+    if (all) params.set("all", "1");
     const suffix = params.toString() ? `?${params.toString()}` : "";
     const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/modules/${encodeURIComponent(moduleKey)}/items${suffix}`);
     if (!r.ok) throw new Error(`listProjectManagementModuleItems ${r.status}`);
@@ -1047,6 +1079,23 @@ export const api = {
     }
     return r.json();
   },
+  async validateProjectDictionaryTempTableSql(
+    projectId: string,
+    tableId: string,
+    tempTableId: string,
+    input: { runtimeParams?: Record<string, unknown> } = {},
+  ): Promise<ProjectDictionaryMappingSqlValidationResult> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/temp-tables/${encodeURIComponent(tempTableId)}/sql-validate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!r.ok) {
+      const json = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(json.error || `validateProjectDictionaryTempTableSql ${r.status}`);
+    }
+    return r.json();
+  },
   async resolveProjectDictionaryFieldRefs(projectId: string, refs: string[]): Promise<ProjectDictionaryFieldHit[]> {
     const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/fields/resolve`, {
       method: "POST",
@@ -1120,6 +1169,7 @@ export interface ProjectFolderNode {
   size: number;
   children?: ProjectFolderNode[];
   truncated?: boolean;
+  ignored?: boolean;
   ext?: string;
   mtime?: string;
 }
@@ -1133,11 +1183,13 @@ export interface ProjectFolderScanResult {
   extStats: Array<{ ext: string; count: number; totalBytes: number }>;
   root: ProjectFolderNode;
   warnings: string[];
+  records?: { created: number; updated: number; removed: number; total: number };
 }
 export interface ProjectFolderMkdirsResult {
   created: string[];
   skipped: Array<{ path: string; reason: string }>;
   count: number;
+  manual?: { path: string; created: boolean };
 }
 
 export type ProjectManagementModuleKey =
@@ -1262,6 +1314,15 @@ export interface ProjectManagementSearchHit {
   excerpt?: string;
   score: number;
   updatedAt: string;
+  destination: ProjectManagementSearchDestination;
+}
+
+export interface ProjectManagementSearchDestination {
+  section: ProjectManagementModuleKey;
+  entityType: string;
+  entityId: string;
+  systemId?: string;
+  tableId?: string;
 }
 
 export interface ProjectManagementSearchResult {
@@ -1363,6 +1424,8 @@ export interface ProjectDictionaryTable {
   fileType?: string;
   hasMapping?: boolean;
   usageStatus?: string;
+  verificationStatus?: "未验证" | "已验证" | "待整改";
+  verificationRemark?: string;
   description?: string;
   caliber?: string;
   extra?: Record<string, unknown>;
@@ -1444,6 +1507,8 @@ export interface ProjectDictionaryMappingTempField {
   logicText?: string;
   convertedSql?: string;
   remark?: string;
+  verificationStatus?: "未验证" | "已验证" | "待整改";
+  verificationRemark?: string;
   sortOrder: number;
   raw?: Record<string, unknown>;
   createdAt: string;
@@ -1456,6 +1521,8 @@ export interface ProjectDictionaryMappingRuleSummary {
   logicText?: string;
   convertedSql?: string;
   remark?: string;
+  verificationStatus?: "未验证" | "已验证" | "待整改";
+  verificationRemark?: string;
   sortOrder: number;
 }
 
@@ -1592,6 +1659,8 @@ export interface ProjectDictionaryFieldHit {
   mappedField?: string;
   mappedFieldCn?: string;
   remark?: string;
+  verificationStatus?: "未验证" | "已验证" | "待整改";
+  verificationRemark?: string;
   extra?: Record<string, unknown>;
   score: number;
 }
