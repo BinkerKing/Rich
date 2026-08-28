@@ -1203,6 +1203,7 @@ export type ProjectManagementModuleKey =
   | "monitoring"
   | "codeVersions"
   | "todos"
+  | "healthChecks"
   | "folder";
 
 export type ProjectAutomationStep = "validate_sql" | "sync_table" | "prepare_extraction" | "extract";

@@ -3,10 +3,12 @@ import type { CSSProperties } from "react";
 import { Icon } from "../components/Icon.js";
 import { TopBar } from "../components/TopBar.js";
 import { FooterTaskStrip } from "../components/FooterTaskStrip.js";
+import { api, type ProjectModuleItem } from "../api/client.js";
 import { useStore } from "../state/store.js";
+import { normalizeProjectHealthRecord, type ProjectHealthCategory, type ProjectHealthSeverity, type ProjectHealthStatus } from "./project-health/projectHealthRecord.js";
 import "./AdminView.css";
 
-type Tab = "engine" | "ops" | "signals" | "manuals" | "corpus" | "learning" | "cron" | "improvements";
+type Tab = "engine" | "ops" | "signals" | "manuals" | "corpus" | "learning" | "cron" | "improvements" | "projectHealth";
 
 interface OpListItem {
   id: string;
@@ -64,17 +66,15 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
     page: "首页 / 全局输入框 / ⌘⇧Space",
     scene: "用户直接向 Rich 或 Hermes 下达任务、查询状态、触发系统级动作。",
     manual: [
-      "先判断用户是在聊天、操作 Rich 数据，还是要求后台自动化。",
-      "涉及 Rich 数据变更时优先走 MCP，不要只给文字建议。",
-      "回复风格先查 AI 语料模板，尤其是系统汇报、信息汇报、复盘类任务。",
+      "先识别任务属于查询、整理、精确管理、规划、委派或验收；对象不明确时先搜索。",
+      "需要保存事实、决定或需求时使用知识/项目整理能力，不能只在对话里口头确认。",
+      "输出面向用户的内容前匹配语料模板；密钥与本机配置绝不写入聊天或任务记录。",
     ],
     cli: [
+      "MCP: rich_context_search / rich_context_get_overview",
+      "MCP: rich_knowledge_capture / rich_project_organize_conversation",
       "CLI: pnpm rich -- chat stream --json '{\"messages\":[...]}'",
-      "CLI: pnpm rich -- chat-attachments upload --file image.png",
-      "pnpm corpus list <场景关键词>",
-      "pnpm corpus prompt <template-id>",
-      "MCP: get_rich_system_manual",
-      "MCP: corpus_list / corpus_prompt / corpus_upsert",
+      "CLI: pnpm corpus list / pnpm corpus prompt <template-id>",
     ],
   },
   {
@@ -82,16 +82,15 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
     page: "知识树",
     scene: "管理概念、主题、关系、学习路径；补充、细化、扩展已有知识元。",
     manual: [
-      "读取前先用 list_topics 或 get_subtree 定位上下文。",
-      "新增内容用 create_element + relation，修改内容用 update_element 或 update_section_blocks。",
-      "不要生成 unsupported block.style；推荐列表使用 dot-list 或 markdown。",
+      "只给关键词时先用上下文搜索；目标元已明确后再读取、更新或删除。",
+      "每次写入提供唯一 requestId；重试同一次写入时复用 requestId，并检查 verification。",
+      "内容块只用支持的 block.style；推荐列表使用 dot-list 或 markdown。",
     ],
     cli: [
+      "MCP: rich_context_search / rich_knowledge_manage",
+      "MCP: rich_knowledge_capture（沉淀新事实、决定或经验）",
       "CLI: pnpm rich -- elements list/get/create/patch/delete/move",
-      "CLI: pnpm rich -- relations reorder --json '{\"parentId\":\"...\",\"childIds\":[...]}'",
-      "MCP: list_topics / get_element / get_subtree",
-      "MCP: create_element / update_element / delete_element",
-      "MCP: refine / expand / extend / generate_paths",
+      "CLI: pnpm rich -- sse POST /api/ai/refine --json '{\"elementId\":\"...\"}'",
     ],
   },
   {
@@ -99,9 +98,9 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
     page: "AI 早报",
     scene: "生成每日 AI 新闻、补充热门 Skill、把新闻转成可行动建议。",
     manual: [
-      "写入早报内容前先看目标元素结构，避免写出 Rich 不识别的 block.style。",
-      "热门 Skill 推荐应使用 dot-list 或 markdown，而不是 style=list。",
-      "信息汇报类内容先套用 information-briefing 语料模板。",
+      "生成前先确认日期和目标早报元素；修改既有内容时只改用户指定的区块。",
+      "热门 Skill 推荐使用 dot-list 或 markdown，不能使用不支持的 style=list。",
+      "信息汇报类内容使用 information-briefing 语料；不确定的新闻来源必须标注待核验。",
     ],
     cli: [
       "CLI: pnpm rich -- ai news-generate-daily --json '{\"date\":\"YYYY-MM-DD\",\"model\":\"codex\"}'",
@@ -130,17 +129,15 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
     page: "计划管理",
     scene: "目标拆解、任务推进、每日任务、每周复盘、AI 推进建议。",
     manual: [
-      "先用 plan_list 或 analytics_summary 获取当前计划状态。",
-      "用户说完成某事时用 task_complete，不要只回复鼓励。",
-      "用户提出新目标时优先 plan_decompose；服务离线或批量维护时用计划管理 CLI。",
-      "清理 seed/demo 脏计划前必须先备份 GreatMe state，只清空 plans/goals/tasks。",
+      "读取当前状态再操作；整体替换计划状态属于破坏性写入，必须取得明确确认。",
+      "用户确认完成任务时，要实际写回状态并读取验证，不能只回复鼓励。",
+      "批量维护前备份完整 GreatMe state；只清理 plans/goals/tasks，不动其他健康与复盘信息。",
     ],
     cli: [
       "CLI: pnpm rich -- great-me get",
       "CLI: pnpm rich -- ai decompose-plan/analyze-progress/draft-review --json '{...}'",
-      "MCP: plan_list / plan_get / analytics_summary",
-      "MCP: plan_decompose / goal_create / task_create",
-      "MCP: task_list / task_complete / analyze_progress",
+      "MCP: rich_planning_manage（读取或经确认后整体替换）",
+      "MCP: rich_context_search（先定位相关计划与知识）",
       "CLI: pnpm --filter @ke/server run plan -- list plans --status all --json",
       "CLI: pnpm --filter @ke/server run plan -- clear all --yes --json",
     ],
@@ -150,16 +147,32 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
     page: "项目实战",
     scene: "创建实战项目、维护知识点/需求/功能/PRD/开发任务/整改建议/提问。",
     manual: [
-      "项目实战是 practice element + group + typed children，不是独立数据库。",
-      "新增子项时优先传 group id；如果只有 practice id，MCP 会自动路由到默认分组。",
-      "起草 PRD 或子元时先读取 practice_get，带上下文生成。",
+      "项目实战复用 knowledge element 与 child relation，不另建孤立数据。",
+      "先读取实战项目与分组，再创建或更新明确的子项；写入后检查返回的引用和验证结果。",
+      "起草 PRD、开发任务或整改项时，必须带上当前项目上下文与验收标准。",
     ],
     cli: [
       "CLI: pnpm rich -- elements create/patch/delete --json '{...}'",
       "CLI: pnpm rich -- ai draft-prd/draft-child/adjust-child --json '{...}'",
-      "MCP: practice_list / practice_get / practice_create",
-      "MCP: practice_add_child / practice_update_child",
-      "MCP: draft_prd / draft_child / adjust_child",
+      "MCP: rich_practice_manage",
+      "MCP: rich_context_search（对象或分组不明确时）",
+      "CLI: pnpm rich -- ai draft-prd/draft-child/adjust-child --json '{...}'",
+    ],
+  },
+  {
+    id: "project-management",
+    page: "项目管理",
+    scene: "维护项目说明、流程、环境、部署、监控、代码版本、待办与文件夹信息。",
+    manual: [
+      "对象不明确时先搜索；项目和模块已明确后才进行精确读取或更新。",
+      "对话同时产生摘要、决定和待办时，应一次整理进项目结构，避免分散写入。",
+      "删除、取消或覆盖前必须再次读取当前状态并取得明确确认。",
+    ],
+    cli: [
+      "MCP: rich_context_search / rich_project_manage",
+      "MCP: rich_project_organize_conversation",
+      "MCP: rich_project_analyze_and_plan（只分析，不执行）",
+      "DOC: docs/PROJECT_MANAGEMENT_MCP_MANUAL.md",
     ],
   },
   {
@@ -174,10 +187,10 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
       "字段、表、库、码值、场景和 Mapping 的详细规则见 docs/PROJECT_DICTIONARY_MAPPING_RULES.md。",
     ],
     cli: [
-      "DB: pm_dictionary_template_versions（只读当前 published 版本）",
-      "DB: pm_dictionary_template_rules（按元类型读取属性约束）",
-      "DB: pm_dictionary_template_changes（记录、评审和发布模板变更）",
-      "DB: pm_dictionary_rectifications（记录属性级整改、修复和复核状态）",
+      "MCP: rich_dictionary_manage（已知系统、表或字段的精确读写）",
+      "MCP: rich_context_search（对象尚未定位时）",
+      "DB: pm_dictionary_template_versions / pm_dictionary_template_rules",
+      "DB: pm_dictionary_template_changes / pm_dictionary_rectifications",
       "DOC: docs/PROJECT_DICTIONARY_MAPPING_RULES.md",
     ],
   },
@@ -186,7 +199,7 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
     page: "工具箱",
     scene: "锁屏、延迟执行、小工具调用、系统动作。",
     manual: [
-      "先用 list_toolbox_tools 看可用工具和参数 schema。",
+      "先读取可用工具及参数 schema，不能猜工具名或参数。",
       "有 delay_minutes / delay_seconds 时可创建延迟调用。",
       "执行结果会写入 tool_invocations，后台可审计。",
     ],
@@ -194,8 +207,23 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
       "CLI: pnpm rich -- toolbox tools",
       "CLI: pnpm rich -- toolbox invoke --json '{\"tool\":\"...\",\"args\":{}}'",
       "CLI: pnpm rich -- toolbox cancel <invocationId>",
-      "MCP: list_toolbox_tools",
-      "MCP: invoke_toolbox_tool",
+      "MCP: rich_automation_manage（项目自动化计划）",
+      "CLI: pnpm rich -- api GET /api/toolbox/tools",
+    ],
+  },
+  {
+    id: "health-advisor",
+    page: "健康顾问",
+    scene: "查看苹果健康同步、体重、训练、睡眠、饮食及健康建议。",
+    manual: [
+      "先读时间线和采集状态，再判断数据是否缺失；前端未展示不代表数据没有入库。",
+      "健康建议必须区分记录事实与推断，避免把不完整样本当作结论。",
+      "解释苹果健康指标前先查指标说明；原始数据排查不应修改用户健康记录。",
+    ],
+    cli: [
+      "CLI: pnpm rich -- api GET /api/health/intake/status",
+      "CLI: pnpm rich -- api GET /api/health/timeline",
+      "DOC: docs/APPLE_HEALTH_METRICS.md",
     ],
   },
   {
@@ -203,9 +231,9 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
     page: "后台 / AI 语料管理 / AI 学习手册",
     scene: "沉淀 AI 表达模板、系统使用手册、Agent 自我改进经验。",
     manual: [
-      "语料模板解决怎么说，学习手册解决怎么用 Rich。",
-      "Hermes 收到风格反馈时用 corpus_upsert 写回模板。",
-      "发现 Rich 缺能力时创建 improvement task，不要假装完成。",
+      "语料模板规定怎么表达，学习手册规定如何安全使用 Rich；两者都应与实际能力同步。",
+      "风格反馈写回语料模板；工作中的可复用经验在验收后用 rich_learning_capture 沉淀。",
+      "发现能力缺口时创建改造任务，不要假装已有接口或执行结果。",
     ],
     cli: [
       "CLI: pnpm rich -- corpus list/get/upsert/delete/reset",
@@ -213,8 +241,8 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
       "CLI: pnpm rich -- admin engine/ops/signals/manuals",
       "pnpm corpus list",
       "pnpm corpus patch <id> --field <name> --value <value>",
-      "MCP: get_rich_system_manual",
-      "MCP: create_improvement / claim_improvement / update_improvement",
+      "MCP: get_rich_system_manual / rich_learning_capture",
+      "CLI: pnpm rich -- improvements list/create/claim/release/patch/delete",
     ],
   },
   {
@@ -222,9 +250,9 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
     page: "全部按钮 CLI 覆盖",
     scene: "AI 员工需要像点击 UI 一样执行 Rich 的所有后端操作。",
     manual: [
-      "数据写入、AI 生成、上传、工具调用、删除都必须有 CLI/MCP；纯 UI 展开、筛选、弹窗不要求 CLI。",
-      "优先 MCP；MCP 不可用时用 pnpm rich 的语义命令。",
-      "新按钮如果还没有语义命令，用 api/sse 兜底，并补 docs/RICH_CLI_COVERAGE.md。",
+      "数据写入、AI 生成、上传、工具调用、删除必须有 MCP 或 CLI；纯 UI 展开、筛选、弹窗无需覆盖。",
+      "优先场景化 MCP；本机自动化或 MCP 未覆盖能力时使用 pnpm rich 的语义命令。",
+      "新按钮没有语义命令时用 api/sse 兜底，并同步 docs/RICH_CLI_COVERAGE.md。",
     ],
     cli: [
       "CLI: pnpm rich -- api <METHOD> /api/<path> --json '{...}'",
@@ -299,6 +327,13 @@ export function AdminView() {
             >
               <span className="sidebar-node__title">系统改造任务</span>
             </button>
+            <button
+              type="button"
+              className={`sidebar-node ${tab === "projectHealth" ? "is-active" : ""}`}
+              onClick={() => setTab("projectHealth")}
+            >
+              <span className="sidebar-node__title">项目健康检查</span>
+            </button>
           </div>
         </section>
       </aside>
@@ -312,6 +347,7 @@ export function AdminView() {
         {tab === "learning" && <LearningManualTab />}
         {tab === "cron" && <CronTab />}
         {tab === "improvements" && <ImprovementsTab />}
+        {tab === "projectHealth" && <ProjectHealthTab />}
       </main>
 
       <footer className="tv-footer">
@@ -935,12 +971,18 @@ function ManualsTab() {
 
 function LearningManualTab() {
   const [query, setQuery] = useState("");
+  const [activeId, setActiveId] = useState(LEARNING_MANUAL_MODULES[0].id);
   const q = query.trim().toLowerCase();
   const modules = q
     ? LEARNING_MANUAL_MODULES.filter(m =>
         [m.page, m.scene, ...m.manual, ...m.cli].join("\n").toLowerCase().includes(q),
       )
     : LEARNING_MANUAL_MODULES;
+  const active = modules.find(module => module.id === activeId) ?? modules[0];
+
+  useEffect(() => {
+    if (active && active.id !== activeId) setActiveId(active.id);
+  }, [active, activeId]);
 
   return (
     <div className="admin-pane">
@@ -955,35 +997,57 @@ function LearningManualTab() {
         </div>
       </header>
       <p className="admin-pane__desc">
-        写给 Hermes / Codex / 其他 Agent 的 Rich 操作索引。Agent 接到任务时，先定位页面和场景，
-        再按手册选择 MCP / API / CLI，避免只聊天不落库、只改 UI 不改数据。
+        给 Hermes、Codex 与其他 Agent 的操作索引。先定位对象，再选择场景化 MCP；仅在本机自动化或未覆盖功能时使用 CLI。
       </p>
 
-      <div className="learning-manual-grid">
-        {modules.map(m => (
-          <article key={m.id} className="learning-manual-card">
-            <header>
-              <span className="learning-manual-card__id">{m.id}</span>
-              <h2>{m.page}</h2>
+      <div className="learning-manual-layout">
+        <nav className="learning-manual-nav" aria-label="学习手册目录">
+          <div className="learning-manual-nav__summary">{modules.length} 个模块</div>
+          {modules.map(module => (
+            <button
+              key={module.id}
+              type="button"
+              className={active?.id === module.id ? "is-active" : ""}
+              aria-current={active?.id === module.id ? "page" : undefined}
+              onClick={() => setActiveId(module.id)}
+            >
+              <span>{module.page}</span>
+              <em>{module.id}</em>
+            </button>
+          ))}
+          {modules.length === 0 && <div className="admin-empty">没有匹配的学习模块。</div>}
+        </nav>
+
+        {active && (
+          <article className="learning-manual-detail">
+            <header className="learning-manual-detail__head">
+              <div>
+                <span>{active.id}</span>
+                <h2>{active.page}</h2>
+              </div>
+              <small>操作索引</small>
             </header>
-            <section>
-              <h3>场景</h3>
-              <p>{m.scene}</p>
+            <section className="learning-manual-detail__scene">
+              <h3>适用场景</h3>
+              <p>{active.scene}</p>
             </section>
             <section>
-              <h3>手册</h3>
-              <ul>
-                {m.manual.map(item => <li key={item}>{item}</li>)}
-              </ul>
+              <h3>执行准则</h3>
+              <ol>
+                {active.manual.map(item => <li key={item}>{item}</li>)}
+              </ol>
             </section>
             <section>
-              <h3>CLI / MCP</h3>
+              <h3>可用工具</h3>
               <div className="learning-manual-cli">
-                {m.cli.map(item => <code key={item}>{item}</code>)}
+                {active.cli.map(item => <code key={item}>{item}</code>)}
               </div>
             </section>
+            <footer className="learning-manual-detail__footer">
+              写入操作使用唯一 requestId；删除、取消与整体替换必须先获得明确确认，并检查返回的 verification。
+            </footer>
           </article>
-        ))}
+        )}
       </div>
     </div>
   );
@@ -1980,6 +2044,66 @@ function ImprovementsTab() {
     </div>
   );
 }
+
+function ProjectHealthTab() {
+  const projects = Array.from(useStore(s => s.elements).values()).filter(item => item.type === "project");
+  const [projectId, setProjectId] = useState("");
+  const [records, setRecords] = useState<ProjectModuleItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => { if (!projectId && projects[0]) setProjectId(projects[0].id); }, [projectId, projects]);
+  useEffect(() => {
+    if (!projectId) { setRecords([]); return; }
+    setLoading(true);
+    void api.listProjectManagementModuleItems(projectId, "healthChecks", undefined, true)
+      .then(setRecords)
+      .catch(value => setError(value instanceof Error ? value.message : String(value)))
+      .finally(() => setLoading(false));
+  }, [projectId]);
+
+  const counts = { critical: 0, high: 0, medium: 0, low: 0 };
+  records.forEach(item => { counts[normalizeProjectHealthRecord(recordOf(item)).severity]++; });
+  const save = async (item: ProjectModuleItem, patch: Record<string, unknown>) => {
+    const original = { ...recordOf(item), ...patch };
+    const updated = await api.updateProjectManagementModuleItem(projectId, item.id, { title: typeof original.title === "string" && original.title.trim() ? original.title : item.title, subtitle: `${severityLabel(normalizeProjectHealthRecord(original).severity)} · ${categoryLabel(normalizeProjectHealthRecord(original).category)}`, content: { ...item.content, original } });
+    setRecords(current => current.map(row => row.id === updated.id ? updated : row));
+  };
+  const create = async () => {
+    const original = { title: "待 AI 补充的健康检查发现", severity: "medium", category: "architecture", status: "open", evidence: "", repairPlan: "", repairResult: "", checkedAt: new Date().toISOString() };
+    const created = await api.createProjectManagementModuleItem(projectId, "healthChecks", { title: original.title, subtitle: "中 · 架构", sortOrder: records.length, content: { original } });
+    setRecords(current => [created, ...current]);
+  };
+  return <div className="admin-pane project-health">
+    <header className="admin-pane__head"><div><h1>项目健康检查</h1><p>AI 检查结果的治理台：按风险记录证据、修复计划与验证结果；本页面不自行执行扫描。</p></div><div className="admin-filters"><select value={projectId} onChange={event => setProjectId(event.target.value)}>{projects.map(project => <option key={project.id} value={project.id}>{project.title}</option>)}</select><button type="button" className="imp-primary" disabled={!projectId} onClick={() => void create()}>+ 新建记录</button></div></header>
+    {!projects.length ? <div className="admin-empty">还没有项目可供检查。</div> : <>
+      <section className="project-health__summary"><HealthMetric tone="critical" label="紧急" value={counts.critical} /><HealthMetric tone="high" label="高" value={counts.high} /><HealthMetric tone="medium" label="中" value={counts.medium} /><HealthMetric tone="low" label="低" value={counts.low} /><div className="project-health__cli"><strong>AI 写入 CLI</strong><code>pnpm rich -- project-health create &lt;项目ID&gt; --json '&#123;...&#125;'</code></div></section>
+      {error && <div className="admin-error">{error}</div>}
+      {loading ? <div className="admin-loading">加载检查记录…</div> : <div className="project-health__list">{records.length === 0 ? <div className="admin-empty">尚未记录检查发现。请让 AI 使用 CLI 写入扫描结果。</div> : records.sort((a, b) => severityRank(normalizeProjectHealthRecord(recordOf(a)).severity) - severityRank(normalizeProjectHealthRecord(recordOf(b)).severity)).map(item => <ProjectHealthCard key={item.id} item={item} onSave={save} />)}</div>}
+    </>}
+  </div>;
+}
+
+function ProjectHealthCard({ item, onSave }: { item: ProjectModuleItem; onSave: (item: ProjectModuleItem, patch: Record<string, unknown>) => Promise<void> }) {
+  const original = recordOf(item);
+  const record = normalizeProjectHealthRecord(original);
+  const update = (patch: Record<string, unknown>) => void onSave(item, patch).catch(() => undefined);
+  return <article className={`project-health-card project-health-card--${record.severity}`}>
+    <header><div><span className={`project-health-badge project-health-badge--${record.severity}`}>{severityLabel(record.severity)}</span><span>{categoryLabel(record.category)}</span><select value={record.status} onChange={event => update({ status: event.target.value })}>{(["open", "planned", "fixing", "verified"] as ProjectHealthStatus[]).map(status => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></div><small>{record.checkedAt ? formatTs(record.checkedAt) : "等待 AI 检查"}</small></header>
+    <input className="project-health-card__title" value={typeof original.title === "string" ? original.title : item.title} onChange={event => update({ title: event.target.value })} aria-label="问题标题" />
+    <HealthText label="问题与证据" value={record.evidence} placeholder="AI 应说明架构、单文件、逻辑或数据存放问题的具体证据。" onChange={value => update({ evidence: value })} />
+    <HealthText label="修复计划" value={record.repairPlan} placeholder="分步骤说明应如何整改、验证与回滚。" onChange={value => update({ repairPlan: value })} />
+    <HealthText label="修复结果" value={record.repairResult} placeholder="AI 完成修复后记录变更、验证命令和遗留风险。" onChange={value => update({ repairResult: value })} />
+  </article>;
+}
+
+function HealthMetric({ tone, label, value }: { tone: ProjectHealthSeverity; label: string; value: number }) { return <div className={`project-health-metric project-health-metric--${tone}`}><strong>{value}</strong><span>{label}</span></div>; }
+function HealthText({ label, value, placeholder, onChange }: { label: string; value: string; placeholder: string; onChange: (value: string) => void }) { return <label className="project-health-card__field"><span>{label}</span><textarea value={value} placeholder={placeholder} onChange={event => onChange(event.target.value)} /></label>; }
+function recordOf(item: ProjectModuleItem): Record<string, unknown> { const value = item.content.original; return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
+function severityRank(value: ProjectHealthSeverity): number { return ({ critical: 0, high: 1, medium: 2, low: 3 })[value]; }
+function severityLabel(value: ProjectHealthSeverity): string { return ({ critical: "紧急", high: "高", medium: "中", low: "低" })[value]; }
+function categoryLabel(value: ProjectHealthCategory): string { return ({ architecture: "架构设计", code: "代码质量", data: "数据治理", dependency: "依赖边界", security: "安全风险", delivery: "交付运维" })[value]; }
+function statusLabel(value: ProjectHealthStatus): string { return ({ open: "待规划", planned: "已计划", fixing: "修复中", verified: "已验证" })[value]; }
 
 // satisfy lint
 void Icon;

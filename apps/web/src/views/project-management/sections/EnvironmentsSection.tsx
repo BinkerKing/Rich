@@ -22,16 +22,19 @@ export function EnvironmentsSection({ project, summary }: { project: Element; su
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
     void api.listProjectManagementModuleItems(project.id, "environments")
       .then(next => {
         if (cancelled) return;
         setEnvironments(next);
         setSelectedId(current => current || next[0]?.id || "");
       })
-      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); })
+      .finally(() => { if (!cancelled) setLoaded(true); });
     return () => { cancelled = true; };
   }, [project.id]);
 
@@ -67,6 +70,9 @@ export function EnvironmentsSection({ project, summary }: { project: Element; su
       setBusy(false);
     }
   };
+
+  if (!loaded && !error) return null;
+  if (!error && environments.length === 0) return <p className="prj-pm-unconfigured">暂未配置。</p>;
 
   return (
     <div className="prj-pm-env prj-pm-legacy-skin">

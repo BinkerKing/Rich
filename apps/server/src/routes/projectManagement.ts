@@ -166,6 +166,25 @@ export function projectManagementRoutes(repo: ProjectManagementRepo, options: Pr
     return c.json(item);
   });
 
+  /** AI/CLI 专用：合并更新项目健康检查的结构化内容。 */
+  r.patch("/:projectId/health-checks/:itemId", async c => {
+    const projectId = c.req.param("projectId");
+    const itemId = c.req.param("itemId");
+    const patch = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    const current = (await repo.listAllModuleItems(projectId, "healthChecks")).find(item => item.id === itemId);
+    if (!current) return c.json({ error: "health check not found" }, 404);
+    const previous = current.content.original && typeof current.content.original === "object" && !Array.isArray(current.content.original)
+      ? current.content.original as Record<string, unknown>
+      : {};
+    const original = { ...previous, ...patch };
+    const title = typeof original.title === "string" && original.title.trim() ? original.title.trim() : current.title;
+    const item = await repo.updateModuleItem(projectId, itemId, {
+      title,
+      content: { ...current.content, original },
+    });
+    return c.json(item);
+  });
+
   r.delete("/:projectId/modules/items/:itemId", async c => {
     const projectId = c.req.param("projectId");
     const itemId = c.req.param("itemId");

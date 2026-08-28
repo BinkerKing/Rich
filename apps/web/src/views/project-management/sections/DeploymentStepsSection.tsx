@@ -15,12 +15,14 @@ export function ProjectDeploymentStepsSection({ project, summary }: { project: E
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [draggedStepId, setDraggedStepId] = useState("");
   const [draggedReleaseName, setDraggedReleaseName] = useState("");
   const [draggedSheetName, setDraggedSheetName] = useState("");
 
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
     void api.listProjectManagementModuleItems(project.id, "deploymentSteps")
       .then(next => {
         if (cancelled) return;
@@ -30,7 +32,8 @@ export function ProjectDeploymentStepsSection({ project, summary }: { project: E
         setSheet(current => current || deploymentSheetOf(firstOriginal));
         setSelectedId(current => current || next[0]?.id || "");
       })
-      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); })
+      .finally(() => { if (!cancelled) setLoaded(true); });
     return () => { cancelled = true; };
   }, [project.id]);
 
@@ -167,6 +170,9 @@ export function ProjectDeploymentStepsSection({ project, summary }: { project: E
     setDraggedStepId("");
     await persistDeploymentOrder(nextIds);
   };
+
+  if (!loaded && !error) return null;
+  if (!error && items.length === 0) return <p className="prj-pm-unconfigured">暂未配置。</p>;
 
   return (
     <div className={`deployment-workspace prj-pm-legacy-skin${items.length === 0 ? " is-empty" : ""}${editing ? " is-editing" : ""}`}>

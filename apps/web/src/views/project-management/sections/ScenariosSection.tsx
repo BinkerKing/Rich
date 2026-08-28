@@ -12,6 +12,7 @@ export function ScenariosSection({ project, summary }: { project: Element; summa
   const [draftScenarios, setDraftScenarios] = useState<ScenarioDraft[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   const reload = () => api.listProjectManagementModuleItems(project.id, "scenarios").then(next => {
     setGroups(next);
@@ -23,8 +24,10 @@ export function ScenariosSection({ project, summary }: { project: Element; summa
 
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
     void reload()
-      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); })
+      .finally(() => { if (!cancelled) setLoaded(true); });
     return () => { cancelled = true; };
   }, [project.id]);
 
@@ -106,6 +109,9 @@ export function ScenariosSection({ project, summary }: { project: Element; summa
       setBusy(false);
     }
   };
+
+  if (!loaded && !error) return null;
+  if (!error && groups.length === 0) return <p className="prj-pm-unconfigured">暂未配置。</p>;
 
   return (
     <div className="prj-pm-scenarios prj-pm-scenarios-skin">

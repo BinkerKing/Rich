@@ -13,6 +13,7 @@ export function MonitoringSection({ project, summary }: { project: Element; summ
   const [draftItems, setDraftItems] = useState<Array<{ name: string; detail: string; check: string }>>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   const reload = () => api.listProjectManagementModuleItems(project.id, "monitoring").then(next => {
     setSections(next);
@@ -21,8 +22,10 @@ export function MonitoringSection({ project, summary }: { project: Element; summ
 
   useEffect(() => {
     let cancelled = false;
+    setLoaded(false);
     void reload()
-      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); })
+      .finally(() => { if (!cancelled) setLoaded(true); });
     return () => { cancelled = true; };
   }, [project.id]);
 
@@ -99,6 +102,9 @@ export function MonitoringSection({ project, summary }: { project: Element; summ
       setBusy(false);
     }
   };
+
+  if (!loaded && !error) return null;
+  if (!error && sections.length === 0) return <p className="prj-pm-unconfigured">暂未配置。</p>;
 
   return (
     <div className="prj-pm-monitor">

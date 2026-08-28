@@ -306,69 +306,95 @@
 
 /* ----- AI learning manual tab ----- */
 
-.learning-manual-grid {
+.learning-manual-layout {
   padding: 0 20px 20px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: minmax(210px, 280px) minmax(0, 1fr);
   gap: 14px;
-  overflow: auto;
   min-height: 0;
+  overflow: hidden;
 }
 
-.learning-manual-card {
+.learning-manual-nav,
+.learning-manual-detail {
+  min-height: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255,255,255,.02);
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
 }
 
-.learning-manual-card header {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--line);
+.learning-manual-nav {
+  padding: 8px;
+  overflow: auto;
 }
 
-.learning-manual-card__id {
+.learning-manual-nav__summary {
+  padding: 7px 9px 10px;
   color: var(--teal);
   font-family: var(--mono);
   font-size: 11px;
 }
 
-.learning-manual-card h2 {
-  margin: 0;
-  color: var(--text);
-  font-size: 15px;
-  line-height: 1.4;
+.learning-manual-nav button {
+  width: 100%;
+  padding: 10px 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--soft);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
 }
 
-.learning-manual-card h3 {
-  margin: 0 0 6px;
+.learning-manual-nav button:hover { background: rgba(255,255,255,.04); color: var(--text); }
+.learning-manual-nav button.is-active { background: rgba(61, 213, 205, .10); color: var(--text); }
+.learning-manual-nav button em {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.learning-manual-detail { overflow: auto; }
+.learning-manual-detail__head {
+  padding: 18px 20px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.learning-manual-detail__head span,
+.learning-manual-detail__head small {
+  color: var(--teal);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.learning-manual-detail__head h2 { margin: 5px 0 0; color: var(--text); font-size: 20px; }
+.learning-manual-detail section { padding: 18px 20px 0; }
+.learning-manual-detail h3 {
+  margin: 0 0 8px;
   color: var(--muted);
   font-size: 11px;
-  text-transform: uppercase;
   letter-spacing: .06em;
+  text-transform: uppercase;
 }
-
-.learning-manual-card p {
+.learning-manual-detail p,
+.learning-manual-detail ol {
   margin: 0;
   color: var(--soft);
-  font-size: 12.5px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.7;
 }
-
-.learning-manual-card ul {
-  margin: 0;
-  padding-left: 18px;
-  color: var(--soft);
-  font-size: 12.5px;
-  line-height: 1.6;
-}
+.learning-manual-detail ol { padding-left: 21px; }
+.learning-manual-detail li + li { margin-top: 6px; }
 
 .learning-manual-cli {
   display: flex;
@@ -386,6 +412,21 @@
   padding: 7px 8px;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.learning-manual-detail__footer {
+  margin: 20px;
+  padding: 11px 12px;
+  border-left: 2px solid var(--teal);
+  background: rgba(61, 213, 205, .08);
+  color: var(--soft);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 860px) {
+  .learning-manual-layout { grid-template-columns: 1fr; overflow: auto; }
+  .learning-manual-nav { max-height: 260px; }
 }
 
 .admin-hint {
@@ -888,7 +929,7 @@ html[data-theme="cyber"] .admin-pane,
 html[data-theme="cyber"] .admin-engine,
 html[data-theme="cyber"] .admin-split,
 html[data-theme="cyber"] .admin-manuals,
-html[data-theme="cyber"] .learning-manual-grid,
+html[data-theme="cyber"] .learning-manual-layout,
 html[data-theme="cyber"] .corpus-layout,
 html[data-theme="cyber"] .corpus-editor {
   background: #000 !important;
@@ -906,7 +947,8 @@ html[data-theme="cyber"] .admin-table-wrap,
 html[data-theme="cyber"] .admin-detail,
 html[data-theme="cyber"] .admin-manual-detail,
 html[data-theme="cyber"] .admin-manuals-list,
-html[data-theme="cyber"] .learning-manual-card,
+html[data-theme="cyber"] .learning-manual-nav,
+html[data-theme="cyber"] .learning-manual-detail,
 html[data-theme="cyber"] .learning-manual-cli code,
 html[data-theme="cyber"] .corpus-list,
 html[data-theme="cyber"] .corpus-item,
@@ -1573,3 +1615,41 @@ button.imp-primary {
   font-weight: 500;
   cursor: pointer;
 }
+
+/* 项目健康检查：AI 发现的项目治理记录，不负责执行扫描。 */
+.project-health { overflow: hidden; }
+.project-health .admin-pane__head { align-items: flex-start; }
+.project-health .admin-pane__head p { max-width: 680px; margin: 6px 0 0; color: rgba(255, 255, 255, .53); font-size: 12px; line-height: 1.55; }
+.project-health .admin-filters { display: flex; align-items: center; gap: 8px; }
+.project-health .admin-filters select,
+.project-health-card select { border: 1px solid rgba(255, 255, 255, .13); border-radius: 6px; padding: 6px 9px; background: rgba(0, 0, 0, .2); color: rgba(255, 255, 255, .82); font: inherit; font-size: 12px; }
+.project-health__summary { display: grid; grid-template-columns: repeat(4, minmax(78px, .5fr)) minmax(280px, 2fr); gap: 10px; margin-bottom: 16px; }
+.project-health-metric,.project-health__cli { border: 1px solid rgba(255, 255, 255, .09); border-radius: 9px; padding: 12px; background: rgba(255, 255, 255, .025); }
+.project-health-metric { display: grid; gap: 2px; }
+.project-health-metric strong { font: 800 22px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.project-health-metric span { color: rgba(255, 255, 255, .55); font-size: 11px; }
+.project-health-metric--critical strong { color: #ff637d; }
+.project-health-metric--high strong { color: #ffad68; }
+.project-health-metric--medium strong { color: #f4d56c; }
+.project-health-metric--low strong { color: #76cfaa; }
+.project-health__cli { display: grid; align-content: center; gap: 6px; color: rgba(255, 255, 255, .68); font-size: 11px; }
+.project-health__cli code { overflow: hidden; color: #9ed3ff; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.project-health__list { display: grid; flex: 1; min-height: 0; gap: 11px; overflow-y: auto; padding: 0 20px 20px; }
+.project-health-card { border: 1px solid rgba(255, 255, 255, .1); border-left: 3px solid rgba(255, 255, 255, .2); border-radius: 9px; padding: 14px; background: rgba(255, 255, 255, .025); }
+.project-health-card--critical { border-left-color: #ff637d; }
+.project-health-card--high { border-left-color: #ffad68; }
+.project-health-card--medium { border-left-color: #f4d56c; }
+.project-health-card--low { border-left-color: #76cfaa; }
+.project-health-card > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: rgba(255, 255, 255, .52); font-size: 11px; }
+.project-health-card > header > div { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.project-health-badge { border-radius: 4px; padding: 3px 7px; color: #17191e; font-size: 11px; font-weight: 800; }
+.project-health-badge--critical { background: #ff7189; }
+.project-health-badge--high { background: #ffb476; }
+.project-health-badge--medium { background: #f5db7a; }
+.project-health-badge--low { background: #7fd7b0; }
+.project-health-card__title { width: 100%; box-sizing: border-box; margin: 12px 0; border: 0; outline: 0; padding: 0; background: transparent; color: #f4f7fb; font: 700 16px/1.4 inherit; }
+.project-health-card__field { display: grid; gap: 5px; margin-top: 10px; }
+.project-health-card__field > span { color: rgba(255, 255, 255, .55); font-size: 11px; font-weight: 700; }
+.project-health-card__field textarea { width: 100%; min-height: 48px; box-sizing: border-box; border: 1px solid transparent; border-radius: 6px; outline: 0; resize: vertical; padding: 7px; background: rgba(0, 0, 0, .14); color: rgba(255, 255, 255, .8); font: 12px/1.55 inherit; }
+.project-health-card__field textarea:focus { border-color: rgba(122, 167, 255, .5); background: rgba(122, 167, 255, .05); }
+@media (max-width: 980px) { .project-health__summary { grid-template-columns: repeat(4, 1fr); } .project-health__cli { grid-column: 1 / -1; } }

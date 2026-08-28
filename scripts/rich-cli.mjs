@@ -81,6 +81,10 @@ Common semantic commands:
   improvements claim <id> --json '{"agentId":"mac-mini-hermes"}'
   improvements release <id> --json '{"agentId":"mac-mini-hermes"}'
 
+  project-health list <projectId>
+  project-health create <projectId> --json '{"title":"...","severity":"high","category":"architecture","status":"open","evidence":"...","repairPlan":"...","repairResult":""}'
+  project-health patch <projectId> <recordId> --json '{"status":"verified","repairResult":"..."}'
+
   corpus list
   corpus get <id>
   corpus upsert <id> --json '{"name":"...","scene":"..."}'
@@ -366,6 +370,21 @@ async function semantic(positional, flags) {
     if (action === "delete") return request("DELETE", `/api/improvements/${id(a)}`, flags);
     if (action === "claim") return request("POST", `/api/improvements/${id(a)}/claim`, flags, body ?? {});
     if (action === "release") return request("POST", `/api/improvements/${id(a)}/release`, flags, body ?? {});
+  }
+
+  if (domain === "project-health") {
+    const projectId = id(a);
+    if (action === "list") return request("GET", `/api/project-management/${encodeURIComponent(projectId)}/modules/healthChecks/items?all=1`, flags);
+    if (action === "create") {
+      const input = body ?? {};
+      const title = typeof input.title === "string" ? input.title : "待 AI 补充的健康检查发现";
+      return request("POST", `/api/project-management/${encodeURIComponent(projectId)}/modules/healthChecks/items`, flags, {
+        title,
+        subtitle: `${input.severity ?? "medium"} · ${input.category ?? "architecture"}`,
+        content: { original: { ...input, title, checkedAt: input.checkedAt ?? new Date().toISOString() } },
+      });
+    }
+    if (action === "patch") return request("PATCH", `/api/project-management/${encodeURIComponent(projectId)}/health-checks/${encodeURIComponent(id(b))}`, flags, body ?? {});
   }
 
   if (domain === "corpus") {

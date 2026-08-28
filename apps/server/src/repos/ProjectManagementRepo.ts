@@ -9,6 +9,7 @@ export type ProjectManagementModuleKey =
   | "monitoring"
   | "codeVersions"
   | "todos"
+  | "healthChecks"
   | "folder";
 
 export interface ProjectManagementModuleSummary {
@@ -602,6 +603,7 @@ export const PROJECT_MANAGEMENT_MODULES: Array<{ key: ProjectManagementModuleKey
   { key: "monitoring", label: "监控预警" },
   { key: "codeVersions", label: "代码版本" },
   { key: "todos", label: "项目代办" },
+  { key: "healthChecks", label: "项目健康检查" },
   { key: "folder", label: "文件夹" },
 ];
 

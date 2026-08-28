@@ -441,6 +441,16 @@
   background: linear-gradient(180deg, rgba(255, 255, 255, .12), var(--nav-glow));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .05), 0 0 0 1px rgba(255, 255, 255, .03);
 }
+.prj-ws__nav-btn.is-unconfigured,
+.prj-ws__nav-btn.is-unconfigured:hover,
+.prj-ws__nav-btn.is-unconfigured.is-active {
+  --nav-tone: #7b8493;
+  --nav-glow: rgba(123, 132, 147, .12);
+  color: #7b8493;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
 .prj-ws__nav-icon {
   display: grid;
   place-items: center;
@@ -466,6 +476,11 @@
 .prj-ws__nav-btn:hover .prj-ws__nav-label,
 .prj-ws__nav-btn.is-active .prj-ws__nav-label {
   color: #fff;
+}
+.prj-ws__nav-btn.is-unconfigured .prj-ws__nav-label,
+.prj-ws__nav-btn.is-unconfigured:hover .prj-ws__nav-label,
+.prj-ws__nav-btn.is-unconfigured.is-active .prj-ws__nav-label {
+  color: #7b8493;
 }
 
 .prj-ws__body {
@@ -10287,4 +10302,107 @@
   color: rgba(255, 255, 255, .56);
   font-size: 13px;
   line-height: 1.6;
+}
+
+/* 项目任务：原生嵌入式 Multica 风格看板，仅占项目代办内容区。 */
+.multica-board {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: #17191d;
+  color: #e7eaf0;
+  overflow: hidden;
+}
+.multica-board__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex: 0 0 auto;
+  padding: 18px 20px 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, .075);
+  background: linear-gradient(180deg, rgba(25, 29, 35, .95), rgba(23, 25, 29, .95));
+}
+.multica-board__toolbar p { margin: 0 0 5px; color: #75a8f8; font: 700 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
+.multica-board__toolbar h2 { margin: 0; color: #f6f8fc; font-size: 20px; line-height: 1.2; }
+.multica-board__toolbar > div > span { display: block; margin-top: 6px; color: #88909d; font-size: 12px; }
+.multica-board__controls { display: flex; align-items: center; gap: 8px; }
+.multica-board__controls button,
+.multica-board__agent {
+  height: 31px;
+  border: 1px solid rgba(255, 255, 255, .11);
+  border-radius: 7px;
+  padding: 0 10px;
+  background: rgba(7, 9, 12, .28);
+  color: #b7beca;
+  font: 600 12px/1 inherit;
+}
+.multica-board__controls button { cursor: pointer; }
+.multica-board__controls button:hover,
+.multica-board__controls .is-active { border-color: rgba(66, 135, 255, .7); background: rgba(50, 111, 230, .18); color: #8eb9ff; }
+.multica-board__agent { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.multica-board__agent i { width: 7px; height: 7px; border-radius: 50%; background: #4ed17c; box-shadow: 0 0 8px rgba(78, 209, 124, .55); }
+.multica-board__workspace { display: grid; grid-template-columns: minmax(0, 1fr) 300px; min-height: 0; flex: 1 1 auto; }
+.multica-board__lanes { display: grid; grid-template-columns: repeat(5, minmax(176px, 1fr)); gap: 12px; min-width: 0; padding: 14px; overflow-x: auto; background: #17191d; }
+.multica-lane { display: flex; flex-direction: column; min-width: 0; min-height: 0; border: 1px solid rgba(255, 255, 255, .075); border-radius: 10px; background: #1a1c20; transition: background .16s ease, border-color .16s ease; }
+.multica-lane.is-drop-target { border-color: color-mix(in srgb, var(--lane-accent) 74%, white); background: color-mix(in srgb, var(--lane-accent) 8%, #1a1c20); }
+.multica-lane__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 11px 10px; }
+.multica-lane__head > div { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.multica-lane__head i { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; border: 2px solid var(--lane-accent); }
+.multica-lane__head strong { color: #e8ebf1; font-size: 13px; white-space: nowrap; }
+.multica-lane__head span { color: #89909c; font-size: 12px; }
+.multica-lane__head button { width: 23px; height: 23px; border: 0; border-radius: 5px; padding: 0; background: transparent; color: #aeb5c0; cursor: pointer; font-size: 17px; line-height: 1; }
+.multica-lane__head button:hover { background: rgba(255, 255, 255, .08); color: #f6f8fc; }
+.multica-lane__head button:disabled { cursor: wait; opacity: .5; }
+.multica-lane__tasks { display: flex; flex: 1 1 auto; flex-direction: column; gap: 9px; min-height: 0; padding: 0 9px 10px; overflow-y: auto; }
+.multica-lane__empty { display: grid; place-content: center; justify-items: center; gap: 9px; flex: 1 1 auto; min-height: 180px; border: 1px dashed rgba(255, 255, 255, .07); border-radius: 8px; color: #737b88; text-align: center; font-size: 12px; }
+.multica-lane__empty b { color: #5c6471; font-size: 28px; font-weight: 400; }
+.multica-lane__empty button { border: 0; background: transparent; color: #8994a7; cursor: pointer; font: inherit; }
+.multica-lane__empty button:hover { color: #8eb9ff; }
+.multica-task-card { border: 1px solid rgba(255, 255, 255, .09); border-radius: 8px; padding: 10px; background: #202329; cursor: pointer; box-shadow: 0 1px 1px rgba(0, 0, 0, .22); transition: border-color .16s ease, transform .16s ease, opacity .16s ease; }
+.multica-task-card:hover { border-color: rgba(132, 164, 218, .55); }
+.multica-task-card.is-selected { border-color: #3f83ef; box-shadow: 0 0 0 1px rgba(63, 131, 239, .26); }
+.multica-task-card.is-dragging { opacity: .45; transform: scale(.98); }
+.multica-task-card__id { display: flex; align-items: center; justify-content: space-between; gap: 6px; color: #959da9; font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.multica-task-card__id button { border: 0; padding: 0; background: transparent; color: #8b93a0; cursor: grab; font-size: 15px; }
+.multica-task-card__id button:active { cursor: grabbing; }
+.multica-task-card h3 { display: -webkit-box; margin: 10px 0 5px; overflow: hidden; color: #f1f3f7; font-size: 13px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.multica-task-card p { display: -webkit-box; margin: 0; overflow: hidden; color: #98a0ac; font-size: 11px; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.multica-task-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 7px; margin-top: 12px; color: #949ca8; font-size: 11px; }
+.multica-task-card__foot em { border-radius: 4px; padding: 3px 6px; background: rgba(99, 82, 176, .24); color: #bbaaff; font-style: normal; }
+.multica-task-card__foot span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.multica-detail { display: flex; flex-direction: column; min-width: 0; border-left: 1px solid rgba(255, 255, 255, .09); padding: 17px; background: #191b20; overflow-y: auto; }
+.multica-detail--empty { align-items: center; justify-content: center; color: #7c8490; font-size: 13px; text-align: center; }
+.multica-detail > header { display: flex; align-items: center; justify-content: space-between; color: #8f98a6; font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.multica-detail > header button { border: 0; background: transparent; color: #b8c0cc; cursor: pointer; font-size: 22px; }
+.multica-detail__title { width: 100%; min-height: 58px; box-sizing: border-box; margin: 15px 0; border: 0; outline: 0; resize: none; background: transparent; color: #f4f6fa; font: 700 17px/1.45 inherit; }
+.multica-detail__fields { display: grid; gap: 11px; margin: 0; }
+.multica-detail__fields div { display: grid; grid-template-columns: 70px minmax(0, 1fr); align-items: center; gap: 8px; }
+.multica-detail__fields dt { color: #949ca8; font-size: 12px; }
+.multica-detail__fields dd { min-width: 0; margin: 0; }
+.multica-detail__fields input,.multica-detail__fields select { width: 100%; box-sizing: border-box; border: 0; outline: 0; padding: 3px 0; background: transparent; color: #e2e7ef; font: 12px/1.4 inherit; }
+.multica-detail__fields select { cursor: pointer; }
+.multica-detail__description { margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, .08); }
+.multica-detail h4 { margin: 0 0 7px; color: #dce1e9; font-size: 12px; }
+.multica-detail__description textarea { width: 100%; min-height: 72px; box-sizing: border-box; border: 0; outline: 0; resize: vertical; padding: 0; background: transparent; color: #aeb6c2; font: 12px/1.55 inherit; }
+.multica-detail__activity { display: grid; gap: 11px; margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, .08); }
+.multica-detail__activity header { display: flex; align-items: center; justify-content: space-between; color: #8f98a6; font-size: 12px; }
+.multica-detail__activity header strong { color: #e2e7ee; }
+.multica-detail__activity > p { margin: 0; color: #7d8693; font-size: 12px; }
+.multica-detail__activity article { padding-left: 9px; border-left: 2px solid rgba(105, 152, 242, .6); }
+.multica-detail__activity b { color: #d9dfe8; font-size: 11px; }
+.multica-detail__activity p { margin: 4px 0; color: #aeb6c2; font-size: 12px; line-height: 1.45; }
+.multica-detail__activity small { color: #747d8a; font-size: 10px; }
+.multica-detail__composer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; margin-top: auto; padding-top: 15px; }
+.multica-detail__composer textarea { min-height: 48px; box-sizing: border-box; border: 1px solid rgba(255, 255, 255, .11); border-radius: 7px; outline: 0; resize: none; padding: 8px; background: #202329; color: #e4e8ef; font: 12px/1.4 inherit; }
+.multica-detail__composer textarea:focus { border-color: rgba(78, 137, 245, .7); }
+.multica-detail__composer button { align-self: end; border: 1px solid rgba(78, 137, 245, .58); border-radius: 6px; padding: 7px 9px; background: rgba(55, 111, 218, .2); color: #9ec3ff; cursor: pointer; font-size: 12px; }
+.multica-detail__composer button:disabled { cursor: default; opacity: .45; }
+.multica-board__footer { display: flex; justify-content: space-between; flex: 0 0 auto; padding: 8px 17px; border-top: 1px solid rgba(255, 255, 255, .075); color: #737c89; background: #181a1e; font-size: 11px; }
+@media (max-width: 1180px) { .multica-board__workspace { grid-template-columns: minmax(0, 1fr) 270px; } .multica-board__lanes { grid-template-columns: repeat(5, minmax(155px, 1fr)); } .multica-board__toolbar { align-items: flex-start; flex-direction: column; } .multica-board__controls { align-self: stretch; overflow-x: auto; } }
+.prj-pm-unconfigured {
+  margin: 28px 20px;
+  color: var(--muted);
+  font-size: 13px;
 }

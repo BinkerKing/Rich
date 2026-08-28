@@ -28,6 +28,10 @@ import {
 
 interface Props { projectId: string }
 
+const EMPTY_STATE_SECTIONS = new Set<ProjectManagementSection>([
+  "workflow", "scenarios", "environments", "deploymentSteps", "monitoring", "codeVersions",
+]);
+
 export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const project = useStore(s => s.elements.get(projectId));
   const [section, setSection] = useState<ProjectManagementSection>(() => loadProjectManagementWorkspaceSection(projectId));
@@ -94,6 +98,10 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
     });
     setSearchFocusSignal(value => value + 1);
   };
+  const isUnconfigured = (sectionId: ProjectManagementSection) =>
+    summary !== null
+    && EMPTY_STATE_SECTIONS.has(sectionId)
+    && (summary.modules.find(module => module.key === sectionId)?.count ?? 0) === 0;
 
   return (
     <div className="prj-ws">
@@ -110,7 +118,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
               title={s.label}
               data-section={s.id}
               aria-selected={section === s.id}
-              className={`prj-ws__nav-btn${section === s.id ? " is-active" : ""}`}
+              className={`prj-ws__nav-btn${section === s.id ? " is-active" : ""}${isUnconfigured(s.id) ? " is-unconfigured" : ""}`}
               onClick={() => selectSection(s.id)}>
               <span className="prj-ws__nav-icon" aria-hidden="true">{s.icon}</span>
               <span className="prj-ws__nav-label">{s.label}</span>
