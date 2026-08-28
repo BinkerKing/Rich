@@ -189,6 +189,30 @@ async function applySchema(pool: Pool): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_mcp_operation_status ON mcp_operation_log(status, created_at DESC);
 
+    CREATE TABLE IF NOT EXISTS mcp_tasks (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      request_json TEXT NOT NULL,
+      status TEXT NOT NULL,
+      backend TEXT,
+      external_task_id TEXT,
+      progress_summary TEXT,
+      result_refs_json TEXT NOT NULL DEFAULT '[]',
+      error TEXT,
+      conversation_id TEXT,
+      request_id TEXT,
+      review_status TEXT,
+      review_notes TEXT,
+      created_at TEXT NOT NULL,
+      started_at TEXT,
+      updated_at TEXT NOT NULL,
+      finished_at TEXT,
+      last_synced_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_mcp_tasks_status ON mcp_tasks(status, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_mcp_tasks_external ON mcp_tasks(backend, external_task_id);
+
     -- Rich 首页动画展示系统 v0.1：visual 块独立持久化
     CREATE TABLE IF NOT EXISTS chat_visual_blocks (
       id                TEXT PRIMARY KEY,
