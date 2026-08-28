@@ -1318,6 +1318,7 @@ export interface MulticaTeamSnapshot {
 }
 export interface MulticaBoardSnapshot {
   project: MulticaProject; team?: MulticaTeamSnapshot; statuses: MulticaStatus[]; issues: MulticaIssue[]; syncedAt: string;
+  connection?: { richProjectId: string; status: "connected" | "syncing" | "disconnected"; lastAttemptAt?: string; lastSuccessAt?: string; error?: string };
 }
 export interface MulticaComment {
   id: string; body?: string; content?: string; parent_id?: string | null; resolved?: boolean; author?: MulticaActor | null;

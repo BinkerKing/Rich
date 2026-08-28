@@ -6,6 +6,7 @@ import {
 import { MulticaProjectWorkbenchService } from "../src/mcp-v2/delegation/multica/MulticaProjectWorkbenchService.js";
 import type { MulticaBindingRepo, MulticaProjectBinding, MulticaTeamPlan } from "../src/mcp-v2/delegation/multica/MulticaBindingRepo.js";
 import type { MulticaCommandPort } from "../src/mcp-v2/delegation/multica/types.js";
+import type { MulticaSyncState, MulticaWorkbenchSnapshot, MulticaWorkbenchSnapshotRepo } from "../src/mcp-v2/delegation/multica/MulticaWorkbenchSnapshotRepo.js";
 
 describe("Multica project workbench schemas", () => {
   it("parses a complete board snapshot without discarding Multica fields", () => {
@@ -29,6 +30,7 @@ describe("Multica project workbench schemas", () => {
         custom_multica_field: "kept",
       }],
       syncedAt: "2026-08-28T06:00:00.000Z",
+      connection: { richProjectId: "vtb-二代safe", status: "connected", lastSuccessAt: "2026-08-28T06:00:00.000Z" },
     });
 
     expect(result.issues[0]).toMatchObject({
@@ -38,6 +40,7 @@ describe("Multica project workbench schemas", () => {
       custom_multica_field: "kept",
     });
     expect(result.project).toMatchObject({ upstream: "kept" });
+    expect(result.connection).toMatchObject({ status: "connected" });
   });
 
   it("parses issue detail resources including attachments and execution data", () => {
@@ -140,6 +143,18 @@ class WorkbenchCommands implements MulticaCommandPort {
   }
 }
 
+class WorkbenchSnapshots implements MulticaWorkbenchSnapshotRepo {
+  snapshots = new Map<string, MulticaWorkbenchSnapshot>();
+  states = new Map<string, MulticaSyncState>();
+  get<T>(projectId: string, key: string) { return this.snapshots.get(`${projectId}:${key}`) as MulticaWorkbenchSnapshot<T> | undefined ?? null; }
+  save<T>(snapshot: MulticaWorkbenchSnapshot<T>) { this.snapshots.set(`${snapshot.richProjectId}:${snapshot.key}`, structuredClone(snapshot)); }
+  deleteByPrefixes(projectId: string, prefixes: string[]) {
+    for (const key of this.snapshots.keys()) if (key.startsWith(`${projectId}:`) && prefixes.some(prefix => key.slice(projectId.length + 1).startsWith(prefix))) this.snapshots.delete(key);
+  }
+  getSyncState(projectId: string) { return structuredClone(this.states.get(projectId) ?? null); }
+  saveSyncState(state: MulticaSyncState) { this.states.set(state.richProjectId, structuredClone(state)); }
+}
+
 describe("MulticaProjectWorkbenchService reads", () => {
   it("projects only Issues owned by the Rich-bound Multica Project", async () => {
     const service = new MulticaProjectWorkbenchService(new WorkbenchCommands(), new WorkbenchBindings(), { now: () => "2026-08-28T06:05:00.000Z" });
@@ -150,6 +165,22 @@ describe("MulticaProjectWorkbenchService reads", () => {
       statuses: expect.arrayContaining([expect.objectContaining({ id: "in_progress" })]),
       syncedAt: "2026-08-28T06:05:00.000Z",
     });
+  });
+
+  it("persists the board locally and returns it while a failed background sync marks Multica disconnected", async () => {
+    const snapshots = new WorkbenchSnapshots();
+    const service = new MulticaProjectWorkbenchService(new WorkbenchCommands(), new WorkbenchBindings(), {
+      now: () => "2026-08-28T06:05:00.000Z", snapshots, syncIntervalMs: 60_000,
+    });
+    await expect(service.getBoard("vtb-二代safe")).resolves.toMatchObject({ connection: { status: "connected" } });
+    expect(snapshots.snapshots.get("vtb-二代safe:board")?.payload).toMatchObject({ project: { id: "multica-vtb" } });
+
+    const offline = new MulticaProjectWorkbenchService({
+      runJson: async () => { throw new Error("Multica offline"); },
+    }, new WorkbenchBindings(), { snapshots, syncIntervalMs: 60_000 });
+    await expect(offline.getBoard("vtb-二代safe")).resolves.toMatchObject({ project: { id: "multica-vtb" } });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(snapshots.getSyncState("vtb-二代safe")).toMatchObject({ status: "disconnected", error: "Multica offline" });
   });
 
   it("rejects detail reads for an Issue outside the bound Project", async () => {

@@ -9,11 +9,14 @@ import { MulticaProjectWorkbenchService } from "./MulticaProjectWorkbenchService
 import { discoverMulticaExecutable, parseSupportedMulticaVersion } from "./MulticaExecutableDiscovery.js";
 import { multicaCliConfigFromEnv } from "./config.js";
 import type { MulticaCommandPort } from "./types.js";
+import type { MulticaWorkbenchSnapshotRepo } from "./MulticaWorkbenchSnapshotRepo.js";
 
 interface IntegrationOptions {
   commands?: MulticaCommandPort;
   discoverExecutable?: () => string;
   env?: NodeJS.ProcessEnv;
+  snapshots?: MulticaWorkbenchSnapshotRepo;
+  syncIntervalMs?: number;
 }
 
 export interface MulticaIntegration {
@@ -35,7 +38,10 @@ export function createMulticaIntegration(
     commands,
     executionTeams: new MulticaAdministrationService(commands, bindings),
     delegationAdapter: new MulticaCliAdapter(commands, bindings),
-    workbench: new MulticaProjectWorkbenchService(commands, bindings),
+    workbench: new MulticaProjectWorkbenchService(commands, bindings, {
+      snapshots: options.snapshots,
+      syncIntervalMs: options.syncIntervalMs,
+    }),
   };
 }
 

@@ -151,6 +151,13 @@ export const multicaBoardSnapshotSchema = z.object({
   statuses: z.array(multicaStatusSchema),
   issues: z.array(multicaWorkbenchIssueSchema),
   syncedAt: z.string().min(1),
+  connection: z.object({
+    richProjectId: z.string().min(1),
+    status: z.enum(["connected", "syncing", "disconnected"]),
+    lastAttemptAt: z.string().optional(),
+    lastSuccessAt: z.string().optional(),
+    error: z.string().optional(),
+  }).optional(),
 });
 
 export const multicaIssueDetailSnapshotSchema = z.object({

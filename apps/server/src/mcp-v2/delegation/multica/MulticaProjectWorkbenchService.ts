@@ -28,9 +28,12 @@ import {
   type MulticaWorkbenchIssue,
 } from "./MulticaProjectWorkbenchSchemas.js";
 import type { MulticaCommandPort } from "./types.js";
+import type { MulticaSyncState, MulticaWorkbenchSnapshotRepo } from "./MulticaWorkbenchSnapshotRepo.js";
 
 interface WorkbenchOptions {
   now?: () => string;
+  snapshots?: MulticaWorkbenchSnapshotRepo;
+  syncIntervalMs?: number;
 }
 
 export interface CreateMulticaIssueInput {
@@ -74,6 +77,11 @@ const STATUS_CATALOG = [
 
 export class MulticaProjectWorkbenchService {
   private readonly now: () => string;
+  private readonly snapshots?: MulticaWorkbenchSnapshotRepo;
+  private readonly syncIntervalMs: number;
+  private readonly syncTimers = new Map<string, ReturnType<typeof setInterval>>();
+  private readonly boardSyncs = new Map<string, Promise<MulticaBoardSnapshot>>();
+  private readonly resourceSyncs = new Map<string, Promise<unknown>>();
 
   constructor(
     private readonly commands: MulticaCommandPort,
@@ -81,9 +89,22 @@ export class MulticaProjectWorkbenchService {
     options: WorkbenchOptions = {},
   ) {
     this.now = options.now ?? (() => new Date().toISOString());
+    this.snapshots = options.snapshots;
+    this.syncIntervalMs = options.syncIntervalMs ?? 5_000;
   }
 
   async getBoard(projectId: string): Promise<MulticaBoardSnapshot> {
+    if (!this.snapshots) return this.readBoard(projectId);
+    this.ensureBoardSync(projectId);
+    const cached = await this.snapshots.get<MulticaBoardSnapshot>(projectId, "board");
+    if (cached) {
+      void this.syncBoard(projectId).catch(() => undefined);
+      return this.withConnection(projectId, cached.payload);
+    }
+    return this.syncBoard(projectId);
+  }
+
+  private async readBoard(projectId: string): Promise<MulticaBoardSnapshot> {
     const binding = await this.binding(projectId);
     const [projectValue, issueRecords] = await Promise.all([
       this.commands.runJson(["project", "get", binding.projectId, "--output", "json"]),
@@ -103,6 +124,10 @@ export class MulticaProjectWorkbenchService {
   }
 
   async getTeam(projectId: string): Promise<MulticaTeamSnapshot> {
+    return this.cached(projectId, "team", () => this.readTeam(projectId));
+  }
+
+  private async readTeam(projectId: string): Promise<MulticaTeamSnapshot> {
     const binding = await this.binding(projectId);
     const [projectValue, squadValue, resourcesValue, runtimesValue, agentsValue] = await Promise.all([
       this.commands.runJson(["project", "get", binding.projectId, "--output", "json"]),
@@ -136,71 +161,93 @@ export class MulticaProjectWorkbenchService {
   }
 
   async getIssue(projectId: string, issueId: string): Promise<MulticaIssueDetailSnapshot> {
-    const issue = await this.ownedIssue(projectId, issueId);
-    const childrenValue = await this.commands.runJson(["issue", "children", issueId, "--output", "json"]);
-    const children = collectIssueLike(childrenValue).map(item => multicaWorkbenchIssueSchema.parse(normalizeIssue(item)));
-    const attachments = (Array.isArray(issue.attachments) ? issue.attachments : []).map(item => multicaAttachmentSchema.parse(item));
-    return multicaIssueDetailSnapshotSchema.parse({ issue, children, attachments, syncedAt: this.now() });
+    return this.cached(projectId, `issue:${issueId}`, async () => {
+      const issue = await this.ownedIssue(projectId, issueId);
+      const childrenValue = await this.commands.runJson(["issue", "children", issueId, "--output", "json"]);
+      const children = collectIssueLike(childrenValue).map(item => multicaWorkbenchIssueSchema.parse(normalizeIssue(item)));
+      const attachments = (Array.isArray(issue.attachments) ? issue.attachments : []).map(item => multicaAttachmentSchema.parse(item));
+      return multicaIssueDetailSnapshotSchema.parse({ issue, children, attachments, syncedAt: this.now() });
+    });
   }
 
   async getTimeline(projectId: string, issueId: string): Promise<MulticaTimelineEntry[]> {
-    await this.ownedIssue(projectId, issueId);
-    const value = await this.commands.runJson(["issue", "timeline", issueId, "--activity-only", "--output", "json"]);
-    return extractArray(value, ["timeline", "entries", "data", "items"]).map(normalizeTimeline).map(item => multicaTimelineEntrySchema.parse(item));
+    return this.cached(projectId, `timeline:${issueId}`, async () => {
+      await this.ownedIssue(projectId, issueId);
+      const value = await this.commands.runJson(["issue", "timeline", issueId, "--activity-only", "--output", "json"]);
+      return extractArray(value, ["timeline", "entries", "data", "items"]).map(normalizeTimeline).map(item => multicaTimelineEntrySchema.parse(item));
+    });
   }
 
   async getComments(projectId: string, issueId: string): Promise<MulticaComment[]> {
-    await this.ownedIssue(projectId, issueId);
-    const value = await this.commands.runJson(["issue", "comment", "list", issueId, "--output", "json"]);
-    return extractArray(value, ["comments", "data", "items"]).map(normalizeComment).map(item => multicaCommentSchema.parse(item));
+    return this.cached(projectId, `comments:${issueId}`, async () => {
+      await this.ownedIssue(projectId, issueId);
+      const value = await this.commands.runJson(["issue", "comment", "list", issueId, "--output", "json"]);
+      return extractArray(value, ["comments", "data", "items"]).map(normalizeComment).map(item => multicaCommentSchema.parse(item));
+    });
   }
 
   async getRuns(projectId: string, issueId: string): Promise<MulticaRun[]> {
-    await this.ownedIssue(projectId, issueId);
-    const value = await this.commands.runJson(["issue", "runs", issueId, "--output", "json"]);
-    return extractArray(value, ["runs", "tasks", "data", "items"]).map(item => multicaRunSchema.parse(item));
+    return this.cached(projectId, `runs:${issueId}`, async () => {
+      await this.ownedIssue(projectId, issueId);
+      const value = await this.commands.runJson(["issue", "runs", issueId, "--output", "json"]);
+      return extractArray(value, ["runs", "tasks", "data", "items"]).map(item => multicaRunSchema.parse(item));
+    });
   }
 
   async getRunMessages(projectId: string, issueId: string, runId: string, since?: number): Promise<MulticaRunMessage[]> {
-    await this.ownedIssue(projectId, issueId);
-    const args = ["issue", "run-messages", runId, "--issue", issueId, "--output", "json"];
-    if (since !== undefined) args.push("--since", String(since));
-    const value = await this.commands.runJson(args);
-    return extractArray(value, ["messages", "data", "items"]).map(normalizeRunMessage).map(item => multicaRunMessageSchema.parse(item));
+    return this.cached(projectId, `run-messages:${issueId}:${runId}:${since ?? "all"}`, async () => {
+      await this.ownedIssue(projectId, issueId);
+      const args = ["issue", "run-messages", runId, "--issue", issueId, "--output", "json"];
+      if (since !== undefined) args.push("--since", String(since));
+      const value = await this.commands.runJson(args);
+      return extractArray(value, ["messages", "data", "items"]).map(normalizeRunMessage).map(item => multicaRunMessageSchema.parse(item));
+    });
   }
 
   async getPullRequests(projectId: string, issueId: string): Promise<MulticaPullRequest[]> {
-    await this.ownedIssue(projectId, issueId);
-    const value = await this.commands.runJson(["issue", "pull-requests", issueId, "--output", "json"]);
-    return extractArray(value, ["pull_requests", "pullRequests", "data", "items"]).map(item => multicaPullRequestSchema.parse(item));
+    return this.cached(projectId, `pull-requests:${issueId}`, async () => {
+      await this.ownedIssue(projectId, issueId);
+      const value = await this.commands.runJson(["issue", "pull-requests", issueId, "--output", "json"]);
+      return extractArray(value, ["pull_requests", "pullRequests", "data", "items"]).map(item => multicaPullRequestSchema.parse(item));
+    });
   }
 
   async getUsage(projectId: string, issueId: string): Promise<MulticaUsage> {
-    await this.ownedIssue(projectId, issueId);
-    const value = await this.commands.runJson(["issue", "usage", issueId, "--output", "json"]);
-    return multicaUsageSchema.parse(normalizeUsage(extractObject(value, ["usage", "data"])));
+    return this.cached(projectId, `usage:${issueId}`, async () => {
+      await this.ownedIssue(projectId, issueId);
+      const value = await this.commands.runJson(["issue", "usage", issueId, "--output", "json"]);
+      return multicaUsageSchema.parse(normalizeUsage(extractObject(value, ["usage", "data"])));
+    });
   }
 
   async getMetadata(projectId: string, issueId: string): Promise<Record<string, unknown>> {
-    await this.ownedIssue(projectId, issueId);
-    return extractObject(await this.commands.runJson(["issue", "metadata", "list", issueId, "--output", "json"]), ["metadata", "data"]);
+    return this.cached(projectId, `metadata:${issueId}`, async () => {
+      await this.ownedIssue(projectId, issueId);
+      return extractObject(await this.commands.runJson(["issue", "metadata", "list", issueId, "--output", "json"]), ["metadata", "data"]);
+    });
   }
 
   async getProperties(projectId: string, issueId: string): Promise<Array<Record<string, unknown>>> {
-    await this.ownedIssue(projectId, issueId);
-    return extractArray(await this.commands.runJson(["issue", "property", "list", issueId, "--output", "json"]), ["properties", "data", "items"]);
+    return this.cached(projectId, `properties:${issueId}`, async () => {
+      await this.ownedIssue(projectId, issueId);
+      return extractArray(await this.commands.runJson(["issue", "property", "list", issueId, "--output", "json"]), ["properties", "data", "items"]);
+    });
   }
 
   async getLabels(projectId: string, issueId: string) {
-    await this.ownedIssue(projectId, issueId);
-    const value = await this.commands.runJson(["issue", "label", "list", issueId, "--output", "json"]);
-    return extractArray(value, ["labels", "data", "items"]).map(item => multicaLabelSchema.parse(item));
+    return this.cached(projectId, `labels:${issueId}`, async () => {
+      await this.ownedIssue(projectId, issueId);
+      const value = await this.commands.runJson(["issue", "label", "list", issueId, "--output", "json"]);
+      return extractArray(value, ["labels", "data", "items"]).map(item => multicaLabelSchema.parse(item));
+    });
   }
 
   async getSubscribers(projectId: string, issueId: string) {
-    await this.ownedIssue(projectId, issueId);
-    const value = await this.commands.runJson(["issue", "subscriber", "list", issueId, "--output", "json"]);
-    return extractArray(value, ["subscribers", "data", "items"]).map(normalizeSubscriber).map(item => multicaActorSchema.parse(item));
+    return this.cached(projectId, `subscribers:${issueId}`, async () => {
+      await this.ownedIssue(projectId, issueId);
+      const value = await this.commands.runJson(["issue", "subscriber", "list", issueId, "--output", "json"]);
+      return extractArray(value, ["subscribers", "data", "items"]).map(normalizeSubscriber).map(item => multicaActorSchema.parse(item));
+    });
   }
 
   async createIssue(projectId: string, input: CreateMulticaIssueInput): Promise<MulticaWorkbenchIssue> {
@@ -218,6 +265,7 @@ export class MulticaProjectWorkbenchService {
     if (input.description !== undefined) args.push("--description-stdin");
     args.push("--output", "json");
     const value = await this.commands.runJson(args, input.description !== undefined ? { stdin: input.description } : undefined);
+    await this.afterMutation(projectId);
     return multicaWorkbenchIssueSchema.parse(normalizeIssue(extractObject(value, ["issue", "data"])));
   }
 
@@ -232,12 +280,12 @@ export class MulticaProjectWorkbenchService {
     if (input.dueDate !== undefined) args.push("--due-date", input.dueDate ?? "");
     if (input.description !== undefined) args.push("--description-stdin");
     args.push("--output", "json");
-    return this.commands.runJson(args, input.description !== undefined ? { stdin: input.description } : undefined);
+    return this.mutate(projectId, issueId, () => this.commands.runJson(args, input.description !== undefined ? { stdin: input.description } : undefined));
   }
 
   async setStatus(projectId: string, issueId: string, status: string): Promise<unknown> {
     await this.ownedIssue(projectId, issueId);
-    return this.commands.runJson(["issue", "status", issueId, status, "--output", "json"]);
+    return this.mutate(projectId, issueId, () => this.commands.runJson(["issue", "status", issueId, status, "--output", "json"]));
   }
 
   async reorderIssue(projectId: string, issueId: string, input: ReorderMulticaIssueInput): Promise<unknown> {
@@ -249,14 +297,14 @@ export class MulticaProjectWorkbenchService {
     if (input.afterId) args.push("--after", input.afterId);
     if (input.edge) args.push(`--${input.edge}`);
     args.push("--output", "json");
-    return this.commands.runJson(args);
+    return this.mutate(projectId, issueId, () => this.commands.runJson(args));
   }
 
   async assignIssue(projectId: string, issueId: string, assigneeId: string | null): Promise<unknown> {
     await this.ownedIssue(projectId, issueId);
-    return this.commands.runJson(assigneeId
+    return this.mutate(projectId, issueId, () => this.commands.runJson(assigneeId
       ? ["issue", "assign", issueId, "--to-id", assigneeId, "--output", "json"]
-      : ["issue", "assign", issueId, "--unassign", "--output", "json"]);
+      : ["issue", "assign", issueId, "--unassign", "--output", "json"]));
   }
 
   async addComment(projectId: string, issueId: string, content: string, parentId?: string, attachmentPaths: string[] = []): Promise<unknown> {
@@ -265,48 +313,145 @@ export class MulticaProjectWorkbenchService {
     pushValue(args, "--parent", parentId);
     for (const path of attachmentPaths) args.push("--attachment", path);
     args.push("--content-stdin", "--output", "json");
-    return this.commands.runJson(args, { stdin: content });
+    return this.mutate(projectId, issueId, () => this.commands.runJson(args, { stdin: content }));
   }
 
   async resolveComment(projectId: string, issueId: string, commentId: string, resolved: boolean): Promise<unknown> {
     await this.ownedIssue(projectId, issueId);
-    return this.commands.runJson(["issue", "comment", resolved ? "resolve" : "unresolve", commentId, "--output", "json"]);
+    return this.mutate(projectId, issueId, () => this.commands.runJson(["issue", "comment", resolved ? "resolve" : "unresolve", commentId, "--output", "json"]));
   }
 
   async rerunIssue(projectId: string, issueId: string): Promise<unknown> {
     await this.ownedIssue(projectId, issueId);
-    return this.commands.runJson(["issue", "rerun", issueId, "--output", "json"]);
+    return this.mutate(projectId, issueId, () => this.commands.runJson(["issue", "rerun", issueId, "--output", "json"]));
   }
 
   async cancelRun(projectId: string, issueId: string, runId: string): Promise<unknown> {
     await this.ownedIssue(projectId, issueId);
-    return this.commands.runJson(["issue", "cancel-task", runId, "--issue", issueId, "--output", "json"]);
+    return this.mutate(projectId, issueId, () => this.commands.runJson(["issue", "cancel-task", runId, "--issue", issueId, "--output", "json"]));
   }
 
   async setLabel(projectId: string, issueId: string, labelId: string, attached: boolean): Promise<unknown> {
     await this.ownedIssue(projectId, issueId);
-    return this.commands.runJson(["issue", "label", attached ? "add" : "remove", issueId, labelId, "--output", "json"]);
+    return this.mutate(projectId, issueId, () => this.commands.runJson(["issue", "label", attached ? "add" : "remove", issueId, labelId, "--output", "json"]));
   }
 
   async setProperty(projectId: string, issueId: string, property: string, value: string | null): Promise<unknown> {
     await this.ownedIssue(projectId, issueId);
-    return this.commands.runJson(value === null
+    return this.mutate(projectId, issueId, () => this.commands.runJson(value === null
       ? ["issue", "property", "unset", issueId, "--name", property, "--output", "json"]
-      : ["issue", "property", "set", issueId, "--name", property, "--value", value, "--output", "json"]);
+      : ["issue", "property", "set", issueId, "--name", property, "--value", value, "--output", "json"]));
   }
 
   async setMetadata(projectId: string, issueId: string, key: string, value: string | number | boolean | undefined): Promise<unknown> {
     await this.ownedIssue(projectId, issueId);
-    if (value === undefined) return this.commands.runJson(["issue", "metadata", "delete", issueId, "--key", key, "--output", "json"]);
+    if (value === undefined) return this.mutate(projectId, issueId, () => this.commands.runJson(["issue", "metadata", "delete", issueId, "--key", key, "--output", "json"]));
     const valueType = typeof value === "boolean" ? "bool" : typeof value;
-    return this.commands.runJson([
+    return this.mutate(projectId, issueId, () => this.commands.runJson([
       "issue", "metadata", "set", issueId, "--key", key, "--value", String(value), "--type", valueType, "--output", "json",
-    ]);
+    ]));
   }
 
   async setSubscriber(projectId: string, issueId: string, actorId: string, subscribed: boolean): Promise<unknown> {
     await this.ownedIssue(projectId, issueId);
-    return this.commands.runJson(["issue", "subscriber", subscribed ? "add" : "remove", issueId, "--user-id", actorId, "--output", "json"]);
+    return this.mutate(projectId, issueId, () => this.commands.runJson(["issue", "subscriber", subscribed ? "add" : "remove", issueId, "--user-id", actorId, "--output", "json"]));
+  }
+
+  private ensureBoardSync(projectId: string): void {
+    if (this.syncTimers.has(projectId)) return;
+    const timer = setInterval(() => void this.syncBoard(projectId).catch(() => undefined), this.syncIntervalMs);
+    timer.unref?.();
+    this.syncTimers.set(projectId, timer);
+  }
+
+  private syncBoard(projectId: string): Promise<MulticaBoardSnapshot> {
+    const running = this.boardSyncs.get(projectId);
+    if (running) return running;
+    const task = this.performBoardSync(projectId);
+    this.boardSyncs.set(projectId, task);
+    void task.then(
+      () => { if (this.boardSyncs.get(projectId) === task) this.boardSyncs.delete(projectId); },
+      () => { if (this.boardSyncs.get(projectId) === task) this.boardSyncs.delete(projectId); },
+    );
+    return task;
+  }
+
+  private async performBoardSync(projectId: string): Promise<MulticaBoardSnapshot> {
+    if (!this.snapshots) return this.readBoard(projectId);
+    const previous = await this.snapshots.getSyncState(projectId);
+    const attemptAt = this.now();
+    await this.snapshots.saveSyncState({
+      richProjectId: projectId,
+      status: previous?.status === "connected" ? "connected" : "syncing",
+      lastAttemptAt: attemptAt,
+      ...(previous?.lastSuccessAt ? { lastSuccessAt: previous.lastSuccessAt } : {}),
+    });
+    try {
+      const board = await this.readBoard(projectId);
+      const successAt = this.now();
+      await this.snapshots.save({ richProjectId: projectId, key: "board", payload: board, updatedAt: successAt });
+      const state: MulticaSyncState = { richProjectId: projectId, status: "connected", lastAttemptAt: attemptAt, lastSuccessAt: successAt };
+      await this.snapshots.saveSyncState(state);
+      return { ...board, connection: state };
+    } catch (error) {
+      await this.snapshots.saveSyncState({
+        richProjectId: projectId,
+        status: "disconnected",
+        lastAttemptAt: attemptAt,
+        ...(previous?.lastSuccessAt ? { lastSuccessAt: previous.lastSuccessAt } : {}),
+        error: error instanceof Error ? error.message.slice(0, 240) : "Multica synchronization failed.",
+      });
+      throw error;
+    }
+  }
+
+  private async withConnection(projectId: string, board: MulticaBoardSnapshot): Promise<MulticaBoardSnapshot> {
+    const state = await this.snapshots?.getSyncState(projectId);
+    return { ...board, connection: state ?? { richProjectId: projectId, status: "syncing" } };
+  }
+
+  private async cached<T>(projectId: string, key: string, loader: () => Promise<T>): Promise<T> {
+    if (!this.snapshots) return loader();
+    const snapshot = await this.snapshots.get<T>(projectId, key);
+    if (snapshot) {
+      void this.refreshSnapshot(projectId, key, loader).catch(() => undefined);
+      return snapshot.payload;
+    }
+    return this.refreshSnapshot(projectId, key, loader);
+  }
+
+  private async mutate<T>(projectId: string, issueId: string, operation: () => Promise<T>): Promise<T> {
+    const result = await operation();
+    await this.afterMutation(projectId, issueId);
+    return result;
+  }
+
+  private async afterMutation(projectId: string, issueId?: string): Promise<void> {
+    if (!this.snapshots) return;
+    if (issueId) await this.snapshots.deleteByPrefixes(projectId, [
+      `issue:${issueId}`, `timeline:${issueId}`, `comments:${issueId}`, `runs:${issueId}`,
+      `run-messages:${issueId}:`, `pull-requests:${issueId}`, `usage:${issueId}`,
+      `metadata:${issueId}`, `properties:${issueId}`, `labels:${issueId}`, `subscribers:${issueId}`,
+    ]);
+    const running = this.boardSyncs.get(projectId);
+    if (running) await running.catch(() => undefined);
+    await this.syncBoard(projectId).catch(() => undefined);
+  }
+
+  private refreshSnapshot<T>(projectId: string, key: string, loader: () => Promise<T>): Promise<T> {
+    const lockKey = `${projectId}:${key}`;
+    const running = this.resourceSyncs.get(lockKey) as Promise<T> | undefined;
+    if (running) return running;
+    const task = loader().then(async payload => {
+      await this.snapshots?.save({ richProjectId: projectId, key, payload, updatedAt: this.now() });
+      return payload;
+    });
+    this.resourceSyncs.set(lockKey, task);
+    void task.then(
+      () => { if (this.resourceSyncs.get(lockKey) === task) this.resourceSyncs.delete(lockKey); },
+      () => { if (this.resourceSyncs.get(lockKey) === task) this.resourceSyncs.delete(lockKey); },
+    );
+    return task;
   }
 
   private async binding(projectId: string): Promise<MulticaProjectBinding> {
