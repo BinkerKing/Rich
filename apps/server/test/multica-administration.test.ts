@@ -32,6 +32,7 @@ class FakeMultica implements MulticaCommandPort {
   runtimes: any[] = [{ id: "runtime-codex", name: "Codex (Mac)", provider: "codex", status: "online", daemon_id: "daemon-1" }];
   squads: any[] = [];
   resources: any[] = [];
+  workspaceMcps: any[] = [];
   calls: Array<{ args: string[]; stdin?: string }> = [];
 
   async runJson<T>(args: string[], options?: { stdin?: string }): Promise<T> {
@@ -41,6 +42,13 @@ class FakeMultica implements MulticaCommandPort {
     if (key === "agent list") return structuredClone(this.agents) as T;
     if (key === "runtime list") return structuredClone(this.runtimes) as T;
     if (key === "squad list") return structuredClone(this.squads) as T;
+    if (args[0] === "workspace" && args[1] === "mcp" && args[2] === "list") return structuredClone(this.workspaceMcps) as T;
+    if (args[0] === "workspace" && args[1] === "mcp" && args[2] === "add") {
+      const mcp = { id: "mcp-rich", name: args[3], server_config: JSON.parse(options?.stdin ?? "{}") };
+      this.workspaceMcps.push(mcp);
+      return structuredClone(mcp) as T;
+    }
+    if (args[0] === "agent" && args[1] === "mcp" && args[2] === "add") return { ok: true } as T;
     if (args[0] === "project" && args[1] === "resource" && args[2] === "list") return structuredClone(this.resources) as T;
     if (key === "project create") {
       const project = { id: `project-${this.projects.length + 1}`, title: value(args, "--title"), description: value(args, "--description"), status: "planned" };
@@ -89,6 +97,52 @@ const request: MulticaTeamPlanRequest = {
 };
 
 describe("MulticaAdministrationService", () => {
+  it("uses the requested PM as Squad leader and assigns Rich MCP only to that Agent", async () => {
+    const commands = new FakeMultica();
+    commands.projects = [];
+    commands.agents = [];
+    const repo = new MemoryBindingRepo();
+    const service = new MulticaAdministrationService(commands, repo, { now: () => "2026-08-28T01:00:00.000Z", id: () => "plan-vtb" });
+    const vtbRequest: MulticaTeamPlanRequest = {
+      richProjectId: "vtb-二代safe",
+      richProjectName: "【VTB】二代SAFE",
+      goal: "建立项目认知基线",
+      workingDirectory: "/Users/binkerking/Documents/Ai-WorkSpace/Projects/【VTB】二代SAFE",
+      executionMode: "in_place",
+      leaderCapabilityKey: "project-management",
+      richMcp: { name: "rich", url: "http://127.0.0.1:31515/mcp" },
+      squadName: "VTB SAFE 研析小队",
+      capabilities: [
+        { key: "project-management", proposedName: "沈砚", role: "project-manager", description: "项目经理", runtimeProvider: "codex", model: "gpt-5.6-terra" },
+        { key: "business-analysis", proposedName: "苏澄", role: "business-analyst", description: "BA", runtimeProvider: "codex", model: "gpt-5.6-terra" },
+        { key: "development-analysis", proposedName: "陆骁", role: "developer", description: "开发", runtimeProvider: "codex", model: "gpt-5.6-terra" },
+        { key: "test-analysis", proposedName: "林检", role: "tester", description: "测试", runtimeProvider: "codex", model: "gpt-5.6-terra" },
+      ],
+    };
+
+    const plan = await service.planTeam(vtbRequest);
+    expect(plan.definition.leader).toMatchObject({ name: "沈砚", capabilityKey: "project-management", role: "project-manager", model: "gpt-5.6-terra" });
+    expect(plan.definition.members.map(member => member.name)).toEqual(["苏澄", "陆骁", "林检"]);
+    expect(plan.definition.squad.name).toBe("VTB SAFE 研析小队");
+
+    const binding = await service.applyPlan(plan.id);
+
+    expect(binding).toMatchObject({
+      leader: { name: "沈砚", role: "project-manager", capabilities: ["project-management"] },
+      executionMode: "in_place",
+      richMcp: { serverId: "mcp-rich", name: "rich", url: "http://127.0.0.1:31515/mcp" },
+    });
+    expect(binding.agents.map(agent => agent.name)).toEqual(["沈砚", "苏澄", "陆骁", "林检"]);
+    expect(commands.calls.filter(call => call.args[0] === "agent" && call.args[1] === "create")
+      .every(call => value(call.args, "--model") === "gpt-5.6-terra")).toBe(true);
+    expect(commands.calls.find(call => call.args.slice(0, 3).join(" ") === "project resource add")?.args)
+      .toContain("in_place");
+    expect(commands.calls.filter(call => call.args.slice(0, 3).join(" ") === "agent mcp add"))
+      .toEqual([expect.objectContaining({ args: ["agent", "mcp", "add", binding.leader.agentId, "mcp-rich", "--output", "json"] })]);
+    expect(commands.calls.find(call => call.args.slice(0, 3).join(" ") === "workspace mcp add")?.stdin)
+      .toBe(JSON.stringify({ url: "http://127.0.0.1:31515/mcp" }));
+  });
+
   it("plans exact Project and Agent reuse while proposing a dedicated Leader and Squad", async () => {
     const commands = new FakeMultica();
     const repo = new MemoryBindingRepo();
@@ -123,7 +177,12 @@ describe("MulticaAdministrationService", () => {
       richProjectId: "rich",
       projectId: "project-1",
       defaultSquadName: "Rich 执行小队",
-      agents: [{ agentId: "agent-dev", capabilities: ["development"], role: "负责实现和验证" }],
+      leader: { agentId: "agent-2", name: "Rich 调度员", role: "leader" },
+      executionMode: "worktree",
+      agents: [
+        { agentId: "agent-2", capabilities: [], role: "leader" },
+        { agentId: "agent-dev", capabilities: ["development"], role: "负责实现和验证" },
+      ],
     });
     const mutating = commands.calls.filter(call => ["create", "update", "member"].includes(call.args[1] ?? "")
       || (call.args[0] === "project" && call.args[1] === "resource" && call.args[2] === "add"));

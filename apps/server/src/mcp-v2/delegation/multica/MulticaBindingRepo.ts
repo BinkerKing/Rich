@@ -12,6 +12,9 @@ export interface MulticaProjectBinding {
   projectTitle: string;
   defaultSquadId: string;
   defaultSquadName: string;
+  leader?: MulticaAgentBinding;
+  executionMode?: "in_place" | "worktree";
+  richMcp?: { serverId: string; name: string; url: string; agentId: string };
   agents: MulticaAgentBinding[];
   createdAt: string;
   updatedAt: string;
@@ -34,6 +37,10 @@ export interface MulticaTeamPlanRequest {
   goal: string;
   projectDescription?: string;
   workingDirectory?: string;
+  squadName?: string;
+  leaderCapabilityKey?: string;
+  executionMode?: "in_place" | "worktree";
+  richMcp?: { name: string; url: string };
   capabilities: MulticaCapabilityRequest[];
 }
 

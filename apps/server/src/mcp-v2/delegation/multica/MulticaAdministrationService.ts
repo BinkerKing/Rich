@@ -49,8 +49,16 @@ export class MulticaAdministrationService {
     ]);
     const project = projects.find(item => item.id === currentBinding?.projectId)
       ?? exact(projects, request.richProjectName, item => item.title);
-    const leader = exact(agents, LEADER_NAME, item => item.name);
-    const squadName = `${request.richProjectName} 执行小队`;
+    const leaderCapability = request.leaderCapabilityKey
+      ? request.capabilities.find(capability => capability.key === request.leaderCapabilityKey)
+      : undefined;
+    if (request.leaderCapabilityKey && !leaderCapability) {
+      throw new RichMcpError("VALIDATION_ERROR", `Leader capability ${request.leaderCapabilityKey} was not requested.`);
+    }
+    const leader = leaderCapability
+      ? findAgent(agents, leaderCapability)
+      : exact(agents, LEADER_NAME, item => item.name);
+    const squadName = request.squadName ?? `${request.richProjectName} 执行小队`;
     const squad = squads.find(item => item.id === currentBinding?.defaultSquadId)
       ?? exact(squads, squadName, item => item.name);
     const defaultRuntime = selectRuntime(runtimes, "codex");
@@ -64,7 +72,12 @@ export class MulticaAdministrationService {
           ? { action: "reuse", id: project.id, title: project.title, description: project.description ?? request.projectDescription ?? request.goal }
           : { action: "create", title: request.richProjectName, description: request.projectDescription ?? `Rich project: ${request.goal}` },
         leader: leader
-          ? { action: "reuse", id: leader.id, name: leader.name }
+          ? {
+              action: "reuse", id: leader.id, name: leader.name,
+              ...(leaderCapability ? { capabilityKey: leaderCapability.key, role: leaderCapability.role } : {}),
+            }
+          : leaderCapability
+            ? createAgentDecision(leaderCapability, selectRuntime(runtimes, leaderCapability.runtimeProvider ?? "codex"))
           : {
               action: "create",
               name: LEADER_NAME,
@@ -73,7 +86,7 @@ export class MulticaAdministrationService {
               runtimeProvider: defaultRuntime.provider,
               runtimeId: defaultRuntime.id,
             },
-        members: request.capabilities.map(capability => {
+        members: request.capabilities.filter(capability => capability.key !== request.leaderCapabilityKey).map(capability => {
           const agent = findAgent(agents, capability);
           if (agent) {
             return { action: "reuse", id: agent.id, name: agent.name, capabilityKey: capability.key, role: capability.role };
@@ -123,7 +136,12 @@ export class MulticaAdministrationService {
       await this.commands.runJson(["squad", "member", "add", squad.id, "--member-id", member.id,
         "--type", "agent", "--role", plan.definition.members[index].role ?? "member", "--output", "json"]);
     }
-    if (plan.request.workingDirectory) await this.ensureLocalDirectory(project.id, plan.request.workingDirectory, [leader, ...members]);
+    if (plan.request.workingDirectory) {
+      await this.ensureLocalDirectory(project.id, plan.request.workingDirectory, [leader, ...members], plan.request.executionMode ?? "worktree");
+    }
+    const richMcp = plan.request.richMcp
+      ? await this.ensureWorkspaceMcp(plan.request.richMcp, leader.id)
+      : undefined;
 
     const previous = await this.bindings.getBinding(plan.richProjectId);
     const timestamp = this.now();
@@ -134,12 +152,10 @@ export class MulticaAdministrationService {
       projectTitle: project.title,
       defaultSquadId: squad.id,
       defaultSquadName: squad.name,
-      agents: members.map((member, index) => ({
-        agentId: member.id,
-        name: member.name,
-        capabilities: plan.definition.members[index].capabilityKey ? [plan.definition.members[index].capabilityKey!] : [],
-        role: plan.definition.members[index].role ?? "member",
-      })),
+      leader: bindingAgent(leader, plan.definition.leader),
+      executionMode: plan.request.executionMode ?? "worktree",
+      ...(richMcp ? { richMcp } : {}),
+      agents: [bindingAgent(leader, plan.definition.leader), ...members.map((member, index) => bindingAgent(member, plan.definition.members[index]))],
       createdAt: previous?.createdAt ?? timestamp,
       updatedAt: timestamp,
     };
@@ -199,7 +215,7 @@ export class MulticaAdministrationService {
       "--leader", leader.id, "--description", decision.description, "--output", "json"]));
   }
 
-  private async ensureLocalDirectory(projectId: string, path: string, agents: MulticaAgent[]): Promise<void> {
+  private async ensureLocalDirectory(projectId: string, path: string, agents: MulticaAgent[], executionMode: "in_place" | "worktree"): Promise<void> {
     const resources = await this.commands.runJson<unknown>(["project", "resource", "list", projectId, "--output", "json"]);
     if (JSON.stringify(resources).includes(JSON.stringify(path))) return;
     const [runtimes, currentAgents] = await Promise.all([this.listRuntimes(), this.listAgents()]);
@@ -208,13 +224,63 @@ export class MulticaAdministrationService {
       ?? runtimes.find(candidate => candidate.status.toLocaleLowerCase() === "online" && candidate.daemon_id);
     if (!runtime?.daemon_id) throw new RichMcpError("DEPENDENCY_UNAVAILABLE", "No online Multica runtime with a daemon is available for the local project directory.", { retryable: true });
     await this.commands.runJson(["project", "resource", "add", projectId, "--type", "local_directory",
-      "--local-path", path, "--daemon-id", runtime.daemon_id, "--execution-mode", "worktree", "--label", "Rich project directory", "--output", "json"]);
+      "--local-path", path, "--daemon-id", runtime.daemon_id, "--execution-mode", executionMode, "--label", "Rich project directory", "--output", "json"]);
+  }
+
+  private async ensureWorkspaceMcp(request: { name: string; url: string }, agentId: string): Promise<NonNullable<MulticaProjectBinding["richMcp"]>> {
+    const listed = await this.commands.runJson<unknown>(["workspace", "mcp", "list", "--output", "json"]);
+    const existing = collectObjects(listed).find(item => normalize(String(item.name ?? "")) === normalize(request.name));
+    const created = existing ?? await this.commands.runJson<unknown>(
+      ["workspace", "mcp", "add", request.name, "--server-config-stdin", "--output", "json"],
+      { stdin: JSON.stringify({ url: request.url }) },
+    );
+    const serverId = firstString(created, "id", "server_id", "mcp_server_id");
+    if (!serverId) throw new RichMcpError("DEPENDENCY_UNAVAILABLE", `Multica did not return an id for MCP server ${request.name}.`, { retryable: true });
+    await this.commands.runJson(["agent", "mcp", "add", agentId, serverId, "--output", "json"]);
+    return { serverId, name: request.name, url: request.url, agentId };
   }
 
   private async listProjects() { return multicaProjectListSchema.parse(await this.commands.runJson(["project", "list", "--output", "json"])); }
   private async listAgents() { return multicaAgentListSchema.parse(await this.commands.runJson(["agent", "list", "--output", "json"])); }
   private async listRuntimes() { return multicaRuntimeListSchema.parse(await this.commands.runJson(["runtime", "list", "--output", "json"])); }
   private async listSquads() { return multicaSquadListSchema.parse(await this.commands.runJson(["squad", "list", "--output", "json"])); }
+}
+
+function createAgentDecision(capability: MulticaTeamPlanRequest["capabilities"][number], runtime: MulticaRuntime): MulticaAgentDecision {
+  return {
+    action: "create",
+    name: capability.proposedName,
+    capabilityKey: capability.key,
+    role: capability.role,
+    description: capability.description,
+    instructions: capability.instructions ?? `负责 ${capability.description}。完成后报告产物、验证结果和剩余风险。`,
+    runtimeProvider: runtime.provider,
+    runtimeId: runtime.id,
+    ...(capability.model ? { model: capability.model } : {}),
+  };
+}
+
+function bindingAgent(agent: MulticaAgent, decision: MulticaAgentDecision): MulticaProjectBinding["agents"][number] {
+  return {
+    agentId: agent.id,
+    name: agent.name,
+    capabilities: decision.capabilityKey ? [decision.capabilityKey] : [],
+    role: decision.role ?? "leader",
+  };
+}
+
+function collectObjects(value: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(value)) return value.flatMap(collectObjects);
+  if (!value || typeof value !== "object") return [];
+  const record = value as Record<string, unknown>;
+  return [record, ...Object.values(record).flatMap(collectObjects)];
+}
+
+function firstString(value: unknown, ...keys: string[]): string | undefined {
+  for (const record of collectObjects(value)) {
+    for (const key of keys) if (typeof record[key] === "string" && record[key]) return record[key] as string;
+  }
+  return undefined;
 }
 
 function findAgent(agents: MulticaAgent[], capability: MulticaTeamPlanRequest["capabilities"][number]): MulticaAgent | undefined {
