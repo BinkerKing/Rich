@@ -22,7 +22,7 @@ export function registerTaskTools(registry: RichToolRegistry, deps: TaskToolDeps
     examples: [{ description: "查询某个委派任务的最新状态", input: { taskId: "task-id" } }],
     verification: "Returns the task persisted in Rich.",
     handler: async ({ taskId }) => {
-      const task = await deps.tasks.get(taskId);
+      const task = await deps.tasks.sync(taskId);
       return richSuccess("rich_work_get_status", { task }, { refs: [{ type: "work_task", id: task.id, label: task.title }] });
     },
   });

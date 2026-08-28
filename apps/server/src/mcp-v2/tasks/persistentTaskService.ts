@@ -23,6 +23,7 @@ export interface TaskTransitionPatch {
 
 export interface PersistentTaskServiceOptions {
   cancelExternal?: (task: McpTask) => Promise<void>;
+  getExternalStatus?: (task: McpTask) => Promise<TaskTransitionPatch & { status: McpTaskStatus }>;
 }
 
 const ALLOWED: Record<McpTaskStatus, McpTaskStatus[]> = {
@@ -58,9 +59,25 @@ export class PersistentTaskService {
     return this.repo.list(options);
   }
 
+  async sync(id: string): Promise<McpTask> {
+    const current = await this.get(id);
+    if (!current.externalTaskId || !this.options.getExternalStatus || TERMINAL.has(current.status)) return current;
+    const external = await this.options.getExternalStatus(current);
+    return this.transition(id, external.status, { ...external, lastSyncedAt: new Date().toISOString() });
+  }
+
+  async annotate(id: string, patch: TaskTransitionPatch): Promise<McpTask> {
+    const current = await this.get(id);
+    const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
+    await this.repo.save(next);
+    return next;
+  }
+
   async transition(id: string, status: McpTaskStatus, patch: TaskTransitionPatch = {}): Promise<McpTask> {
     const current = await this.get(id);
-    if (current.status === status) return current;
+    if (current.status === status) {
+      return Object.keys(patch).length > 0 ? this.annotate(id, patch) : current;
+    }
     if (!ALLOWED[current.status].includes(status)) {
       throw new RichMcpError("CONFLICT", `Cannot transition work task from ${current.status} to ${status}.`);
     }
