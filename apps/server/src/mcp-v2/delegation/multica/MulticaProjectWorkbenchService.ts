@@ -85,13 +85,13 @@ export class MulticaProjectWorkbenchService {
 
   async getBoard(projectId: string): Promise<MulticaBoardSnapshot> {
     const binding = await this.binding(projectId);
-    const [projectValue, issuesValue] = await Promise.all([
+    const [projectValue, issueRecords] = await Promise.all([
       this.commands.runJson(["project", "get", binding.projectId, "--output", "json"]),
-      this.commands.runJson(["issue", "list", "--project", binding.projectId, "--limit", "500", "--output", "json"]),
+      this.listProjectIssues(binding.projectId),
     ]);
     const project = multicaWorkbenchProjectSchema.parse(extractObject(projectValue, ["project", "data"]));
-    const issues = extractArray(issuesValue, ["issues", "data", "items"])
-      .map(item => multicaWorkbenchIssueSchema.parse(item))
+    const issues = issueRecords
+      .map(item => multicaWorkbenchIssueSchema.parse(normalizeIssue(item)))
       .filter(issue => issue.project_id === binding.projectId);
     const statuses: MulticaStatus[] = STATUS_CATALOG.map(status => ({ ...status }));
     for (const issue of issues) {
@@ -137,21 +137,21 @@ export class MulticaProjectWorkbenchService {
   async getIssue(projectId: string, issueId: string): Promise<MulticaIssueDetailSnapshot> {
     const issue = await this.ownedIssue(projectId, issueId);
     const childrenValue = await this.commands.runJson(["issue", "children", issueId, "--output", "json"]);
-    const children = collectIssueLike(childrenValue).map(item => multicaWorkbenchIssueSchema.parse(item));
+    const children = collectIssueLike(childrenValue).map(item => multicaWorkbenchIssueSchema.parse(normalizeIssue(item)));
     const attachments = (Array.isArray(issue.attachments) ? issue.attachments : []).map(item => multicaAttachmentSchema.parse(item));
     return multicaIssueDetailSnapshotSchema.parse({ issue, children, attachments, syncedAt: this.now() });
   }
 
   async getTimeline(projectId: string, issueId: string): Promise<MulticaTimelineEntry[]> {
     await this.ownedIssue(projectId, issueId);
-    const value = await this.commands.runJson(["issue", "timeline", issueId, "--output", "json"]);
+    const value = await this.commands.runJson(["issue", "timeline", issueId, "--activity-only", "--output", "json"]);
     return extractArray(value, ["timeline", "entries", "data", "items"]).map(normalizeTimeline).map(item => multicaTimelineEntrySchema.parse(item));
   }
 
   async getComments(projectId: string, issueId: string): Promise<MulticaComment[]> {
     await this.ownedIssue(projectId, issueId);
     const value = await this.commands.runJson(["issue", "comment", "list", issueId, "--output", "json"]);
-    return extractArray(value, ["comments", "data", "items"]).map(item => multicaCommentSchema.parse(item));
+    return extractArray(value, ["comments", "data", "items"]).map(normalizeComment).map(item => multicaCommentSchema.parse(item));
   }
 
   async getRuns(projectId: string, issueId: string): Promise<MulticaRun[]> {
@@ -165,7 +165,7 @@ export class MulticaProjectWorkbenchService {
     const args = ["issue", "run-messages", runId, "--issue", issueId, "--output", "json"];
     if (since !== undefined) args.push("--since", String(since));
     const value = await this.commands.runJson(args);
-    return extractArray(value, ["messages", "data", "items"]).map(item => multicaRunMessageSchema.parse(item));
+    return extractArray(value, ["messages", "data", "items"]).map(normalizeRunMessage).map(item => multicaRunMessageSchema.parse(item));
   }
 
   async getPullRequests(projectId: string, issueId: string): Promise<MulticaPullRequest[]> {
@@ -177,7 +177,7 @@ export class MulticaProjectWorkbenchService {
   async getUsage(projectId: string, issueId: string): Promise<MulticaUsage> {
     await this.ownedIssue(projectId, issueId);
     const value = await this.commands.runJson(["issue", "usage", issueId, "--output", "json"]);
-    return multicaUsageSchema.parse(extractObject(value, ["usage", "data"]));
+    return multicaUsageSchema.parse(normalizeUsage(extractObject(value, ["usage", "data"])));
   }
 
   async getMetadata(projectId: string, issueId: string): Promise<Record<string, unknown>> {
@@ -199,7 +199,7 @@ export class MulticaProjectWorkbenchService {
   async getSubscribers(projectId: string, issueId: string) {
     await this.ownedIssue(projectId, issueId);
     const value = await this.commands.runJson(["issue", "subscriber", "list", issueId, "--output", "json"]);
-    return extractArray(value, ["subscribers", "data", "items"]).map(item => multicaActorSchema.parse(item));
+    return extractArray(value, ["subscribers", "data", "items"]).map(normalizeSubscriber).map(item => multicaActorSchema.parse(item));
   }
 
   async createIssue(projectId: string, input: CreateMulticaIssueInput): Promise<MulticaWorkbenchIssue> {
@@ -217,7 +217,7 @@ export class MulticaProjectWorkbenchService {
     if (input.description !== undefined) args.push("--description-stdin");
     args.push("--output", "json");
     const value = await this.commands.runJson(args, input.description !== undefined ? { stdin: input.description } : undefined);
-    return multicaWorkbenchIssueSchema.parse(extractObject(value, ["issue", "data"]));
+    return multicaWorkbenchIssueSchema.parse(normalizeIssue(extractObject(value, ["issue", "data"])));
   }
 
   async updateIssue(projectId: string, issueId: string, input: UpdateMulticaIssueInput): Promise<unknown> {
@@ -314,12 +314,28 @@ export class MulticaProjectWorkbenchService {
     return binding;
   }
 
+  private async listProjectIssues(multicaProjectId: string): Promise<Array<Record<string, unknown>>> {
+    const issues: Array<Record<string, unknown>> = [];
+    const limit = 200;
+    let offset = 0;
+    for (;;) {
+      const value = await this.commands.runJson([
+        "issue", "list", "--project", multicaProjectId, "--limit", String(limit), "--offset", String(offset), "--output", "json",
+      ]);
+      const page = extractArray(value, ["issues", "data", "items"]);
+      issues.push(...page);
+      if (!isRecord(value) || value.has_more !== true || page.length === 0) break;
+      offset += page.length;
+    }
+    return issues;
+  }
+
   private async ownedIssue(projectId: string, issueId: string): Promise<MulticaWorkbenchIssue> {
     const binding = await this.binding(projectId);
     const value = await this.commands.runJson(["issue", "get", issueId, "--output", "json"]);
     const raw = extractObject(value, ["issue", "data"]);
     if (!raw.id) throw new RichMcpError("NOT_FOUND", `Issue ${issueId} was not found.`);
-    const issue = multicaWorkbenchIssueSchema.parse(raw);
+    const issue = multicaWorkbenchIssueSchema.parse(normalizeIssue(raw));
     if (issue.project_id !== binding.projectId) throw new RichMcpError("NOT_FOUND", `Issue ${issueId} is not in this Rich project.`);
     return issue;
   }
@@ -358,7 +374,12 @@ function collectIssueLike(value: unknown): Array<Record<string, unknown>> {
 }
 
 function normalizeTimeline(value: Record<string, unknown>): Record<string, unknown> {
-  return { ...value, id: value.id ?? value.activity_id ?? value.comment_id, type: value.type ?? value.action ?? value.kind ?? "activity" };
+  return {
+    ...value,
+    id: value.id ?? value.activity_id ?? value.comment_id,
+    type: value.type === "activity" && value.action ? value.action : value.type ?? value.action ?? value.kind ?? "activity",
+    data: value.data ?? value.details,
+  };
 }
 
 function normalizeResource(value: Record<string, unknown>): Record<string, unknown> {
@@ -366,10 +387,57 @@ function normalizeResource(value: Record<string, unknown>): Record<string, unkno
   return {
     ...ref,
     ...value,
-    type: value.type ?? ref.type,
+    type: value.type ?? value.resource_type ?? ref.type,
     local_path: value.local_path ?? ref.local_path,
     execution_mode: value.execution_mode ?? ref.execution_mode,
   };
+}
+
+function normalizeIssue(value: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...value,
+    parent_id: value.parent_id ?? value.parent_issue_id,
+    attachments: Array.isArray(value.attachments) ? value.attachments.filter(isRecord).map(normalizeAttachment) : value.attachments,
+  };
+}
+
+function normalizeAttachment(value: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...value,
+    name: value.name ?? value.filename,
+    size: value.size ?? value.size_bytes,
+    url: value.url ?? value.download_url ?? value.markdown_url,
+  };
+}
+
+function normalizeComment(value: Record<string, unknown>): Record<string, unknown> {
+  return { ...value, body: value.body ?? value.content, resolved: value.resolved ?? Boolean(value.resolved_at) };
+}
+
+function normalizeRunMessage(value: Record<string, unknown>): Record<string, unknown> {
+  const runId = value.run_id ?? value.task_id;
+  const sequence = value.sequence ?? value.seq;
+  return {
+    ...value,
+    id: value.id ?? (typeof runId === "string" && typeof sequence === "number" ? `${runId}:${sequence}` : undefined),
+    run_id: runId,
+    sequence,
+  };
+}
+
+function normalizeUsage(value: Record<string, unknown>): Record<string, unknown> {
+  const inputTokens = number(value.input_tokens) ?? number(value.total_input_tokens);
+  const outputTokens = number(value.output_tokens) ?? number(value.total_output_tokens);
+  return {
+    ...value,
+    input_tokens: inputTokens,
+    output_tokens: outputTokens,
+    total_tokens: number(value.total_tokens) ?? ((inputTokens ?? 0) + (outputTokens ?? 0)),
+  };
+}
+
+function normalizeSubscriber(value: Record<string, unknown>): Record<string, unknown> {
+  return { ...value, id: value.id ?? value.user_id, type: value.type ?? value.user_type };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -378,6 +446,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function text(value: unknown): string | undefined {
   return typeof value === "string" && value ? value : undefined;
+}
+
+function number(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
 function pushValue(args: string[], flag: string, value: string | undefined): void {

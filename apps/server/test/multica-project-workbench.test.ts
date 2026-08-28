@@ -100,7 +100,7 @@ class WorkbenchBindings implements MulticaBindingRepo {
 class WorkbenchCommands implements MulticaCommandPort {
   calls: Array<{ args: string[]; stdin?: string }> = [];
   issues = [
-    { id: "vtb-1", identifier: "VTB-1", title: "熟悉项目", status: "in_progress", project_id: "multica-vtb", priority: "high", position: 1 },
+    { id: "vtb-1", identifier: "VTB-1", title: "熟悉项目", status: "in_progress", project_id: "multica-vtb", parent_issue_id: "parent-1", priority: "high", position: 1, attachments: [{ id: "attachment-real", filename: "evidence.png", size_bytes: 2048, content_type: "image/png", download_url: "/download/evidence" }] },
     { id: "other-1", identifier: "OTHER-1", title: "其他项目", status: "todo", project_id: "other-project", position: 2 },
   ];
 
@@ -119,13 +119,13 @@ class WorkbenchCommands implements MulticaCommandPort {
     if (args[0] === "issue" && args[1] === "children") return { stages: [{ issues: [{ id: "child-1", title: "目录分析", status: "todo", project_id: "multica-vtb" }] }] } as T;
     if (args[0] === "issue" && args[1] === "timeline") return [{ id: "event-1", type: "status_changed", created_at: "2026-08-28T06:02:00.000Z" }] as T;
     if (args[0] === "issue" && args[1] === "runs") return [{ id: "run-1", status: "running" }] as T;
-    if (args[0] === "issue" && args[1] === "run-messages") return [{ id: "message-1", run_id: "run-1", sequence: 1, content: "working" }] as T;
+    if (args[0] === "issue" && args[1] === "run-messages") return [{ task_id: "run-1", seq: 1, type: "text", content: "working" }] as T;
     if (args[0] === "issue" && args[1] === "pull-requests") return [{ id: "pr-1", title: "Analysis", state: "open" }] as T;
-    if (args[0] === "issue" && args[1] === "usage") return { total_tokens: 120 } as T;
+    if (args[0] === "issue" && args[1] === "usage") return { total_input_tokens: 100, total_output_tokens: 20, cost_usd_ticks: 8 } as T;
     if (command === "issue metadata list") return { scope: "analysis" } as T;
     if (command === "issue property list") return [{ id: "property-1", name: "Risk", value: "low" }] as T;
     if (command === "issue label list") return [{ id: "label-1", name: "analysis" }] as T;
-    if (command === "issue subscriber list") return [{ id: "agent-pm", name: "沈砚" }] as T;
+    if (command === "issue subscriber list") return [{ user_id: "agent-pm", user_type: "agent", name: "沈砚" }] as T;
     if (args[0] === "issue" && args[1] === "create") {
       const issue = { id: "vtb-new", title: flag(args, "--title"), status: flag(args, "--status") || "backlog", project_id: flag(args, "--project") };
       this.issues.push(issue as (typeof this.issues)[number]);
@@ -162,17 +162,25 @@ describe("MulticaProjectWorkbenchService reads", () => {
       agents: expect.arrayContaining([expect.objectContaining({ id: "agent-pm", model: "gpt-5.6-terra", role: "project-manager" })]),
       resources: [expect.objectContaining({ execution_mode: "in_place" })],
     });
-    await expect(service.getIssue("vtb-二代safe", "vtb-1")).resolves.toMatchObject({ issue: { id: "vtb-1" }, children: [{ id: "child-1" }] });
+    await expect(service.getIssue("vtb-二代safe", "vtb-1")).resolves.toMatchObject({
+      issue: { id: "vtb-1", parent_id: "parent-1" },
+      children: [{ id: "child-1" }],
+      attachments: [{ id: "attachment-real", name: "evidence.png", size: 2048, url: "/download/evidence" }],
+    });
     await expect(service.getTimeline("vtb-二代safe", "vtb-1")).resolves.toEqual([expect.objectContaining({ id: "event-1" })]);
     await expect(service.getComments("vtb-二代safe", "vtb-1")).resolves.toEqual([expect.objectContaining({ id: "comment-1" })]);
     await expect(service.getRuns("vtb-二代safe", "vtb-1")).resolves.toEqual([expect.objectContaining({ id: "run-1" })]);
-    await expect(service.getRunMessages("vtb-二代safe", "vtb-1", "run-1", 0)).resolves.toEqual([expect.objectContaining({ sequence: 1 })]);
+    await expect(service.getRunMessages("vtb-二代safe", "vtb-1", "run-1", 0)).resolves.toEqual([
+      expect.objectContaining({ id: "run-1:1", run_id: "run-1", sequence: 1 }),
+    ]);
     await expect(service.getPullRequests("vtb-二代safe", "vtb-1")).resolves.toEqual([expect.objectContaining({ id: "pr-1" })]);
-    await expect(service.getUsage("vtb-二代safe", "vtb-1")).resolves.toMatchObject({ total_tokens: 120 });
+    await expect(service.getUsage("vtb-二代safe", "vtb-1")).resolves.toMatchObject({ input_tokens: 100, output_tokens: 20, total_tokens: 120, cost_usd_ticks: 8 });
     await expect(service.getMetadata("vtb-二代safe", "vtb-1")).resolves.toEqual({ scope: "analysis" });
     await expect(service.getProperties("vtb-二代safe", "vtb-1")).resolves.toEqual([expect.objectContaining({ id: "property-1" })]);
     await expect(service.getLabels("vtb-二代safe", "vtb-1")).resolves.toEqual([expect.objectContaining({ id: "label-1" })]);
-    await expect(service.getSubscribers("vtb-二代safe", "vtb-1")).resolves.toEqual([expect.objectContaining({ id: "agent-pm" })]);
+    await expect(service.getSubscribers("vtb-二代safe", "vtb-1")).resolves.toEqual([
+      expect.objectContaining({ id: "agent-pm", type: "agent" }),
+    ]);
   });
 });
 
