@@ -48,6 +48,10 @@ export class RichToolRegistry {
     return buildToolCatalog(Array.from(this.registrations.values()));
   }
 
+  listRegistrations(): ReadonlyArray<RichToolRegistration> {
+    return Array.from(this.registrations.values()).sort((left, right) => left.name.localeCompare(right.name));
+  }
+
   measure() {
     return measureToolCatalog(this.listDefinitions());
   }

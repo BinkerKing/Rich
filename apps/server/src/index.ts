@@ -150,7 +150,13 @@ import { pickScenarioAdapter } from "./ai/pickAdapter.js";
 import { createAIContextProvider } from "./ai/contextProvider.js";
 import { createLogger, noopLogger, type Logger } from "./lib/logger.js";
 import { installShutdownHandlers, childRegistry } from "./lib/childRegistry.js";
-import { mountMcp } from "./mcp/transport.js";
+import { mountMcpV2 } from "./mcp-v2/transport.js";
+import type { McpOperationRepo } from "./repos/McpOperationRepo.js";
+import type { McpTaskRepo } from "./repos/McpTaskRepo.js";
+import { SqliteMcpOperationRepo } from "./repos/SqliteMcpOperationRepo.js";
+import { SqliteMcpTaskRepo } from "./repos/SqliteMcpTaskRepo.js";
+import { PostgresMcpOperationRepo } from "./repos/PostgresMcpOperationRepo.js";
+import { PostgresMcpTaskRepo } from "./repos/PostgresMcpTaskRepo.js";
 import { eventsRoute } from "./routes/events.js";
 import { greatMeRoutes } from "./routes/greatMe.js";
 import { chatRoutes } from "./routes/chat.js";
@@ -219,6 +225,8 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let invocations: InvocationsStore | null = null;
   let projectManagement: ProjectManagementRepo;
   let projectAutomation: ProjectAutomationRepo;
+  let mcpOperationRepo: McpOperationRepo;
+  let mcpTaskRepo: McpTaskRepo;
   /** chat_visual_blocks 仅 sqlite + postgres 后端支持；json 模式下保持 null。 */
   let chatVisualBlocks: ChatVisualBlocksRepo | null = null;
   /** chat_attachments 同上 —— bytea 存储需要数据库后端 */
@@ -249,6 +257,8 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     healthRepo = new PostgresHealthRepo(pg);
     projectManagement = new PostgresProjectManagementRepo(pg);
     projectAutomation = new PostgresProjectAutomationRepo(pg);
+    mcpOperationRepo = new PostgresMcpOperationRepo(pg);
+    mcpTaskRepo = new PostgresMcpTaskRepo(pg);
   } else if (storage === "sqlite") {
     const dbPath = process.env.KE_SQLITE_PATH ?? join(root, "ke.db");
     const db = openDb(dbPath);
@@ -268,6 +278,8 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     chatConversations = new SqliteChatConversationsRepo(db);
     projectManagement = new SqliteProjectManagementRepo(db);
     projectAutomation = new SqliteProjectAutomationRepo(db);
+    mcpOperationRepo = new SqliteMcpOperationRepo(db);
+    mcpTaskRepo = new SqliteMcpTaskRepo(db);
   } else {
     throw new Error(`Unsupported KE_STORAGE=${storage}. Use sqlite or postgres.`);
   }
@@ -376,13 +388,17 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   // the knowledge tree. Mounted at /mcp. Shares the same repos and AI
   // adapters as the rest of this Hono app, so an agent edit lands in
   // the same SQLite the Rich UI is reading from.
-  mountMcp(app, {
-    elements, relations, paths, signals, qa, annotations,
-    adapters: ai, aiDir: manualsDir, improvements, corpus,
-    toolRuntime,
-    greatMe,
+  mountMcpV2(app, {
+    elements,
     projectManagement,
+    operationRepo: mcpOperationRepo,
+    taskRepo: mcpTaskRepo,
+    greatMe,
     projectAutomation,
+  }, {
+    onError: error => log.error("mcp.v2.transport.failed", {
+      error: error instanceof Error ? error.message : String(error),
+    }),
   });
 
   // Agent-id endpoint：前端读这个值在 admin UI 默认填进 claim 表单。
