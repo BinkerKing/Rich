@@ -2,9 +2,11 @@ import type { McpTaskStatus } from "../../repos/McpTaskRepo.js";
 import type { RichResourceRef } from "../registry/types.js";
 
 export interface WorkDelegationRequest {
+  projectId: string;
   title: string;
   instructions: string;
-  preferredAgent?: string;
+  acceptanceCriteria: string[];
+  requiredCapabilities: string[];
   workingDirectory?: string;
   contextRefs: RichResourceRef[];
 }

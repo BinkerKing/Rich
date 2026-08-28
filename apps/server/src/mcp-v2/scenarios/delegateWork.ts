@@ -22,15 +22,19 @@ export interface DelegationToolDeps {
 export function registerDelegationTools(registry: RichToolRegistry, deps: DelegationToolDeps): void {
   registry.register({
     name: "rich_work_delegate", title: "委派工作给外部 Agent", category: "delegate",
-    description: "把明确的工作说明和 Rich 上下文引用交给已配置的 Agent 编排后端，并在 Rich 建立可跟踪任务。",
+    description: "把目标、验收标准和 Rich 上下文交给项目默认执行团队，由团队负责人选人，并在 Rich 建立可跟踪任务。",
     inputSchema: z.object({
+      projectId: z.string().trim().min(1),
       title: z.string().trim().min(1).max(280), instructions: z.string().trim().min(1),
-      preferredAgent: z.string().trim().min(1).optional(), workingDirectory: z.string().trim().min(1).optional(),
+      acceptanceCriteria: z.array(z.string().trim().min(1).max(1_000)).max(30).default([]),
+      requiredCapabilities: z.array(z.string().trim().min(1).max(120)).max(20).default([]),
+      workingDirectory: z.string().trim().min(1).optional(),
       contextRefs: z.array(refSchema).max(50).default([]), context: richContextSchema, options: richOptionsSchema,
     }),
     annotations: { readOnly: false, destructive: false, idempotent: true },
     examples: [{ description: "把实现任务交给 Codex，并在 Rich 跟踪", input: {
-      title: "实现 MCP 任务看板", instructions: "按设计实现并运行测试", preferredAgent: "codex", context: { requestId: "delegate-1" },
+      projectId: "rich", title: "实现 MCP 任务看板", instructions: "按设计实现并运行测试",
+      acceptanceCriteria: ["服务端测试通过"], requiredCapabilities: ["development"], context: { requestId: "delegate-1" },
     } }],
     verification: "Creates a local Rich task only after external delegation succeeds, then reads it back.",
     handler: input => executeSafeWrite({
@@ -40,7 +44,8 @@ export function registerDelegationTools(registry: RichToolRegistry, deps: Delega
         let receipt;
         try {
           receipt = await deps.adapter.delegate({
-            title: input.title, instructions: input.instructions, preferredAgent: input.preferredAgent,
+            projectId: input.projectId, title: input.title, instructions: input.instructions,
+            acceptanceCriteria: input.acceptanceCriteria, requiredCapabilities: input.requiredCapabilities,
             workingDirectory: input.workingDirectory, contextRefs: input.contextRefs,
           });
         } catch (error) {
@@ -51,7 +56,8 @@ export function registerDelegationTools(registry: RichToolRegistry, deps: Delega
         }
         let task = await deps.tasks.create({
           type: "agent", title: input.title, request: {
-            instructions: input.instructions, preferredAgent: input.preferredAgent, workingDirectory: input.workingDirectory, contextRefs: input.contextRefs,
+            projectId: input.projectId, instructions: input.instructions, acceptanceCriteria: input.acceptanceCriteria,
+            requiredCapabilities: input.requiredCapabilities, workingDirectory: input.workingDirectory, contextRefs: input.contextRefs,
           },
           backend: deps.adapter.backend, externalTaskId: receipt.externalTaskId,
           conversationId: input.context?.conversationId, requestId: input.context?.requestId,

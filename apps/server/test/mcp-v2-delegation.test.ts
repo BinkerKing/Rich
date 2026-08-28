@@ -68,9 +68,11 @@ describe("MCP 2.0 work delegation", () => {
     const adapter = new FakeAdapter();
     const { registry, taskRepo } = makeHarness(adapter);
     const response = await registry.invoke("rich_work_delegate", {
+      projectId: "rich",
       title: "实现 Rich MCP 2.0",
       instructions: "按计划实现并运行测试",
-      preferredAgent: "codex",
+      acceptanceCriteria: ["测试通过"],
+      requiredCapabilities: ["development"],
       contextRefs: [{ type: "project", id: "rich" }],
       context: { requestId: "delegate-1", conversationId: "chat-1" },
     });
@@ -79,14 +81,14 @@ describe("MCP 2.0 work delegation", () => {
       data: { task: { backend: "fake", externalTaskId: "external-1", status: "running" } },
       verification: { status: "verified" },
     });
-    expect(adapter.delegate).toHaveBeenCalledWith(expect.objectContaining({ preferredAgent: "codex" }));
+    expect(adapter.delegate).toHaveBeenCalledWith(expect.objectContaining({ projectId: "rich", requiredCapabilities: ["development"] }));
     expect(taskRepo.tasks.size).toBe(1);
   });
 
   it("does not create a fake local task when delegation is unavailable or fails", async () => {
     const unavailable = makeHarness(new UnavailableDelegationAdapter("Multica CLI 未配置"));
     await expect(unavailable.registry.invoke("rich_work_delegate", {
-      title: "执行任务", instructions: "开始", context: { requestId: "unavailable-1" },
+      projectId: "rich", title: "执行任务", instructions: "开始", context: { requestId: "unavailable-1" },
     })).resolves.toMatchObject({ ok: false, error: { code: "DEPENDENCY_UNAVAILABLE", retryable: true } });
     expect(unavailable.taskRepo.tasks.size).toBe(0);
 
@@ -94,7 +96,7 @@ describe("MCP 2.0 work delegation", () => {
     failedAdapter.delegate.mockRejectedValueOnce(new Error("agent process exited"));
     const failed = makeHarness(failedAdapter);
     await expect(failed.registry.invoke("rich_work_delegate", {
-      title: "执行任务", instructions: "开始", context: { requestId: "failed-1" },
+      projectId: "rich", title: "执行任务", instructions: "开始", context: { requestId: "failed-1" },
     })).resolves.toMatchObject({ ok: false, error: { code: "TASK_FAILED", retryable: true } });
     expect(failed.taskRepo.tasks.size).toBe(0);
   });
@@ -103,7 +105,7 @@ describe("MCP 2.0 work delegation", () => {
     const adapter = new FakeAdapter();
     const { registry } = makeHarness(adapter);
     const delegated = await registry.invoke("rich_work_delegate", {
-      title: "执行任务", instructions: "开始", context: { requestId: "delegate-sync" },
+      projectId: "rich", title: "执行任务", instructions: "开始", context: { requestId: "delegate-sync" },
     });
     const taskId = delegated.ok ? (delegated.data as { task: McpTask }).task.id : "";
     adapter.status = { status: "running", progressSummary: "已完成 60%" };
