@@ -2,7 +2,7 @@
 
 > 此文件由 `pnpm --filter @ke/server mcp:docs` 生成，请勿手工编辑。
 
-工具数：17；输入 Schema：16138 bytes。所有工具返回统一的 `{ ok, action, data/error, refs, changes, verification, warnings }` 信封。
+工具数：19；输入 Schema：18477 bytes。所有工具返回统一的 `{ ok, action, data/error, refs, changes, verification, warnings }` 信封。
 
 ## `rich_automation_manage`
 
@@ -72,6 +72,60 @@
 {
   "action": "list_tables",
   "projectId": "project-rich"
+}
+```
+
+## `rich_execution_team_apply`
+
+- 场景：`manage`
+- 用于：在用户确认后应用已持久化的执行团队计划，复用或创建项目、成员和小队，并保存稳定映射。
+- 不用于：目标对象尚未定位；此时先使用查询工具。
+- 安全属性：只读=false，破坏性=false，幂等=true
+- 输入：`planId`（必填）、`confirmed`（必填）、`context`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Reads the saved binding after apply and verifies its project and default squad IDs.
+- 示例：
+
+```json
+{
+  "planId": "team-plan-1",
+  "confirmed": true,
+  "context": {
+    "requestId": "team-apply-1"
+  }
+}
+```
+
+## `rich_execution_team_plan`
+
+- 场景：`plan`
+- 用于：分析 Rich 项目的执行需求，优先复用现有成员，并提出需要创建或调整的项目执行团队计划；不会创建外部资源。
+- 不用于：目标对象尚未定位；此时先使用查询工具。
+- 安全属性：只读=false，破坏性=false，幂等=true
+- 输入：`projectId`（必填）、`projectName`（必填）、`goal`（必填）、`projectDescription`、`workingDirectory`、`requiredCapabilities`（必填）、`context`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Persists the proposed plan and returns its stable plan ID; no external resource is created.
+- 示例：
+
+```json
+{
+  "projectId": "rich",
+  "projectName": "Rich",
+  "goal": "实现任务委派能力",
+  "workingDirectory": "/workspace/Rich",
+  "requiredCapabilities": [
+    {
+      "key": "development",
+      "description": "TypeScript 开发和验证",
+      "proposedName": "Rich 开发",
+      "role": "负责实现与测试",
+      "preferredAgentName": "Rich 开发",
+      "runtimeProvider": "codex"
+    }
+  ],
+  "context": {
+    "requestId": "team-plan-1"
+  }
 }
 ```
 
@@ -273,19 +327,25 @@
 ## `rich_work_delegate`
 
 - 场景：`delegate`
-- 用于：把明确的工作说明和 Rich 上下文引用交给已配置的 Agent 编排后端，并在 Rich 建立可跟踪任务。
+- 用于：把目标、验收标准和 Rich 上下文交给项目默认执行团队，由团队负责人选人，并在 Rich 建立可跟踪任务。
 - 不用于：目标仍不清楚、只需要方案，或任务不能由外部 Agent 实际执行时。
 - 安全属性：只读=false，破坏性=false，幂等=true
-- 输入：`title`（必填）、`instructions`（必填）、`preferredAgent`、`workingDirectory`、`contextRefs`、`context`、`options`
+- 输入：`projectId`（必填）、`title`（必填）、`instructions`（必填）、`acceptanceCriteria`、`requiredCapabilities`、`workingDirectory`、`contextRefs`、`context`、`options`
 - 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
 - 验证：Creates a local Rich task only after external delegation succeeds, then reads it back.
 - 示例：
 
 ```json
 {
+  "projectId": "rich",
   "title": "实现 MCP 任务看板",
   "instructions": "按设计实现并运行测试",
-  "preferredAgent": "codex",
+  "acceptanceCriteria": [
+    "服务端测试通过"
+  ],
+  "requiredCapabilities": [
+    "development"
+  ],
   "context": {
     "requestId": "delegate-1"
   }

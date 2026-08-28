@@ -49,7 +49,7 @@ describe("MCP 2.0 final regression", () => {
 
   it("contains no legacy tool names", () => {
     const names = makeRegistry().listDefinitions().map(tool => tool.name);
-    expect(names).toHaveLength(17);
+    expect(names).toHaveLength(19);
     expect(names.every(name => name.startsWith("rich_"))).toBe(true);
     expect(names).not.toEqual(expect.arrayContaining([
       "create_element", "project_management_summary", "plan_get", "practice_get", "create_improvement",

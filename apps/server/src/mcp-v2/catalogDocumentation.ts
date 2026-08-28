@@ -81,6 +81,13 @@ export function selectMcpV2Tool(prompt: string, catalog: RichToolDefinition[]): 
     return choose("rich_knowledge_capture");
   }
 
+  if (/应用.*(?:执行团队|小队).*计划|确认.*(?:创建|组建).*(?:执行团队|小队)|按.*团队计划.*创建/.test(prompt)) {
+    return choose("rich_execution_team_apply");
+  }
+  if (/(?:规划|准备|设计|需要哪些).*(?:执行团队|小队|Agent)|(?:执行团队|小队).*(?:规划|方案|复用)|复用.*Agent.*(?:小队|团队)/.test(prompt)) {
+    return choose("rich_execution_team_plan");
+  }
+
   if (/先给出|先不要|不要开始执行|评估|分析|梳理风险|阻塞点|比较 CLI|实施和回滚计划|分阶段改造计划|技术方案|开发步骤/.test(prompt)) {
     return choose("rich_project_analyze_and_plan");
   }

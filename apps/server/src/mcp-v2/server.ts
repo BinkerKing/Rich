@@ -13,6 +13,8 @@ import { registerScenarioTools } from "./scenarios/registerScenarioTools.js";
 import { registerDelegationTools } from "./scenarios/delegateWork.js";
 import { PersistentTaskService } from "./tasks/persistentTaskService.js";
 import { registerTaskTools } from "./tasks/taskTools.js";
+import type { ExecutionTeamAdministrationPort } from "./scenarios/manageExecutionTeam.js";
+import { RichMcpError } from "./registry/errors.js";
 
 export interface BuildMcpV2Deps {
   elements: ElementsRepo;
@@ -22,6 +24,7 @@ export interface BuildMcpV2Deps {
   greatMe?: GreatMeRepo;
   projectAutomation?: ProjectAutomationRepo;
   delegationAdapter?: WorkDelegationPort;
+  executionTeams?: ExecutionTeamAdministrationPort;
 }
 
 export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
@@ -33,6 +36,7 @@ export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
     cancelExternal: task => adapter.cancel(task.externalTaskId!),
     getExternalStatus: task => adapter.getStatus(task.externalTaskId!),
   });
+  const executionTeams = deps.executionTeams ?? unavailableExecutionTeams();
 
   registerResourceTools(registry, {
     elements: deps.elements,
@@ -45,6 +49,7 @@ export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
     elements: deps.elements,
     projects: deps.projectManagement,
     operationRepo: deps.operationRepo,
+    executionTeams,
   });
   registerTaskTools(registry, { tasks, operationRepo: deps.operationRepo });
   registerDelegationTools(registry, {
@@ -54,6 +59,13 @@ export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
     operationRepo: deps.operationRepo,
   });
   return registry;
+}
+
+function unavailableExecutionTeams(): ExecutionTeamAdministrationPort {
+  const unavailable = async (): Promise<never> => {
+    throw new RichMcpError("DEPENDENCY_UNAVAILABLE", "Multica execution-team management is not configured.", { retryable: true });
+  };
+  return { planTeam: unavailable, applyPlan: unavailable, getPlan: unavailable, getBinding: unavailable };
 }
 
 export function buildMcpV2Server(deps: BuildMcpV2Deps): McpServer {

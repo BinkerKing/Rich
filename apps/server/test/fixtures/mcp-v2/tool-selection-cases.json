@@ -306,5 +306,29 @@
     "scenario": "review",
     "prompt": "将任务复盘中总结出的 Agent 选择规则加入 Rich 经验库",
     "expectedTool": "rich_learning_capture"
+  },
+  {
+    "id": "team-01",
+    "scenario": "team",
+    "prompt": "先为 Rich 项目规划一个执行小队，优先复用现有 Agent，不要创建",
+    "expectedTool": "rich_execution_team_plan"
+  },
+  {
+    "id": "team-02",
+    "scenario": "team",
+    "prompt": "复用 Rich 开发 Agent 并为这个项目准备小队方案",
+    "expectedTool": "rich_execution_team_plan"
+  },
+  {
+    "id": "team-03",
+    "scenario": "team",
+    "prompt": "我确认按团队计划创建 Rich 执行小队",
+    "expectedTool": "rich_execution_team_apply"
+  },
+  {
+    "id": "team-04",
+    "scenario": "team",
+    "prompt": "应用已经确认的执行团队计划 team-plan-1",
+    "expectedTool": "rich_execution_team_apply"
   }
 ]

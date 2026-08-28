@@ -213,6 +213,25 @@ async function applySchema(pool: Pool): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_mcp_tasks_status ON mcp_tasks(status, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_mcp_tasks_external ON mcp_tasks(backend, external_task_id);
 
+    CREATE TABLE IF NOT EXISTS multica_project_bindings (
+      rich_project_id TEXT PRIMARY KEY,
+      binding_json JSONB NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS multica_team_plans (
+      id TEXT PRIMARY KEY,
+      rich_project_id TEXT NOT NULL,
+      request_json JSONB NOT NULL,
+      plan_json JSONB NOT NULL,
+      status TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      applied_at TEXT,
+      resolved_binding_json JSONB
+    );
+    CREATE INDEX IF NOT EXISTS idx_multica_team_plans_project ON multica_team_plans(rich_project_id, created_at DESC);
+
     -- Rich 首页动画展示系统 v0.1：visual 块独立持久化
     CREATE TABLE IF NOT EXISTS chat_visual_blocks (
       id                TEXT PRIMARY KEY,

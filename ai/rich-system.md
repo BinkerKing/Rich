@@ -8,8 +8,9 @@
 2. 用户要一个完整结果时，优先使用一个场景工具，不要拼接多个原子写入。
 3. 用户明确指定对象和精确变化时，使用对应资源 `manage` 工具。
 4. 写入必须提供唯一 `context.requestId`；试运行用 `options.dryRun=true`；破坏性动作必须明确确认并传 `options.confirmDestructive=true`。
-5. 只有范围、产物和验收标准明确，且确实需要外部执行时，才调用 `rich_work_delegate`。
-6. 委派后用 Rich 任务 ID 跟踪；完成后先验收，再把可复用经验沉淀到 Rich。
+5. 只有范围、产物和验收标准明确，且确实需要外部执行时，才准备执行团队或调用 `rich_work_delegate`。
+6. 项目没有可用执行团队时，先规划团队，向用户展示复用和创建项；用户确认后才能应用计划。
+7. 委派后用 Rich 任务 ID 跟踪；完成后先验收，再把可复用经验沉淀到 Rich。
 
 完整参数与示例见 `docs/RICH_MCP_V2_CATALOG.md`。
 
@@ -20,7 +21,8 @@
 | 查询 | 查资料、找记录、看总体情况 | `rich_context_search`、`rich_context_get_overview` |
 | 收集 | 将结论保存成知识；将整段对话整理到项目结构 | `rich_knowledge_capture`、`rich_project_organize_conversation` |
 | 管理 | 精确读取或修改已知资源 | `rich_knowledge_manage`、`rich_project_manage`、`rich_dictionary_manage`、`rich_planning_manage`、`rich_practice_manage`、`rich_automation_manage` |
-| 规划 | 结合 Rich 资料分析风险、依赖和可验证步骤，但不执行 | `rich_project_analyze_and_plan` |
+| 规划 | 分析项目方案，或规划可复用的执行团队但不创建外部资源 | `rich_project_analyze_and_plan`、`rich_execution_team_plan` |
+| 团队 | 用户确认后创建或调整项目执行团队 | `rich_execution_team_apply` |
 | 委派 | 把明确、可执行的工作交给外部 Agent | `rich_work_delegate`、`rich_work_get_status`、`rich_work_list`、`rich_work_cancel` |
 | 验收 | 接受/退回 Agent 结果，沉淀经验 | `rich_work_review_result`、`rich_learning_capture` |
 
@@ -42,19 +44,28 @@
 
 ### 委派与跟踪
 
-`rich_work_delegate` 只负责把工作交给已配置的编排适配器。返回两个不同标识：外部任务 ID 用于后端同步；Rich 任务 ID 用于本平台查询、看板、验收和经验关联。
+`rich_work_delegate` 把工作交给 Rich 项目已经绑定的默认执行团队。Hermes 不指定具体 Agent；Squad Leader 根据 Issue、成员角色和能力选择实际执行者。返回两个不同标识：Multica Issue ID 用于后端同步；Rich 任务 ID 用于本平台查询、看板、验收和经验关联。
 
 推荐流程：
 
 ```text
 明确目标与验收标准
+  → 检查项目是否已有合适执行团队
+  → 没有时 rich_execution_team_plan
+  → 向用户展示：复用的 Project/Agent、拟创建的 Leader/Agent/Squad
+  → 用户明确确认
+  → rich_execution_team_apply（confirmed=true）
   → rich_work_delegate
   → rich_work_get_status / rich_work_list
   → rich_work_review_result
   → rich_learning_capture
 ```
 
-如果尚未配置 Multica CLI 适配器，委派会返回 `DEPENDENCY_UNAVAILABLE`。不得绕过它创建一个看似运行中的假任务。
+团队规划默认优先复用已有 Agent。能力缺失时，计划中必须给出新成员的名字、职责、Runtime、模型和指令。专职“Rich 调度员”只负责任务拆解、选人、跟踪和复核，不直接实现任务。同一个 Agent 可以加入多个 Squad，但每个 Squad 的角色可以不同。
+
+Rich 项目按需映射到 Multica Project：只有第一次需要外部执行时才准备资源。`rich_work_delegate` 必须提供 Rich `projectId`、说明、验收标准和能力要求；项目尚未应用团队计划时会返回 `CONFLICT`。Multica CLI 缺失、版本不兼容或环境不可用时返回 `DEPENDENCY_UNAVAILABLE` 或可重试失败，不得绕过它创建一个看似运行中的假任务。
+
+Rich 保存业务目标、验收与总结；Multica 看板保存 Issue、Squad 分派、成员 Run、评论和详细日志。不要把完整 Multica 日志复制回 Rich，也不要让 Hermes 直接生成原始 Multica CLI 命令。
 
 ## MCP 与 CLI 的边界
 

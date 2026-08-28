@@ -1,0 +1,20 @@
+[
+  {
+    "id": "run-leader",
+    "issue_id": "issue-1",
+    "agent_id": "agent-leader",
+    "status": "completed",
+    "attempt": 1,
+    "max_attempts": 2,
+    "result": { "output": "Delegated to Rich 开发", "pr_url": "" }
+  },
+  {
+    "id": "run-dev",
+    "issue_id": "issue-1",
+    "agent_id": "agent-dev",
+    "status": "running",
+    "attempt": 1,
+    "max_attempts": 2,
+    "result": null
+  }
+]
