@@ -27,6 +27,7 @@ export const multicaRuntimeSchema = z.object({
   name: z.string().min(1),
   provider: z.string().min(1),
   status: z.string().min(1),
+  daemon_id: optionalText,
 }).passthrough();
 export const multicaRuntimeListSchema = z.array(multicaRuntimeSchema);
 
