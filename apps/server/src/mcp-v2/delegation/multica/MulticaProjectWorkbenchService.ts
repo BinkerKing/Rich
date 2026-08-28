@@ -104,20 +104,19 @@ export class MulticaProjectWorkbenchService {
 
   async getTeam(projectId: string): Promise<MulticaTeamSnapshot> {
     const binding = await this.binding(projectId);
-    const [projectValue, squadValue, resourcesValue] = await Promise.all([
+    const [projectValue, squadValue, resourcesValue, runtimesValue] = await Promise.all([
       this.commands.runJson(["project", "get", binding.projectId, "--output", "json"]),
       this.commands.runJson(["squad", "get", binding.defaultSquadId, "--output", "json"]),
       this.commands.runJson(["project", "resource", "list", binding.projectId, "--output", "json"]),
+      this.commands.runJson(["runtime", "list", "--output", "json"]),
     ]);
+    const runtimes = extractArray(runtimesValue, ["runtimes", "data", "items"]);
     const agents = await Promise.all(binding.agents.map(async configured => {
       const agentValue = await this.commands.runJson(["agent", "get", configured.agentId, "--output", "json"]);
       const agent = extractObject(agentValue, ["agent", "data"]);
       const runtimeId = text(agent.runtime_id);
-      const [mcpValue, runtimeValue] = await Promise.all([
-        this.commands.runJson(["agent", "mcp", "list", configured.agentId, "--output", "json"]),
-        runtimeId ? this.commands.runJson(["runtime", "get", runtimeId, "--output", "json"]) : Promise.resolve(null),
-      ]);
-      const runtime = runtimeValue ? extractObject(runtimeValue, ["runtime", "data"]) : {};
+      const mcpValue = await this.commands.runJson(["agent", "mcp", "list", configured.agentId, "--output", "json"]);
+      const runtime = runtimes.find(candidate => candidate.id === runtimeId) ?? {};
       return {
         ...agent,
         role: configured.role,

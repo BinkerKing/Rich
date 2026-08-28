@@ -114,7 +114,7 @@ class WorkbenchCommands implements MulticaCommandPort {
     if (args[0] === "squad" && args[1] === "get") return { id: "squad-vtb", name: "VTB SAFE 研析小队", leader_id: "agent-pm" } as T;
     if (args[0] === "agent" && args[1] === "get") return { id: args[2], name: args[2] === "agent-pm" ? "沈砚" : "苏澄", runtime_id: "runtime-codex", model: "gpt-5.6-terra" } as T;
     if (args[0] === "agent" && args[1] === "mcp" && args[2] === "list") return args[3] === "agent-pm" ? [{ id: "mcp-rich", name: "rich" }] as T : [] as T;
-    if (args[0] === "runtime" && args[1] === "get") return { id: "runtime-codex", name: "Codex (Mac)", provider: "codex", status: "online" } as T;
+    if (args[0] === "runtime" && args[1] === "list") return [{ id: "runtime-codex", name: "Codex (Mac)", provider: "codex", status: "online" }] as T;
     if (command === "issue comment list") return [{ id: "comment-1", body: "开始", created_at: "2026-08-28T06:01:00.000Z" }] as T;
     if (args[0] === "issue" && args[1] === "children") return { stages: [{ issues: [{ id: "child-1", title: "目录分析", status: "todo", project_id: "multica-vtb" }] }] } as T;
     if (args[0] === "issue" && args[1] === "timeline") return [{ id: "event-1", type: "status_changed", created_at: "2026-08-28T06:02:00.000Z" }] as T;
@@ -155,13 +155,15 @@ describe("MulticaProjectWorkbenchService reads", () => {
   });
 
   it("loads team and every supported lazy Issue resource", async () => {
-    const service = new MulticaProjectWorkbenchService(new WorkbenchCommands(), new WorkbenchBindings(), { now: () => "2026-08-28T06:05:00.000Z" });
+    const commands = new WorkbenchCommands();
+    const service = new MulticaProjectWorkbenchService(commands, new WorkbenchBindings(), { now: () => "2026-08-28T06:05:00.000Z" });
 
     await expect(service.getTeam("vtb-二代safe")).resolves.toMatchObject({
       squad: { id: "squad-vtb", leader_id: "agent-pm" },
       agents: expect.arrayContaining([expect.objectContaining({ id: "agent-pm", model: "gpt-5.6-terra", role: "project-manager" })]),
       resources: [expect.objectContaining({ execution_mode: "in_place" })],
     });
+    expect(commands.calls.some(call => call.args[0] === "runtime" && call.args[1] === "get")).toBe(false);
     await expect(service.getIssue("vtb-二代safe", "vtb-1")).resolves.toMatchObject({
       issue: { id: "vtb-1", parent_id: "parent-1" },
       children: [{ id: "child-1" }],
