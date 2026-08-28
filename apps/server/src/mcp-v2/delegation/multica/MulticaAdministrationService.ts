@@ -151,6 +151,10 @@ export class MulticaAdministrationService {
     return this.bindings.getBinding(richProjectId);
   }
 
+  async getPlan(planId: string): Promise<MulticaTeamPlan | null> {
+    return this.bindings.getPlan(planId);
+  }
+
   private async resolveProject(plan: MulticaTeamPlan): Promise<MulticaProject> {
     const decision = plan.definition.project;
     if (decision.action === "reuse" && decision.id) {
