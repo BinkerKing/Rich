@@ -14,6 +14,8 @@ test("Multica 看板使用源码一致的列宽、卡片密度和品牌归属", 
   assert.match(card, /Powered by Multica/);
   assert.match(board, /getMulticaBoard/);
   assert.match(board, /getMulticaTeam/);
+  assert.doesNotMatch(board, /Promise\.all\(\[api\.getMulticaBoard.*api\.getMulticaTeam/);
+  assert.match(board, /boardRequest\.current/);
   assert.match(board, /visibilitychange/);
   assert.doesNotMatch(todos, /createProjectManagementModuleItem/);
 });

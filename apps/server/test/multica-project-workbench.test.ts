@@ -112,7 +112,10 @@ class WorkbenchCommands implements MulticaCommandPort {
     if (args[0] === "issue" && args[1] === "list") return structuredClone(this.issues) as T;
     if (args[0] === "issue" && args[1] === "get") return structuredClone(this.issues.find(issue => issue.id === args[2])) as T;
     if (args[0] === "squad" && args[1] === "get") return { id: "squad-vtb", name: "VTB SAFE 研析小队", leader_id: "agent-pm" } as T;
-    if (args[0] === "agent" && args[1] === "get") return { id: args[2], name: args[2] === "agent-pm" ? "沈砚" : "苏澄", runtime_id: "runtime-codex", model: "gpt-5.6-terra" } as T;
+    if (args[0] === "agent" && args[1] === "list") return [
+      { id: "agent-pm", name: "沈砚", runtime_id: "runtime-codex", model: "gpt-5.6-terra" },
+      { id: "agent-ba", name: "苏澄", runtime_id: "runtime-codex", model: "gpt-5.6-terra" },
+    ] as T;
     if (args[0] === "agent" && args[1] === "mcp" && args[2] === "list") return args[3] === "agent-pm" ? [{ id: "mcp-rich", name: "rich" }] as T : [] as T;
     if (args[0] === "runtime" && args[1] === "list") return [{ id: "runtime-codex", name: "Codex (Mac)", provider: "codex", status: "online" }] as T;
     if (command === "issue comment list") return [{ id: "comment-1", body: "开始", created_at: "2026-08-28T06:01:00.000Z" }] as T;
@@ -165,9 +168,8 @@ describe("MulticaProjectWorkbenchService reads", () => {
     });
     expect(commands.calls.some(call => call.args[0] === "runtime" && call.args[1] === "get")).toBe(false);
     expect(commands.calls.filter(call => call.args[0] === "agent").map(call => call.args.slice(0, 4))).toEqual([
-      ["agent", "get", "agent-pm", "--output"],
+      ["agent", "list", "--output", "json"],
       ["agent", "mcp", "list", "agent-pm"],
-      ["agent", "get", "agent-ba", "--output"],
       ["agent", "mcp", "list", "agent-ba"],
     ]);
     await expect(service.getIssue("vtb-二代safe", "vtb-1")).resolves.toMatchObject({
