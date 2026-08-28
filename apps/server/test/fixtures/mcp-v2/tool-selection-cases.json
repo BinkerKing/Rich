@@ -1,0 +1,310 @@
+[
+  {
+    "id": "query-01",
+    "scenario": "query",
+    "prompt": "帮我找出 Rich 里所有和数据治理有关的项目资料",
+    "expectedTool": "rich_context_search",
+    "forbiddenTools": ["rich_project_manage"]
+  },
+  {
+    "id": "query-02",
+    "scenario": "query",
+    "prompt": "我之前记录过哪些关于 Agent 调度的想法？",
+    "expectedTool": "rich_context_search",
+    "forbiddenTools": ["rich_knowledge_capture"]
+  },
+  {
+    "id": "query-03",
+    "scenario": "query",
+    "prompt": "概括一下资本新规项目目前有哪些资料和待办",
+    "expectedTool": "rich_context_get_overview"
+  },
+  {
+    "id": "query-04",
+    "scenario": "query",
+    "prompt": "查一下字段 G080009 在哪些表和映射规则里出现",
+    "expectedTool": "rich_context_search"
+  },
+  {
+    "id": "query-05",
+    "scenario": "query",
+    "prompt": "先不要修改，告诉我这个项目目前进展到哪一步了",
+    "expectedTool": "rich_context_get_overview",
+    "forbiddenTools": ["rich_project_manage", "rich_work_delegate"]
+  },
+  {
+    "id": "query-06",
+    "scenario": "query",
+    "prompt": "我有哪些正在执行或者等待输入的 Agent 任务？",
+    "expectedTool": "rich_work_list"
+  },
+  {
+    "id": "query-07",
+    "scenario": "query",
+    "prompt": "查询任务 rich-task-1024 现在的执行状态和产物",
+    "expectedTool": "rich_work_get_status"
+  },
+  {
+    "id": "query-08",
+    "scenario": "query",
+    "prompt": "给我一个 Rich 知识库、项目和计划的总体概览",
+    "expectedTool": "rich_context_get_overview"
+  },
+  {
+    "id": "query-09",
+    "scenario": "query",
+    "prompt": "搜索项目里提到 Multica 的记录，只需要结果不要写入",
+    "expectedTool": "rich_context_search",
+    "forbiddenTools": ["rich_project_organize_conversation"]
+  },
+  {
+    "id": "capture-01",
+    "scenario": "capture",
+    "prompt": "把刚才关于 MCP 和 CLI 区别的结论整理成一条知识记录",
+    "expectedTool": "rich_knowledge_capture"
+  },
+  {
+    "id": "capture-02",
+    "scenario": "capture",
+    "prompt": "将这段会议纪要拆成项目说明、决策和待办，放进 Rich 项目",
+    "expectedTool": "rich_project_organize_conversation"
+  },
+  {
+    "id": "capture-03",
+    "scenario": "capture",
+    "prompt": "记住这个经验：外部 Agent 完成不代表业务已经验收",
+    "expectedTool": "rich_knowledge_capture"
+  },
+  {
+    "id": "capture-04",
+    "scenario": "capture",
+    "prompt": "把我刚发的需求归档到 Rich MCP 2.0 项目并提取行动项",
+    "expectedTool": "rich_project_organize_conversation"
+  },
+  {
+    "id": "capture-05",
+    "scenario": "capture",
+    "prompt": "把这篇材料的核心观点、来源和标签保存到知识库",
+    "expectedTool": "rich_knowledge_capture"
+  },
+  {
+    "id": "capture-06",
+    "scenario": "capture",
+    "prompt": "根据当前对话更新项目背景，同时新建三个明确待办",
+    "expectedTool": "rich_project_organize_conversation"
+  },
+  {
+    "id": "capture-07",
+    "scenario": "capture",
+    "prompt": "这是一条以后会复用的架构原则，请连同对话来源保存",
+    "expectedTool": "rich_knowledge_capture"
+  },
+  {
+    "id": "capture-08",
+    "scenario": "capture",
+    "prompt": "把本次讨论整理进项目的场景手册和实施计划结构中",
+    "expectedTool": "rich_project_organize_conversation"
+  },
+  {
+    "id": "manage-01",
+    "scenario": "manage",
+    "prompt": "把项目待办 pm-12 的状态改成已完成",
+    "expectedTool": "rich_project_manage"
+  },
+  {
+    "id": "manage-02",
+    "scenario": "manage",
+    "prompt": "删除知识记录 knowledge-9，我已经确认删除",
+    "expectedTool": "rich_knowledge_manage"
+  },
+  {
+    "id": "manage-03",
+    "scenario": "manage",
+    "prompt": "将数据字典字段 G080009 的验证状态改为已验证",
+    "expectedTool": "rich_dictionary_manage"
+  },
+  {
+    "id": "manage-04",
+    "scenario": "manage",
+    "prompt": "新建一个名为完成 MCP 2.0 的季度目标",
+    "expectedTool": "rich_planning_manage"
+  },
+  {
+    "id": "manage-05",
+    "scenario": "manage",
+    "prompt": "修改项目说明标题，不要改动其他项目字段",
+    "expectedTool": "rich_project_manage"
+  },
+  {
+    "id": "manage-06",
+    "scenario": "manage",
+    "prompt": "为这个项目创建一条新的数据自动化执行计划",
+    "expectedTool": "rich_automation_manage"
+  },
+  {
+    "id": "manage-07",
+    "scenario": "manage",
+    "prompt": "把练习任务 practice-3 的下一步更新为重新验证接口",
+    "expectedTool": "rich_practice_manage"
+  },
+  {
+    "id": "manage-08",
+    "scenario": "manage",
+    "prompt": "只预演删除项目环境 env-test 会造成哪些变化，不要真正删除",
+    "expectedTool": "rich_project_manage"
+  },
+  {
+    "id": "manage-09",
+    "scenario": "manage",
+    "prompt": "将知识条目的标签精确替换为 MCP、Agent、Rich 三个标签",
+    "expectedTool": "rich_knowledge_manage"
+  },
+  {
+    "id": "plan-01",
+    "scenario": "plan",
+    "prompt": "分析 Rich 当前 MCP 的主要问题并形成分阶段改造计划",
+    "expectedTool": "rich_project_analyze_and_plan",
+    "forbiddenTools": ["rich_work_delegate"]
+  },
+  {
+    "id": "plan-02",
+    "scenario": "plan",
+    "prompt": "根据项目已有资料梳理风险、依赖和下一步，不要开始执行",
+    "expectedTool": "rich_project_analyze_and_plan",
+    "forbiddenTools": ["rich_work_delegate"]
+  },
+  {
+    "id": "plan-03",
+    "scenario": "plan",
+    "prompt": "我想把 Multica 接到 Rich，先给出可落地的技术方案",
+    "expectedTool": "rich_project_analyze_and_plan"
+  },
+  {
+    "id": "plan-04",
+    "scenario": "plan",
+    "prompt": "评估这个需求应该自己实现还是委派给外部 Agent",
+    "expectedTool": "rich_project_analyze_and_plan"
+  },
+  {
+    "id": "plan-05",
+    "scenario": "plan",
+    "prompt": "结合现有待办找出项目阻塞点，并建议处理顺序",
+    "expectedTool": "rich_project_analyze_and_plan"
+  },
+  {
+    "id": "plan-06",
+    "scenario": "plan",
+    "prompt": "把目标拆成验收标准明确的开发步骤，但先不要派发",
+    "expectedTool": "rich_project_analyze_and_plan",
+    "forbiddenTools": ["rich_work_delegate"]
+  },
+  {
+    "id": "plan-07",
+    "scenario": "plan",
+    "prompt": "比较 CLI 直连和 MCP 适配两种方案在本项目中的取舍",
+    "expectedTool": "rich_project_analyze_and_plan"
+  },
+  {
+    "id": "plan-08",
+    "scenario": "plan",
+    "prompt": "根据 Rich 中的历史经验生成这次升级的实施和回滚计划",
+    "expectedTool": "rich_project_analyze_and_plan"
+  },
+  {
+    "id": "delegate-01",
+    "scenario": "delegate",
+    "prompt": "方案已经确认，把 MCP 注册表开发任务交给最合适的编码 Agent",
+    "expectedTool": "rich_work_delegate"
+  },
+  {
+    "id": "delegate-02",
+    "scenario": "delegate",
+    "prompt": "帮我把这个做了：按照已批准计划实现并运行全部测试",
+    "expectedTool": "rich_work_delegate"
+  },
+  {
+    "id": "delegate-03",
+    "scenario": "delegate",
+    "prompt": "把前端视觉检查任务派给能操作浏览器的 Agent 并返回任务编号",
+    "expectedTool": "rich_work_delegate"
+  },
+  {
+    "id": "delegate-04",
+    "scenario": "delegate",
+    "prompt": "让 Codex 修复这个已复现的测试失败，验收标准是全套测试通过",
+    "expectedTool": "rich_work_delegate"
+  },
+  {
+    "id": "delegate-05",
+    "scenario": "delegate",
+    "prompt": "将文档生成工作交给外部 Agent，完成后把产物链接带回来",
+    "expectedTool": "rich_work_delegate"
+  },
+  {
+    "id": "delegate-06",
+    "scenario": "delegate",
+    "prompt": "停止任务 rich-task-88，我确认取消它以及外部执行",
+    "expectedTool": "rich_work_cancel"
+  },
+  {
+    "id": "delegate-07",
+    "scenario": "delegate",
+    "prompt": "继续监控刚才派出的 Agent 工作，告诉我最新进度",
+    "expectedTool": "rich_work_get_status"
+  },
+  {
+    "id": "delegate-08",
+    "scenario": "delegate",
+    "prompt": "同时列出正在排队、执行中和等待我输入的工作任务",
+    "expectedTool": "rich_work_list"
+  },
+  {
+    "id": "review-01",
+    "scenario": "review",
+    "prompt": "检查 Agent 返回的代码是否满足任务验收标准，再决定是否接受",
+    "expectedTool": "rich_work_review_result"
+  },
+  {
+    "id": "review-02",
+    "scenario": "review",
+    "prompt": "这个任务测试没有通过，记录为退回并说明缺少的证据",
+    "expectedTool": "rich_work_review_result"
+  },
+  {
+    "id": "review-03",
+    "scenario": "review",
+    "prompt": "验收任务 rich-task-30 的产物，并把结果关联回原项目",
+    "expectedTool": "rich_work_review_result"
+  },
+  {
+    "id": "review-04",
+    "scenario": "review",
+    "prompt": "把这次 MCP 工具过多导致模型选错的教训沉淀成经验",
+    "expectedTool": "rich_learning_capture"
+  },
+  {
+    "id": "review-05",
+    "scenario": "review",
+    "prompt": "任务已经完成，把可复用的调试方法和来源任务保存下来",
+    "expectedTool": "rich_learning_capture"
+  },
+  {
+    "id": "review-06",
+    "scenario": "review",
+    "prompt": "先审核外部 Agent 的报告是否完整，不完整就不要写入项目",
+    "expectedTool": "rich_work_review_result",
+    "forbiddenTools": ["rich_project_manage"]
+  },
+  {
+    "id": "review-07",
+    "scenario": "review",
+    "prompt": "确认这次开发达标，并记录验证命令、结果和产物引用",
+    "expectedTool": "rich_work_review_result"
+  },
+  {
+    "id": "review-08",
+    "scenario": "review",
+    "prompt": "将任务复盘中总结出的 Agent 选择规则加入 Rich 经验库",
+    "expectedTool": "rich_learning_capture"
+  }
+]

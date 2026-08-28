@@ -1,0 +1,5209 @@
+{
+  "toolCount": 136,
+  "schemaBytes": 86619,
+  "tools": [
+    {
+      "name": "analytics_summary",
+      "description": "One-shot read-only snapshot of 大斌哥's推进状况 — equivalent to what the 数据分析 page shows: KPIs (activePlans, weekDone/Total, overallProgress, streak), per-plan health, and 4 blocker buckets (overdue tasks, stuck goals, goals with no tasks, orphan tasks). Use this BEFORE making strategic recommendations.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "analyze_progress",
+      "description": "🪄 Ask Hermes to analyze 大斌哥's overall推进 and return strategic advice. Returns { keyInsight, blockers, pushActions, priorityTasks }. Internally pulls a snapshot via analytics_summary then prompts the AI. Use this when 大斌哥 says 'I feel stuck' or 'what should I do next' — gives a structured response. Takes 30-60 seconds.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "enum": [
+              "claude-code",
+              "codex",
+              "hermes",
+              "bailian"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "append_relations",
+      "description": "Append new relations between existing elements. Each relation auto-gets an id + createdAt if missing.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "relations": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "parent",
+                    "child",
+                    "sibling",
+                    "related",
+                    "prerequisite",
+                    "extension",
+                    "practice"
+                  ]
+                },
+                "from": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "to": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "strength": {
+                  "type": "number"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "from",
+                "to"
+              ]
+            }
+          }
+        },
+        "required": [
+          "relations"
+        ]
+      }
+    },
+    {
+      "name": "attach_cover",
+      "description": "Attach a ready cover image to an existing mindmap/PPT embed on an element.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Element id to update"
+          },
+          "deckRootId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Deck root element id whose embed should receive the cover"
+          },
+          "src": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Image URL or served image path"
+          },
+          "alt": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "caption": {
+            "type": "string",
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "id",
+          "deckRootId",
+          "src"
+        ]
+      }
+    },
+    {
+      "name": "attach_mindmap",
+      "description": "Attach a mindmap/PPT embed card to an element. Use this after creating or identifying a deck root so the element shows the PPT view inline.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Element id to update"
+          },
+          "deckRootId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Deck root element id this embed belongs to"
+          },
+          "caption": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "origin": {
+            "default": "from-element",
+            "type": "string",
+            "enum": [
+              "from-element",
+              "ai-from-prose",
+              "child-of-deck"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "deckRootId"
+        ]
+      }
+    },
+    {
+      "name": "claim_improvement",
+      "description": "ATOMIC claim — call this BEFORE you start developing, verifying, or otherwise working on an improvement task to prevent duplicate work across multiple Hermes / Codex / Claude Code agents that share the same Rich backend. Returns ok=true with the task if you got it, or ok=false with conflict.current_agent_id if someone else already has it (in which case SKIP this task and look at another pending/ready_to_develop task). Same agent re-calling is idempotent (200). agent_id defaults to '<hostname>-mcp' if omitted, but you should pass your own stable id like '<hostname>-hermes'.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Improvement task id, e.g. 'imp-c561511e'"
+          },
+          "agent_id": {
+            "description": "Stable identifier for the calling agent. Convention: '<hostname>-<provider>' e.g. 'mac-mini.local-hermes'. If omitted, defaults to '<hostname>-mcp'.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "corpus_delete",
+      "description": "Delete an AI 语料模板. Use sparingly; prefer corpus_upsert to improve existing templates.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "corpus_get",
+      "description": "Get one AI 语料模板 by id, including template text, style rules, and sample. Use it as the style contract before composing a response.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "corpus_list",
+      "description": "List Rich AI 语料模板. Call this before writing style-sensitive replies for 大斌哥. Pick the template whose scene/intent matches the task, then call corpus_get or corpus_prompt. These templates are the user's evolving preferred reply style.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "query": {
+            "description": "Optional scene/task keywords, e.g. '系统运行情况', 'AI 早报', '信息汇报'.",
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "corpus_prompt",
+      "description": "Return a prompt-ready style fragment for one AI 语料模板. Paste this fragment into your reasoning context before drafting the final answer.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "corpus_upsert",
+      "description": "Create or update an AI 语料模板 after the user gives feedback about wording, structure, color, required fields, or preferred style. This is how Hermes continuously learns 大斌哥's style over time.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "scene": {
+            "default": "",
+            "type": "string",
+            "maxLength": 500
+          },
+          "intent": {
+            "default": "",
+            "type": "string",
+            "maxLength": 1000
+          },
+          "tone": {
+            "default": "concise",
+            "type": "string",
+            "enum": [
+              "concise",
+              "warm",
+              "executive",
+              "diagnostic",
+              "narrative"
+            ]
+          },
+          "accent": {
+            "default": "teal",
+            "type": "string",
+            "enum": [
+              "teal",
+              "blue",
+              "violet",
+              "amber",
+              "rose"
+            ]
+          },
+          "mustInclude": {
+            "default": "",
+            "type": "string",
+            "maxLength": 1200
+          },
+          "styleGuide": {
+            "default": "",
+            "type": "string",
+            "maxLength": 1600
+          },
+          "template": {
+            "default": "",
+            "type": "string",
+            "maxLength": 6000
+          },
+          "sample": {
+            "default": "",
+            "type": "string",
+            "maxLength": 6000
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "create_element",
+      "description": "Create a new element in the knowledge tree. If `parent_id` is provided, the new element is attached as a child of that parent; otherwise it becomes a top-level topic. `content` is optional — pass it when you've already generated the sections; otherwise leave empty and the user can refine later.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Element title (3-12 chars ideal)"
+          },
+          "type": {
+            "default": "topic",
+            "type": "string",
+            "enum": [
+              "topic",
+              "concept",
+              "step",
+              "product-design",
+              "viewpoint",
+              "question",
+              "case",
+              "tool",
+              "ability",
+              "project",
+              "practice",
+              "summary",
+              "relation",
+              "dispute",
+              "exercise",
+              "report",
+              "guide"
+            ]
+          },
+          "parent_id": {
+            "description": "If set, attach as child of this element",
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "domain": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "tags": {
+            "description": "Optional tags such as ai-news, category:热门 SKILL, date:2026-05-23",
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          "content": {
+            "description": "Pre-generated content (sections array). Optional."
+          }
+        },
+        "required": [
+          "title"
+        ]
+      }
+    },
+    {
+      "name": "create_improvement",
+      "description": "File a NEW system-improvement task — use this when you (Hermes) try to do something for the user and discover Rich is missing the necessary capability. Capture: a one-line `title`, full `description` of what the user wanted, `reason` describing the missing capability, and optionally `prd_content` plus decomposed `tasks` when you have already analyzed it. Status starts at 'pending'. After user review, set status='ready_to_develop'.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 160,
+            "description": "One-line summary, e.g. '新增 attach_mindmap MCP 工具'"
+          },
+          "description": {
+            "description": "What did the user ask you to do? What is the desired end-state?",
+            "type": "string",
+            "maxLength": 4000
+          },
+          "reason": {
+            "description": "Exactly what capability is missing? e.g. 'MCP 没有 attach_mindmap 工具，无法给元素挂 PPT section'",
+            "type": "string",
+            "maxLength": 2000
+          },
+          "prd_content": {
+            "description": "PRD produced after analyzing the user's requirement. Include goal, scope, UX/API/data changes, acceptance criteria, and risks.",
+            "type": "string",
+            "maxLength": 30000
+          },
+          "tasks": {
+            "description": "Implementation tasks decomposed from the PRD. Keep each task independently claimable/testable.",
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 220
+                },
+                "detail": {
+                  "type": "string",
+                  "maxLength": 4000
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "todo",
+                    "doing",
+                    "done",
+                    "blocked"
+                  ]
+                },
+                "priority": {
+                  "type": "string",
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "title"
+              ]
+            }
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "category": {
+            "description": "Free-form, e.g. 'mcp-tool' / 'ui' / 'integration' / 'data-model'",
+            "type": "string",
+            "maxLength": 60
+          },
+          "related_files": {
+            "description": "Optional code-path hints for the dev — files likely to need editing",
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "title"
+        ]
+      }
+    },
+    {
+      "name": "delete_element",
+      "description": "Delete an element AND all its descendants (cascading). Irreversible. Confirm with the user before calling this on anything non-trivial — the response includes how many elements were swept.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "delete_improvement",
+      "description": "Permanently delete an improvement task. Only use this when the user explicitly says 'remove that task'. Prefer status updates over deletion so the audit trail survives.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "draft_prd",
+      "description": "🪄 Ask Hermes to draft a PRD for a practice project based on its existing sub-elements (knowledge points, requirements). Writes the result as a new product-design child element. Takes 30-90s.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "practiceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "extraContext": {
+            "description": "Optional: any specific requirements or scope hints",
+            "type": "string",
+            "maxLength": 2000
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "claude-code",
+              "codex",
+              "hermes",
+              "bailian"
+            ]
+          }
+        },
+        "required": [
+          "practiceId"
+        ]
+      }
+    },
+    {
+      "name": "expand",
+      "description": "Expand an element by generating children under it (one or more new sub-elements). Returns a task_id. Poll get_task to read the new element ids.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "parent_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "count": {
+            "default": 4,
+            "description": "How many children to generate (default 4)",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8
+          },
+          "direction": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "claude-code",
+              "codex",
+              "hermes",
+              "bailian"
+            ]
+          }
+        },
+        "required": [
+          "parent_id"
+        ]
+      }
+    },
+    {
+      "name": "extend",
+      "description": "Extend an element laterally — generate sibling concepts in a specific direction (e.g. 'compare to' / 'opposite view' / 'similar concepts'). Returns task_id.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "element_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "direction": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The direction to extend in"
+          },
+          "count": {
+            "default": 3,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 6
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "claude-code",
+              "codex",
+              "hermes",
+              "bailian"
+            ]
+          }
+        },
+        "required": [
+          "element_id",
+          "direction"
+        ]
+      }
+    },
+    {
+      "name": "generate_news",
+      "description": "Generate today's (or a specific date's) AI daily news roundup. Pulls 30+ sources via Codex, distills 5-12 items, writes them as a roundup element + N child news elements under `ai-news`. Returns task_id; poll get_task for the materialised roundup id.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "date": {
+            "description": "YYYY-MM-DD; defaults to today",
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "claude-code",
+              "codex",
+              "hermes",
+              "bailian"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "generate_paths",
+      "description": "Generate learning paths through the knowledge tree centered on a specific element. Each path is a curated walk for a specific learner profile (quick / academic / practice / custom). Returns task_id.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "center_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kinds": {
+            "default": [
+              "quick",
+              "academic"
+            ],
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "quick",
+                "academic",
+                "practice",
+                "custom"
+              ]
+            }
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "claude-code",
+              "codex",
+              "hermes",
+              "bailian"
+            ]
+          }
+        },
+        "required": [
+          "center_id"
+        ]
+      }
+    },
+    {
+      "name": "get_element",
+      "description": "Get a single element by id, including its full content (all sections, blocks, etc.). Use this to read the current state of an element before deciding to refine or expand it.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Element id"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "get_rich_system_manual",
+      "description": "Read the Rich system learning manual before operating unfamiliar Rich modules. It explains pages, scenarios, usage rules, and the preferred CLI/MCP entrypoints for Hermes/Codex agents.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "get_subtree",
+      "description": "Get an element and all its descendants down to `depth` levels. Returns a flat list of elements + the parent-child relations between them. Useful for understanding the structure around a topic before doing tree-wide operations.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Root element id"
+          },
+          "depth": {
+            "default": 2,
+            "description": "Max depth (1 = direct children only, default 2)",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 6
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "get_task",
+      "description": "Get the status of a fire-and-forget task (returned by refine / expand / extend / generate_paths). Poll until status is 'done' or 'error'; then read the result.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "task_id"
+        ]
+      }
+    },
+    {
+      "name": "goal_create",
+      "description": "Create a new goal under a plan. scope determines layer (year/month/week). parentId optionally nests under another goal (e.g. a week goal under a month goal). Hand-rolled progress (0-100) is stored but the UI recomputes dynamic progress from task completion.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "year",
+              "month",
+              "week"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 280
+          },
+          "detail": {
+            "default": "",
+            "type": "string",
+            "maxLength": 800
+          },
+          "due": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "ISO YYYY-MM-DD"
+          },
+          "parentId": {
+            "type": "string"
+          },
+          "metric": {
+            "type": "object",
+            "properties": {
+              "unit": {
+                "type": "string",
+                "maxLength": 20
+              },
+              "target": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "unit",
+              "target"
+            ]
+          }
+        },
+        "required": [
+          "planId",
+          "scope",
+          "title",
+          "due"
+        ]
+      }
+    },
+    {
+      "name": "goal_delete",
+      "description": "Delete a goal. CASCADES: also deletes its descendant goals (any goal whose parentId chain leads to this one) AND every task attached to any of them. Destructive — prefer goal_update to clean up instead.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "goal_list",
+      "description": "List goals across all plans, with optional filters. Returns each goal with its real-time dynamic progress (recursively computed from descendant task completion). Use planId to scope to one plan, scope to filter by year/month/week, parentId to get direct children of a goal.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "year",
+              "month",
+              "week"
+            ]
+          },
+          "parentId": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "goal_update",
+      "description": "Patch fields on an existing goal. Common uses: rename title, push out the due date, change parentId to reorganize the tree, set progress manually when a goal isn't task-driven.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 280
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 800
+          },
+          "due": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "parentId": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "calibrate",
+              "execute",
+              "review",
+              "close"
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "invoke_toolbox_tool",
+      "description": "Run one of the user's toolbox tools by name. Args are validated against the tool's schema (call list_toolbox_tools first if unsure). If the schema includes `delay_minutes` or `delay_seconds` and the value is > 0, the invocation is SCHEDULED — the runtime fires it later, and the response shows status='scheduled' + scheduled_for. You can monitor or cancel from Rich's Toolbox UI. Example: `name=lock_screen, args={delay_minutes: 10}` → 'in 10 minutes the screen locks'.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Tool name from list_toolbox_tools, e.g. 'lock_screen'"
+          },
+          "args": {
+            "description": "Tool arguments; shape comes from the tool's schema. {} or omitted = use defaults.",
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "list_elements",
+      "description": "List elements with optional filters. Use this to find elements matching a type / tag / parent before reading their content.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "type": {
+            "description": "Filter by element type (topic / concept / step / ...)",
+            "type": "string"
+          },
+          "tag": {
+            "description": "Element must include this tag",
+            "type": "string"
+          },
+          "parent_id": {
+            "description": "Only direct children of this parent",
+            "type": "string"
+          },
+          "limit": {
+            "default": 100,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          }
+        }
+      }
+    },
+    {
+      "name": "list_improvements",
+      "description": "List Rich system-improvement tasks (capability gaps Hermes filed, plus their PRD/tasks/status). Use this BEFORE filing a new one — if a similar task is already pending, ready_to_develop, or ready_to_verify, append to it via update_improvement instead of creating a duplicate. Status flow: pending → ready_to_develop → ready_to_verify → verified | rejected.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "status": {
+            "description": "Filter by status. Omit to see all.",
+            "type": "string",
+            "enum": [
+              "pending",
+              "ready_to_develop",
+              "ready_to_verify",
+              "verified",
+              "rejected"
+            ]
+          },
+          "limit": {
+            "default": 50,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        }
+      }
+    },
+    {
+      "name": "list_mascot_animations",
+      "description": "List every animation Rich's homepage mascot can play. Returns name + description so you can pick the right one for the moment. The mascot animation is the user-facing emotional signal of Rich — celebrate, think, alert, sleep, etc.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "list_paths_for",
+      "description": "List learning paths centered on a specific element.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "center_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "center_id"
+        ]
+      }
+    },
+    {
+      "name": "list_qa",
+      "description": "List Q&A records for an element.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "element_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "element_id"
+        ]
+      }
+    },
+    {
+      "name": "list_relations",
+      "description": "List relations (default: only kind=child). Use to understand structure around an element.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "parent",
+              "child",
+              "sibling",
+              "related",
+              "prerequisite",
+              "extension",
+              "practice"
+            ]
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "limit": {
+            "default": 200,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          }
+        }
+      }
+    },
+    {
+      "name": "list_signals",
+      "description": "List user-feedback / op signals for evidence-trail analysis. Used by reviewManual to mine patterns.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "manual": {
+            "description": "Filter by AI manual name (e.g. 'knowledge')",
+            "type": "string"
+          },
+          "type": {
+            "description": "Filter by signal type (e.g. 'user.feedback')",
+            "type": "string"
+          },
+          "element_id": {
+            "type": "string"
+          },
+          "since": {
+            "description": "ISO timestamp lower bound",
+            "type": "string"
+          },
+          "limit": {
+            "default": 100,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          }
+        }
+      }
+    },
+    {
+      "name": "list_tasks",
+      "description": "List recent tasks. Useful for figuring out what's running.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "error"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "list_toolbox_tools",
+      "description": "List every tool available in Rich's user-defined toolbox, with each tool's input schema. Call this BEFORE invoke_toolbox_tool when you're not sure which tool fits — the schema tells you valid argument names + types + defaults. Distinct from the built-in Rich MCP tools (refine / expand / etc); toolbox tools are small utilities the user defines (lock screen, timers, system actions, ...).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "list_topics",
+      "description": "List all top-level topics in the knowledge tree (elements without a parent). Use this to discover what's in the user's knowledge base before drilling into a specific topic.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "plan_create",
+      "description": "Create a new EMPTY plan. Use this when 大斌哥 just wants a bucket — for AI-decomposed plans use `plan_decompose` instead (it creates plan + goals + tasks in one shot). After creating, use `goal_create` / `task_create` to populate.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 800
+          },
+          "start": {
+            "description": "ISO YYYY-MM-DD. Defaults to today.",
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "end": {
+            "description": "ISO YYYY-MM-DD. If omitted, plan has no due date.",
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "scopes": {
+            "default": [
+              "month",
+              "week",
+              "day"
+            ],
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "year",
+                "month",
+                "week",
+                "day"
+              ]
+            }
+          }
+        },
+        "required": [
+          "title"
+        ]
+      }
+    },
+    {
+      "name": "plan_decompose",
+      "description": "🪄 Take 大斌哥's natural-language intent ('我想 3 个月减 10 斤') and ask Hermes/Codex to decompose it into a full plan tree (plan + year/month/week goals + day tasks). Writes the result directly into state — returns the new plan id. Granularity is AI-decided (short windows skip year/month). Takes 30-90 seconds. Use this when 大斌哥 says '帮我做一个 X 的计划' instead of `plan_create` (which makes empty).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "intent": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 500,
+            "description": "用户的自然语言意图，例如 '我想 3 个月减 10 斤'"
+          },
+          "targetEnd": {
+            "description": "Optional target completion date. If omitted, AI picks one based on the intent.",
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "model": {
+            "description": "Defaults to hermes.",
+            "type": "string",
+            "enum": [
+              "claude-code",
+              "codex",
+              "hermes",
+              "bailian"
+            ]
+          }
+        },
+        "required": [
+          "intent"
+        ]
+      }
+    },
+    {
+      "name": "plan_delete",
+      "description": "Delete a plan and CASCADE delete all its goals + tasks. This is destructive — only use when 大斌哥 explicitly says 'remove that plan'. Prefer plan_update with status='archived' to hide without losing the data.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "plan_get",
+      "description": "Fetch one 计划 with its full goal tree + tasks. Returns plan, all goals under it (year→month→week with parentId chains), and all tasks attached to those goals. Use this when you need to reason about a single plan's structure — e.g. before suggesting how to push it.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Plan id (e.g. 'plan-mpinueuf')."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "plan_list",
+      "description": "List 计划 (plans) in the 计划管理 module. Returns each plan with its real-time progress, time-progress, health status (healthy/behind/critical/completed/no-time), days-left, and this-week task counts. Use status='all' to include archived/completed. This is the first tool you should call to orient — 大斌哥's plans live here and goals/tasks dangle off them.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "status": {
+            "default": "active",
+            "description": "Filter. Default 'active' = only the plans 大斌哥 is currently working on.",
+            "type": "string",
+            "enum": [
+              "active",
+              "archived",
+              "completed",
+              "all"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "plan_update",
+      "description": "Patch fields on an existing plan. Pass only the fields you want to change. Use status='completed' to mark done, status='archived' to hide. Title/detail/dates can all be changed.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 800
+          },
+          "start": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "end": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "archived",
+              "completed"
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "play_mascot_animation",
+      "description": "Trigger an animation on Rich's homepage mascot. One-shot animations (celebrate / wave / transform) auto-revert to the previous loop after their duration. Loops (walk / think / happy / sad / sleep / dance / etc) stay until you switch. Use this for emotional signalling: (1) finishing a meaningful task → celebrate, (2) starting a long thought → think, (3) hitting a blocker → alert, (4) idle / waiting → sleep, (5) user explicitly asks 'dance!'. Don't switch on every micro-action — it gets jittery.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "walk",
+              "idle",
+              "celebrate",
+              "think",
+              "happy",
+              "sad",
+              "alert",
+              "sleep",
+              "dance",
+              "wave",
+              "transform",
+              "ironman"
+            ],
+            "description": "Animation name from list_mascot_animations"
+          },
+          "duration_ms": {
+            "description": "Override default duration (mainly meaningful for one-shot animations)",
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 60000
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "practice_add_child",
+      "description": "Add a sub-element (knowledge/requirement/feature/prd/dev-task/revision/inquiry) under a GROUP inside a practice. Pass parentId = the group's id (use practice_get to find groups). If parentId is a practice element, the tool auto-routes to a sensible default group based on type: knowledge→知识点, requirement→场景分析, feature→功能说明, prd→PRD, dev-task→开发任务, revision→整改建议, inquiry→提问 (creating the group if missing).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "parentId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Group element id (preferred) or practice element id (auto-routes)."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "knowledge",
+              "requirement",
+              "feature",
+              "prd",
+              "dev-task",
+              "revision",
+              "inquiry"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 280
+          },
+          "subtitle": {
+            "type": "string",
+            "maxLength": 280
+          },
+          "content": {
+            "description": "Optional rich content. Free-form per element type."
+          },
+          "status": {
+            "description": "Only meaningful when type=dev-task. Default todo.",
+            "type": "string",
+            "enum": [
+              "todo",
+              "doing",
+              "done"
+            ]
+          }
+        },
+        "required": [
+          "parentId",
+          "type",
+          "title"
+        ]
+      }
+    },
+    {
+      "name": "practice_add_group",
+      "description": "Add a new group element under a practice. Groups organize sub-elements (knowledge / requirements / PRD / dev-tasks etc.) inside a project. By default a new practice gets 4 groups; use this to add custom ones.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "practiceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "practiceId",
+          "title"
+        ]
+      }
+    },
+    {
+      "name": "practice_adjust_child",
+      "description": "🪄 Ask Hermes to adjust an existing practice sub-element based on a direction (e.g. 'make painPoint more concrete' / 'add an example'). AI re-writes the whole element preserving the content field structure. Takes 15-40s.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "elementId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "direction": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "claude-code",
+              "codex",
+              "hermes",
+              "bailian"
+            ]
+          }
+        },
+        "required": [
+          "elementId",
+          "direction"
+        ]
+      }
+    },
+    {
+      "name": "practice_answer_inquiry",
+      "description": "Answer an inquiry (the questions Rich raised). Either pick an option by index (0-based) OR provide a customAnswer text. Marks the inquiry as 'done'.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "inquiryId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "optionIndex": {
+            "description": "0-based index of the chosen option. Omit if using customAnswer.",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "customAnswer": {
+            "description": "Free-text answer. Omit if using optionIndex.",
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "inquiryId"
+        ]
+      }
+    },
+    {
+      "name": "practice_create",
+      "description": "Create a new 实战项目 (practice element) + 7 default groups (知识点 / 场景分析 / 功能说明 / PRD / 开发任务 / 整改建议 / 提问). Auto-tagged '实战项目'. After creation, use practice_add_child to populate each group; pass the group's id as parentId.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 280
+          },
+          "subtitle": {
+            "type": "string",
+            "maxLength": 280
+          },
+          "tags": {
+            "default": [],
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 40
+            }
+          }
+        },
+        "required": [
+          "title"
+        ]
+      }
+    },
+    {
+      "name": "practice_delete_child",
+      "description": "Delete a practice sub-element. Cascades: removes the element + all its descendants + all relations. Cannot be undone.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "elementId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "elementId"
+        ]
+      }
+    },
+    {
+      "name": "practice_delete_group",
+      "description": "Delete a group inside a practice + all its child elements (cascade). Cannot be undone.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "groupId"
+        ]
+      }
+    },
+    {
+      "name": "practice_draft_child",
+      "description": "🪄 Ask Hermes to draft a single sub-element for a practice (knowledge / requirement / feature / dev-task / revision). AI generates title + subtitle + content based on the project context + user direction. If AI raises questions, they auto-land in the '提问' group. Takes 15-40s.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "practiceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "groupType": {
+            "type": "string",
+            "enum": [
+              "knowledge",
+              "requirement",
+              "feature",
+              "dev-task",
+              "revision"
+            ]
+          },
+          "direction": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "description": "What you want this element to be about (short sentence or two)"
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "claude-code",
+              "codex",
+              "hermes",
+              "bailian"
+            ]
+          }
+        },
+        "required": [
+          "practiceId",
+          "groupType",
+          "direction"
+        ]
+      }
+    },
+    {
+      "name": "practice_get",
+      "description": "Fetch a practice project with its group structure: practice → groups → typed children. Each group has its own children array. Use this to understand the project hierarchy before adding/editing.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "practice_list",
+      "description": "List 实战项目 — practice elements TAGGED with '实战项目' (the project-mode switch). Untagged practice elements are 'best-practice / 实战经验' entries from the knowledge tree and don't show here. Use includeAll=true to see ALL practice elements (including untagged seed/knowledge entries) for promotion workflows. Returns counts of sub-types + step done/total.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "includeAll": {
+            "default": false,
+            "description": "true = include practice elements without the '实战项目' tag (the knowledge-tree best-practice entries). Default false → only project-mode practices.",
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "practice_list_inquiries",
+      "description": "List pending inquiries (questions raised by Rich that need 大斌哥's answer). Filter by practice or get all open ones. Use this to check 'what's waiting for me'.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "practiceId": {
+            "description": "Optional: filter to one practice. Omit = all practices.",
+            "type": "string"
+          },
+          "includeAnswered": {
+            "default": false,
+            "description": "Include already-answered inquiries",
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "practice_patch_child",
+      "description": "Patch fields of an existing practice sub-element (title / subtitle / content / status / tags). Only fields you pass get updated; others stay. Use this for surgical edits without AI.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "elementId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 280
+          },
+          "subtitle": {
+            "type": "string",
+            "maxLength": 400
+          },
+          "content": {
+            "description": "If passed, REPLACES the whole content object."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "doing",
+              "done"
+            ]
+          },
+          "tags": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 40
+            }
+          }
+        },
+        "required": [
+          "elementId"
+        ]
+      }
+    },
+    {
+      "name": "practice_rename_group",
+      "description": "Rename a group inside a practice. Sub-elements keep their type; only the group's display label changes.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "groupId",
+          "title"
+        ]
+      }
+    },
+    {
+      "name": "practice_set_project_mode",
+      "description": "Toggle whether a practice element appears in the 项目实战 list. Adds/removes the '实战项目' tag. Use enabled=true to promote a knowledge-tree practice (一条实战经验) into a managed project; enabled=false to demote it back (it stays in the knowledge tree).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "true = show in 项目实战 page; false = remove from 项目实战 list (stays in knowledge tree)"
+          }
+        },
+        "required": [
+          "id",
+          "enabled"
+        ]
+      }
+    },
+    {
+      "name": "practice_set_revision_decision",
+      "description": "Set the decision field on a revision element (做 / 暂缓 / 不做). Convenience wrapper over patch_child — just updates content.decision without rewriting other fields.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "revisionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "做",
+              "暂缓",
+              "不做"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 400
+          }
+        },
+        "required": [
+          "revisionId",
+          "decision"
+        ]
+      }
+    },
+    {
+      "name": "practice_set_task_status",
+      "description": "Set the status of a dev-task element to todo/doing/done. Used for 项目实战 dev tasks; for 计划管理 plan tasks use task_complete instead.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "doing",
+              "done"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ]
+      }
+    },
+    {
+      "name": "project_automation_add_item",
+      "description": "Add a data-dictionary table item to an automation execution group.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "plan_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "group_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "table_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "project_id",
+          "plan_id",
+          "group_id",
+          "table_id"
+        ]
+      }
+    },
+    {
+      "name": "project_automation_create_group",
+      "description": "Create an ordered execution group in an automation plan.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "plan_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "project_id",
+          "plan_id",
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "project_automation_create_plan",
+      "description": "Create an automation plan record.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "project_id",
+          "name"
+        ]
+      }
+    },
+    {
+      "name": "project_automation_delete_group",
+      "description": "Delete an automation execution group. Call only after the user explicitly asks to delete it.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "group_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "group_id"
+        ]
+      }
+    },
+    {
+      "name": "project_automation_delete_plan",
+      "description": "Delete an automation plan and its contained records. Call only after the user explicitly asks to delete it.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "plan_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "plan_id"
+        ]
+      }
+    },
+    {
+      "name": "project_automation_get_plan",
+      "description": "Get one automation plan, including its ordered groups and table items.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "plan_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "plan_id"
+        ]
+      }
+    },
+    {
+      "name": "project_automation_get_run",
+      "description": "Get one automation-run record and its item-level execution state.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "run_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "run_id"
+        ]
+      }
+    },
+    {
+      "name": "project_automation_list_plans",
+      "description": "List all automation plans for a project.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id"
+        ]
+      }
+    },
+    {
+      "name": "project_automation_list_runs",
+      "description": "List automation-run records for one plan.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "plan_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "project_id",
+          "plan_id"
+        ]
+      }
+    },
+    {
+      "name": "project_automation_remove_item",
+      "description": "Remove a table item from an automation group. Call only after the user explicitly asks to remove it.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "item_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "item_id"
+        ]
+      }
+    },
+    {
+      "name": "project_automation_reorder_groups",
+      "description": "Set the complete order of groups in one automation plan.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "plan_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "group_ids": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "project_id",
+          "plan_id",
+          "group_ids"
+        ]
+      }
+    },
+    {
+      "name": "project_automation_reorder_items",
+      "description": "Set the complete order of table items in one automation group.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "group_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "item_ids": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "project_id",
+          "group_id",
+          "item_ids"
+        ]
+      }
+    },
+    {
+      "name": "project_automation_resume_run",
+      "description": "Resume a paused automation-run record. Poll project_automation_get_run for progress; this returns immediately.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "run_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "runtime_params": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "project_id",
+          "run_id"
+        ]
+      }
+    },
+    {
+      "name": "project_automation_start_run",
+      "description": "Create and start an automation-run record for a plan. Poll project_automation_get_run for progress; this returns immediately.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "plan_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "runtime_params": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "project_id",
+          "plan_id"
+        ]
+      }
+    },
+    {
+      "name": "project_automation_update_group",
+      "description": "Patch an automation execution group's name or order.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "group_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "project_id",
+          "group_id"
+        ]
+      }
+    },
+    {
+      "name": "project_automation_update_plan",
+      "description": "Patch an automation plan's name, description, or order.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "plan_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "project_id",
+          "plan_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_create_mapping_scenario",
+      "description": "Create one structured Mapping scenario for a dictionary table. Then assign its field rules with project_dictionary_update_mapping_rule.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "table_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "caliber": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remark": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "raw": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "project_id",
+          "table_id",
+          "title"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_create_rectification",
+      "description": "Create a data-dictionary rectification record when field/table/code/mapping metadata needs to be fixed or normalized. Use this instead of silently guessing the correct metadata.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "entity_type": {
+            "type": "string",
+            "enum": [
+              "library",
+              "table",
+              "field",
+              "codeSet",
+              "mapping"
+            ]
+          },
+          "entity_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "property_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "requirement": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "created_by": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "project_id",
+          "entity_type",
+          "entity_id",
+          "property_key",
+          "requirement"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_delete_mapping_scenario",
+      "description": "Delete one Mapping scenario. Its field Mapping rules are retained but unassigned, so they can be moved to another scenario.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scenario_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "scenario_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_get_field",
+      "description": "Get full metadata for one data-dictionary field. Use this when the UI floating panel needs all field properties or before changing a mapping rule.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "field_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "field_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_get_mapping_rule",
+      "description": "Get one Mapping 元 rule by id, including its involved source fields and standard action chain.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mapping_rule_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "mapping_rule_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_list_fields",
+      "description": "List field metadata for a data-dictionary table. Returns field type, length, format, description, code values, mapping snippets, and remarks when available.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "table_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "table_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_list_mapping_rules",
+      "description": "List Mapping 元 rules for one dictionary table. Returns each rule with sourceFields and actions so AI can review table-level Mapping by scenario and field.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "table_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "table_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_list_mapping_scenarios",
+      "description": "List the structured Mapping scenarios for one dictionary table. Each scenario owns its caliber and can be joined to field Mapping rules by scenario_id.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "table_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "table_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_list_mapping_temp_tables",
+      "description": "List Mapping temporary tables and their fields for one target dictionary table.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "table_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "table_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_list_rectifications",
+      "description": "List data-dictionary rectification records. These are AI/user-maintained requirements for library/table/field/codeSet/mapping metadata fixes.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_list_systems",
+      "description": "List data-dictionary libraries/systems for a project. Use this before reading table or field metadata.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_list_tables",
+      "description": "List data-dictionary tables/files under a project or one system. A table is a metadata entity and can represent a database table or a file-like source.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "system_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_replace_mapping_actions",
+      "description": "Replace the full standard action chain for one Mapping 元 rule. Use after reading the rule; send the complete ordered action list.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mapping_rule_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "actions": {
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "action_type": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "condition_text": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 8000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "expression_text": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 8000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "result_text": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 8000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "remark": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 4000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sort_order": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "raw": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                },
+                "source_field_ids": {
+                  "maxItems": 200,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "required": [
+                "action_type"
+              ]
+            }
+          }
+        },
+        "required": [
+          "project_id",
+          "mapping_rule_id",
+          "actions"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_replace_mapping_source_fields",
+      "description": "Replace the involved source field refs for one Mapping 元 rule. Prefer field_id when the ref can be resolved; keep ref_path for external or unresolved fields.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mapping_rule_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_fields": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "field_id": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "ref_path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "alias": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 160
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "role": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 120
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "remark": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sort_order": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "raw": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "ref_path"
+              ]
+            }
+          }
+        },
+        "required": [
+          "project_id",
+          "mapping_rule_id",
+          "source_fields"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_replace_mapping_temp_tables",
+      "description": "Replace all Mapping temporary tables and their fields for one target table. Each temporary table must provide converted_sql as a SELECT query (or logic_text plus field converted_sql expressions); the extraction procedure creates these tables before running the target Mapping.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "table_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "temp_tables": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "table_name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "table_cn": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 500
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "logic_text": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 32000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "converted_sql": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 100000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "remark": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 4000
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sort_order": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "raw": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                },
+                "fields": {
+                  "default": [],
+                  "maxItems": 500,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "field_name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 160
+                      },
+                      "field_cn": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 500
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "field_type": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 120
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "field_length": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 80
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "logic_text": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 32000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "converted_sql": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 32000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "remark": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 4000
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "sort_order": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "raw": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "required": [
+                      "field_name"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "table_name"
+              ]
+            }
+          }
+        },
+        "required": [
+          "project_id",
+          "table_id",
+          "temp_tables"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_resolve_field_refs",
+      "description": "Resolve field references such as '库.表.字段', '表.字段', or imported Mapping field tokens to known dictionary field entities. Use this before writing Mapping content so references stay linked.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "refs": {
+            "minItems": 1,
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "project_id",
+          "refs"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_search_fields",
+      "description": "Search data-dictionary fields by English name, Chinese name, table, code value, mapping logic, or description. Use this for high-recall Mapping exploration.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "default": 30,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "project_id",
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_update_field",
+      "description": "Patch field metadata (type, length, nullability, Mapping references, logic, validation and descriptions). Read the field first and provide only properties to change.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "field_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "field_cn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "field_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "field_length": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "format_pattern": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nullable": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "primary_key": {
+            "type": "boolean"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acquire_logic": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "validation_rule": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "code_value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mapped_table": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mapped_field": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mapped_field_cn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remark": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verification_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "未验证",
+                  "已验证",
+                  "待整改"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verification_remark": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "extra": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "project_id",
+          "field_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_update_mapping_action",
+      "description": "Patch one Mapping 标准动作. Actions describe SQL-convertible operations such as direct, default, condition, join, format, sum, concat, substring, and null handling.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "action_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "action_type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "condition_text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expression_text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result_text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remark": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "raw": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "source_field_ids": {
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "project_id",
+          "action_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_update_mapping_rule",
+      "description": "Patch one Mapping 元 rule. Use this for status, logic_text, converted_sql, verification status/remark, remark, field binding, and raw scenario metadata. Preserve unknown raw fields.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mapping_rule_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scenario_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "system_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "table_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "field_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "complete",
+              "unable_to_convert",
+              "invalid",
+              "manual",
+              "blocked"
+            ]
+          },
+          "logic_text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "converted_sql": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remark": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verification_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "未验证",
+                  "已验证",
+                  "待整改"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verification_remark": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "raw": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "project_id",
+          "mapping_rule_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_update_mapping_scenario",
+      "description": "Patch the title, caliber, remark, order, or raw metadata of one structured Mapping scenario.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scenario_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "caliber": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remark": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "raw": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "project_id",
+          "scenario_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_update_rectification",
+      "description": "Update the status or resolution note of a data-dictionary rectification record.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rectification_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "fixed",
+              "verified",
+              "cancelled"
+            ]
+          },
+          "resolution_note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resolved_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "project_id",
+          "rectification_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_update_system",
+      "description": "Patch a data-dictionary system's type, asset layer, or extra connection metadata. Read the system first and preserve unknown extra fields.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "system_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "asset_layer": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "extra": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "project_id",
+          "system_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_update_table",
+      "description": "Patch data-dictionary table metadata. Supports all common table fields; supplied extra metadata is merged without removing existing keys.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "table_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "system_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "table_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "table_cn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "table_group": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data_layer": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "table_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "文件",
+                  "数据库"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "file_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "txt",
+                  "xml",
+                  "csv",
+                  "excel"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "has_mapping": {
+            "type": "boolean"
+          },
+          "usage_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verification_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "未验证",
+                  "已验证",
+                  "待整改"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verification_remark": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "caliber": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "extra": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "project_id",
+          "table_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_validate_mapping_sql",
+      "description": "Compile and validate a table's Mapping SQL against its configured database. Returns caliber SQL and per-field validation results. Optional caliber and field_rules validate unsaved edits without changing metadata.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "table_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "caliber": {
+            "type": "string",
+            "maxLength": 100000
+          },
+          "field_rules": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "logic": {
+                  "type": "string",
+                  "maxLength": 100000
+                }
+              },
+              "required": [
+                "field_id",
+                "logic"
+              ]
+            }
+          },
+          "runtime_params": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "project_id",
+          "table_id"
+        ]
+      }
+    },
+    {
+      "name": "project_dictionary_validate_mapping_table",
+      "description": "Validate Mapping 元 completeness for one table: source field links, logic/actions, completion status, and converted SQL availability.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "table_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "table_id"
+        ]
+      }
+    },
+    {
+      "name": "project_management_create_item",
+      "description": "Create one project-management module item. Use content.original to preserve the UI's native payload shape when creating rich scenario/workflow/deployment records.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "module_key": {
+            "type": "string",
+            "enum": [
+              "description",
+              "dictionary",
+              "automation",
+              "workflow",
+              "scenarios",
+              "environments",
+              "deploymentSteps",
+              "monitoring",
+              "codeVersions",
+              "todos",
+              "folder"
+            ]
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "content": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "project_id",
+          "module_key",
+          "title"
+        ]
+      }
+    },
+    {
+      "name": "project_management_delete_item",
+      "description": "Delete one project-management module item. Only call after the user explicitly asks to delete, and after you have confirmed the item id via search/list.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "item_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "item_id"
+        ]
+      }
+    },
+    {
+      "name": "project_management_get_description",
+      "description": "Read the canonical rich-text project description and its plain-text AI context. Call this first when joining an unfamiliar Rich project.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Rich project id."
+          }
+        },
+        "required": [
+          "project_id"
+        ]
+      }
+    },
+    {
+      "name": "project_management_list_items",
+      "description": "List structured items from a project-management module. This covers 项目说明, 作业流程, 场景手册, 环境配置, 部署步骤, 监控预警, 代码版本, 项目代办 and 文件夹. For nested modules pass parent_id.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "module_key": {
+            "type": "string",
+            "enum": [
+              "description",
+              "dictionary",
+              "automation",
+              "workflow",
+              "scenarios",
+              "environments",
+              "deploymentSteps",
+              "monitoring",
+              "codeVersions",
+              "todos",
+              "folder"
+            ]
+          },
+          "parent_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "module_key"
+        ]
+      }
+    },
+    {
+      "name": "project_management_reorder_items",
+      "description": "Reorder items inside one project-management module scope. Pass the complete ordered item id list for the current module/parent scope.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "module_key": {
+            "type": "string",
+            "enum": [
+              "description",
+              "dictionary",
+              "automation",
+              "workflow",
+              "scenarios",
+              "environments",
+              "deploymentSteps",
+              "monitoring",
+              "codeVersions",
+              "todos",
+              "folder"
+            ]
+          },
+          "item_ids": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "project_id",
+          "module_key",
+          "item_ids"
+        ]
+      }
+    },
+    {
+      "name": "project_management_search",
+      "description": "Search across the project-management app: project description, data dictionary, workflow, scenario manual, environment config, deployment steps, monitoring, code versions, todos, and folders. Use this before updating or deleting when you only know text.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "default": 30,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "project_id",
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "project_management_summary",
+      "description": "Get the module counts and data-dictionary counts for one Rich project-management project. Call this first to understand what content exists.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Rich project id, e.g. 'capital-bank-ybt'."
+          }
+        },
+        "required": [
+          "project_id"
+        ]
+      }
+    },
+    {
+      "name": "project_management_update_description",
+      "description": "Replace the canonical project description shown in 项目说明. Send the complete rich-text HTML content; the result includes both rendered HTML and plain-text AI context.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Rich project id."
+          },
+          "html": {
+            "type": "string",
+            "maxLength": 500000,
+            "description": "Complete rich-text HTML for 项目说明. Use an empty string to clear it."
+          }
+        },
+        "required": [
+          "project_id",
+          "html"
+        ]
+      }
+    },
+    {
+      "name": "project_management_update_item",
+      "description": "Patch one project-management module item. Read the item first, preserve unknown content fields, and only send the fields that should change.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "item_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "content": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "project_id",
+          "item_id"
+        ]
+      }
+    },
+    {
+      "name": "project_todo_create",
+      "description": "Create a project todo. The UI-compatible fields are title, status, owner, priority, due_at and description.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "status": {
+            "default": "todo",
+            "type": "string",
+            "enum": [
+              "todo",
+              "doing",
+              "done"
+            ]
+          },
+          "owner": {
+            "type": "string",
+            "maxLength": 240
+          },
+          "priority": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "due_at": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 16000
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "project_id",
+          "title"
+        ]
+      }
+    },
+    {
+      "name": "project_todo_delete",
+      "description": "Delete one project todo. Call only after the user explicitly asked to delete it and you have confirmed the todo id.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "todo_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "todo_id"
+        ]
+      }
+    },
+    {
+      "name": "project_todo_get",
+      "description": "Get one project todo by id, including title, status, owner, priority, dueAt, description and preserved original metadata.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "todo_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id",
+          "todo_id"
+        ]
+      }
+    },
+    {
+      "name": "project_todo_list",
+      "description": "List project todos in board order. Optionally filter by todo/doing/done status or exact owner. Use this before updating or deleting a todo when you need its id.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "doing",
+              "done"
+            ]
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        },
+        "required": [
+          "project_id"
+        ]
+      }
+    },
+    {
+      "name": "project_todo_summary",
+      "description": "Get an at-a-glance todo summary: total, status counts, high-priority, unassigned and dated todos. Use this before planning or assigning project todos.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "project_id"
+        ]
+      }
+    },
+    {
+      "name": "project_todo_update",
+      "description": "Patch one project todo. Omitted fields are preserved; pass null for owner, priority, due_at or description to clear that field.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "todo_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "doing",
+              "done"
+            ]
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 240
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "project_id",
+          "todo_id"
+        ]
+      }
+    },
+    {
+      "name": "refine",
+      "description": "Refine (deepen / improve) an existing element's content. Returns a task_id immediately — poll get_task to read the result. Use this when the user wants more detail on a concept they already created.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "element_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target_richness": {
+            "default": 3,
+            "description": "Target richness 1-5 (1=低档, 3=高档, 5=专家). Default 3.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "direction": {
+            "description": "Optional direction, e.g. '补充失败案例' / '加入数学推导'",
+            "type": "string"
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "claude-code",
+              "codex",
+              "hermes",
+              "bailian"
+            ]
+          }
+        },
+        "required": [
+          "element_id"
+        ]
+      }
+    },
+    {
+      "name": "release_improvement",
+      "description": "Release a previously-claimed improvement. Call after you finish or abandon work so other agents can pick it up if needed. agent_id must match the claimer; pass force=true to override (admin / unstick a crashed peer).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "agent_id": {
+            "description": "Same id you used when claiming. Defaults to '<hostname>-mcp' if omitted.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "force": {
+            "description": "Force-release regardless of who currently holds it. Use only when a peer agent has crashed and left the claim dangling.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "reorder_children",
+      "description": "Set the display order of direct children under a parent. `child_ids` is the desired order; any existing children not in the list are appended at the end in their original order.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "parent_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "child_ids": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "parent_id",
+          "child_ids"
+        ]
+      }
+    },
+    {
+      "name": "reparent_element",
+      "description": "Move `child_id` under a new parent (or detach to top-level by passing null).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "child_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "new_parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "child_id",
+          "new_parent_id"
+        ]
+      }
+    },
+    {
+      "name": "search_elements",
+      "description": "Substring + tag search across element titles, subtitles, and tags. Returns ranked matches. Use this to find candidates before deciding to attach / extend / refine.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "default": 15,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "task_complete",
+      "description": "Mark a task done or undone. Equivalent to task_update with `done`, but clearer intent. Pass done=true to mark complete, done=false to un-complete. This is the single most common Hermes action — when 大斌哥 says '我做完了 X' you call this.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "done": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "task_create",
+      "description": "Create a task. If goalId is given it attaches to that goal (contributes to plan progress). If goalId is omitted the task is 'orphan' and won't move any plan needle — orphan is OK for ad-hoc todos, but for plan execution prefer attaching to a goal.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 280
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "ISO YYYY-MM-DD. Use today's date for 'do today'."
+          },
+          "goalId": {
+            "type": "string"
+          },
+          "badge": {
+            "default": "",
+            "description": "Optional tag like '每日' / '可选'",
+            "type": "string",
+            "maxLength": 20
+          },
+          "note": {
+            "default": "",
+            "type": "string",
+            "maxLength": 400
+          }
+        },
+        "required": [
+          "title",
+          "date"
+        ]
+      }
+    },
+    {
+      "name": "task_delete",
+      "description": "Permanently delete a task. Use sparingly — if 大斌哥 just doesn't want to do it today, prefer task_update to move it to a later date.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "task_list",
+      "description": "List tasks with optional filters. The most common Hermes use: task_list({ date: 'today' }) to see what 大斌哥 has on his plate today. Other filters: planId scopes to one plan, goalId to one goal's tasks, done=true|false to filter by completion. Returns each task with title/date/goalId/done.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "date": {
+            "description": "ISO YYYY-MM-DD, or 'today' / 'overdue'. 'overdue' = date<today AND done=false. Omit for all dates.",
+            "type": "string"
+          },
+          "planId": {
+            "type": "string"
+          },
+          "goalId": {
+            "type": "string"
+          },
+          "done": {
+            "description": "true=only done, false=only undone, omit=both",
+            "type": "boolean"
+          },
+          "limit": {
+            "default": 100,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          }
+        }
+      }
+    },
+    {
+      "name": "task_update",
+      "description": "Patch fields on an existing task. Common: change `date` to reschedule, change `goalId` to re-attach to a different goal, change `title` to rename. To mark done/undone, prefer task_complete (clearer).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 280
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "goalId": {
+            "type": "string"
+          },
+          "badge": {
+            "type": "string",
+            "maxLength": 20
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 400
+          },
+          "done": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "update_element",
+      "description": "Patch an existing element. Only the fields you pass are written; omitted fields stay unchanged. Use this AFTER you've generated new content for an element — call get_element first to know what's there.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "topic",
+              "concept",
+              "step",
+              "product-design",
+              "viewpoint",
+              "question",
+              "case",
+              "tool",
+              "ability",
+              "project",
+              "practice",
+              "summary",
+              "relation",
+              "dispute",
+              "exercise",
+              "report",
+              "guide"
+            ]
+          },
+          "subtitle": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "domain": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "tags": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          "content": {
+            "description": "Full sections payload"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "update_improvement",
+      "description": "Update an existing improvement task. Typical transitions: (1) analyze requirement → fill `prd_content` and `tasks`; (2) user reviewed PRD/tasks → status='ready_to_develop'; (3) dev shipped fix → status='ready_to_verify'; (4) verification pass/fail → status='verified' or 'rejected' with verification_notes. ALWAYS list_improvements first to confirm the id.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 160
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "prd_content": {
+            "type": "string",
+            "maxLength": 30000
+          },
+          "tasks": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 220
+                },
+                "detail": {
+                  "type": "string",
+                  "maxLength": 4000
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "todo",
+                    "doing",
+                    "done",
+                    "blocked"
+                  ]
+                },
+                "priority": {
+                  "type": "string",
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "title"
+              ]
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "ready_to_develop",
+              "ready_to_verify",
+              "verified",
+              "rejected"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "verification_notes": {
+            "description": "When transitioning to verified/rejected: explain what you tested and the outcome. Stored in the audit trail.",
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "id"
+        ]
+      }
+    },
+    {
+      "name": "update_section",
+      "description": "Replace a single section inside an element's content. The element's other sections stay untouched. Use this for section-scoped refinement to avoid risk of wiping unrelated sections. Blocks must use Rich section block styles only. Supported block.style values: \"attachments\", \"budget-table\", \"callout\", \"check-list\", \"checklist-grouped\", \"competitor-table\", \"day-schedule\", \"decision-list\", \"diagram\", \"dot-list\", \"example-list\", \"image\", \"image-placeholder\", \"kv-table\", \"lead\", \"markdown\", \"mechanism-flow\", \"mindmap-embed\", \"module-grid\", \"mvp-grid\", \"phase-timeline\", \"prose\", \"quote\", \"warn-cards\". Never use style \"list\"; for bullet recommendations use {\"style\":\"dot-list\",\"items\":[\"item: reason\"]}, or use {\"style\":\"markdown\",\"text\":\"- **item**: reason\"}.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "element_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "section_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "blocks": {
+            "type": "array",
+            "items": {},
+            "description": "New block payload for this section. Blocks must use Rich section block styles only. Supported block.style values: \"attachments\", \"budget-table\", \"callout\", \"check-list\", \"checklist-grouped\", \"competitor-table\", \"day-schedule\", \"decision-list\", \"diagram\", \"dot-list\", \"example-list\", \"image\", \"image-placeholder\", \"kv-table\", \"lead\", \"markdown\", \"mechanism-flow\", \"mindmap-embed\", \"module-grid\", \"mvp-grid\", \"phase-timeline\", \"prose\", \"quote\", \"warn-cards\". Never use style \"list\"; for bullet recommendations use {\"style\":\"dot-list\",\"items\":[\"item: reason\"]}, or use {\"style\":\"markdown\",\"text\":\"- **item**: reason\"}."
+          }
+        },
+        "required": [
+          "element_id",
+          "section_id",
+          "blocks"
+        ]
+      }
+    },
+    {
+      "name": "write_annotation",
+      "description": "Save an annotation (highlight / underline) with optional AI analysis. Returns the new annotation id.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "element_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "default": "highlight",
+            "type": "string",
+            "enum": [
+              "highlight",
+              "underline"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "context_before": {
+            "type": "string"
+          },
+          "context_after": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "analysis": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              },
+              "ai_model": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "body"
+            ]
+          }
+        },
+        "required": [
+          "element_id",
+          "text"
+        ]
+      }
+    },
+    {
+      "name": "write_paths",
+      "description": "Replace ALL paths centered on `center_id`. Use this when regenerating; appendForCenter (via generate_paths) is the additive variant.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "center_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "quick",
+                    "academic",
+                    "practice",
+                    "custom"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "color": {
+                  "type": "string"
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "estimatedTime": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "label",
+                "color",
+                "steps"
+              ]
+            }
+          }
+        },
+        "required": [
+          "center_id",
+          "paths"
+        ]
+      }
+    },
+    {
+      "name": "write_qa",
+      "description": "Save a Q&A pair attached to an element. `anchor` lets the UI render it under a specific section or annotation.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "element_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1
+          },
+          "answer": {
+            "type": "string",
+            "minLength": 1
+          },
+          "anchor": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "section"
+                  },
+                  "sectionId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "sectionId"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "annotation"
+                  },
+                  "annotationId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "annotationId"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "element"
+                  }
+                },
+                "required": [
+                  "type"
+                ]
+              }
+            ]
+          },
+          "ai_model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "element_id",
+          "question",
+          "answer"
+        ]
+      }
+    },
+    {
+      "name": "write_signal",
+      "description": "Append a signal record. Used to track AI op completion, user feedback, reverts, etc. — the Reviewer AI feeds on these.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "op.completed",
+              "op.failed",
+              "user.reverted",
+              "user.repeated_op",
+              "user.frustrated",
+              "user.changed_center",
+              "user.feedback",
+              "user.edited"
+            ]
+          },
+          "manual": {
+            "default": "knowledge",
+            "type": "string"
+          },
+          "element_id": {
+            "type": "string"
+          },
+          "op": {
+            "type": "string"
+          },
+          "adapter": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "type"
+        ]
+      }
+    }
+  ]
+}
