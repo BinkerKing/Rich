@@ -80,7 +80,7 @@ describe("Multica project workbench routes", () => {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ richProjectName: "VTB", goal: "分析", capabilities: [{ key: "pm", description: "PM", proposedName: "沈砚", role: "project-manager" }] }),
     });
     expect(plan.status).toBe(201);
-    await expect(plan.json()).resolves.toMatchObject({ id: "plan-1", richProjectId: "vtb-二代safe" });
+    await expect(plan.json()).resolves.toMatchObject({ planId: "plan-1", plan: { richProjectId: "vtb-二代safe" } });
 
     const apply = await app.request("/api/project-management/vtb-%E4%BA%8C%E4%BB%A3safe/multica/team/apply", {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ planId: "plan-1", confirmed: true }),

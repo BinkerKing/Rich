@@ -85,6 +85,12 @@ Common semantic commands:
   project-health create <projectId> --json '{"title":"...","severity":"high","category":"architecture","status":"open","evidence":"...","repairPlan":"...","repairResult":""}'
   project-health patch <projectId> <recordId> --json '{"status":"verified","repairResult":"..."}'
 
+  multica team plan <projectId> --file team.json
+  multica team apply <projectId> --confirmed --json '{"planId":"..."}'
+  multica work delegate <projectId> --file task.json
+  multica work status <projectId> <taskId>
+  multica project sync <projectId>
+
   corpus list
   corpus get <id>
   corpus upsert <id> --json '{"name":"...","scene":"..."}'
@@ -269,6 +275,20 @@ async function semantic(positional, flags) {
 
   if (domain === "health") return request("GET", "/api/health", flags);
   if (domain === "agent-id") return request("GET", "/api/agent-id", flags);
+
+  if (domain === "multica") {
+    const operation = a;
+    const projectId = id(b, "projectId");
+    const base = `/api/project-management/${projectId}/multica`;
+    if (action === "team" && operation === "plan") return request("POST", `${base}/team/plan`, flags, body ?? {});
+    if (action === "team" && operation === "apply") {
+      if (flags.confirmed !== true) throw new Error("multica team apply requires --confirmed");
+      return request("POST", `${base}/team/apply`, flags, { ...(body ?? {}), confirmed: true });
+    }
+    if (action === "work" && operation === "delegate") return request("POST", `${base}/work/delegate`, flags, body ?? {});
+    if (action === "work" && operation === "status") return request("GET", `${base}/work/${id(positional[4], "taskId")}`, flags);
+    if (action === "project" && operation === "sync") return request("POST", `${base}/sync`, flags, body ?? {});
+  }
 
   if (domain === "elements") {
     if (action === "list") return request("GET", withQuery("/api/elements", flags), flags);

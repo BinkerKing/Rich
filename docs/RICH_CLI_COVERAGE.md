@@ -43,6 +43,8 @@ pnpm rich -- upload /api/<path> --file <path>
 | 后台 | `pnpm rich -- admin engine|ops|signals|manuals` |
 | 语料 | `pnpm corpus ...` 或 `pnpm rich -- corpus ...` |
 | 系统改进 | `pnpm rich -- improvements ...` |
+| Multica 执行团队 | `pnpm rich -- multica team plan|apply <projectId> ...` |
+| Multica 工作委派 | `pnpm rich -- multica work delegate|status <projectId> ...`；`pnpm rich -- multica project sync <projectId>` |
 | 离线计划 | `pnpm --filter @ke/server run plan -- ...` |
 
 ## 选择规则

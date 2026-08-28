@@ -112,7 +112,8 @@ export function multicaProjectWorkbenchRoutes(deps: MulticaProjectWorkbenchRoute
   routes.post("/:projectId/multica/team/plan", async c => {
     const parsed = teamPlanSchema.parse(await json(c));
     const request: MulticaTeamPlanRequest = { ...parsed, richProjectId: project(c) };
-    return c.json(await deps.teams.planTeam(request), 201);
+    const plan = await deps.teams.planTeam(request);
+    return c.json({ planId: plan.id, plan }, 201);
   });
   routes.post("/:projectId/multica/team/apply", async c => {
     const body = z.object({ planId: z.string().min(1), confirmed: z.literal(true) }).parse(await json(c));
