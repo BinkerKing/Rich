@@ -751,6 +751,52 @@ export const api = {
     }
     return r.json();
   },
+  async createDeliverableFolder(projectId: string, relativePath: string): Promise<{ relativePath: string }> {
+    const r = await fetch(`/api/projects/${encodeURIComponent(projectId)}/folder/deliverables/create-folder`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ relativePath }) });
+    if (!r.ok) throw new Error(`createDeliverableFolder ${r.status}`);
+    return r.json();
+  },
+  async archiveDeliverableFolder(projectId: string, relativePath: string): Promise<{ relativePath: string }> {
+    const r = await fetch(`/api/projects/${encodeURIComponent(projectId)}/folder/deliverables/archive`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ relativePath }) });
+    if (!r.ok) throw new Error(`archiveDeliverableFolder ${r.status}`);
+    return r.json();
+  },
+  async renameDeliverableFolder(projectId: string, fromPath: string, toPath: string): Promise<{ relativePath: string }> {
+    const r = await fetch(`/api/projects/${encodeURIComponent(projectId)}/folder/deliverables/rename`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fromPath, toPath }) });
+    if (!r.ok) throw new Error(`renameDeliverableFolder ${r.status}`);
+    return r.json();
+  },
+  async uploadDeliverableFile(projectId: string, relativeDirectory: string, file: File): Promise<{ fileName: string; relativePath: string; size: number }> {
+    const form = new FormData(); form.set("relativeDirectory", relativeDirectory); form.set("file", file, file.name);
+    const r = await fetch(`/api/projects/${encodeURIComponent(projectId)}/folder/deliverables/upload`, { method: "POST", body: form });
+    if (!r.ok) throw new Error(`uploadDeliverableFile ${r.status}`);
+    return r.json();
+  },
+  async listDeliverableFiles(projectId: string, relativePath: string): Promise<Array<{ fileName: string; relativePath: string; size: number; modifiedAt: string }>> {
+    const r = await fetch(`/api/projects/${encodeURIComponent(projectId)}/folder/deliverables/list-files`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ relativePath }) });
+    if (!r.ok) throw new Error(`listDeliverableFiles ${r.status}`);
+    return (await r.json()).files;
+  },
+  async deleteDeliverableFile(projectId: string, relativePath: string): Promise<void> {
+    const r = await fetch(`/api/projects/${encodeURIComponent(projectId)}/folder/deliverables/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ relativePath }) });
+    if (!r.ok) throw new Error(`deleteDeliverableFile ${r.status}`);
+  },
+  async deliverableFileAction(projectId: string, action: "open" | "reveal", relativePath: string): Promise<void> {
+    const r = await fetch(`/api/projects/${encodeURIComponent(projectId)}/folder/deliverables/${action}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ relativePath }) });
+    if (!r.ok) throw new Error(`deliverableFileAction ${r.status}`);
+  },
+  async saveDailyReportFile(projectId: string, report: Record<string, unknown>): Promise<{ relativePath: string }> {
+    const r = await fetch(`/api/projects/${encodeURIComponent(projectId)}/folder/reports/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ report }),
+    });
+    if (!r.ok) {
+      const text = await r.text();
+      throw new Error(`saveDailyReportFile ${r.status}: ${text}`);
+    }
+    return r.json();
+  },
   async moveProjectFolderEntry(projectId: string, itemId: string, targetDirectoryId: string): Promise<void> {
     await projectFolderAction(projectId, "move", { itemId, targetDirectoryId });
   },
@@ -1342,6 +1388,12 @@ export interface MulticaIssueDetailSnapshot {
 }
 
 export type ProjectManagementModuleKey =
+  | "dashboard"
+  | "deliveryPlan"
+  | "requirements"
+  | "risks"
+  | "deliverables"
+  | "reports"
   | "description"
   | "dictionary"
   | "automation"

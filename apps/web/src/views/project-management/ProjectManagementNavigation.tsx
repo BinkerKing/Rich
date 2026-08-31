@@ -10,6 +10,10 @@ export const PROJECT_MANAGEMENT_SECTIONS: Array<{
   label: string;
   icon: string;
 }> = [
+  { id: "dashboard", label: "驾驶舱", icon: "▣" },
+  { id: "deliveryPlan", label: "交付计划", icon: "▤" },
+  { id: "deliverables", label: "交付物", icon: "▣" },
+  { id: "reports", label: "报告", icon: "▤" },
   { id: "description", label: "项目说明", icon: "◆" },
   { id: "dictionary", label: "数据字典", icon: "▦" },
   { id: "automation", label: "数据自动化", icon: "▶" },
@@ -18,7 +22,7 @@ export const PROJECT_MANAGEMENT_SECTIONS: Array<{
   { id: "environments", label: "环境配置", icon: "◎" },
   { id: "deploymentSteps", label: "部署步骤", icon: "☑" },
   { id: "monitoring", label: "监控预警", icon: "⌁" },
-  { id: "codeVersions", label: "代码版本", icon: "⌘" },
+  { id: "codeVersions", label: "版本控制", icon: "⌘" },
   { id: "todos", label: "项目代办", icon: "✓" },
   { id: "folder", label: "文件夹", icon: "▣" },
 ];

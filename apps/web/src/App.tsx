@@ -10,11 +10,11 @@ import { PracticeView } from "./views/PracticeView.js";
 import { ProjectsView } from "./views/ProjectsView.js";
 import { OverlayTaskView } from "./views/OverlayTaskView.js";
 import { ChatOverlay } from "./views/ChatOverlay.js";
+import { BreakReminderView } from "./views/BreakReminderView.js";
 import { ToolboxView } from "./views/ToolboxView.js";
 import { HomeView } from "./views/HomeView.js";
 import { HealthView } from "./views/HealthView.js";
 import { AppLauncherView } from "./views/AppLauncherView.js";
-import { MiniAppsView } from "./views/MiniAppsView.js";
 import { RikingProjectsView } from "./views/RikingProjectsView.js";
 import { Lightbox } from "./components/Lightbox.js";
 import { ErrorBoundary } from "./components/ErrorBoundary.js";
@@ -38,6 +38,7 @@ export function App() {
   if (hashRoute === "overlay") {
     return <OverlayTaskView />;
   }
+  if (hashRoute.startsWith("break-reminder")) return <BreakReminderView />;
   if (hashRoute === "chat") {
     // Tag <html> so global CSS knows this is the transparent chat window.
     document.documentElement.classList.add("is-chat-overlay");
@@ -78,7 +79,7 @@ function MainApp() {
   useEffect(() => connectServerEvents(), []);
 
   useEffect(() => {
-      const validViews = new Set(["home", "apps", "tree", "admin", "news", "mindmap", "greatme", "toolbox", "practice", "health", "projects", "miniapps", "rikingProjects"]);
+      const validViews = new Set(["home", "apps", "tree", "admin", "news", "mindmap", "greatme", "toolbox", "practice", "health", "projects", "rikingProjects"]);
     const applyNavigation = (payload: RichNavigationPayload | null) => {
       if (!payload || Date.now() - payload.ts > 30_000) return;
       if (payload.kind === "view" && validViews.has(payload.view)) {
@@ -221,7 +222,6 @@ function MainApp() {
       {appView === "health" && <ErrorBoundary><HealthView /></ErrorBoundary>}
       {appView === "home" && <ErrorBoundary><HomeView /></ErrorBoundary>}
       {appView === "apps" && <ErrorBoundary><AppLauncherView /></ErrorBoundary>}
-      {appView === "miniapps" && <ErrorBoundary><MiniAppsView /></ErrorBoundary>}
       {appView === "rikingProjects" && <ErrorBoundary><RikingProjectsView /></ErrorBoundary>}
       {appView === "tree" && (rootId ? <TreeView /> : <InputView />)}
       <Lightbox />

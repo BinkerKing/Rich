@@ -17,6 +17,10 @@ import {
   MonitoringSection,
   ProjectDeploymentStepsSection,
   ProjectDescriptionSection,
+  DeliverablesWorkspace,
+  ReportsWorkspace,
+  DeliveryPlanWorkspace,
+  ProjectDashboard,
   ProjectManagementSearchBar,
   PROJECT_MANAGEMENT_SECTIONS,
   ScenariosSection,
@@ -25,8 +29,15 @@ import {
   type ProjectManagementSection,
   type ProjectManagementSearchTarget,
 } from "./project-management/index.js";
+import { shouldScrollFocusedFolderIntoView } from "./project-management/folderFocus.js";
+import { DELIVERABLE_FOCUS_EVENT, storeDeliverableFocus } from "./project-management/deliverables/DeliverablesModel.js";
 
 interface Props { projectId: string }
+type ProjectMenuConfig = {
+  order: ProjectManagementSection[];
+  hidden: ProjectManagementSection[];
+  searchVisible: boolean;
+};
 
 const EMPTY_STATE_SECTIONS = new Set<ProjectManagementSection>([
   "workflow", "scenarios", "environments", "deploymentSteps", "monitoring", "codeVersions",
@@ -40,12 +51,35 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);
   const [searchAnchorLeft, setSearchAnchorLeft] = useState<number | null>(null);
   const [searchTarget, setSearchTarget] = useState<ProjectManagementSearchTarget | null>(null);
+  const [menuConfig, setMenuConfig] = useState<ProjectMenuConfig>(() => loadProjectMenuConfig(projectId));
+  const [menuConfigOpen, setMenuConfigOpen] = useState(false);
+  const [draggedMenuId, setDraggedMenuId] = useState<ProjectManagementSection | null>(null);
   const workspaceHeaderRef = useRef<HTMLElement | null>(null);
   const searchButtonRef = useRef<HTMLButtonElement | null>(null);
+  const menuSettingsButtonRef = useRef<HTMLButtonElement | null>(null);
+  const menuSettingsPanelRef = useRef<HTMLElement | null>(null);
+  const selectSection = useCallback((next: ProjectManagementSection) => {
+    setSection(next);
+    saveProjectManagementWorkspaceSection(projectId, next);
+  }, [projectId]);
 
   useEffect(() => {
     setSection(loadProjectManagementWorkspaceSection(projectId));
+    setMenuConfig(loadProjectMenuConfig(projectId));
+    setMenuConfigOpen(false);
   }, [projectId]);
+
+  useEffect(() => {
+    const openDeliverable = (event: Event) => {
+      const target = (event as CustomEvent<{ linkedActivityKey?: string }>).detail;
+      if (typeof target?.linkedActivityKey === "string") {
+        storeDeliverableFocus(projectId, target.linkedActivityKey);
+        selectSection("deliverables");
+      }
+    };
+    window.addEventListener(DELIVERABLE_FOCUS_EVENT, openDeliverable);
+    return () => window.removeEventListener(DELIVERABLE_FOCUS_EVENT, openDeliverable);
+  }, [projectId, selectSection]);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,6 +88,24 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
       .catch(() => { if (!cancelled) setSummary(null); });
     return () => { cancelled = true; };
   }, [projectId]);
+
+  useEffect(() => {
+    if (!menuConfigOpen) return;
+    const dismiss = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (menuSettingsButtonRef.current?.contains(target) || menuSettingsPanelRef.current?.contains(target)) return;
+      setMenuConfigOpen(false);
+    };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuConfigOpen(false);
+    };
+    window.addEventListener("pointerdown", dismiss);
+    window.addEventListener("keydown", dismissOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", dismiss);
+      window.removeEventListener("keydown", dismissOnEscape);
+    };
+  }, [menuConfigOpen]);
 
   if (!project) {
     return (
@@ -67,17 +119,38 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   }
 
   const c = (project.content ?? {}) as ProjectContent;
-  const statusLabel = c.status === "archived" ? "已归档"
-                    : c.status === "paused" ? "暂停"
-                    : "进行中";
+  const statusLabel = ({ active: "进行中", paused: "已暂停", archived: "已归档" } as const)[c.status ?? "active"];
+
   const toggleWindowMaximize = (event: MouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement | null;
     if (target?.closest?.("button, a, input, textarea, select, [role='button'], [role='tab'], [contenteditable='true']")) return;
-    window.location.href = "rich://window/toggle-maximize";
+    (window as Window & { richWindow?: { toggleMaximize: () => void } }).richWindow?.toggleMaximize();
   };
-  const selectSection = (next: ProjectManagementSection) => {
-    setSection(next);
-    saveProjectManagementWorkspaceSection(projectId, next);
+  const updateMenuConfig = (next: ProjectMenuConfig) => {
+    const normalized = normalizeProjectMenuConfig(next);
+    setMenuConfig(normalized);
+    saveProjectMenuConfig(projectId, normalized);
+  };
+  const visibleSections = menuConfig.order
+    .filter(sectionId => !menuConfig.hidden.includes(sectionId))
+    .map(sectionId => PROJECT_MANAGEMENT_SECTIONS.find(item => item.id === sectionId))
+    .filter((item): item is (typeof PROJECT_MANAGEMENT_SECTIONS)[number] => Boolean(item));
+  const toggleSectionVisible = (sectionId: ProjectManagementSection) => {
+    const hidden = menuConfig.hidden.includes(sectionId)
+      ? menuConfig.hidden.filter(id => id !== sectionId)
+      : [...menuConfig.hidden, sectionId];
+    updateMenuConfig({ ...menuConfig, hidden });
+    if (section === sectionId && hidden.includes(sectionId)) {
+      const fallback = menuConfig.order.find(id => !hidden.includes(id));
+      if (fallback) selectSection(fallback);
+    }
+  };
+  const moveMenu = (targetId: ProjectManagementSection) => {
+    if (!draggedMenuId || draggedMenuId === targetId) return;
+    const order = menuConfig.order.filter(id => id !== draggedMenuId);
+    order.splice(order.indexOf(targetId), 0, draggedMenuId);
+    updateMenuConfig({ ...menuConfig, order });
+    setDraggedMenuId(null);
   };
   const openDictionaryMapping = (tableId: string, systemId?: string) => {
     saveDictionaryMappingTarget(project.id, tableId, systemId);
@@ -98,10 +171,15 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
     });
     setSearchFocusSignal(value => value + 1);
   };
-  const isUnconfigured = (sectionId: ProjectManagementSection) =>
-    summary !== null
-    && EMPTY_STATE_SECTIONS.has(sectionId)
-    && (summary.modules.find(module => module.key === sectionId)?.count ?? 0) === 0;
+  const isUnconfigured = (sectionId: ProjectManagementSection) => {
+    if (!summary) return false;
+    if (sectionId === "dictionary") {
+      const { systems, tables, fields } = summary.dictionary;
+      return systems === 0 && tables === 0 && fields === 0;
+    }
+    return EMPTY_STATE_SECTIONS.has(sectionId)
+      && (summary.modules.find(module => module.key === sectionId)?.count ?? 0) === 0;
+  };
 
   return (
     <div className="prj-ws">
@@ -112,7 +190,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
           {c.owner && <span className="prj-ws__owner">· {c.owner}</span>}
         </div>
         <nav className="prj-ws__nav" role="tablist" aria-label="项目管理菜单">
-          {PROJECT_MANAGEMENT_SECTIONS.map(s => (
+          {visibleSections.map(s => (
             <button key={s.id} type="button" role="tab"
               aria-label={s.label}
               title={s.label}
@@ -124,7 +202,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
               <span className="prj-ws__nav-label">{s.label}</span>
             </button>
           ))}
-          <button
+          {menuConfig.searchVisible && <button
             ref={searchButtonRef}
             type="button"
             className={`prj-ws__nav-btn prj-ws__nav-btn--search${searchVisible ? " is-active" : ""}`}
@@ -134,8 +212,52 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
             onClick={toggleSearch}>
             <span className="prj-ws__nav-icon" aria-hidden="true">⌕</span>
             <span className="prj-ws__nav-label">全局搜索</span>
-          </button>
+          </button>}
         </nav>
+        <button
+          ref={menuSettingsButtonRef}
+          type="button"
+          className={`prj-ws__menu-settings${menuConfigOpen ? " is-open" : ""}`}
+          aria-expanded={menuConfigOpen}
+          aria-label="管理项目菜单"
+          title="管理项目菜单"
+          onClick={() => setMenuConfigOpen(open => !open)}
+        >
+          ☷
+        </button>
+        {menuConfigOpen && (
+          <section ref={menuSettingsPanelRef} className="prj-ws__menu-panel" aria-label="项目菜单设置">
+            <header><strong>项目菜单</strong><span>拖拽排序 · 勾选显示</span></header>
+            <div className="prj-ws__menu-panel-list">
+              {menuConfig.order.map(sectionId => {
+                const item = PROJECT_MANAGEMENT_SECTIONS.find(sectionItem => sectionItem.id === sectionId);
+                if (!item) return null;
+                const visible = !menuConfig.hidden.includes(sectionId);
+                return (
+                  <label
+                    key={sectionId}
+                    className={draggedMenuId === sectionId ? "is-dragging" : ""}
+                    draggable
+                    onDragStart={() => setDraggedMenuId(sectionId)}
+                    onDragOver={event => event.preventDefault()}
+                    onDrop={() => moveMenu(sectionId)}
+                    onDragEnd={() => setDraggedMenuId(null)}
+                  >
+                    <span className="prj-ws__menu-drag" aria-hidden="true">⠿</span>
+                    <input type="checkbox" checked={visible} onChange={() => toggleSectionVisible(sectionId)} />
+                    <span>{item.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <label className="prj-ws__menu-search-toggle">
+              <input type="checkbox" checked={menuConfig.searchVisible} onChange={() => updateMenuConfig({ ...menuConfig, searchVisible: !menuConfig.searchVisible })} />
+              <span>全局搜索</span>
+              <em>固定在最后</em>
+            </label>
+            <button type="button" onClick={() => updateMenuConfig(defaultProjectMenuConfig())}>恢复默认</button>
+          </section>
+        )}
         <div className={`prj-ws__head-search${searchVisible ? " is-open" : ""}`} style={searchAnchorLeft === null ? undefined : { left: `${searchAnchorLeft}px` }}>
           <ProjectManagementSearchBar
             projectId={project.id}
@@ -147,6 +269,10 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
 
       <div className="prj-ws__main">
         <div className="prj-ws__body">
+          {section === "dashboard" && <ProjectDashboard projectId={project.id} deliverablesRoot={c.defaultDeliverablesDirectory} onOpenPlan={() => selectSection("deliveryPlan")} />}
+          {section === "deliveryPlan" && <DeliveryPlanWorkspace projectId={project.id} />}
+          {section === "deliverables" && <DeliverablesWorkspace projectId={project.id} deliverablesRoot={c.defaultDeliverablesDirectory} />}
+          {section === "reports" && <ReportsWorkspace projectId={project.id} />}
           {section === "description" && <ProjectDescriptionSection projectId={project.id} />}
           {section === "dictionary" && <DictionarySection project={project} summary={summary} searchTarget={searchTarget?.section === "dictionary" ? searchTarget : null} />}
           {section === "automation" && <AutomationSection projectId={project.id} onOpenMapping={openDictionaryMapping} />}
@@ -168,14 +294,56 @@ function projectManagementWorkspaceSectionKey(projectId: string) {
   return `rich-project-management-section:${projectId}`;
 }
 
+function projectMenuConfigKey(projectId: string) {
+  return `rich-project-management-menu:${projectId}`;
+}
+
+function defaultProjectMenuConfig(): ProjectMenuConfig {
+  return { order: PROJECT_MANAGEMENT_SECTIONS.map(section => section.id), hidden: [], searchVisible: true };
+}
+
+function normalizeProjectMenuConfig(value: ProjectMenuConfig): ProjectMenuConfig {
+  const validIds = new Set(PROJECT_MANAGEMENT_SECTIONS.map(section => section.id));
+  const ordered = value.order.filter((id, index, items) => validIds.has(id) && items.indexOf(id) === index);
+  for (const section of PROJECT_MANAGEMENT_SECTIONS) if (!ordered.includes(section.id)) ordered.push(section.id);
+  return {
+    order: ordered,
+    hidden: value.hidden.filter((id, index, items) => validIds.has(id) && items.indexOf(id) === index),
+    searchVisible: value.searchVisible !== false,
+  };
+}
+
+function loadProjectMenuConfig(projectId: string): ProjectMenuConfig {
+  if (typeof window === "undefined") return defaultProjectMenuConfig();
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(projectMenuConfigKey(projectId)) ?? "null") as Partial<ProjectMenuConfig> | null;
+    if (!parsed || !Array.isArray(parsed.order) || !Array.isArray(parsed.hidden)) return defaultProjectMenuConfig();
+    return normalizeProjectMenuConfig({
+      order: parsed.order as ProjectManagementSection[],
+      hidden: parsed.hidden as ProjectManagementSection[],
+      searchVisible: parsed.searchVisible !== false,
+    });
+  } catch {
+    return defaultProjectMenuConfig();
+  }
+}
+
+function saveProjectMenuConfig(projectId: string, value: ProjectMenuConfig) {
+  try {
+    window.localStorage.setItem(projectMenuConfigKey(projectId), JSON.stringify(value));
+  } catch {
+    // 菜单配置只影响本机显示，不应阻塞项目操作。
+  }
+}
+
 function loadProjectManagementWorkspaceSection(projectId: string): ProjectManagementSection {
-  if (typeof window === "undefined") return "dictionary";
+  if (typeof window === "undefined") return "dashboard";
   try {
     const saved = window.localStorage.getItem(projectManagementWorkspaceSectionKey(projectId));
     const valid = new Set(PROJECT_MANAGEMENT_SECTIONS.map(section => section.id));
-    return saved && valid.has(saved as ProjectManagementSection) ? saved as ProjectManagementSection : "dictionary";
+    return saved && valid.has(saved as ProjectManagementSection) ? saved as ProjectManagementSection : "dashboard";
   } catch {
-    return "dictionary";
+    return "dashboard";
   }
 }
 
@@ -635,6 +803,8 @@ function FolderSection({ project, searchTarget }: { project: Element; searchTarg
   const [bindDraft, setBindDraft] = useState(folder);
   const [svnDraft, setSvnDraft] = useState(c.svnPath ?? "");
   const [githubDraft, setGithubDraft] = useState(c.githubPath ?? "");
+  const [deliverablesDirectoryDraft, setDeliverablesDirectoryDraft] = useState(c.defaultDeliverablesDirectory ?? "07-交付");
+  const [versionControlDirectoryDraft, setVersionControlDirectoryDraft] = useState(c.defaultVersionControlDirectory ?? "05-版本");
 
   const [scan, setScan] = useState<ProjectFolderScanResult | null>(() => savedFolderScan(c, folder));
   const [scanBusy, setScanBusy] = useState(false);
@@ -642,6 +812,7 @@ function FolderSection({ project, searchTarget }: { project: Element; searchTarg
   const [folderEntries, setFolderEntries] = useState<ProjectModuleItem[]>([]);
   const [selectedFolderPath, setSelectedFolderPath] = useState<string | null>(null);
   const [focusedFolderPath, setFocusedFolderPath] = useState<string | null>(null);
+  const [autoScrollFolderPath, setAutoScrollFolderPath] = useState<string | null>(null);
   const [draggingFolderPath, setDraggingFolderPath] = useState<string | null>(null);
   const [dropTargetPath, setDropTargetPath] = useState<string | null>(null);
   const [folderMenu, setFolderMenu] = useState<{ item: ProjectModuleItem; x: number; y: number } | null>(null);
@@ -671,6 +842,8 @@ function FolderSection({ project, searchTarget }: { project: Element; searchTarg
     setBindDraft(folder);
     setSvnDraft(c.svnPath ?? "");
     setGithubDraft(c.githubPath ?? "");
+    setDeliverablesDirectoryDraft(c.defaultDeliverablesDirectory ?? "07-交付");
+    setVersionControlDirectoryDraft(c.defaultVersionControlDirectory ?? "05-版本");
     setScan(savedFolderScan(c, folder));
     setScanErr(null);
   }, [project.id, folder, c.lastFolderScan]);
@@ -764,6 +937,7 @@ function FolderSection({ project, searchTarget }: { project: Element; searchTarg
     if (!path) return;
     setSelectedFolderPath(path);
     setFocusedFolderPath(path);
+    setAutoScrollFolderPath(path);
   }, [folderEntries, searchTarget]);
 
   function beginFolderAction(action: string, path: string): boolean {
@@ -789,6 +963,8 @@ function FolderSection({ project, searchTarget }: { project: Element; searchTarg
         localFolder: next || undefined,
         svnPath: svnDraft.trim() || undefined,
         githubPath: githubDraft.trim() || undefined,
+        defaultDeliverablesDirectory: deliverablesDirectoryDraft.trim() || "07-交付",
+        defaultVersionControlDirectory: versionControlDirectoryDraft.trim() || "05-版本",
       };
       if (next !== folder) delete nextContent.lastFolderScan;
       await api.patchElement(project.id, {
@@ -951,7 +1127,7 @@ function FolderSection({ project, searchTarget }: { project: Element; searchTarg
       {/* —— 2. 项目目录扫描 —— */}
       <section className="prj-folder-section__scan">
         <header className="prj-folder-section__row-head">
-          <button className="prj-folder-section__root-select" onClick={() => { setSelectedFolderPath(""); setFocusedFolderPath(""); setRecommendedStructureOpen(false); setImportantOpen(false); }}>
+          <button className="prj-folder-section__root-select" onClick={() => { setSelectedFolderPath(""); setFocusedFolderPath(""); setAutoScrollFolderPath(null); setRecommendedStructureOpen(false); setImportantOpen(false); }}>
             📁 项目目录：<code>{folder || "未绑定"}</code>
           </button>
           <div className="prj-folder-section__actions">
@@ -979,9 +1155,9 @@ function FolderSection({ project, searchTarget }: { project: Element; searchTarg
             </div>
             <div className="prj-folder-section__tree" style={{ fontSize: `${12 * folderTreeZoom}px` }}>
               <FolderTree node={scan.root} depth={0} entriesByPath={folderEntriesByPath}
-                focusPath={focusedFolderPath} draggingPath={draggingFolderPath} dropTargetPath={dropTargetPath} pendingAction={pendingFolderAction}
+                focusPath={focusedFolderPath} autoScrollPath={autoScrollFolderPath} draggingPath={draggingFolderPath} dropTargetPath={dropTargetPath} pendingAction={pendingFolderAction}
                 openPaths={openFolderPaths} onToggleOpen={toggleFolderOpen} onEnsureOpen={ensureFolderOpen}
-                onSelect={path => { const selectedPath = path === "." ? "" : path; setSelectedFolderPath(selectedPath); setFocusedFolderPath(selectedPath); setRecommendedStructureOpen(false); setImportantOpen(false); }} onMove={moveFolderEntry}
+                onSelect={path => { const selectedPath = path === "." ? "" : path; setSelectedFolderPath(selectedPath); setFocusedFolderPath(selectedPath); setAutoScrollFolderPath(null); setRecommendedStructureOpen(false); setImportantOpen(false); }} onMove={moveFolderEntry}
                 onDragStart={setDraggingFolderPath} onDragTarget={setDropTargetPath} onDragEnd={() => { setDraggingFolderPath(null); setDropTargetPath(null); }}
                 onContextMenu={(item, x, y) => setFolderMenu({ item, x, y })} />
             </div>
@@ -1055,8 +1231,8 @@ function FolderSection({ project, searchTarget }: { project: Element; searchTarg
 
       {/* —— 4. 选中项信息 / AI 整理 —— */}
       {!recommendedStructureOpen && !importantOpen && <section className="prj-folder-section__ai">
-        {selectedFolderPath === "" || !folder ? <FolderPathDetails bindDraft={bindDraft} svnDraft={svnDraft} githubDraft={githubDraft}
-          onChangeLocal={setBindDraft} onChangeSvn={setSvnDraft} onChangeGithub={setGithubDraft} onSave={() => void saveBind()} /> : selectedFolderEntry ? <FolderEntryDetails item={selectedFolderEntry} onSaveRemark={saveFolderRemark}
+        {selectedFolderPath === "" || !folder ? <FolderPathDetails bindDraft={bindDraft} svnDraft={svnDraft} githubDraft={githubDraft} deliverablesDirectoryDraft={deliverablesDirectoryDraft} versionControlDirectoryDraft={versionControlDirectoryDraft}
+          onChangeLocal={setBindDraft} onChangeSvn={setSvnDraft} onChangeGithub={setGithubDraft} onChangeDeliverablesDirectory={setDeliverablesDirectoryDraft} onChangeVersionControlDirectory={setVersionControlDirectoryDraft} onSave={() => void saveBind()} /> : selectedFolderEntry ? <FolderEntryDetails item={selectedFolderEntry} onSaveRemark={saveFolderRemark}
           onSaveAiNote={saveFolderAiNote} /> : <>
           <h3>🤖 AI 整理 <span className="prj-folder-section__hint">下一批接入</span></h3>
           <p>单击文件或目录可查看信息、填写备注与 AI 注释；拖拽文件到目录可移动真实文件。</p>
@@ -1076,12 +1252,13 @@ function FolderSection({ project, searchTarget }: { project: Element; searchTarg
 }
 
 function FolderTree({
-  node, depth, entriesByPath, focusPath, draggingPath, dropTargetPath, pendingAction, openPaths, onToggleOpen, onEnsureOpen, onSelect, onMove, onDragStart, onDragTarget, onDragEnd, onContextMenu,
+  node, depth, entriesByPath, focusPath, autoScrollPath, draggingPath, dropTargetPath, pendingAction, openPaths, onToggleOpen, onEnsureOpen, onSelect, onMove, onDragStart, onDragTarget, onDragEnd, onContextMenu,
 }: {
   node: ProjectFolderNode;
   depth: number;
   entriesByPath: Map<string, ProjectModuleItem>;
   focusPath: string | null;
+  autoScrollPath: string | null;
   draggingPath: string | null;
   dropTargetPath: string | null;
   pendingAction: { action: string; path: string } | null;
@@ -1105,8 +1282,8 @@ function FolderTree({
     if (focusPath === null) return;
     const containsFocus = node.path === "" || focusPath === node.path || focusPath.startsWith(`${node.path}/`);
     if (isDir && containsFocus) onEnsureOpen(node.path);
-    if (focusPath === node.path) requestAnimationFrame(() => rowRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }));
-  }, [focusPath, isDir, node.path, onEnsureOpen]);
+    if (shouldScrollFocusedFolderIntoView(focusPath, node.path, autoScrollPath)) requestAnimationFrame(() => rowRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }));
+  }, [autoScrollPath, focusPath, isDir, node.path, onEnsureOpen]);
   if (entry?.content.present === false) return null;
   const isPending = pendingAction?.path === node.path;
   return (
@@ -1143,7 +1320,7 @@ function FolderTree({
       </div>
       {isDir && open && node.children && (
         <div>
-          {node.children.map(c => <FolderTree key={c.path} node={c} depth={depth + 1} entriesByPath={entriesByPath} focusPath={focusPath} draggingPath={draggingPath} dropTargetPath={dropTargetPath} pendingAction={pendingAction} openPaths={openPaths} onToggleOpen={onToggleOpen} onEnsureOpen={onEnsureOpen} onSelect={onSelect} onMove={onMove} onDragStart={onDragStart} onDragTarget={onDragTarget} onDragEnd={onDragEnd} onContextMenu={onContextMenu} />)}
+          {node.children.map(c => <FolderTree key={c.path} node={c} depth={depth + 1} entriesByPath={entriesByPath} focusPath={focusPath} autoScrollPath={autoScrollPath} draggingPath={draggingPath} dropTargetPath={dropTargetPath} pendingAction={pendingAction} openPaths={openPaths} onToggleOpen={onToggleOpen} onEnsureOpen={onEnsureOpen} onSelect={onSelect} onMove={onMove} onDragStart={onDragStart} onDragTarget={onDragTarget} onDragEnd={onDragEnd} onContextMenu={onContextMenu} />)}
         </div>
       )}
     </div>
@@ -1252,23 +1429,29 @@ function FolderEntryDetails({
 }
 
 function FolderPathDetails({
-  bindDraft, svnDraft, githubDraft, onChangeLocal, onChangeSvn, onChangeGithub, onSave,
+  bindDraft, svnDraft, githubDraft, deliverablesDirectoryDraft, versionControlDirectoryDraft, onChangeLocal, onChangeSvn, onChangeGithub, onChangeDeliverablesDirectory, onChangeVersionControlDirectory, onSave,
 }: {
   bindDraft: string;
   svnDraft: string;
   githubDraft: string;
+  deliverablesDirectoryDraft: string;
+  versionControlDirectoryDraft: string;
   onChangeLocal: (value: string) => void;
   onChangeSvn: (value: string) => void;
   onChangeGithub: (value: string) => void;
+  onChangeDeliverablesDirectory: (value: string) => void;
+  onChangeVersionControlDirectory: (value: string) => void;
   onSave: () => void;
 }) {
   return (
     <div className="prj-folder-entry-details prj-folder-path-details">
       <header><h3>📁 项目路径</h3><button className="prj-btn-primary" onClick={onSave}>保存路径</button></header>
       <label>项目目录<input autoFocus value={bindDraft} placeholder="/Users/你/Documents/项目目录" onChange={e => onChangeLocal(e.target.value)} /></label>
+      <label>默认交付物目录<input value={deliverablesDirectoryDraft} placeholder="07-交付" onChange={e => onChangeDeliverablesDirectory(e.target.value)} /></label>
+      <label>默认版本控制目录<input value={versionControlDirectoryDraft} placeholder="05-版本" onChange={e => onChangeVersionControlDirectory(e.target.value)} /></label>
       <label>SVN 目录<input value={svnDraft} placeholder="https://svn.example.com/project" onChange={e => onChangeSvn(e.target.value)} /></label>
       <label>GitHub 目录<input value={githubDraft} placeholder="https://github.com/org/repo" onChange={e => onChangeGithub(e.target.value)} /></label>
-      <p>保存后点击左侧“遍历目录”，即可按新的本地目录读取并入库。</p>
+      <p>目录填写相对项目目录的路径。新建交付物会使用默认交付物目录。</p>
     </div>
   );
 }

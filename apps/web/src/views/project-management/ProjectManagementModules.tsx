@@ -1,4 +1,17 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Underline from "@tiptap/extension-underline";
+import { Color } from "@tiptap/extension-color";
+import { FontFamily } from "@tiptap/extension-font-family";
+import Highlight from "@tiptap/extension-highlight";
+import Image from "@tiptap/extension-image";
+import { Table } from "@tiptap/extension-table";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
+import TableRow from "@tiptap/extension-table-row";
+import TextAlign from "@tiptap/extension-text-align";
+import { TextStyle } from "@tiptap/extension-text-style";
 import type {
   DictionaryCaliberExpression,
   DictionaryCaliberJoin,
@@ -288,7 +301,7 @@ export function CodeVersionsEditor({
     onChange({ ...draft, versions: versions.map((version, i) => i === index ? { ...version, ...patch } : version) });
   };
   return (
-    <ProjectModuleEditorShell title="编辑代码版本" busy={busy} onSave={onSave} onCancel={onCancel}>
+    <ProjectModuleEditorShell title="编辑版本控制" busy={busy} onSave={onSave} onCancel={onCancel}>
       <ProjectTextField label="应用名称" value={textValue(draft, "name") || textValue(draft, "title")} onChange={value => onChange({ ...draft, name: value, title: value })} />
       <ProjectField label="应用说明">
         <ProjectRichTextEditor projectId={`${projectId}-code-app`} value={textValue(draft, "description")} onChange={description => onChange({ ...draft, description })} />
@@ -306,6 +319,7 @@ export function CodeVersionsEditor({
               <ProjectTextField label="实际发布时间" value={textValue(version, "actualReleaseAt")} onChange={value => updateVersion(index, { actualReleaseAt: value })} />
               <ProjectTextField label="计划上线时间" value={textValue(version, "plannedOnlineAt")} onChange={value => updateVersion(index, { plannedOnlineAt: value })} />
               <ProjectTextField label="实际上线时间" value={textValue(version, "actualOnlineAt")} onChange={value => updateVersion(index, { actualOnlineAt: value })} />
+              <ProjectTextField label="关联文件夹" value={textValue(version, "folderPath")} onChange={value => updateVersion(index, { folderPath: value })} />
             </div>
             <ProjectField label="升级路线">
               <textarea value={textValue(version, "upgradePath")} onChange={event => updateVersion(index, { upgradePath: event.target.value })} />
@@ -329,20 +343,25 @@ export function CodeVersionsEditor({
 
 
 export function CodeVersionCard({ version, index }: { version: Record<string, unknown>; index: number }) {
+  const [expanded, setExpanded] = useState(false);
   return (
-    <section className="prj-pm-code-version">
-      <header>
+    <section className={`prj-pm-code-version${expanded ? " is-expanded" : ""}`}>
+      <button type="button" className="prj-pm-code-version__toggle" onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>
         <span>{String(index + 1).padStart(2, "0")}</span>
         <strong>{textValue(version, "versionNo") || `版本 ${index + 1}`}</strong>
-      </header>
-      <div className="prj-pm-code-version__dates">
-        <VersionDate label="计划发布时间" value={textValue(version, "plannedReleaseAt")} />
-        <VersionDate label="实际发布时间" value={textValue(version, "actualReleaseAt")} />
-        <VersionDate label="计划上线时间" value={textValue(version, "plannedOnlineAt")} />
-        <VersionDate label="实际上线时间" value={textValue(version, "actualOnlineAt")} />
-      </div>
-      <VersionTextBlock title="升级路线" value={textValue(version, "upgradePath")} />
-      <VersionTextBlock title="升级内容" value={textValue(version, "upgradeContent")} important />
+        <i aria-hidden="true">{expanded ? "⌃" : "⌄"}</i>
+      </button>
+      {expanded && <div className="prj-pm-code-version__body">
+        <div className="prj-pm-code-version__dates">
+          <VersionDate label="计划发布时间" value={textValue(version, "plannedReleaseAt")} />
+          <VersionDate label="实际发布时间" value={textValue(version, "actualReleaseAt")} />
+          <VersionDate label="计划上线时间" value={textValue(version, "plannedOnlineAt")} />
+          <VersionDate label="实际上线时间" value={textValue(version, "actualOnlineAt")} />
+        </div>
+        <VersionTextBlock title="关联文件夹" value={textValue(version, "folderPath")} />
+        <VersionTextBlock title="升级路线" value={textValue(version, "upgradePath")} />
+        <VersionTextBlock title="升级内容" value={textValue(version, "upgradeContent")} important />
+      </div>}
     </section>
   );
 }
@@ -490,6 +509,59 @@ export function ProjectTextField({ label, value, onChange }: { label: string; va
   );
 }
 
+type RichToolbarIconName =
+  | "undo" | "redo" | "paragraph" | "heading-one" | "heading-two" | "bold" | "italic" | "underline" | "strike"
+  | "text-color" | "highlight" | "align-left" | "align-center" | "align-right" | "bullet-list" | "ordered-list"
+  | "quote" | "code" | "link" | "image" | "table" | "clear" | "more";
+
+const RICH_TEXT_COLORS = ["#1f2937", "#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899", "#ffffff"];
+const RICH_HIGHLIGHT_COLORS = ["#fff3b0", "#fee2e2", "#ffedd5", "#fef3c7", "#dcfce7", "#cffafe", "#dbeafe", "#ede9fe", "#fce7f3", "#e5e7eb"];
+
+function RichToolbarIcon({ name }: { name: RichToolbarIconName }) {
+  const common = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+  switch (name) {
+    case "undo": return <svg {...common}><path d="M9 7 4 12l5 5"/><path d="M20 18a8 8 0 0 0-8-8H4"/></svg>;
+    case "redo": return <svg {...common}><path d="m15 7 5 5-5 5"/><path d="M4 18a8 8 0 0 1 8-8h8"/></svg>;
+    case "paragraph": return <svg {...common}><path d="M5 5h14M5 10h10M5 15h14M5 20h10"/></svg>;
+    case "heading-one": return <svg {...common}><path d="M5 5v14M13 5v14M5 12h8M18 8l2-2v13"/></svg>;
+    case "heading-two": return <svg {...common}><path d="M5 5v14M13 5v14M5 12h8M18 8a2 2 0 1 1 4 0c0 3-4 4-4 7h4"/></svg>;
+    case "bold": return <svg {...common}><path d="M7 5h6a4 4 0 0 1 0 8H7zM7 13h7a4 4 0 0 1 0 8H7z"/></svg>;
+    case "italic": return <svg {...common}><path d="M15 4 9 20M7 4h10M7 20h10"/></svg>;
+    case "underline": return <svg {...common}><path d="M7 4v6a5 5 0 0 0 10 0V4M5 20h14"/></svg>;
+    case "strike": return <svg {...common}><path d="M5 12h14M8 6a5 3 0 0 1 8 1M16 18a5 3 0 0 1-8-1"/></svg>;
+    case "text-color": return <svg {...common}><path d="m7 17 5-12 5 12M9 13h6M5 21h14"/></svg>;
+    case "highlight": return <svg {...common}><path d="m14 4 6 6M5 19l8-8 4 4-8 8H5zM4 22h16"/></svg>;
+    case "align-left": return <svg {...common}><path d="M4 6h16M4 10h11M4 14h16M4 18h11"/></svg>;
+    case "align-center": return <svg {...common}><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></svg>;
+    case "align-right": return <svg {...common}><path d="M4 6h16M9 10h11M4 14h16M9 18h11"/></svg>;
+    case "bullet-list": return <svg {...common}><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>;
+    case "ordered-list": return <svg {...common}><path d="M10 6h10M10 12h10M10 18h10M4 5h1v2M4 11h1v2M4 17h2l-2 2h2"/></svg>;
+    case "quote": return <svg {...common}><path d="M8 10H5a3 3 0 0 0 3 8v-4H5v-4h3zM19 10h-3a3 3 0 0 0 3 8v-4h-3v-4h3z"/></svg>;
+    case "code": return <svg {...common}><path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/></svg>;
+    case "link": return <svg {...common}><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/></svg>;
+    case "image": return <svg {...common}><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/></svg>;
+    case "table": return <svg {...common}><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></svg>;
+    case "clear": return <svg {...common}><path d="m5 5 14 14M19 5 5 19"/><path d="M8 5h8M8 19h8"/></svg>;
+    case "more": return <svg {...common}><circle cx="5" cy="12" r="1.25" fill="currentColor"/><circle cx="12" cy="12" r="1.25" fill="currentColor"/><circle cx="19" cy="12" r="1.25" fill="currentColor"/></svg>;
+  }
+}
+
+function RichToolbarButton({ icon, label, onClick, active = false }: { icon: RichToolbarIconName; label: string; onClick: () => void; active?: boolean }) {
+  return <button type="button" className={active ? "is-active" : ""} title={label} aria-label={label} aria-pressed={active} onMouseDown={event => event.preventDefault()} onClick={onClick}><RichToolbarIcon name={icon}/></button>;
+}
+
+const TiptapTextStyle = TextStyle.extend({
+  addAttributes() {
+    return {
+      fontSize: {
+        default: null,
+        parseHTML: element => element.style.fontSize || null,
+        renderHTML: attributes => attributes.fontSize ? { style: `font-size: ${attributes.fontSize}` } : {},
+      },
+    };
+  },
+});
+
 export function ProjectRichTextEditor({
   value,
   projectId,
@@ -499,44 +571,102 @@ export function ProjectRichTextEditor({
   projectId: string;
   onChange: (value: string) => void;
 }) {
-  const ref = useRef<HTMLDivElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const onChangeRef = useRef(onChange);
+  const latestHtmlRef = useRef(value);
+  const [colorMenu, setColorMenu] = useState<"text" | "highlight" | null>(null);
+  const [moreMenu, setMoreMenu] = useState(false);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  const editor = useEditor({
+    extensions: [StarterKit.configure({ heading: { levels: [1, 2, 3] } }), Underline, TiptapTextStyle, Color, FontFamily, Highlight.configure({ multicolor: true }), TextAlign.configure({ types: ["heading", "paragraph"] }), Image.configure({ allowBase64: false }), Table.configure({ resizable: true }), TableRow, TableHeader, TableCell],
+    content: value || "",
+    editorProps: { attributes: { class: "prj-pm-rich-surface workflow-rich-content" } },
+    onUpdate: ({ editor: nextEditor }) => { latestHtmlRef.current = nextEditor.getHTML(); },
+    onBlur: ({ editor: nextEditor }) => { latestHtmlRef.current = nextEditor.getHTML(); onChangeRef.current(latestHtmlRef.current); },
+  });
 
   useEffect(() => {
-    if (ref.current && document.activeElement !== ref.current && ref.current.innerHTML !== value) {
-      ref.current.innerHTML = value || "";
-    }
-  }, [value]);
+    if (editor && !editor.isFocused && value !== editor.getHTML()) editor.commands.setContent(value || "", { emitUpdate: false });
+  }, [editor, value]);
 
-  const emit = () => onChange(ref.current?.innerHTML ?? "");
-  const command = (name: string, commandValue?: string) => {
-    ref.current?.focus();
-    document.execCommand(name, false, commandValue);
-    emit();
+  const setColor = (kind: "text" | "highlight", color: string) => {
+    const chain = editor?.chain().focus();
+    if (kind === "text") chain?.setColor(color).run();
+    else chain?.toggleHighlight({ color }).run();
+    setColorMenu(null);
+  };
+  const insertLink = () => {
+    const href = window.prompt("请输入链接地址");
+    if (href?.trim()) editor?.chain().focus().extendMarkRange("link").setLink({ href: href.trim() }).run();
   };
   const uploadAndInsert = async (files: File[]) => {
     if (files.length === 0) return;
     const uploaded = await api.uploadAttachments(`pm-${projectId}`, files);
-    ref.current?.focus();
-    for (const file of uploaded) {
-      document.execCommand("insertHTML", false, `<figure class="pm-rich-image"><img src="${file.src}" alt="${escapeAttribute(file.name)}"></figure>`);
-    }
-    emit();
+    for (const file of uploaded) editor?.chain().focus().setImage({ src: file.src, alt: file.name }).run();
   };
+
+  if (!editor) return null;
 
   return (
     <div className="prj-pm-rich-editor">
       <div className="prj-pm-rich-toolbar">
-        <button type="button" onClick={() => command("formatBlock", "p")}>正文</button>
-        <button type="button" onClick={() => command("formatBlock", "h3")}>标题</button>
-        <button type="button" onClick={() => command("bold")}>B</button>
-        <button type="button" onClick={() => command("foreColor", "#f7c76b")}>重点</button>
-        <button type="button" onClick={() => command("hiliteColor", "rgba(143,254,247,.18)")}>底色</button>
-        <button type="button" onClick={() => command("insertUnorderedList")}>列表</button>
-        <button type="button" onClick={() => command("insertOrderedList")}>序号</button>
-        <button type="button" onClick={() => command("formatBlock", "pre")}>代码</button>
-        <button type="button" onClick={() => command("removeFormat")}>清除</button>
-        <button type="button" onClick={() => fileRef.current?.click()}>图片</button>
+        <span className="prj-pm-rich-toolbar__group" aria-label="段落样式">
+          <RichToolbarButton icon="undo" label="撤销" onClick={() => editor.chain().focus().undo().run()}/>
+          <RichToolbarButton icon="redo" label="重做" onClick={() => editor.chain().focus().redo().run()}/>
+        </span>
+        <span className="prj-pm-rich-toolbar__group" aria-label="段落样式">
+          <select className="prj-pm-rich-toolbar__select is-style" aria-label="段落样式" value={editor.isActive("heading", { level: 2 }) ? "h2" : editor.isActive("heading", { level: 3 }) ? "h3" : "p"} onChange={event => { const next = event.target.value; if (next === "p") editor.chain().focus().setParagraph().run(); else editor.chain().focus().toggleHeading({ level: Number(next.slice(1)) as 2 | 3 }).run(); }}>
+            <option value="p">正文</option><option value="h2">一级标题</option><option value="h3">二级标题</option>
+          </select>
+          <RichToolbarButton icon="heading-one" label="一级标题" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}/>
+          <RichToolbarButton icon="heading-two" label="二级标题" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}/>
+        </span>
+        <span className="prj-pm-rich-toolbar__group" aria-label="文字样式">
+          <select className="prj-pm-rich-toolbar__select" aria-label="字体" defaultValue="PingFang SC" onChange={event => editor.chain().focus().setFontFamily(event.target.value).run()}>
+            <option>PingFang SC</option><option>Microsoft YaHei</option><option>Arial</option><option>Georgia</option><option>Menlo</option>
+          </select>
+          <select className="prj-pm-rich-toolbar__select is-size" aria-label="字号" defaultValue="14px" onChange={event => editor.chain().focus().setMark("textStyle", { fontSize: event.target.value }).run()}>
+            <option value="12px">12px</option><option value="14px">14px</option><option value="16px">16px</option><option value="18px">18px</option><option value="24px">24px</option>
+          </select>
+          <RichToolbarButton icon="bold" label="加粗" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}/>
+          <RichToolbarButton icon="italic" label="斜体" active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}/>
+          <RichToolbarButton icon="underline" label="下划线" active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()}/>
+        </span>
+        <span className="prj-pm-rich-toolbar__more">
+          <RichToolbarButton icon="more" label="更多编辑功能" active={moreMenu} onClick={() => { setMoreMenu(open => !open); setColorMenu(null); }}/>
+          {moreMenu && <span className="prj-pm-rich-toolbar__more-menu" role="menu" aria-label="更多编辑功能">
+            <span className="prj-pm-rich-toolbar__group" aria-label="颜色与文字样式">
+              <RichToolbarButton icon="strike" label="删除线" active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()}/>
+              <span className="prj-pm-rich-color-control">
+                <button type="button" className={colorMenu === "text" ? "is-active" : ""} title="字体颜色" aria-label="字体颜色" aria-expanded={colorMenu === "text"} onMouseDown={event => event.preventDefault()} onClick={() => setColorMenu(colorMenu === "text" ? null : "text")}><RichToolbarIcon name="text-color"/><i className="is-text"/></button>
+                {colorMenu === "text" && <ColorPalette label="字体颜色" colors={RICH_TEXT_COLORS} onSelect={color => setColor("text", color)}/>}
+              </span>
+              <span className="prj-pm-rich-color-control">
+                <button type="button" className={colorMenu === "highlight" ? "is-active" : ""} title="文字底色" aria-label="文字底色" aria-expanded={colorMenu === "highlight"} onMouseDown={event => event.preventDefault()} onClick={() => setColorMenu(colorMenu === "highlight" ? null : "highlight")}><RichToolbarIcon name="highlight"/><i className="is-highlight"/></button>
+                {colorMenu === "highlight" && <ColorPalette label="文字底色" colors={RICH_HIGHLIGHT_COLORS} onSelect={color => setColor("highlight", color)}/>}
+              </span>
+            </span>
+            <span className="prj-pm-rich-toolbar__group" aria-label="对齐方式">
+              <RichToolbarButton icon="align-left" label="左对齐" active={editor.isActive({ textAlign: "left" })} onClick={() => editor.chain().focus().setTextAlign("left").run()}/>
+              <RichToolbarButton icon="align-center" label="居中对齐" active={editor.isActive({ textAlign: "center" })} onClick={() => editor.chain().focus().setTextAlign("center").run()}/>
+              <RichToolbarButton icon="align-right" label="右对齐" active={editor.isActive({ textAlign: "right" })} onClick={() => editor.chain().focus().setTextAlign("right").run()}/>
+            </span>
+            <span className="prj-pm-rich-toolbar__group" aria-label="内容块">
+              <RichToolbarButton icon="bullet-list" label="无序列表" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}/>
+              <RichToolbarButton icon="ordered-list" label="有序列表" active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}/>
+              <RichToolbarButton icon="quote" label="引用" active={editor.isActive("blockquote")} onClick={() => editor.chain().focus().toggleBlockquote().run()}/>
+              <RichToolbarButton icon="code" label="代码块" active={editor.isActive("codeBlock")} onClick={() => editor.chain().focus().toggleCodeBlock().run()}/>
+            </span>
+            <span className="prj-pm-rich-toolbar__group" aria-label="插入内容">
+              <RichToolbarButton icon="link" label="插入链接" onClick={insertLink}/>
+              <RichToolbarButton icon="image" label="插入图片" onClick={() => fileRef.current?.click()}/>
+              <RichToolbarButton icon="table" label="插入表格" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}/>
+            </span>
+            <span className="prj-pm-rich-toolbar__group" aria-label="编辑操作">
+              <RichToolbarButton icon="clear" label="清除格式" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}/>
+            </span>
+          </span>}
+        </span>
         <input
           ref={fileRef}
           type="file"
@@ -549,22 +679,16 @@ export function ProjectRichTextEditor({
           }}
         />
       </div>
-      <div
-        ref={ref}
-        className="prj-pm-rich-surface workflow-rich-content"
-        contentEditable
-        suppressContentEditableWarning
-        onInput={emit}
-        onBlur={emit}
-        onPaste={event => {
-          const imageFiles = Array.from(event.clipboardData.files).filter(file => file.type.startsWith("image/"));
-          if (imageFiles.length === 0) return;
-          event.preventDefault();
-          void uploadAndInsert(imageFiles);
-        }}
-      />
+      <EditorContent editor={editor} className="prj-pm-rich-content"/>
     </div>
   );
+}
+
+function ColorPalette({ label, colors, onSelect }: { label: string; colors: string[]; onSelect: (color: string) => void }) {
+  return <span className="prj-pm-rich-color-palette" role="dialog" aria-label={label}>
+    {colors.map(color => <button key={color} type="button" title={color} aria-label={`${label} ${color}`} className="prj-pm-rich-color-swatch" style={{ backgroundColor: color }} onClick={() => onSelect(color)}/>) }
+    <label className="prj-pm-rich-color-custom" title="自定义颜色" aria-label={`自定义${label}`}><input type="color" defaultValue={colors[0]} onChange={event => onSelect(event.target.value)}/></label>
+  </span>;
 }
 
 export function normalizeTodoStatus(value: Record<string, unknown>): TodoStatus {
@@ -1379,10 +1503,6 @@ export function saveDictionaryMappingSqlValidation(storageKey: string, entry: Di
 }
 
 
-
-function escapeAttribute(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
 
 function envLabel(value: string): string {
   if (value === "prod") return "生产环境";

@@ -552,6 +552,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
     if (await ping(port)) break;
     await sleep(100);
   }
+  await win.webContents.session.clearCache();
   await win.loadURL(`http://127.0.0.1:${port}/`);
   return win;
 }

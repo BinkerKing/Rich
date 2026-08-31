@@ -10,6 +10,9 @@ export { WorkflowSection } from "./sections/WorkflowSection.js";
 export { DictionarySection } from "./DictionaryWorkspace.js";
 export { AutomationSection } from "./AutomationWorkspace.js";
 export { ProjectDescriptionSection } from "./ProjectDescriptionSection.js";
+export { DeliveryPlanWorkspace, ProjectDashboard } from "./delivery/DeliveryWorkspace.js";
+export { DeliverablesWorkspace } from "./deliverables/DeliverablesWorkspace.js";
+export { ReportsWorkspace } from "./reports/ReportsWorkspace.js";
 export {
   PROJECT_MANAGEMENT_SECTIONS,
   ProjectManagementSearchBar,
