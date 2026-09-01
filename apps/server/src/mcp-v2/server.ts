@@ -13,6 +13,7 @@ import { registerScenarioTools } from "./scenarios/registerScenarioTools.js";
 import { registerDelegationTools } from "./scenarios/delegateWork.js";
 import { PersistentTaskService } from "./tasks/persistentTaskService.js";
 import { registerTaskTools } from "./tasks/taskTools.js";
+import { registerDeliverableTaskTools } from "./tasks/deliverableTaskTools.js";
 import type { ExecutionTeamAdministrationPort } from "./scenarios/manageExecutionTeam.js";
 import { RichMcpError } from "./registry/errors.js";
 
@@ -68,6 +69,7 @@ export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
     executionTeams,
   });
   registerTaskTools(registry, { tasks, operationRepo: deps.operationRepo });
+  registerDeliverableTaskTools(registry, tasks);
   registerDelegationTools(registry, {
     adapter,
     tasks,
