@@ -339,6 +339,12 @@ function applySchema(db: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_agent_tool_calls_turn ON agent_tool_calls(turn_id, created_at);
 
+    CREATE TABLE IF NOT EXISTS agent_approvals (
+      id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, turn_id TEXT NOT NULL,
+      tool_call_id TEXT NOT NULL, arguments_digest TEXT NOT NULL, expires_at TEXT NOT NULL,
+      consumed_at TEXT, created_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS chat_messages (
       id               TEXT PRIMARY KEY,
       conversation_id  TEXT NOT NULL,
