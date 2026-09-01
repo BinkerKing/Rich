@@ -58,6 +58,11 @@ type OperationLogRow = { kind: "operation" } & AIOpRecord;
 type TraceLogRow = { kind: "trace" } & AITraceEvent;
 type OpLogRow = OperationLogRow | TraceLogRow;
 
+export interface OpLogSnapshot {
+  records: AIOpRecord[];
+  tracesByOp: Map<string, AITraceEvent[]>;
+}
+
 let LOG_PATH = "";
 
 export function configureOpLog(dataDir: string): void {
@@ -183,51 +188,42 @@ function filterTraceData(data: AITraceEvent["data"]): AITraceEvent["data"] {
 /** Stream every record in the log file (newest first). For MVP we read the
  *  whole file each query; if/when it grows, swap to a true tail-read. */
 export async function readAllOpRecords(): Promise<AIOpRecord[]> {
-  if (!LOG_PATH) return [];
+  return (await readAllOpLogSnapshot()).records;
+}
+
+/** Read operations and trace events together so list views scan JSONL once. */
+export async function readAllOpLogSnapshot(): Promise<OpLogSnapshot> {
+  if (!LOG_PATH) return { records: [], tracesByOp: new Map() };
   try {
     const txt = await fs.readFile(LOG_PATH, "utf8");
-    const lines = txt.split("\n").filter(Boolean);
-    const out: AIOpRecord[] = [];
-    for (const line of lines) {
+    const records: AIOpRecord[] = [];
+    const tracesByOp = new Map<string, AITraceEvent[]>();
+    for (const line of txt.split("\n").filter(Boolean)) {
       try {
         const row = JSON.parse(line) as unknown;
         if (isOperationLogRow(row)) {
           const { kind: _kind, ...record } = row;
-          out.push(record);
+          records.push(record);
+        } else if (isTraceLogRow(row)) {
+          const { kind: _kind, ...event } = row;
+          const events = tracesByOp.get(event.opId) ?? [];
+          events.push(event);
+          tracesByOp.set(event.opId, events);
         }
       } catch {
         // ignore malformed line
       }
     }
-    return out;
+    return { records, tracesByOp };
   } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return [];
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") return { records: [], tracesByOp: new Map() };
     throw e;
   }
 }
 
 /** Read trace events for an operation in their original append order. */
 export async function readOpTrace(opId: string): Promise<AITraceEvent[]> {
-  if (!LOG_PATH) return [];
-  try {
-    const txt = await fs.readFile(LOG_PATH, "utf8");
-    const out: AITraceEvent[] = [];
-    for (const line of txt.split("\n").filter(Boolean)) {
-      try {
-        const row = JSON.parse(line) as unknown;
-        if (isTraceLogRow(row) && row.opId === opId) {
-          const { kind: _kind, ...event } = row;
-          out.push(event);
-        }
-      } catch {
-        // ignore malformed line
-      }
-    }
-    return out;
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw e;
-  }
+  return (await readAllOpLogSnapshot()).tracesByOp.get(opId) ?? [];
 }
 
 /** Append a safe trace only when the caller supplied an existing AI op id. */

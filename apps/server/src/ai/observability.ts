@@ -1,4 +1,4 @@
-import { readAllOpRecords, readOpTrace, reduceToFinal, type AIOpRecord } from "./aiOpLog.js";
+import { readAllOpLogSnapshot, readAllOpRecords, readOpTrace, reduceToFinal, type AIOpRecord, type AITraceEvent } from "./aiOpLog.js";
 import { AI_CONTEXT_POLICIES } from "./contextPolicy.js";
 import type { AIAdapter } from "./adapter.js";
 import type { McpTransportState } from "../mcp-v2/transport.js";
@@ -44,7 +44,7 @@ export function createAIObservability(deps: ObservabilityDeps) {
         const outcome = await boundedAvailability(adapter.available(), deps.adapterTimeoutMs ?? 2_000);
         if (outcome.type === "available") state = outcome.available ? "healthy" : "offline";
         else if (outcome.type === "timeout") { state = "degraded"; lastError = "Availability check timed out."; }
-        else lastError = outcome.message;
+        else lastError = "Adapter availability check failed.";
         return {
           id: `adapter:${adapter.name}`,
           label: adapter.name,
@@ -81,20 +81,23 @@ export function createAIObservability(deps: ObservabilityDeps) {
           id: "rich-mcp", label: "Rich MCP", kind: "mcp", state: mcpState, checkedAt,
           detail: `${toolCount} registry tools; ${transport.requestsTotal} transport requests.`,
           ...(transport.lastSuccessAt ? { lastSuccessAt: transport.lastSuccessAt.toISOString() } : {}),
-          ...(transport.lastError ? { lastError: transport.lastError } : {}),
+          ...(transport.lastError ? { lastError: "Most recent MCP transport request failed." } : {}),
         },
         {
           id: "multica", label: "Multica", kind: "delegation", state: multicaState, checkedAt,
           detail: sync.lastSuccessAt ? `Last sync ${sync.lastSuccessAt}.` : "No successful task sync yet.",
           ...(sync.lastSuccessAt ? { lastSuccessAt: sync.lastSuccessAt } : {}),
-          ...(sync.lastError ? { lastError: sync.lastError } : {}),
+          ...(sync.lastError ? { lastError: multicaState === "not_configured" ? "Multica is not configured." : "Multica synchronization failed." } : {}),
         },
       ];
     },
 
     async traces(kind?: "chat" | "workflow" | "delegation", limit = 50) {
-      const records = reduceToFinal(await readAllOpRecords());
-      const items = (await Promise.all(records.map(traceListItem))).filter(item => !kind || item.kind === kind);
+      const snapshot = await readAllOpLogSnapshot();
+      const records = reduceToFinal(snapshot.records);
+      const items = records
+        .map(record => traceListItem(record, snapshot.tracesByOp.get(record.id) ?? []))
+        .filter(item => !kind || item.kind === kind);
       return { total: items.length, items: items.slice(0, limit) };
     },
 
@@ -166,8 +169,7 @@ export function createAIObservability(deps: ObservabilityDeps) {
   };
 }
 
-async function traceListItem(record: AIOpRecord) {
-  const events = await readOpTrace(record.id);
+function traceListItem(record: AIOpRecord, events: AITraceEvent[]) {
   const kind = events.some(event => event.type === "mcp.tool" && event.data?.tool === "rich_work_delegate")
     ? "delegation"
     : record.op === "chat" || record.op === "chat-stream" ? "chat" : "workflow";

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   configureOpLog,
+  readAllOpLogSnapshot,
   readAllOpRecords,
   readOpTrace,
   reduceToFinal,
@@ -11,6 +12,21 @@ import {
 } from "../src/ai/aiOpLog.js";
 
 describe("AI operation log traces", () => {
+  it("reads operations and trace events together from one log snapshot", async () => {
+    configureOpLog(mkdtempSync(join(tmpdir(), "rich-ai-op-log-")));
+    const first = await startOpRecord({ op: "chat", model: "codex", prompt: "one" });
+    await first.recordEvent({ type: "turn.plan" });
+    await first.recordDone("done");
+    const second = await startOpRecord({ op: "refine", model: "codex", prompt: "two" });
+    await second.recordEvent({ type: "output" });
+
+    const snapshot = await readAllOpLogSnapshot();
+
+    expect(snapshot.records).toHaveLength(3);
+    expect(snapshot.tracesByOp.get(first.id)?.map(event => event.type)).toEqual(["turn.plan"]);
+    expect(snapshot.tracesByOp.get(second.id)?.map(event => event.type)).toEqual(["output"]);
+  });
+
   it("retains ordered planner and MCP-tool trace events after completion", async () => {
     configureOpLog(mkdtempSync(join(tmpdir(), "rich-ai-op-log-")));
     const op = await startOpRecord({

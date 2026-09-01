@@ -67,11 +67,12 @@ describe("admin AI observability", () => {
 
   it("treats a failed adapter availability check as offline without breaking health", async () => {
     const unavailable = adapter("codex", true);
-    unavailable.available = async () => { throw new Error("adapter process unavailable"); };
+    unavailable.available = async () => { throw new Error("adapter process unavailable with secret-token"); };
     const health = await observability({ adapters: [unavailable] }).health();
     expect(health).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: "adapter:codex", state: "offline", lastError: "adapter process unavailable" }),
+      expect.objectContaining({ id: "adapter:codex", state: "offline", lastError: "Adapter availability check failed." }),
     ]));
+    expect(JSON.stringify(health)).not.toContain("secret-token");
   });
 
   it("bounds a hung adapter probe and marks it degraded", async () => {
@@ -96,9 +97,11 @@ describe("admin AI observability", () => {
       multicaTaskSynchronizer: { lastSuccessAt: "2026-01-01T00:00:30.000Z", lastError: "sync failed", intervalMs: 30_000 } as MulticaTaskSynchronizer,
     }).health();
     expect(offline).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: "rich-mcp", state: "offline" }),
-      expect.objectContaining({ id: "multica", state: "degraded" }),
+      expect.objectContaining({ id: "rich-mcp", state: "offline", lastError: "Most recent MCP transport request failed." }),
+      expect.objectContaining({ id: "multica", state: "degraded", lastError: "Multica synchronization failed." }),
     ]));
+    expect(JSON.stringify(offline)).not.toContain("transport failed");
+    expect(JSON.stringify(offline)).not.toContain("sync failed");
   });
 
   it("reports MCP offline when no registry tools are mounted", async () => {
