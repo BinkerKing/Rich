@@ -8,6 +8,9 @@ import { buildDecomposePlanPrompt } from "../prompts/decomposePlan.js";
 import { buildAnalyzeProgressPrompt } from "../prompts/analyzeProgress.js";
 import { buildDraftReviewPrompt } from "../prompts/draftReview.js";
 import { buildGuidedPracticePrompt } from "../prompts/guidedPractice.js";
+import { buildDraftPrdPrompt } from "../prompts/draftPrd.js";
+import { buildDraftChildPrompt } from "../prompts/draftChild.js";
+import { buildAdjustChildPrompt } from "../prompts/adjustChild.js";
 
 type ProjectOperationArgs = OperationPromptArgs & { signal?: AbortSignal };
 
@@ -106,6 +109,39 @@ const GuidedPracticeConfidenceSchema = z.preprocess((value) => {
 }, z.enum(["low", "medium", "high"]).default("medium"));
 const GuidedPracticeResultSchema = z.object({ reply: z.string().min(1).max(1200), draftPatch: GuidedPracticeDraftPatchSchema, nextStage: GuidedPracticeNextStageSchema, confidence: GuidedPracticeConfidenceSchema, openQuestions: z.array(z.string().min(1).max(240)).max(5).default([]) });
 export type GuidedPracticeResult = z.infer<typeof GuidedPracticeResultSchema>;
+export const InquirySchema = z.object({
+  question: z.string().min(1).max(400),
+  options: z.array(z.object({
+    label: z.string().min(1).max(80),
+    description: z.string().max(200).default(""),
+  })).min(2).max(6),
+  context: z.string().max(200).default(""),
+  importance: z.enum(["blocker", "nice-to-know"]).default("nice-to-know"),
+});
+export type Inquiry = z.infer<typeof InquirySchema>;
+const DraftPrdResultSchema = z.object({
+  title: z.string().min(1).max(200),
+  sections: z.object({
+    overview: z.string().max(800),
+    targetUsers: z.string().max(800),
+    coreFeatures: z.array(z.string().max(280)).min(1).max(10),
+    userStories: z.array(z.string().max(280)).max(10).default([]),
+    acceptance: z.array(z.string().max(280)).max(10).default([]),
+    nonFunctional: z.string().max(800).default(""),
+    outOfScope: z.array(z.string().max(280)).max(10).default([]),
+    risks: z.array(z.string().max(280)).max(10).default([]),
+  }),
+  inquiries: z.array(InquirySchema).default([]),
+});
+export type DraftPrdResult = z.infer<typeof DraftPrdResultSchema>;
+const DraftChildResultSchema = z.object({
+  title: z.string().min(1).max(200),
+  subtitle: z.string().max(400).default(""),
+  content: z.record(z.string(), z.union([z.string(), z.array(z.string()), z.null()])).default({}),
+  inquiries: z.array(InquirySchema).default([]),
+});
+export type DraftChildResult = z.infer<typeof DraftChildResultSchema>;
+export type AdjustChildResult = DraftChildResult;
 
 export function runGreatMeBrain(adapter: AIAdapter, args: { mode: GreatMeMode; input: string; state: unknown } & ProjectOperationArgs): AsyncIterable<StructuredEvent<GreatMeBrainResult>> {
   return runStructuredAI(adapter, {
@@ -141,5 +177,30 @@ export function runGuidedPractice(adapter: AIAdapter, args: { stage: z.infer<typ
     systemPrompt: "You are a product requirements analyst inside Rich. Return exactly one valid JSON object with keys reply, draftPatch, nextStage, confidence, openQuestions. Do not use Markdown.",
     signal: args.signal, validate: zodValidator(GuidedPracticeResultSchema),
     opLog: { op: "guided-practice", model: adapter.name, scope: { stage: args.stage, userInput: args.userInput.slice(0, 120) } },
+  });
+}
+
+export function runDraftPrd(adapter: AIAdapter, args: Parameters<typeof buildDraftPrdPrompt>[0] & ProjectOperationArgs): AsyncIterable<StructuredEvent<DraftPrdResult>> {
+  return runStructuredAI(adapter, {
+    prompt: withOperationContext(args, buildDraftPrdPrompt(args), "draft-prd", "project-practice"),
+    signal: args.signal,
+    validate: zodValidator(DraftPrdResultSchema),
+    opLog: { op: "draft-prd", model: adapter.name, scope: { title: args.practice.title.slice(0, 80) } },
+  });
+}
+export function runDraftChild(adapter: AIAdapter, args: Parameters<typeof buildDraftChildPrompt>[0] & ProjectOperationArgs): AsyncIterable<StructuredEvent<DraftChildResult>> {
+  return runStructuredAI(adapter, {
+    prompt: withOperationContext(args, buildDraftChildPrompt(args), "draft-child", "project-practice"),
+    signal: args.signal,
+    validate: zodValidator(DraftChildResultSchema),
+    opLog: { op: "draft-child", model: adapter.name, scope: { title: args.practice.title.slice(0, 80), groupType: args.groupType } },
+  });
+}
+export function runAdjustChild(adapter: AIAdapter, args: Parameters<typeof buildAdjustChildPrompt>[0] & ProjectOperationArgs): AsyncIterable<StructuredEvent<AdjustChildResult>> {
+  return runStructuredAI(adapter, {
+    prompt: withOperationContext(args, buildAdjustChildPrompt(args), "adjust-child", "project-practice"),
+    signal: args.signal,
+    validate: zodValidator(DraftChildResultSchema),
+    opLog: { op: "adjust-child", model: adapter.name, scope: { title: args.practice.title.slice(0, 80), groupType: args.groupType, currentTitle: args.current.title.slice(0, 60) } },
   });
 }

@@ -33,12 +33,10 @@ import {
   runDecomposePlan,
   runAnalyzeProgress,
   runDraftReview,
-  runDraftPrd,
-  runDraftChild,
-  runAdjustChild,
   runGuidedPractice,
   type DailyNewsItem,
 } from "../ai/operations.js";
+import { runAdjustChild, runDraftChild, runDraftPrd } from "../ai/project/operations.js";
 import { shortlistByKeywords } from "../lib/elementShortlist.js";
 import { KeyedLock } from "../lib/KeyedLock.js";
 import type { Logger } from "../lib/logger.js";
