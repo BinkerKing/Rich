@@ -21,4 +21,6 @@ export interface AIAdapter {
   readonly name: AIAdapterName;
   available(): Promise<boolean>;
   stream(args: GenerateArgs): AsyncIterable<StreamEvent>;
+  agentRuntimeCapabilities?(): AgentRuntimeCapabilities;
 }
+import type { AgentRuntimeCapabilities } from "../agent-conversations/types.js";

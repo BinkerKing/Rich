@@ -1,4 +1,5 @@
 import type { AIAdapter, GenerateArgs, StreamEvent } from "./adapter.js";
+import type { AgentRuntimeCapabilities } from "../agent-conversations/types.js";
 
 /**
  * Hermes adapter — POSTs to Hermes Agent's OpenAI-compatible HTTP API.
@@ -30,6 +31,15 @@ export class HermesAdapter implements AIAdapter {
   private model = process.env.HERMES_MODEL || "hermes";
 
   private availabilityCache: boolean | undefined;
+
+  agentRuntimeCapabilities(): AgentRuntimeCapabilities {
+    return {
+      profiles: ["chat_only"],
+      enforcesToolSelection: false,
+      enforcesWorkspaceRoot: false,
+      supportsResumableToolCalls: false,
+    };
+  }
 
   async available(): Promise<boolean> {
     if (this.availabilityCache !== undefined) return this.availabilityCache;
