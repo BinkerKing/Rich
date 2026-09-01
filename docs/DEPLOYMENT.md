@@ -1,6 +1,6 @@
 # Rich 部署手册
 
-> 在一台新 Mac（或 macOS 服务器）从零部署 Rich.app + 接通 Hermes + Codex + 云端 Postgres。
+> 在一台新 Mac（或 macOS 服务器）从零部署 Rich.app + 接通 Hermes（百炼 Qwen）+ 云端 Postgres。
 > 跟着这份文档一步步执行，预计耗时 30-60 分钟（不含云数据库申请时间）。
 
 ## 1. 系统前提
@@ -121,7 +121,7 @@ docker exec rich-pg psql -U postgres -d rich -c 'SELECT version();'
 
 ### 3.2 Hermes Agent（必需）
 
-Rich 调用 LLM 的默认通道是 **Hermes** —— 一个 OpenAI 兼容的本地 HTTP 服务（`/v1/chat/completions`），背后用你已有的 Codex OAuth 当 provider。Rich 通过它做：知识树生成、计划拆解（Stage 3）、对话、复盘草稿等。
+Rich 调用 LLM 的默认通道是 **Hermes** —— 一个 OpenAI 兼容的本地 HTTP 服务（`/v1/chat/completions`）。当前标准配置通过阿里云百炼调用 `qwen3.8-max`，不依赖 Codex OAuth。Rich 通过它做知识树生成、计划拆解、持续 Agent 对话和交付物任务执行等。
 
 **Rich 对 Hermes 的硬要求**（这些不会变）：
 
@@ -143,21 +143,21 @@ Rich 调用 LLM 的默认通道是 **Hermes** —— 一个 OpenAI 兼容的本�
 >
 > 装完后随便挑一个目录跑 `hermes --help`，能输出帮助即装好。
 
-#### 步骤二：建配置文件 `~/.hermes/config.yaml`
+#### 步骤二：通过 Bailian CLI 配置百炼模型
 
 ```bash
-mkdir -p ~/.hermes
-cat > ~/.hermes/config.yaml <<'EOF'
-provider: codex                 # 用 Codex OAuth 作为底层 LLM
-default: codex
+# 安装并配置最新 Bailian CLI；密钥只放本机，不要写入仓库
+curl -fsSL 'https://bailian.aliyun.com/token-plan.cn-beijing.sh' \
+  | bash -s -- '<BAILIAN_TOKEN_PLAN_KEY>'
 
-mcp_servers:
-  rich:
-    url: http://127.0.0.1:31515/mcp
-EOF
+bl config agent \
+  --agent hermes \
+  --region cn-beijing \
+  --key '<BAILIAN_TOKEN_PLAN_KEY>' \
+  --model qwen3.8-max
 ```
 
-> 31515 是 Rich.app 启动时的首选端口。如果你机器上这个端口已被占用，Rich 会自动上移；启动后真实的 MCP url 写在 `~/Library/Application Support/Rich/data/.mcp-url`。Hermes 配置文件里写的就是个**期望值**，可以等 Rich 跑起来再 `cat` 那个文件验证。
+命令会更新 `~/.hermes/config.yaml` 和本机凭据。检查配置时只确认 provider、base URL 和模型名，禁止把 token 输出到日志。Rich MCP 的真实 URL 写在 `~/Library/Application Support/Rich/data/.mcp-url`；需要 Hermes 调用 Rich MCP 时，以该文件为准配置 `mcp_servers.rich`。
 
 #### 步骤三：起 Hermes 服务
 
@@ -178,12 +178,13 @@ curl -i http://127.0.0.1:8642/v1/models
 # 2. /v1/chat/completions 能流式返回（Rich 实际调用的端点）
 curl -N http://127.0.0.1:8642/v1/chat/completions \
   -H 'content-type: application/json' \
-  -d '{"model":"hermes","messages":[{"role":"user","content":"say hello in 5 words"}],"stream":true}'
+  -H "authorization: Bearer $HERMES_API_KEY" \
+  -d '{"model":"qwen3.8-max","messages":[{"role":"user","content":"say hello in 5 words"}],"stream":true}'
 # 期望：陆续吐 data: {...} 行，最后一个是 data: [DONE]
 
-# 3. Hermes 真的连上 Codex 了
+# 3. Hermes 真的使用百炼 qwen3.8-max
 # 看 hermes 的日志（前台跑的话直接看终端；launchd 看 /tmp/hermes.log）
-# 第一次请求应出现 "loaded codex provider" 之类字样
+# 响应或日志中的 model 应为 qwen3.8-max
 ```
 
 任何一步过不去就**别继续装 Rich**——肯定 Hermes 自己没配好。
@@ -204,9 +205,9 @@ Rich 的 `/agent` 是长期会话模式，但默认只开放 `chat_only`：Herme
 
 ---
 
-### 3.3 Codex CLI（必需）
+### 3.3 Codex CLI（可选）
 
-Codex 是 Rich 实际调用的 LLM 后端（Hermes 转发给它，Rich 也会直接 spawn 它跑某些图片生成任务）。它是 OpenAI 的 ChatGPT Codex 桌面产品。
+Hermes 已使用百炼 `qwen3.8-max`，因此 Agent 对话和交付物任务不要求安装 Codex。只有仍需使用 Rich 中直接调用 Codex CLI 的独立功能时，才配置本节。
 
 **Rich 对 Codex 的硬要求**：
 
@@ -232,7 +233,7 @@ ls -la /Applications/Codex.app/Contents/Resources/codex
 #### 步骤二：登录
 
 打开 Codex.app（图形界面），里面应该有 "Sign in" 之类的按钮，跳浏览器走 OAuth。
-登录态写到 `~/.codex/`，Hermes 自动复用同一份。
+登录态写到 `~/.codex/`，仅供直接调用 Codex CLI 的功能使用。
 
 或者从命令行：
 ```bash
@@ -289,7 +290,7 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require
 
 # === Hermes ===
 HERMES_BASE_URL=http://127.0.0.1:8642
-HERMES_MODEL=hermes
+HERMES_MODEL=qwen3.8-max
 # HERMES_API_KEY=...   # 仅当 Hermes 配置了认证才填
 
 # === Agent capability grants ===
@@ -329,7 +330,7 @@ pnpm --filter @ke/web dev    # 在另一个 terminal 起前端 Vite
 [ke-server] booting on port 3001 (or whatever PORT is set)
 [ke-server] using Postgres storage: <host>:5432/<db>
 [ke-server] Hermes adapter available: yes
-[ke-server] Codex CLI: /Applications/Codex.app/Contents/Resources/codex
+[ke-server] Codex CLI: /Applications/Codex.app/Contents/Resources/codex  # 可选
 ```
 
 浏览器 http://localhost:5173 应能看到主界面，且 计划管理 → 首页 看到云端的最新 plans。
@@ -446,8 +447,8 @@ curl -s http://127.0.0.1:31515/api/great-me/state | head -c 200
 - [ ] Node 20 / pnpm 9 / Xcode CLT 装好
 - [ ] `git clone` + `pnpm install`
 - [ ] 创建 `.env`，用**同一个** `DATABASE_URL`（数据就同步了）
-- [ ] 装 Codex.app 并 `auth login`
-- [ ] 装 Hermes 并起 `hermes serve --port 8642`
+- [ ] 通过 Bailian CLI 将 Hermes 配为 `qwen3.8-max`，并起 `hermes serve --port 8642`
+- [ ] 可选：如需直接 Codex 功能，再装 Codex.app 并 `auth login`
 - [ ] `pnpm --filter @ke/desktop package`
 - [ ] 可选：建 web-dist 软链（如果你打算这台机器也改代码）
 - [ ] 启动 Rich.app，看到云端的计划
