@@ -9,10 +9,6 @@ import { buildReviewPrompt } from "./prompts/review.js";
 import { buildGenerateDailyNewsPrompt } from "./prompts/generateDailyNews.js";
 import { buildGenerateImagePrompt } from "./prompts/generateImage.js";
 import { buildGenerateMindmapPrompt } from "./prompts/generateMindmap.js";
-import { buildGreatMePrompt, type GreatMeMode } from "./prompts/greatMe.js";
-import { buildDecomposePlanPrompt } from "./prompts/decomposePlan.js";
-import { buildAnalyzeProgressPrompt } from "./prompts/analyzeProgress.js";
-import { buildDraftReviewPrompt } from "./prompts/draftReview.js";
 import { buildDraftPrdPrompt } from "./prompts/draftPrd.js";
 import { buildDraftChildPrompt } from "./prompts/draftChild.js";
 import { buildAdjustChildPrompt } from "./prompts/adjustChild.js";
@@ -21,6 +17,8 @@ import { withOperationContext } from "./operationContext.js";
 import { zodValidator } from "./structuredValidation.js";
 export { analyzeAttachment, analyzeMark, attachUnder, expandElement, extendElement, extractKeywords, generatePathsFor, generateTreeFor, refineElement, refineSection } from "./knowledge/operations.js";
 export type { AnalyzeAttachmentResult, AnalyzeMarkResult, AttachOption, ElementsAndRelationsResult as ExpandResult, ElementsAndRelationsResult as ExtendResult, ExtractKeywordsResult, GenerateTreeResult, PathResult, RefineResult, SectionRefineResult } from "./knowledge/operations.js";
+export { runAnalyzeProgress, runDecomposePlan, runDraftReview, runGreatMeBrain } from "./project/operations.js";
+export type { AnalyzeProgressResult, DecomposePlanResult, DraftReviewResult, GreatMeBrainResult } from "./project/operations.js";
 import type { AIManual } from "./manuals.js";
 import type { Signal } from "@ke/domain";
 
@@ -89,44 +87,6 @@ const GenerateMindmapResultSchema = z.object({
 });
 export type GenerateMindmapResult = z.infer<typeof GenerateMindmapResultSchema>;
 
-const GreatMeModeSchema = z.enum(["goal", "mission", "review", "week-simulation"]);
-const GreatMeLaneSchema = z.enum(["主线任务", "能力突破", "健康能量", "关系连接", "财富系统", "创造输出"]);
-const GreatMeAxisSchema = z.enum(["body", "mind", "wealth", "craft", "relations", "creation"]);
-const GreatMePdcaSchema = z.object({
-  plan: z.string().optional().default(""),
-  do: z.string().optional().default(""),
-  check: z.string().optional().default(""),
-  act: z.string().optional().default(""),
-}).partial().default({});
-const GreatMeBrainResultSchema = z.object({
-  mode: GreatMeModeSchema,
-  title: z.string().min(1).max(48),
-  summary: z.string().min(1).max(500),
-  focus: z.string().min(1).max(160),
-  risks: z.array(z.string().min(1).max(140)).max(6).default([]),
-  nextActions: z.array(z.string().min(1).max(140)).max(8).default([]),
-  missions: z.array(z.object({
-    title: z.string().min(1).max(120),
-    lane: GreatMeLaneSchema.default("主线任务"),
-    impact: z.number().int().min(0).max(100).default(70),
-    effort: z.number().int().min(0).max(100).default(35),
-    reason: z.string().max(180).optional().default(""),
-  })).max(8).default([]),
-  pdca: GreatMePdcaSchema,
-  axisAdjustments: z.array(z.object({
-    axis: GreatMeAxisSchema,
-    delta: z.number().int().min(-10).max(10),
-    reason: z.string().min(1).max(140),
-  })).max(6).default([]),
-  weekSimulation: z.array(z.object({
-    day: z.number().int().min(1).max(7),
-    theme: z.string().min(1).max(80),
-    mission: z.string().min(1).max(140),
-    evidence: z.string().min(1).max(140),
-    review: z.string().min(1).max(180),
-  })).max(7).default([]),
-});
-export type GreatMeBrainResult = z.infer<typeof GreatMeBrainResultSchema>;
 // Used by NewsSource discriminator above — keep schema referenced.
 void NewsSourceSchema;
 
@@ -332,175 +292,6 @@ export function generateMindmap(
     opLog: {
       op: "generate-mindmap", model: adapter.name,
       scope: { titleHint: args.titleHint, audience: args.audience, withImages: args.withImages, proseLength: args.prose.length },
-    },
-  });
-}
-
-export function runGreatMeBrain(
-  adapter: AIAdapter,
-  args: {
-    mode: GreatMeMode;
-    input: string;
-    state: unknown;
-  } & SharedOpArgs,
-): AsyncIterable<StructuredEvent<GreatMeBrainResult>> {
-  const prompt = withOperationContext(args, buildGreatMePrompt({
-    mode: args.mode,
-    input: args.input,
-    state: args.state,
-  }), "great-me", "planning");
-  return runStructuredAI(adapter, {
-    prompt,
-    signal: args.signal,
-    validate: zodValidator(GreatMeBrainResultSchema),
-    opLog: {
-      op: "great-me",
-      model: adapter.name,
-      scope: { mode: args.mode, input: args.input.slice(0, 120) },
-    },
-  });
-}
-
-// ----- Plan decomposition (Stage 3) -----
-// AI receives an intent + today + optional target end date, and emits a
-// plan → goals → tasks tree with tempIds that the client converts to UIDs.
-
-const ISO_DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD");
-const PlanScopeSchema = z.enum(["year", "month", "week", "day"]);
-const PlanMetricSchema = z.object({
-  unit: z.string().min(1).max(20),
-  target: z.number(),
-}).optional();
-
-const DecomposePlanResultSchema = z.object({
-  plan: z.object({
-    title: z.string().min(1).max(200),
-    detail: z.string().max(800).default(""),
-    start: ISO_DATE,
-    end: ISO_DATE,
-    scopes: z.array(PlanScopeSchema).min(1).max(4),
-  }),
-  goals: z.array(z.object({
-    tempId: z.string().min(1).max(40),
-    scope: z.enum(["year", "month", "week"]),
-    title: z.string().min(1).max(280),
-    detail: z.string().max(800).default(""),
-    due: ISO_DATE,
-    parentTempId: z.string().max(40).optional(),
-    metric: PlanMetricSchema,
-  })).max(100),
-  tasks: z.array(z.object({
-    title: z.string().min(1).max(280),
-    date: ISO_DATE,
-    goalTempId: z.string().max(40).optional(),
-    badge: z.string().max(20).default(""),
-    note: z.string().max(400).default(""),
-  })).max(200),
-  reasoning: z.string().max(800).default(""),
-});
-export type DecomposePlanResult = z.infer<typeof DecomposePlanResultSchema>;
-
-export function runDecomposePlan(
-  adapter: AIAdapter,
-  args: {
-    intent: string;
-    today: string;
-    targetEnd?: string;
-  } & SharedOpArgs,
-): AsyncIterable<StructuredEvent<DecomposePlanResult>> {
-  const prompt = withOperationContext(args, buildDecomposePlanPrompt({
-    intent: args.intent,
-    today: args.today,
-    targetEnd: args.targetEnd,
-  }), "decompose-plan", "planning");
-  return runStructuredAI(adapter, {
-    prompt,
-    signal: args.signal,
-    validate: zodValidator(DecomposePlanResultSchema),
-    opLog: {
-      op: "decompose-plan",
-      model: adapter.name,
-      scope: { intent: args.intent.slice(0, 120), targetEnd: args.targetEnd },
-    },
-  });
-}
-
-// ----- Progress analysis (任务推进卡点 + 推进策略) -----
-const AnalyzeProgressResultSchema = z.object({
-  keyInsight: z.string().min(1).max(400),
-  blockers: z.array(z.string().min(1).max(280)).max(8).default([]),
-  pushActions: z.array(z.string().min(1).max(280)).max(8).default([]),
-  priorityTasks: z.array(z.object({
-    title: z.string().min(1).max(160),
-    reason: z.string().max(280).default(""),
-  })).max(5).default([]),
-});
-export type AnalyzeProgressResult = z.infer<typeof AnalyzeProgressResultSchema>;
-
-export function runAnalyzeProgress(
-  adapter: AIAdapter,
-  args: {
-    state: unknown;
-    metrics: unknown;
-  } & SharedOpArgs,
-): AsyncIterable<StructuredEvent<AnalyzeProgressResult>> {
-  const prompt = withOperationContext(args, buildAnalyzeProgressPrompt({
-    state: args.state,
-    metrics: args.metrics as Parameters<typeof buildAnalyzeProgressPrompt>[0]["metrics"],
-  }), "analyze-progress", "analysis");
-  return runStructuredAI(adapter, {
-    prompt,
-    signal: args.signal,
-    validate: zodValidator(AnalyzeProgressResultSchema),
-    opLog: {
-      op: "analyze-progress",
-      model: adapter.name,
-      scope: {},
-    },
-  });
-}
-
-// ----- Draft weekly review (multi-perspective) -----
-const DraftReviewResultSchema = z.object({
-  score: z.number().int().min(0).max(100),
-  victory: z.array(z.string().max(280)).max(10).default([]),
-  blocker: z.array(z.string().max(280)).max(10).default([]),
-  planning: z.array(z.string().max(280)).max(10).default([]),
-  summary: z.string().max(2000),
-  perspectives: z.array(z.object({
-    dimension: z.string().min(1).max(40),
-    content: z.string().max(800),
-  })).max(8).default([]),
-});
-export type DraftReviewResult = z.infer<typeof DraftReviewResultSchema>;
-
-export function runDraftReview(
-  adapter: AIAdapter,
-  args: {
-    weekOf: string;
-    weekTasks: unknown;
-    weekGoals: unknown;
-    activePlans: unknown;
-    lastReview?: unknown;
-    metrics: Parameters<typeof buildDraftReviewPrompt>[0]["metrics"];
-  } & SharedOpArgs,
-): AsyncIterable<StructuredEvent<DraftReviewResult>> {
-  const prompt = withOperationContext(args, buildDraftReviewPrompt({
-    weekOf: args.weekOf,
-    weekTasks: args.weekTasks,
-    weekGoals: args.weekGoals,
-    activePlans: args.activePlans,
-    lastReview: args.lastReview,
-    metrics: args.metrics,
-  }), "draft-review", "review");
-  return runStructuredAI(adapter, {
-    prompt,
-    signal: args.signal,
-    validate: zodValidator(DraftReviewResultSchema),
-    opLog: {
-      op: "draft-review",
-      model: adapter.name,
-      scope: { weekOf: args.weekOf },
     },
   });
 }
