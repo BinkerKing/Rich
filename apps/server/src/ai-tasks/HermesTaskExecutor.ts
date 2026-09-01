@@ -48,11 +48,14 @@ export class HermesTaskExecutor implements AiTaskExecutor {
     const scenario = this.scenarios.get(request.scenario);
     const response = await this.fetcher(`${this.baseUrl}/v1/chat/completions`, {
       method: "POST",
-      headers: { ...this.headers(), "content-type": "application/json" },
-      body: JSON.stringify({ model: this.model, stream: false, messages: [{ role: "user", content: taskPrompt(task.id, request, scenario.toolManifest) }] }),
+      headers: { ...this.headers(), "content-type": "application/json", accept: "text/event-stream" },
+      body: JSON.stringify({ model: this.model, stream: true, session_id: task.id, messages: [{ role: "user", content: taskPrompt(task.id, request, scenario.toolManifest) }] }),
       signal: AbortSignal.timeout(this.taskTimeoutMs),
     });
     if (!response.ok) throw new Error(`Hermes HTTP ${response.status}.`);
+    if (!response.body) throw new Error("Hermes returned no response stream.");
+    const reader = response.body.getReader();
+    while (!(await reader.read()).done) { /* keep the agent request alive until Hermes completes it */ }
   }
 
   private headers(): Record<string, string> { return this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {}; }
@@ -67,6 +70,8 @@ function taskPrompt(taskId: string, request: ReturnType<typeof parseAiTaskReques
     "",
     `You may call only these task-scoped MCP tools: ${toolManifest.join(", ")}.`,
     "Call rich_task_context_get with this task ID before working when it is available.",
+    toolManifest.includes("rich_task_material_read") ? "Use rich_task_material_read for every listed frozen file before using any local file-reading tool." : "",
+    toolManifest.includes("rich_task_reference_read") ? "Use rich_task_reference_read for frozen records that explicitly name a file, such as a code-navigation document." : "",
     toolManifest.includes("rich_task_report_result") ? "When complete, call rich_task_report_result with verification evidence." : "Report completion through the scenario's declared tools.",
     "Do not use shell commands, direct file-system access, or unscoped Rich tools.",
   ].join("\n");

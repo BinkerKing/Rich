@@ -17,6 +17,8 @@ describe("HermesTaskExecutor", () => {
     } });
 
     const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body));
+    expect(body.stream).toBe(true);
+    expect(body.session_id).toBe("task-1");
     expect(body.messages[0].content).toContain("rich_task_context_get");
     expect(body.messages[0].content).toContain("rich_deliverable_history_get");
     expect(body.messages[0].content).toContain("task-1");
@@ -24,6 +26,7 @@ describe("HermesTaskExecutor", () => {
     expect(body.messages[0].content).toContain("/workspace/CODE_NAVIGATION.md");
     expect(body.messages[0].content).toContain("baseline.xlsx");
     expect(body.messages[0].content).toContain("Do not conclude that evidence is missing before reading every relevant frozen material");
+    expect(body.messages[0].content).toContain("Use rich_task_material_read for every listed frozen file before using any local file-reading tool");
   });
 
   it("uses only tools declared by the persisted scenario", async () => {
