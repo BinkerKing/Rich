@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { ToolRuntime } from "../tools/runtime.js";
 import type { InvocationsStore } from "../repos/InvocationsRepo.js";
 import type { InvocationStatus } from "../tools/types.js";
+import type { BreakReminder } from "../lib/breakReminder.js";
 
 /**
  * Toolbox HTTP API.
@@ -11,8 +12,28 @@ import type { InvocationStatus } from "../tools/types.js";
  * POST /api/toolbox/invoke                 — { tool, args } → invocation
  * POST /api/toolbox/invocations/:id/cancel — cancel a scheduled invocation
  */
-export function toolboxRoutes(runtime: ToolRuntime, repo: InvocationsStore): Hono {
+export function toolboxRoutes(runtime: ToolRuntime, repo: InvocationsStore, breakReminder?: BreakReminder): Hono {
   const r = new Hono();
+
+  r.get("/break-reminder", (c) => {
+    if (!breakReminder) return c.json({ error: "break reminder unavailable" }, 503);
+    return c.json(breakReminder.status());
+  });
+
+  r.put("/break-reminder", async (c) => {
+    if (!breakReminder) return c.json({ error: "break reminder unavailable" }, 503);
+    const body = await c.req.json().catch(() => null) as { enabled?: unknown; intervalMinutes?: unknown; breakMinutes?: unknown } | null;
+    if (!body || typeof body.enabled !== "boolean") return c.json({ error: "enabled must be a boolean" }, 400);
+    const intervalMinutes = body.intervalMinutes;
+    if (intervalMinutes !== undefined && (typeof intervalMinutes !== "number" || !Number.isInteger(intervalMinutes) || intervalMinutes < 1 || intervalMinutes > 480)) {
+      return c.json({ error: "intervalMinutes must be an integer from 1 to 480" }, 400);
+    }
+    const breakMinutes = body.breakMinutes;
+    if (breakMinutes !== undefined && (typeof breakMinutes !== "number" || !Number.isInteger(breakMinutes) || breakMinutes < 1 || breakMinutes > 60)) {
+      return c.json({ error: "breakMinutes must be an integer from 1 to 60" }, 400);
+    }
+    return c.json(breakReminder.configure({ enabled: body.enabled, intervalMinutes, breakMinutes }));
+  });
 
   r.get("/tools", async (c) => {
     try {

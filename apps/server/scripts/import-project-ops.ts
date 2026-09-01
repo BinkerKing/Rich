@@ -22,7 +22,7 @@ const SECTION_MAP: Array<{ sourceKey: string; moduleKey: ProjectManagementModule
   { sourceKey: "environments", moduleKey: "environments", label: "环境配置" },
   { sourceKey: "deploymentSteps", moduleKey: "deploymentSteps", label: "部署步骤" },
   { sourceKey: "monitoringSections", moduleKey: "monitoring", label: "监控预警" },
-  { sourceKey: "codeApps", moduleKey: "codeVersions", label: "代码版本" },
+  { sourceKey: "codeApps", moduleKey: "codeVersions", label: "版本控制" },
   { sourceKey: "todos", moduleKey: "todos", label: "项目代办" },
 ];
 

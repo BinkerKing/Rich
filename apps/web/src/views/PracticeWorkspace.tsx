@@ -103,9 +103,9 @@ export function PracticeWorkspace({ practiceId, onBack }: Props): ReactNode {
         <button
           className={`pw__toggle ${isProject ? "is-on" : "is-off"}`}
           disabled={toggling}
-          title={isProject ? "关闭后从 项目实战 列表移除（仍在知识树）" : "打开后在 项目实战 列表显示"}
+          title={isProject ? "关闭后从 应用开发 列表移除（仍在知识树）" : "打开后在 应用开发 列表显示"}
           onClick={() => void toggleProjectMode()}>
-          {toggling ? "…" : isProject ? "✓ 在 项目实战 中" : "+ 加入 项目实战"}
+          {toggling ? "…" : isProject ? "✓ 在 应用开发 中" : "+ 加入 应用开发"}
         </button>
       </div>
 

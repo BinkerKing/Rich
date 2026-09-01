@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildDeliveryDashboard, buildGanttRows, buildGanttTimelineRange } from "./DeliveryPlanModel.js";
+import { actualStartDateFor, buildDeliveryDashboard, buildGanttRows, buildGanttTimelineRange, plannedDueDate } from "./DeliveryPlanModel.js";
+
+test("实际开始时间默认跟随计划开始，未开始且已到期时显示为今天", () => {
+  assert.equal(actualStartDateFor({ id: "future", title: "未来任务", startDate: "2026-09-03", status: "todo" }, "2026-09-01"), "2026-09-03");
+  assert.equal(actualStartDateFor({ id: "pending", title: "等待任务", startDate: "2026-08-28", status: "todo" }, "2026-09-01"), "2026-09-01");
+  assert.equal(actualStartDateFor({ id: "started", title: "执行任务", startDate: "2026-08-28", actualStartDate: "2026-08-30", status: "doing" }, "2026-09-01"), "2026-08-30");
+});
+
+test("驾驶舱截止日期优先使用计划结束时间，并兼容旧任务的截止日期", () => {
+  assert.equal(plannedDueDate({ id: "scheduled", title: "联调", status: "doing", dueDate: "2026-09-12", baselineDueDate: "2026-09-05" }), "2026-09-05");
+  assert.equal(plannedDueDate({ id: "legacy", title: "旧任务", status: "doing", dueDate: "2026-09-12" }), "2026-09-12");
+});
 
 test("交付计划按日期生成甘特行，并将逾期未完成事项标识为风险", () => {
   const rows = buildGanttRows([

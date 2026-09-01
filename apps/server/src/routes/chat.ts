@@ -177,6 +177,14 @@ async function inlineAttachments(
  */
 
 const HERMES_BASE_URL = process.env.HERMES_BASE_URL || "http://127.0.0.1:8642";
+const HERMES_API_KEY = process.env.HERMES_API_KEY;
+
+function hermesJsonHeaders(): HeadersInit {
+  return {
+    "Content-Type": "application/json",
+    ...(HERMES_API_KEY ? { Authorization: `Bearer ${HERMES_API_KEY}` } : {}),
+  };
+}
 
 export function chatRoutes(
   attachmentsRepo: ChatAttachmentsRepo | null = null,
@@ -371,7 +379,7 @@ export function chatRoutes(
       if (!adapter || adapter.name === "hermes") {
         const upstream = await fetch(`${HERMES_BASE_URL}/v1/chat/completions`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: hermesJsonHeaders(),
           body: JSON.stringify({
             model: "hermes-agent",
             stream: false,
@@ -568,7 +576,7 @@ export function chatRoutes(
       try {
         upstream = await fetch(`${HERMES_BASE_URL}/v1/chat/completions`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: hermesJsonHeaders(),
           body: JSON.stringify({
             model: "hermes-agent",
             stream: true,
@@ -715,7 +723,7 @@ export function chatRoutes(
         if (!sawText) {
           const fallback = await fetch(`${HERMES_BASE_URL}/v1/chat/completions`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: hermesJsonHeaders(),
             body: JSON.stringify({
               model: "hermes-agent",
               stream: false,

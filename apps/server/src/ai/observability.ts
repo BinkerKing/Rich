@@ -134,6 +134,7 @@ export function createAIObservability(deps: ObservabilityDeps) {
           sources: policy.sources,
           memory: policy.memory,
           notes: policy.notes,
+          entryType: policy.entryType,
           usesMcp: policy.operation === "MCP tools",
           recent: summaries.get(policy.operation) ?? { total: 0, done: 0, error: 0, latestAt: undefined },
         })),

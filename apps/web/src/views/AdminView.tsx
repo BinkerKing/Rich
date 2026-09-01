@@ -144,10 +144,10 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
   },
   {
     id: "practice-project",
-    page: "项目实战",
+    page: "应用开发",
     scene: "创建实战项目、维护知识点/需求/功能/PRD/开发任务/整改建议/提问。",
     manual: [
-      "项目实战复用 knowledge element 与 child relation，不另建孤立数据。",
+      "应用开发复用 knowledge element 与 child relation，不另建孤立数据。",
       "先读取实战项目与分组，再创建或更新明确的子项；写入后检查返回的引用和验证结果。",
       "起草 PRD、开发任务或整改项时，必须带上当前项目上下文与验收标准。",
     ],
@@ -162,7 +162,7 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
   {
     id: "project-management",
     page: "项目管理",
-    scene: "维护项目说明、流程、环境、部署、监控、代码版本、待办与文件夹信息。",
+    scene: "维护项目说明、流程、环境、部署、监控、版本控制、待办与文件夹信息。",
     manual: [
       "对象不明确时先搜索；项目和模块已明确后才进行精确读取或更新。",
       "对话同时产生摘要、决定和待办时，应一次整理进项目结构，避免分散写入。",
@@ -351,7 +351,7 @@ export function AdminView() {
         </section>
       </aside>
 
-      <main className="tv-main tv-main--home admin-main">
+      <main className={`tv-main tv-main--home admin-main ${tab === "workflows" ? "admin-main--workflows" : ""}`}>
         {tab === "health" && <ServiceHealthTab />}
         {tab === "traces" && <TraceTab />}
         {tab === "workflows" && <WorkflowsTab />}
@@ -412,6 +412,7 @@ interface WorkflowItem {
   sources: string[];
   memory: "durable" | "request" | "none";
   notes: string;
+  entryType?: "http" | "async-queue" | "route-only";
   usesMcp: boolean;
   recent: { total: number; done: number; error: number; latestAt?: string };
 }
@@ -530,9 +531,20 @@ function TraceDetailPanel({ detail, error, loading }: { detail: TraceDetail | nu
 }
 
 function WorkflowsTab() {
-  const { data, loading, error, load } = useObservabilityJson<{ items: WorkflowItem[] }>("/api/admin/ai-observability/workflows", false);
-  return <div className="admin-pane"><header className="admin-pane__head"><h1>内嵌 AI 工作流</h1><div className="admin-filters"><span>仅直接模型工作流，不含 Agent/MCP</span><button type="button" onClick={load}>立即刷新</button></div></header><ObservabilityContent loading={loading} error={error}>
-    <div className="observability-list">{listFrom<WorkflowItem>(data, "items").filter(item => !item.usesMcp).map(item => <article className="observability-card" key={item.operation}><header><strong>{item.operation}</strong><span>直接模型工作流</span></header><dl><dt>入口 API</dt><dd>{item.operation}</dd><dt>场景</dt><dd>{item.scenario}</dd><dt>上下文</dt><dd>{Array.isArray(item.sources) ? item.sources.join("、") : "—"}</dd><dt>记忆</dt><dd>{item.memory}</dd><dt>MCP</dt><dd>否</dd><dt>最近</dt><dd>{item.recent.total} 次 · 成功 {item.recent.done} · 失败 {item.recent.error}{item.recent.latestAt ? ` · ${formatTs(item.recent.latestAt)}` : ""}</dd></dl></article>)}</div>
+  const workflowsRequest = useObservabilityJson<{ items: WorkflowItem[] }>("/api/admin/ai-observability/workflows", false);
+  const routingRequest = useObservabilityJson<EngineRoutingPayload>("/api/admin/engine", false);
+  const { data, loading, error, load } = workflowsRequest;
+  const workflows = listFrom<WorkflowItem>(data, "items").filter(item => !item.usesMcp);
+  const routes = listFrom<{ scenario: string; adapter: string; source: string }>(routingRequest.data?.routing, "scenarios");
+  const grouped = workflows.reduce<Record<string, WorkflowItem[]>>((groups, workflow) => {
+    (groups[workflow.scenario] ??= []).push(workflow);
+    return groups;
+  }, {});
+  return <div className="admin-pane admin-pane--workflows"><header className="admin-pane__head"><h1>内嵌 AI 工作流</h1><div className="admin-filters"><span>清晰区分调度职责与执行产出职责</span><button type="button" onClick={() => { load(); routingRequest.load(); }}>立即刷新</button></div></header><ObservabilityContent loading={loading || routingRequest.loading} error={error ?? routingRequest.error}>
+    <section className="workflow-directory">
+      <div className="workflow-directory__intro"><div><strong>{workflows.length}</strong><span>条内嵌工作流</span></div><ol aria-label="内嵌工作流通用链路"><li>功能入口触发</li><li>调度层分流</li><li>执行 Agent 产出</li><li>结构化结果回到功能页</li></ol><p>此页描述职责与路由；不展示或保存具体调用内容。</p></div>
+      {Object.entries(grouped).map(([scenario, items]) => <section className="workflow-group" key={scenario}><header><div><span className="workflow-group__eyebrow">业务场景</span><h2>{workflowScenarioLabel(scenario)}</h2></div><span>{items.length} 个操作入口</span></header><div className="workflow-group__head" aria-hidden="true"><span>操作入口</span><span>如何触发</span><span>调度层</span><span>执行 Agent / 产出模型</span><span>处理方式</span></div><div className="workflow-group__rows">{items.map(item => { const route = routes.find(candidate => candidate.scenario === item.scenario); return <details className="workflow-row" key={item.operation}><summary><div className="workflow-row__name"><strong>{item.operation}</strong><span>{workflowEntryLabel(item.operation)}</span></div><div className="workflow-row__trigger">{workflowTrigger(item)}</div><div className="workflow-row__agent"><strong>{workflowDispatcher(item)}</strong><span>{workflowDispatchType(item)}</span></div><div className="workflow-row__executor"><strong>{workflowExecutor(route)}</strong><span>{route ? `场景 ${item.scenario} · ${route.source}` : `场景 ${item.scenario} · 路由加载中`}</span></div><div className="workflow-row__handling">{workflowHandling(item)}</div></summary><div className="workflow-row__details"><span><b>请求上下文</b>{Array.isArray(item.sources) ? item.sources.join("、") : "—"} · {memoryLabel(item.memory)}</span><span><b>调度责任</b>{workflowDispatcherDetail(item)}</span><span><b>执行产出责任</b>{workflowExecutorDetail(route)}</span><span><b>完整处理说明</b>{item.notes}</span><span><b>链路边界</b>{workflowBoundary(item)}</span></div></details>; })}</div></section>)}
+    </section>
   </ObservabilityContent></div>;
 }
 
@@ -600,6 +612,17 @@ function ObservabilityContent({ loading, error, children }: { loading: boolean; 
 }
 
 function serviceStateLabel(state: ServiceHealthItem["state"]) { return ({ healthy: "健康", degraded: "降级", offline: "离线", not_configured: "未配置" })[state]; }
+function workflowScenarioLabel(scenario: string) { return ({ chat: "对话", planning: "规划", analysis: "分析", review: "复核", "project-practice": "项目实战", "agent-task": "Agent 任务", knowledge: "知识", content: "内容", mindmap: "导图", image: "图片", coding: "编码" })[scenario] ?? scenario; }
+function memoryLabel(memory: string) { return ({ durable: "长期记忆", request: "请求上下文", none: "无记忆" })[memory] ?? memory; }
+function workflowEntryLabel(operation: string) { return ({ "/api/chat": "同步对话", "/api/chat/stream": "流式对话", "/api/ai/great-me": "个人计划推演", "/api/ai/decompose-plan": "目标拆解", "/api/ai/analyze-progress": "进度分析", "/api/ai/draft-review": "复盘草案", "/api/ai/draft-prd": "PRD 草案", "/api/ai/draft-child": "项目子项草案", "/api/ai/guided-practice": "项目实战引导", "/api/ai/adjust-child": "子项调整", "/api/ai/analyze-input": "首页输入解析", "/api/ai/generate-tree": "知识树生成", "/api/ai/refine": "知识深化", "/api/ai/expand": "知识扩展", "/api/ai/extend": "概念延展", "/api/ai/path": "学习路径", "/api/ai/ask": "知识问答", "/api/ai/analyze-mark": "划线分析", "/api/ai/news-generate-daily": "AI 早报", "/api/mindmaps/generate": "导图 PPT 生成", "image-queue": "图片与封面生成队列", coding: "编码场景（待接入）" })[operation] ?? "内嵌操作"; }
+function workflowTrigger(item: WorkflowItem) { if (item.entryType === "async-queue") return "内容或导图写入图片占位块后自动触发"; if (item.entryType === "route-only") return "当前没有 Rich 功能入口"; return ({ "/api/chat": "首页或快捷聊天提交", "/api/chat/stream": "对话框发起流式回复", "/api/ai/great-me": "计划页请求推演", "/api/ai/decompose-plan": "用户提交目标拆解", "/api/ai/analyze-progress": "计划页请求进度分析", "/api/ai/draft-review": "复盘页请求起草", "/api/ai/draft-prd": "项目实战页起草 PRD", "/api/ai/draft-child": "项目实战页新增子项", "/api/ai/guided-practice": "项目实战引导步骤", "/api/ai/adjust-child": "项目子项调整操作", "/api/ai/analyze-input": "首页输入框提交", "/api/ai/generate-tree": "创建知识树操作", "/api/ai/refine": "知识元深化操作", "/api/ai/expand": "知识元扩展子项", "/api/ai/extend": "知识元横向延展", "/api/ai/path": "生成学习路径操作", "/api/ai/ask": "知识元问答操作", "/api/ai/analyze-mark": "用户选中内容后分析", "/api/ai/news-generate-daily": "早报页面或定时任务触发", "/api/mindmaps/generate": "导图 PPT 页面提交文稿" })[item.operation] ?? "功能页或 API 请求触发"; }
+function workflowDispatcher(item: WorkflowItem) { if (item.entryType === "async-queue") return "Rich 图片队列"; if (item.entryType === "route-only") return "尚未接入调度层"; return item.operation.startsWith("/api/chat") ? "Rich 对话调度器" : "无额外调度 Agent"; }
+function workflowDispatchType(item: WorkflowItem) { if (item.entryType === "async-queue") return "进程内串行任务队列"; if (item.entryType === "route-only") return "仅模型路由配置"; return item.operation.startsWith("/api/chat") ? "对话路由与任务分流" : "功能接口直达执行层"; }
+function workflowDispatcherDetail(item: WorkflowItem) { if (item.entryType === "async-queue") return "Rich 图片队列负责将图片占位任务串行调度给执行 Agent，并将结果回写到原内容。"; if (item.entryType === "route-only") return "当前没有调用入口或调度实现；这里只展示已配置的执行模型路由。"; return item.operation.startsWith("/api/chat") ? "Rich 对话调度器负责识别对话类型、组装上下文和选择后续链路；任务型对话才会转入 Agent / MCP。" : "该功能不经过独立规划或工具调度；功能接口将已组装的业务上下文直接交给执行 Agent。"; }
+function workflowExecutor(route?: { adapter: string; source: string }) { return route ? `${route.adapter} · 执行 Agent` : "路由加载中"; }
+function workflowExecutorDetail(route?: { adapter: string; source: string }) { return route ? `${route.adapter} 负责实际生成内容与结构化结果；当前选择来自 ${route.source} 路由。` : "正在读取当前场景的执行 Agent 路由。"; }
+function workflowHandling(item: WorkflowItem) { if (item.entryType === "async-queue") return "扫描图片占位块，串行生成图片并回写元素内容"; if (item.entryType === "route-only") return "当前未执行；等待 Rich 功能入口接入"; if (item.operation.startsWith("/api/chat")) return "组装会话上下文，按场景选择模型并返回对话结果"; if (item.scenario === "mindmap") return "生成导图树与嵌入内容，完成后可继续触发封面图片队列"; if (item.scenario === "knowledge") return "读取知识数据与手册，生成后校验结构并写回功能结果"; if (item.scenario === "project-practice") return "组装项目/子项上下文，生成草案或调整建议"; if (item.scenario === "planning" || item.scenario === "analysis" || item.scenario === "review") return "组装请求与状态快照，选择场景模型并生成页面所需结果"; return "组装请求上下文，选择场景模型后生成结构化结果"; }
+function workflowBoundary(item: WorkflowItem) { if (item.entryType === "async-queue") return "不经 MCP；图片任务在 Rich 服务进程内排队，执行完成后回写原元素。"; if (item.entryType === "route-only") return "不是可执行工作流；仅表示模型路由已准备好，不能由用户界面直接触发。"; return item.operation.startsWith("/api/chat") ? "普通对话由调度器直接选模型；任务型对话才会进入 Agent/MCP 链路。" : "不经过 Agent 调度层或 Rich MCP；由功能页直接调用执行 Agent，并将结果返回当前功能。"; }
 function traceEventLabel(type: string, data?: { tool?: string; status?: string }) {
   if (type === "turn.plan") return "计划";
   if (type === "adapter.selected") return "已选择适配器";

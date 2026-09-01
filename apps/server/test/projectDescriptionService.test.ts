@@ -29,6 +29,23 @@ describe("project description service", () => {
     });
   });
 
+  it("ignores non-rich-text records when selecting the canonical description", async () => {
+    const canonical = descriptionItem("<p>完整说明</p>");
+    const baseline: ProjectModuleItem = {
+      ...descriptionItem(""),
+      id: "baseline-item",
+      title: "首轮项目认知基线",
+      content: { summary: "结构化基线" },
+      updatedAt: "2026-08-28T02:00:00.000Z",
+    };
+    const repo = { listModuleItems: vi.fn(async () => [baseline, canonical]) } as unknown as ProjectManagementRepo;
+
+    await expect(getProjectDescription(repo, "project-a")).resolves.toMatchObject({
+      html: "<p>完整说明</p>",
+      text: "完整说明",
+    });
+  });
+
   it("creates the singleton description and exposes plain text for AI", async () => {
     const created = descriptionItem("<h3>Rich</h3><p>数据治理项目</p>");
     const repo = {

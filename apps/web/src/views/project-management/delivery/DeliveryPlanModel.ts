@@ -16,6 +16,7 @@ export interface DeliveryItemLike {
   id: string;
   title: string;
   startDate?: string;
+  actualStartDate?: string;
   dueDate?: string;
   status: DeliveryItemStatus;
   owner?: string;
@@ -28,6 +29,10 @@ export interface DeliveryItemLike {
   periodDays?: number;
   actualPersonDays?: number;
   dependencyIds?: string[];
+}
+
+export function plannedDueDate(item: Pick<DeliveryItemLike, "baselineDueDate" | "dueDate">): string | undefined {
+  return item.baselineDueDate || item.dueDate;
 }
 
 function parseDate(value?: string): Date | undefined {
@@ -97,6 +102,12 @@ export function workingDaysBetween(startDate?: string, endDate?: string, holiday
   return days;
 }
 
+export function actualStartDateFor(item: Pick<DeliveryItemLike, "startDate" | "actualStartDate" | "status">, today: string): string | undefined {
+  if (!item.startDate) return item.actualStartDate;
+  if (item.status === "todo" && item.startDate <= today) return today;
+  return item.actualStartDate || item.startDate;
+}
+
 export function syncDeliverySchedule(
   current: Pick<DeliveryItemLike, "startDate" | "baselineDueDate" | "periodDays">,
   patch: Pick<Partial<DeliveryItemLike>, "startDate" | "baselineDueDate" | "periodDays">,
@@ -113,9 +124,9 @@ export function syncDeliverySchedule(
   return patch;
 }
 
-export function childTaskScheduleDefaults(parentStartDate?: string, today?: string, holidays: readonly string[] = []): Pick<DeliveryItemLike, "startDate" | "dueDate" | "baselineDueDate" | "periodDays" | "actualPersonDays"> {
-  const startDate = parseDate(parentStartDate) ? parentStartDate! : today || "";
-  return { startDate, dueDate: "", baselineDueDate: addWorkingDays(startDate, 1, holidays), periodDays: 1, actualPersonDays: 0 };
+export function childTaskScheduleDefaults(_parentStartDate?: string, today?: string, holidays: readonly string[] = []): Pick<DeliveryItemLike, "startDate" | "actualStartDate" | "dueDate" | "baselineDueDate" | "periodDays" | "actualPersonDays"> {
+  const startDate = today || "";
+  return { startDate, actualStartDate: "", dueDate: "", baselineDueDate: addWorkingDays(startDate, 2, holidays), periodDays: 2, actualPersonDays: 0 };
 }
 
 export type GanttRow<T extends DeliveryItemLike = DeliveryItemLike> = T & {

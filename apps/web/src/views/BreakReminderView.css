@@ -1,0 +1,16 @@
+html.is-break-reminder-window,
+html.is-break-reminder-window body,
+html.is-break-reminder-window #root {
+  width: 100%; height: 100%; margin: 0; overflow: hidden; background: #07121a !important;
+}
+.break-reminder {
+  position: fixed; inset: 0; display: grid; place-items: center; color: #f7fffd;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  background: radial-gradient(circle at 50% 42%, rgba(65, 223, 184, .22), transparent 32%), linear-gradient(135deg, #081c26, #102a2e 55%, #071217);
+}
+.break-reminder__panel { text-align: center; padding: 48px; }
+.break-reminder__eyebrow { color: #77efd0; font-size: 15px; letter-spacing: .18em; }
+.break-reminder h1 { margin: 22px 0 12px; font-size: clamp(42px, 7vw, 88px); font-weight: 650; letter-spacing: -.05em; }
+.break-reminder p { margin: 0; color: rgba(247, 255, 253, .76); font-size: clamp(17px, 2vw, 24px); }
+.break-reminder time { display: block; margin-top: 36px; color: #a5ffdc; font-size: clamp(82px, 16vw, 200px); font-variant-numeric: tabular-nums; font-weight: 300; line-height: .95; letter-spacing: -.06em; }
+.break-reminder small { display: block; margin-top: 18px; color: rgba(247, 255, 253, .52); font-size: 14px; letter-spacing: .12em; }

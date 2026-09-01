@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
-import { useStore } from "../state/store.js";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Icon, type IconName } from "../components/Icon.js";
 import "./RikingProjectsView.css";
 
 type RikingLaunchMethod = "jar" | "tomcat" | "command" | "remote";
 type RikingProjectLocation = "local" | "server";
 type RikingProjectStatus = "stopped" | "starting" | "running" | "error" | "unknown";
+type RikingProjectKind = "application" | "service";
 
 interface RikingProject {
   id: string;
   name: string;
+  kind: RikingProjectKind;
   location: RikingProjectLocation;
   launchMethod: RikingLaunchMethod;
   status: RikingProjectStatus;
@@ -49,9 +51,20 @@ interface RikingProject {
   lastError?: string;
 }
 
+interface MiniProgram {
+  id: string;
+  label: string;
+  desc: string;
+  category: string;
+  icon: IconName;
+  exists: boolean;
+  launchable: boolean;
+}
+
 const blankProject = (): RikingProject => ({
   id: "",
   name: "未命名 Riking 项目",
+  kind: "application",
   location: "local",
   launchMethod: "tomcat",
   status: "stopped",
@@ -71,7 +84,7 @@ const blankProject = (): RikingProject => ({
 });
 
 const statusLabel: Record<RikingProjectStatus, string> = {
-  stopped: "已停止",
+  stopped: "未启动",
   starting: "启动中",
   running: "运行中",
   error: "异常",
@@ -85,6 +98,10 @@ const methodLabel: Record<RikingLaunchMethod, string> = {
   remote: "服务器命令",
 };
 
+const miniProgramSelectionId = (id: string) => `mini:${id}`;
+const isHttpUrl = (value: string) => /^https?:\/\//i.test(value);
+const isTcpService = (value: string) => /^tcp:\/\//i.test(value);
+
 async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, options);
   const body = await response.json().catch(() => ({}));
@@ -93,22 +110,28 @@ async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export function RikingProjectsView() {
-  const setAppView = useStore((state) => state.setAppView);
   const [projects, setProjects] = useState<RikingProject[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [draft, setDraft] = useState<RikingProject>(() => blankProject());
   const [logs, setLogs] = useState("");
+  const logRef = useRef<HTMLPreElement>(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [miniPrograms, setMiniPrograms] = useState<MiniProgram[]>([]);
+  const [launchingMiniProgramId, setLaunchingMiniProgramId] = useState<string | null>(null);
 
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedId) ?? null,
     [projects, selectedId],
   );
-
-  const hasSelected = Boolean(draft.id);
+  const selectedMiniProgram = useMemo(
+    () => miniPrograms.find((program) => miniProgramSelectionId(program.id) === selectedId) ?? null,
+    [miniPrograms, selectedId],
+  );
 
   const loadProjects = async (preferId?: string) => {
     setLoading(true);
@@ -126,13 +149,31 @@ export function RikingProjectsView() {
     }
   };
 
+  const loadMiniPrograms = async () => {
+    try {
+      const data = await requestJson<{ programs: MiniProgram[] }>("/api/mini-programs");
+      setMiniPrograms(data.programs);
+    } catch {
+      setMessage("工具启动项读取失败");
+    }
+  };
+
   useEffect(() => {
     void loadProjects();
+    void loadMiniPrograms();
   }, []);
+
+  useEffect(() => {
+    if (!projects.some((project) => project.status === "starting")) return;
+    const timer = window.setInterval(() => void loadProjects(selectedId), 1500);
+    return () => window.clearInterval(timer);
+  }, [projects, selectedId]);
 
   useEffect(() => {
     if (selectedProject) {
       setDraft(selectedProject);
+      setNameDraft(selectedProject.name);
+      setIsRenaming(false);
       setMessage("");
     }
   }, [selectedProject]);
@@ -143,8 +184,8 @@ export function RikingProjectsView() {
       return;
     }
     try {
-      const data = await requestJson<{ logs: string; error?: string }>(`/api/riking-projects/${draft.id}/logs?lines=240`);
-      setLogs(data.logs || data.error || "暂无日志内容");
+      const data = await requestJson<{ logs: string; error?: string }>(`/api/riking-projects/${draft.id}/logs?lines=2000`);
+      setLogs(data.logs || data.error || "");
     } catch (error) {
       setLogs(error instanceof Error ? error.message : "读取日志失败");
     }
@@ -158,6 +199,11 @@ export function RikingProjectsView() {
     }, 3000);
     return () => window.clearInterval(timer);
   }, [draft.id, draft.logPath, draft.remote.logCommand]);
+
+  useEffect(() => {
+    const log = logRef.current;
+    if (log) log.scrollTop = log.scrollHeight;
+  }, [logs]);
 
   const update = <K extends keyof RikingProject>(key: K, value: RikingProject[K]) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -218,43 +264,83 @@ export function RikingProjectsView() {
     }
   };
 
-  const startProject = async () => {
-    if (!draft.id) return;
+  const startProject = async (projectId: string) => {
+    if (!projectId) return;
     try {
       setMessage("正在启动项目...");
-      await requestJson<{ ok: true; pid?: number }>(`/api/riking-projects/${draft.id}/start`, { method: "POST" });
-      await loadProjects(draft.id);
+      await requestJson<{ ok: true; pid?: number }>(`/api/riking-projects/${projectId}/start`, { method: "POST" });
+      await loadProjects(projectId);
       setMessage("启动命令已发出");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "启动失败");
-      await loadProjects(draft.id);
+      await loadProjects(projectId);
     }
   };
 
-  const stopProject = async () => {
-    if (!draft.id) return;
+  const stopProject = async (projectId: string) => {
+    if (!projectId) return;
     try {
-      await requestJson<{ ok: true }>(`/api/riking-projects/${draft.id}/stop`, { method: "POST" });
-      await loadProjects(draft.id);
+      await requestJson<{ ok: true }>(`/api/riking-projects/${projectId}/stop`, { method: "POST" });
+      await loadProjects(projectId);
       setMessage("停止命令已发出");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "停止失败");
     }
   };
 
-  const openApp = () => {
-    if (!draft.appUrl) return;
-    const target = `rich://open-external?url=${encodeURIComponent(draft.appUrl)}`;
-    window.open(target, "_blank", "noopener,noreferrer");
+  const launchMiniProgram = async (program: MiniProgram) => {
+    if (!program.launchable || !program.exists) return;
+    setLaunchingMiniProgramId(program.id);
+    try {
+      await requestJson<{ ok: true }>(`/api/mini-programs/${encodeURIComponent(program.id)}/open`, { method: "POST" });
+      setMessage(`已打开「${program.label}」`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : `${program.label}启动失败`);
+    } finally {
+      setLaunchingMiniProgramId(null);
+    }
   };
 
-  const copyText = async (text: string, label: string) => {
-    if (!text) return;
+  const openApp = () => {
+    if (!isHttpUrl(draft.appUrl)) return;
+    window.open(`rich://open-external?url=${encodeURIComponent(draft.appUrl)}`, "_blank", "noopener,noreferrer");
+  };
+
+  const saveRenamedProject = async () => {
+    if (!draft.id) return;
+    const name = nameDraft.trim();
+    setIsRenaming(false);
+    if (!name || name === draft.name) return;
     try {
-      await navigator.clipboard.writeText(text);
-      setMessage(`已复制${label}`);
-    } catch {
-      setMessage("复制失败，可以手动选中文本复制。");
+      await requestJson<{ project: RikingProject }>(`/api/riking-projects/${draft.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      await loadProjects(draft.id);
+      setMessage("启动项名称已修改");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "修改名称失败");
+    }
+  };
+
+  const openLog = async () => {
+    if (!draft.id) return;
+    try {
+      await requestJson<{ ok: true }>(`/api/riking-projects/${draft.id}/open-log`, { method: "POST" });
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "打开日志失败");
+    }
+  };
+
+  const clearLog = async () => {
+    if (!draft.id || !window.confirm(`确定清空日志文件「${draft.logPath}」？`)) return;
+    try {
+      await requestJson<{ ok: true }>(`/api/riking-projects/${draft.id}/clear-log`, { method: "POST" });
+      setLogs("");
+      setMessage("");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "清空日志失败");
     }
   };
 
@@ -262,81 +348,86 @@ export function RikingProjectsView() {
     <div className="riking-projects-view">
       <header className="rkp-header">
         <div>
-          <h1>Riking 项目</h1>
-          <p>本地与服务器项目运行看板，重点看状态、入口、日志和连接信息。</p>
+          <h1>项目启动</h1>
+          <p>本地与服务器项目、常用工具启动，重点看状态、入口、日志和连接信息。</p>
         </div>
       </header>
-
-      <div className="rkp-command-bar">
-        <button className="rkp-ghost" onClick={() => setAppView("apps")}>← 应用中心</button>
-        <button onClick={() => void loadProjects()} disabled={loading}>刷新</button>
-        <button className="rkp-primary" onClick={startProject} disabled={!hasSelected}>一键启动</button>
-        <button onClick={stopProject} disabled={!hasSelected}>停止</button>
-        <button onClick={openApp} disabled={!draft.appUrl}>打开应用</button>
-        <button onClick={refreshLogs} disabled={!hasSelected}>刷新日志</button>
-        <button onClick={() => setEditing((value) => !value)}>{editing ? "收起编辑" : "编辑配置"}</button>
-        <button className="rkp-primary" onClick={startNew}>+ 新增项目</button>
-      </div>
 
       <main className="rkp-layout">
         <aside className="rkp-sidebar">
           <div className="rkp-sidebar-title">
             <span>启动项</span>
-            <strong>{projects.length}</strong>
+            <strong>{projects.length + miniPrograms.length}</strong>
           </div>
           <div className="rkp-project-list">
             {projects.map((project) => (
               <button
                 key={project.id}
-                className={`rkp-project-card ${project.id === selectedId ? "is-active" : ""}`}
+                className={`rkp-project-card is-${project.status} ${project.id === selectedId ? "is-active" : ""}`}
                 onClick={() => setSelectedId(project.id)}
               >
                 <span className={`rkp-dot is-${project.status}`} />
                 <strong>{project.name}</strong>
-                <small>{methodLabel[project.launchMethod]} · {project.location === "local" ? "本地" : "服务器"}</small>
+                <small>{project.kind === "service" ? "服务" : methodLabel[project.launchMethod]} · {project.location === "local" ? "本地" : "服务器"}</small>
                 <em>{statusLabel[project.status]}</em>
               </button>
             ))}
-            {projects.length === 0 && <div className="rkp-empty">还没有启动项，可以先新增一个。</div>}
+            {miniPrograms.map((program) => (
+              <button
+                key={program.id}
+                className={`rkp-project-card ${miniProgramSelectionId(program.id) === selectedId ? "is-active" : ""}`}
+                onClick={() => { setSelectedId(miniProgramSelectionId(program.id)); setEditing(false); setLogs(""); setMessage(""); }}
+              >
+                <span className="rkp-dot is-mini" />
+                <strong>{program.label}</strong>
+                <small>{program.category} · 工具启动项</small>
+                <em>{program.exists ? "入口可用" : "入口缺失"}</em>
+              </button>
+            ))}
+            {projects.length === 0 && miniPrograms.length === 0 && <div className="rkp-empty">还没有启动项，可以先新增一个。</div>}
           </div>
         </aside>
 
         <section className="rkp-detail">
+          {selectedMiniProgram ? (
+            <div className="rkp-tool-detail">
+              <div className="rkp-detail-top">
+                <div><h2>{selectedMiniProgram.label}</h2><p>{selectedMiniProgram.desc}</p></div>
+                <div className="rkp-detail-actions"><button className="rkp-primary" disabled={!selectedMiniProgram.exists || launchingMiniProgramId === selectedMiniProgram.id} onClick={() => void launchMiniProgram(selectedMiniProgram)}>{launchingMiniProgramId === selectedMiniProgram.id ? "启动中..." : "启动"}</button></div>
+              </div>
+              <div className="rkp-tool-detail__card">
+                <span><Icon name={selectedMiniProgram.icon} /></span>
+                <div>
+                  <strong>{selectedMiniProgram.category}</strong>
+                  <p>{selectedMiniProgram.exists ? "入口可用，可以直接启动。" : "当前工作空间未找到入口文件。"}</p>
+                </div>
+              </div>
+            </div>
+          ) : <div className="rkp-project-detail">
           <div className="rkp-detail-top">
             <div>
-              <span className={`rkp-status is-${draft.status}`}>{statusLabel[draft.status]}</span>
-              <h2>{draft.name || "未命名 Riking 项目"}</h2>
-              <p>{methodLabel[draft.launchMethod]} · {draft.location === "local" ? "本地项目" : "服务器项目"}</p>
+              {isRenaming ? (
+                <input
+                  className="rkp-project-name-input"
+                  autoFocus
+                  value={nameDraft}
+                  onChange={(event) => setNameDraft(event.target.value)}
+                  onBlur={() => void saveRenamedProject()}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") event.currentTarget.blur();
+                  }}
+                />
+              ) : (
+                <h2 onDoubleClick={() => { setNameDraft(draft.name); setIsRenaming(true); }} title="双击修改名称">{draft.name || "未命名 Riking 项目"}</h2>
+              )}
+              <p>{draft.kind === "service" ? "服务" : methodLabel[draft.launchMethod]} · {draft.location === "local" ? "本地项目" : "服务器项目"}</p>
               {draft.lastStartedAt && <p>最近启动：{new Date(draft.lastStartedAt).toLocaleString()}</p>}
               {draft.lastError && <p className="rkp-error">异常：{draft.lastError}</p>}
             </div>
-            <div className="rkp-status-board">
-              <div><strong>{statusLabel[draft.status]}</strong><span>运行状态</span></div>
-              <div><strong>{methodLabel[draft.launchMethod]}</strong><span>启动方式</span></div>
-              <div><strong>{draft.location === "local" ? "本地" : "服务器"}</strong><span>项目位置</span></div>
-            </div>
-          </div>
-
-          <div className="rkp-overview-grid">
-            <button className="rkp-display-card" onClick={() => copyText(draft.appUrl, "应用链接")} disabled={!draft.appUrl}>
-              <span>应用入口</span>
-              <strong>{draft.appUrl || "未配置"}</strong>
-              <em>点击复制链接</em>
-            </button>
-            <button className="rkp-display-card" onClick={() => copyText(draft.projectPath, "项目路径")} disabled={!draft.projectPath}>
-              <span>项目路径</span>
-              <strong>{draft.projectPath || "未配置"}</strong>
-              <em>点击复制路径</em>
-            </button>
-            <button className="rkp-display-card" onClick={() => copyText(draft.logPath, "日志路径")} disabled={!draft.logPath}>
-              <span>日志路径</span>
-              <strong>{draft.logPath || "未配置"}</strong>
-              <em>点击复制路径</em>
-            </button>
-            <div className="rkp-display-card">
-              <span>容器 / 命令</span>
-              <strong>{draft.tomcatPath || draft.jarPath || draft.customCommand || draft.remote.startCommand || "未配置"}</strong>
-              <em>{methodLabel[draft.launchMethod]}</em>
+            <div className="rkp-detail-actions">
+              <button className="rkp-primary" onClick={() => void (draft.status === "running" || draft.status === "starting" ? stopProject(draft.id) : startProject(draft.id))}>{draft.status === "running" || draft.status === "starting" ? "停止" : "启动"}</button>
+              <button onClick={() => void loadProjects(draft.id)}>刷新状态</button>
+              {draft.kind === "application" && <button onClick={openApp} disabled={!isHttpUrl(draft.appUrl)}>打开应用</button>}
             </div>
           </div>
 
@@ -353,18 +444,19 @@ export function RikingProjectsView() {
             </section>
 
             <section>
-              <h3>登录应用信息</h3>
+              <h3>{isTcpService(draft.appUrl) ? "服务监控信息" : "登录应用信息"}</h3>
               <div className="rkp-read-list">
-                <p><span>地址</span>{draft.login.url || draft.appUrl || "未配置"}</p>
+                <p><span>{isTcpService(draft.appUrl) ? "监控地址" : "地址"}</span>{draft.login.url || draft.appUrl || "未配置"}</p>
                 <p><span>账号</span>{draft.login.username || "未配置"}</p>
                 <p><span>密码提示</span>{draft.login.passwordHint || "未配置"}</p>
-                {draft.login.note && <p className="rkp-note"><span>说明</span>{draft.login.note}</p>}
+                <p className="rkp-note"><span>说明</span>{draft.login.note || (isTcpService(draft.appUrl) ? "端口可连接时显示为运行中。" : "未配置")}</p>
               </div>
             </section>
 
-            <section>
+            <section className="rkp-server-config">
               <h3>服务器启动配置</h3>
               <div className="rkp-read-list">
+                <p><span>项目路径</span>{draft.projectPath || "未配置"}</p>
                 <p><span>SSH</span>{draft.remote.host ? `${draft.remote.user || "-"}@${draft.remote.host}:${draft.remote.port || "22"}` : "本地项目"}</p>
                 <p><span>远程路径</span>{draft.remote.projectPath || "未配置"}</p>
                 <p><span>启动</span>{draft.remote.startCommand || draft.startupScript || draft.customCommand || "未配置"}</p>
@@ -379,7 +471,7 @@ export function RikingProjectsView() {
                 <h3>编辑配置</h3>
                 <div>
                   <button onClick={saveProject} disabled={saving}>{saving ? "保存中" : "保存配置"}</button>
-                  <button className="rkp-danger" onClick={deleteProject} disabled={!hasSelected}>删除项目</button>
+                  <button className="rkp-danger" onClick={deleteProject} disabled={!draft.id}>删除项目</button>
                 </div>
               </div>
 
@@ -387,6 +479,13 @@ export function RikingProjectsView() {
                 <label>
                   <span>项目名称</span>
                   <input value={draft.name} onChange={(event) => update("name", event.target.value)} />
+                </label>
+                <label>
+                  <span>启动项类型</span>
+                  <select value={draft.kind} onChange={(event) => update("kind", event.target.value as RikingProjectKind)}>
+                    <option value="application">应用</option>
+                    <option value="service">服务</option>
+                  </select>
                 </label>
                 <label>
                   <span>项目位置</span>
@@ -479,9 +578,13 @@ export function RikingProjectsView() {
             <div>
               <h3>实时日志</h3>
               <span>{draft.logPath || draft.remote.logCommand || "未配置日志来源"}</span>
+              <button type="button" onClick={() => void openLog()} disabled={!draft.logPath}>打开日志</button>
+              <button className="rkp-danger" type="button" onClick={() => void clearLog()} disabled={!draft.logPath}>清空</button>
+              <button type="button" onClick={() => void refreshLogs()}>刷新日志</button>
             </div>
-            <pre>{logs || "配置日志路径后，这里会展示最近日志。"}</pre>
+            <pre ref={logRef}>{logs}</pre>
           </section>
+          </div>}
 
           {message && <div className="rkp-toast">{message}</div>}
         </section>

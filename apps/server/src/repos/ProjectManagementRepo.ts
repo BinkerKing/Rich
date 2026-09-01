@@ -1,4 +1,10 @@
 export type ProjectManagementModuleKey =
+  | "dashboard"
+  | "deliveryPlan"
+  | "requirements"
+  | "risks"
+  | "deliverables"
+  | "reports"
   | "description"
   | "dictionary"
   | "automation"
@@ -593,6 +599,12 @@ export interface ProjectManagementRepo {
 }
 
 export const PROJECT_MANAGEMENT_MODULES: Array<{ key: ProjectManagementModuleKey; label: string }> = [
+  { key: "dashboard", label: "项目驾驶舱" },
+  { key: "deliveryPlan", label: "交付计划" },
+  { key: "requirements", label: "需求与范围" },
+  { key: "risks", label: "风险与问题" },
+  { key: "deliverables", label: "交付物与验收" },
+  { key: "reports", label: "报告" },
   { key: "description", label: "项目说明" },
   { key: "dictionary", label: "数据字典" },
   { key: "automation", label: "数据自动化" },
@@ -601,7 +613,7 @@ export const PROJECT_MANAGEMENT_MODULES: Array<{ key: ProjectManagementModuleKey
   { key: "environments", label: "环境配置" },
   { key: "deploymentSteps", label: "部署步骤" },
   { key: "monitoring", label: "监控预警" },
-  { key: "codeVersions", label: "代码版本" },
+  { key: "codeVersions", label: "版本控制" },
   { key: "todos", label: "项目代办" },
   { key: "healthChecks", label: "项目健康检查" },
   { key: "folder", label: "文件夹" },

@@ -18,17 +18,18 @@ test("周期与基线截止日期按工作日双向换算", () => {
   });
 });
 
-test("新下级任务使用父任务开始日、空当前截止和一个工作日基线", () => {
+test("新建任务使用今天、空实际起止和下一个工作日的计划结束", () => {
   const defaults = (schedule as typeof schedule & {
     childTaskScheduleDefaults?: (parentStartDate?: string, today?: string) => Record<string, unknown>;
   }).childTaskScheduleDefaults;
 
   assert.ok(defaults, "应提供新下级任务的日期默认值");
   assert.deepEqual(defaults("2026-08-28", "2026-08-31"), {
-    startDate: "2026-08-28",
+    startDate: "2026-08-31",
+    actualStartDate: "",
     dueDate: "",
-    baselineDueDate: "2026-08-28",
-    periodDays: 1,
+    baselineDueDate: "2026-09-01",
+    periodDays: 2,
     actualPersonDays: 0,
   });
 });

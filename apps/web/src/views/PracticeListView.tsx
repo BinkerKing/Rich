@@ -69,7 +69,7 @@ export function PracticeListView({ onPickPractice }: Props): ReactNode {
   return (
     <div className="pv">
       <div className="pv__head">
-        <div className="pv__title">项目实战</div>
+        <div className="pv__title">应用开发</div>
         <div className="pv__sub">{practices.length} 个项目</div>
         <div style={{ flex: 1 }} />
         <button className="pv__guide" onClick={() => setGuidedOpen(true)}>引导式立项</button>

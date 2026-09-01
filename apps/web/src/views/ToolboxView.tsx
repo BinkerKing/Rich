@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TopBar } from "../components/TopBar.js";
 import "./ToolboxView.css";
 
@@ -51,6 +51,13 @@ interface Invocation {
   createdAt: string;
 }
 
+interface BreakReminderStatus {
+  enabled: boolean;
+  intervalMinutes: number;
+  breakMinutes: number;
+  nextReminderAt: string | null;
+}
+
 function statusLabel(s: Invocation["status"]): string {
   return s === "scheduled" ? "已排期"
     : s === "running" ? "执行中"
@@ -69,6 +76,8 @@ export function ToolboxView() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
 
+  const [breakReminder, setBreakReminder] = useState<BreakReminderStatus | null>(null);
+
   async function loadAll() {
     setLoading(true);
     try {
@@ -85,6 +94,12 @@ export function ToolboxView() {
   }
 
   useEffect(() => { void loadAll(); }, []);
+  useEffect(() => {
+    const load = () => fetch("/api/toolbox/break-reminder").then(r => r.ok ? r.json() : null).then(setBreakReminder).catch(() => setBreakReminder(null));
+    load();
+    const timer = window.setInterval(load, 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
   // Auto-refresh every 3 seconds while there are scheduled or running items —
   // covers the case where a scheduled lock fires in 10min and we want to see
   // it flip to completed without manual refresh.
@@ -149,6 +164,7 @@ export function ToolboxView() {
         </header>
 
         <section className="toolbox-grid">
+          <BreakReminderCard status={breakReminder} onUpdate={setBreakReminder} />
           {tools.map(tool => (
             <ToolCard
               key={tool.name}
@@ -195,6 +211,39 @@ export function ToolboxView() {
       </main>
     </div>
   );
+}
+
+function BreakReminderCard({ status, onUpdate }: { status: BreakReminderStatus | null; onUpdate: (status: BreakReminderStatus) => void }) {
+  const [interval, setIntervalValue] = useState(60);
+  const [breakMinutes, setBreakMinutes] = useState(2);
+  const [busy, setBusy] = useState(false);
+  const loadedInitialValues = useRef(false);
+  useEffect(() => {
+    if (!status || loadedInitialValues.current) return;
+    setIntervalValue(status.intervalMinutes);
+    setBreakMinutes(status.breakMinutes);
+    loadedInitialValues.current = true;
+  }, [status]);
+  const next = status?.nextReminderAt ? `下次提醒：${formatTime(status.nextReminderAt)}` : "尚未启动";
+  async function update(enabled: boolean) {
+    setBusy(true);
+    try {
+      const response = await fetch("/api/toolbox/break-reminder", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled, intervalMinutes: interval, breakMinutes }) });
+      if (!response.ok) throw new Error();
+      onUpdate(await response.json() as BreakReminderStatus);
+    } finally { setBusy(false); }
+  }
+  return <article className="tool-card tool-card--break">
+    <header className="tool-card__head"><h3>定时休息提醒</h3><span className="tool-card__category">健康</span></header>
+    <p className="tool-card__desc">Rich 运行期间持续计时；即使最小化或切到其他应用，到点也会在所有屏幕显示休息倒计时。</p>
+    <label className="tool-field"><span>每隔多少分钟提醒</span><input type="number" min="1" max="480" value={interval} onChange={event => setIntervalValue(Math.max(1, Math.min(480, Number(event.target.value) || 1)))} /></label>
+    <label className="tool-field"><span>每次休息多少分钟</span><input type="number" min="1" max="60" value={breakMinutes} onChange={event => setBreakMinutes(Math.max(1, Math.min(60, Number(event.target.value) || 1)))} /></label>
+    <div className="break-reminder-card__actions">
+      <button type="button" className="tool-form__submit" disabled={busy || status?.enabled} onClick={() => void update(true)}>{status?.enabled ? "提醒已启动" : "启动提醒"}</button>
+      {status?.enabled && <button type="button" className="break-reminder-card__pause" disabled={busy} onClick={() => void update(false)}>暂停</button>}
+    </div>
+    <p className="break-reminder-card__next">{next}</p>
+  </article>;
 }
 
 /* ─── ToolCard with auto-generated form ──────────────────────────────── */

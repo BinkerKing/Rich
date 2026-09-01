@@ -17,6 +17,7 @@ export interface AIContextPolicy {
   sources: AIContextSource[];
   memory: "durable" | "request" | "none";
   notes: string;
+  entryType?: "http" | "async-queue" | "route-only";
 }
 
 export const AI_CONTEXT_POLICIES: AIContextPolicy[] = [
@@ -152,6 +153,29 @@ export const AI_CONTEXT_POLICIES: AIContextPolicy[] = [
     sources: ["current-request", "manual"],
     memory: "request",
     notes: "AI 早报按日期生成，后续可接用户偏好摘要和语料模板。",
+  },
+  {
+    operation: "/api/mindmaps/generate",
+    scenario: "mindmap",
+    sources: ["current-request"],
+    memory: "request",
+    notes: "导图 PPT 页面提交文稿后生成导图树和嵌入内容；可选传入模型偏好。",
+  },
+  {
+    operation: "image-queue",
+    scenario: "image",
+    sources: ["element", "document"],
+    memory: "request",
+    entryType: "async-queue",
+    notes: "内容或导图结果写入图片占位块后，图片队列串行生成插图或导图封面，并将图片回写到原元素。",
+  },
+  {
+    operation: "coding",
+    scenario: "coding",
+    sources: ["none"],
+    memory: "none",
+    entryType: "route-only",
+    notes: "coding 场景已配置执行模型路由，但当前没有注册对应的 Rich 前端或 API 功能入口。",
   },
   {
     operation: "MCP tools",

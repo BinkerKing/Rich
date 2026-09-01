@@ -58,9 +58,12 @@ const TaskSchema = z.object({
   goalId: z.string().max(80).default(""),
   note: z.string().max(400).default(""),
   // === 新增 ===
-  source: z.enum(["user", "ai", "ai-template"]).optional(),
+  source: z.enum(["user", "ai", "ai-template", "project"]).optional(),
   metric: MetricSchema.optional(),
   archived: z.boolean().optional(),
+  projectId: z.string().max(80).optional(),
+  projectName: z.string().max(200).optional(),
+  projectTaskId: z.string().max(80).optional(),
 });
 
 const PlanSchema = z.object({

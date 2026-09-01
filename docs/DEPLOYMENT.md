@@ -337,6 +337,8 @@ pnpm --filter @ke/desktop package
 
 **产物**：`apps/desktop/release/mac-arm64/Rich.app`（约 200-300 MB）
 
+> **原生模块 ABI 注意事项**：打包命令会把 `better-sqlite3` 重编译为 Electron 内置 Node 可加载的版本。这是 Rich.app 正常启动所必需的，但不能直接用于终端 Node 的服务端或路由集成测试。打包后若要运行这类测试，先执行 `nvm use && pnpm rebuild:sqlite`，再运行测试命令。
+
 ### 6.1 把 Rich.app 拖进 /Applications（可选）
 
 ```bash
@@ -412,7 +414,8 @@ curl -s http://127.0.0.1:31515/api/great-me/state | head -c 200
 | Codex 操作报 "codex CLI not found" | PATH 找不到，或 Codex.app 没装 | 设 `KE_CODEX_BIN=/Applications/Codex.app/Contents/Resources/codex` |
 | `app.asar` 跑的是老代码 | 改了 server 但只 build 没 package | 必须 `pnpm --filter @ke/desktop package` 重打 |
 | 前端改了不生效 | web-dist 是实拷贝不是软链 | 见 6.2 |
-| 启动报 NODE_MODULE_VERSION mismatch | Node 主版本变了，better-sqlite3 ABI 不匹配 | `pnpm --filter @ke/desktop rebuild:native` 重新编译 |
+| Rich.app 启动报 NODE_MODULE_VERSION mismatch | Electron ABI 与 `better-sqlite3` 不匹配 | `pnpm --filter @ke/desktop rebuild:native` 重新编译 |
+| 路由集成测试报 NODE_MODULE_VERSION mismatch（通常发生在打包后） | `better-sqlite3` 仍是 Electron ABI，终端 Node 无法加载 | `nvm use && pnpm rebuild:sqlite`，再重新运行测试 |
 
 ---
 

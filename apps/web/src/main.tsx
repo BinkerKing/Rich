@@ -12,6 +12,7 @@ import "./theme/theme-editorial.css";
 import "./theme/theme-ghibli.css";
 import "./views/OverlayTaskView.css";
 import "./views/ChatOverlay.css";
+import "./views/BreakReminderView.css";
 
 installNavigationSwipeGuard();
 

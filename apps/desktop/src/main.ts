@@ -1,9 +1,10 @@
-import { app, BrowserWindow, shell, dialog, Menu, Tray, nativeImage, globalShortcut, screen } from "electron";
+import { app, BrowserWindow, shell, dialog, Menu, Tray, nativeImage, globalShortcut, screen, ipcMain } from "electron";
 import { existsSync, mkdirSync, statSync, readdirSync, copyFileSync, appendFileSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import http from "node:http";
 import { fileURLToPath } from "node:url";
+import ExcelJS from "exceljs";
 
 // File-based logger so we can see what happened when launched from .app bundle
 // (where stdout is swallowed). Always logs to /tmp/ke-desktop.log.
@@ -54,14 +55,23 @@ function handleRichWindowCommand(url: string, win: BrowserWindow): boolean {
   try {
     const parsed = new URL(url);
     if (parsed.hostname === "toggle-maximize") {
-      if (win.isMaximized()) win.unmaximize();
-      else win.maximize();
+      toggleWindowMaximize(win);
       return true;
     }
   } catch (error) {
     flog(`invalid rich window url ${url}: ${error instanceof Error ? error.message : String(error)}`);
   }
   return false;
+}
+
+function toggleWindowMaximize(win: BrowserWindow): void {
+  if (win.isMaximized()) win.unmaximize();
+  else win.maximize();
+}
+
+function setTopDragRegionMode(win: BrowserWindow, mode: "drag" | "no-drag"): void {
+  win.webContents.executeJavaScript(`document.getElementById("rich-window-drag-region")?.style.setProperty("-webkit-app-region", "${mode}")`)
+    .catch(() => { /* renderer can be gone while reloading */ });
 }
 
 // CJS-friendly module dir. esbuild outputs CJS so `__dirname` is available
@@ -331,10 +341,14 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
     // them via the CSS injected on did-finish-load.
     titleBarStyle: "hiddenInset",
     trafficLightPosition: { x: 14, y: 16 },
+    // Keep the native zoom action available for the green traffic-light
+    // control and every custom drag region in the renderer.
+    maximizable: true,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      preload: join(__dirname, "preload.cjs"),
     },
     ...(icon ? { icon } : {}),
     show: false,
@@ -358,7 +372,155 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
       win.hide();
     }
   });
-  win.on("closed", () => { if (mainWindow === win) mainWindow = null; });
+  const onToggleMaximize = (event: Electron.IpcMainEvent) => {
+    if (event.sender === win.webContents) toggleWindowMaximize(win);
+  };
+  ipcMain.on("rich-window:toggle-maximize", onToggleMaximize);
+  const exportDeliveryPlan = async (event: Electron.IpcMainInvokeEvent, payload: unknown) => {
+    if (event.sender !== win.webContents || !payload || typeof payload !== "object") return false;
+    const value = payload as { gantt?: unknown; tableRows?: unknown; filename?: unknown };
+    const gantt = value.gantt as { today?: unknown; dates?: unknown; rows?: unknown } | undefined;
+    if (!gantt || typeof gantt.today !== "string" || !Array.isArray(gantt.dates) || !Array.isArray(gantt.rows) || !Array.isArray(value.tableRows)) return false;
+    const result = await dialog.showSaveDialog(win, {
+      defaultPath: join(app.getPath("downloads"), typeof value.filename === "string" ? value.filename : "交付计划.xlsx"),
+      filters: [{ name: "Excel 工作簿", extensions: ["xlsx"] }],
+    });
+    if (result.canceled || !result.filePath) return false;
+    const workbook = new ExcelJS.Workbook();
+    const ganttSheet = workbook.addWorksheet("甘特图");
+    const dates = gantt.dates.filter((date): date is string => typeof date === "string");
+    const rows = gantt.rows.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object");
+    ganttSheet.columns = [{ width: 46 }, { width: 14 }, { width: 10 }, ...dates.map(() => ({ width: 5 }))];
+    ganttSheet.mergeCells("A1:A2"); ganttSheet.mergeCells("B1:B2"); ganttSheet.mergeCells("C1:C2");
+    ganttSheet.getCell("A1").value = "WBS / 任务名称"; ganttSheet.getCell("B1").value = "负责人"; ganttSheet.getCell("C1").value = "进度";
+    let monthStart = 0;
+    while (monthStart < dates.length) {
+      const month = dates[monthStart]!.slice(0, 7);
+      let monthEnd = monthStart;
+      while (dates[monthEnd + 1]?.startsWith(month)) monthEnd += 1;
+      const first = 4 + monthStart; const last = 4 + monthEnd;
+      ganttSheet.mergeCells(1, first, 1, last);
+      ganttSheet.getCell(1, first).value = `${Number(month.slice(5))}月`;
+      monthStart = monthEnd + 1;
+    }
+    dates.forEach((date, index) => { ganttSheet.getCell(2, index + 4).value = `${date === gantt.today ? "今天\n" : ""}${date.slice(5).replace("-", "/")}`; });
+    const darkHeader = { type: "pattern" as const, pattern: "solid" as const, fgColor: { argb: "FF101318" } };
+    for (let row = 1; row <= 2; row += 1) ganttSheet.getRow(row).eachCell({ includeEmpty: true }, cell => { cell.fill = darkHeader; cell.font = { name: "PingFang SC", size: 10, bold: true, color: { argb: "FFE2E8F0" } }; cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true }; cell.border = { top: { style: "thin", color: { argb: "FF26364D" } }, left: { style: "thin", color: { argb: "FF26364D" } }, bottom: { style: "thin", color: { argb: "FF26364D" } }, right: { style: "thin", color: { argb: "FF26364D" } } }; });
+    ganttSheet.getRow(1).height = 24; ganttSheet.getRow(2).height = 34;
+    const phaseRanges = new Map<number, Record<string, unknown>>();
+    rows.forEach(row => { if (row.kind === "phase" && typeof row.phaseIndex === "number") phaseRanges.set(row.phaseIndex, row); });
+    const phaseColors = ["FF234A82", "FF23695A", "FF51348A", "FF765326"];
+    const inRange = (date: string, start?: unknown, end?: unknown) => typeof start === "string" && typeof end === "string" && date >= start && date <= end;
+    rows.forEach((item, index) => {
+      const row = ganttSheet.getRow(index + 3); const phase = phaseRanges.get(typeof item.phaseIndex === "number" ? item.phaseIndex : -1);
+      const title = `${"　".repeat(Math.min(4, typeof item.depth === "number" ? item.depth : 0))}${typeof item.wbsCode === "string" && item.wbsCode ? `${item.wbsCode} ` : ""}${String(item.title || "")}`;
+      row.values = [title, String(item.owner || "—"), item.kind === "milestone" ? "节点" : item.kind === "risk" ? "风险" : `${Number(item.progress || 0)}%`];
+      row.height = 22;
+      row.eachCell({ includeEmpty: true }, cell => { cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF050505" } }; cell.font = { name: "PingFang SC", size: 10, color: { argb: "FFE2E8F0" } }; cell.alignment = { vertical: "middle", wrapText: true }; });
+      dates.forEach((date, dateIndex) => {
+        const cell = row.getCell(dateIndex + 4); const phaseEnd = phase?.baselineDueDate || phase?.dueDate || phase?.startDate;
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF050505" } };
+        if (phase && inRange(date, phase.startDate, phaseEnd)) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: phaseColors[(Number(item.phaseIndex) || 0) % phaseColors.length]! } };
+        const end = item.baselineDueDate || item.dueDate || item.startDate;
+        if (item.kind === "milestone" && date === end) { cell.value = "⚑"; cell.font = { name: "PingFang SC", size: 12, color: { argb: "FFFBBF24" } }; }
+        else if (item.kind === "risk" && inRange(date, item.startDate || end, end)) { cell.value = "⚠"; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE11D48" } }; }
+        else if (item.kind === "task" && inRange(date, item.startDate || end, end)) {
+          const taskStartIndex = dates.findIndex(candidate => candidate >= String(item.startDate || end));
+          let taskEndIndex = -1;
+          for (let index = dates.length - 1; index >= 0; index -= 1) if (dates[index]! <= String(end)) { taskEndIndex = index; break; }
+          const completeDateIndex = taskStartIndex + Math.ceil((taskEndIndex - taskStartIndex + 1) * Math.min(100, Math.max(0, Number(item.progress || 0))) / 100) - 1;
+          const taskStyle = item.status === "blocked" ? { fill: "FFFB7185", border: "FFFDA4AF" } : item.status === "done" ? { fill: "FF00A878", border: "FF6EE7B7" } : item.status === "todo" ? { fill: "FF718096", border: "FFCBD5E1" } : { fill: dateIndex <= completeDateIndex ? "FF00A878" : "FF718096", border: "FF6EE7B7" };
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: taskStyle.fill } };
+          cell.border = { top: { style: "medium", color: { argb: taskStyle.border } }, bottom: { style: "medium", color: { argb: taskStyle.border } }, left: dateIndex === taskStartIndex ? { style: "medium", color: { argb: taskStyle.border } } : undefined, right: dateIndex === taskEndIndex ? { style: "medium", color: { argb: taskStyle.border } } : undefined };
+        }
+      });
+      if (item.kind === "phase" || item.kind === "group") row.eachCell(cell => { cell.font = { name: "PingFang SC", size: 10, bold: true, color: { argb: "FFFFFFFF" } }; });
+    });
+    rows.forEach((group, groupIndex) => {
+      if (group.kind !== "group" || typeof group.depth !== "number") return;
+      const start = group.startDate; const end = group.baselineDueDate || group.dueDate || group.startDate;
+      const startDateIndex = typeof start === "string" ? dates.findIndex(date => date >= start) : -1;
+      let endDateIndex = -1;
+      if (typeof end === "string") for (let index = dates.length - 1; index >= 0; index -= 1) if (dates[index]! <= end) { endDateIndex = index; break; }
+      if (startDateIndex < 0 || endDateIndex < startDateIndex) return;
+      let lastRowIndex = groupIndex;
+      for (let index = groupIndex + 1; index < rows.length && Number(rows[index]!.depth) > group.depth; index += 1) lastRowIndex = index;
+      const top = groupIndex + 3; const bottom = lastRowIndex + 3; const left = startDateIndex + 4; const right = endDateIndex + 4;
+      const color = ["FF38BDF8", "FFB15CFF", "FFF59E0B", "FF34D399"][Math.max(0, Number(group.depth) - 1) % 4]!;
+      for (let rowNumber = top; rowNumber <= bottom; rowNumber += 1) {
+        for (let columnNumber = left; columnNumber <= right; columnNumber += 1) {
+          const cell = ganttSheet.getCell(rowNumber, columnNumber);
+          cell.border = { top: rowNumber === top ? { style: "mediumDashed", color: { argb: color } } : undefined, bottom: rowNumber === bottom ? { style: "mediumDashed", color: { argb: color } } : undefined, left: columnNumber === left ? { style: "mediumDashed", color: { argb: color } } : undefined, right: columnNumber === right ? { style: "mediumDashed", color: { argb: color } } : undefined };
+        }
+      }
+    });
+    for (let rowNumber = 3; rowNumber <= rows.length + 2; rowNumber += 1) for (let columnNumber = 4; columnNumber <= dates.length + 3; columnNumber += 1) {
+      const cell = ganttSheet.getCell(rowNumber, columnNumber);
+      const item = rows[rowNumber - 3]; const end = item?.baselineDueDate || item?.dueDate || item?.startDate;
+      const isTaskBar = item?.kind === "task" && inRange(dates[columnNumber - 4]!, item.startDate || end, end);
+      if (!isTaskBar && !cell.border?.left) cell.border = { ...cell.border, left: { style: "thin", color: { argb: "FF6B7280" } } };
+    }
+    rows.forEach((item, index) => {
+      if (item.kind !== "task") return;
+      const end = item.baselineDueDate || item.dueDate || item.startDate;
+      const startIndex = dates.findIndex(date => date >= String(item.startDate || end));
+      let endIndex = -1;
+      for (let dateIndex = dates.length - 1; dateIndex >= 0; dateIndex -= 1) if (dates[dateIndex]! <= String(end)) { endIndex = dateIndex; break; }
+      if (startIndex < 0 || endIndex < startIndex) return;
+      const border = item.status === "blocked" ? "FFFDA4AF" : item.status === "todo" ? "FFCBD5E1" : "FF6EE7B7";
+      for (let dateIndex = startIndex; dateIndex <= endIndex; dateIndex += 1) ganttSheet.getCell(index + 3, dateIndex + 4).border = { top: { style: "medium", color: { argb: border } }, bottom: { style: "medium", color: { argb: border } }, left: dateIndex === startIndex ? { style: "medium", color: { argb: border } } : undefined, right: dateIndex === endIndex ? { style: "medium", color: { argb: border } } : undefined };
+    });
+    const todayColumn = dates.indexOf(gantt.today) + 4;
+    if (todayColumn >= 4) for (let rowNumber = 1; rowNumber <= rows.length + 2; rowNumber += 1) {
+      const cell = ganttSheet.getCell(rowNumber, todayColumn);
+      cell.border = { ...cell.border, left: { style: "medium", color: { argb: "FFFB7185" } } };
+    }
+    ganttSheet.views = [{ state: "frozen", xSplit: 3, ySplit: 2, showGridLines: false }];
+    const tableSheet = workbook.addWorksheet("Excel 列表");
+    for (const row of value.tableRows) if (Array.isArray(row)) tableSheet.addRow(row.map(cell => typeof cell === "string" || typeof cell === "number" ? cell : ""));
+    tableSheet.views = [{ state: "frozen", ySplit: 1 }];
+    tableSheet.columns = [34, 24, 12, 12, 12, 14, 14, 14, 14, 14, 12, 32, 14].map(width => ({ width }));
+    tableSheet.autoFilter = { from: "A1", to: `M${Math.max(1, tableSheet.rowCount)}` };
+    tableSheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      row.height = rowNumber === 1 ? 28 : 22;
+      row.eachCell(cell => {
+        cell.alignment = { vertical: "middle", wrapText: true };
+        cell.border = { top: { style: "thin", color: { argb: "FFD8E1EC" } }, left: { style: "thin", color: { argb: "FFD8E1EC" } }, bottom: { style: "thin", color: { argb: "FFD8E1EC" } }, right: { style: "thin", color: { argb: "FFD8E1EC" } } };
+        cell.font = { name: "PingFang SC", size: 10, color: { argb: "FF243B53" } };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowNumber % 2 === 0 ? "FFF7FAFC" : "FFFFFFFF" } };
+      });
+      if (rowNumber === 1) {
+        row.eachCell(cell => { cell.font = { name: "PingFang SC", size: 11, bold: true, color: { argb: "FFFFFFFF" } }; cell.alignment = { horizontal: "center", vertical: "middle" }; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF17365D" } }; });
+        return;
+      }
+      const type = String(row.getCell(2).value || "");
+      const title = row.getCell(1);
+      const depth = Math.min(4, (String(title.value || "").match(/\./g) || []).length);
+      title.alignment = { vertical: "middle", wrapText: true, indent: depth };
+      if (type.startsWith("阶段")) row.eachCell(cell => { cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFDCEBFF" } }; cell.font = { name: "PingFang SC", size: 10, bold: true, color: { argb: "FF174EA6" } }; });
+      else if (type.startsWith("分组")) row.eachCell(cell => { cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE6FFFA" } }; cell.font = { name: "PingFang SC", size: 10, bold: true, color: { argb: "FF0F766E" } }; });
+      else if (type.startsWith("里程碑")) row.eachCell(cell => { cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF7D6" } }; });
+      else if (type.startsWith("风险点")) row.eachCell(cell => { cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF0F1" } }; cell.font = { name: "PingFang SC", size: 10, color: { argb: "FFB42318" } }; });
+      const status = row.getCell(3);
+      const statusColor = status.value === "已完成" ? "FFDCFCE7" : status.value === "进行中" ? "FFDBEAFE" : status.value === "已阻塞" ? "FFFEE2E2" : "FFFEF3C7";
+      status.fill = { type: "pattern", pattern: "solid", fgColor: { argb: statusColor } };
+      status.font = { name: "PingFang SC", size: 10, bold: true, color: { argb: "FF243B53" } };
+      status.alignment = { horizontal: "center", vertical: "middle" };
+    });
+    await workbook.xlsx.writeFile(result.filePath);
+    return true;
+  };
+  ipcMain.handle("rich-delivery-plan:export", exportDeliveryPlan);
+  win.on("closed", () => {
+    ipcMain.removeListener("rich-window:toggle-maximize", onToggleMaximize);
+    ipcMain.removeHandler("rich-delivery-plan:export");
+    if (mainWindow === win) mainWindow = null;
+  });
+  // While maximized, make the strip a regular transparent element so its
+  // double-click event explicitly restores the window. In normal size it is
+  // a native drag region again, preserving the usual macOS window movement.
+  win.on("maximize", () => setTopDragRegionMode(win, "no-drag"));
+  win.on("unmaximize", () => setTopDragRegionMode(win, "drag"));
   mainWindow = win;
 
   // Open external links in the default browser, not new Electron windows.
@@ -392,6 +554,35 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
   const DEFAULT_ZOOM = 0.8;
   win.webContents.on("did-finish-load", () => {
     win.webContents.setZoomFactor(DEFAULT_ZOOM);
+    // Every full-screen view gets a real top drag strip. Several screens
+    // intentionally reserve blank top padding for the macOS traffic lights;
+    // styling only their visible header left that padding non-draggable.
+    // Start after the traffic lights so their native controls stay usable.
+    win.webContents.executeJavaScript(`(() => {
+      let region = document.getElementById("rich-window-drag-region");
+      if (!region) {
+        region = document.createElement("div");
+        region.id = "rich-window-drag-region";
+        region.setAttribute("aria-hidden", "true");
+        document.body.prepend(region);
+      }
+      Object.assign(region.style, {
+        position: "fixed",
+        top: "0",
+        left: "88px",
+        right: "0",
+        height: "56px",
+        zIndex: "2147483646",
+        WebkitAppRegion: "drag",
+        userSelect: "none",
+      });
+      if (!region.dataset.richWindowRestoreHandler) {
+        region.dataset.richWindowRestoreHandler = "true";
+        region.addEventListener("dblclick", () => {
+          window.richWindow?.toggleMaximize?.();
+        });
+      }
+    })()`).catch(() => { /* renderer can be gone while reloading */ });
     // Chromeless top: reserve space for the macOS traffic lights at the
     // top-left of the TopBar, and make the bar itself act as a drag
     // handle (-webkit-app-region: drag). Buttons / links / inputs inside
@@ -408,16 +599,21 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
       .prj__head,
       .apps-launcher__head,
       .app-launcher__head,
+      .app-launcher__header,
       .mini-apps__head,
       .mini-apps-header,
       .riking-projects__head,
+      .rkp-header,
       .health-view__head,
+      .health-header,
       .gm-shell__head,
       .mindmap-view__head,
       .practice-view__head,
       .practice-workspace__head,
       .toolbox-view__head,
+      .toolbox-head,
       .admin-view__head,
+      .news-page-head,
       [data-window-drag-region="true"] {
         -webkit-app-region: drag;
         user-select: none;
@@ -455,6 +651,9 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
       .app-launcher__head button,
       .app-launcher__head a,
       .app-launcher__head input,
+      .app-launcher__header button,
+      .app-launcher__header a,
+      .app-launcher__header input,
       .mini-apps__head button,
       .mini-apps__head a,
       .mini-apps__head input,
@@ -464,9 +663,15 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
       .riking-projects__head button,
       .riking-projects__head a,
       .riking-projects__head input,
+      .rkp-header button,
+      .rkp-header a,
+      .rkp-header input,
       .health-view__head button,
       .health-view__head a,
       .health-view__head input,
+      .health-header button,
+      .health-header a,
+      .health-header input,
       .gm-shell__head button,
       .gm-shell__head a,
       .gm-shell__head input,
@@ -482,9 +687,15 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
       .toolbox-view__head button,
       .toolbox-view__head a,
       .toolbox-view__head input,
+      .toolbox-head button,
+      .toolbox-head a,
+      .toolbox-head input,
       .admin-view__head button,
       .admin-view__head a,
       .admin-view__head input,
+      .news-page-head button,
+      .news-page-head a,
+      .news-page-head input,
       [data-window-drag-region="true"] button,
       [data-window-drag-region="true"] a,
       [data-window-drag-region="true"] input,
@@ -496,10 +707,36 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
         -webkit-app-region: no-drag;
       }
     `).catch(() => { /* SPA route changes may race; ignore */ });
+    // A native drag region normally handles a double-click itself. This
+    // renderer fallback covers view headers that do not expose such a region
+    // (including future pages) without stealing double-clicks from controls.
+    // It stays installed for the lifetime of the SPA, so view switches do not
+    // need page-specific maximize handlers.
+    win.webContents.executeJavaScript(`(() => {
+      if (window.__richWindowHeaderDblClickInstalled) return;
+      window.__richWindowHeaderDblClickInstalled = true;
+      document.addEventListener("dblclick", (event) => {
+        if (event.clientY > 120) return;
+        const target = event.target instanceof Element ? event.target : null;
+        if (!target || target.closest("button, a, input, textarea, select, [role='button'], [role='tab'], [contenteditable='true']")) return;
+        if (!target.closest("header, [data-window-drag-region='true']")) return;
+        event.preventDefault();
+        event.stopPropagation();
+        window.richWindow?.toggleMaximize?.();
+      }, true);
+    })()`).catch(() => { /* renderer can be gone while reloading */ });
   });
 
   // Wire Cmd +/= , Cmd - , Cmd 0 zoom shortcuts so the user can still adjust.
   win.webContents.on("before-input-event", (event, input) => {
+    // Some custom drag regions do not forward the native double-click to the
+    // renderer. Handle the universal top strip in the main process as well.
+    const mouseInput = input as typeof input & { clickCount?: number; x?: number; y?: number };
+    if (input.type === "mouseDown" && mouseInput.clickCount === 2 && mouseInput.y !== undefined && mouseInput.y <= 56 && mouseInput.x !== undefined && mouseInput.x >= 88) {
+      toggleWindowMaximize(win);
+      event.preventDefault();
+      return;
+    }
     if (input.type !== "keyDown") return;
     if (
       input.shift &&
@@ -570,6 +807,9 @@ let mainWindow: BrowserWindow | null = null;
 let serverPort: number | null = null;
 
 let overlayWindows: BrowserWindow[] = [];
+let breakReminderWindows: BrowserWindow[] = [];
+let breakReminderUntil = 0;
+let breakReminderPoller: NodeJS.Timeout | null = null;
 
 /** Spotlight-style chat overlay window. Created lazily on first invocation
  *  of the Cmd+Shift+Space shortcut, then kept alive (hidden on Esc/blur)
@@ -730,6 +970,72 @@ function setupOverlayControls(port: number) {
   app.on("will-quit", () => {
     for (const accelerator of shortcuts) globalShortcut.unregister(accelerator);
   });
+}
+
+// ----- Mandatory break reminder -----------------------------------------
+// The server owns the work/rest schedule. Polling its tiny local status
+// endpoint from Electron lets the reminder outlive the main window being
+// minimized or hidden, without giving the renderer Node / IPC privileges.
+function createBreakReminderWindow(bounds: Electron.Rectangle, port: number, until: number): BrowserWindow {
+  const win = new BrowserWindow({
+    x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height,
+    frame: false, fullscreenable: false, resizable: false, movable: false,
+    minimizable: false, maximizable: false, skipTaskbar: true, focusable: false,
+    backgroundColor: "#07121a", show: false,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+  });
+  win.setIgnoreMouseEvents(true);
+  win.setAlwaysOnTop(true, "screen-saver", 1);
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  win.loadURL(`http://127.0.0.1:${port}/#break-reminder?until=${until}`).catch(() => {});
+  return win;
+}
+
+function hideBreakReminder() {
+  breakReminderUntil = 0;
+  for (const win of breakReminderWindows) if (!win.isDestroyed()) win.hide();
+}
+
+function showBreakReminder(port: number, until: number) {
+  if (breakReminderUntil === until && breakReminderWindows.length > 0) return;
+  for (const win of breakReminderWindows) if (!win.isDestroyed()) win.destroy();
+  breakReminderUntil = until;
+  breakReminderWindows = screen.getAllDisplays().map(display => createBreakReminderWindow(display.bounds, port, until));
+  for (const win of breakReminderWindows) {
+    win.once("ready-to-show", () => {
+      if (breakReminderUntil === until) win.showInactive();
+    });
+  }
+}
+
+function readBreakReminderStatus(port: number): Promise<{ activeUntil: string | null }> {
+  return new Promise(resolve => {
+    const request = http.get(`http://127.0.0.1:${port}/api/toolbox/break-reminder`, response => {
+      let raw = "";
+      response.setEncoding("utf8");
+      response.on("data", chunk => { raw += chunk; });
+      response.on("end", () => {
+        try { resolve(JSON.parse(raw) as { activeUntil: string | null }); }
+        catch { resolve({ activeUntil: null }); }
+      });
+    });
+    request.setTimeout(800, () => { request.destroy(); resolve({ activeUntil: null }); });
+    request.on("error", () => resolve({ activeUntil: null }));
+  });
+}
+
+function setupBreakReminder(port: number) {
+  const refresh = async () => {
+    const { activeUntil } = await readBreakReminderStatus(port);
+    const until = activeUntil ? new Date(activeUntil).getTime() : 0;
+    if (until > Date.now()) showBreakReminder(port, until);
+    else hideBreakReminder();
+  };
+  void refresh();
+  breakReminderPoller = setInterval(() => { void refresh(); }, 1_000);
+  screen.on("display-added", () => { if (breakReminderUntil > Date.now()) showBreakReminder(port, breakReminderUntil); });
+  screen.on("display-removed", () => { if (breakReminderUntil > Date.now()) showBreakReminder(port, breakReminderUntil); });
+  app.on("will-quit", () => { if (breakReminderPoller) clearInterval(breakReminderPoller); });
 }
 
 // ----- Chat overlay (Spotlight-style global chat) ------------------------
@@ -1033,6 +1339,7 @@ app.whenReady().then(async () => {
     await bootServer(port);
     const mainWin = await openMainWindow(port);
     setupOverlayControls(port);
+    setupBreakReminder(port);
     setupRichSummonShortcut(mainWin);
     setupChatOverlay(port);
     setupTray(mainWin);

@@ -38,6 +38,9 @@ import {
   getProjectDescription,
   saveProjectDescription,
 } from "../modules/project-description/projectDescriptionService.js";
+import type { ElementsRepo } from "../repos/ElementsRepo.js";
+import type { GreatMeRepo } from "../repos/GreatMeRepo.js";
+import { syncProjectPlanTasks } from "../services/projectPlanTaskSync.js";
 
 const ASSET_MIMES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -53,6 +56,8 @@ const dictionaryEntityExtractionJobs = new InMemoryDictionaryExecutionJobStore<D
 
 type ProjectManagementRouteOptions = {
   executionJobs?: DictionaryExecutionJobStore<DictionaryEntitySyncResult>;
+  elements?: ElementsRepo;
+  greatMe?: GreatMeRepo;
 };
 
 const workspaceDir = process.env.RICH_WORKSPACE_DIR
@@ -72,6 +77,13 @@ const scenarioImageRoot = resolve(
 export function projectManagementRoutes(repo: ProjectManagementRepo, options: ProjectManagementRouteOptions = {}): Hono {
   const r = new Hono();
   const executionJobs = options.executionJobs ?? dictionaryEntityExtractionJobs;
+
+  async function syncDeliveryTasks(projectId: string): Promise<void> {
+    if (!options.elements || !options.greatMe) return;
+    const project = await options.elements.get(projectId);
+    if (!project || project.type !== "project") return;
+    await syncProjectPlanTasks(options.greatMe, project, await repo.listAllModuleItems(projectId, "deliveryPlan"));
+  }
 
   r.use("/:projectId/dictionary/*", async (c, next) => {
     c.header("cache-control", "no-store");
@@ -138,14 +150,16 @@ export function projectManagementRoutes(repo: ProjectManagementRepo, options: Pr
     const content = body.content && typeof body.content === "object" && !Array.isArray(body.content)
       ? body.content as Record<string, unknown>
       : {};
-    return c.json(await repo.createModuleItem(projectId, {
+    const item = await repo.createModuleItem(projectId, {
       moduleKey,
       parentId: typeof body.parentId === "string" ? body.parentId : null,
       title,
       subtitle: typeof body.subtitle === "string" ? body.subtitle : null,
       sortOrder: typeof body.sortOrder === "number" ? body.sortOrder : undefined,
       content,
-    }), 201);
+    });
+    if (moduleKey === "deliveryPlan") await syncDeliveryTasks(projectId);
+    return c.json(item, 201);
   });
 
   r.patch("/:projectId/modules/items/:itemId", async c => {
@@ -163,6 +177,7 @@ export function projectManagementRoutes(repo: ProjectManagementRepo, options: Pr
       content,
     });
     if (!item) return c.json({ error: "item not found" }, 404);
+    if (item.moduleKey === "deliveryPlan") await syncDeliveryTasks(projectId);
     return c.json(item);
   });
 
@@ -190,6 +205,7 @@ export function projectManagementRoutes(repo: ProjectManagementRepo, options: Pr
     const itemId = c.req.param("itemId");
     const ok = await repo.deleteModuleItem(projectId, itemId);
     if (!ok) return c.json({ error: "item not found" }, 404);
+    await syncDeliveryTasks(projectId);
     return c.json({ ok: true });
   });
 

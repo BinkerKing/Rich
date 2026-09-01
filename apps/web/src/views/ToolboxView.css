@@ -1,9 +1,10 @@
 /* Toolbox view — small utility tools the user defines, Hermes-invokable. */
 
 .toolbox-shell {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
   background: var(--bg, #04060c);
   color: var(--text, #f5f7ff);
   font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -11,6 +12,7 @@
 
 .toolbox-main {
   padding: 28px 32px 64px;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -114,6 +116,10 @@
   line-height: 1.55;
   color: rgba(255, 255, 255, .65);
 }
+.tool-card--break { border-color: rgba(91, 237, 184, .28); background: linear-gradient(145deg, rgba(46, 183, 138, .12), rgba(15, 19, 28, .55)); }
+.break-reminder-card__actions { display: flex; align-items: center; gap: 8px; }
+.break-reminder-card__pause { margin-top: 4px; padding: 8px 14px; border: 1px solid rgba(255, 255, 255, .18); border-radius: 8px; color: rgba(255, 255, 255, .82); background: transparent; cursor: pointer; }
+.break-reminder-card__next { margin: 0; color: rgba(179, 255, 223, .75); font-size: 12px; }
 
 /* ─── Auto-generated form ────────────────────────────────────────────── */
 
@@ -237,9 +243,16 @@
 /* ─── Bottom timeline (全部调用记录) ─────────────────────────────────── */
 
 .toolbox-history {
+  height: min(360px, 42vh);
+  min-height: 260px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 12px;
+  background: rgba(15, 19, 28, .35);
+  overflow: hidden;
 }
 .toolbox-history h2 {
   margin: 0;
@@ -247,6 +260,7 @@
   font-weight: 600;
 }
 .toolbox-empty {
+  flex: 1;
   color: rgba(255, 255, 255, .46);
   font-size: 13px;
   padding: 16px;
@@ -254,12 +268,19 @@
   border-radius: 10px;
 }
 .toolbox-history-list {
+  flex: 1;
+  min-height: 0;
   list-style: none;
-  margin: 0; padding: 0;
+  margin: 0; padding: 0 6px 0 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow-y: auto;
+  scrollbar-color: rgba(122, 167, 255, .65) transparent;
+  scrollbar-width: thin;
 }
+.toolbox-history-list::-webkit-scrollbar { width: 8px; }
+.toolbox-history-list::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(122, 167, 255, .55); }
 .toolbox-history-item {
   border: 1px solid rgba(255, 255, 255, .08);
   border-left: 3px solid rgba(255, 255, 255, .08);

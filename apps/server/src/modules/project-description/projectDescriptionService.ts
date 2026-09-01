@@ -12,7 +12,7 @@ export async function getProjectDescription(
   repo: ProjectManagementRepo,
   projectId: string,
 ): Promise<ProjectDescription> {
-  const item = (await repo.listModuleItems(projectId, "description"))[0];
+  const item = findRichTextDescription(await repo.listModuleItems(projectId, "description"));
   return projectDescriptionFromItem(projectId, item);
 }
 
@@ -21,7 +21,8 @@ export async function saveProjectDescription(
   projectId: string,
   html: string,
 ): Promise<ProjectDescription> {
-  const current = (await repo.listModuleItems(projectId, "description"))[0];
+  const items = await repo.listModuleItems(projectId, "description");
+  const current = items.find(item => item.title === "项目说明") ?? findRichTextDescription(items);
   const item = current
     ? await repo.updateModuleItem(projectId, current.id, {
       title: "项目说明",
@@ -35,6 +36,10 @@ export async function saveProjectDescription(
     });
   if (!item) throw new Error("项目说明保存失败");
   return projectDescriptionFromItem(projectId, item);
+}
+
+function findRichTextDescription(items: ProjectModuleItem[]): ProjectModuleItem | undefined {
+  return items.find(item => typeof item.content.html === "string");
 }
 
 function projectDescriptionFromItem(

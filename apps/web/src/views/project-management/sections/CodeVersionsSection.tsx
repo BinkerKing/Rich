@@ -64,7 +64,7 @@ export function CodeVersionsSection({ project, summary }: { project: Element; su
       <section className="prj-pm-code__head">
         <div>
           <p className="prj-pm-eyebrow">Application Versions</p>
-          <h3>代码版本</h3>
+          <h3>版本控制</h3>
           <p>按应用记录版本号、发布时间、上线时间、升级路线和升级内容，后续可继续扩展版本审批与上线关联。</p>
         </div>
         <div className="prj-pm-code__stats">
@@ -116,19 +116,13 @@ export function CodeVersionsSection({ project, summary }: { project: Element; su
                   <button type="button" className="prj-btn-link" onClick={beginEdit}>编辑</button>
                 </div>
               </header>
-              {textValue(original, "description") && (
-                <section className="prj-pm-code__app-desc">
-                  <strong>应用组件</strong>
-                  <p>{textValue(original, "description")}</p>
-                </section>
-              )}
               {versions.length === 0 ? <div className="prj-pm-empty">当前应用还没有版本记录。</div> : (
                 <div className="prj-pm-code__timeline">
                   {versions.map((version, index) => <CodeVersionCard key={textValue(version, "id") || `${index}`} version={version} index={index} />)}
                 </div>
               )}
             </article>
-          ) : <div className="prj-pm-empty">还没有代码版本数据。</div>}
+          ) : <div className="prj-pm-empty">还没有版本控制数据。</div>}
         </section>
       </div>
     </div>

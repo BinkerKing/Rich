@@ -32,23 +32,6 @@
   font-size: 15px;
 }
 
-.rkp-command-bar {
-  position: sticky;
-  top: 0;
-  z-index: 4;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: flex-start;
-  align-items: center;
-  margin-top: 16px;
-  padding: 12px;
-  border: 1px solid rgba(125, 249, 238, 0.18);
-  border-radius: 10px;
-  background: rgba(2, 10, 12, 0.92);
-  backdrop-filter: blur(16px);
-}
-
 .rkp-header-actions,
 .rkp-actions {
   display: flex;
@@ -91,7 +74,8 @@
   display: grid;
   grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
   gap: 18px;
-  margin-top: 18px;
+  height: calc(100vh - 216px);
+  margin-top: 20px;
 }
 
 .rkp-sidebar,
@@ -105,7 +89,8 @@
 }
 
 .rkp-sidebar {
-  height: calc(100vh - 216px);
+  height: 100%;
+  box-sizing: border-box;
   padding: 16px;
   overflow: hidden;
 }
@@ -143,10 +128,12 @@
   gap: 8px 10px;
   align-items: center;
   width: 100%;
-  text-align: left;
   padding: 14px !important;
+  text-align: left;
   color: #e8f5ff !important;
   border-radius: 8px !important;
+  border-color: rgba(148, 163, 184, 0.36) !important;
+  background: rgba(71, 85, 105, 0.12) !important;
 }
 
 .rkp-project-card strong {
@@ -168,9 +155,16 @@
   font-size: 12px;
 }
 
+.rkp-project-card.is-running,
+.rkp-project-card.is-starting {
+  background: rgba(20, 184, 166, 0.16) !important;
+  border-color: rgba(105, 240, 174, 0.54) !important;
+}
+
 .rkp-project-card.is-active {
-  background: rgba(20, 184, 166, 0.14);
-  border-color: rgba(125, 249, 238, 0.52);
+  border-left: 4px solid #f6d365 !important;
+  padding-left: 11px !important;
+  box-shadow: 0 0 0 1px rgba(246, 211, 101, 0.24), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
 
 .rkp-dot {
@@ -179,6 +173,38 @@
   border-radius: 50%;
   background: #7d8590;
 }
+
+.rkp-dot.is-mini { background: #8ab4ff; }
+
+.rkp-tool-detail h2 { margin-top: 10px; }
+
+.rkp-tool-detail__card {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  max-width: 720px;
+  margin-top: 22px;
+  padding: 18px;
+  border: 1px solid rgba(125, 249, 238, 0.2);
+  border-radius: 10px;
+  background: rgba(5, 17, 20, 0.72);
+}
+
+.rkp-tool-detail__card > span {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border: 1px solid rgba(125, 249, 238, 0.3);
+  border-radius: 8px;
+  color: #91fff6;
+  background: rgba(45, 212, 191, 0.1);
+}
+
+.rkp-tool-detail__card .ke-icon { width: 28px; height: 28px; }
+.rkp-tool-detail__card strong { color: #8ab4ff; }
+.rkp-tool-detail__card p { margin-top: 6px; }
 
 .rkp-dot.is-running,
 .rkp-status.is-running {
@@ -210,8 +236,18 @@
 
 .rkp-detail {
   position: relative;
-  min-height: calc(100vh - 216px);
+  height: 100%;
+  box-sizing: border-box;
   padding: 20px;
+  overflow: hidden;
+}
+
+.rkp-project-detail {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1.45fr) minmax(0, 0.95fr);
+  gap: 18px;
+  height: 100%;
+  min-height: 0;
 }
 
 .rkp-detail-top {
@@ -223,34 +259,11 @@
   border-bottom: 1px solid rgba(125, 249, 238, 0.13);
 }
 
-.rkp-status-board {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(92px, 1fr));
+.rkp-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 10px;
-  min-width: min(460px, 100%);
-}
-
-.rkp-status-board div {
-  border: 1px solid rgba(125, 249, 238, 0.18);
-  border-radius: 8px;
-  padding: 12px;
-  background: rgba(5, 17, 20, 0.72);
-}
-
-.rkp-status-board strong,
-.rkp-status-board span {
-  display: block;
-}
-
-.rkp-status-board strong {
-  color: #91fff6;
-  font-size: 18px;
-}
-
-.rkp-status-board span {
-  margin-top: 6px;
-  color: rgba(232, 245, 255, 0.48);
-  font-size: 12px;
 }
 
 .rkp-detail h2 {
@@ -258,6 +271,17 @@
   font-size: 34px;
   line-height: 1.1;
   letter-spacing: 0;
+}
+
+.rkp-detail h2[title] { cursor: text; }
+
+.rkp-project-name-input {
+  width: min(560px, 100%) !important;
+  margin: 10px 0 6px;
+  padding: 2px 6px !important;
+  font-size: 34px !important;
+  font-weight: 700;
+  line-height: 1.1;
 }
 
 .rkp-detail p {
@@ -277,52 +301,6 @@
   color: rgba(232, 245, 255, 0.72);
   font-size: 12px;
   background: rgba(255, 255, 255, 0.04);
-}
-
-.rkp-overview-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 18px;
-}
-
-.rkp-display-card {
-  min-height: 138px;
-  display: flex !important;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: stretch;
-  text-align: left;
-  padding: 16px !important;
-  color: #e8f5ff !important;
-  background:
-    linear-gradient(135deg, rgba(20, 184, 166, 0.13), rgba(10, 18, 28, 0.82)) !important;
-  border-color: rgba(125, 249, 238, 0.22) !important;
-}
-
-.rkp-display-card:disabled {
-  opacity: 1 !important;
-  cursor: default !important;
-}
-
-.rkp-display-card span {
-  color: #8ab4ff;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.rkp-display-card strong {
-  margin: 12px 0;
-  color: #f7fbff;
-  font-size: 15px;
-  line-height: 1.5;
-  word-break: break-all;
-}
-
-.rkp-display-card em {
-  color: rgba(232, 245, 255, 0.46);
-  font-size: 12px;
-  font-style: normal;
 }
 
 .rkp-form-grid {
@@ -385,13 +363,26 @@
 
 .rkp-info-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: 14px;
-  margin-top: 18px;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
 }
 
 .rkp-info-grid section {
+  height: auto;
+  min-height: 0;
+  box-sizing: border-box;
   padding: 16px;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.rkp-info-grid .rkp-server-config {
+  grid-column: 1 / -1;
+  height: auto;
 }
 
 .rkp-read-list {
@@ -467,20 +458,24 @@
 }
 
 .rkp-log-panel {
-  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
   padding: 16px;
 }
 
 .rkp-log-panel > div {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
 }
 
 .rkp-log-panel > div span {
-  max-width: 70%;
+  min-width: 0;
+  max-width: none;
   color: rgba(232, 245, 255, 0.42);
   font-size: 12px;
   overflow: hidden;
@@ -488,8 +483,12 @@
   white-space: nowrap;
 }
 
+.rkp-log-panel > div button { padding: 8px 11px; }
+
 .rkp-log-panel pre {
-  height: 260px;
+  min-height: 0;
+  height: auto;
+  flex: 1;
   margin: 0;
   overflow: auto;
   border: 1px solid rgba(125, 249, 238, 0.16);
@@ -517,7 +516,6 @@
 @media (max-width: 1180px) {
   .rkp-layout,
   .rkp-info-grid,
-  .rkp-overview-grid,
   .rkp-edit-groups {
     grid-template-columns: 1fr;
   }
@@ -525,6 +523,40 @@
   .rkp-sidebar {
     height: auto;
     max-height: 360px;
+  }
+
+  .rkp-layout {
+    height: auto;
+  }
+
+  .rkp-detail {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .rkp-project-detail {
+    display: block;
+    height: auto;
+  }
+
+  .rkp-info-grid {
+    grid-template-rows: none;
+    height: auto;
+  }
+
+  .rkp-info-grid section,
+  .rkp-info-grid .rkp-server-config {
+    height: 218px;
+  }
+
+  .rkp-log-panel {
+    display: block;
+    margin-top: 18px;
+  }
+
+  .rkp-log-panel pre {
+    height: 260px;
   }
 
   .rkp-form-grid {
@@ -548,10 +580,6 @@
     align-items: stretch;
   }
 
-  .rkp-command-bar {
-    position: static;
-  }
-
   .rkp-form-grid,
   .rkp-form-grid.is-compact {
     grid-template-columns: 1fr;
@@ -561,4 +589,10 @@
   .riking-projects-view textarea {
     grid-column: span 1;
   }
+
+  .rkp-tool-detail__card {
+    grid-template-columns: 56px 1fr;
+  }
+
+  .rkp-tool-detail__card button { grid-column: span 2; }
 }

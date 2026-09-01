@@ -6,8 +6,7 @@ import type { AIAdapter, GenerateArgs, StreamEvent } from "./adapter.js";
  * Hermes (NousResearch/hermes-agent) exposes a `/v1/chat/completions`
  * endpoint that speaks the OpenAI Chat Completions protocol. It thinks
  * via whatever `provider` is set in ~/.hermes/config.yaml — for our
- * setup that's `codex` (the user's existing Codex OAuth, no API key
- * needed). Hermes ALSO has MCP-client capabilities, so when the prompt
+ * setup that's Bailian Qwen via its API. Hermes ALSO has MCP-client capabilities, so when the prompt
  * tells it "use rich.X tool to do Y", it can call back into Rich's MCP
  * server while still streaming progress to us.
  *

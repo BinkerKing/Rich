@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type Dispatch, type DragEvent, type MouseEvent, type ReactNode, type SetStateAction, type WheelEvent } from "react";
 import { api, type ProjectModuleItem } from "../../../api/client.js";
-import { buildDeliveryDashboard, buildGanttRows, buildGanttTimelineRange, childTaskScheduleDefaults, china2026HolidayDates, ganttEndBoundary, ganttTimelineDates, syncDeliverySchedule, workingDaysBetween, type DeliveryItemKind, type DeliveryItemLike, type DeliveryItemStatus, type GanttCalendarMode } from "./DeliveryPlanModel.js";
+import { actualStartDateFor, buildDeliveryDashboard, buildGanttRows, buildGanttTimelineRange, childTaskScheduleDefaults, china2026HolidayDates, ganttEndBoundary, ganttTimelineDates, plannedDueDate, syncDeliverySchedule, workingDaysBetween, type DeliveryItemKind, type DeliveryItemLike, type DeliveryItemStatus, type GanttCalendarMode } from "./DeliveryPlanModel.js";
+import { buildDeliveryExportRows, buildNativeGanttExport } from "./DeliveryPlanExport.js";
 import { deliverableFolderPath, linkedDeliverableContent, requestDeliverableFocus } from "../deliverables/DeliverablesModel.js";
 
-type DeliveryActivityKind = "record" | "todo" | "deliverable" | "risk" | "reminder";
+type DeliveryActivityKind = "record" | "todo" | "deliverable" | "risk" | "reminder" | "end";
 type DeliveryAttachment = { name: string; src: string; size: number };
-type DeliveryActivity = { id: string; kind: DeliveryActivityKind; text: string; createdAt: string; done?: boolean; completedAt?: string; author?: string; source?: string; dueDate?: string; attachments?: DeliveryAttachment[] };
-type DeliveryItem = DeliveryItemLike & { item: ProjectModuleItem; activities: DeliveryActivity[] };
+type DeliveryActivity = { id: string; kind: DeliveryActivityKind; text: string; createdAt: string; done?: boolean; completedAt?: string; author?: string; source?: string; dueDate?: string; previousStatus?: DeliveryItemStatus; previousDueDate?: string; attachments?: DeliveryAttachment[] };
+type DeliveryItem = DeliveryItemLike & { item: ProjectModuleItem; activities: DeliveryActivity[]; endedOn?: string };
 type PlanView = "gantt" | "table";
 type GanttDropPlacement = "before" | "after" | "child";
 type GanttExpansionState = { collapsedIds: string[]; milestonePhaseIds: string[]; riskTaskIds: string[] };
@@ -47,22 +48,26 @@ function addDays(days: number) { const date = new Date(); date.setDate(date.getD
 function value(item: ProjectModuleItem, holidays: readonly string[] = []): DeliveryItem {
   const content = item.content;
   const startDate = typeof content.startDate === "string" ? content.startDate : undefined;
+  const status = (content.status as DeliveryItemStatus) || "todo";
+  const storedActualStartDate = typeof content.actualStartDate === "string" && content.actualStartDate ? content.actualStartDate : undefined;
   const baselineDueDate = typeof content.baselineDueDate === "string" ? content.baselineDueDate : undefined;
   const calculatedPeriodDays = workingDaysBetween(startDate, baselineDueDate, holidays);
   const activities = Array.isArray(content.activities) ? content.activities.flatMap((activity): DeliveryActivity[] => {
     if (!activity || typeof activity !== "object") return [];
     const entry = activity as Record<string, unknown>;
-    if ((entry.kind !== "record" && entry.kind !== "todo" && entry.kind !== "deliverable" && entry.kind !== "risk" && entry.kind !== "reminder") || typeof entry.text !== "string" || typeof entry.createdAt !== "string") return [];
+    if ((entry.kind !== "record" && entry.kind !== "todo" && entry.kind !== "deliverable" && entry.kind !== "risk" && entry.kind !== "reminder" && entry.kind !== "end") || typeof entry.text !== "string" || typeof entry.createdAt !== "string") return [];
     const attachments = Array.isArray(entry.attachments) ? entry.attachments.flatMap((attachment): DeliveryAttachment[] => {
       if (!attachment || typeof attachment !== "object") return [];
       const file = attachment as Record<string, unknown>;
       return typeof file.name === "string" && typeof file.src === "string" && typeof file.size === "number" ? [{ name: file.name, src: file.src, size: file.size }] : [];
     }) : [];
-    return [{ id: typeof entry.id === "string" ? entry.id : `${entry.createdAt}-${entry.text}`, kind: entry.kind, text: entry.text, createdAt: entry.createdAt, done: entry.done === true, completedAt: typeof entry.completedAt === "string" ? entry.completedAt : undefined, author: typeof entry.author === "string" ? entry.author : undefined, source: typeof entry.source === "string" ? entry.source : undefined, dueDate: typeof entry.dueDate === "string" ? entry.dueDate : undefined, attachments }];
+    return [{ id: typeof entry.id === "string" ? entry.id : `${entry.createdAt}-${entry.text}`, kind: entry.kind, text: entry.text, createdAt: entry.createdAt, done: entry.done === true, completedAt: typeof entry.completedAt === "string" ? entry.completedAt : undefined, author: typeof entry.author === "string" ? entry.author : undefined, source: typeof entry.source === "string" ? entry.source : undefined, dueDate: typeof entry.dueDate === "string" ? entry.dueDate : undefined, previousStatus: entry.previousStatus === "todo" || entry.previousStatus === "doing" || entry.previousStatus === "blocked" || entry.previousStatus === "done" ? entry.previousStatus : undefined, previousDueDate: typeof entry.previousDueDate === "string" ? entry.previousDueDate : undefined, attachments }];
   }) : [];
+  const endedOn = activities.filter(activity => activity.kind === "end").map(activity => activity.createdAt.slice(0, 10)).sort().at(-1);
   return {
-    item, id: item.id, title: item.title.replace(/^(?:\d+(?:\.\d+)*|M\d+)\s+/, ""), status: (content.status as DeliveryItemStatus) || "todo",
+    item, id: item.id, title: item.title.replace(/^(?:\d+(?:\.\d+)*|M\d+)\s+/, ""), status,
     startDate,
+    actualStartDate: storedActualStartDate || (status === "todo" ? undefined : actualStartDateFor({ startDate, actualStartDate: storedActualStartDate, status }, isoToday())),
     dueDate: typeof content.dueDate === "string" && content.dueDate ? content.dueDate : undefined,
     owner: typeof content.owner === "string" ? content.owner : undefined,
     progress: typeof content.progress === "number" ? content.progress : undefined,
@@ -75,6 +80,7 @@ function value(item: ProjectModuleItem, holidays: readonly string[] = []): Deliv
     actualPersonDays: typeof content.actualPersonDays === "number" ? content.actualPersonDays : 0,
     dependencyIds: Array.isArray(content.dependencyIds) ? content.dependencyIds.filter((id): id is string => typeof id === "string") : [],
     activities,
+    endedOn,
   };
 }
 
@@ -116,7 +122,7 @@ function deadlineUrgencyClass(value?: string) {
 }
 function kindLabel(kind: DeliveryItemKind) { return ({ phase: "阶段", group: "分组", task: "任务", milestone: "里程碑", risk: "风险点" } as const)[kind]; }
 function defaultTitle(kind: DeliveryItemKind) { return kind === "phase" ? "新阶段" : kind === "group" ? "新分组" : kind === "milestone" ? "新里程碑" : "新任务"; }
-function activityLabel(kind: DeliveryActivityKind) { return ({ record: "记录", todo: "待办", deliverable: "交付物", risk: "风险", reminder: "催办" } as const)[kind]; }
+function activityLabel(kind: DeliveryActivityKind) { return ({ record: "记录", todo: "待办", deliverable: "交付物", risk: "风险", reminder: "催办", end: "结束" } as const)[kind]; }
 
 export function ProjectDashboard({ projectId, onOpenPlan, deliverablesRoot }: { projectId: string; onOpenPlan: () => void; deliverablesRoot?: string }): ReactNode {
   const [items, setItems] = useState<DeliveryItem[]>([]);
@@ -153,7 +159,12 @@ export function ProjectDashboard({ projectId, onOpenPlan, deliverablesRoot }: { 
   };
   useEffect(() => { void load(); }, [projectId]);
   const taskRows = useMemo(() => buildGanttRows(items, isoToday()), [items]);
-  const actionItems = taskRows.filter(row => row.kind === "task" && row.status === "doing" && row.item.content.dashboardHidden !== true).sort((left, right) => (left.dueDate || "9999-12-31").localeCompare(right.dueDate || "9999-12-31"));
+  const actionItems = taskRows.filter(row => row.kind === "task" && (row.status === "doing" || (row.status === "todo" && row.startDate === isoToday()) || row.endedOn === isoToday()) && (!row.endedOn || row.endedOn === isoToday()) && row.item.content.dashboardHidden !== true).sort((left, right) => {
+    const leftEnded = left.endedOn === isoToday() ? 1 : 0;
+    const rightEnded = right.endedOn === isoToday() ? 1 : 0;
+    if (leftEnded !== rightEnded) return leftEnded - rightEnded;
+    return (plannedDueDate(left) || "9999-12-31").localeCompare(plannedDueDate(right) || "9999-12-31");
+  });
   const allActivities = actionItems.flatMap(task => task.activities.map(activity => ({ ...activity, task }))).sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   const todayActivities = allActivities.filter(activity => activity.createdAt.slice(0, 10) === isoToday() || activity.completedAt?.slice(0, 10) === isoToday() || (activity.kind === "todo" && !activity.done));
   const activityFeed = (showAllActivities ? allActivities : todayActivities).filter(activity => activityFilter === "all" || activity.kind === activityFilter);
@@ -168,8 +179,8 @@ export function ProjectDashboard({ projectId, onOpenPlan, deliverablesRoot }: { 
     setSavingActivity(true);
     try {
       const attachments = await api.uploadAttachments(task.id, activityFiles);
-      const activity: DeliveryActivity = { id: crypto.randomUUID(), kind: activityKind, text, createdAt: new Date().toISOString(), author: task.owner || "我", dueDate: activityKind === "todo" ? task.dueDate : undefined, attachments };
-      const updated = await api.updateProjectManagementModuleItem(projectId, task.id, { content: { ...task.item.content, activities: [...task.activities, activity] } });
+      const activity: DeliveryActivity = { id: crypto.randomUUID(), kind: activityKind, text, createdAt: new Date().toISOString(), author: task.owner || "我", dueDate: activityKind === "todo" ? task.dueDate : undefined, previousStatus: activityKind === "end" ? task.status : undefined, previousDueDate: activityKind === "end" ? task.dueDate : undefined, attachments };
+      const updated = await api.updateProjectManagementModuleItem(projectId, task.id, { content: { ...task.item.content, status: activityKind === "end" ? "done" : task.status, dueDate: activityKind === "end" ? isoToday() : task.item.content.dueDate, activities: [...task.activities, activity] } });
       if (activity.kind === "deliverable") {
         const taskCode = taskRows.find(row => row.id === task.id)?.wbsCode || String((task.sortOrder ?? 0) + 1);
         const deliverableNumber = task.activities.filter(candidate => candidate.kind === "deliverable").length + 1;
@@ -203,7 +214,9 @@ export function ProjectDashboard({ projectId, onOpenPlan, deliverablesRoot }: { 
       await Promise.all(linkedDeliverables.map(deliverable => typeof deliverable.content.folderPath === "string" && deliverable.content.folderPath ? api.archiveDeliverableFolder(projectId, deliverable.content.folderPath) : undefined));
       await Promise.all(linkedDeliverables.map(deliverable => api.deleteProjectManagementModuleItem(projectId, deliverable.id)));
     }
-    const updated = await api.updateProjectManagementModuleItem(projectId, task.id, { content: { ...task.item.content, activities: task.activities.filter(activity => activity.id !== activityId) } });
+    const activities = task.activities.filter(activity => activity.id !== activityId);
+    const restoreTask = deletedActivity?.kind === "end" && !activities.some(activity => activity.kind === "end");
+    const updated = await api.updateProjectManagementModuleItem(projectId, task.id, { content: { ...task.item.content, status: restoreTask ? deletedActivity.previousStatus || "doing" : task.status, dueDate: restoreTask ? deletedActivity.previousDueDate ?? "" : task.item.content.dueDate, activities } });
     setItems(current => current.map(item => item.id === task.id ? value(updated) : item));
     setActivityMenu(undefined);
   };
@@ -225,7 +238,7 @@ export function ProjectDashboard({ projectId, onOpenPlan, deliverablesRoot }: { 
         <section className="delivery-dashboard-tasks"><h2>今日需要处理</h2>{actionItems.length ? actionItems.map((task, index) => <DashboardTask key={task.id} task={task} index={index} expanded={expandedTaskId === task.id} path={pathFor(task)} activityKind={activityKind} activityText={activityText} activityFiles={activityFiles} saving={savingActivity} onToggle={() => setExpandedTaskId(current => current === task.id ? undefined : task.id)} onKindChange={setActivityKind} onTextChange={setActivityText} onAdd={() => void addActivity(task)} onToggleTodo={activityId => void updateTodo(task, activityId)} onSaveActivityText={(activityId, text) => updateActivityText(task, activityId, text)} onActivityMenu={(event, activityId) => openActivityMenu(event, task, activityId)} onSelectFiles={selectFiles} onRemoveFile={fileIndex => setActivityFiles(files => files.filter((_, index) => index !== fileIndex))} onOpenFilePicker={() => fileInputRef.current?.click()} onEmoji={appendEmoji} fileInputRef={fileInputRef}/>) : <DashboardEmpty text="当前没有进行中的任务。"/>}</section>
       </main>
       <aside className="delivery-dashboard-side">
-        <section className="delivery-dashboard-panel delivery-dashboard-feed"><header><h2>今日动态</h2><button type="button" onClick={() => setShowAllActivities(current => !current)}>{showAllActivities ? "只看今天" : "查看全部动态"} ›</button></header><nav>{(["all", "record", "todo", "deliverable", "risk", "reminder"] as const).map(kind => <button key={kind} className={activityFilter === kind ? "is-active" : ""} type="button" onClick={() => setActivityFilter(kind)}>{kind === "all" ? "全部" : activityLabel(kind)}</button>)}</nav><div className="delivery-dashboard-feed__list">{activityFeed.length ? activityFeed.slice(0, showAllActivities ? undefined : 5).map(activity => <ActivityFeedRow key={`${activity.task.id}-${activity.id}`} activity={activity} onSaveText={text => updateActivityText(activity.task, activity.id, text)} onContextMenu={event => openActivityMenu(event, activity.task, activity.id)}/>) : <DashboardEmpty text={showAllActivities ? "暂无项目动态。" : "今天还没有新的动态。"}/>}</div></section>
+        <section className="delivery-dashboard-panel delivery-dashboard-feed"><header><h2>今日动态</h2><button type="button" onClick={() => setShowAllActivities(current => !current)}>{showAllActivities ? "只看今天" : "查看全部动态"} ›</button></header><nav>{(["all", "record", "todo", "deliverable", "risk", "reminder", "end"] as const).map(kind => <button key={kind} className={activityFilter === kind ? "is-active" : ""} type="button" onClick={() => setActivityFilter(kind)}>{kind === "all" ? "全部" : activityLabel(kind)}</button>)}</nav><div className="delivery-dashboard-feed__list">{activityFeed.length ? activityFeed.slice(0, showAllActivities ? undefined : 5).map(activity => <ActivityFeedRow key={`${activity.task.id}-${activity.id}`} activity={activity} onSaveText={text => updateActivityText(activity.task, activity.id, text)} onContextMenu={event => openActivityMenu(event, activity.task, activity.id)}/>) : <DashboardEmpty text={showAllActivities ? "暂无项目动态。" : "今天还没有新的动态。"}/>}</div></section>
         <DashboardSummary title="待办清单" count={pendingTodos.length} onOpen={() => { setActivityFilter("all"); setShowAllActivities(true); }} empty="暂无待办" items={todos.slice(0, 3).map(activity => <button type="button" className={`delivery-dashboard-summary__todo ${activity.done ? "is-done" : ""}`} onClick={() => void updateTodo(activity.task, activity.id)}><i>{activity.done ? "✓" : ""}</i><span><b className={activity.kind === "deliverable" ? "is-deliverable" : "is-event"}>{activity.kind === "deliverable" ? "交付物：" : "事件："}</b>{activity.text}</span><time>{activity.done ? "已完成" : `截止 ${dateText(activity.dueDate || activity.task.dueDate)} ${activity.dueDate || activity.task.dueDate ? "18:00" : ""}`}</time></button>)}/>
         <DashboardSummary title="风险提醒" count={risks.length} onOpen={() => { setActivityFilter("risk"); setShowAllActivities(true); }} empty="暂无风险" items={risks.slice(0, 1).map(activity => <article className="delivery-dashboard-summary__risk"><b>⚠</b><span>{activity.text}<small>问题{actionItems.findIndex(task => task.id === activity.task.id) + 1}</small><em>发生于 {timeText(activity.createdAt)}</em></span></article>)}/>
       </aside>
@@ -248,9 +261,11 @@ function timeText(value: string) {
 }
 function DashboardTask({ task, index, expanded, path, activityKind, activityText, activityFiles, saving, onToggle, onKindChange, onTextChange, onAdd, onToggleTodo, onSaveActivityText, onActivityMenu, onSelectFiles, onRemoveFile, onOpenFilePicker, onEmoji, fileInputRef }: { task: DeliveryItem; index: number; expanded: boolean; path: string; activityKind: DeliveryActivityKind; activityText: string; activityFiles: File[]; saving: boolean; onToggle: () => void; onKindChange: (kind: DeliveryActivityKind) => void; onTextChange: (value: string) => void; onAdd: () => void; onToggleTodo: (activityId: string) => void; onSaveActivityText: (activityId: string, text: string) => Promise<void>; onActivityMenu: (event: MouseEvent<HTMLElement>, activityId: string) => void; onSelectFiles: (event: ChangeEvent<HTMLInputElement>) => void; onRemoveFile: (index: number) => void; onOpenFilePicker: () => void; onEmoji: () => void; fileInputRef: React.RefObject<HTMLInputElement> }) {
   const taskRisks = task.activities.filter(activity => activity.kind === "risk").length;
+  const todayRecordCount = task.activities.filter(activity => activity.kind === "record" && activity.createdAt.slice(0, 10) === isoToday()).length;
   const pendingTodos = task.activities.filter(activity => activity.kind === "todo" && !activity.done).length;
   const pendingDeliverables = task.activities.filter(activity => activity.kind === "deliverable" && !activity.done).length;
-  return <article className={`delivery-dashboard-task ${expanded ? "is-expanded" : ""}`}><button type="button" className="delivery-dashboard-task__head" onClick={onToggle}><b>{index + 1}</b><span><strong>{task.title}</strong><small>{path || "未归属分组"}</small></span><div className="delivery-dashboard-task__badges">{pendingTodos > 0 && <i className="is-todo">待办 {pendingTodos}</i>}{pendingDeliverables > 0 && <i className="is-deliverable">交付物 {pendingDeliverables}</i>}{taskRisks > 0 && <i className="is-risk">风险 {taskRisks}</i>}</div><time className={expanded ? undefined : deadlineUrgencyClass(task.dueDate)}>{expanded ? <>截止日期 <em>{dateText(task.dueDate)}</em></> : deadlineText(task.dueDate)}</time></button>{expanded && <div className="delivery-dashboard-task__body"><div className="delivery-dashboard-timeline">{task.activities.length ? task.activities.slice().sort((left, right) => left.createdAt.localeCompare(right.createdAt)).map(activity => <ActivityCard key={activity.id} activity={activity} task={task} onSaveText={text => onSaveActivityText(activity.id, text)} onToggleTodo={onToggleTodo} onContextMenu={event => onActivityMenu(event, activity.id)}/>) : <DashboardEmpty text="尚无动态，添加第一条记录。"/>}</div><div className="delivery-dashboard-composer"><select value={activityKind} onChange={event => onKindChange(event.target.value as DeliveryActivityKind)}>{(["record", "todo", "deliverable", "risk", "reminder"] as const).map(kind => <option key={kind} value={kind}>{activityLabel(kind)}</option>)}</select><div><input value={activityText} onChange={event => onTextChange(event.target.value)} onKeyDown={event => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") onAdd(); }} placeholder="添加记录、待办、交付物、风险或催办…"/><button type="button" onClick={onOpenFilePicker} title="添加附件">⌕</button><button type="button" onClick={onEmoji} title="添加表情">☺</button><input ref={fileInputRef} className="delivery-dashboard-file-input" type="file" multiple onChange={onSelectFiles}/></div><button type="button" disabled={!activityText.trim() || saving} onClick={onAdd}>{saving ? "发布中…" : "发布"}</button>{activityFiles.length > 0 && <aside>{activityFiles.map((file, fileIndex) => <span key={`${file.name}-${fileIndex}`}>{file.name}<button type="button" onClick={() => onRemoveFile(fileIndex)}>×</button></span>)}</aside>}</div></div>}</article>;
+  const deadline = task.endedOn ? "已结束" : plannedDueDate(task);
+  return <article className={`delivery-dashboard-task is-${task.status} ${expanded ? "is-expanded" : ""}`}><button type="button" className="delivery-dashboard-task__head" onClick={onToggle}><b>{index + 1}</b><span><strong>{task.title}</strong><small>{path || "未归属分组"}</small></span><div className="delivery-dashboard-task__badges">{todayRecordCount > 0 && <i className="is-record">今日记录 {todayRecordCount}</i>}{pendingTodos > 0 && <i className="is-todo">待办 {pendingTodos}</i>}{pendingDeliverables > 0 && <i className="is-deliverable">交付物 {pendingDeliverables}</i>}{taskRisks > 0 && <i className="is-risk">风险 {taskRisks}</i>}</div><time className={expanded || task.endedOn ? undefined : deadlineUrgencyClass(deadline)}>{task.endedOn ? "已结束" : expanded ? <>截止日期 <em>{dateText(deadline)}</em></> : deadlineText(deadline)}</time></button>{expanded && <div className="delivery-dashboard-task__body"><div className="delivery-dashboard-timeline">{task.activities.length ? task.activities.slice().sort((left, right) => left.createdAt.localeCompare(right.createdAt)).map(activity => <ActivityCard key={activity.id} activity={activity} task={task} onSaveText={text => onSaveActivityText(activity.id, text)} onToggleTodo={onToggleTodo} onContextMenu={event => onActivityMenu(event, activity.id)}/>) : <DashboardEmpty text="尚无动态，添加第一条记录。"/>}</div><div className="delivery-dashboard-composer"><select value={activityKind} onChange={event => onKindChange(event.target.value as DeliveryActivityKind)}>{(["record", "todo", "deliverable", "risk", "reminder", "end"] as const).map(kind => <option key={kind} value={kind}>{activityLabel(kind)}</option>)}</select><div><input value={activityText} onChange={event => onTextChange(event.target.value)} onKeyDown={event => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") onAdd(); }} placeholder="添加记录、待办、交付物、风险、催办或结束说明…"/><button type="button" onClick={onOpenFilePicker} title="添加附件">⌕</button><button type="button" onClick={onEmoji} title="添加表情">☺</button><input ref={fileInputRef} className="delivery-dashboard-file-input" type="file" multiple onChange={onSelectFiles}/></div><button type="button" disabled={!activityText.trim() || saving} onClick={onAdd}>{saving ? "发布中…" : "发布"}</button>{activityFiles.length > 0 && <aside>{activityFiles.map((file, fileIndex) => <span key={`${file.name}-${fileIndex}`}>{file.name}<button type="button" onClick={() => onRemoveFile(fileIndex)}>×</button></span>)}</aside>}</div></div>}</article>;
 }
 function EditableActivityText({ text, onSave }: { text: string; onSave: (text: string) => Promise<void> }) {
   const [draft, setDraft] = useState(text); const [editing, setEditing] = useState(false); const inputRef = useRef<HTMLInputElement>(null);
@@ -267,7 +282,7 @@ export function DeliveryPlanWorkspace({ projectId }: { projectId: string }): Rea
   const viewStorageKey = `rich:delivery-plan:${projectId}:view`;
   const ganttExpansionStorageKey = `rich:delivery-plan:${projectId}:gantt-expansion`;
   const holidayStorageKey = `rich:delivery-plan:${projectId}:holidays`;
-  const [items, setItems] = useState<DeliveryItem[]>([]); const [view, setView] = useState<PlanView>(() => readPlanView(viewStorageKey)); const [holidays, setHolidays] = useState<string[]>(() => initializeHolidayDates(holidayStorageKey)); const [calendarMode, setCalendarMode] = useState<GanttCalendarMode>(() => { try { return window.localStorage.getItem(`${ganttExpansionStorageKey}:calendar-mode`) === "working" ? "working" : "calendar"; } catch { return "calendar"; } }); const [holidayCalendarOpen, setHolidayCalendarOpen] = useState(false); const [loading, setLoading] = useState(true); const [createKind, setCreateKind] = useState<DeliveryItemKind>();
+  const [items, setItems] = useState<DeliveryItem[]>([]); const [view, setView] = useState<PlanView>(() => readPlanView(viewStorageKey)); const [holidays, setHolidays] = useState<string[]>(() => initializeHolidayDates(holidayStorageKey)); const [calendarMode, setCalendarMode] = useState<GanttCalendarMode>("working"); const [holidayCalendarOpen, setHolidayCalendarOpen] = useState(false); const [showDependencies, setShowDependencies] = useState(false); const [loading, setLoading] = useState(true); const [createKind, setCreateKind] = useState<DeliveryItemKind>();
   const load = async () => { setLoading(true); try { setItems((await migrateLegacyDeliverables(projectId, await api.listProjectManagementModuleItems(projectId, "deliveryPlan", undefined, true))).map(item => value(item))); } finally { setLoading(false); } };
   useEffect(() => { void load(); }, [projectId]);
   useEffect(() => { try { window.localStorage.setItem(viewStorageKey, view); } catch {} }, [view, viewStorageKey]);
@@ -275,10 +290,10 @@ export function DeliveryPlanWorkspace({ projectId }: { projectId: string }): Rea
   useEffect(() => { try { window.localStorage.setItem(holidayStorageKey, JSON.stringify(holidays)); } catch {} }, [holidays, holidayStorageKey]);
   useEffect(() => { try { window.localStorage.setItem(`${ganttExpansionStorageKey}:calendar-mode`, calendarMode); } catch {} }, [calendarMode, ganttExpansionStorageKey]);
   const rows = useMemo(() => buildGanttRows(items.map(item => value(item.item, holidays)), isoToday()), [items, holidays]);
-  const add = async (kind: DeliveryItemKind, draft: { title: string; parentId?: string; startDate: string; dueDate: string }) => {
+  const add = async (kind: DeliveryItemKind, draft: { title: string; parentId?: string; startDate: string; actualStartDate: string; dueDate: string; baselineDueDate: string; periodDays: number }) => {
     const created = await api.createProjectManagementModuleItem(projectId, "deliveryPlan", {
       title: draft.title, parentId: kind === "phase" ? undefined : draft.parentId, sortOrder: items.length,
-      content: { recordType: "delivery-item", kind, status: "todo", startDate: draft.startDate, dueDate: draft.dueDate, actualPersonDays: 0 },
+      content: { recordType: "delivery-item", kind, status: "todo", startDate: draft.startDate, actualStartDate: draft.actualStartDate, dueDate: draft.dueDate, baselineDueDate: draft.baselineDueDate, periodDays: draft.periodDays, actualPersonDays: 0 },
     });
     setItems(current => [...current, value(created)]);
   };
@@ -325,20 +340,25 @@ export function DeliveryPlanWorkspace({ projectId }: { projectId: string }): Rea
     }));
   };
   const moveTask = async (dragged: DeliveryItem, target: DeliveryItem, placement: GanttDropPlacement) => {
-    if (dragged.id === target.id || (target.kind !== "task" && target.kind !== "phase")) return;
+    if (dragged.id === target.id || dragged.kind === "risk" || target.kind === "risk") return;
+    const movingPhase = dragged.kind === "phase";
+    if (movingPhase ? target.kind !== "phase" || placement === "child" : placement !== "child" && target.kind === "phase") return;
     const descendants = new Set<string>();
     const collectDescendants = (parentId: string) => items.filter(item => item.parentId === parentId).forEach(item => { descendants.add(item.id); collectDescendants(item.id); });
     collectDescendants(dragged.id);
     if (descendants.has(target.id)) return;
-    const parentId = placement === "child" ? target.id : target.parentId;
+    const parentId = movingPhase ? undefined : placement === "child" ? target.id : target.parentId;
     const moved = items.map(item => item.id === dragged.id ? { ...item, parentId, item: { ...item.item, parentId } } : item);
-    const siblings = moved.filter(item => item.id !== dragged.id && item.parentId === parentId).sort((left, right) => (left.sortOrder ?? 0) - (right.sortOrder ?? 0));
+    const siblings = moved.filter(item => item.id !== dragged.id && item.parentId === parentId && (!movingPhase || item.kind === "phase")).sort((left, right) => (left.sortOrder ?? 0) - (right.sortOrder ?? 0));
     const targetIndex = siblings.findIndex(item => item.id === target.id);
     const insertionIndex = placement === "child" ? siblings.length : Math.max(0, targetIndex + (placement === "after" ? 1 : 0));
     siblings.splice(insertionIndex, 0, moved.find(item => item.id === dragged.id)!);
     const siblingIds = new Set(siblings.map(item => item.id));
     const orderTree = (currentParentId?: string): string[] => {
-      const children = currentParentId === parentId ? siblings : moved.filter(item => item.parentId === currentParentId && !siblingIds.has(item.id)).sort((left, right) => (left.sortOrder ?? 0) - (right.sortOrder ?? 0));
+      const currentChildren = moved.filter(item => item.parentId === currentParentId && !siblingIds.has(item.id)).sort((left, right) => (left.sortOrder ?? 0) - (right.sortOrder ?? 0));
+      const children = currentParentId !== parentId ? currentChildren : movingPhase
+        ? currentChildren.map(item => item.kind === "phase" ? siblings.shift()! : item)
+        : siblings;
       return children.flatMap(item => [item.id, ...orderTree(item.id)]);
     };
     const itemIds = orderTree();
@@ -354,9 +374,16 @@ export function DeliveryPlanWorkspace({ projectId }: { projectId: string }): Rea
     }));
   };
   const PlanTable = PlanTableWithColumns;
+  const exportSnapshot = async () => {
+    await (window as Window & { richWindow?: { exportDeliveryPlan?: (payload: unknown) => Promise<boolean> } }).richWindow?.exportDeliveryPlan?.({
+      gantt: buildNativeGanttExport(rows, isoToday(), calendarMode, holidays),
+      tableRows: buildDeliveryExportRows(rows),
+      filename: `交付计划_${isoToday()}.xlsx`,
+    });
+  };
   return <section className="delivery delivery--plan">
-    <header className="delivery__header"><div><h1>交付计划</h1><p>用阶段、分组、任务与里程碑维护 WBS，并在甘特图中跟踪进度。</p></div><div className="delivery__toolbar"><span>临期 <b>{rows.filter(row => !row.isAtRisk && row.status !== "done" && row.dueDate && row.dueDate <= addDays(3)).length}</b></span><span>高风险 <b>{rows.filter(row => row.isAtRisk || row.status === "blocked").length}</b></span>{view === "gantt" && <div className="delivery-gantt-calendar-actions delivery__toolbar-calendar-actions" aria-label="甘特图日历设置"><div className="delivery-switch"><button type="button" className={calendarMode === "calendar" ? "is-active" : ""} onClick={() => setCalendarMode("calendar")}>自然日</button><button type="button" className={calendarMode === "working" ? "is-active" : ""} onClick={() => setCalendarMode("working")}>工作日</button></div><button type="button" onClick={() => setHolidayCalendarOpen(true)}>假期</button></div>}<div className="delivery-switch"><button className={view === "gantt" ? "is-active" : ""} onClick={() => setView("gantt")}>甘特图</button><button className={view === "table" ? "is-active" : ""} onClick={() => setView("table")}>Excel 列表</button></div></div></header>
-    {loading ? <div className="delivery__loading">正在加载交付计划…</div> : view === "gantt" ? <Gantt rows={rows} holidays={holidays} calendarMode={calendarMode} onPatch={patch} onAddRisk={addRisk} onAddChildTask={addChildTask} onDelete={remove} onMoveTask={moveTask} storageKey={ganttExpansionStorageKey} /> : <PlanTable rows={rows} phases={rows.filter(row => row.kind === "phase")} onPatch={patch} onPatchParent={patchParent} onAdd={async () => setCreateKind("task")} onDelete={remove} onReorder={reorder} storageKey={`rich:delivery-plan:${projectId}:columns`} />}
+    <header className="delivery__header"><div><h1>交付计划</h1><p>用阶段、分组、任务与里程碑维护 WBS，并在甘特图中跟踪进度。</p></div><div className="delivery__toolbar"><span>临期 <b>{rows.filter(row => !row.isAtRisk && row.status !== "done" && row.dueDate && row.dueDate <= addDays(3)).length}</b></span><span>高风险 <b>{rows.filter(row => row.isAtRisk || row.status === "blocked").length}</b></span>{view === "gantt" && <><button type="button" onClick={() => void exportSnapshot()}>导出 Excel</button><div className="delivery-gantt-calendar-actions delivery__toolbar-calendar-actions" aria-label="甘特图日历设置"><div className="delivery-switch"><button type="button" className={calendarMode === "calendar" ? "is-active" : ""} onClick={() => setCalendarMode("calendar")}>自然日</button><button type="button" className={calendarMode === "working" ? "is-active" : ""} onClick={() => setCalendarMode("working")}>工作日</button></div><button type="button" onClick={() => setHolidayCalendarOpen(true)}>假期</button><button type="button" className={`delivery-gantt-detail-toggle${showDependencies ? " is-active" : ""}`} onClick={() => setShowDependencies(current => !current)}>详情</button></div></>}<div className="delivery-switch"><button className={view === "gantt" ? "is-active" : ""} onClick={() => setView("gantt")}>甘特图</button><button className={view === "table" ? "is-active" : ""} onClick={() => setView("table")}>Excel 列表</button></div></div></header>
+    {loading ? <div className="delivery__loading">正在加载交付计划…</div> : view === "gantt" ? <Gantt rows={rows} holidays={holidays} calendarMode={calendarMode} showDependencies={showDependencies} onPatch={patch} onAddRisk={addRisk} onAddChildTask={addChildTask} onDelete={remove} onMoveTask={moveTask} storageKey={ganttExpansionStorageKey} /> : <PlanTable rows={rows} phases={rows.filter(row => row.kind === "phase")} onPatch={patch} onPatchParent={patchParent} onAdd={async () => setCreateKind("task")} onDelete={remove} onReorder={reorder} storageKey={`rich:delivery-plan:${projectId}:columns`} />}
     {createKind && (
       <CreateDeliveryItemDrawer kind={createKind} rows={rows} onClose={() => setCreateKind(undefined)} onCreate={async draft => { await add(createKind, draft); setCreateKind(undefined); }}/>
     )}
@@ -364,17 +391,20 @@ export function DeliveryPlanWorkspace({ projectId }: { projectId: string }): Rea
   </section>;
 }
 
-function CreateDeliveryItemDrawer({ kind, rows, onClose, onCreate }: { kind: DeliveryItemKind; rows: DeliveryGanttRow[]; onClose: () => void; onCreate: (draft: { title: string; parentId?: string; startDate: string; dueDate: string }) => Promise<void> }) {
+function CreateDeliveryItemDrawer({ kind, rows, onClose, onCreate }: { kind: DeliveryItemKind; rows: DeliveryGanttRow[]; onClose: () => void; onCreate: (draft: { title: string; parentId?: string; startDate: string; actualStartDate: string; dueDate: string; baselineDueDate: string; periodDays: number }) => Promise<void> }) {
+  const taskSchedule = childTaskScheduleDefaults(undefined, isoToday());
   const [title, setTitle] = useState(defaultTitle(kind));
   const [parentId, setParentId] = useState("");
-  const [startDate, setStartDate] = useState(isoToday());
-  const [dueDate, setDueDate] = useState(kind === "milestone" ? isoToday() : addDays(7));
+  const [startDate, setStartDate] = useState(kind === "task" ? taskSchedule.startDate || "" : isoToday());
+  const [actualStartDate, setActualStartDate] = useState("");
+  const [dueDate, setDueDate] = useState(kind === "task" ? "" : kind === "milestone" ? isoToday() : addDays(7));
+  const [baselineDueDate, setBaselineDueDate] = useState(kind === "task" ? taskSchedule.baselineDueDate || "" : "");
   const [saving, setSaving] = useState(false);
   const parents = rows.filter(row => row.kind === "phase" || row.kind === "group" || row.kind === "task");
-  const save = async () => { if (!title.trim()) return; setSaving(true); try { await onCreate({ title: title.trim(), parentId: parentId || undefined, startDate, dueDate }); } finally { setSaving(false); } };
+  const save = async () => { if (!title.trim()) return; setSaving(true); try { await onCreate({ title: title.trim(), parentId: parentId || undefined, startDate, actualStartDate, dueDate, baselineDueDate, periodDays: kind === "task" ? 2 : 0 }); } finally { setSaving(false); } };
   return <div className="delivery-task-drawer" role="dialog" aria-modal="true" aria-label={`新增${kindLabel(kind)}`}>
     <div className="delivery-task-drawer__backdrop" role="presentation" onClick={onClose}/>
-    <aside className="delivery-task-drawer__panel"><header><div><small>新增{kindLabel(kind)}</small><h2>{defaultTitle(kind)}</h2></div><button type="button" aria-label="关闭" onClick={onClose}>×</button></header><div className="delivery-task-drawer__form"><label className="delivery-task-drawer__wide"><span>名称</span><input autoFocus value={title} onChange={event => setTitle(event.target.value)}/></label>{kind !== "phase" && <label className="delivery-task-drawer__wide"><span>所属</span><select value={parentId} onChange={event => setParentId(event.target.value)}><option value="">顶层</option>{parents.map(parent => <option key={parent.id} value={parent.id}>{parent.wbsCode ? `${parent.wbsCode} ` : ""}{parent.title}</option>)}</select></label>}<label><span>开始</span><input type="date" value={startDate} onChange={event => setStartDate(event.target.value)}/></label><label><span>截止</span><input type="date" value={dueDate} onChange={event => setDueDate(event.target.value)}/></label></div><footer><button type="button" onClick={onClose}>取消</button><button type="button" className="is-primary" disabled={!title.trim() || saving} onClick={() => void save()}>{saving ? "保存中…" : `新增${kindLabel(kind)}`}</button></footer></aside>
+    <aside className="delivery-task-drawer__panel"><header><div><small>新增{kindLabel(kind)}</small><h2>{defaultTitle(kind)}</h2></div><button type="button" aria-label="关闭" onClick={onClose}>×</button></header><div className="delivery-task-drawer__form"><label className="delivery-task-drawer__wide"><span>名称</span><input autoFocus value={title} onChange={event => setTitle(event.target.value)}/></label>{kind !== "phase" && <label className="delivery-task-drawer__wide"><span>所属</span><select value={parentId} onChange={event => setParentId(event.target.value)}><option value="">顶层</option>{parents.map(parent => <option key={parent.id} value={parent.id}>{parent.wbsCode ? `${parent.wbsCode} ` : ""}{parent.title}</option>)}</select></label>}{kind === "task" ? <div className="delivery-task-drawer__date-pairs delivery-task-drawer__wide"><label><span>计划开始时间</span><input type="date" value={startDate} onChange={event => setStartDate(event.target.value)}/></label><label><span>计划结束时间</span><input type="date" value={baselineDueDate} onChange={event => setBaselineDueDate(event.target.value)}/></label><label><span>实际开始时间</span><input type="date" value={actualStartDate} onChange={event => setActualStartDate(event.target.value)}/></label><label><span>实际结束时间</span><input type="date" value={dueDate} onChange={event => setDueDate(event.target.value)}/></label></div> : <><label><span>开始</span><input type="date" value={startDate} onChange={event => setStartDate(event.target.value)}/></label><label><span>截止</span><input type="date" value={dueDate} onChange={event => setDueDate(event.target.value)}/></label></>}</div><footer><button type="button" onClick={onClose}>取消</button><button type="button" className="is-primary" disabled={!title.trim() || saving} onClick={() => void save()}>{saving ? "保存中…" : `新增${kindLabel(kind)}`}</button></footer></aside>
   </div>;
 }
 
@@ -393,7 +423,7 @@ export function DeliveryPlaceholder({ title, description }: { title: string; des
 function Kpi({ tone, label, value, sub }: { tone: string; label: string; value: string; sub: string }) { return <article className={`delivery-kpi is-${tone}`}><span>{label}</span><strong>{value}</strong><small>{sub}</small></article>; }
 function Empty({ onOpenPlan }: { onOpenPlan: () => void }) { return <div className="delivery-empty"><h2>从第一条交付事项开始</h2><p>先录入任务、里程碑或待交付物；驾驶舱会自动生成进度、临期和风险提醒。</p><button type="button" onClick={onOpenPlan}>打开交付计划</button></div>; }
 type DeliveryGanttRow = DeliveryItem & { progress: number; isAtRisk: boolean; depth: number; hasChildren: boolean; kind: DeliveryItemKind; wbsCode: string; phaseIndex: number };
-function Gantt({ rows, holidays, calendarMode, onPatch, onAddRisk, onAddChildTask, onDelete, onMoveTask, storageKey }: { rows: DeliveryGanttRow[]; holidays: string[]; calendarMode: GanttCalendarMode; onPatch: (row: DeliveryItem, patch: Partial<DeliveryItemLike>) => Promise<void>; onAddRisk: (row: DeliveryItem) => Promise<void>; onAddChildTask: (row: DeliveryItem) => Promise<void>; onDelete: (row: DeliveryItem) => Promise<void>; onMoveTask: (dragged: DeliveryItem, target: DeliveryItem, placement: GanttDropPlacement) => Promise<void>; storageKey: string }) {
+function Gantt({ rows, holidays, calendarMode, showDependencies, onPatch, onAddRisk, onAddChildTask, onDelete, onMoveTask, storageKey }: { rows: DeliveryGanttRow[]; holidays: string[]; calendarMode: GanttCalendarMode; showDependencies: boolean; onPatch: (row: DeliveryItem, patch: Partial<DeliveryItemLike>) => Promise<void>; onAddRisk: (row: DeliveryItem) => Promise<void>; onAddChildTask: (row: DeliveryItem) => Promise<void>; onDelete: (row: DeliveryItem) => Promise<void>; onMoveTask: (dragged: DeliveryItem, target: DeliveryItem, placement: GanttDropPlacement) => Promise<void>; storageKey: string }) {
   const fixedRef = useRef<HTMLDivElement>(null);
   const timeRef = useRef<HTMLDivElement>(null);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set(readGanttExpansion(storageKey).collapsedIds));
@@ -403,8 +433,19 @@ function Gantt({ rows, holidays, calendarMode, onPatch, onAddRisk, onAddChildTas
   const [detailRowId, setDetailRowId] = useState<string>();
   const [draggedTaskId, setDraggedTaskId] = useState<string>();
   const [dropTarget, setDropTarget] = useState<{ id: string; placement: GanttDropPlacement }>();
+  const [timelineZoom, setTimelineZoom] = useState(1);
+  const [timelineViewportWidth, setTimelineViewportWidth] = useState(0);
   const [taskMenu, setTaskMenu] = useState<{ row: DeliveryGanttRow; x: number; y: number }>();
   const taskMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = timeRef.current;
+    if (!element) return;
+    const updateWidth = () => setTimelineViewportWidth(element.clientWidth);
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => { try { window.localStorage.setItem(storageKey, JSON.stringify({ collapsedIds: [...collapsedIds], milestonePhaseIds: [...expandedMilestonePhaseIds], riskTaskIds: [...expandedRiskTaskIds] })); } catch {} }, [collapsedIds, expandedMilestonePhaseIds, expandedRiskTaskIds, storageKey]);
   useEffect(() => {
     if (!taskMenu) return;
@@ -426,6 +467,9 @@ function Gantt({ rows, holidays, calendarMode, onPatch, onAddRisk, onAddChildTas
   const max = endAt + 86_400_000;
   const timelineDates = ganttTimelineDates(new Date(min).toISOString().slice(0, 10), new Date(max - 86_400_000).toISOString().slice(0, 10), calendarMode, holidays);
   const dates = timelineDates.length ? timelineDates : [new Date(min).toISOString().slice(0, 10)];
+  const timelineWidth = timelineZoom === 0 ? undefined : Math.max(timelineViewportWidth * [1, 1.25, 1.75, 2.5][timelineZoom]!, dates.length * [0, 12, 20, 72][timelineZoom]!);
+  const timelineCanvasWidth = Math.max(timelineViewportWidth, timelineWidth ?? 0);
+  const timelineCanvasStyle = timelineCanvasWidth ? { width: `${timelineCanvasWidth}px`, minWidth: `${timelineCanvasWidth}px` } : { width: "100%", minWidth: "100%" };
   const positionAt = (value?: string) => {
     const date = value || isoToday();
     return Math.max(0, Math.min(100, (dates.filter(candidate => candidate < date).length / dates.length) * 100));
@@ -436,7 +480,13 @@ function Gantt({ rows, holidays, calendarMode, onPatch, onAddRisk, onAddChildTas
     const count = dates.filter(date => date.startsWith(month)).length;
     return { label: `${Number(month.slice(5))}月`, left: first / dates.length * 100, width: count / dates.length * 100 };
   });
+  const dailyTicks = dates.map(date => ({ left: positionAt(date), label: date.slice(5).replace("-", "/") }));
   const dateTicks = dates.filter((date, index) => dates.length <= 31 || index === 0 || new Date(`${date}T00:00:00Z`).getUTCDay() === 1).map(date => ({ left: positionAt(date), label: date.slice(5).replace("-", "/") }));
+  const visibleDateCount = timelineCanvasWidth && timelineViewportWidth ? Math.min(dates.length, dates.length * timelineViewportWidth / timelineCanvasWidth) : dates.length;
+  const showDailyGrid = timelineZoom === 3 || visibleDateCount >= 120 || visibleDateCount <= 26;
+  const showDailyLabels = timelineZoom === 3 || visibleDateCount <= 26;
+  const headerTicks = showDailyLabels ? dailyTicks : dateTicks;
+  const gridTicks = showDailyGrid ? dailyTicks : dateTicks;
   const rowsById = new Map(rows.map(row => [row.id, row]));
   const phaseIdFor = (row: DeliveryGanttRow) => {
     let current: DeliveryGanttRow | undefined = row;
@@ -493,6 +543,27 @@ function Gantt({ rows, holidays, calendarMode, onPatch, onAddRisk, onAddChildTas
   const detailRow = detailRowId ? rowsById.get(detailRowId) : undefined;
   const leftAt = positionAt;
   const endBoundaryAt = (value: string) => leftAt(ganttEndBoundary(value));
+  const visibleRowIndexes = new Map(visibleRows.map((row, index) => [row.id, index]));
+  const dependencyLinks = visibleRows.flatMap(successor => {
+    const successorStart = successor.startDate;
+    if (successor.kind !== "task" || !successorStart) return [];
+    return (successor.dependencyIds ?? []).flatMap(predecessorId => {
+      const predecessor = rowsById.get(predecessorId);
+      const predecessorIndex = visibleRowIndexes.get(predecessorId);
+      const successorIndex = visibleRowIndexes.get(successor.id);
+      if (!predecessor || predecessorIndex === undefined || successorIndex === undefined) return [];
+      const predecessorEnd = ganttEndBoundary(baselineDue(predecessor));
+      return [{
+        id: `${predecessor.id}-${successor.id}`,
+        predecessor, successor,
+        fromX: leftAt(predecessorEnd) * 10,
+        fromY: predecessorIndex * 38 + 19,
+        toX: leftAt(successorStart) * 10,
+        toY: successorIndex * 38 + 19,
+        isConflict: successorStart < predecessorEnd,
+      }];
+    });
+  });
   const widthOf = (row: DeliveryGanttRow, minimum = .3) => Math.max(endBoundaryAt(baselineDue(row)) - leftAt(row.startDate || baselineDue(row)), minimum);
   const scheduledProgressAtToday = (row: DeliveryGanttRow) => {
     const startAt = leftAt(row.startDate || baselineDue(row));
@@ -510,6 +581,20 @@ function Gantt({ rows, holidays, calendarMode, onPatch, onAddRisk, onAddChildTas
   const delayEndFor = (row: DeliveryGanttRow) => {
     if (row.dueDate && Date.parse(row.dueDate) > Date.parse(baselineDue(row))) return row.dueDate;
     return !row.dueDate && Date.parse(baselineDue(row)) < Date.parse(isoToday()) ? isoToday() : undefined;
+  };
+  const actualStartGap = (row: DeliveryGanttRow) => {
+    if (row.kind !== "task" || !row.startDate) return undefined;
+    const actualStartDate = actualStartDateFor(row, isoToday());
+    if (!actualStartDate || actualStartDate <= row.startDate) return undefined;
+    const end = actualStartDate;
+    const width = leftAt(end) - leftAt(row.startDate);
+    return width > 0 ? { left: `${leftAt(row.startDate)}%`, width: `${width}%` } : undefined;
+  };
+  const actualEndGap = (row: DeliveryGanttRow) => {
+    if (row.kind !== "task" || row.status !== "done" || !row.dueDate || row.dueDate >= baselineDue(row)) return undefined;
+    const left = endBoundaryAt(row.dueDate);
+    const width = endBoundaryAt(baselineDue(row)) - left;
+    return width > 0 ? { left: `${left}%`, width: `${width}%` } : undefined;
   };
   const phaseFor = (row: DeliveryGanttRow) => { const phaseId = phaseIdFor(row); return phaseId ? rowsById.get(phaseId) : undefined; };
   const phaseWindow = (row: DeliveryGanttRow) => { const phase = phaseFor(row); return phase ? { left: `${leftAt(phase.startDate || baselineDue(phase))}%`, width: `${widthOf(phase)}%` } : undefined; };
@@ -544,11 +629,19 @@ function Gantt({ rows, holidays, calendarMode, onPatch, onAddRisk, onAddChildTas
     return offset < .25 ? "before" : offset > .75 ? "after" : "child";
   };
   const setDrop = (event: DragEvent<HTMLDivElement>, row: DeliveryGanttRow) => {
-    if (!draggedTaskId || (row.kind !== "task" && row.kind !== "phase")) return;
-    event.preventDefault();
+    if (!draggedTaskId) return;
     const dragged = rowsById.get(draggedTaskId);
-    if (!dragged || dragged.id === row.id) return;
-    setDropTarget({ id: row.id, placement: placementFor(event) });
+    if (!dragged || dragged.id === row.id || dragged.kind === "risk" || row.kind === "risk") return;
+    const placement = placementFor(event);
+    if (dragged.kind === "phase") {
+      if (row.kind !== "phase") return;
+      event.preventDefault();
+      setDropTarget({ id: row.id, placement: placement === "child" ? "after" : placement });
+      return;
+    }
+    if (placement !== "child" && row.kind === "phase") return;
+    event.preventDefault();
+    setDropTarget({ id: row.id, placement });
   };
   const drop = async (event: DragEvent<HTMLDivElement>, row: DeliveryGanttRow) => {
     event.preventDefault();
@@ -567,7 +660,7 @@ function Gantt({ rows, holidays, calendarMode, onPatch, onAddRisk, onAddChildTas
     <div className="delivery-gantt-split__fixed">
       <div className="delivery-gantt-split__fixed-head"><span>WBS / 任务名称</span><span>负责人</span><span>进度</span></div>
       <div ref={fixedRef} className="delivery-gantt-split__fixed-body" onWheel={handleFixedWheel}>
-        {visibleRows.map(row => <div key={row.id} draggable={row.kind === "task"} className={`delivery-gantt-split__fixed-row is-${row.kind} is-phase-tone-${row.phaseIndex % 4}${row.kind === "group" ? ` is-group-level-${groupLevel(row) % 4}` : ""}${hoveredRowId === row.id ? " is-hovered" : ""}${draggedTaskId === row.id ? " is-dragging" : ""}${dropTarget?.id === row.id ? ` is-drop-${dropTarget.placement}` : ""}`} onDragStart={event => { if (row.kind !== "task") return; event.dataTransfer.effectAllowed = "move"; setDraggedTaskId(row.id); }} onDragEnd={() => { setDraggedTaskId(undefined); setDropTarget(undefined); }} onDragOver={event => setDrop(event, row)} onDrop={event => void drop(event, row)} onMouseEnter={() => setHoveredRowId(row.id)} onMouseLeave={() => setHoveredRowId(undefined)} onContextMenu={event => openTaskMenu(event, row)} onDoubleClick={() => { if (row.kind !== "risk") setDetailRowId(row.id); }}>
+        {visibleRows.map(row => <div key={row.id} draggable={row.kind !== "risk"} className={`delivery-gantt-split__fixed-row is-${row.kind} is-phase-tone-${row.phaseIndex % 4}${row.kind === "group" ? ` is-group-level-${groupLevel(row) % 4}` : ""}${hoveredRowId === row.id ? " is-hovered" : ""}${draggedTaskId === row.id ? " is-dragging" : ""}${dropTarget?.id === row.id ? ` is-drop-${dropTarget.placement}` : ""}`} onDragStart={event => { if (row.kind === "risk") return; event.dataTransfer.effectAllowed = "move"; setDraggedTaskId(row.id); }} onDragEnd={() => { setDraggedTaskId(undefined); setDropTarget(undefined); }} onDragOver={event => setDrop(event, row)} onDrop={event => void drop(event, row)} onMouseEnter={() => setHoveredRowId(row.id)} onMouseLeave={() => setHoveredRowId(undefined)} onContextMenu={event => openTaskMenu(event, row)} onDoubleClick={() => { if (row.kind !== "risk") setDetailRowId(row.id); }}>
           <span style={{ paddingLeft: `${14 + row.depth * 20}px` }}>
             {row.kind === "risk" ? <b className="delivery-gantt-split__risk-mark">⚠</b> : row.kind === "milestone" ? <b className="delivery-gantt-split__milestone-mark">⚑</b> : row.hasChildren ? <button type="button" className="delivery-gantt-split__toggle" onClick={() => toggle(setCollapsedIds, row.id)}>{collapsedIds.has(row.id) ? "▸" : "▾"}</button> : row.kind === "group" ? <b className="delivery-gantt-split__group-mark">□</b> : <b>•</b>}
             <em className="delivery-gantt-split__wbs">{row.wbsCode}</em><span className="delivery-gantt-split__title">{row.title}</span>
@@ -578,15 +671,22 @@ function Gantt({ rows, holidays, calendarMode, onPatch, onAddRisk, onAddChildTas
       </div>
     </div>
     <div ref={timeRef} className="delivery-gantt-split__time" onScroll={event => { if (fixedRef.current) fixedRef.current.scrollTop = event.currentTarget.scrollTop; }}>
-      <div className="delivery-gantt-split__time-canvas">
-        <div className="delivery-gantt-split__time-head">{months.map(month => <b key={month.left} style={{ left: `${month.left}%`, width: `${month.width}%` }}>{month.label}</b>)}{dateTicks.map(tick => <span key={tick.left} className="delivery-gantt-split__week-label" style={{ left: `${tick.left}%` }}>{tick.label}</span>)}<em className="delivery-gantt-split__today-label" style={{ left: `${todayLeft}%` }}>今天</em></div>
+      <div className="delivery-gantt-split__time-canvas" style={timelineCanvasStyle}>
+        <div className="delivery-gantt-split__time-head">{months.map(month => <b key={month.left} style={{ left: `${month.left}%`, width: `${month.width}%` }}>{month.label}</b>)}{headerTicks.map(tick => <span key={tick.left} className="delivery-gantt-split__week-label" style={{ left: `${tick.left}%` }}>{tick.label}</span>)}<em className="delivery-gantt-split__today-label" style={{ left: `${todayLeft}%` }}>今天</em></div>
         {visibleRows.map(row => <div key={row.id} className={`delivery-gantt-split__time-row is-${row.kind} is-phase-tone-${row.phaseIndex % 4}${hoveredRowId === row.id ? " is-hovered" : ""}${draggedTaskId === row.id ? " is-dragging" : ""}${dropTarget?.id === row.id ? ` is-drop-${dropTarget.placement}` : ""}`} onDragOver={event => setDrop(event, row)} onDrop={event => void drop(event, row)} onMouseEnter={() => setHoveredRowId(row.id)} onMouseLeave={() => setHoveredRowId(undefined)} onContextMenu={event => openTaskMenu(event, row)} onDoubleClick={() => { if (row.kind !== "risk") setDetailRowId(row.id); }}>
           {(row.kind === "task" || row.kind === "group" || row.kind === "phase") && phaseWindow(row) && <span className={`delivery-gantt-split__phase-window is-phase-${(phaseFor(row)?.phaseIndex ?? 0) % 4}`} style={phaseWindow(row)}/>} 
-          {dateTicks.map(tick => <span key={tick.left} className="delivery-gantt-split__week-line" style={{ left: `${tick.left}%` }}/>)}<span className="delivery-gantt-split__today-line" style={{ left: `${todayLeft}%` }}/>
+          {gridTicks.map(tick => <span key={tick.left} className="delivery-gantt-split__week-line" style={{ left: `${tick.left}%` }}/>)}<span className="delivery-gantt-split__today-line" style={{ left: `${todayLeft}%` }}/>
           {(milestonesByParent.get(row.id) ?? []).map(milestone => <i key={milestone.id} className="delivery-gantt-split__milestone" style={{ left: `${leftAt(ganttEndBoundary(baselineDue(milestone)))}%` }} title={`${milestone.title} · ${dateText(baselineDue(milestone))}`}>⚑</i>)}
-          {row.kind === "milestone" ? <i className="delivery-gantt-split__milestone" style={{ left: `${leftAt(ganttEndBoundary(baselineDue(row)))}%` }}>⚑</i> : row.kind === "group" || row.kind === "phase" ? null : <>{<i className={`${row.kind === "risk" ? "is-risk" : `is-${row.status}`}${delayEndFor(row) ? " has-delay" : ""}`} style={barStyle(row)} title={`${dateText(row.startDate)} – ${dateText(baselineDue(row))}`}>{row.kind === "risk" ? "风险" : null}</i>}{(() => { const delayEnd = delayEndFor(row); return delayEnd && <i className="delivery-gantt-split__delay" style={{ left: `${leftAt(ganttEndBoundary(baselineDue(row)))}%`, width: `${Math.max(endBoundaryAt(delayEnd) - endBoundaryAt(baselineDue(row)), .8)}%` }} title={`延期至 ${dateText(delayEnd)}`}/>; })()}</>}
+          {row.kind === "milestone" ? <i className="delivery-gantt-split__milestone" style={{ left: `${leftAt(ganttEndBoundary(baselineDue(row)))}%` }}>⚑</i> : row.kind === "group" || row.kind === "phase" ? null : <>{<i className={`${row.kind === "risk" ? "is-risk" : `is-${row.status}`}${delayEndFor(row) ? " has-delay" : ""}${row.kind === "task" && row.startDate === isoToday() ? " has-today-start" : ""}`} style={barStyle(row)} title={`${dateText(row.startDate)} – ${dateText(baselineDue(row))}`}>{row.kind === "risk" ? "风险" : null}</i>}{row.kind === "task" && row.startDate === isoToday() && <i className={`delivery-gantt-split__today-start is-${row.status}`} style={{ left: `${leftAt(row.startDate)}%` }} title="今天开始"/>}{(() => { const gap = actualStartGap(row); return gap && <i className="delivery-gantt-split__actual-start-gap" style={gap} title={row.status === "todo" ? `等待开始至 ${dateText(isoToday())}` : `实际开始 ${dateText(actualStartDateFor(row, isoToday()))}`}/>; })()}{(() => { const gap = actualEndGap(row); return gap && <i className="delivery-gantt-split__actual-end-gap" style={gap} title={`提前结束，原计划至 ${dateText(baselineDue(row))}`}/>; })()}{(() => { const delayEnd = delayEndFor(row); return delayEnd && <i className="delivery-gantt-split__delay" style={{ left: `${leftAt(ganttEndBoundary(baselineDue(row)))}%`, width: `${Math.max(endBoundaryAt(delayEnd) - endBoundaryAt(baselineDue(row)), .8)}%` }} title={`延期至 ${dateText(delayEnd)}`}/>; })()}</>}
         </div>)}
         {groupFrames.map(frame => <span key={frame.id} className={`delivery-gantt-split__group-frame is-level-${frame.level % 4}`} style={frame.style}><b>{frame.label}</b></span>)}
+        {showDependencies && dependencyLinks.length > 0 && <svg className="delivery-gantt-split__dependencies" viewBox={`0 0 1000 ${visibleRows.length * 38}`} height={visibleRows.length * 38} preserveAspectRatio="none" aria-label="任务依赖">
+          <defs><marker id="dependency-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8 z"/></marker><marker id="dependency-arrow-conflict" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="4" markerHeight="4" orient="auto"><path className="is-conflict" d="M 0 0 L 8 4 L 0 8 z"/></marker></defs>
+          {dependencyLinks.map(link => {
+            const bendX = link.toX >= link.fromX ? (link.fromX + link.toX) / 2 : link.fromX + 18;
+            return <path key={link.id} className={link.isConflict ? "is-conflict" : ""} d={`M ${link.fromX} ${link.fromY} H ${bendX} V ${link.toY} H ${link.toX}`} markerEnd={`url(#dependency-arrow${link.isConflict ? "-conflict" : ""})`}><title>{`${link.predecessor.title} → ${link.successor.title}`}</title></path>;
+          })}
+        </svg>}
       </div>
     </div>
     {taskMenu && <div ref={taskMenuRef} className="delivery-gantt-split__task-menu" style={{ left: taskMenu.x, top: taskMenu.y }}>
@@ -594,6 +694,10 @@ function Gantt({ rows, holidays, calendarMode, onPatch, onAddRisk, onAddChildTas
       {taskMenu.row.kind === "task" && <button type="button" className="is-danger" onClick={() => { if (window.confirm(`删除“${taskMenu.row.title}”及其全部下级任务吗？`)) void onDelete(taskMenu.row); setTaskMenu(undefined); }}>删除</button>}
     </div>}
     {detailRow && <TaskDetailDrawer row={detailRow} rows={rows} holidays={holidays} onClose={() => setDetailRowId(undefined)} onPatch={onPatch} onAddRisk={onAddRisk} />}
+  </div>
+  <div className="delivery-gantt-split__zoom" aria-label="甘特图日期密度">
+    <button type="button" aria-label="缩小时间轴" title="缩小时间轴" disabled={timelineZoom === 0} onClick={() => setTimelineZoom(current => Math.max(0, current - 1))}><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+    <button type="button" aria-label="放大时间轴" title="放大时间轴" disabled={timelineZoom === 3} onClick={() => setTimelineZoom(current => Math.min(3, current + 1))}><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
   </div>
   </>;
 }
@@ -623,7 +727,7 @@ function HolidayCalendar({ holidays, onChange, onClose }: { holidays: string[]; 
 function TaskDetailDrawer({ row, rows, holidays, onClose, onPatch, onAddRisk }: { row: DeliveryGanttRow; rows: DeliveryGanttRow[]; holidays: string[]; onClose: () => void; onPatch: (row: DeliveryItem, patch: Partial<DeliveryItemLike>) => Promise<void>; onAddRisk: (row: DeliveryItem) => Promise<void> }) {
   const [draft, setDraft] = useState<Partial<DeliveryItemLike>>({});
   const [saving, setSaving] = useState(false);
-  useEffect(() => { setDraft({ title: row.title, kind: row.kind, owner: row.owner || "", status: row.status, progressOffsetDays: row.progressOffsetDays || 0, startDate: row.startDate || "", dueDate: row.dueDate || "", baselineDueDate: row.baselineDueDate || "", periodDays: row.periodDays ?? 0, actualPersonDays: row.actualPersonDays ?? 0, dependencyIds: row.dependencyIds || [] }); }, [row]);
+  useEffect(() => { setDraft({ title: row.title, kind: row.kind, owner: row.owner || "", status: row.status, progressOffsetDays: row.progressOffsetDays || 0, startDate: row.startDate || "", actualStartDate: row.actualStartDate || "", dueDate: row.dueDate || "", baselineDueDate: row.baselineDueDate || "", periodDays: row.periodDays ?? 0, actualPersonDays: row.actualPersonDays ?? 0, dependencyIds: row.dependencyIds || [] }); }, [row]);
   const tasks = rows.filter(candidate => candidate.kind === "task" && candidate.id !== row.id);
   const update = <K extends keyof DeliveryItemLike>(key: K, next: DeliveryItemLike[K]) => setDraft(current => ({ ...current, [key]: next }));
   const updateSchedule = (patch: Pick<Partial<DeliveryItemLike>, "startDate" | "baselineDueDate" | "periodDays">) => setDraft(current => ({ ...current, ...syncDeliverySchedule({ ...row, ...current }, patch, holidays) }));
@@ -643,10 +747,13 @@ function TaskDetailDrawer({ row, rows, holidays, onClose, onPatch, onAddRisk }: 
         <label><span>状态</span><select value={draft.status || "todo"} onChange={event => update("status", event.target.value as DeliveryItemStatus)}>{(["todo", "doing", "blocked", "done"] as const).map(status => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></label>
         <label><span>自动进度</span><output>{row.status === "done" ? "完成" : `${row.progress}%`}</output></label>
         <label><span>进度偏移（天）</span><input type="number" step="1" value={Number(draft.progressOffsetDays ?? 0)} onChange={event => update("progressOffsetDays", Number(event.target.value) || 0)}/></label>
-        <label><span>开始日期</span><input type="date" value={String(draft.startDate ?? "")} onChange={event => updateSchedule({ startDate: event.target.value })}/></label>
-        <label><span>当前截止</span><input type="date" value={String(draft.dueDate ?? "")} onChange={event => update("dueDate", event.target.value)}/></label>
+        <div className="delivery-task-drawer__date-pairs delivery-task-drawer__wide">
+          <label><span>计划开始时间</span><input type="date" value={String(draft.startDate ?? "")} onChange={event => updateSchedule({ startDate: event.target.value })}/></label>
+          <label><span>计划结束时间</span><input type="date" value={String(draft.baselineDueDate ?? "")} onChange={event => updateSchedule({ baselineDueDate: event.target.value })}/></label>
+          <label><span>实际开始时间</span><input type="date" value={String(draft.actualStartDate ?? "")} onChange={event => update("actualStartDate", event.target.value)}/></label>
+          <label><span>实际结束时间</span><input type="date" value={String(draft.dueDate ?? "")} onChange={event => update("dueDate", event.target.value)}/></label>
+        </div>
         <label><span>周期（工作日）</span><input type="number" min="1" step="1" value={Math.max(1, Number(draft.periodDays ?? 1))} onChange={event => updateSchedule({ periodDays: Math.max(1, Number(event.target.value) || 1) })}/></label>
-        <label><span>基线截止</span><input type="date" value={String(draft.baselineDueDate ?? "")} onChange={event => updateSchedule({ baselineDueDate: event.target.value })}/></label>
         <label><span>实际人天</span><input type="number" min="0" step="0.5" value={Number(draft.actualPersonDays ?? 0)} onChange={event => update("actualPersonDays", Math.max(0, Number(event.target.value) || 0))}/></label>
         {row.kind === "task" && <label className="delivery-task-drawer__wide"><span>前置依赖</span><select value={draft.dependencyIds?.[0] || ""} onChange={event => update("dependencyIds", event.target.value ? [event.target.value] : [])}><option value="">无</option>{tasks.map(task => <option key={task.id} value={task.id}>{task.wbsCode} {task.title}</option>)}</select></label>}
       </div>
@@ -728,15 +835,22 @@ function GanttLegacy({ rows, onPatch }: { rows: DeliveryGanttRow[]; onPatch: (ro
   }));
   return <div className="delivery-gantt"><div className="delivery-gantt__canvas"><svg className="delivery-gantt__dependencies" viewBox={`0 0 895 ${nextTop}`} preserveAspectRatio="none"><defs><marker id="delivery-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" /></marker></defs>{dependencies.map(link => { const fromX = 895 * link.source.right / 100; const toX = 895 * link.target.left / 100; const fromY = link.source.top + 28; const toY = link.target.top + 28; const elbow = Math.max(fromX + 18, toX - 18); return <path key={`${link.sourceId}-${link.targetId}`} d={`M ${fromX} ${fromY} H ${elbow} V ${toY} H ${toX}`} markerEnd="url(#delivery-arrow)" />; })}</svg><div className="delivery-gantt__head"><span>WBS / 任务名称</span><span>负责人</span><span>进度</span><div className="delivery-gantt__time-head">{months.map(month => <b key={month.left} className="delivery-gantt__month" style={{ left: `${month.left}%`, width: `${month.width}%` }}>{month.label}</b>)}{ticks.map((tick, index) => <i key={tick.left} className={index === 0 ? "is-first" : ""} style={{ left: `${tick.left}%` }}>{tick.label}</i>)}<em style={{ left: `${todayLeft}%` }}>今天</em></div></div>{rows.map((row, index) => { const left = ((Date.parse(row.startDate || row.dueDate || isoToday()) - min) / range) * 100; const width = Math.max(((Date.parse(row.dueDate || row.startDate || isoToday()) - Date.parse(row.startDate || row.dueDate || isoToday())) / range) * 100, row.kind === "milestone" ? 0 : 7); const baselineWidth = row.baselineDueDate && row.dueDate && row.baselineDueDate < row.dueDate ? Math.max(((Date.parse(row.baselineDueDate) - Date.parse(row.startDate || row.baselineDueDate)) / range) * 100, 1) : width; return <div className={`delivery-gantt__row is-${row.kind}`} key={row.id}><span className="delivery-gantt__name" style={{ paddingLeft: `${12 + row.depth * 22}px` }}><b className="delivery-gantt__kind">{row.kind === "milestone" ? "◇" : row.kind === "phase" ? "▾" : "•"}</b><em>{index + 1}</em><input value={row.title} onChange={event => void onPatch(row, { title: event.target.value })}/></span><span><input value={row.owner || ""} placeholder="负责人" onChange={event => void onPatch(row, { owner: event.target.value })}/></span><span>{row.kind === "milestone" ? "节点" : `${row.progress}%`}</span><div className="delivery-gantt__timeline"><i className="delivery-gantt__today" style={{ left: `${todayLeft}%` }} aria-label="今天" />{row.kind === "milestone" ? <i className={`delivery-milestone is-${row.isAtRisk || row.status === "blocked" ? "risk" : row.status}`} style={{ left: `${left}%` }} title={`${row.title} · ${dateText(row.dueDate || row.startDate)}`}>◇</i> : <><i className={`is-${row.isAtRisk || row.status === "blocked" ? "risk" : row.status}`} style={{ left: `${left}%`, width: `${baselineWidth}%` }}>{dateText(row.startDate)} – {dateText(row.dueDate)}</i>{baselineWidth < width && <i className="delivery-gantt__delay" style={{ left: `${left + baselineWidth}%`, width: `${width - baselineWidth}%` }} title={`延期至 ${row.dueDate}`}>延期</i>}</>}</div></div>; })}{rows.length === 0 && <div className="delivery-empty">还没有计划事项，点击“+ 阶段”开始。</div>}</div></div>;
 }
-type PlanColumn = "title" | "hierarchy" | "status" | "progress" | "progressOffset" | "start" | "due" | "period" | "baseline" | "actualPersonDays" | "dependency" | "owner";
-const defaultPlanColumns: PlanColumn[] = ["title", "hierarchy", "status", "progress", "progressOffset", "start", "due", "period", "baseline", "actualPersonDays", "dependency", "owner"];
-const planColumnLabels: Record<PlanColumn, string> = { title: "WBS / 事项", hierarchy: "类型 / 所属", status: "状态", progress: "自动进度", progressOffset: "进度偏移", start: "开始", due: "当前截止", period: "周期（工作日）", baseline: "基线截止", actualPersonDays: "实际人天", dependency: "前置依赖", owner: "负责人" };
+type PlanColumn = "title" | "hierarchy" | "status" | "progress" | "progressOffset" | "start" | "actualStart" | "due" | "period" | "baseline" | "actualPersonDays" | "dependency" | "owner";
+const defaultPlanColumns: PlanColumn[] = ["title", "hierarchy", "status", "progress", "progressOffset", "start", "actualStart", "due", "period", "baseline", "actualPersonDays", "dependency", "owner"];
+const planColumnLabels: Record<PlanColumn, string> = { title: "WBS / 事项", hierarchy: "类型 / 所属", status: "状态", progress: "自动进度", progressOffset: "进度偏移", start: "计划开始时间", actualStart: "实际开始时间", due: "实际结束时间", period: "周期（工作日）", baseline: "计划结束时间", actualPersonDays: "实际人天", dependency: "前置依赖", owner: "负责人" };
 function readPlanColumns(key: string): PlanColumn[] {
   try {
     const stored = JSON.parse(window.localStorage.getItem(key) || "[]");
     if (!Array.isArray(stored)) return defaultPlanColumns;
     const known = stored.filter((column): column is PlanColumn => defaultPlanColumns.includes(column));
-    return known.length ? [...known, ...defaultPlanColumns.filter(column => !known.includes(column))] : defaultPlanColumns;
+    const complete = known.length ? [...known, ...defaultPlanColumns.filter(column => !known.includes(column))] : [...defaultPlanColumns];
+    const actualStartIndex = complete.indexOf("actualStart");
+    const dueIndex = complete.indexOf("due");
+    if (actualStartIndex > dueIndex) {
+      complete.splice(actualStartIndex, 1);
+      complete.splice(dueIndex, 0, "actualStart");
+    }
+    return complete;
   } catch { return defaultPlanColumns; }
 }
 
@@ -783,6 +897,7 @@ function PlanTableWithColumns({ rows, phases, onPatch, onPatchParent, onAdd, onD
     if (column === "progress") return row.status === "done" ? "完成" : `${row.progress}%`;
     if (column === "progressOffset") return editing ? <input type="number" step="1" value={row.progressOffsetDays ?? 0} onChange={event => void onPatch(row, { progressOffsetDays: Number(event.target.value) || 0 })}/> : `${row.progressOffsetDays ?? 0} 天`;
     if (column === "start") return editing ? <input type="date" value={row.startDate || ""} onChange={event => void onPatch(row, { startDate: event.target.value })}/> : row.startDate || "—";
+    if (column === "actualStart") return editing ? <input type="date" value={row.actualStartDate || ""} onChange={event => void onPatch(row, { actualStartDate: event.target.value })}/> : row.actualStartDate || "—";
     if (column === "due") return editing ? <input type="date" value={row.dueDate || ""} onChange={event => void onPatch(row, { dueDate: event.target.value })}/> : row.dueDate || "—";
     if (column === "period") return editing ? <input type="number" min="1" step="1" value={Math.max(1, row.periodDays ?? 1)} onChange={event => void onPatch(row, { periodDays: Math.max(1, Number(event.target.value) || 1) })}/> : `${Math.max(1, row.periodDays ?? 1)} 天`;
     if (column === "baseline") return editing ? <input type="date" value={row.baselineDueDate || ""} onChange={event => void onPatch(row, { baselineDueDate: event.target.value })}/> : row.baselineDueDate || "—";

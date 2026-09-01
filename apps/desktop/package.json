@@ -5,26 +5,28 @@
   "main": "dist/main.cjs",
   "scripts": {
     "build:main": "esbuild src/main.ts --bundle --platform=node --target=node20 --format=cjs --external:electron --external:better-sqlite3 --outfile=dist/main.cjs",
+    "build:preload": "esbuild src/preload.ts --bundle --platform=node --target=node20 --format=cjs --external:electron --outfile=dist/preload.cjs",
     "build:server": "esbuild ../server/src/index.ts --bundle --platform=node --target=node20 --format=cjs --external:better-sqlite3 --define:import.meta.url=__ke_import_meta_url --banner:js=\"const __ke_import_meta_url=require('url').pathToFileURL(__filename).href;\" --outfile=dist/server.cjs",
     "build:web": "pnpm --filter @ke/web build",
     "rebuild:native": "node scripts/rebuild-native.cjs",
     "build:tray": "node scripts/generate-tray-frames.cjs",
-    "build": "pnpm build:tray && pnpm build:web && pnpm build:server && pnpm build:main",
+    "build": "pnpm build:tray && pnpm build:web && pnpm build:server && pnpm build:main && pnpm build:preload",
     "dev": "pnpm build && pnpm rebuild:native && electron dist/main.cjs",
     "package": "pnpm build && pnpm rebuild:native && electron-builder --mac --config electron-builder.json",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/node-server": "^1.11.0",
     "better-sqlite3": "^12.10.0",
-    "hono": "^4.4.0",
-    "@hono/node-server": "^1.11.0"
+    "exceljs": "4.4.0",
+    "hono": "^4.4.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
+    "@types/node": "^20.0.0",
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0",
-    "@electron/rebuild": "^3.6.0",
     "esbuild": "^0.24.0",
-    "typescript": "^5.4.0",
-    "@types/node": "^20.0.0"
+    "typescript": "^5.4.0"
   }
 }

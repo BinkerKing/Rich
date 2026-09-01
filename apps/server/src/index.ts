@@ -182,6 +182,7 @@ import { improvementsRoutes } from "./routes/improvements.js";
 import { InvocationsRepo, type InvocationsStore } from "./repos/InvocationsRepo.js";
 import { ToolRuntime } from "./tools/runtime.js";
 import { lockScreenTool } from "./tools/lockScreen.js";
+import { BreakReminder } from "./lib/breakReminder.js";
 import { toolboxRoutes } from "./routes/toolbox.js";
 import { mascotRoutes } from "./routes/mascot.js";
 import { SqliteGreatMeRepo } from "./repos/SqliteGreatMeRepo.js";
@@ -211,6 +212,7 @@ import { SqliteProjectAutomationRepo } from "./modules/project-automation/infras
 import { projectAutomationRoutes } from "./modules/project-automation/presentation/routes.js";
 import { PersistentTaskService } from "./mcp-v2/tasks/persistentTaskService.js";
 import { createAIObservability } from "./ai/observability.js";
+import { syncProjectPlanTasks } from "./services/projectPlanTaskSync.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -331,6 +333,8 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   const manualsDir = opts.aiDir ?? aiDir();
   // ─── Toolbox runtime (gracefully no-op if SQLite repo missing) ──
   const toolRuntime = invocations ? new ToolRuntime(invocations) : null;
+  const breakReminder = new BreakReminder(join(root, "break-reminder.json"));
+  breakReminder.restore();
   if (toolRuntime) {
     toolRuntime.register(lockScreenTool);
     // Re-schedule any deferred invocations that survived the previous crash.
@@ -354,6 +358,13 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   const mcpTransportState = new McpTransportState();
   let mcpRegistryToolCount = 0;
   const operationCorrelations = new OperationCorrelationRegistry();
+  // Backfill open tasks that existed before this sync was introduced. Subsequent project-plan writes
+  // are synchronized by the project-management routes below.
+  void (async () => {
+    for (const project of (await elements.list()).filter(element => element.type === "project")) {
+      await syncProjectPlanTasks(greatMe, project, await projectManagement.listAllModuleItems(project.id, "deliveryPlan"));
+    }
+  })().catch(error => log.warn("project.plan-task-sync.failed", { error: error instanceof Error ? error.message : String(error) }));
   app.use("*", async (c, next) => {
     c.header("access-control-allow-origin", "*");
     c.header("access-control-allow-headers", "content-type");
@@ -375,7 +386,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/chat/attachments", chatAttachmentsRoutes(chatAttachments));
   app.route("/api/health", healthRoutes(healthRepo));
   app.route("/api/projects", projectsRoutes(elements, projectManagement));
-  app.route("/api/project-management", projectManagementRoutes(projectManagement));
+  app.route("/api/project-management", projectManagementRoutes(projectManagement, { elements, greatMe }));
   app.route("/api/project-management", projectAutomationRoutes(projectManagement, projectAutomation));
   app.route("/api/project-management", multicaProjectWorkbenchRoutes({
     workbench: multica.workbench,
@@ -398,7 +409,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     app.route("/api/improvements", improvementsRoutes(improvements));
   }
   if (toolRuntime && invocations) {
-    app.route("/api/toolbox", toolboxRoutes(toolRuntime, invocations));
+    app.route("/api/toolbox", toolboxRoutes(toolRuntime, invocations, breakReminder));
   }
   app.route("/api/mascot", mascotRoutes());
   app.route("/api/ai", aiRoutes({

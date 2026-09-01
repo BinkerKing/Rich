@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -516,6 +516,7 @@ type RichToolbarIconName =
 
 const RICH_TEXT_COLORS = ["#1f2937", "#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899", "#ffffff"];
 const RICH_HIGHLIGHT_COLORS = ["#fff3b0", "#fee2e2", "#ffedd5", "#fef3c7", "#dcfce7", "#cffafe", "#dbeafe", "#ede9fe", "#fce7f3", "#e5e7eb"];
+const RICH_TOOLBAR_ITEM_COUNT = 24;
 
 function RichToolbarIcon({ name }: { name: RichToolbarIconName }) {
   const common = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
@@ -574,9 +575,19 @@ export function ProjectRichTextEditor({
   const fileRef = useRef<HTMLInputElement | null>(null);
   const onChangeRef = useRef(onChange);
   const latestHtmlRef = useRef(value);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const toolbarMainRef = useRef<HTMLDivElement | null>(null);
+  const lastToolbarWidthRef = useRef(0);
   const [colorMenu, setColorMenu] = useState<"text" | "highlight" | null>(null);
   const [moreMenu, setMoreMenu] = useState(false);
+  const [toolbarWidth, setToolbarWidth] = useState(0);
+  const [visibleToolbarItems, setVisibleToolbarItems] = useState(RICH_TOOLBAR_ITEM_COUNT);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  useLayoutEffect(() => {
+    const toolbar = toolbarMainRef.current;
+    if (!toolbarWidth || !toolbar || toolbar.scrollWidth <= toolbar.clientWidth) return;
+    setVisibleToolbarItems(count => Math.max(1, count - 1));
+  }, [toolbarWidth, visibleToolbarItems]);
   const editor = useEditor({
     extensions: [StarterKit.configure({ heading: { levels: [1, 2, 3] } }), Underline, TiptapTextStyle, Color, FontFamily, Highlight.configure({ multicolor: true }), TextAlign.configure({ types: ["heading", "paragraph"] }), Image.configure({ allowBase64: false }), Table.configure({ resizable: true }), TableRow, TableHeader, TableCell],
     content: value || "",
@@ -584,6 +595,34 @@ export function ProjectRichTextEditor({
     onUpdate: ({ editor: nextEditor }) => { latestHtmlRef.current = nextEditor.getHTML(); },
     onBlur: ({ editor: nextEditor }) => { latestHtmlRef.current = nextEditor.getHTML(); onChangeRef.current(latestHtmlRef.current); },
   });
+
+  useEffect(() => {
+    const toolbar = toolbarRef.current;
+    if (!toolbar) return;
+    const update = () => {
+      const nextWidth = Math.round(toolbar.getBoundingClientRect().width);
+      if (nextWidth === lastToolbarWidthRef.current) return;
+      lastToolbarWidthRef.current = nextWidth;
+      setVisibleToolbarItems(RICH_TOOLBAR_ITEM_COUNT);
+      setToolbarWidth(nextWidth);
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(toolbar);
+    update();
+    return () => observer.disconnect();
+  }, [editor]);
+
+  useEffect(() => {
+    if (!colorMenu) return;
+    const closeOnOutsidePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const colorControl = target.closest(".prj-pm-rich-color-control");
+      if (!colorControl || !toolbarRef.current?.contains(colorControl)) setColorMenu(null);
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointerDown);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointerDown);
+  }, [colorMenu]);
 
   useEffect(() => {
     if (editor && !editor.isFocused && value !== editor.getHTML()) editor.commands.setContent(value || "", { emitUpdate: false });
@@ -599,6 +638,20 @@ export function ProjectRichTextEditor({
     const href = window.prompt("请输入链接地址");
     if (href?.trim()) editor?.chain().focus().extendMarkRange("link").setLink({ href: href.trim() }).run();
   };
+  const toggleBoldUniformly = () => {
+    if (!editor) return;
+    const { from, to } = editor.state.selection;
+    let hasText = false;
+    let allBold = true;
+    editor.state.doc.nodesBetween(from, to, node => {
+      if (!node.isText || !node.text) return;
+      hasText = true;
+      if (!node.marks.some(mark => mark.type.name === "bold")) allBold = false;
+    });
+    const chain = editor.chain().focus();
+    if (hasText && !allBold) chain.setBold().run();
+    else chain.toggleBold().run();
+  };
   const uploadAndInsert = async (files: File[]) => {
     if (files.length === 0) return;
     const uploaded = await api.uploadAttachments(`pm-${projectId}`, files);
@@ -607,66 +660,45 @@ export function ProjectRichTextEditor({
 
   if (!editor) return null;
 
+  const toolbarItems = [
+    { key: "undo", node: <RichToolbarButton icon="undo" label="撤销" onClick={() => editor.chain().focus().undo().run()}/> },
+    { key: "redo", node: <RichToolbarButton icon="redo" label="重做" onClick={() => editor.chain().focus().redo().run()}/> },
+    { key: "style", node: <select className="prj-pm-rich-toolbar__select is-style" aria-label="段落样式" value={editor.isActive("heading", { level: 2 }) ? "h2" : editor.isActive("heading", { level: 3 }) ? "h3" : "p"} onChange={event => { const next = event.target.value; if (next === "p") editor.chain().focus().setParagraph().run(); else editor.chain().focus().toggleHeading({ level: Number(next.slice(1)) as 2 | 3 }).run(); }}><option value="p">正文</option><option value="h2">一级标题</option><option value="h3">二级标题</option></select> },
+    { key: "heading-one", node: <RichToolbarButton icon="heading-one" label="一级标题" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}/> },
+    { key: "heading-two", node: <RichToolbarButton icon="heading-two" label="二级标题" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}/> },
+    { key: "font", node: <select className="prj-pm-rich-toolbar__select" aria-label="字体" defaultValue="PingFang SC" onChange={event => editor.chain().focus().setFontFamily(event.target.value).run()}><option>PingFang SC</option><option>Microsoft YaHei</option><option>Arial</option><option>Georgia</option><option>Menlo</option></select> },
+    { key: "size", node: <select className="prj-pm-rich-toolbar__select is-size" aria-label="字号" defaultValue="14px" onChange={event => editor.chain().focus().setMark("textStyle", { fontSize: event.target.value }).run()}><option value="12px">12px</option><option value="14px">14px</option><option value="16px">16px</option><option value="18px">18px</option><option value="24px">24px</option></select> },
+    { key: "bold", node: <RichToolbarButton icon="bold" label="加粗" active={editor.isActive("bold")} onClick={toggleBoldUniformly}/> },
+    { key: "italic", node: <RichToolbarButton icon="italic" label="斜体" active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}/> },
+    { key: "underline", node: <RichToolbarButton icon="underline" label="下划线" active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()}/> },
+    { key: "strike", node: <RichToolbarButton icon="strike" label="删除线" active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()}/> },
+    { key: "text-color", node: <span className="prj-pm-rich-color-control"><button type="button" className={colorMenu === "text" ? "is-active" : ""} title="字体颜色" aria-label="字体颜色" aria-expanded={colorMenu === "text"} onMouseDown={event => event.preventDefault()} onClick={() => setColorMenu(colorMenu === "text" ? null : "text")}><RichToolbarIcon name="text-color"/><i className="is-text"/></button>{colorMenu === "text" && <ColorPalette label="字体颜色" colors={RICH_TEXT_COLORS} onSelect={color => setColor("text", color)}/>}</span> },
+    { key: "highlight", node: <span className="prj-pm-rich-color-control"><button type="button" className={colorMenu === "highlight" ? "is-active" : ""} title="文字底色" aria-label="文字底色" aria-expanded={colorMenu === "highlight"} onMouseDown={event => event.preventDefault()} onClick={() => setColorMenu(colorMenu === "highlight" ? null : "highlight")}><RichToolbarIcon name="highlight"/><i className="is-highlight"/></button>{colorMenu === "highlight" && <ColorPalette label="文字底色" colors={RICH_HIGHLIGHT_COLORS} onSelect={color => setColor("highlight", color)}/>}</span> },
+    { key: "align-left", node: <RichToolbarButton icon="align-left" label="左对齐" active={editor.isActive({ textAlign: "left" })} onClick={() => editor.chain().focus().setTextAlign("left").run()}/> },
+    { key: "align-center", node: <RichToolbarButton icon="align-center" label="居中对齐" active={editor.isActive({ textAlign: "center" })} onClick={() => editor.chain().focus().setTextAlign("center").run()}/> },
+    { key: "align-right", node: <RichToolbarButton icon="align-right" label="右对齐" active={editor.isActive({ textAlign: "right" })} onClick={() => editor.chain().focus().setTextAlign("right").run()}/> },
+    { key: "bullet-list", node: <RichToolbarButton icon="bullet-list" label="无序列表" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}/> },
+    { key: "ordered-list", node: <RichToolbarButton icon="ordered-list" label="有序列表" active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}/> },
+    { key: "quote", node: <RichToolbarButton icon="quote" label="引用" active={editor.isActive("blockquote")} onClick={() => editor.chain().focus().toggleBlockquote().run()}/> },
+    { key: "code", node: <RichToolbarButton icon="code" label="代码块" active={editor.isActive("codeBlock")} onClick={() => editor.chain().focus().toggleCodeBlock().run()}/> },
+    { key: "link", node: <RichToolbarButton icon="link" label="插入链接" onClick={insertLink}/> },
+    { key: "image", node: <RichToolbarButton icon="image" label="插入图片" onClick={() => fileRef.current?.click()}/> },
+    { key: "table", node: <RichToolbarButton icon="table" label="插入表格" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}/> },
+    { key: "clear", node: <RichToolbarButton icon="clear" label="清除格式" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}/> },
+  ];
+  const visibleItems = toolbarItems.slice(0, visibleToolbarItems);
+  const overflowItems = toolbarItems.slice(visibleToolbarItems);
+
   return (
     <div className="prj-pm-rich-editor">
-      <div className="prj-pm-rich-toolbar">
-        <span className="prj-pm-rich-toolbar__group" aria-label="段落样式">
-          <RichToolbarButton icon="undo" label="撤销" onClick={() => editor.chain().focus().undo().run()}/>
-          <RichToolbarButton icon="redo" label="重做" onClick={() => editor.chain().focus().redo().run()}/>
-        </span>
-        <span className="prj-pm-rich-toolbar__group" aria-label="段落样式">
-          <select className="prj-pm-rich-toolbar__select is-style" aria-label="段落样式" value={editor.isActive("heading", { level: 2 }) ? "h2" : editor.isActive("heading", { level: 3 }) ? "h3" : "p"} onChange={event => { const next = event.target.value; if (next === "p") editor.chain().focus().setParagraph().run(); else editor.chain().focus().toggleHeading({ level: Number(next.slice(1)) as 2 | 3 }).run(); }}>
-            <option value="p">正文</option><option value="h2">一级标题</option><option value="h3">二级标题</option>
-          </select>
-          <RichToolbarButton icon="heading-one" label="一级标题" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}/>
-          <RichToolbarButton icon="heading-two" label="二级标题" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}/>
-        </span>
-        <span className="prj-pm-rich-toolbar__group" aria-label="文字样式">
-          <select className="prj-pm-rich-toolbar__select" aria-label="字体" defaultValue="PingFang SC" onChange={event => editor.chain().focus().setFontFamily(event.target.value).run()}>
-            <option>PingFang SC</option><option>Microsoft YaHei</option><option>Arial</option><option>Georgia</option><option>Menlo</option>
-          </select>
-          <select className="prj-pm-rich-toolbar__select is-size" aria-label="字号" defaultValue="14px" onChange={event => editor.chain().focus().setMark("textStyle", { fontSize: event.target.value }).run()}>
-            <option value="12px">12px</option><option value="14px">14px</option><option value="16px">16px</option><option value="18px">18px</option><option value="24px">24px</option>
-          </select>
-          <RichToolbarButton icon="bold" label="加粗" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()}/>
-          <RichToolbarButton icon="italic" label="斜体" active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}/>
-          <RichToolbarButton icon="underline" label="下划线" active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()}/>
-        </span>
-        <span className="prj-pm-rich-toolbar__more">
-          <RichToolbarButton icon="more" label="更多编辑功能" active={moreMenu} onClick={() => { setMoreMenu(open => !open); setColorMenu(null); }}/>
-          {moreMenu && <span className="prj-pm-rich-toolbar__more-menu" role="menu" aria-label="更多编辑功能">
-            <span className="prj-pm-rich-toolbar__group" aria-label="颜色与文字样式">
-              <RichToolbarButton icon="strike" label="删除线" active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()}/>
-              <span className="prj-pm-rich-color-control">
-                <button type="button" className={colorMenu === "text" ? "is-active" : ""} title="字体颜色" aria-label="字体颜色" aria-expanded={colorMenu === "text"} onMouseDown={event => event.preventDefault()} onClick={() => setColorMenu(colorMenu === "text" ? null : "text")}><RichToolbarIcon name="text-color"/><i className="is-text"/></button>
-                {colorMenu === "text" && <ColorPalette label="字体颜色" colors={RICH_TEXT_COLORS} onSelect={color => setColor("text", color)}/>}
-              </span>
-              <span className="prj-pm-rich-color-control">
-                <button type="button" className={colorMenu === "highlight" ? "is-active" : ""} title="文字底色" aria-label="文字底色" aria-expanded={colorMenu === "highlight"} onMouseDown={event => event.preventDefault()} onClick={() => setColorMenu(colorMenu === "highlight" ? null : "highlight")}><RichToolbarIcon name="highlight"/><i className="is-highlight"/></button>
-                {colorMenu === "highlight" && <ColorPalette label="文字底色" colors={RICH_HIGHLIGHT_COLORS} onSelect={color => setColor("highlight", color)}/>}
-              </span>
-            </span>
-            <span className="prj-pm-rich-toolbar__group" aria-label="对齐方式">
-              <RichToolbarButton icon="align-left" label="左对齐" active={editor.isActive({ textAlign: "left" })} onClick={() => editor.chain().focus().setTextAlign("left").run()}/>
-              <RichToolbarButton icon="align-center" label="居中对齐" active={editor.isActive({ textAlign: "center" })} onClick={() => editor.chain().focus().setTextAlign("center").run()}/>
-              <RichToolbarButton icon="align-right" label="右对齐" active={editor.isActive({ textAlign: "right" })} onClick={() => editor.chain().focus().setTextAlign("right").run()}/>
-            </span>
-            <span className="prj-pm-rich-toolbar__group" aria-label="内容块">
-              <RichToolbarButton icon="bullet-list" label="无序列表" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()}/>
-              <RichToolbarButton icon="ordered-list" label="有序列表" active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}/>
-              <RichToolbarButton icon="quote" label="引用" active={editor.isActive("blockquote")} onClick={() => editor.chain().focus().toggleBlockquote().run()}/>
-              <RichToolbarButton icon="code" label="代码块" active={editor.isActive("codeBlock")} onClick={() => editor.chain().focus().toggleCodeBlock().run()}/>
-            </span>
-            <span className="prj-pm-rich-toolbar__group" aria-label="插入内容">
-              <RichToolbarButton icon="link" label="插入链接" onClick={insertLink}/>
-              <RichToolbarButton icon="image" label="插入图片" onClick={() => fileRef.current?.click()}/>
-              <RichToolbarButton icon="table" label="插入表格" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}/>
-            </span>
-            <span className="prj-pm-rich-toolbar__group" aria-label="编辑操作">
-              <RichToolbarButton icon="clear" label="清除格式" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}/>
-            </span>
-          </span>}
-        </span>
+      <div ref={toolbarRef} className="prj-pm-rich-toolbar">
+        <div ref={toolbarMainRef} className={`prj-pm-rich-toolbar__main${colorMenu ? " is-color-menu-open" : ""}`}>
+          {visibleItems.map(item => <span key={item.key} className="prj-pm-rich-toolbar__item">{item.node}</span>)}
+          {overflowItems.length > 0 && <span className="prj-pm-rich-toolbar__more"><RichToolbarButton icon="more" label="更多编辑功能" active={moreMenu} onClick={() => { setMoreMenu(open => !open); setColorMenu(null); }}/></span>}
+        </div>
+        {moreMenu && overflowItems.length > 0 && <div className="prj-pm-rich-toolbar__more-menu" role="menu" aria-label="更多编辑功能">
+          {overflowItems.map(item => <span key={item.key} className="prj-pm-rich-toolbar__item">{item.node}</span>)}
+        </div>}
         <input
           ref={fileRef}
           type="file"

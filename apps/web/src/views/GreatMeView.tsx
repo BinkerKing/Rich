@@ -47,9 +47,12 @@ interface Task {
   badge: string;
   goalId: string;
   note: string;
-  source?: "user" | "ai" | "ai-template";
+  source?: "user" | "ai" | "ai-template" | "project";
   metric?: Metric;
   archived?: boolean;
+  projectId?: string;
+  projectName?: string;
+  projectTaskId?: string;
 }
 interface EventItem { id: string; title: string; heat: number; category: string; updatedAt: number; notes: { at: number; text: string }[] }
 interface Daily { date: string; tomorrowPlan: string; doingToday: string; meditation: string; victoryBlocker: string; nightReport: string }
@@ -659,7 +662,9 @@ function HomeSection({ state, setState, onPickPlan, onNewPlan, onAIDecompose }: 
   interface GroupedTasks { planId: string; planTitle: string; tasks: typeof todayTasks; goalTitle: Map<string, string> }
   const groups = new Map<string, GroupedTasks>();
   const orphans: typeof todayTasks = [];
+  const projectTasks: typeof todayTasks = [];
   for (const t of todayTasks) {
+    if (t.source === "project") { projectTasks.push(t); continue; }
     const g = t.goalId ? goalMap.get(t.goalId) : undefined;
     if (g && g.planId && planMap.has(g.planId)) {
       const pid = g.planId;
@@ -703,7 +708,7 @@ function HomeSection({ state, setState, onPickPlan, onNewPlan, onAIDecompose }: 
           {pendingInquiriesTotal > 0 && (
             <button
               className="gm-home-v3__inquiry-chip"
-              title="项目实战里 Rich 提出的待回答问题"
+              title="应用开发里 Rich 提出的待回答问题"
               onClick={() => setAppView("practice")}>
               ❓ {pendingInquiriesTotal} 个问题待你回答
             </button>
@@ -780,7 +785,7 @@ function HomeSection({ state, setState, onPickPlan, onNewPlan, onAIDecompose }: 
           </div>
 
           <div className="gm-home-v3__tasks">
-            {groupList.length === 0 && orphans.length === 0 && (
+            {groupList.length === 0 && orphans.length === 0 && projectTasks.length === 0 && (
               <div className="gm-home-v3__empty">
                 <div className="gm-home-v3__empty-title">今天还没有任务</div>
                 <div className="gm-home-v3__empty-sub">
@@ -861,6 +866,20 @@ function HomeSection({ state, setState, onPickPlan, onNewPlan, onAIDecompose }: 
                     </div>
                   );
                 })}
+              </div>
+            )}
+            {projectTasks.length > 0 && (
+              <div className="gm-home-v3__task-group">
+                <div className="gm-home-v3__task-group-head gm-home-v3__task-group-head--orphan">
+                  ▎项目任务
+                  <span className="gm-home-v3__task-group-count">{projectTasks.length} 项</span>
+                </div>
+                {projectTasks.map(t => (
+                  <div key={t.id} className="gm-home-v3__task gm-home-v3__task--project">
+                    <span className="gm-home-v3__task-title">{t.title}</span>
+                    <span className="gm-home-v3__task-goal">项目：{t.projectName || "未命名项目"}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>

@@ -82,11 +82,13 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
   const [tableOrderBySystem, setTableOrderBySystem] = useState<Record<string, string[]>>(() => loadDictionaryTableOrder(project.id));
   const [treeDrag, setTreeDrag] = useState<DictionaryTreeDragState | null>(null);
   const [loading, setLoading] = useState(false);
+  const [systemsLoaded, setSystemsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const tableNavigationStackRef = useRef<string[]>(rememberedWorkspace.selectedTableId ? [rememberedWorkspace.selectedTableId] : []);
   useEffect(() => {
     let cancelled = false;
+    setSystemsLoaded(false);
     setError(null);
     void api.listProjectDictionarySystems(project.id)
       .then(next => {
@@ -98,7 +100,8 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
         setSelectedSystemId(current => current || orderedNext[0]?.id || "");
         setExpandedSystemIds(current => current.length > 0 ? current : orderedNext[0]?.id ? [orderedNext[0].id] : []);
       })
-      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); })
+      .finally(() => { if (!cancelled) setSystemsLoaded(true); });
     return () => { cancelled = true; };
   }, [project.id, refreshKey]);
 
@@ -643,6 +646,9 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
     });
     setTreeDrag(null);
   };
+
+  if (!systemsLoaded && !error) return null;
+  if (!error && systems.length === 0) return <p className="prj-pm-unconfigured">暂未配置。</p>;
 
   return (
     <div className="prj-pm-dict prj-pm-dict-workbench">

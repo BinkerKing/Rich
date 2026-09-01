@@ -32,6 +32,10 @@ export interface ProjectContent {
   status?: "active" | "paused" | "archived";
   /** 本地代码 / 文件根目录路径，供文件夹整理用 */
   localFolder?: string;
+  /** 项目目录内新建交付物的默认根目录。 */
+  defaultDeliverablesDirectory?: string;
+  /** 项目目录内版本控制文件的默认根目录。 */
+  defaultVersionControlDirectory?: string;
   /** 项目 SVN 仓库路径或 URL，仅记录绑定信息，不保存凭据。 */
   svnPath?: string;
   /** 项目 GitHub 仓库路径或 URL，仅记录绑定信息，不保存凭据。 */

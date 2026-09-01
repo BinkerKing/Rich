@@ -11,7 +11,7 @@
  *   - 初始化时仅创建标准《项目管理手册》；同名文件绝不覆盖
  */
 import { Hono } from "hono";
-import { mkdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { createConnection } from "node:net";
@@ -84,13 +84,14 @@ export function projectsRoutes(elements: ElementsRepo, projectManagement: Projec
   const r = new Hono();
 
   /** 从 project 元拿 localFolder。返回 null 表示该元不存在或没配。 */
-  async function getProjectFolder(projectId: string): Promise<{ folder: string | null; error?: string }> {
+  async function getProjectFolder(projectId: string): Promise<{ folder: string | null; deliverablesDirectory?: string; error?: string }> {
     const el = await elements.get(projectId);
     if (!el) return { folder: null, error: "project not found" };
     if (el.type !== "project") return { folder: null, error: "not a project element" };
-    const folder = (el.content as { localFolder?: string } | null | undefined)?.localFolder;
+    const content = el.content as { localFolder?: string; defaultDeliverablesDirectory?: string } | null | undefined;
+    const folder = content?.localFolder;
     if (!folder) return { folder: null, error: "project has no localFolder configured" };
-    return { folder };
+    return { folder, deliverablesDirectory: content?.defaultDeliverablesDirectory };
   }
 
   async function getFolderEntries(projectId: string): Promise<Array<ProjectModuleItem & { content: FolderEntryContent }>> {
@@ -108,10 +109,88 @@ export function projectsRoutes(elements: ElementsRepo, projectManagement: Projec
     return targetAbs !== rootAbs && targetAbs.startsWith(`${rootAbs}/`);
   }
 
+  function deliverableTarget(folder: string, relativePath: unknown, deliverablesDirectory?: string): { relativePath: string; absolutePath: string } | null {
+    if (typeof relativePath !== "string" || !relativePath.trim() || relativePath.includes("\0")) return null;
+    const normalized = relativePath.replaceAll("\\", "/").replace(/^\/+/, "");
+    const configuredDirectory = (deliverablesDirectory || "07-交付").replaceAll("\\", "/").replace(/^\/+|\/+$/g, "");
+    if (!configuredDirectory || configuredDirectory.split("/").some(part => part === "." || part === "..")) return null;
+    const deliverablesRoot = resolve(folder, configuredDirectory);
+    const absolutePath = resolve(folder, normalized);
+    if (!normalized.startsWith(`${configuredDirectory}/`) || !ensureInsideRoot(deliverablesRoot, absolutePath)) return null;
+    return { relativePath: normalized, absolutePath };
+  }
+
+  async function listDeliverableFiles(directory: { relativePath: string; absolutePath: string }): Promise<Array<{ fileName: string; relativePath: string; size: number; modifiedAt: string; isDirectory: boolean }>> {
+    const entries = await Promise.all((await readdir(directory.absolutePath, { withFileTypes: true })).flatMap(async entry => {
+      if (!entry.isDirectory() && !entry.isFile()) return [];
+      const info = await stat(resolve(directory.absolutePath, entry.name));
+      return [{ fileName: entry.name, relativePath: `${directory.relativePath}/${entry.name}`, size: entry.isFile() ? info.size : 0, modifiedAt: info.mtime.toISOString(), isDirectory: entry.isDirectory() }];
+    }));
+    return entries.flat().sort((left, right) => Number(right.isDirectory) - Number(left.isDirectory) || right.modifiedAt.localeCompare(left.modifiedAt) || left.relativePath.localeCompare(right.relativePath));
+  }
+
+  function reportMarkdown(report: Record<string, unknown>): { directory: string; markdown: string } | null {
+    const date = typeof report.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(report.date) ? report.date : "";
+    const title = typeof report.title === "string" ? report.title.trim() : "";
+    const list = (value: unknown) => Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map(item => `- ${item.trim()}`)
+      : [];
+    if (!date || !title) return null;
+    const sources = list(report.sources);
+    const metrics = Array.isArray(report.metrics)
+      ? report.metrics.filter((metric): metric is Record<string, unknown> => Boolean(metric) && typeof metric === "object")
+        .map(metric => {
+          const label = typeof metric.label === "string" ? metric.label.trim() : "";
+          const value = typeof metric.value === "string" ? metric.value.trim() : "";
+          return label && value ? `- ${label}：${value}` : "";
+        }).filter(Boolean)
+      : [];
+    const body = typeof report.body === "string" ? report.body.trim() : "";
+    if (report.type !== "daily") {
+      const directory = report.type === "weekly" ? "周报" : report.type === "monthly" ? "月报" : report.type === "meeting" ? "会议纪要" : null;
+      const summary = typeof report.summary === "string" ? report.summary.trim() : "";
+      if (!directory || (!summary && !body)) return null;
+      return { directory, markdown: [
+        `# ${title}`, "", `日期：${date}`, "",
+        summary ? "## 摘要" : "", summary,
+        body ? "## 正文" : "", body,
+        metrics.length ? "## 关键数据" : "", ...metrics,
+        sources.length ? "## 相关信息" : "", ...sources,
+        "",
+      ].filter(Boolean).join("\n") };
+    }
+    const progress = typeof report.projectProgress === "number" && report.projectProgress >= 0 && report.projectProgress <= 100
+      ? report.projectProgress
+      : null;
+    if (progress === null) return null;
+    const completedWork = list(report.completedWork);
+    const tomorrowPlan = list(report.tomorrowPlan);
+    const risks = list(report.risks);
+    return { directory: "日报", markdown: [
+      `# ${title}`,
+      "",
+      `日期：${date}`,
+      `整体项目进度：${progress}%`,
+      "",
+      "## 今日完成工作",
+      ...(completedWork.length ? completedWork : ["- 暂无记录"]),
+      "",
+      "## 明日计划",
+      ...(tomorrowPlan.length ? tomorrowPlan : ["- 暂无计划"]),
+      "",
+      "## 风险与阻碍",
+      ...(risks.length ? risks : ["- 暂无阻碍"]),
+      ...(body ? ["", "## 报告正文", body] : []),
+      ...(metrics.length ? ["", "## 关键数据", ...metrics] : []),
+      ...(sources.length ? ["", "## 相关信息", ...sources] : []),
+      "",
+    ].join("\n") };
+  }
+
   // POST /api/projects/:id/folder/scan
   r.post("/:id/folder/scan", async c => {
     const id = c.req.param("id");
-    const { folder, error } = await getProjectFolder(id);
+    const { folder, deliverablesDirectory, error } = await getProjectFolder(id);
     if (!folder) return c.json({ error }, 400);
     const projectFolder = folder;
     const body = await c.req.json().catch(() => ({})) as { maxDepth?: number };
@@ -228,6 +307,161 @@ export function projectsRoutes(elements: ElementsRepo, projectManagement: Projec
       }
     }
     return c.json({ created, skipped, count: created.length, manual });
+  });
+
+  r.post("/:id/folder/deliverables/create-folder", async c => {
+    const id = c.req.param("id");
+    const { folder, deliverablesDirectory, error } = await getProjectFolder(id);
+    if (!folder) return c.json({ error }, 400);
+    const body = await c.req.json().catch(() => ({})) as { relativePath?: unknown };
+    const target = deliverableTarget(folder, body.relativePath, deliverablesDirectory);
+    if (!target) return c.json({ error: "deliverable folder must be inside the configured deliverables directory" }, 400);
+    try {
+      await mkdir(target.absolutePath, { recursive: true });
+      if (!(await stat(target.absolutePath)).isDirectory()) return c.json({ error: "deliverable path is not a directory" }, 409);
+      return c.json({ relativePath: target.relativePath });
+    } catch (e) {
+      return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
+    }
+  });
+
+  r.post("/:id/folder/deliverables/upload", async c => {
+    const id = c.req.param("id");
+    const { folder, deliverablesDirectory, error } = await getProjectFolder(id);
+    if (!folder) return c.json({ error }, 400);
+    const form = await c.req.formData().catch(() => null);
+    const relativeDirectory = form?.get("relativeDirectory");
+    const file = form?.get("file");
+    const directory = deliverableTarget(folder, relativeDirectory, deliverablesDirectory);
+    if (!directory || !(file instanceof File) || !file.name) return c.json({ error: "relativeDirectory and file required" }, 400);
+    const fileName = basename(file.name);
+    if (!fileName || fileName !== file.name) return c.json({ error: "invalid file name" }, 400);
+    const absolutePath = resolve(directory.absolutePath, fileName);
+    if (!ensureInsideRoot(directory.absolutePath, absolutePath)) return c.json({ error: "file escapes deliverable directory" }, 400);
+    try {
+      await mkdir(directory.absolutePath, { recursive: true });
+      await writeFile(absolutePath, Buffer.from(await file.arrayBuffer()), { flag: "wx" });
+      return c.json({ fileName, relativePath: `${directory.relativePath}/${fileName}`, size: file.size }, 201);
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === "EEXIST") return c.json({ error: "file already exists" }, 409);
+      return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
+    }
+  });
+
+  r.post("/:id/folder/deliverables/list-files", async c => {
+    const { folder, deliverablesDirectory, error } = await getProjectFolder(c.req.param("id"));
+    if (!folder) return c.json({ error }, 400);
+    const body = await c.req.json().catch(() => ({})) as { relativePath?: unknown };
+    const target = deliverableTarget(folder, body.relativePath, deliverablesDirectory);
+    if (!target) return c.json({ error: "deliverable folder must be inside the configured deliverables directory" }, 400);
+    try {
+      const info = await stat(target.absolutePath).catch((cause: NodeJS.ErrnoException) => cause.code === "ENOENT" ? null : Promise.reject(cause));
+      if (!info) return c.json({ files: [] });
+      if (!info.isDirectory()) return c.json({ error: "deliverable path is not a directory" }, 400);
+      return c.json({ files: await listDeliverableFiles(target) });
+    } catch (e) {
+      return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
+    }
+  });
+
+  r.post("/:id/folder/deliverables/delete", async c => {
+    const id = c.req.param("id");
+    const { folder, deliverablesDirectory, error } = await getProjectFolder(id);
+    if (!folder) return c.json({ error }, 400);
+    const body = await c.req.json().catch(() => ({})) as { relativePath?: unknown };
+    const target = deliverableTarget(folder, body.relativePath, deliverablesDirectory);
+    if (!target) return c.json({ error: "file must be inside 07-交付" }, 400);
+    try {
+      const info = await stat(target.absolutePath);
+      if (!info.isFile()) return c.json({ error: "file required" }, 400);
+      await rm(target.absolutePath);
+      return c.json({ ok: true });
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === "ENOENT") return c.json({ error: "file not found" }, 404);
+      return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
+    }
+  });
+  r.post("/:id/folder/deliverables/archive", async c => {
+    const { folder, deliverablesDirectory, error } = await getProjectFolder(c.req.param("id"));
+    if (!folder) return c.json({ error }, 400);
+    const body = await c.req.json().catch(() => ({})) as { relativePath?: unknown };
+    const target = deliverableTarget(folder, body.relativePath, deliverablesDirectory);
+    if (!target) return c.json({ error: "deliverable folder must be inside the configured deliverables directory" }, 400);
+    try {
+      const info = await stat(target.absolutePath).catch((cause: NodeJS.ErrnoException) => cause.code === "ENOENT" ? null : Promise.reject(cause));
+      if (!info) return c.json({ relativePath: target.relativePath });
+      if (!info.isDirectory()) return c.json({ error: "deliverable path is not a directory" }, 400);
+      const separator = target.relativePath.lastIndexOf("/");
+      const parent = target.relativePath.slice(0, separator);
+      const name = basename(target.relativePath);
+      let index = 1;
+      let archivedPath = `${parent}/（删除）${name}`;
+      while (await stat(resolve(folder, archivedPath)).then(() => true).catch((cause: NodeJS.ErrnoException) => cause.code === "ENOENT" ? false : Promise.reject(cause))) archivedPath = `${parent}/（删除${++index}）${name}`;
+      await rename(target.absolutePath, resolve(folder, archivedPath));
+      return c.json({ relativePath: archivedPath });
+    } catch (e) {
+      return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
+    }
+  });
+  r.post("/:id/folder/deliverables/rename", async c => {
+    const { folder, deliverablesDirectory, error } = await getProjectFolder(c.req.param("id"));
+    if (!folder) return c.json({ error }, 400);
+    const body = await c.req.json().catch(() => ({})) as { fromPath?: unknown; toPath?: unknown };
+    const source = deliverableTarget(folder, body.fromPath, deliverablesDirectory);
+    const destination = deliverableTarget(folder, body.toPath, deliverablesDirectory);
+    if (!source || !destination) return c.json({ error: "deliverable folders must be inside the configured deliverables directory" }, 400);
+    if (source.relativePath === destination.relativePath) return c.json({ relativePath: destination.relativePath });
+    try {
+      const sourceInfo = await stat(source.absolutePath).catch((cause: NodeJS.ErrnoException) => cause.code === "ENOENT" ? null : Promise.reject(cause));
+      if (!sourceInfo) {
+        await mkdir(destination.absolutePath, { recursive: true });
+        return c.json({ relativePath: destination.relativePath });
+      }
+      if (!sourceInfo.isDirectory()) return c.json({ error: "deliverable path is not a directory" }, 400);
+      const destinationExists = await stat(destination.absolutePath).then(() => true).catch((cause: NodeJS.ErrnoException) => cause.code === "ENOENT" ? false : Promise.reject(cause));
+      if (destinationExists) return c.json({ error: "target deliverable folder already exists" }, 409);
+      await mkdir(resolve(destination.absolutePath, ".."), { recursive: true });
+      await rename(source.absolutePath, destination.absolutePath);
+      return c.json({ relativePath: destination.relativePath });
+    } catch (e) {
+      return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
+    }
+  });
+  r.post("/:id/folder/deliverables/:action", async c => {
+    const { folder, deliverablesDirectory, error } = await getProjectFolder(c.req.param("id"));
+    if (!folder) return c.json({ error }, 400);
+    const body = await c.req.json().catch(() => ({})) as { relativePath?: unknown };
+    const target = deliverableTarget(folder, body.relativePath, deliverablesDirectory);
+    const action = c.req.param("action");
+    if (!target || (action !== "open" && action !== "reveal")) return c.notFound();
+    const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer" : "xdg-open";
+    const args = action === "reveal" && process.platform === "darwin" ? ["-R", target.absolutePath] : [target.absolutePath];
+    const child = spawn(command, args, { detached: true, stdio: "ignore" }); child.unref();
+    return c.json({ ok: true });
+  });
+
+  r.post("/:id/folder/reports/save", async c => {
+    const { folder, error } = await getProjectFolder(c.req.param("id"));
+    if (!folder) return c.json({ error }, 400);
+    const body = await c.req.json().catch(() => ({})) as { report?: unknown };
+    const report = body.report && typeof body.report === "object" && !Array.isArray(body.report)
+      ? body.report as Record<string, unknown>
+      : null;
+    const file = report ? reportMarkdown(report) : null;
+    if (!file || !report) return c.json({ error: "valid report required" }, 400);
+    const date = report.date as string;
+    const safeTitle = report.type === "daily" ? "项目日报" : (report.title as string).replace(/[\\/:*?"<>|]/g, "-");
+    const relativePath = `01-管理/报告/${file.directory}/${date}-${safeTitle}.md`;
+    const absolutePath = resolve(folder, relativePath);
+    const reportsRoot = resolve(folder, "01-管理/报告");
+    if (!ensureInsideRoot(reportsRoot, absolutePath)) return c.json({ error: "report path escapes project management directory" }, 400);
+    try {
+      await mkdir(resolve(folder, "01-管理/报告", file.directory), { recursive: true });
+      await writeFile(absolutePath, file.markdown, "utf8");
+      return c.json({ relativePath }, 201);
+    } catch (e) {
+      return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
+    }
   });
 
   // POST /api/projects/:id/folder/ignore  body: { itemId, ignored }

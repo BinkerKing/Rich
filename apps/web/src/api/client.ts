@@ -772,7 +772,7 @@ export const api = {
     if (!r.ok) throw new Error(`uploadDeliverableFile ${r.status}`);
     return r.json();
   },
-  async listDeliverableFiles(projectId: string, relativePath: string): Promise<Array<{ fileName: string; relativePath: string; size: number; modifiedAt: string }>> {
+  async listDeliverableFiles(projectId: string, relativePath: string): Promise<Array<{ fileName: string; relativePath: string; size: number; modifiedAt: string; isDirectory: boolean }>> {
     const r = await fetch(`/api/projects/${encodeURIComponent(projectId)}/folder/deliverables/list-files`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ relativePath }) });
     if (!r.ok) throw new Error(`listDeliverableFiles ${r.status}`);
     return (await r.json()).files;
