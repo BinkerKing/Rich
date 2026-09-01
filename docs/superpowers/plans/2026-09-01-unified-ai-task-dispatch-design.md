@@ -2,11 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Allow a deliverable record to publish a persistent AI task explicitly to Hermes or Multica, with a frozen project/deliverable context and auditable output files.
+**Goal:** Provide one AI execution platform with two explicit modes: persistent free Agent conversations and scenario-defined structured tasks. Deliverable tasks remain the first structured scenario and can run on Hermes or Multica with frozen context and auditable outputs.
 
-**Architecture:** Keep Rich as the system of record by reusing `mcp_tasks`; add a dispatcher that selects an executor and owns retries/status. The Hermes executor sends a task-scoped prompt to the local Gateway; Hermes uses new task-scoped Rich MCP tools to read the frozen context and create only new deliverable files/versions. Multica retains the existing external-adapter flow behind the same executor interface.
+**Architecture:** Keep Rich as the system of record. Structured work uses `mcp_tasks`, a scenario registry, and an executor-neutral dispatcher. Free Agent work reuses `chat_conversations`, `chat_messages`, summaries, and Hermes sessions while storing Agent policy in a small companion repository. An enforceable capability gateway controls filesystem, Shell, browser, network, and MCP access. Conversation content reaches Rich business data only through explicit promotion or approved save actions. See `docs/ADR-20260901-agent-conversation-and-task-modes.md` for the accepted boundaries.
 
 **Tech Stack:** TypeScript, Hono, Zod, SQLite/Postgres-compatible repositories, Rich MCP v2, local Hermes OpenAI-compatible API, React.
+
+## Current implementation status
+
+The branch already implements the deliverable snapshot, Hermes and Multica executors, publication route, executor-neutral task MCP protocol, permission profiles for structured tasks, frozen prior-task history, and server integration. Tasks 1–5 below describe that delivered foundation. The next implementation checkpoint starts at Task 8; the deliverable publishing UI in Task 6 remains part of the same release.
 
 ---
 
@@ -244,3 +248,395 @@ Expected: PASS.
 Run: `pnpm --filter @ke/desktop package`
 
 Expected: exit 0; replace `/Applications/Rich.app`, relaunch it, and perform one Hermes deliverable-task smoke test.
+
+### Task 8: Extract a scenario registry from deliverable-specific dispatch
+
+**Files:**
+- Create: `apps/server/src/agent-scenarios/types.ts`
+- Create: `apps/server/src/agent-scenarios/ScenarioRegistry.ts`
+- Create: `apps/server/src/agent-scenarios/deliverableAnalysisScenario.ts`
+- Modify: `apps/server/src/ai-tasks/types.ts`
+- Modify: `apps/server/src/ai-tasks/AiTaskDispatcher.ts`
+- Modify: `apps/server/src/routes/aiTasks.ts`
+- Create: `apps/server/test/agent-scenario-registry.test.ts`
+
+- [ ] **Step 1: Write failing registry tests**
+
+```ts
+test("the dispatcher resolves task behavior through its scenario", async () => {
+  const scenario = registry.get("deliverable_analysis");
+  assert.equal(scenario.id, "deliverable_analysis");
+  const task = await dispatcher.publish({
+    scenario: "deliverable_analysis",
+    executor: "hermes",
+    input: { projectId: "p1", deliverableId: "d1", instructions: "analyze" },
+  });
+  assert.equal(task.request.scenario, "deliverable_analysis");
+});
+
+test("an unknown scenario is rejected before a task row is created", async () => {
+  await assert.rejects(() => dispatcher.publish({ scenario: "missing", executor: "hermes", input: {} }));
+  assert.equal(await tasks.list({ limit: 10 }).then(rows => rows.length), 0);
+});
+```
+
+- [ ] **Step 2: Verify the tests fail**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-scenario-registry.test.ts`
+
+Expected: failure because the registry does not exist.
+
+- [ ] **Step 3: Implement the minimal scenario contract**
+
+Define `AgentTaskScenario` with input parsing, snapshot building, permission policy, result contract, and result validation. Register `deliverable_analysis` by adapting `DeliverableTaskContextService` and the existing deliverable result rules. Change the dispatcher to resolve scenario behavior before persisting. Keep executor selection independent of the scenario.
+
+- [ ] **Step 4: Run focused and regression tests**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-scenario-registry.test.ts test/ai-task-dispatcher.test.ts test/ai-tasks-routes.test.ts test/mcp-v2-deliverable-task-tools.test.ts`
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+Run: `git add apps/server/src/agent-scenarios apps/server/src/ai-tasks apps/server/src/routes/aiTasks.ts apps/server/test/agent-scenario-registry.test.ts && git commit -m "refactor: route AI tasks through scenarios"`
+
+### Task 9: Persist Agent conversation configuration
+
+**Files:**
+- Create: `apps/server/src/repos/AgentConversationConfigRepo.ts`
+- Create: `apps/server/src/repos/SqliteAgentConversationConfigRepo.ts`
+- Create: `apps/server/src/repos/PostgresAgentConversationConfigRepo.ts`
+- Modify: `apps/server/src/db/sqlite.ts`
+- Modify: `apps/server/src/db/postgres.ts`
+- Create: `apps/server/test/agent-conversation-config-repo.test.ts`
+
+- [ ] **Step 1: Write failing repository contract tests**
+
+```ts
+test("stores Agent policy separately from the conversation transcript", async () => {
+  await conversations.ensureConversation({ id: "c1", surface: "agent", now });
+  await configs.create({
+    conversationId: "c1",
+    executor: "hermes",
+    permissionProfile: "chat_only",
+    allowedMcpServers: [],
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  });
+  assert.equal((await configs.get("c1"))?.permissionProfile, "chat_only");
+});
+```
+
+- [ ] **Step 2: Verify the tests fail**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-config-repo.test.ts`
+
+Expected: failure because the repository and table do not exist.
+
+- [ ] **Step 3: Add the companion table and repositories**
+
+Create `agent_conversation_configs` keyed by `conversation_id`, with executor, permission profile, nullable canonical workspace root, allowed MCP server JSON, status, and timestamps. Use a foreign key with cascade deletion. Do not add Agent fields to `chat_messages`; the transcript remains unchanged.
+
+- [ ] **Step 4: Test SQLite and Postgres-compatible behavior**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-config-repo.test.ts && pnpm --filter @ke/server typecheck`
+
+Expected: PASS and exit 0.
+
+- [ ] **Step 5: Commit**
+
+Run: `git add apps/server/src/repos apps/server/src/db apps/server/test/agent-conversation-config-repo.test.ts && git commit -m "feat: persist Agent conversation policy"`
+
+### Task 10: Add fail-closed conversation capability enforcement
+
+**Files:**
+- Create: `apps/server/src/agent-conversations/types.ts`
+- Create: `apps/server/src/agent-conversations/AgentCapabilityGateway.ts`
+- Create: `apps/server/src/agent-conversations/ConversationPermissionPolicy.ts`
+- Modify: `apps/server/src/ai/adapter.ts`
+- Modify: `apps/server/src/ai/hermes.ts`
+- Create: `apps/server/test/agent-capability-gateway.test.ts`
+- Create: `apps/server/test/hermes-capability-enforcement.test.ts`
+
+- [ ] **Step 1: Write failing denial tests**
+
+```ts
+test("chat_only denies every tool family", () => {
+  const grant = gateway.issue({ conversationId: "c1", turnId: "t1", profile: "chat_only" });
+  assert.equal(gateway.authorize(grant, { family: "filesystem", action: "read" }).allowed, false);
+  assert.equal(gateway.authorize(grant, { family: "mcp", action: "rich.project.update" }).allowed, false);
+});
+
+test("a runtime that cannot enforce a profile cannot start that turn", async () => {
+  await assert.rejects(
+    () => runtime.startTurn({ profile: "workspace_agent", workspaceRoot: workspace }),
+    /capability profile unavailable/i,
+  );
+});
+```
+
+- [ ] **Step 2: Verify the tests fail**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-capability-gateway.test.ts test/hermes-capability-enforcement.test.ts`
+
+Expected: failure because capability grants and runtime enforcement are absent.
+
+- [ ] **Step 3: Implement turn-scoped grants**
+
+Create signed, in-memory grants bound to a conversation ID, turn ID, canonical workspace root, allowed tool families, allowed MCP servers, and a short expiry. Reject path traversal after resolving real paths. Mark destructive filesystem actions, out-of-workspace access, system installation, Git push/deploy, external side effects, and Rich business writes as approval-required.
+
+- [ ] **Step 4: Extend the runtime contract and probe Hermes**
+
+Add an explicit runtime capability descriptor rather than overloading prompts:
+
+```ts
+export interface AgentRuntimeCapabilities {
+  profiles: AgentPermissionProfile[];
+  enforcesToolSelection: boolean;
+  enforcesWorkspaceRoot: boolean;
+}
+```
+
+The Hermes adapter reports only profiles it can enforce through its API/configuration. Until per-session native-tool and workspace restriction are both verified, expose only `chat_only`. Never report a broader profile based on a system prompt.
+
+- [ ] **Step 5: Run security-focused tests**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-capability-gateway.test.ts test/hermes-capability-enforcement.test.ts`
+
+Expected: PASS, including traversal, expiry, cross-turn replay, and unsupported-profile cases.
+
+- [ ] **Step 6: Commit**
+
+Run: `git add apps/server/src/agent-conversations apps/server/src/ai apps/server/test/agent-capability-gateway.test.ts apps/server/test/hermes-capability-enforcement.test.ts && git commit -m "feat: enforce Agent conversation capabilities"`
+
+### Task 11: Implement persistent free Agent turns
+
+**Files:**
+- Create: `apps/server/src/agent-conversations/AgentRuntimePort.ts`
+- Create: `apps/server/src/agent-conversations/AgentConversationService.ts`
+- Create: `apps/server/src/agent-conversations/ConversationTurnLock.ts`
+- Create: `apps/server/src/routes/agentConversations.ts`
+- Modify: `apps/server/src/index.ts`
+- Create: `apps/server/test/agent-conversation-service.test.ts`
+- Create: `apps/server/test/agent-conversation-routes.test.ts`
+
+- [ ] **Step 1: Write failing lifecycle tests**
+
+```ts
+test("continues Hermes with the latest stored session", async () => {
+  await service.sendMessage("c1", { content: "first" });
+  await service.sendMessage("c1", { content: "continue" });
+  assert.equal(runtime.calls[1].sessionId, "hermes-session-1");
+});
+
+test("serializes turns in the same conversation", async () => {
+  const first = service.sendMessage("c1", { content: "one" });
+  await assert.rejects(() => service.sendMessage("c1", { content: "two" }), /turn already running/i);
+  await first;
+});
+```
+
+- [ ] **Step 2: Verify the tests fail**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-service.test.ts test/agent-conversation-routes.test.ts`
+
+Expected: failure because the service and routes do not exist.
+
+- [ ] **Step 3: Implement the conversation service**
+
+Reuse `ChatConversationsRepo`, `ChatMessageRecord.modelSessionId`, and the existing context summary provider. Create Hermes conversations with `chat_only` by default. For each turn, persist the user message, acquire a per-conversation lock, issue a capability grant, resume the latest Hermes session, stream typed runtime events, and persist the assistant result. If Hermes rejects a stale session, retry once in a new session using the Rich summary and recent transcript.
+
+- [ ] **Step 4: Expose explicit Agent routes**
+
+Implement create/list/get messages/update/archive endpoints and an SSE message endpoint under `/api/agent-conversations`. Emit `turn`, `tool`, `approval_required`, `delta`, `done`, and `error` events. Do not call `planTurn`; explicit Agent mode bypasses the general chat classifier. Do not silently fall back to Codex because executor identity and permissions must remain stable.
+
+- [ ] **Step 5: Run focused and existing chat tests**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-service.test.ts test/agent-conversation-routes.test.ts test/chat-observability.test.ts`
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+Run: `git add apps/server/src/agent-conversations apps/server/src/routes/agentConversations.ts apps/server/src/index.ts apps/server/test/agent-conversation-service.test.ts apps/server/test/agent-conversation-routes.test.ts && git commit -m "feat: add persistent free Agent conversations"`
+
+### Task 12: Add approval handling and broader Agent profiles
+
+**Files:**
+- Create: `apps/server/src/agent-conversations/AgentApprovalService.ts`
+- Modify: `apps/server/src/agent-conversations/AgentConversationService.ts`
+- Modify: `apps/server/src/routes/agentConversations.ts`
+- Create: `apps/server/test/agent-conversation-approvals.test.ts`
+
+- [ ] **Step 1: Write failing approval tests**
+
+```ts
+test("a risky action pauses until the exact action is approved", async () => {
+  const event = await nextEvent(service.sendMessage("c1", { content: "push this branch" }), "approval_required");
+  assert.equal(event.action.family, "git_remote");
+  await service.approve("c1", event.approvalId, { approved: true });
+  assert.equal(runtime.executedActions.length, 1);
+});
+
+test("approval cannot be reused by another turn", async () => {
+  await assert.rejects(() => service.approve("c1", approvalIdFromOtherTurn, { approved: true }));
+});
+```
+
+- [ ] **Step 2: Verify the tests fail**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-approvals.test.ts`
+
+Expected: failure because approvals are not modeled.
+
+- [ ] **Step 3: Implement exact-action approvals**
+
+Persist pending approval metadata with conversation ID, turn ID, tool name, normalized arguments digest, expiry, and decision. Add approve/deny routes. Resume only the paused action that matches the digest; a changed action requires new approval.
+
+- [ ] **Step 4: Enable broader profiles only when enforcement is available**
+
+Expose `workspace_agent` after Hermes demonstrates tool selection and canonical workspace enforcement. Expose `extended_agent` only after browser/network and selected MCP restrictions also pass integration tests. Keep unsupported profiles visible as unavailable with a reason.
+
+- [ ] **Step 5: Run approval and capability tests**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-approvals.test.ts test/agent-capability-gateway.test.ts test/hermes-capability-enforcement.test.ts`
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+Run: `git add apps/server/src/agent-conversations apps/server/src/routes/agentConversations.ts apps/server/test/agent-conversation-approvals.test.ts && git commit -m "feat: approve risky Agent actions"`
+
+### Task 13: Convert a conversation into a structured task
+
+**Files:**
+- Create: `apps/server/src/agent-conversations/ConversationPromotionService.ts`
+- Modify: `apps/server/src/routes/agentConversations.ts`
+- Create: `apps/server/test/agent-conversation-promotion.test.ts`
+
+- [ ] **Step 1: Write failing promotion tests**
+
+```ts
+test("promotion freezes selected conversation evidence into a scenario task", async () => {
+  const preview = await promotion.preview({
+    conversationId: "c1",
+    scenario: "deliverable_analysis",
+    target: { projectId: "p1", deliverableId: "d1" },
+    selectedMessageIds: ["m1", "m4"],
+    instructions: "produce the reviewed report",
+  });
+  const task = await promotion.publish(preview.confirmationToken);
+  assert.deepEqual(task.request.promotion.selectedMessageIds, ["m1", "m4"]);
+  assert.equal(task.request.contextSnapshot.sourceConversationId, "c1");
+});
+```
+
+- [ ] **Step 2: Verify the tests fail**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-promotion.test.ts`
+
+Expected: failure because promotion is absent.
+
+- [ ] **Step 3: Implement preview and confirmed publication**
+
+Build an immutable promotion snapshot from the conversation summary, selected message IDs and contents, attachment references, selected workspace artifacts, and the user's current goal. Validate the target and inputs through `ScenarioRegistry`, show the exact snapshot in preview, and publish through `AiTaskDispatcher` only after confirmation. Do not copy the entire transcript unless the user explicitly selected all messages.
+
+- [ ] **Step 4: Add save-to-Rich as a separate approved scenario action**
+
+The route accepts an exact destination and content preview. Reuse scenario-scoped Rich tools for the write and record its approval. Do not give general conversation turns direct business-write tools.
+
+- [ ] **Step 5: Run promotion and dispatcher regressions**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-promotion.test.ts test/agent-scenario-registry.test.ts test/ai-task-dispatcher.test.ts`
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+Run: `git add apps/server/src/agent-conversations apps/server/src/routes/agentConversations.ts apps/server/test/agent-conversation-promotion.test.ts && git commit -m "feat: promote Agent conversations to tasks"`
+
+### Task 14: Build the Free Agent conversation UI
+
+**Files:**
+- Modify: `apps/web/src/api/client.ts`
+- Create: `apps/web/src/lib/agentConversations.ts`
+- Create: `apps/web/src/views/AgentConversationView.tsx`
+- Create: `apps/web/src/views/AgentConversationView.css`
+- Modify: `apps/web/src/views/HomeView.tsx`
+- Create: `apps/web/src/views/AgentConversationView.test.ts`
+
+- [ ] **Step 1: Write failing UI contract tests**
+
+```ts
+test("free Agent UI makes mode, executor, and enforced permissions visible", () => {
+  assert.match(source, /自由 Agent 对话/);
+  assert.match(source, /Hermes/);
+  assert.match(source, /仅对话/);
+  assert.match(source, /工作区 Agent/);
+  assert.match(source, /扩展 Agent/);
+  assert.match(source, /转为任务/);
+  assert.match(source, /保存到 Rich/);
+});
+```
+
+- [ ] **Step 2: Verify the tests fail**
+
+Run: `pnpm --filter @ke/web exec tsx --test src/views/AgentConversationView.test.ts`
+
+Expected: failure because the view does not exist.
+
+- [ ] **Step 3: Implement conversation navigation and composer**
+
+Add an explicit “自由 Agent 对话” entry separate from ordinary Rich chat and task publication. Render conversation list, transcript, streaming progress, typed tool calls, pending approvals, executor, current permission profile, workspace root, and capability availability reasons. Disable broader profiles when the server cannot enforce them.
+
+- [ ] **Step 4: Implement promotion and save previews**
+
+“转为任务” asks for scenario, target, selected messages/artifacts, instructions, and acceptance criteria, then shows the frozen preview before publication. “保存到 Rich” asks for an exact destination and preview before approval.
+
+- [ ] **Step 5: Run UI tests and typecheck**
+
+Run: `pnpm --filter @ke/web exec tsx --test src/views/AgentConversationView.test.ts && pnpm --filter @ke/web typecheck`
+
+Expected: PASS and exit 0.
+
+- [ ] **Step 6: Commit**
+
+Run: `git add apps/web/src/api/client.ts apps/web/src/lib/agentConversations.ts apps/web/src/views/AgentConversationView.tsx apps/web/src/views/AgentConversationView.css apps/web/src/views/HomeView.tsx apps/web/src/views/AgentConversationView.test.ts && git commit -m "feat: add Free Agent conversation workspace"`
+
+### Task 15: End-to-end verification and release
+
+**Files:**
+- Create: `apps/server/test/agent-conversation-e2e.test.ts`
+- Modify: `docs/RICH_MCP_V2_CATALOG.md`
+- Modify: `docs/DEPLOYMENT.md`
+
+- [ ] **Step 1: Verify the two modes remain isolated**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-e2e.test.ts test/agent-conversation-promotion.test.ts test/mcp-v2-deliverable-task-tools.test.ts`
+
+Expected: free conversation persists and resumes; `chat_only` cannot call tools; no business data changes before confirmed promotion; the promoted task uses the normal task lifecycle.
+
+- [ ] **Step 2: Run affected server and web suites**
+
+Run: `pnpm --filter @ke/server test && pnpm --filter @ke/server typecheck && pnpm --filter @ke/web exec tsx --test src/views/AgentConversationView.test.ts src/views/project-management/deliverables/DeliverablesWorkspace.test.ts && pnpm --filter @ke/web typecheck`
+
+Expected: PASS and exit 0.
+
+- [ ] **Step 3: Perform local runtime smoke tests**
+
+Start Rich and Hermes, then verify: restart recovery of a conversation; stale Hermes session recovery; simultaneous-turn rejection; unavailable permission profile reason; approval denial and approval expiry; conversation-to-deliverable-task promotion; Hermes and Multica structured task completion.
+
+- [ ] **Step 4: Update operator documentation**
+
+Document the capability matrix, Hermes enforcement prerequisites, environment variables, approval audit trail, session recovery behavior, and failure diagnostics. State clearly that prompt instructions do not grant or restrict capabilities.
+
+- [ ] **Step 5: Package and publish the desktop app**
+
+Run: `pnpm --filter @ke/desktop package`
+
+Expected: exit 0; replace `/Applications/Rich.app`, relaunch it, and repeat one `chat_only` conversation and one promoted deliverable task.
+
+- [ ] **Step 6: Commit**
+
+Run: `git add apps/server/test/agent-conversation-e2e.test.ts docs/RICH_MCP_V2_CATALOG.md docs/DEPLOYMENT.md && git commit -m "test: verify unified Agent interaction modes"`
