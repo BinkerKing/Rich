@@ -5,7 +5,7 @@ import { parseAiTaskRequest, type AiTaskExecutor as AiTaskExecutorName, type AiT
 export interface AiTaskExecutor {
   executor: AiTaskExecutorName;
   available(projectId: string): Promise<boolean>;
-  execute(task: McpTask): Promise<void>;
+  execute(task: McpTask): Promise<{ externalTaskId?: string; progressSummary?: string } | void>;
 }
 
 export class AiTaskDispatcher {
@@ -35,7 +35,8 @@ export class AiTaskDispatcher {
     const running = task.status === "queued" ? await this.tasks.transition(task.id, "running", { progressSummary: `Dispatched to ${request.executor}.` }) : task;
     if (running.status !== "running") return running;
     try {
-      await executor.execute(running);
+      const result = await executor.execute(running);
+      if (result?.externalTaskId) await this.tasks.bindExternal(task.id, request.executor, result.externalTaskId, result.progressSummary);
       return await this.tasks.get(task.id);
     } catch (error) {
       await this.tasks.transition(task.id, "failed", { error: error instanceof Error ? error.message : String(error) });
