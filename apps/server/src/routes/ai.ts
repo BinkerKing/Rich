@@ -16,6 +16,7 @@ import { RICHNESS_SPECS } from "../ai/prompts/generateTree.js";
 import { adoptImagesInContent } from "../lib/imageAssets.js";
 import { migrateLegacyContentToSections } from "../lib/legacyContentMigration.js";
 import { imageQueue } from "../ai/imageQueue.js";
+import { writeGeneratedTree } from "../ai/knowledge/generatedTreeWriter.js";
 import {
   generateTreeFor,
   refineElement,
@@ -757,17 +758,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
         }
         await stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) });
         if (ev.type === "done") {
-          for (const el of ev.result.elements) await deps.elements.put(stampNewElement(el, adapter.name));
-          await deps.relations.append(ev.result.relations);
-          const grouped = new Map<string, typeof ev.result.paths>();
-          for (const p of ev.result.paths) {
-            const list = grouped.get(p.centerElementId) ?? [];
-            list.push(p);
-            grouped.set(p.centerElementId, list);
-          }
-          for (const [centerId, list] of grouped) {
-            await deps.paths.putForCenter(centerId, list);
-          }
+          await writeGeneratedTree(deps, ev.result, adapter.name);
           // Hand off image-placeholder blocks to the background image engine.
           for (const el of ev.result.elements) void imageQueue.scheduleForElement(el.id);
           log.info("ai.op.done", { reqId, durationMs: Date.now() - t0, deltas, bytes, elements: ev.result.elements.length });
