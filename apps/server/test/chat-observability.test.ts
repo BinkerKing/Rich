@@ -15,6 +15,24 @@ class GenericAdapter implements AIAdapter {
   }
 }
 
+class CapturingGenericAdapter implements AIAdapter {
+  readonly name = "bailian" as const;
+  systemPrompts: string[] = [];
+  async available() { return true; }
+  async *stream(args: GenerateArgs): AsyncIterable<StreamEvent> {
+    this.systemPrompts.push(args.systemPrompt ?? "");
+    yield { type: "done", fullText: "Generic agent reply" };
+  }
+}
+
+class ThrowingGenericAdapter implements AIAdapter {
+  readonly name = "bailian" as const;
+  async available() { return true; }
+  async *stream(_args: GenerateArgs): AsyncIterable<StreamEvent> {
+    throw new Error("Generic adapter exploded");
+  }
+}
+
 class HermesAdapter implements AIAdapter {
   readonly name = "hermes" as const;
   async available() { return true; }
@@ -27,6 +45,14 @@ class CodexFallbackAdapter implements AIAdapter {
   async *stream(_args: GenerateArgs): AsyncIterable<StreamEvent> {
     yield { type: "delta", text: "Fallback reply" };
     yield { type: "done", fullText: "Fallback reply" };
+  }
+}
+
+class CapturingCodexFallbackAdapter extends CodexFallbackAdapter {
+  systemPrompts: string[] = [];
+  override async *stream(args: GenerateArgs): AsyncIterable<StreamEvent> {
+    this.systemPrompts.push(args.systemPrompt ?? "");
+    yield* super.stream(args);
   }
 }
 
@@ -75,7 +101,7 @@ describe("chat observability", () => {
 
     expect(response.status).toBe(200);
     await response.text();
-    const operation = (await readAllOpRecords()).find(record => record.op === "chat-stream");
+    const operation = (await readAllOpRecords()).filter(record => record.op === "chat-stream").at(-1);
     expect(operation).toBeDefined();
     expect((await readOpTrace(operation!.id)).map(event => ({ type: event.type, data: event.data }))).toEqual([
       { type: "turn.plan", data: undefined },
@@ -99,6 +125,52 @@ describe("chat observability", () => {
     const operation = (await readAllOpRecords()).find(record => record.op === "chat");
     expect((await readOpTrace(operation!.id)).map(event => event.type)).toEqual([
       "turn.plan", "adapter.selected", "output",
+    ]);
+  });
+
+  it("passes the opaque MCP token to agent-capable generic and fallback prompts", async () => {
+    const generic = new CapturingGenericAdapter();
+    const genericApp = buildApp(mkdtempSync(join(tmpdir(), "ke-chat-observability-")), [generic]);
+    const genericResponse = await genericApp.request("/api/chat/stream", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ messages: [{ role: "user", content: "/task 更新 Rich 项目" }], model: "bailian" }),
+    });
+    expect(genericResponse.status).toBe(200);
+    await genericResponse.text();
+    expect(generic.systemPrompts).toHaveLength(1);
+    expect(generic.systemPrompts[0]).toMatch(/opaque token: mcp-[\w-]+/);
+
+    const fallback = new CapturingCodexFallbackAdapter();
+    globalThis.fetch = vi.fn(async () => new Response("unavailable", { status: 503, statusText: "Unavailable" })) as typeof fetch;
+    const fallbackApp = buildApp(mkdtempSync(join(tmpdir(), "ke-chat-observability-")), [new HermesAdapter(), fallback]);
+    const fallbackResponse = await fallbackApp.request("/api/chat/stream", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ messages: [{ role: "user", content: "/task 更新 Rich 项目" }] }),
+    });
+    expect(fallbackResponse.status).toBe(200);
+    await fallbackResponse.text();
+    expect(fallback.systemPrompts).toHaveLength(1);
+    expect(fallback.systemPrompts[0]).toMatch(/opaque token: mcp-[\w-]+/);
+  });
+
+  it("ends a thrown generic agent stream as one terminal error", async () => {
+    const app = buildApp(mkdtempSync(join(tmpdir(), "ke-chat-observability-")), [new ThrowingGenericAdapter()]);
+    const response = await app.request("/api/chat/stream", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ messages: [{ role: "user", content: "/task 更新 Rich 项目" }], model: "bailian" }),
+    });
+
+    expect(response.status).toBe(200);
+    const sse = await response.text();
+    expect(sse.match(/event: error/g)).toHaveLength(1);
+    expect(sse).not.toContain("event: done");
+    const operation = (await readAllOpRecords()).filter(record => record.op === "chat-stream").at(-1);
+    expect(operation?.status).toBe("error");
+    expect((await readOpTrace(operation!.id)).map(event => event.type)).toEqual([
+      "turn.plan", "adapter.selected", "agent.started", "error",
     ]);
   });
 

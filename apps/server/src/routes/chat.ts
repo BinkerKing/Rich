@@ -7,6 +7,7 @@ import { normalizeAdapterName } from "../ai/modelRouter.js";
 import type { AIScenario } from "../ai/modelRouter.js";
 import { createAIContextProvider } from "../ai/contextProvider.js";
 import { startOpRecord, type OpHandle } from "../ai/aiOpLog.js";
+import { OperationCorrelationRegistry } from "../ai/operationCorrelation.js";
 import { planChatTurn, planChatTurnWithModel } from "../ai/agentOrchestrator.js";
 import type { AIContextProvider } from "../ai/contextProvider.js";
 import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
@@ -40,8 +41,11 @@ Rich MCP 2.0 选择顺序：
 6. 检查统一响应里的 ok 和 verification.status；DEPENDENCY_UNAVAILABLE 表示执行后端未配置，不得伪造成功或任务。
 `;
 
-function turnSystemPrompt(requiresAgent = false): string {
-  return `${buildChatSystemPrompt()}${requiresAgent ? AGENT_TASK_INSTRUCTIONS : ""}`;
+function turnSystemPrompt(requiresAgent = false, mcpRequestId?: string): string {
+  const correlationInstruction = mcpRequestId
+    ? `\n\n## MCP trace correlation\nFor every Rich MCP call in this agent turn, set context.requestId exactly to this opaque token: ${mcpRequestId}`
+    : "";
+  return `${buildChatSystemPrompt()}${requiresAgent ? AGENT_TASK_INSTRUCTIONS : ""}${correlationInstruction}`;
 }
 
 function contentToText(content: MessageContent): string {
@@ -58,7 +62,7 @@ function messagesToFallbackPrompt(messages: Message[]): string {
     .join("\n\n");
 }
 
-function makeChatOpRecorder(handle: OpHandle | null) {
+function makeChatOpRecorder(handle: OpHandle | null, onTerminal?: () => void) {
   let recorded = false;
   let errorEventRecorded = false;
   return {
@@ -73,12 +77,12 @@ function makeChatOpRecorder(handle: OpHandle | null) {
     async done(output: string, sessionId?: string) {
       if (!handle || recorded) return;
       recorded = true;
-      await handle.recordDone(output, sessionId);
+      try { await handle.recordDone(output, sessionId); } finally { onTerminal?.(); }
     },
     async error(message: string) {
       if (!handle || recorded) return;
       recorded = true;
-      await handle.recordError(message);
+      try { await handle.recordError(message); } finally { onTerminal?.(); }
     },
   };
 }
@@ -90,8 +94,8 @@ function makeChatOpRecorder(handle: OpHandle | null) {
  *
  * content 允许字符串或多模态 part 数组（OpenAI vision 协议），原样透传到 Hermes。
  */
-function injectSystemPrompt(messages: Message[], requiresAgent = false): Message[] {
-  const basePrompt = turnSystemPrompt(requiresAgent);
+function injectSystemPrompt(messages: Message[], requiresAgent = false, mcpRequestId?: string): Message[] {
+  const basePrompt = turnSystemPrompt(requiresAgent, mcpRequestId);
   if (messages.length > 0 && messages[0].role === "system") {
     const extraContext = contentToText(messages[0].content).trim();
     return [{
@@ -103,13 +107,13 @@ function injectSystemPrompt(messages: Message[], requiresAgent = false): Message
   return [sys, ...messages];
 }
 
-function systemPromptWithContext(messages: Message[], requiresAgent = false): string {
+function systemPromptWithContext(messages: Message[], requiresAgent = false, mcpRequestId?: string): string {
   const context = messages
     .filter(message => message.role === "system")
     .map(message => contentToText(message.content).trim())
     .filter(Boolean)
     .join("\n\n");
-  const basePrompt = turnSystemPrompt(requiresAgent);
+  const basePrompt = turnSystemPrompt(requiresAgent, mcpRequestId);
   return context ? `${basePrompt}\n\n${context}` : basePrompt;
 }
 
@@ -179,6 +183,7 @@ export function chatRoutes(
   adapters: AIAdapter[] = [],
   conversationsRepo: ChatConversationsRepo | null = null,
   contextProvider: AIContextProvider = createAIContextProvider(conversationsRepo),
+  operationCorrelations: OperationCorrelationRegistry = new OperationCorrelationRegistry(),
 ): Hono {
   const r = new Hono();
   const codexFallback = adapters.find(adapter => adapter.name === "codex");
@@ -222,6 +227,7 @@ export function chatRoutes(
     stream: Parameters<Parameters<typeof streamSSE>[1]>[0],
     messages: Message[],
     requiresAgent = false,
+    mcpRequestId?: string,
   ): Promise<CodexFallbackResult> {
     let fullText = "";
     if (!codexFallback || !(await codexFallback.available())) {
@@ -233,7 +239,7 @@ export function chatRoutes(
     let wroteText = false;
     try {
       for await (const event of codexFallback.stream({
-        systemPrompt: systemPromptWithContext(messages, requiresAgent),
+        systemPrompt: systemPromptWithContext(messages, requiresAgent, mcpRequestId),
         prompt: messagesToFallbackPrompt(messages),
         signal: controller.signal,
       })) {
@@ -262,12 +268,13 @@ export function chatRoutes(
     hermesMessage: string,
     requiresAgent = false,
     beforeError?: () => Promise<void>,
+    mcpRequestId?: string,
   ): Promise<CodexFallbackResult> {
     await stream.writeSSE({
       event: "tool",
       data: JSON.stringify({ name: "codex-fallback", status: "running" }),
     });
-    const result = await streamCodexFallback(stream, messages, requiresAgent);
+    const result = await streamCodexFallback(stream, messages, requiresAgent, mcpRequestId);
     await stream.writeSSE({
       event: "tool",
       data: JSON.stringify({ name: "codex-fallback", status: "completed" }),
@@ -293,12 +300,13 @@ export function chatRoutes(
     scenario: AIScenario,
     signal?: AbortSignal,
     requiresAgent = false,
+    mcpRequestId?: string,
   ): Promise<{ wroteText: boolean; fullText: string; sessionId?: string; error?: string }> {
     let wroteText = false;
     let fullText = "";
     let sessionId: string | undefined;
     for await (const event of adapter.stream({
-      systemPrompt: systemPromptWithContext(messages, requiresAgent),
+      systemPrompt: systemPromptWithContext(messages, requiresAgent, mcpRequestId),
       prompt: messagesToFallbackPrompt(messages),
       scenario,
       signal,
@@ -344,13 +352,17 @@ export function chatRoutes(
         now,
       });
       const contextMessages = await contextProvider.buildChatContext(conversationId, messages) as Message[];
-      opRecorder = makeChatOpRecorder(await startOpRecord({
+      const operation = await startOpRecord({
         op: "chat",
         model: adapter?.name ?? "hermes",
         scenario: turnPlan.scenario,
         scope: { conversationId, surface: body.surface?.trim() || "api-chat", intent: turnPlan.intent, reason: turnPlan.reason },
         prompt: messagesToFallbackPrompt(contextMessages),
-      }));
+      });
+      const mcpRequestId = turnPlan.requiresAgent ? operationCorrelations.issue(operation.id) : undefined;
+      opRecorder = makeChatOpRecorder(operation, () => {
+        if (mcpRequestId) operationCorrelations.release(mcpRequestId);
+      });
       await opRecorder.event({ type: "turn.plan" });
       await opRecorder.event({ type: "adapter.selected" });
       if (turnPlan.requiresAgent) await opRecorder.event({ type: "agent.started" });
@@ -363,7 +375,7 @@ export function chatRoutes(
           body: JSON.stringify({
             model: "hermes-agent",
             stream: false,
-            messages: injectSystemPrompt(contextMessages, turnPlan.requiresAgent),
+            messages: injectSystemPrompt(contextMessages, turnPlan.requiresAgent, mcpRequestId),
           }),
         });
         if (!upstream.ok) {
@@ -376,7 +388,7 @@ export function chatRoutes(
       } else {
         let content = "";
         for await (const event of adapter.stream({
-          systemPrompt: systemPromptWithContext(contextMessages, turnPlan.requiresAgent),
+          systemPrompt: systemPromptWithContext(contextMessages, turnPlan.requiresAgent, mcpRequestId),
           prompt: messagesToFallbackPrompt(contextMessages),
           scenario: turnPlan.scenario,
         })) {
@@ -479,7 +491,7 @@ export function chatRoutes(
         event: "mascot",
         data: JSON.stringify({ state: "thinking", ts: Date.now() }),
       });
-      const opRecorder = makeChatOpRecorder(await startOpRecord({
+      const operation = await startOpRecord({
         op: "chat-stream",
         model: adapter?.name ?? "hermes",
         scenario: turnPlan.scenario,
@@ -491,7 +503,11 @@ export function chatRoutes(
           attachmentCount: Array.isArray(body.attachments) ? body.attachments.length : 0,
         },
         prompt: messagesToFallbackPrompt(messages),
-      }));
+      });
+      const mcpRequestId = turnPlan.requiresAgent ? operationCorrelations.issue(operation.id) : undefined;
+      const opRecorder = makeChatOpRecorder(operation, () => {
+        if (mcpRequestId) operationCorrelations.release(mcpRequestId);
+      });
       await opRecorder.event({ type: "turn.plan" });
       await opRecorder.event({ type: "adapter.selected" });
       if (turnPlan.requiresAgent) await opRecorder.event({ type: "agent.started" });
@@ -501,7 +517,19 @@ export function chatRoutes(
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 120_000);
         try {
-          const result = await streamGenericAdapter(stream, adapter, messages, turnPlan.scenario, controller.signal, turnPlan.requiresAgent);
+          let result;
+          try {
+            result = await streamGenericAdapter(stream, adapter, messages, turnPlan.scenario, controller.signal, turnPlan.requiresAgent, mcpRequestId);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            await opRecorder.event({ type: "error" });
+            await opRecorder.error(message);
+            await stream.writeSSE({
+              event: "error",
+              data: JSON.stringify({ message, conversationId }),
+            });
+            return;
+          }
           if (result.error) {
             await opRecorder.event({ type: "error" });
             await opRecorder.error(result.error);
@@ -544,13 +572,13 @@ export function chatRoutes(
           body: JSON.stringify({
             model: "hermes-agent",
             stream: true,
-            messages: injectSystemPrompt(messages, turnPlan.requiresAgent),
+            messages: injectSystemPrompt(messages, turnPlan.requiresAgent, mcpRequestId),
           }),
         });
       } catch (e) {
         const message = `Hermes unreachable: ${e instanceof Error ? e.message : String(e)}`;
         await opRecorder.event({ type: "fallback" });
-        const fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }));
+        const fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }), mcpRequestId);
         if (fallback.error) {
           await opRecorder.error(fallback.error);
         } else if (fallback.wroteText) {
@@ -579,7 +607,7 @@ export function chatRoutes(
         const detail = await upstream.text().catch(() => "");
         const message = `Hermes ${upstream.status} ${upstream.statusText}${detail ? `: ${detail}` : ""}`;
         await opRecorder.event({ type: "fallback" });
-        const fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }));
+        const fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }), mcpRequestId);
         if (fallback.error) {
           await opRecorder.error(fallback.error);
         } else if (fallback.wroteText) {
@@ -691,7 +719,7 @@ export function chatRoutes(
             body: JSON.stringify({
               model: "hermes-agent",
               stream: false,
-              messages: injectSystemPrompt(messages, turnPlan.requiresAgent),
+              messages: injectSystemPrompt(messages, turnPlan.requiresAgent, mcpRequestId),
             }),
           });
           if (fallback.ok) {
@@ -722,7 +750,7 @@ export function chatRoutes(
               return;
             }
             await opRecorder.event({ type: "fallback" });
-            const fallbackResult = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }));
+            const fallbackResult = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }), mcpRequestId);
             if (fallbackResult.error) {
               await opRecorder.error(fallbackResult.error);
               return;
@@ -756,7 +784,7 @@ export function chatRoutes(
         let fallback: CodexFallbackResult = { wroteText: false, fullText: "" };
         if (!sawText) {
           await opRecorder.event({ type: "fallback" });
-          fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }));
+          fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }), mcpRequestId);
         }
         if (!sawText && fallback.error) {
           await opRecorder.error(fallback.error);

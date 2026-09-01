@@ -230,6 +230,20 @@ export async function readOpTrace(opId: string): Promise<AITraceEvent[]> {
   }
 }
 
+/** Append a safe trace only when the caller supplied an existing AI op id. */
+export async function recordTraceForExistingOp(opId: string, input: AITraceEventInput): Promise<void> {
+  const operations = await readAllOpRecords();
+  if (!operations.some(operation => operation.id === opId)) return;
+  await appendLine({
+    kind: "trace",
+    opId,
+    ts: new Date().toISOString(),
+    type: input.type,
+    summary: TRACE_SUMMARIES[input.type],
+    data: filterTraceData(input.data),
+  });
+}
+
 function isOperationLogRow(row: unknown): row is AIOpRecord & { kind?: "operation" } {
   if (!row || typeof row !== "object") return false;
   const record = row as {

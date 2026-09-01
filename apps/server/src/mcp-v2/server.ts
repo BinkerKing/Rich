@@ -16,6 +16,19 @@ import { registerTaskTools } from "./tasks/taskTools.js";
 import type { ExecutionTeamAdministrationPort } from "./scenarios/manageExecutionTeam.js";
 import { RichMcpError } from "./registry/errors.js";
 
+export interface McpToolEvent {
+  type: "mcp.tool";
+  data: {
+    phase: "started" | "completed" | "error";
+    tool: string;
+    requestId?: string;
+    conversationId?: string;
+    ok?: boolean;
+  };
+}
+
+export type McpToolEventDelivery = () => void | Promise<void>;
+
 export interface BuildMcpV2Deps {
   elements: ElementsRepo;
   projectManagement: ProjectManagementRepo;
@@ -26,6 +39,7 @@ export interface BuildMcpV2Deps {
   delegationAdapter?: WorkDelegationPort;
   executionTeams?: ExecutionTeamAdministrationPort;
   taskService?: PersistentTaskService;
+  onToolEvent?: (event: McpToolEvent) => McpToolEventDelivery | void;
 }
 
 export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
@@ -72,6 +86,7 @@ function unavailableExecutionTeams(): ExecutionTeamAdministrationPort {
 export function buildMcpV2Server(deps: BuildMcpV2Deps): McpServer {
   const registry = buildMcpV2Registry(deps);
   const server = new McpServer({ name: "rich", version: "2.0.0" });
+  const emitToolEvent = createToolEventQueue(deps.onToolEvent);
 
   for (const tool of registry.listRegistrations()) {
     server.registerTool(tool.name, {
@@ -89,7 +104,25 @@ export function buildMcpV2Server(deps: BuildMcpV2Deps): McpServer {
         "rich/examples": tool.examples,
       },
     }, async input => {
-      const response = await registry.invoke(tool.name, input);
+      const correlation = readCorrelation(input);
+      emitToolEvent({ type: "mcp.tool", data: {
+        phase: "started", tool: tool.name, ...correlation,
+      } });
+      let response;
+      try {
+        response = await registry.invoke(tool.name, input);
+      } catch (error) {
+        emitToolEvent({ type: "mcp.tool", data: {
+          phase: "error", tool: tool.name, ...correlation, ok: false,
+        } });
+        throw error;
+      }
+      emitToolEvent({ type: "mcp.tool", data: {
+        phase: response.ok ? "completed" : "error",
+        tool: tool.name,
+        ...correlation,
+        ok: response.ok,
+      } });
       return {
         isError: !response.ok,
         content: [{ type: "text" as const, text: JSON.stringify(response) }],
@@ -97,4 +130,33 @@ export function buildMcpV2Server(deps: BuildMcpV2Deps): McpServer {
     });
   }
   return server;
+}
+
+function readCorrelation(input: unknown): Pick<McpToolEvent["data"], "requestId" | "conversationId"> {
+  if (!input || typeof input !== "object") return {};
+  const context = (input as { context?: unknown }).context;
+  if (!context || typeof context !== "object") return {};
+  const { requestId, conversationId } = context as { requestId?: unknown; conversationId?: unknown };
+  return {
+    ...(typeof requestId === "string" ? { requestId } : {}),
+    ...(typeof conversationId === "string" ? { conversationId } : {}),
+  };
+}
+
+function createToolEventQueue(listener: BuildMcpV2Deps["onToolEvent"]): (event: McpToolEvent) => void {
+  let queue: Promise<void> = Promise.resolve();
+  return event => {
+    if (!listener) return;
+    let delivery: McpToolEventDelivery | void;
+    try {
+      delivery = listener(event);
+    } catch {
+      return;
+    }
+    if (!delivery) return;
+    queue = queue
+      .catch(() => undefined)
+      .then(async () => { await delivery(); })
+      .catch(() => undefined);
+  };
 }
