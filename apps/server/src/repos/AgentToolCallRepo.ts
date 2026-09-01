@@ -29,6 +29,7 @@ export interface CreateAgentToolCallInput {
 
 export interface AgentToolCallRepo {
   get(id: string): Promise<AgentToolCall | null>;
+  listByTurn(turnId: string): Promise<AgentToolCall[]>;
   createOrGet(input: CreateAgentToolCallInput): Promise<{ call: AgentToolCall; created: boolean }>;
   update(id: string, input: { status: AgentToolCallStatus; now: string; result?: unknown; error?: string; approvalId?: string }): Promise<AgentToolCall>;
 }

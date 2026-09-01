@@ -46,6 +46,12 @@ export class SqliteAgentToolCallRepo implements AgentToolCallRepo {
     return row ? fromRow(row) : null;
   }
 
+  async listByTurn(turnId: string): Promise<AgentToolCall[]> {
+    const rows = this.db.prepare(`SELECT ${COLUMNS} FROM agent_tool_calls WHERE turn_id = ? ORDER BY created_at, id`)
+      .all(turnId) as ToolCallRow[];
+    return rows.map(fromRow);
+  }
+
   async createOrGet(input: CreateAgentToolCallInput): Promise<{ call: AgentToolCall; created: boolean }> {
     return this.db.transaction(() => {
       const existing = this.db.prepare(`SELECT ${COLUMNS} FROM agent_tool_calls

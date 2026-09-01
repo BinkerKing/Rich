@@ -115,6 +115,14 @@ export class PostgresAgentConversationTurnRepo implements AgentConversationTurnR
     return rows[0] ? fromRow(rows[0]) : this.get(id);
   }
 
+  async waitForApproval(id: string, input: { now: string; runtimeSessionId?: string }): Promise<AgentConversationTurn | null> {
+    const { rows } = await this.pool.query<TurnRow>(`UPDATE agent_conversation_turns
+      SET status = 'waiting_approval', runtime_session_id = $1, lease_owner = NULL, lease_expires_at = NULL, updated_at = $2
+      WHERE id = $3 AND status = 'running'
+      RETURNING ${SELECT_COLUMNS}`, [input.runtimeSessionId ?? null, input.now, id]);
+    return rows[0] ? fromRow(rows[0]) : this.get(id);
+  }
+
   async finish(id: string, input: { status: "succeeded" | "failed" | "cancelled"; now: string; runtimeSessionId?: string; error?: string }): Promise<AgentConversationTurn | null> {
     const { rows } = await this.pool.query<TurnRow>(`UPDATE agent_conversation_turns
       SET status = $1, runtime_session_id = $2, error = $3, lease_owner = NULL, lease_expires_at = NULL, updated_at = $4

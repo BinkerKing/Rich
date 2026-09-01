@@ -43,5 +43,6 @@ export interface AgentConversationTurnRepo {
   hasActiveLease(id: string, now: string): Promise<boolean>;
   createOrGet(input: CreateAgentConversationTurnInput): Promise<{ turn: AgentConversationTurn; created: boolean }>;
   claim(id: string, input: ClaimAgentConversationTurnInput): Promise<AgentConversationTurn | null>;
+  waitForApproval(id: string, input: { now: string; runtimeSessionId?: string }): Promise<AgentConversationTurn | null>;
   finish(id: string, input: { status: "succeeded" | "failed" | "cancelled"; now: string; runtimeSessionId?: string; error?: string }): Promise<AgentConversationTurn | null>;
 }

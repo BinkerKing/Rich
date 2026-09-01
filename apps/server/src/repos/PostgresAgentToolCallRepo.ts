@@ -46,6 +46,11 @@ export class PostgresAgentToolCallRepo implements AgentToolCallRepo {
     return rows[0] ? fromRow(rows[0]) : null;
   }
 
+  async listByTurn(turnId: string): Promise<AgentToolCall[]> {
+    const { rows } = await this.pool.query<ToolCallRow>(`SELECT ${COLUMNS} FROM agent_tool_calls WHERE turn_id = $1 ORDER BY created_at, id`, [turnId]);
+    return rows.map(fromRow);
+  }
+
   async createOrGet(input: CreateAgentToolCallInput): Promise<{ call: AgentToolCall; created: boolean }> {
     const client = await this.pool.connect();
     try {

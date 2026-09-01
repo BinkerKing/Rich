@@ -103,6 +103,14 @@ export class SqliteAgentConversationTurnRepo implements AgentConversationTurnRep
     return this.get(id);
   }
 
+  async waitForApproval(id: string, input: { now: string; runtimeSessionId?: string }): Promise<AgentConversationTurn | null> {
+    this.db.prepare(`UPDATE agent_conversation_turns
+      SET status = 'waiting_approval', runtime_session_id = ?, lease_owner = NULL, lease_expires_at = NULL, updated_at = ?
+      WHERE id = ? AND status = 'running'`)
+      .run(input.runtimeSessionId ?? null, input.now, id);
+    return this.get(id);
+  }
+
   async finish(id: string, input: { status: "succeeded" | "failed" | "cancelled"; now: string; runtimeSessionId?: string; error?: string }): Promise<AgentConversationTurn | null> {
     this.db.prepare(`UPDATE agent_conversation_turns
       SET status = ?, runtime_session_id = ?, error = ?, lease_owner = NULL, lease_expires_at = NULL, updated_at = ?
