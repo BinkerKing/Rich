@@ -2,6 +2,15 @@ import type {
   Element, Relation, LearningPath, PathKind, RichnessLevel, Signal, QARecord, Annotation, AnnotationKind, MindmapDeckView,
 } from "@ke/domain";
 
+export interface AgentSessionState {
+  conversationId: string;
+  executor: "hermes";
+  permissionProfile: "chat_only" | "workspace_agent" | "extended_agent";
+  status: "active" | "inactive";
+  modelSessionId?: string;
+  resumed?: boolean;
+}
+
 // ---------- shared SSE plumbing ----------
 
 export type AiStreamEvent<TResult> =
@@ -138,6 +147,27 @@ export interface GreatMeBrainResult {
 }
 
 export const api = {
+  async getAgentSession(conversationId: string): Promise<AgentSessionState | null> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/agent-session`);
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error(`get Agent session failed: ${r.status}`);
+    return r.json();
+  },
+  async startAgentSession(conversationId: string): Promise<AgentSessionState> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/agent-session`, { method: "POST" });
+    if (!r.ok) throw new Error(`start Agent session failed: ${r.status}`);
+    return r.json();
+  },
+  async newAgentSession(conversationId: string): Promise<AgentSessionState> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/agent-session/new`, { method: "POST" });
+    if (!r.ok) throw new Error(`new Agent session failed: ${r.status}`);
+    return r.json();
+  },
+  async exitAgentSession(conversationId: string): Promise<AgentSessionState> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/agent-session`, { method: "DELETE" });
+    if (!r.ok) throw new Error(`exit Agent session failed: ${r.status}`);
+    return r.json();
+  },
   // ----- generate-tree -----
   generateTreeStream(topic: string, model?: Model, richness?: RichnessLevel) {
     return sseStream<GenerateTreeResult>("/ai/generate-tree", { topic, model, richness });

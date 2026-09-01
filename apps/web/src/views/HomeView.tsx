@@ -6,6 +6,9 @@ import { VisualBlockRenderer } from "../components/VisualBlockRenderer.js";
 import { detectBlockType, type DetectedBlockType } from "../lib/detectBlockType.js";
 import { persistVisualBlocks } from "../lib/extractVisualBlocks.js";
 import { useChatComposer } from "../lib/useChatComposer.js";
+import { api, type AgentSessionState } from "../api/client.js";
+import { ChatSlashCommandMenu } from "../components/ChatSlashCommandMenu.js";
+import { parseChatSlashInput, type ChatSlashCommand } from "../lib/chatSlashCommands.js";
 
 /** 哪些 block 类型才能上舞台 = 真正『图形』、不是文字组织 */
 const STAGE_VISUAL_TYPES = new Set<DetectedBlockType>([
@@ -244,6 +247,8 @@ interface SelectionMenu {
 export function HomeView() {
   const [frame, setFrame] = useState(0);
   const [input, setInput] = useState("");
+  const [agentSession, setAgentSession] = useState<AgentSessionState | null>(null);
+  const [slashIndex, setSlashIndex] = useState(0);
   const [turns, setTurns] = useState<Turn[]>(() => loadChatHistory());
   const [busy, setBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -254,6 +259,16 @@ export function HomeView() {
   // 照片对话支持：附件状态机 + 上传逻辑都封在 hook 里，ChatOverlay 也用同款
   const composer = useChatComposer({ maxAttachments: 8 });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const slashCommand = useMemo(() => parseChatSlashInput(input), [input]);
+
+  useEffect(() => {
+    const refresh = () => void api.getAgentSession(DEFAULT_CHAT_CONVERSATION_ID).then(setAgentSession).catch(() => undefined);
+    refresh();
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, []);
+
+  useEffect(() => { setSlashIndex(0); }, [input]);
   const [mascot, setMascot] = useState<MascotState>({
     current: "walk", fallback: "walk",
     startedAt: new Date().toISOString(), triggeredBy: "system",
@@ -585,6 +600,20 @@ export function HomeView() {
     };
   }, [input]);
 
+  async function chooseChatCommand(command: ChatSlashCommand) {
+    if (command.id === "agent") {
+      const session = await api.startAgentSession(DEFAULT_CHAT_CONVERSATION_ID);
+      setAgentSession(session);
+      setInput("");
+    } else if (command.id === "chat") {
+      if (agentSession) setAgentSession(await api.exitAgentSession(DEFAULT_CHAT_CONVERSATION_ID));
+      setInput("");
+    } else {
+      setInput(`${command.token} `);
+    }
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
   async function send(text: string) {
     const trimmed = text.trim();
     const attRefs = composer.getAttachmentRefs();
@@ -768,6 +797,17 @@ export function HomeView() {
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (slashCommand.open && slashCommand.matches.length > 0) {
+      void chooseChatCommand(slashCommand.matches[slashIndex] ?? slashCommand.matches[0]);
+      return;
+    }
+    if (input.trim() === "/agent new") {
+      void api.newAgentSession(DEFAULT_CHAT_CONVERSATION_ID).then(session => {
+        setAgentSession(session);
+        setInput("");
+      });
+      return;
+    }
     void send(input);
   }
 
@@ -1019,6 +1059,16 @@ export function HomeView() {
           }
         }}
       >
+        {agentSession?.status === "active" && !slashCommand.open && (
+          <div className="agent-session-marker" role="status">
+            <span>Hermes Agent</span>
+            <small>{agentSession.modelSessionId ? "上下文已连接" : "等待第一轮消息"}</small>
+            <button type="button" onClick={() => void chooseChatCommand({ id: "chat", token: "/chat", label: "普通对话", hint: "" })}>退出</button>
+          </div>
+        )}
+        {slashCommand.open && (
+          <ChatSlashCommandMenu commands={slashCommand.matches} activeIndex={slashIndex} onChoose={command => void chooseChatCommand(command)} />
+        )}
         <div ref={measureRef} className="home-input-measure" aria-hidden="true">
           {input.slice(0, caretPos)}
           <span ref={caretMarkerRef} className="home-input-measure-marker">{"​"}</span>
@@ -1070,6 +1120,32 @@ export function HomeView() {
             void composer.attach(file).catch(err => console.warn("[home-input] paste:", err));
           }}
           onKeyDown={e => {
+            if (slashCommand.open && slashCommand.matches.length > 0) {
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                const delta = e.key === "ArrowDown" ? 1 : -1;
+                setSlashIndex(index => (index + delta + slashCommand.matches.length) % slashCommand.matches.length);
+                return;
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setInput("");
+                return;
+              }
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void chooseChatCommand(slashCommand.matches[slashIndex] ?? slashCommand.matches[0]);
+                return;
+              }
+            }
+            if (e.key === "Enter" && input.trim() === "/agent new") {
+              e.preventDefault();
+              void api.newAgentSession(DEFAULT_CHAT_CONVERSATION_ID).then(session => {
+                setAgentSession(session);
+                setInput("");
+              });
+              return;
+            }
             if (e.key === "Enter" && !e.shiftKey) {
               const justDictated = Date.now() - lastDictationInputAtRef.current < 1200;
               if (e.nativeEvent.isComposing || composingRef.current || justDictated) return;

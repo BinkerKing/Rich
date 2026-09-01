@@ -11,6 +11,9 @@ import { persistVisualBlocks } from "../lib/extractVisualBlocks.js";
 import { markChatSendStart, markMascotFirstFrame, markFirstTextChunk, newReqId } from "../lib/perfMarks.js";
 import { ChatHistoryView } from "./ChatHistoryView.js";
 import { useChatComposer } from "../lib/useChatComposer.js";
+import { api, type AgentSessionState } from "../api/client.js";
+import { ChatSlashCommandMenu } from "../components/ChatSlashCommandMenu.js";
+import { parseChatSlashInput, type ChatSlashCommand } from "../lib/chatSlashCommands.js";
 import { APP_MENU_ITEMS, type AppMenuItem } from "../lib/appCatalog.js";
 import { requestRichNavigation } from "../lib/richNavigation.js";
 import { useStore, type AppView } from "../state/store.js";
@@ -176,6 +179,7 @@ function elementSearchText(element: Element): string {
 }
 
 function normalizeSlashMessage(value: string): string | null {
+  if (/^\/task\s+\S/i.test(value)) return value;
   const parsed = parseSlashInput(value);
   if (!parsed.active) return value;
   // 现在只剩 find 一种模式 —— 不当聊天发送，全部交给 chooseSlashItem 走跳转。
@@ -193,6 +197,7 @@ export function ChatOverlay() {
   const reset = useChatStore(s => s.reset);
 
   const [input, setInput] = useState("");
+  const [agentSession, setAgentSession] = useState<AgentSessionState | null>(null);
   /** T16: 是否切到三栏历史回看视图 */
   const [historyOpen, setHistoryOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
@@ -207,7 +212,15 @@ export function ChatOverlay() {
 
   useEffect(() => { void hydrate(); }, [hydrate]);
 
+  useEffect(() => {
+    const refresh = () => void api.getAgentSession(DEFAULT_CHAT_CONVERSATION_ID).then(setAgentSession).catch(() => undefined);
+    refresh();
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, []);
+
   const slash = useMemo(() => parseSlashInput(input), [input]);
+  const commandSlash = useMemo(() => parseChatSlashInput(input), [input]);
   const appResults = useMemo(() => {
     if (!slash.active) return [];
     const query = slash.query.toLowerCase();
@@ -279,7 +292,31 @@ export function ChatOverlay() {
     return true;
   }
 
+  async function chooseChatCommand(command: ChatSlashCommand) {
+    if (command.id === "agent") {
+      setAgentSession(await api.startAgentSession(DEFAULT_CHAT_CONVERSATION_ID));
+      setInput("");
+    } else if (command.id === "chat") {
+      if (agentSession) setAgentSession(await api.exitAgentSession(DEFAULT_CHAT_CONVERSATION_ID));
+      setInput("");
+    } else {
+      setInput(`${command.token} `);
+    }
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
   function submitSlashCommand() {
+    if (commandSlash.open && commandSlash.matches.length > 0) {
+      void chooseChatCommand(commandSlash.matches[slashIndex] ?? commandSlash.matches[0]);
+      return true;
+    }
+    if (input.trim() === "/agent new") {
+      void api.newAgentSession(DEFAULT_CHAT_CONVERSATION_ID).then(session => {
+        setAgentSession(session);
+        setInput("");
+      });
+      return true;
+    }
     if (!slash.active) return false;
     const normalized = normalizeSlashMessage(input);
     if (normalized) {
@@ -479,6 +516,12 @@ export function ChatOverlay() {
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (commandSlash.open && commandSlash.matches.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault();
+      const delta = e.key === "ArrowDown" ? 1 : -1;
+      setSlashIndex(i => (i + delta + commandSlash.matches.length) % commandSlash.matches.length);
+      return;
+    }
     if (slash.active && slashItems.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
       e.preventDefault();
       const delta = e.key === "ArrowDown" ? 1 : -1;
@@ -554,6 +597,16 @@ export function ChatOverlay() {
             }
           }}
         >
+          {agentSession?.status === "active" && !commandSlash.open && (
+            <div className="agent-session-marker" role="status">
+              <span>Hermes Agent</span>
+              <small>{agentSession.modelSessionId ? "上下文已连接" : "等待第一轮消息"}</small>
+              <button type="button" onClick={() => void chooseChatCommand({ id: "chat", token: "/chat", label: "普通对话", hint: "" })}>退出</button>
+            </div>
+          )}
+          {commandSlash.open && (
+            <ChatSlashCommandMenu commands={commandSlash.matches} activeIndex={slashIndex} onChoose={command => void chooseChatCommand(command)} />
+          )}
           <textarea
             ref={textareaRef}
             value={input}
@@ -627,7 +680,7 @@ export function ChatOverlay() {
             </button>
           </div>
 
-          {slash.active && (
+          {slash.active && !commandSlash.open && (
             <SlashCommandPanel
               mode={slash.mode}
               query={slash.query}
