@@ -298,6 +298,27 @@ function applySchema(db: Database.Database) {
       FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS agent_conversation_turns (
+      id                 TEXT PRIMARY KEY,
+      conversation_id    TEXT NOT NULL,
+      client_request_id  TEXT NOT NULL,
+      user_message_id    TEXT NOT NULL,
+      sequence           INTEGER NOT NULL,
+      status             TEXT NOT NULL DEFAULT 'queued',
+      lease_owner        TEXT,
+      lease_expires_at   TEXT,
+      runtime_session_id TEXT,
+      error              TEXT,
+      created_at         TEXT NOT NULL,
+      updated_at         TEXT NOT NULL,
+      UNIQUE (conversation_id, client_request_id),
+      UNIQUE (conversation_id, sequence),
+      FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id) ON DELETE CASCADE
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_conversation_turn_active
+      ON agent_conversation_turns(conversation_id)
+      WHERE status IN ('queued', 'running', 'waiting_approval');
+
     CREATE TABLE IF NOT EXISTS chat_messages (
       id               TEXT PRIMARY KEY,
       conversation_id  TEXT NOT NULL,
