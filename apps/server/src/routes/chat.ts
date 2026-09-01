@@ -664,6 +664,17 @@ export function chatRoutes(
         }
         return;
       }
+      if (activeAgentConfig?.modelSessionId && !upstream.ok) {
+        upstream = await fetch(`${HERMES_BASE_URL}/v1/chat/completions`, {
+          method: "POST",
+          headers: hermesJsonHeaders(),
+          body: JSON.stringify({
+            model: "hermes-agent",
+            stream: true,
+            messages: injectSystemPrompt(messages, turnPlan.requiresAgent, mcpRequestId),
+          }),
+        });
+      }
       if (!upstream.ok || !upstream.body) {
         const detail = await upstream.text().catch(() => "");
         const message = `Hermes ${upstream.status} ${upstream.statusText}${detail ? `: ${detail}` : ""}`;

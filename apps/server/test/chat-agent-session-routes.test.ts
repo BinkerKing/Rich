@@ -122,6 +122,29 @@ describe("chat Agent session routes", () => {
     expect(await configs.get("c1")).toEqual(expect.objectContaining({ status: "active", modelSessionId: "hs-old" }));
   });
 
+  it("retries a rejected Hermes session once without the stale session id", async () => {
+    const configs = new MemoryAgentConfigs();
+    const conversations = new MemoryConversations();
+    const now = new Date().toISOString();
+    await conversations.ensureConversation({ id: "c1", now });
+    await configs.save({ conversationId: "c1", executor: "hermes", permissionProfile: "chat_only", allowedMcpServers: [], status: "active", modelSessionId: "stale", createdAt: now, updatedAt: now });
+    const requests: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      requests.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      if (requests.length === 1) return new Response(JSON.stringify({ error: { message: "session not found" } }), { status: 404 });
+      return new Response('data: {"session_id":"fresh","choices":[{"delta":{"content":"recovered"}}]}\n\ndata: [DONE]\n\n', { status: 200, headers: { "content-type": "text/event-stream" } });
+    }));
+    const app = chatRoutes(null, [], conversations, undefined, undefined, configs);
+
+    const response = await app.request("/stream", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ conversationId: "c1", messages: [{ role: "user", content: "continue" }] }) });
+    const events = await response.text();
+
+    expect(events).toContain("recovered");
+    expect(requests).toHaveLength(2);
+    expect(requests[1]?.session_id).toBeUndefined();
+    expect((await configs.get("c1"))?.modelSessionId).toBe("fresh");
+  });
+
   it("admits an active Agent message as a durable turn and completes it", async () => {
     const db = openDb(join(mkdtempSync(join(tmpdir(), "rich-chat-agent-turn-")), "rich.db"));
     const conversations = new SqliteChatConversationsRepo(db);
