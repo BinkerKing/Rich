@@ -41,12 +41,13 @@ type DeliverableRecord = {
 
 ## 完成与回写流程
 
-1. 用户从交付物界面发起任务。前端创建 `ai_task` 父记录，并将它的 ID 同任务请求一起持久化。
-2. Hermes 或 Multica 使用 `rich_task_report_result` 上报 `summary`、`evidence`，并可选上报 `reportMarkdown`。
-3. 后端先把任务转换为 `succeeded / needs_human`，再以 `originRecordId` 定位对应交付物。
-4. 后端创建或更新唯一的 `ai_task_result` 子记录；同一任务重复上报不得产生重复子项。
-5. 若 `reportMarkdown` 非空，后端在该交付物实际目录创建 `AI任务结果/` 并写入报告；子记录保存文件名、相对路径和大小。文件名格式为 `YYYYMMDD-<安全任务标题>-<任务短 ID>.md`。
-6. 前端刷新或重新打开交付物时，按 `parentRecordId` 将子记录紧跟在其父任务下渲染。
+1. 用户从交付物界面发起任务。前端先创建状态为 `publishing` 的 `ai_task` 父记录，并将它的 ID 同任务请求一起持久化。
+2. 后端创建任务后、开始执行前，以 `originRecordId` 将该父记录绑定到真实任务 ID 与排队状态；该绑定避免任务完成与前端二次保存发生竞争。
+3. Hermes 或 Multica 使用 `rich_task_report_result` 上报 `summary`、`evidence`，并可选上报 `reportMarkdown`。
+4. 后端先把任务转换为 `succeeded / needs_human`，再以 `originRecordId` 定位对应交付物。
+5. 后端创建或更新唯一的 `ai_task_result` 子记录；同一任务重复上报不得产生重复子项。
+6. 若 `reportMarkdown` 非空，后端在该交付物实际目录创建 `AI任务结果/` 并写入报告；子记录保存文件名、相对路径和大小。文件名格式为 `YYYYMMDD-<安全任务标题>-<任务短 ID>.md`。
+7. 前端刷新或重新打开交付物时，按 `parentRecordId` 将子记录紧跟在其父任务下渲染。
 
 任务服务仍是执行过程与审计的唯一来源；交付物记录是面向用户的、可追溯的结果投影。
 
