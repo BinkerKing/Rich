@@ -8,7 +8,7 @@ import { useStore } from "../state/store.js";
 import { normalizeProjectHealthRecord, type ProjectHealthCategory, type ProjectHealthSeverity, type ProjectHealthStatus } from "./project-health/projectHealthRecord.js";
 import "./AdminView.css";
 
-type Tab = "engine" | "ops" | "signals" | "manuals" | "corpus" | "learning" | "cron" | "improvements" | "projectHealth";
+type Tab = "health" | "traces" | "workflows" | "delegations" | "agents" | "ops" | "signals" | "manuals" | "corpus" | "learning" | "cron" | "improvements" | "projectHealth";
 
 interface OpListItem {
   id: string;
@@ -263,7 +263,7 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
 ];
 
 export function AdminView() {
-  const [tab, setTab] = useState<Tab>("engine");
+  const [tab, setTab] = useState<Tab>("health");
   return (
     <div className="tree-view admin-shell">
       <TopBar breadcrumb={null} />
@@ -273,10 +273,23 @@ export function AdminView() {
           <div className="sidebar-list">
             <button
               type="button"
-              className={`sidebar-node ${tab === "engine" ? "is-active" : ""}`}
-              onClick={() => setTab("engine")}
+              className={`sidebar-node ${tab === "health" ? "is-active" : ""}`}
+              onClick={() => setTab("health")}
+              aria-current={tab === "health" ? "page" : undefined}
             >
-              <span className="sidebar-node__title">AI 引擎监控</span>
+              <span className="sidebar-node__title">服务健康</span>
+            </button>
+            <button type="button" className={`sidebar-node ${tab === "traces" ? "is-active" : ""}`} onClick={() => setTab("traces")} aria-current={tab === "traces" ? "page" : undefined}>
+              <span className="sidebar-node__title">对话追踪</span>
+            </button>
+            <button type="button" className={`sidebar-node ${tab === "workflows" ? "is-active" : ""}`} onClick={() => setTab("workflows")} aria-current={tab === "workflows" ? "page" : undefined}>
+              <span className="sidebar-node__title">内嵌 AI 工作流</span>
+            </button>
+            <button type="button" className={`sidebar-node ${tab === "delegations" ? "is-active" : ""}`} onClick={() => setTab("delegations")} aria-current={tab === "delegations" ? "page" : undefined}>
+              <span className="sidebar-node__title">任务委派闭环</span>
+            </button>
+            <button type="button" className={`sidebar-node ${tab === "agents" ? "is-active" : ""}`} onClick={() => setTab("agents")} aria-current={tab === "agents" ? "page" : undefined}>
+              <span className="sidebar-node__title">Agent 与 MCP</span>
             </button>
             <button
               type="button"
@@ -339,7 +352,11 @@ export function AdminView() {
       </aside>
 
       <main className="tv-main tv-main--home admin-main">
-        {tab === "engine" && <EngineTab />}
+        {tab === "health" && <ServiceHealthTab />}
+        {tab === "traces" && <TraceTab />}
+        {tab === "workflows" && <WorkflowsTab />}
+        {tab === "delegations" && <DelegationsTab />}
+        {tab === "agents" && <AgentsMcpTab />}
         {tab === "ops" && <OpsTab />}
         {tab === "signals" && <SignalsTab />}
         {tab === "manuals" && <ManualsTab />}
@@ -360,326 +377,236 @@ export function AdminView() {
 
 /* ---------------------------------- Tabs ---------------------------------- */
 
-interface EngineStats {
-  total: number;
-  done: number;
-  errored: number;
-  running: number;
-  successRate: number | null;
-  avgDurationMs: number;
-  maxDurationMs: number;
-  byOp: { op: string; count: number }[];
+interface ServiceHealthItem {
+  id: string;
+  label: string;
+  kind: "server" | "adapter" | "mcp" | "delegation";
+  state: "healthy" | "degraded" | "offline" | "not_configured";
+  checkedAt: string;
+  detail: string;
+  latencyMs?: number;
+  lastSuccessAt?: string;
+  lastError?: string;
 }
-interface EnginePayload {
+
+interface TraceItem {
+  id: string;
   ts: string;
-  adapters: { name: string; available: boolean }[];
-  routing?: {
-    scenarios: {
-      scenario: string;
-      adapter: string;
-      source: "request" | "settings" | "env" | "default" | "fallback";
-      env: string;
-    }[];
-  };
-  contextEngine?: {
-    provider: "none" | "rich-internal";
-    source: "env" | "default" | "fallback";
-    chatContextEnabled: boolean;
-    summaryEnabled: boolean;
-    recentMessages: number;
-    summaryTriggerMessages: number;
-    summaryKeepTail: number;
-    maxSummarySourceChars: number;
-  };
-  turnPlanner?: {
-    mode: "fast" | "llm";
-    source: "env" | "default";
-    modelScenario: string;
-  };
-  contextPolicies?: {
-    operation: string;
-    scenario: string;
-    sources: string[];
-    memory: "durable" | "request" | "none";
-    notes: string;
-  }[];
-  chatContext?: {
-    conversationId: string;
-    title: string;
-    surface: string;
-    lastMessageAt: string;
-    messageCount: number;
-    summaryUpdatedAt?: string;
-    summaryMessageCount: number;
-    hasSummary: boolean;
-  }[];
-  settings?: {
-    routes?: Record<string, string>;
-    updatedAt?: string;
-  };
-  uptimeSec: number;
-  childProcesses: number;
-  signalsTotal: number;
-  stats: { lastHour: EngineStats; last24h: EngineStats; allTime: EngineStats };
-  recentErrors: { id: string; ts: string; op: string; elementId?: string; error?: string }[];
+  op: string;
+  model: string;
+  scenario?: string;
+  status: string;
+  durationMs?: number;
+  kind: "chat" | "workflow" | "delegation";
 }
 
-function EngineTab() {
-  const [data, setData] = useState<EnginePayload | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(true);
+interface TraceDetail extends TraceItem {
+  hasOutput: boolean;
+  outputLength: number;
+  events: { ts: string; type: string; summary: string; data?: { tool?: string; status?: string } }[];
+}
 
-  async function load() {
+interface WorkflowItem {
+  operation: string;
+  scenario: string;
+  sources: string[];
+  memory: "durable" | "request" | "none";
+  notes: string;
+  usesMcp: boolean;
+  recent: { total: number; done: number; error: number; latestAt?: string };
+}
+
+interface DelegationItem {
+  id: string;
+  title: string;
+  status: string;
+  backend: string;
+  externalTaskId?: string;
+  resultRefs?: { type: string; id: string }[];
+  reviewStatus?: string;
+  createdAt: string;
+  startedAt?: string;
+  updatedAt: string;
+  finishedAt?: string;
+  lastSyncedAt?: string;
+  hasError: boolean;
+  errorLength: number;
+  hasProgress: boolean;
+  progress: "available" | "none";
+}
+
+interface EngineSettingsPayload {
+  scenarios?: string[];
+  adapters?: string[];
+  settings?: { routes?: Record<string, string> };
+}
+
+interface EngineRoutingPayload {
+  routing?: { scenarios?: { scenario: string; adapter: string; source: string }[] };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function normalizeObservabilityResponse<T>(value: unknown): T | null {
+  return isRecord(value) ? value as T : null;
+}
+
+function listFrom<T>(value: unknown, key: string): T[] {
+  return isRecord(value) && Array.isArray(value[key]) ? value[key] as T[] : [];
+}
+
+function useObservabilityJson<T>(path: string, autoRefresh: boolean) {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
+
+  const load = () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
     setLoading(true);
-    try {
-      const res = await fetch("/api/admin/engine");
-      const json = await res.json();
-      setData(json);
-    } finally {
-      setLoading(false);
-    }
-  }
-  async function saveRoute(scenario: string, adapter: string) {
-    const routes = { ...(data?.settings?.routes ?? {}) };
-    if (adapter) routes[scenario] = adapter;
-    else delete routes[scenario];
-    const res = await fetch("/api/admin/engine/settings", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ routes }),
-    });
-    if (!res.ok) return;
-    await load();
-  }
-  useEffect(() => { void load(); }, []);
+    setError(null);
+    void fetch(path, { signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error(`请求失败（${response.status}）`);
+        return response.json();
+      })
+      .then(json => { if (!controller.signal.aborted) setData(normalizeObservabilityResponse<T>(json)); })
+      .catch(reason => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "请求失败"); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+  };
+
   useEffect(() => {
-    if (!autoRefresh) return;
-    const t = window.setInterval(() => { void load(); }, 5000);
-    return () => window.clearInterval(t);
-  }, [autoRefresh]);
-
-  return (
-    <div className="admin-pane">
-      <header className="admin-pane__head">
-        <h1>AI 引擎监控</h1>
-        <div className="admin-filters">
-          <label>
-            <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} />
-            自动刷新（5s）
-          </label>
-          <button type="button" onClick={() => void load()}>立即刷新</button>
-        </div>
-      </header>
-
-      <div className="admin-engine">
-        {loading && !data && <div className="admin-loading">加载中…</div>}
-        {data && (
-          <>
-            <section className="admin-engine__row">
-              <EngineCard title="适配器健康" subtitle="codex / claude 是否可用">
-                <ul className="admin-adapter-list">
-                  {data.adapters.map(a => (
-                    <li key={a.name}>
-                      <span className={`admin-dot admin-dot--${a.available ? "ok" : "down"}`} aria-hidden="true" />
-                      <strong>{a.name}</strong>
-                      <em>{a.available ? "可用" : "不可用"}</em>
-                    </li>
-                  ))}
-                </ul>
-              </EngineCard>
-              {data.contextEngine && (
-                <EngineCard title="上下文引擎" subtitle="聊天记忆 / 摘要压缩">
-                  <dl className="admin-kv">
-                    <dt>Provider</dt><dd>{data.contextEngine.provider === "rich-internal" ? "Rich 内置" : "未启用"}</dd>
-                    <dt>来源</dt><dd>{data.contextEngine.source}</dd>
-                    <dt>服务端上下文</dt><dd>{data.contextEngine.chatContextEnabled ? "启用" : "未启用"}</dd>
-                    <dt>摘要压缩</dt><dd>{data.contextEngine.summaryEnabled ? `满 ${data.contextEngine.summaryTriggerMessages} 条触发` : "未启用"}</dd>
-                    <dt>近期窗口</dt><dd>{data.contextEngine.recentMessages} 条消息</dd>
-                    <dt>摘要保留尾部</dt><dd>{data.contextEngine.summaryKeepTail} 条消息</dd>
-                    <dt>摘要输入上限</dt><dd>{data.contextEngine.maxSummarySourceChars.toLocaleString()} 字符</dd>
-                    {data.turnPlanner && (
-                      <>
-                        <dt>聊天调度</dt><dd>{data.turnPlanner.mode === "llm" ? "模型规划" : "快速规则"}</dd>
-                        <dt>调度来源</dt><dd>{data.turnPlanner.source}</dd>
-                        <dt>调度模型场景</dt><dd>{data.turnPlanner.modelScenario}</dd>
-                      </>
-                    )}
-                  </dl>
-                </EngineCard>
-              )}
-              <EngineCard title="服务器" subtitle="进程 / 信号">
-                <dl className="admin-kv">
-                  <dt>已运行</dt><dd>{formatUptime(data.uptimeSec)}</dd>
-                  <dt>活跃子进程</dt><dd>{data.childProcesses}</dd>
-                  <dt>信号总数</dt><dd>{data.signalsTotal}</dd>
-                  <dt>最近刷新</dt><dd className="admin-cell-mono">{formatTs(data.ts)}</dd>
-                </dl>
-              </EngineCard>
-            </section>
-
-            {data.routing?.scenarios && (
-              <EngineCard title="场景模型路由" subtitle="按使用场景选择 AI 引擎">
-                <div className="admin-routing-grid">
-                  {data.routing.scenarios.map(route => (
-                    <div className="admin-routing-chip" key={route.scenario}>
-                      <span>{route.scenario}</span>
-                      <strong>{route.adapter}</strong>
-                      <select
-                        value={data.settings?.routes?.[route.scenario] ?? ""}
-                        aria-label={`${route.scenario} 模型`}
-                        onChange={event => void saveRoute(route.scenario, event.target.value)}
-                      >
-                        <option value="">默认 / 环境变量</option>
-                        {data.adapters.map(adapter => (
-                          <option key={adapter.name} value={adapter.name}>{adapter.name}</option>
-                        ))}
-                      </select>
-                      <em>{route.source === "env" ? route.env : route.source}</em>
-                    </div>
-                  ))}
-                </div>
-              </EngineCard>
-            )}
-
-            {data.contextPolicies && (
-              <EngineCard title="上下文策略" subtitle="每个 AI 入口使用的上下文来源">
-                <div className="admin-context-grid">
-                  {data.contextPolicies.map(policy => (
-                    <article className="admin-context-card" key={policy.operation}>
-                      <header>
-                        <strong>{policy.operation}</strong>
-                        <span>{policy.scenario}</span>
-                      </header>
-                      <div className="admin-context-card__sources">
-                        {policy.sources.map(source => <em key={source}>{source}</em>)}
-                      </div>
-                      <p>{policy.notes}</p>
-                      <small className={`admin-context-card__memory admin-context-card__memory--${policy.memory}`}>
-                        {policy.memory === "durable" ? "服务端长期上下文" : policy.memory === "request" ? "请求上下文" : "无上下文"}
-                      </small>
-                    </article>
-                  ))}
-                </div>
-              </EngineCard>
-            )}
-
-            {data.chatContext && (
-              <EngineCard title="聊天上下文状态" subtitle="服务端消息与长期摘要">
-                {data.chatContext.length === 0
-                  ? <div className="admin-empty admin-empty--inline">还没有服务端聊天记录。</div>
-                  : (
-                    <table className="admin-table">
-                      <thead>
-                        <tr><th>会话</th><th>入口</th><th>消息</th><th>摘要</th><th>更新时间</th></tr>
-                      </thead>
-                      <tbody>
-                        {data.chatContext.map(item => (
-                          <tr key={item.conversationId}>
-                            <td>
-                              <strong>{item.title}</strong>
-                              <span className="admin-scope">{item.conversationId}</span>
-                            </td>
-                            <td>{item.surface}</td>
-                            <td className="admin-cell-mono">{item.messageCount}</td>
-                            <td>
-                              <span className={`admin-status ${item.hasSummary ? "admin-status--done" : "admin-status--running"}`}>
-                                {item.hasSummary ? `${item.summaryMessageCount} 条已摘要` : "等待触发"}
-                              </span>
-                            </td>
-                            <td className="admin-cell-mono">{formatTs(item.summaryUpdatedAt ?? item.lastMessageAt)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-              </EngineCard>
-            )}
-
-            <section className="admin-engine__row">
-              <StatsCard title="最近 1 小时" stats={data.stats.lastHour} />
-              <StatsCard title="最近 24 小时" stats={data.stats.last24h} />
-              <StatsCard title="全部时间" stats={data.stats.allTime} />
-            </section>
-
-            <EngineCard title="近期错误" subtitle="按时间倒序，最多 10 条">
-              {data.recentErrors.length === 0
-                ? <div className="admin-empty admin-empty--inline">最近没有错误。</div>
-                : (
-                  <table className="admin-table">
-                    <thead>
-                      <tr><th>时间</th><th>操作</th><th>元</th><th>错误</th></tr>
-                    </thead>
-                    <tbody>
-                      {data.recentErrors.map(e => (
-                        <tr key={e.id}>
-                          <td className="admin-cell-mono">{formatTs(e.ts)}</td>
-                          <td><span className={`admin-op admin-op--${e.op}`}>{e.op}</span></td>
-                          <td className="admin-cell-mono">{e.elementId ?? "—"}</td>
-                          <td className="admin-cell-truncate">{e.error ?? "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-            </EngineCard>
-          </>
-        )}
-      </div>
-    </div>
-  );
+    load();
+    if (!autoRefresh) return () => controllerRef.current?.abort();
+    const timer = window.setInterval(load, 5_000);
+    return () => { window.clearInterval(timer); controllerRef.current?.abort(); };
+  }, [path, autoRefresh]);
+  return { data, loading, error, load };
 }
 
-function EngineCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
-  return (
-    <div className="admin-engine-card">
-      <header>
-        <strong>{title}</strong>
-        {subtitle && <span>{subtitle}</span>}
-      </header>
-      <div className="admin-engine-card__body">{children}</div>
-    </div>
-  );
+function ObservabilityHeader({ title, refresh }: { title: string; refresh: () => void }) {
+  return <header className="admin-pane__head"><h1>{title}</h1><div className="admin-filters"><span>自动刷新（5s）</span><button type="button" onClick={refresh}>立即刷新</button></div></header>;
 }
 
-function StatsCard({ title, stats }: { title: string; stats: EngineStats }) {
-  return (
-    <div className="admin-engine-card">
-      <header><strong>{title}</strong></header>
-      <div className="admin-engine-card__body">
-        <dl className="admin-kv">
-          <dt>调用</dt><dd>{stats.total}</dd>
-          <dt>成功 / 失败 / 进行中</dt>
-          <dd>
-            <span className="admin-stat admin-stat--ok">{stats.done}</span>
-            <span className="admin-stat admin-stat--err">{stats.errored}</span>
-            <span className="admin-stat admin-stat--run">{stats.running}</span>
-          </dd>
-          <dt>成功率</dt>
-          <dd>{stats.successRate === null ? "—" : `${stats.successRate}%`}</dd>
-          <dt>平均耗时</dt><dd>{stats.avgDurationMs ? formatDuration(stats.avgDurationMs) : "—"}</dd>
-          <dt>最长耗时</dt><dd>{stats.maxDurationMs ? formatDuration(stats.maxDurationMs) : "—"}</dd>
-        </dl>
-        {stats.byOp.length > 0 && (
-          <div className="admin-op-mini">
-            {stats.byOp.slice(0, 8).map(o => (
-              <span key={o.op} className={`admin-op admin-op--${o.op}`}>{o.op} · {o.count}</span>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+function ServiceHealthTab() {
+  const { data, loading, error, load } = useObservabilityJson<{ items: ServiceHealthItem[] }>("/api/admin/ai-observability/health", true);
+  return <div className="admin-pane"><ObservabilityHeader title="服务健康" refresh={load} /><ObservabilityContent loading={loading} error={error}>
+    <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>服务</th><th>状态</th><th>检查时间</th><th>延迟</th><th>最近成功</th><th>详情 / 最近错误</th></tr></thead><tbody>{listFrom<ServiceHealthItem>(data, "items").map(item => <tr key={item.id}><td><strong>{item.label}</strong><span className="admin-scope">{item.kind}</span></td><td><span className={`observability-state observability-state--${item.state}`}>{serviceStateLabel(item.state)}</span></td><td className="admin-cell-mono">{formatTs(item.checkedAt)}</td><td>{item.latencyMs === undefined ? "—" : `${item.latencyMs} ms`}</td><td className="admin-cell-mono">{item.lastSuccessAt ? formatTs(item.lastSuccessAt) : "—"}</td><td>{item.detail}{item.lastError ? <span className="admin-scope">最近错误：{item.lastError}</span> : null}</td></tr>)}</tbody></table></div>
+  </ObservabilityContent></div>;
 }
 
-function formatUptime(sec: number): string {
-  const d = Math.floor(sec / 86400);
-  const h = Math.floor((sec % 86400) / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
-  if (d > 0) return `${d}d ${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
+function TraceTab() {
+  const list = useObservabilityJson<{ items: TraceItem[] }>("/api/admin/ai-observability/traces?kind=chat", true);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [detail, setDetail] = useState<TraceDetail | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  useEffect(() => {
+    if (!selected) { setDetail(null); setDetailLoading(false); return; }
+    const controller = new AbortController(); setDetail(null); setDetailError(null); setDetailLoading(true);
+    void fetch(`/api/admin/ai-observability/traces/${encodeURIComponent(selected)}`, { signal: controller.signal })
+      .then(async response => { if (!response.ok) throw new Error(`请求失败（${response.status}）`); return response.json() as Promise<TraceDetail>; })
+      .then(json => { if (!controller.signal.aborted) setDetail(normalizeObservabilityResponse<TraceDetail>(json)); })
+      .catch(reason => { if (!controller.signal.aborted) setDetailError(reason instanceof Error ? reason.message : "请求失败"); })
+      .finally(() => { if (!controller.signal.aborted) setDetailLoading(false); });
+    return () => controller.abort();
+  }, [selected]);
+  return <div className="admin-pane"><ObservabilityHeader title="对话追踪" refresh={list.load} /><ObservabilityContent loading={list.loading} error={list.error}>
+    <div className="observability-traces"><div className="observability-trace-list">{listFrom<TraceItem>(list.data, "items").map(item => <button key={item.id} type="button" className={selected === item.id ? "is-active" : ""} aria-pressed={selected === item.id} onClick={() => { setDetail(null); setDetailError(null); setSelected(item.id); }}><strong>{item.op}</strong><span>{item.model} · {item.scenario ?? "—"}</span><small>{formatTs(item.ts)} · {item.status}</small></button>)}</div>
+      <TraceDetailPanel detail={detail} error={detailError} loading={detailLoading} />
+    </div>
+  </ObservabilityContent></div>;
+}
+
+function TraceDetailPanel({ detail, error, loading }: { detail: TraceDetail | null; error: string | null; loading: boolean }) {
+  if (error) return <div className="admin-detail"><div className="admin-detail__inner admin-detail__error">{error}</div></div>;
+  if (loading) return <div className="admin-detail"><div className="admin-loading" role="status" aria-live="polite">正在加载追踪详情…</div></div>;
+  if (!detail) return <div className="admin-detail"><div className="admin-empty">选择一条对话追踪以查看安全时间线。</div></div>;
+  return <div className="admin-detail"><div className="admin-detail__inner"><section><h3>用户 / 请求元数据（安全）</h3><p className="observability-inline">{detail.id} · {detail.op} · {detail.model} · {detail.scenario ?? "—"} · {detail.status}</p></section><section><h3>执行时间线</h3><ol className="observability-timeline">{listFrom<TraceDetail["events"][number]>(detail, "events").map((event, index) => <li key={`${event.ts}-${index}`}><time>{formatTs(event.ts)}</time><strong>{traceEventLabel(event.type, event.data)}</strong><span>{event.data?.tool ? `工具：${event.data.tool}` : ""}{event.data?.status ? ` · 状态：${event.data.status}` : ""}</span></li>)}</ol></section><section><h3>最终安全状态</h3><p>{detail.status === "done" ? "已完成" : detail.status === "error" ? "执行失败（错误详情受保护）" : "执行中"}；输出：{detail.hasOutput ? `有（${detail.outputLength} 字符）` : "无"}。原始回复受保护，不在监控页展示。</p></section></div></div>;
+}
+
+function WorkflowsTab() {
+  const { data, loading, error, load } = useObservabilityJson<{ items: WorkflowItem[] }>("/api/admin/ai-observability/workflows", false);
+  return <div className="admin-pane"><header className="admin-pane__head"><h1>内嵌 AI 工作流</h1><div className="admin-filters"><span>仅直接模型工作流，不含 Agent/MCP</span><button type="button" onClick={load}>立即刷新</button></div></header><ObservabilityContent loading={loading} error={error}>
+    <div className="observability-list">{listFrom<WorkflowItem>(data, "items").filter(item => !item.usesMcp).map(item => <article className="observability-card" key={item.operation}><header><strong>{item.operation}</strong><span>直接模型工作流</span></header><dl><dt>入口 API</dt><dd>{item.operation}</dd><dt>场景</dt><dd>{item.scenario}</dd><dt>上下文</dt><dd>{Array.isArray(item.sources) ? item.sources.join("、") : "—"}</dd><dt>记忆</dt><dd>{item.memory}</dd><dt>MCP</dt><dd>否</dd><dt>最近</dt><dd>{item.recent.total} 次 · 成功 {item.recent.done} · 失败 {item.recent.error}{item.recent.latestAt ? ` · ${formatTs(item.recent.latestAt)}` : ""}</dd></dl></article>)}</div>
+  </ObservabilityContent></div>;
+}
+
+function DelegationsTab() {
+  const { data, loading, error, load } = useObservabilityJson<{ total: number; items: DelegationItem[] }>("/api/admin/ai-observability/delegations", true);
+  return <div className="admin-pane"><ObservabilityHeader title="任务委派闭环" refresh={load} /><ObservabilityContent loading={loading} error={error}><div className="observability-summary">总计 {data?.total ?? 0} 项；当前接口快照最多展示 50 项。</div><div className="observability-list">{listFrom<DelegationItem>(data, "items").map(item => <article className="observability-card" key={item.id}><header><strong>{item.title}</strong><span className="observability-state">{item.status}</span></header><dl><dt>后端 / 外部 ID</dt><dd>{item.backend} / {item.externalTaskId ?? "—"}</dd><dt>进度</dt><dd>{item.hasProgress ? "可用（内容受保护）" : "无"}</dd><dt>复核</dt><dd>{item.reviewStatus ?? "—"}</dd><dt>结果引用</dt><dd>{listFrom<{ type: string; id: string }>(item, "resultRefs").map(ref => `${ref.type} · ${ref.id}`).join("、") || "—"}</dd><dt>错误</dt><dd>{item.hasError ? `有（${item.errorLength} 字符，内容受保护）` : "无"}</dd><dt>时间</dt><dd>创建 {formatTs(item.createdAt)} · 更新 {formatTs(item.updatedAt)}{item.finishedAt ? ` · 完成 ${formatTs(item.finishedAt)}` : ""}</dd></dl></article>)}</div></ObservabilityContent></div>;
+}
+
+function AgentsMcpTab() {
+  const health = useObservabilityJson<{ items: ServiceHealthItem[] }>("/api/admin/ai-observability/health", true);
+  const delegations = useObservabilityJson<{ total: number; items: DelegationItem[] }>("/api/admin/ai-observability/delegations", true);
+  const relevant = listFrom<ServiceHealthItem>(health.data, "items").filter(item => item.kind === "adapter" || item.id === "rich-mcp" || item.id === "rich-server");
+  return <div className="admin-pane"><ObservabilityHeader title="Agent 与 MCP" refresh={() => { health.load(); delegations.load(); }} /><ObservabilityContent loading={health.loading || delegations.loading} error={health.error ?? delegations.error}><div className="observability-summary">当前委派任务 {delegations.data?.total ?? 0} 项（快照 {listFrom<DelegationItem>(delegations.data, "items").length} 项）。</div><div className="observability-list">{relevant.map(item => <article className="observability-card" key={item.id}><header><strong>{item.label}</strong><span className={`observability-state observability-state--${item.state}`}>{serviceStateLabel(item.state)}</span></header><p>{item.detail}</p><dl><dt>传输 / 就绪</dt><dd>{item.detail}</dd><dt>最近成功</dt><dd>{item.lastSuccessAt ? formatTs(item.lastSuccessAt) : "—"}</dd>{item.lastError && <><dt>最近错误</dt><dd>{item.lastError}</dd></>}</dl></article>)}</div><ModelRoutingSection /></ObservabilityContent></div>;
+}
+
+function ModelRoutingSection() {
+  const [settings, setSettings] = useState<EngineSettingsPayload | null>(null);
+  const [routing, setRouting] = useState<EngineRoutingPayload | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const controllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(false);
+  const routesRef = useRef<Record<string, string>>({});
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const load = () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController(); controllerRef.current = controller;
+    if (mountedRef.current) setError(null);
+    void Promise.all([fetch("/api/admin/engine/settings", { signal: controller.signal }), fetch("/api/admin/engine", { signal: controller.signal })])
+      .then(async ([settingsResponse, engineResponse]) => {
+        if (!settingsResponse.ok || !engineResponse.ok) throw new Error("模型路由配置加载失败");
+        return Promise.all([settingsResponse.json(), engineResponse.json()]);
+      }).then(([nextSettings, nextRouting]) => {
+        if (!controller.signal.aborted && mountedRef.current) {
+          const normalizedSettings = normalizeObservabilityResponse<EngineSettingsPayload>(nextSettings);
+          routesRef.current = isRecord(normalizedSettings?.settings?.routes) ? normalizedSettings.settings.routes as Record<string, string> : {};
+          setSettings(normalizedSettings); setRouting(normalizeObservabilityResponse<EngineRoutingPayload>(nextRouting));
+        }
+      })
+      .catch(reason => { if (!controller.signal.aborted && mountedRef.current) setError(reason instanceof Error ? reason.message : "模型路由配置加载失败"); });
+  };
+  useEffect(() => { mountedRef.current = true; load(); return () => { mountedRef.current = false; controllerRef.current?.abort(); }; }, []);
+  const routes = routesRef.current;
+  const scenarios = listFrom<string>(settings, "scenarios");
+  const adapters = listFrom<string>(settings, "adapters");
+  const resolved = listFrom<{ scenario: string; adapter: string; source: string }>(routing?.routing, "scenarios");
+  const saveRoute = (scenario: string, adapter: string) => {
+    const nextRoutes = { ...routes };
+    if (adapter) nextRoutes[scenario] = adapter; else delete nextRoutes[scenario];
+    routesRef.current = nextRoutes;
+    if (mountedRef.current) { setSettings(current => current ? { ...current, settings: { ...current.settings, routes: nextRoutes } } : current); setError(null); setSaving(true); }
+    const save = saveQueueRef.current.catch(() => undefined).then(async () => {
+      const response = await fetch("/api/admin/engine/settings", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ routes: nextRoutes }) });
+      if (!response.ok) throw new Error("模型路由保存失败");
+    });
+    saveQueueRef.current = save;
+    void save.catch(reason => { if (mountedRef.current) setError(reason instanceof Error ? reason.message : "模型路由保存失败"); })
+      .finally(() => { if (mountedRef.current && saveQueueRef.current === save) setSaving(false); });
+  };
+  return <section className="observability-routing"><header><strong>模型路由配置</strong><button type="button" onClick={load} disabled={saving}>刷新配置</button></header>{error && <div className="admin-detail__error">{error}</div>}<div>{scenarios.map(scenario => { const route = resolved.find(item => item.scenario === scenario); return <label key={scenario}><span>{scenario}</span><em>{routes[scenario] ?? route?.adapter ?? "默认"} · {routes[scenario] ? "settings" : route?.source ?? "default"}</em><select value={routes[scenario] ?? ""} aria-label={`${scenario} 模型`} disabled={saving} onChange={event => saveRoute(scenario, event.target.value)}><option value="">默认 / 环境变量</option>{adapters.map(adapter => <option key={adapter} value={adapter}>{adapter}</option>)}</select></label>; })}</div></section>;
+}
+
+function ObservabilityContent({ loading, error, children }: { loading: boolean; error: string | null; children: React.ReactNode }) {
+  return <div className="admin-engine">{error && <div className="admin-detail__error">监控数据加载失败：{error}</div>}{loading && <div className="admin-loading">加载中…</div>}{children}</div>;
+}
+
+function serviceStateLabel(state: ServiceHealthItem["state"]) { return ({ healthy: "健康", degraded: "降级", offline: "离线", not_configured: "未配置" })[state]; }
+function traceEventLabel(type: string, data?: { tool?: string; status?: string }) {
+  if (type === "turn.plan") return "计划";
+  if (type === "adapter.selected") return "已选择适配器";
+  if (type === "agent.started") return "Agent 已启动";
+  if (type === "mcp.tool") return `MCP 工具${data?.status === "error" ? "出错" : data?.status === "completed" ? "完成" : "启动"}`;
+  if (type === "fallback") return "已回退";
+  return type === "output" ? "输出已记录（受保护）" : "错误已记录（受保护）";
 }
 
 function OpsTab() {

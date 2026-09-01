@@ -148,7 +148,7 @@ export function createAIObservability(deps: ObservabilityDeps) {
         status: task.status,
         backend: task.backend,
         externalTaskId: task.externalTaskId,
-        resultRefs: task.resultRefs,
+        resultRefs: task.resultRefs.map(ref => ({ type: ref.type, id: ref.id })),
         reviewStatus: task.reviewStatus,
         conversationId: task.conversationId,
         requestId: task.requestId,

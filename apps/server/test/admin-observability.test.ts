@@ -153,7 +153,7 @@ describe("admin AI observability", () => {
   });
 
   it("labels direct AI context workflows without inferring MCP activity and returns capped, redacted delegation summaries", async () => {
-    const app = routes();
+    const app = routes({ multicaWorkTasks: { count: async () => 1, list: async () => [task({ resultRefs: [{ type: "report", id: "result-1", label: "private Multica output excerpt" }] })] } as PersistentTaskService });
     const workflows = await (await app.request("http://test/ai-observability/workflows")).json() as { items: Array<{ operation: string; usesMcp: boolean }>; recentOperations: Array<{ op: string; total: number }> };
     expect(workflows.items.find(item => item.operation === "/api/ai/great-me")).toMatchObject({ usesMcp: false });
     expect(workflows.recentOperations).toEqual(expect.arrayContaining([expect.objectContaining({ op: "chat-stream", total: 1 })]));
@@ -165,6 +165,8 @@ describe("admin AI observability", () => {
     expect(delegations.items[0]).not.toHaveProperty("error");
     expect(delegations.items[0]).not.toHaveProperty("progressSummary");
     expect(delegations.items[0]).toMatchObject({ hasError: false, hasProgress: true });
+    expect(delegations.items[0]).toMatchObject({ resultRefs: [{ type: "report", id: "result-1" }] });
+    expect(JSON.stringify(delegations.items[0])).not.toContain("private Multica output excerpt");
   });
 
   it("caps delegation snapshots at fifty while preserving a redacted total", async () => {
