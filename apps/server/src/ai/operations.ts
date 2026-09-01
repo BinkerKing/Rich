@@ -6,8 +6,6 @@ import {
 import type { AIAdapter } from "./adapter.js";
 import { runStructuredAI, type StructuredEvent } from "./runStructuredAI.js";
 import { buildReviewPrompt } from "./prompts/review.js";
-import { buildExtractKeywordsPrompt } from "./prompts/extractKeywords.js";
-import { buildAnalyzeAttachmentPrompt, type CandidateElement } from "./prompts/analyzeAttachment.js";
 import { buildGenerateDailyNewsPrompt } from "./prompts/generateDailyNews.js";
 import { buildGenerateImagePrompt } from "./prompts/generateImage.js";
 import { buildGenerateMindmapPrompt } from "./prompts/generateMindmap.js";
@@ -21,8 +19,8 @@ import { buildAdjustChildPrompt } from "./prompts/adjustChild.js";
 import { buildGuidedPracticePrompt } from "./prompts/guidedPractice.js";
 import { withOperationContext } from "./operationContext.js";
 import { zodValidator } from "./structuredValidation.js";
-export { analyzeMark, attachUnder, expandElement, extendElement, generatePathsFor, generateTreeFor, refineElement, refineSection } from "./knowledge/operations.js";
-export type { AnalyzeMarkResult, ElementsAndRelationsResult as ExpandResult, ElementsAndRelationsResult as ExtendResult, GenerateTreeResult, PathResult, RefineResult, SectionRefineResult } from "./knowledge/operations.js";
+export { analyzeAttachment, analyzeMark, attachUnder, expandElement, extendElement, extractKeywords, generatePathsFor, generateTreeFor, refineElement, refineSection } from "./knowledge/operations.js";
+export type { AnalyzeAttachmentResult, AnalyzeMarkResult, AttachOption, ElementsAndRelationsResult as ExpandResult, ElementsAndRelationsResult as ExtendResult, ExtractKeywordsResult, GenerateTreeResult, PathResult, RefineResult, SectionRefineResult } from "./knowledge/operations.js";
 import type { AIManual } from "./manuals.js";
 import type { Signal } from "@ke/domain";
 
@@ -36,45 +34,7 @@ const ReviewResultSchema = z.object({
   })).max(10),
 });
 
-const ElementTypeSchema = z.enum(["topic", "concept", "practice", "project", "step", "exercise", "product-design", "summary"]);
-
-const ExtractKeywordsResultSchema = z.object({
-  topic: z.string().min(1).max(40),
-  keywords: z.array(z.string().min(1).max(20)).min(1).max(8),
-  type: ElementTypeSchema,
-  intent: z.string().min(1).max(80),
-});
-
-const Confidence = z.enum(["low", "medium", "high"]);
-const AttachOptionSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("new-topic"),
-    confidence: Confidence,
-    reasoning: z.string().min(1).max(120),
-  }),
-  z.object({
-    kind: z.literal("attach-direct"),
-    parentId: z.string().min(1),
-    confidence: Confidence,
-    reasoning: z.string().min(1).max(160),
-  }),
-  z.object({
-    kind: z.literal("attach-with-bridge"),
-    parentId: z.string().min(1),
-    bridges: z.array(z.string().min(1).max(40)).min(1).max(2),
-    confidence: Confidence,
-    reasoning: z.string().min(1).max(200),
-  }),
-]);
-const AnalyzeAttachmentResultSchema = z.object({
-  type: ElementTypeSchema,
-  options: z.array(AttachOptionSchema).min(1).max(3),
-});
-
 export type ReviewResult = z.infer<typeof ReviewResultSchema>;
-export type ExtractKeywordsResult = z.infer<typeof ExtractKeywordsResultSchema>;
-export type AnalyzeAttachmentResult = z.infer<typeof AnalyzeAttachmentResultSchema>;
-export type AttachOption = z.infer<typeof AttachOptionSchema>;
 
 // AI 早报 — daily news generation result.
 const NewsCategorySchema = z.enum([
@@ -322,41 +282,6 @@ export function reviewManual(
   return runStructuredAI(adapter, {
     prompt, signal: args.signal, validate: zodValidator(ReviewResultSchema),
     opLog: { op: "review", model: adapter.name, scope: { manualName: args.manualName, signalCount: args.signals.length } },
-  });
-}
-
-/** Step 1: AI extracts keywords + type guess + intent from raw user input. */
-export function extractKeywords(
-  adapter: AIAdapter,
-  args: { text: string; signal?: AbortSignal },
-): AsyncIterable<StructuredEvent<ExtractKeywordsResult>> {
-  const prompt = buildExtractKeywordsPrompt({ text: args.text });
-  return runStructuredAI(adapter, {
-    prompt, signal: args.signal, validate: zodValidator(ExtractKeywordsResultSchema),
-    opLog: { op: "extract-keywords", model: adapter.name, scope: { text: args.text.slice(0, 80) } },
-  });
-}
-
-/** Step 2: AI proposes 1-3 attachment options given the user input + a
- *  program-shortlisted candidate set. The user picks one on the client. */
-export function analyzeAttachment(
-  adapter: AIAdapter,
-  args: {
-    text: string;
-    keywords: string[];
-    intent: string;
-    suggestedType: import("@ke/domain").ElementType;
-    candidates: CandidateElement[];
-    signal?: AbortSignal;
-  },
-): AsyncIterable<StructuredEvent<AnalyzeAttachmentResult>> {
-  const prompt = buildAnalyzeAttachmentPrompt({
-    text: args.text, keywords: args.keywords, intent: args.intent,
-    suggestedType: args.suggestedType, candidates: args.candidates,
-  });
-  return runStructuredAI(adapter, {
-    prompt, signal: args.signal, validate: zodValidator(AnalyzeAttachmentResultSchema),
-    opLog: { op: "analyze-attachment", model: adapter.name, scope: { text: args.text.slice(0, 80), candidateCount: args.candidates.length } },
   });
 }
 

@@ -4,6 +4,7 @@ import {
   LearningPathSchema,
   RelationSchema,
   type Element,
+  type ElementType,
   type PathKind,
   type RichnessLevel,
 } from "@ke/domain";
@@ -19,6 +20,8 @@ import { buildExtendPrompt } from "../prompts/extend.js";
 import { buildAnalyzeMarkPrompt } from "../prompts/analyzeMark.js";
 import { buildPathPrompt } from "../prompts/path.js";
 import { buildAttachUnderPrompt } from "../prompts/attachUnder.js";
+import { buildAnalyzeAttachmentPrompt, type CandidateElement } from "../prompts/analyzeAttachment.js";
+import { buildExtractKeywordsPrompt } from "../prompts/extractKeywords.js";
 import { validateGeneratedTree, type GeneratedTree } from "./generatedTreeValidator.js";
 
 export type GenerateTreeResult = GeneratedTree;
@@ -27,6 +30,12 @@ export type SectionRefineResult = { section: { id: string; title: string; blocks
 export type ElementsAndRelationsResult = { elements: Element[]; relations: import("@ke/domain").Relation[] };
 export type PathResult = { paths: import("@ke/domain").LearningPath[] };
 export type AnalyzeMarkResult = { title: string; body: string };
+export type ExtractKeywordsResult = { topic: string; keywords: string[]; type: ElementType; intent: string };
+export type AttachOption =
+  | { kind: "new-topic"; confidence: "low" | "medium" | "high"; reasoning: string }
+  | { kind: "attach-direct"; parentId: string; confidence: "low" | "medium" | "high"; reasoning: string }
+  | { kind: "attach-with-bridge"; parentId: string; bridges: string[]; confidence: "low" | "medium" | "high"; reasoning: string };
+export type AnalyzeAttachmentResult = { type: ElementType; options: AttachOption[] };
 
 type KnowledgeOperationArgs = OperationPromptArgs & { sessionId?: string; signal?: AbortSignal };
 
@@ -37,6 +46,20 @@ const SectionRefineResultSchema = z.object({
 const ElementsAndRelationsSchema = z.object({ elements: z.array(ElementSchema), relations: z.array(RelationSchema) });
 const PathResultSchema = z.object({ paths: z.array(LearningPathSchema) });
 const AnalyzeMarkResultSchema = z.object({ title: z.string().min(1).max(60), body: z.string().min(1) });
+const ElementTypeSchema = z.enum(["topic", "concept", "practice", "project", "step", "exercise", "product-design", "summary"]);
+const ExtractKeywordsResultSchema = z.object({
+  topic: z.string().min(1).max(40), keywords: z.array(z.string().min(1).max(20)).min(1).max(8),
+  type: ElementTypeSchema, intent: z.string().min(1).max(80),
+});
+const ConfidenceSchema = z.enum(["low", "medium", "high"]);
+const AnalyzeAttachmentResultSchema = z.object({
+  type: ElementTypeSchema,
+  options: z.array(z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("new-topic"), confidence: ConfidenceSchema, reasoning: z.string().min(1).max(120) }),
+    z.object({ kind: z.literal("attach-direct"), parentId: z.string().min(1), confidence: ConfidenceSchema, reasoning: z.string().min(1).max(160) }),
+    z.object({ kind: z.literal("attach-with-bridge"), parentId: z.string().min(1), bridges: z.array(z.string().min(1).max(40)).min(1).max(2), confidence: ConfidenceSchema, reasoning: z.string().min(1).max(200) }),
+  ])).min(1).max(3),
+});
 
 export function generateTreeFor(
   adapter: AIAdapter,
@@ -137,5 +160,25 @@ export function attachUnder(
   return runStructuredAI(adapter, {
     prompt, sessionId: args.sessionId, signal: args.signal, validate: zodValidator(ElementsAndRelationsSchema),
     opLog: { op: "attach-under", model: adapter.name, elementId: args.parent.id, scope: { mode: args.mode, leafTitle: args.leafTitle, chain: args.chain, richness: args.richness } },
+  });
+}
+
+export function extractKeywords(
+  adapter: AIAdapter,
+  args: { text: string; signal?: AbortSignal },
+): AsyncIterable<StructuredEvent<ExtractKeywordsResult>> {
+  return runStructuredAI(adapter, {
+    prompt: buildExtractKeywordsPrompt(args), signal: args.signal, validate: zodValidator(ExtractKeywordsResultSchema),
+    opLog: { op: "extract-keywords", model: adapter.name, scope: { text: args.text.slice(0, 80) } },
+  });
+}
+
+export function analyzeAttachment(
+  adapter: AIAdapter,
+  args: { text: string; keywords: string[]; intent: string; suggestedType: ElementType; candidates: CandidateElement[]; signal?: AbortSignal },
+): AsyncIterable<StructuredEvent<AnalyzeAttachmentResult>> {
+  return runStructuredAI(adapter, {
+    prompt: buildAnalyzeAttachmentPrompt(args), signal: args.signal, validate: zodValidator(AnalyzeAttachmentResultSchema),
+    opLog: { op: "analyze-attachment", model: adapter.name, scope: { text: args.text.slice(0, 80), candidateCount: args.candidates.length } },
   });
 }

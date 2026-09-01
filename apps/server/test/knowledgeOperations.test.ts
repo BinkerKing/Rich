@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AIAdapter, GenerateArgs, StreamEvent } from "../src/ai/adapter.js";
-import { expandElement, generateTreeFor } from "../src/ai/knowledge/operations.js";
+import { expandElement, extractKeywords, generateTreeFor } from "../src/ai/knowledge/operations.js";
 
 class TreeAdapter implements AIAdapter {
   readonly name = "claude-code" as const;
@@ -59,5 +59,21 @@ describe("knowledge expandElement", () => {
     const events: unknown[] = [];
     for await (const event of expandElement(new ExpandAdapter(), { parent, existingChildren: [] })) events.push(event);
     expect(events).toEqual([expect.objectContaining({ type: "done", result: expect.objectContaining({ elements: [expect.objectContaining({ id: "tree.child" })] }) })]);
+  });
+});
+
+describe("knowledge extractKeywords", () => {
+  it("returns the structured home-input classification", async () => {
+    class KeywordAdapter extends TreeAdapter {
+      override async *stream(_args: GenerateArgs): AsyncIterable<StreamEvent> {
+        yield {
+          type: "done",
+          fullText: JSON.stringify({ topic: "注意力", keywords: ["注意力"], type: "concept", intent: "学习概念" }),
+        };
+      }
+    }
+    const events: unknown[] = [];
+    for await (const event of extractKeywords(new KeywordAdapter(), { text: "我想学习注意力" })) events.push(event);
+    expect(events).toEqual([expect.objectContaining({ type: "done", result: expect.objectContaining({ type: "concept" }) })]);
   });
 });
