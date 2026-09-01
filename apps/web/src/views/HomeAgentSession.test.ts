@@ -21,8 +21,12 @@ test("agent commands change session state instead of being sent as chat text", (
   assert.match(api, /exitAgentSession/);
 });
 
-test("task prefix remains a sendable structured-task instruction", () => {
-  assert.match(overlay, /if \(\/\^\\\/task\\s\+\\S\/i\.test\(value\)\) return value/);
+test("task command opens the structured promotion panel instead of being sent as prose", () => {
+  assert.match(home, /setTaskPanelOpen\(true\)/);
+  assert.match(overlay, /setTaskPanelOpen\(true\)/);
+  assert.match(home, /ConversationTaskPanel/);
+  assert.match(overlay, /ConversationTaskPanel/);
+  assert.doesNotMatch(overlay, /if \(\/\^\\\/task\\s\+\\S\/i\.test\(value\)\) return value/);
 });
 
 test("home and overlay send stable ids for durable Agent admission", () => {

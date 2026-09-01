@@ -168,6 +168,22 @@ export const api = {
     if (!r.ok) throw new Error(`exit Agent session failed: ${r.status}`);
     return r.json();
   },
+  async previewConversationTask(conversationId: string, input: Record<string, unknown>): Promise<{ confirmationToken: string; request: Record<string, unknown> }> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/task-promotion/preview`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+    });
+    const payload = await r.json().catch(() => ({})) as { confirmationToken?: string; request?: Record<string, unknown>; error?: string };
+    if (!r.ok || !payload.confirmationToken || !payload.request) throw new Error(payload.error ?? `preview conversation task failed: ${r.status}`);
+    return { confirmationToken: payload.confirmationToken, request: payload.request };
+  },
+  async publishConversationTask(conversationId: string, confirmationToken: string): Promise<{ id: string; status: string }> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/task-promotion/publish`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ confirmationToken }),
+    });
+    const payload = await r.json().catch(() => ({})) as { id?: string; status?: string; error?: string };
+    if (!r.ok || !payload.id || !payload.status) throw new Error(payload.error ?? `publish conversation task failed: ${r.status}`);
+    return { id: payload.id, status: payload.status };
+  },
   async publishDeliverableAiTask(input: Record<string, unknown>): Promise<{ id: string; status: string }> {
     const r = await fetch("/api/ai-tasks", {
       method: "POST",

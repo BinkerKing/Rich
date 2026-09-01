@@ -13,6 +13,7 @@ import { ChatHistoryView } from "./ChatHistoryView.js";
 import { useChatComposer } from "../lib/useChatComposer.js";
 import { api, type AgentSessionState } from "../api/client.js";
 import { ChatSlashCommandMenu } from "../components/ChatSlashCommandMenu.js";
+import { ConversationTaskPanel } from "../components/ConversationTaskPanel.js";
 import { parseChatSlashInput, type ChatSlashCommand } from "../lib/chatSlashCommands.js";
 import { APP_MENU_ITEMS, type AppMenuItem } from "../lib/appCatalog.js";
 import { requestRichNavigation } from "../lib/richNavigation.js";
@@ -179,7 +180,6 @@ function elementSearchText(element: Element): string {
 }
 
 function normalizeSlashMessage(value: string): string | null {
-  if (/^\/task\s+\S/i.test(value)) return value;
   const parsed = parseSlashInput(value);
   if (!parsed.active) return value;
   // 现在只剩 find 一种模式 —— 不当聊天发送，全部交给 chooseSlashItem 走跳转。
@@ -198,6 +198,7 @@ export function ChatOverlay() {
 
   const [input, setInput] = useState("");
   const [agentSession, setAgentSession] = useState<AgentSessionState | null>(null);
+  const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   /** T16: 是否切到三栏历史回看视图 */
   const [historyOpen, setHistoryOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
@@ -299,6 +300,9 @@ export function ChatOverlay() {
     } else if (command.id === "chat") {
       if (agentSession) setAgentSession(await api.exitAgentSession(DEFAULT_CHAT_CONVERSATION_ID));
       setInput("");
+    } else if (command.id === "task") {
+      setTaskPanelOpen(true);
+      setInput("");
     } else {
       setInput(`${command.token} `);
     }
@@ -315,6 +319,11 @@ export function ChatOverlay() {
         setAgentSession(session);
         setInput("");
       });
+      return true;
+    }
+    if (commandSlash.selected?.command === "task") {
+      setTaskPanelOpen(true);
+      setInput("");
       return true;
     }
     if (!slash.active) return false;
@@ -577,6 +586,10 @@ export function ChatOverlay() {
 
   return (
     <div className="chat-overlay">
+      {taskPanelOpen && <ConversationTaskPanel conversationId={DEFAULT_CHAT_CONVERSATION_ID}
+        projects={Array.from(elements.values()).filter(element => element.type === "project").map(element => ({ id: element.id, title: element.title }))}
+        messages={messages.filter((message): message is ChatMessage & { role: "user" | "assistant" } => message.role === "user" || message.role === "assistant").map(message => ({ id: message.id, role: message.role, content: message.content }))}
+        onClose={() => setTaskPanelOpen(false)} />}
       <div className="chat-shell">
         {/* Raycast-style: input on TOP, content scrolls BELOW, status bar at
          *  the bottom. The input bar doubles as the draggable window region

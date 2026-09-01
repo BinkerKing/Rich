@@ -8,7 +8,9 @@ import { persistVisualBlocks } from "../lib/extractVisualBlocks.js";
 import { useChatComposer } from "../lib/useChatComposer.js";
 import { api, type AgentSessionState } from "../api/client.js";
 import { ChatSlashCommandMenu } from "../components/ChatSlashCommandMenu.js";
+import { ConversationTaskPanel } from "../components/ConversationTaskPanel.js";
 import { parseChatSlashInput, type ChatSlashCommand } from "../lib/chatSlashCommands.js";
+import { useStore } from "../state/store.js";
 
 /** 哪些 block 类型才能上舞台 = 真正『图形』、不是文字组织 */
 const STAGE_VISUAL_TYPES = new Set<DetectedBlockType>([
@@ -248,6 +250,7 @@ export function HomeView() {
   const [frame, setFrame] = useState(0);
   const [input, setInput] = useState("");
   const [agentSession, setAgentSession] = useState<AgentSessionState | null>(null);
+  const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
   const [turns, setTurns] = useState<Turn[]>(() => loadChatHistory());
   const [busy, setBusy] = useState(false);
@@ -260,6 +263,8 @@ export function HomeView() {
   const composer = useChatComposer({ maxAttachments: 8 });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const slashCommand = useMemo(() => parseChatSlashInput(input), [input]);
+  const elements = useStore(state => state.elements);
+  const projects = useMemo(() => Array.from(elements.values()).filter(element => element.type === "project").map(element => ({ id: element.id, title: element.title })), [elements]);
 
   useEffect(() => {
     const refresh = () => void api.getAgentSession(DEFAULT_CHAT_CONVERSATION_ID).then(setAgentSession).catch(() => undefined);
@@ -608,6 +613,9 @@ export function HomeView() {
     } else if (command.id === "chat") {
       if (agentSession) setAgentSession(await api.exitAgentSession(DEFAULT_CHAT_CONVERSATION_ID));
       setInput("");
+    } else if (command.id === "task") {
+      setTaskPanelOpen(true);
+      setInput("");
     } else {
       setInput(`${command.token} `);
     }
@@ -810,6 +818,11 @@ export function HomeView() {
       });
       return;
     }
+    if (slashCommand.selected?.command === "task") {
+      setTaskPanelOpen(true);
+      setInput("");
+      return;
+    }
     void send(input);
   }
 
@@ -834,6 +847,9 @@ export function HomeView() {
 
   return (
     <div className="home-view">
+      {taskPanelOpen && <ConversationTaskPanel conversationId={DEFAULT_CHAT_CONVERSATION_ID} projects={projects}
+        messages={turns.filter((turn): turn is Turn & { role: "user" | "assistant" } => turn.role === "user" || turn.role === "assistant").map(turn => ({ id: turn.id, role: turn.role, content: turn.content }))}
+        onClose={() => setTaskPanelOpen(false)} />}
       {/* Invisible drag strip across the top of the window. Native
        *  titleBarStyle is "hiddenInset" — without an explicit drag region
        *  the user can't move the window or double-click to maximize.
