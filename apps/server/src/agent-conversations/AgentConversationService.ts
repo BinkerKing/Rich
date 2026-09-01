@@ -76,6 +76,7 @@ export class AgentConversationService {
   async sendMessage(
     conversationId: string,
     input: { clientRequestId: string; userMessageId: string; content: string; metadata?: Record<string, unknown> },
+    onEvent?: (event: AgentConversationEvent) => Promise<void> | void,
   ): Promise<{ turn: AgentConversationTurn; events: AgentConversationEvent[] }> {
     if (!this.execution) throw new Error("Agent conversation execution is not configured");
     const config = await this.getActive(conversationId);
@@ -97,7 +98,9 @@ export class AgentConversationService {
       if (["queued", "running", "waiting_approval"].includes(admitted.turn.status)) {
         throw new Error("Agent conversation turn already running");
       }
-      return { turn: admitted.turn, events: [{ type: "turn", turnId: admitted.turn.id, status: admitted.turn.status }] };
+      const event: AgentConversationEvent = { type: "turn", turnId: admitted.turn.id, status: admitted.turn.status };
+      await onEvent?.(event);
+      return { turn: admitted.turn, events: [event] };
     }
 
     const ownerId = randomUUID();
@@ -106,7 +109,12 @@ export class AgentConversationService {
       throw new Error("Agent conversation turn already running");
     }
 
-    const events: AgentConversationEvent[] = [{ type: "turn", turnId: claimed.id, status: "running" }];
+    const events: AgentConversationEvent[] = [];
+    const publish = async (event: AgentConversationEvent) => {
+      events.push(event);
+      await onEvent?.(event);
+    };
+    await publish({ type: "turn", turnId: claimed.id, status: "running" });
     const grant = this.execution.gateway.issue({
       conversationId,
       turnId: claimed.id,
@@ -128,7 +136,7 @@ export class AgentConversationService {
         sessionId: config.modelSessionId,
         messages: transcript,
         capabilityToken: grant.token,
-      }, events);
+      }, publish);
       if (outcome.waitingApproval) {
         const turn = await this.execution.turns.waitForApproval(claimed.id, {
           now: new Date().toISOString(),
@@ -151,19 +159,19 @@ export class AgentConversationService {
         runtimeSessionId: outcome.sessionId,
         now: new Date().toISOString(),
       }) ?? claimed;
-      events.push({ type: "done", turnId: claimed.id, content: outcome.fullText, sessionId: outcome.sessionId });
+      await publish({ type: "done", turnId: claimed.id, content: outcome.fullText, sessionId: outcome.sessionId });
       return { turn, events };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const turn = await this.execution.turns.finish(claimed.id, { status: "failed", error: message, now: new Date().toISOString() }) ?? claimed;
-      events.push({ type: "error", turnId: claimed.id, message });
+      await publish({ type: "error", turnId: claimed.id, message });
       throw Object.assign(new Error(message), { turn, events });
     }
   }
 
   private async runRuntimeTurn(
     input: Parameters<AgentRuntimePort["startTurn"]>[0],
-    events: AgentConversationEvent[],
+    publish: (event: AgentConversationEvent) => Promise<void>,
   ): Promise<{ fullText: string; sessionId?: string; waitingApproval?: boolean }> {
     let attempt = 0;
     let sessionId = input.sessionId;
@@ -179,7 +187,7 @@ export class AgentConversationService {
         const event = next.value as AgentRuntimeEvent;
         if (event.type === "delta") {
           fullText += event.text;
-          events.push({ type: "delta", turnId: input.turnId, text: event.text });
+          await publish({ type: "delta", turnId: input.turnId, text: event.text });
           continue;
         }
         if (event.type === "done") {
@@ -205,9 +213,9 @@ export class AgentConversationService {
           capabilityToken: input.capabilityToken,
           now: new Date().toISOString(),
         });
-        events.push({ type: "tool", turnId: input.turnId, callId: call.id, name: call.name, status: call.status });
+        await publish({ type: "tool", turnId: input.turnId, callId: call.id, name: call.name, status: call.status });
         if (call.status === "waiting_approval" && call.approvalId) {
-          events.push({
+          await publish({
             type: "approval_required",
             turnId: input.turnId,
             callId: call.id,

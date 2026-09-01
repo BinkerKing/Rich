@@ -18,6 +18,8 @@ class FakeRuntime implements AgentRuntimePort {
   responses: AgentRuntimeEvent[][] = [];
   block: Promise<void> | null = null;
   onStart?: () => void;
+  afterFirstEvent?: Promise<void>;
+  onFirstEventConsumed?: () => void;
   capabilities: AgentRuntimeCapabilities = {
     profiles: ["chat_only", "workspace_agent"],
     enforcesToolSelection: true,
@@ -31,7 +33,15 @@ class FakeRuntime implements AgentRuntimePort {
     this.calls.push(structuredClone(input));
     this.onStart?.();
     if (this.block) await this.block;
-    for (const event of this.responses.shift() ?? []) yield event;
+    let index = 0;
+    for (const event of this.responses.shift() ?? []) {
+      yield event;
+      if (index === 0 && this.afterFirstEvent) {
+        this.onFirstEventConsumed?.();
+        await this.afterFirstEvent;
+      }
+      index += 1;
+    }
   }
 }
 
@@ -64,6 +74,33 @@ describe("AgentConversationService execution", () => {
     await service.sendMessage("c1", { clientRequestId: "r2", userMessageId: "m2", content: "continue" });
 
     expect(runtime.calls[1]?.sessionId).toBe("hermes-session-1");
+  });
+
+  it("emits text deltas before the runtime turn completes", async () => {
+    const { service, runtime } = await setup();
+    let firstConsumed!: () => void;
+    let release!: () => void;
+    const didConsumeFirst = new Promise<void>(resolve => { firstConsumed = resolve; });
+    runtime.afterFirstEvent = new Promise<void>(resolve => { release = resolve; });
+    runtime.onFirstEventConsumed = firstConsumed;
+    runtime.responses.push([
+      { type: "delta", text: "early" },
+      { type: "done", fullText: "early done", sessionId: "s1" },
+    ]);
+    const observed: string[] = [];
+
+    const pending = service.sendMessage(
+      "c1",
+      { clientRequestId: "r1", userMessageId: "m1", content: "start" },
+      async event => { observed.push(event.type); },
+    );
+    await didConsumeFirst;
+    const beforeCompletion = [...observed];
+    release();
+    await pending;
+
+    expect(beforeCompletion).toContain("delta");
+    expect(beforeCompletion).not.toContain("done");
   });
 
   it("serializes turns in the same conversation", async () => {
