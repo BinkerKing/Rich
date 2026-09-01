@@ -309,6 +309,25 @@ async function applySchema(pool: Pool): Promise<void> {
       ON agent_conversation_turns(conversation_id)
       WHERE status IN ('queued', 'running', 'waiting_approval');
 
+    CREATE TABLE IF NOT EXISTS agent_tool_calls (
+      id                TEXT PRIMARY KEY,
+      turn_id           TEXT NOT NULL REFERENCES agent_conversation_turns(id) ON DELETE CASCADE,
+      runtime_call_id   TEXT NOT NULL,
+      name              TEXT NOT NULL,
+      arguments_json    JSONB NOT NULL,
+      arguments_digest  TEXT NOT NULL,
+      idempotency_key   TEXT NOT NULL,
+      status            TEXT NOT NULL DEFAULT 'requested',
+      result_json       JSONB,
+      error             TEXT,
+      approval_id       TEXT,
+      created_at        TEXT NOT NULL,
+      updated_at        TEXT NOT NULL,
+      UNIQUE (turn_id, runtime_call_id),
+      UNIQUE (turn_id, idempotency_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_agent_tool_calls_turn ON agent_tool_calls(turn_id, created_at);
+
     CREATE TABLE IF NOT EXISTS chat_messages (
       id               TEXT PRIMARY KEY,
       conversation_id  TEXT NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,

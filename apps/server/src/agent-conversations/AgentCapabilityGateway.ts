@@ -19,7 +19,10 @@ export interface IssueCapabilityInput extends Omit<CapabilityClaims, "expiresAt"
 }
 
 export class AgentCapabilityGateway {
-  constructor(private readonly secret: string) {
+  constructor(
+    private readonly secret: string,
+    private readonly verifyTurnLease?: (turnId: string, now: string) => Promise<boolean>,
+  ) {
     if (!secret) throw new Error("Agent capability secret is required");
   }
 
@@ -37,12 +40,15 @@ export class AgentCapabilityGateway {
     return { token: `${payload}.${this.sign(payload)}`, expiresAt };
   }
 
-  authorize(token: string, action: AgentCapabilityAction, now: string): AgentCapabilityDecision {
+  async authorize(token: string, action: AgentCapabilityAction, now: string): Promise<AgentCapabilityDecision> {
     const claims = this.verify(token);
     if (!claims) return { allowed: false, reason: "invalid capability grant" };
     if (claims.expiresAt <= now) return { allowed: false, reason: "capability grant expired" };
     if (action.turnId && action.turnId !== claims.turnId) return { allowed: false, reason: "capability grant belongs to another turn" };
     if (claims.profile === "chat_only") return { allowed: false, reason: "chat_only does not allow tools" };
+    if (!this.verifyTurnLease || !(await this.verifyTurnLease(claims.turnId, now))) {
+      return { allowed: false, reason: "Agent turn lease is not active" };
+    }
 
     if (action.family === "filesystem") {
       if (!claims.workspaceRoot || !action.path || !this.isInside(claims.workspaceRoot, action.path)) {

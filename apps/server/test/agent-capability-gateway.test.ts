@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { AgentCapabilityGateway } from "../src/agent-conversations/AgentCapabilityGateway.js";
 
 describe("AgentCapabilityGateway", () => {
-  it("denies every tool family for chat_only", () => {
+  it("denies every tool family for chat_only", async () => {
     const gateway = new AgentCapabilityGateway("test-secret");
     const grant = gateway.issue({
       conversationId: "c1",
@@ -16,11 +16,11 @@ describe("AgentCapabilityGateway", () => {
       ttlMs: 30_000,
     });
 
-    expect(gateway.authorize(grant.token, { family: "filesystem", action: "read" }, "2026-09-01T00:00:01.000Z").allowed).toBe(false);
-    expect(gateway.authorize(grant.token, { family: "mcp", action: "rich.project.update", server: "rich" }, "2026-09-01T00:00:01.000Z").allowed).toBe(false);
+    expect((await gateway.authorize(grant.token, { family: "filesystem", action: "read" }, "2026-09-01T00:00:01.000Z")).allowed).toBe(false);
+    expect((await gateway.authorize(grant.token, { family: "mcp", action: "rich.project.update", server: "rich" }, "2026-09-01T00:00:01.000Z")).allowed).toBe(false);
   });
 
-  it("rejects expired and cross-turn grants", () => {
+  it("rejects expired and cross-turn grants", async () => {
     const gateway = new AgentCapabilityGateway("test-secret");
     const grant = gateway.issue({
       conversationId: "c1",
@@ -32,18 +32,18 @@ describe("AgentCapabilityGateway", () => {
       ttlMs: 1_000,
     });
 
-    expect(gateway.authorize(grant.token, { family: "filesystem", action: "read", turnId: "t2", path: "/workspace/project/a.ts" }, "2026-09-01T00:00:00.500Z").allowed).toBe(false);
-    expect(gateway.authorize(grant.token, { family: "filesystem", action: "read", turnId: "t1", path: "/workspace/project/a.ts" }, "2026-09-01T00:00:02.000Z").allowed).toBe(false);
+    expect((await gateway.authorize(grant.token, { family: "filesystem", action: "read", turnId: "t2", path: "/workspace/project/a.ts" }, "2026-09-01T00:00:00.500Z")).allowed).toBe(false);
+    expect((await gateway.authorize(grant.token, { family: "filesystem", action: "read", turnId: "t1", path: "/workspace/project/a.ts" }, "2026-09-01T00:00:02.000Z")).allowed).toBe(false);
   });
 
-  it("rejects traversal and symlink escapes from a workspace", () => {
+  it("rejects traversal and symlink escapes from a workspace", async () => {
     const base = mkdtempSync(join(tmpdir(), "rich-capability-"));
     const workspace = join(base, "workspace");
     const outside = join(base, "outside");
     mkdirSync(workspace);
     mkdirSync(outside);
     symlinkSync(outside, join(workspace, "escape"));
-    const gateway = new AgentCapabilityGateway("test-secret");
+    const gateway = new AgentCapabilityGateway("test-secret", async () => true);
     const grant = gateway.issue({
       conversationId: "c1",
       turnId: "t1",
@@ -54,8 +54,25 @@ describe("AgentCapabilityGateway", () => {
       ttlMs: 30_000,
     });
 
-    expect(gateway.authorize(grant.token, { family: "filesystem", action: "read", path: "../outside/secret.txt" }, "2026-09-01T00:00:01.000Z").allowed).toBe(false);
-    expect(gateway.authorize(grant.token, { family: "filesystem", action: "write", path: "escape/new.txt" }, "2026-09-01T00:00:01.000Z").allowed).toBe(false);
-    expect(gateway.authorize(grant.token, { family: "filesystem", action: "write", path: "new.txt" }, "2026-09-01T00:00:01.000Z").allowed).toBe(true);
+    expect((await gateway.authorize(grant.token, { family: "filesystem", action: "read", path: "../outside/secret.txt" }, "2026-09-01T00:00:01.000Z")).allowed).toBe(false);
+    expect((await gateway.authorize(grant.token, { family: "filesystem", action: "write", path: "escape/new.txt" }, "2026-09-01T00:00:01.000Z")).allowed).toBe(false);
+    expect((await gateway.authorize(grant.token, { family: "filesystem", action: "write", path: "new.txt" }, "2026-09-01T00:00:01.000Z")).allowed).toBe(true);
+  });
+
+  it("rejects a grant when its durable turn no longer owns a lease", async () => {
+    const gateway = new AgentCapabilityGateway("test-secret", async () => false);
+    const grant = gateway.issue({
+      conversationId: "c1", turnId: "t1", profile: "workspace_agent",
+      workspaceRoot: "/workspace/project", allowedMcpServers: [],
+      now: "2026-09-01T00:00:00.000Z", ttlMs: 30_000,
+    });
+
+    const decision = await gateway.authorize(
+      grant.token,
+      { family: "filesystem", action: "read", turnId: "t1", path: "/workspace/project/a.ts" },
+      "2026-09-01T00:00:01.000Z",
+    );
+    expect(decision.allowed).toBe(false);
+    expect(decision.reason).toMatch(/lease/i);
   });
 });

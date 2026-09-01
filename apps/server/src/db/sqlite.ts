@@ -319,6 +319,26 @@ function applySchema(db: Database.Database) {
       ON agent_conversation_turns(conversation_id)
       WHERE status IN ('queued', 'running', 'waiting_approval');
 
+    CREATE TABLE IF NOT EXISTS agent_tool_calls (
+      id                TEXT PRIMARY KEY,
+      turn_id           TEXT NOT NULL,
+      runtime_call_id   TEXT NOT NULL,
+      name              TEXT NOT NULL,
+      arguments_json    TEXT NOT NULL,
+      arguments_digest  TEXT NOT NULL,
+      idempotency_key   TEXT NOT NULL,
+      status            TEXT NOT NULL DEFAULT 'requested',
+      result_json       TEXT,
+      error             TEXT,
+      approval_id       TEXT,
+      created_at        TEXT NOT NULL,
+      updated_at        TEXT NOT NULL,
+      UNIQUE (turn_id, runtime_call_id),
+      UNIQUE (turn_id, idempotency_key),
+      FOREIGN KEY (turn_id) REFERENCES agent_conversation_turns(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_agent_tool_calls_turn ON agent_tool_calls(turn_id, created_at);
+
     CREATE TABLE IF NOT EXISTS chat_messages (
       id               TEXT PRIMARY KEY,
       conversation_id  TEXT NOT NULL,
