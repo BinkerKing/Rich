@@ -5,6 +5,11 @@ export interface OperationContextInput {
   notes?: string[];
 }
 
+export interface OperationPromptArgs {
+  manual?: string;
+  contextNotes?: string[];
+}
+
 export function buildOperationContextFragment(input: OperationContextInput): string {
   const lines = [
     "【Rich AI 运行上下文】",
@@ -23,4 +28,18 @@ export function buildOperationContextFragment(input: OperationContextInput): str
     input.manual?.trim() ? input.manual.trim() : "",
     "",
   ].filter(Boolean).join("\n\n");
+}
+
+export function withOperationContext(
+  args: OperationPromptArgs,
+  taskPrompt: string,
+  operation: string,
+  scenario: string,
+): string {
+  return `${buildOperationContextFragment({
+    operation,
+    scenario,
+    manual: args.manual,
+    notes: args.contextNotes,
+  })}${taskPrompt}`;
 }

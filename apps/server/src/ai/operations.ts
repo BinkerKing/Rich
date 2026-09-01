@@ -5,7 +5,6 @@ import {
 } from "@ke/domain";
 import type { AIAdapter } from "./adapter.js";
 import { runStructuredAI, type StructuredEvent } from "./runStructuredAI.js";
-import { buildGenerateTreePrompt } from "./prompts/generateTree.js";
 import { buildRefinePrompt } from "./prompts/refine.js";
 import { buildSectionRefinePrompt } from "./prompts/sectionRefine.js";
 import { buildExpandPrompt } from "./prompts/expand.js";
@@ -27,8 +26,9 @@ import { buildDraftPrdPrompt } from "./prompts/draftPrd.js";
 import { buildDraftChildPrompt } from "./prompts/draftChild.js";
 import { buildAdjustChildPrompt } from "./prompts/adjustChild.js";
 import { buildGuidedPracticePrompt } from "./prompts/guidedPractice.js";
-import { buildOperationContextFragment } from "./operationContext.js";
-import { validateGeneratedTree, type GeneratedTree } from "./knowledge/generatedTreeValidator.js";
+import { withOperationContext } from "./operationContext.js";
+export { generateTreeFor } from "./knowledge/operations.js";
+export type { GenerateTreeResult } from "./knowledge/operations.js";
 import type { AIManual } from "./manuals.js";
 import type { Signal } from "@ke/domain";
 
@@ -106,7 +106,6 @@ const AnalyzeAttachmentResultSchema = z.object({
   options: z.array(AttachOptionSchema).min(1).max(3),
 });
 
-export type GenerateTreeResult = GeneratedTree;
 export type RefineResult = z.infer<typeof RefineResultSchema>;
 export type SectionRefineResult = z.infer<typeof SectionRefineResultSchema>;
 export type ExpandResult = z.infer<typeof ElementsAndRelationsSchema>;
@@ -354,20 +353,6 @@ function zodValidator<T>(schema: z.ZodSchema<T>): (parsed: unknown) => T {
   };
 }
 
-function withOperationContext(
-  args: SharedOpArgs,
-  taskPrompt: string,
-  operation: string,
-  scenario: string,
-): string {
-  return `${buildOperationContextFragment({
-    operation,
-    scenario,
-    manual: args.manual,
-    notes: args.contextNotes,
-  })}${taskPrompt}`;
-}
-
 interface SharedOpArgs {
   sessionId?: string;
   signal?: AbortSignal;
@@ -377,19 +362,6 @@ interface SharedOpArgs {
 }
 
 // ----- Operations -----
-
-export function generateTreeFor(
-  adapter: AIAdapter,
-  args: { topic: string; richness?: RichnessLevel } & SharedOpArgs,
-): AsyncIterable<StructuredEvent<GenerateTreeResult>> {
-  const prompt = withOperationContext(args, buildGenerateTreePrompt({
-    topic: args.topic, richness: args.richness ?? 2,
-  }), "generate-tree", "knowledge");
-  return runStructuredAI(adapter, {
-    prompt, signal: args.signal, validate: validateGeneratedTree,
-    opLog: { op: "generate", model: adapter.name, scope: { topic: args.topic, richness: args.richness } },
-  });
-}
 
 export function refineElement(
   adapter: AIAdapter,
