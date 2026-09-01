@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { CHAT_SLASH_COMMANDS, parseChatSlashInput } from "./chatSlashCommands.js";
 
-test("slash menu exposes Rich chat, Hermes Agent, task, and find modes", () => {
-  assert.deepEqual(CHAT_SLASH_COMMANDS.map(command => command.id), ["chat", "agent", "task", "find"]);
+test("slash menu exposes Rich chat, Hermes Agent, task, save, and find modes", () => {
+  assert.deepEqual(CHAT_SLASH_COMMANDS.map(command => command.id), ["chat", "agent", "task", "save", "find"]);
   assert.equal(parseChatSlashInput("/").open, true);
   assert.deepEqual(parseChatSlashInput("/ag").matches.map(command => command.id), ["agent"]);
 });
