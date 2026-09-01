@@ -22,7 +22,7 @@ export type AgentConversationEvent =
   | { type: "turn"; turnId: string; status: AgentConversationTurn["status"] }
   | { type: "delta"; turnId: string; text: string }
   | { type: "tool"; turnId: string; callId: string; name: string; status: string }
-  | { type: "approval_required"; turnId: string; callId: string; approvalId: string; name: string; arguments: Record<string, unknown> }
+  | { type: "approval_required"; turnId: string; callId: string; approvalId: string; name: string; arguments: Record<string, unknown>; argumentsDigest: string }
   | { type: "done"; turnId: string; content: string; sessionId?: string }
   | { type: "error"; turnId: string; message: string };
 
@@ -261,6 +261,7 @@ export class AgentConversationService {
             approvalId: call.approvalId,
             name: call.name,
             arguments: call.arguments,
+            argumentsDigest: call.argumentsDigest,
           });
           return { fullText, sessionId: event.sessionId ?? sessionId, waitingApproval: true };
         }

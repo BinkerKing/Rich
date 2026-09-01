@@ -10,6 +10,7 @@ import { api, type AgentSessionState } from "../api/client.js";
 import { ChatSlashCommandMenu } from "../components/ChatSlashCommandMenu.js";
 import { ConversationTaskPanel } from "../components/ConversationTaskPanel.js";
 import { ConversationSavePanel } from "../components/ConversationSavePanel.js";
+import { AgentApprovalCard, type PendingAgentApproval } from "../components/AgentApprovalCard.js";
 import { parseChatSlashInput, type ChatSlashCommand } from "../lib/chatSlashCommands.js";
 import { useStore } from "../state/store.js";
 
@@ -253,6 +254,7 @@ export function HomeView() {
   const [agentSession, setAgentSession] = useState<AgentSessionState | null>(null);
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   const [savePanelOpen, setSavePanelOpen] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState<PendingAgentApproval | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
   const [turns, setTurns] = useState<Turn[]>(() => loadChatHistory());
   const [busy, setBusy] = useState(false);
@@ -769,6 +771,9 @@ export function HomeView() {
                 saveChatHistory(next);
                 return next;
               });
+            } else if (currentEvent === "approval_required") {
+              const approval = parsed as PendingAgentApproval;
+              setPendingApproval(approval);
             } else if (currentEvent === "done") {
               setTurns(prev => {
                 const next = prev.map((t, i) =>
@@ -867,6 +872,7 @@ export function HomeView() {
       {savePanelOpen && <ConversationSavePanel conversationId={DEFAULT_CHAT_CONVERSATION_ID} projects={projects}
         messages={turns.filter((turn): turn is Turn & { role: "user" | "assistant" } => turn.role === "user" || turn.role === "assistant").map(turn => ({ id: turn.id, role: turn.role, content: turn.content }))}
         onClose={() => setSavePanelOpen(false)} />}
+      {pendingApproval && <AgentApprovalCard conversationId={DEFAULT_CHAT_CONVERSATION_ID} approval={pendingApproval} onResolved={() => setPendingApproval(null)} />}
       {/* Invisible drag strip across the top of the window. Native
        *  titleBarStyle is "hiddenInset" — without an explicit drag region
        *  the user can't move the window or double-click to maximize.

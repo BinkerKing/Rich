@@ -15,6 +15,7 @@ import { api, type AgentSessionState } from "../api/client.js";
 import { ChatSlashCommandMenu } from "../components/ChatSlashCommandMenu.js";
 import { ConversationTaskPanel } from "../components/ConversationTaskPanel.js";
 import { ConversationSavePanel } from "../components/ConversationSavePanel.js";
+import { AgentApprovalCard, type PendingAgentApproval } from "../components/AgentApprovalCard.js";
 import { parseChatSlashInput, type ChatSlashCommand } from "../lib/chatSlashCommands.js";
 import { APP_MENU_ITEMS, type AppMenuItem } from "../lib/appCatalog.js";
 import { requestRichNavigation } from "../lib/richNavigation.js";
@@ -201,6 +202,7 @@ export function ChatOverlay() {
   const [agentSession, setAgentSession] = useState<AgentSessionState | null>(null);
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   const [savePanelOpen, setSavePanelOpen] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState<PendingAgentApproval | null>(null);
   /** T16: 是否切到三栏历史回看视图 */
   const [historyOpen, setHistoryOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
@@ -495,6 +497,8 @@ export function ChatOverlay() {
               const t = parsed as { name: string; status: "running" | "completed" };
               pushTool({ name: t.name, status: t.status, ts: Date.now() });
               dispatchMascotEvent({ type: "tool-progress", tool: t.name });
+            } else if (currentEvent === "approval_required") {
+              setPendingApproval(parsed as PendingAgentApproval);
             } else if (currentEvent === "mascot") {
               // 服务端推的状态（T02 兜底首帧 mascot:thinking）
               const m = parsed as { state: import("../lib/mascotEvents.js").MascotState };
@@ -612,6 +616,7 @@ export function ChatOverlay() {
         }).map(element => ({ id: element.id, title: element.title }))}
         messages={messages.filter((message): message is ChatMessage & { role: "user" | "assistant" } => message.role === "user" || message.role === "assistant").map(message => ({ id: message.id, role: message.role, content: message.content }))}
         onClose={() => setSavePanelOpen(false)} />}
+      {pendingApproval && <AgentApprovalCard conversationId={DEFAULT_CHAT_CONVERSATION_ID} approval={pendingApproval} onResolved={() => setPendingApproval(null)} />}
       <div className="chat-shell">
         {/* Raycast-style: input on TOP, content scrolls BELOW, status bar at
          *  the bottom. The input bar doubles as the draggable window region

@@ -200,6 +200,15 @@ export const api = {
     if (!r.ok || !payload.id || !payload.title) throw new Error(payload.error ?? `publish conversation save failed: ${r.status}`);
     return payload as ProjectModuleItem;
   },
+  async resolveAgentApproval(conversationId: string, input: AgentApprovalInput): Promise<void> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/agent-session/approvals/${encodeURIComponent(input.approvalId)}`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+    });
+    if (!r.ok) {
+      const payload = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(payload.error ?? `resolve agent approval failed: ${r.status}`);
+    }
+  },
   async publishDeliverableAiTask(input: Record<string, unknown>): Promise<{ id: string; status: string }> {
     const r = await fetch("/api/ai-tasks", {
       method: "POST",
@@ -1484,6 +1493,14 @@ export type ProjectManagementModuleKey =
 export interface ConversationSaveInput {
   destination: { projectId: string; moduleKey: ProjectManagementModuleKey; title: string };
   content: Record<string, unknown>;
+}
+
+export interface AgentApprovalInput {
+  approvalId: string;
+  turnId: string;
+  toolCallId: string;
+  argumentsDigest: string;
+  approved: boolean;
 }
 
 export type ProjectAutomationStep = "validate_sql" | "sync_table" | "prepare_extraction" | "extract";

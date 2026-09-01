@@ -38,6 +38,14 @@ test("save command opens an explicit Rich destination preview", () => {
   assert.match(api, /publishConversationSave/);
 });
 
+test("approval events render a precise approval card rather than auto-executing", () => {
+  assert.match(home, /currentEvent === "approval_required"/);
+  assert.match(overlay, /currentEvent === "approval_required"/);
+  assert.match(home, /AgentApprovalCard/);
+  assert.match(overlay, /AgentApprovalCard/);
+  assert.match(api, /resolveAgentApproval/);
+});
+
 test("home and overlay send stable ids for durable Agent admission", () => {
   assert.match(home, /clientRequestId:\s*reqId/);
   assert.match(home, /userMessageId:\s*userTurn\.id/);
