@@ -119,6 +119,7 @@ import { SqliteSignalsRepo } from "./repos/SqliteSignalsRepo.js";
 import { SqliteChatVisualBlocksRepo } from "./repos/SqliteChatVisualBlocksRepo.js";
 import { SqliteChatAttachmentsRepo } from "./repos/SqliteChatAttachmentsRepo.js";
 import { SqliteChatConversationsRepo } from "./repos/SqliteChatConversationsRepo.js";
+import { SqliteAgentConversationConfigRepo } from "./repos/SqliteAgentConversationConfigRepo.js";
 import { SqliteQARepo } from "./repos/SqliteQARepo.js";
 import { SqliteAnnotationsRepo } from "./repos/SqliteAnnotationsRepo.js";
 import { SqliteStateRepo } from "./repos/SqliteStateRepo.js";
@@ -132,6 +133,7 @@ import type { SignalsRepo } from "./repos/SignalsRepo.js";
 import type { ChatVisualBlocksRepo } from "./repos/ChatVisualBlocksRepo.js";
 import type { ChatAttachmentsRepo } from "./repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "./repos/ChatConversationsRepo.js";
+import type { AgentConversationConfigRepo } from "./repos/AgentConversationConfigRepo.js";
 import type { HealthRepo } from "./repos/HealthRepo.js";
 import type { QARepo } from "./repos/QARepo.js";
 import type { AnnotationsRepo } from "./repos/AnnotationsRepo.js";
@@ -199,6 +201,7 @@ import { PostgresSignalsRepo } from "./repos/PostgresSignalsRepo.js";
 import { PostgresChatVisualBlocksRepo } from "./repos/PostgresChatVisualBlocksRepo.js";
 import { PostgresChatAttachmentsRepo } from "./repos/PostgresChatAttachmentsRepo.js";
 import { PostgresChatConversationsRepo } from "./repos/PostgresChatConversationsRepo.js";
+import { PostgresAgentConversationConfigRepo } from "./repos/PostgresAgentConversationConfigRepo.js";
 import { PostgresHealthRepo } from "./repos/PostgresHealthRepo.js";
 import { PostgresQARepo } from "./repos/PostgresQARepo.js";
 import { PostgresAnnotationsRepo } from "./repos/PostgresAnnotationsRepo.js";
@@ -250,6 +253,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   /** chat_attachments 同上 —— bytea 存储需要数据库后端 */
   let chatAttachments: ChatAttachmentsRepo | null = null;
   let chatConversations: ChatConversationsRepo | null = null;
+  let agentConversationConfigs: AgentConversationConfigRepo | null = null;
   /** Body Insights 健康档案 —— V0.1 只支持 postgres（数据敏感、需跨机同步） */
   let healthRepo: HealthRepo | null = null;
   if (storage === "postgres") {
@@ -272,6 +276,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     chatVisualBlocks = new PostgresChatVisualBlocksRepo(pg);
     chatAttachments = new PostgresChatAttachmentsRepo(pg);
     chatConversations = new PostgresChatConversationsRepo(pg);
+    agentConversationConfigs = new PostgresAgentConversationConfigRepo(pg);
     healthRepo = new PostgresHealthRepo(pg);
     projectManagement = new PostgresProjectManagementRepo(pg);
     projectAutomation = new PostgresProjectAutomationRepo(pg);
@@ -295,6 +300,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     chatVisualBlocks = new SqliteChatVisualBlocksRepo(db);
     chatAttachments = new SqliteChatAttachmentsRepo(db);
     chatConversations = new SqliteChatConversationsRepo(db);
+    agentConversationConfigs = new SqliteAgentConversationConfigRepo(db);
     projectManagement = new SqliteProjectManagementRepo(db);
     projectAutomation = new SqliteProjectAutomationRepo(db);
     mcpOperationRepo = new SqliteMcpOperationRepo(db);
@@ -399,7 +405,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/state", stateRoutes(state, elements, signals));
   app.route("/api/corpus", corpusRoutes(corpus));
   app.route("/api/great-me", greatMeRoutes(greatMe));
-  app.route("/api/chat", chatRoutes(chatAttachments, ai, chatConversations, aiContextProvider, operationCorrelations));
+  app.route("/api/chat", chatRoutes(chatAttachments, ai, chatConversations, aiContextProvider, operationCorrelations, agentConversationConfigs));
   app.route("/api/chat-visual-blocks", chatVisualBlocksRoutes(chatVisualBlocks));
   app.route("/api/chat/attachments", chatAttachmentsRoutes(chatAttachments));
   app.route("/api/health", healthRoutes(healthRepo));

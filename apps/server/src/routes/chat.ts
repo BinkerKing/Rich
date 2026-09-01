@@ -12,6 +12,8 @@ import { planChatTurn, planChatTurnWithModel } from "../ai/agentOrchestrator.js"
 import type { AIContextProvider } from "../ai/contextProvider.js";
 import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
+import type { AgentConversationConfigRepo } from "../repos/AgentConversationConfigRepo.js";
+import { AgentConversationService } from "../agent-conversations/AgentConversationService.js";
 import type { ChatAttachmentRef } from "@ke/domain";
 import type { AIAdapter } from "../ai/adapter.js";
 
@@ -192,9 +194,13 @@ export function chatRoutes(
   conversationsRepo: ChatConversationsRepo | null = null,
   contextProvider: AIContextProvider = createAIContextProvider(conversationsRepo),
   operationCorrelations: OperationCorrelationRegistry = new OperationCorrelationRegistry(),
+  agentConfigs: AgentConversationConfigRepo | null = null,
 ): Hono {
   const r = new Hono();
   const codexFallback = adapters.find(adapter => adapter.name === "codex");
+  const agentSessions = agentConfigs && conversationsRepo
+    ? new AgentConversationService(agentConfigs, conversationsRepo)
+    : null;
 
   function pickChatAdapter(scenario: AIScenario, preference?: unknown): AIAdapter | null {
     if (adapters.length === 0) return null;
@@ -453,7 +459,10 @@ export function chatRoutes(
       return c.json({ error: "messages[] required" }, 400);
     }
     const conversationId = body.conversationId?.trim() || "rich-chat-default";
-    const turnPlan = await planTurn(body.messages, c.req.raw.signal);
+    const activeAgentConfig = await agentSessions?.getActive(conversationId) ?? null;
+    const turnPlan = activeAgentConfig
+      ? { scenario: "agent-task" as const, intent: "operate-rich" as const, requiresAgent: true, reason: "当前 Rich 对话已开启 Hermes Agent Session" }
+      : await planTurn(body.messages, c.req.raw.signal);
     const now = new Date().toISOString();
     await conversationsRepo?.ensureConversation({
       id: conversationId,
@@ -481,7 +490,9 @@ export function chatRoutes(
     if (Array.isArray(body.attachments) && body.attachments.length > 0 && attachmentsRepo) {
       messages = await inlineAttachments(messages, body.attachments, attachmentsRepo);
     }
-    const adapter = pickChatAdapter(turnPlan.scenario, body.model);
+    const adapter = activeAgentConfig
+      ? adapters.find(candidate => candidate.name === "hermes") ?? null
+      : pickChatAdapter(turnPlan.scenario, body.model);
 
     // T02 — 首字 SLO 基础设施。
     // (1) 反代关 buffering：Nginx / Cloudflare 见到这个 header 不会攒 chunk
@@ -581,6 +592,7 @@ export function chatRoutes(
             model: "hermes-agent",
             stream: true,
             messages: injectSystemPrompt(messages, turnPlan.requiresAgent, mcpRequestId),
+            session_id: activeAgentConfig?.modelSessionId,
           }),
         });
       } catch (e) {
@@ -649,6 +661,7 @@ export function chatRoutes(
       let finishReason = "stop";
       let fullText = "";
       let usedAdapter = "hermes";
+      let hermesSessionId = activeAgentConfig?.modelSessionId;
 
       try {
         while (true) {
@@ -698,11 +711,13 @@ export function chatRoutes(
 
               // OpenAI ChatCompletion chunk — pull out delta.content.
               const chunk = parsed as {
+                session_id?: string;
                 choices?: Array<{
                   delta?: { content?: string };
                   finish_reason?: string | null;
                 }>;
               };
+              if (chunk.session_id) hermesSessionId = chunk.session_id;
               const choice = chunk.choices?.[0];
               const text = choice?.delta?.content;
               if (typeof text === "string" && text.length > 0) {
@@ -728,12 +743,15 @@ export function chatRoutes(
               model: "hermes-agent",
               stream: false,
               messages: injectSystemPrompt(messages, turnPlan.requiresAgent, mcpRequestId),
+              session_id: activeAgentConfig?.modelSessionId,
             }),
           });
           if (fallback.ok) {
             const json = await fallback.json() as {
+              session_id?: string;
               choices?: Array<{ message?: { content?: string } }>;
             };
+            if (json.session_id) hermesSessionId = json.session_id;
             const text = json.choices?.[0]?.message?.content;
             if (typeof text === "string" && text.length > 0) {
               sawText = true;
@@ -777,8 +795,12 @@ export function chatRoutes(
             role: "assistant",
             content: fullText,
             adapter: usedAdapter,
+            modelSessionId: usedAdapter === "hermes" ? hermesSessionId : undefined,
             createdAt: new Date().toISOString(),
           });
+          if (activeAgentConfig && usedAdapter === "hermes" && hermesSessionId) {
+            await agentSessions?.recordModelSession(conversationId, hermesSessionId);
+          }
           queueSummaryRefresh(conversationId);
         }
         await opRecorder.event({ type: "output" });
@@ -831,6 +853,28 @@ export function chatRoutes(
     if (!conversationsRepo) return c.json({ conversations: [] });
     const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 30), 1), 100);
     return c.json({ conversations: await conversationsRepo.listConversations(limit) });
+  });
+
+  r.get("/conversations/:id/agent-session", async (c) => {
+    const config = await agentSessions?.get(c.req.param("id"));
+    return config ? c.json(config) : c.json({ error: "Agent session not found" }, 404);
+  });
+
+  r.post("/conversations/:id/agent-session", async (c) => {
+    if (!agentSessions) return c.json({ error: "Agent sessions unavailable" }, 503);
+    const result = await agentSessions.start(c.req.param("id"));
+    return c.json({ ...result.config, resumed: result.resumed });
+  });
+
+  r.post("/conversations/:id/agent-session/new", async (c) => {
+    if (!agentSessions) return c.json({ error: "Agent sessions unavailable" }, 503);
+    const result = await agentSessions.start(c.req.param("id"), { fresh: true });
+    return c.json({ ...result.config, resumed: false });
+  });
+
+  r.delete("/conversations/:id/agent-session", async (c) => {
+    const config = await agentSessions?.exit(c.req.param("id"));
+    return config ? c.json(config) : c.json({ error: "Agent session not found" }, 404);
   });
 
   r.get("/conversations/:id/messages", async (c) => {
