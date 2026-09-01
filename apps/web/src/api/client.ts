@@ -184,6 +184,22 @@ export const api = {
     if (!r.ok || !payload.id || !payload.status) throw new Error(payload.error ?? `publish conversation task failed: ${r.status}`);
     return { id: payload.id, status: payload.status };
   },
+  async previewConversationSave(conversationId: string, input: ConversationSaveInput): Promise<{ confirmationToken: string; action: ConversationSaveInput }> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/save-to-rich/preview`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+    });
+    const payload = await r.json().catch(() => ({})) as { confirmationToken?: string; action?: ConversationSaveInput; error?: string };
+    if (!r.ok || !payload.confirmationToken || !payload.action) throw new Error(payload.error ?? `preview conversation save failed: ${r.status}`);
+    return { confirmationToken: payload.confirmationToken, action: payload.action };
+  },
+  async publishConversationSave(conversationId: string, confirmationToken: string): Promise<ProjectModuleItem> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/save-to-rich/publish`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ confirmationToken }),
+    });
+    const payload = await r.json().catch(() => ({})) as Partial<ProjectModuleItem> & { error?: string };
+    if (!r.ok || !payload.id || !payload.title) throw new Error(payload.error ?? `publish conversation save failed: ${r.status}`);
+    return payload as ProjectModuleItem;
+  },
   async publishDeliverableAiTask(input: Record<string, unknown>): Promise<{ id: string; status: string }> {
     const r = await fetch("/api/ai-tasks", {
       method: "POST",
@@ -1464,6 +1480,11 @@ export type ProjectManagementModuleKey =
   | "todos"
   | "healthChecks"
   | "folder";
+
+export interface ConversationSaveInput {
+  destination: { projectId: string; moduleKey: ProjectManagementModuleKey; title: string };
+  content: Record<string, unknown>;
+}
 
 export type ProjectAutomationStep = "validate_sql" | "sync_table" | "prepare_extraction" | "extract";
 export type ProjectAutomationExecutionStatus = "pending" | "running" | "success" | "error";

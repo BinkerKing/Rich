@@ -1,4 +1,4 @@
-export type ChatSlashCommandId = "chat" | "agent" | "task" | "find";
+export type ChatSlashCommandId = "chat" | "agent" | "task" | "save" | "find";
 
 export interface ChatSlashCommand {
   id: ChatSlashCommandId;
@@ -11,6 +11,7 @@ export const CHAT_SLASH_COMMANDS: ChatSlashCommand[] = [
   { id: "chat", token: "/chat", label: "普通对话", hint: "退出 Agent Session，回到 Rich 智能对话" },
   { id: "agent", token: "/agent", label: "Hermes Agent", hint: "开启或恢复一段有上下文的执行会话" },
   { id: "task", token: "/task", label: "结构化任务", hint: "按场景发布可跟踪、可审核的正式任务" },
+  { id: "save", token: "/save", label: "保存到 Rich", hint: "选择明确业务目标后保存当前对话内容" },
   { id: "find", token: "/find", label: "搜索 / 选择", hint: "查找 Rich 应用、项目和知识元" },
 ];
 

@@ -9,6 +9,7 @@ import { useChatComposer } from "../lib/useChatComposer.js";
 import { api, type AgentSessionState } from "../api/client.js";
 import { ChatSlashCommandMenu } from "../components/ChatSlashCommandMenu.js";
 import { ConversationTaskPanel } from "../components/ConversationTaskPanel.js";
+import { ConversationSavePanel } from "../components/ConversationSavePanel.js";
 import { parseChatSlashInput, type ChatSlashCommand } from "../lib/chatSlashCommands.js";
 import { useStore } from "../state/store.js";
 
@@ -251,6 +252,7 @@ export function HomeView() {
   const [input, setInput] = useState("");
   const [agentSession, setAgentSession] = useState<AgentSessionState | null>(null);
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
+  const [savePanelOpen, setSavePanelOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
   const [turns, setTurns] = useState<Turn[]>(() => loadChatHistory());
   const [busy, setBusy] = useState(false);
@@ -620,6 +622,9 @@ export function HomeView() {
     } else if (command.id === "task") {
       setTaskPanelOpen(true);
       setInput("");
+    } else if (command.id === "save") {
+      setSavePanelOpen(true);
+      setInput("");
     } else {
       setInput(`${command.token} `);
     }
@@ -827,6 +832,11 @@ export function HomeView() {
       setInput("");
       return;
     }
+    if (slashCommand.selected?.command === "save") {
+      setSavePanelOpen(true);
+      setInput("");
+      return;
+    }
     void send(input);
   }
 
@@ -854,6 +864,9 @@ export function HomeView() {
       {taskPanelOpen && <ConversationTaskPanel conversationId={DEFAULT_CHAT_CONVERSATION_ID} projects={projects}
         messages={turns.filter((turn): turn is Turn & { role: "user" | "assistant" } => turn.role === "user" || turn.role === "assistant").map(turn => ({ id: turn.id, role: turn.role, content: turn.content }))}
         onClose={() => setTaskPanelOpen(false)} />}
+      {savePanelOpen && <ConversationSavePanel conversationId={DEFAULT_CHAT_CONVERSATION_ID} projects={projects}
+        messages={turns.filter((turn): turn is Turn & { role: "user" | "assistant" } => turn.role === "user" || turn.role === "assistant").map(turn => ({ id: turn.id, role: turn.role, content: turn.content }))}
+        onClose={() => setSavePanelOpen(false)} />}
       {/* Invisible drag strip across the top of the window. Native
        *  titleBarStyle is "hiddenInset" — without an explicit drag region
        *  the user can't move the window or double-click to maximize.

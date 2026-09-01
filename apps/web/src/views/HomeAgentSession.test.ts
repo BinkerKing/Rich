@@ -29,6 +29,15 @@ test("task command opens the structured promotion panel instead of being sent as
   assert.doesNotMatch(overlay, /if \(\/\^\\\/task\\s\+\\S\/i\.test\(value\)\) return value/);
 });
 
+test("save command opens an explicit Rich destination preview", () => {
+  assert.match(home, /ConversationSavePanel/);
+  assert.match(overlay, /ConversationSavePanel/);
+  assert.match(home, /setSavePanelOpen\(true\)/);
+  assert.match(overlay, /setSavePanelOpen\(true\)/);
+  assert.match(api, /previewConversationSave/);
+  assert.match(api, /publishConversationSave/);
+});
+
 test("home and overlay send stable ids for durable Agent admission", () => {
   assert.match(home, /clientRequestId:\s*reqId/);
   assert.match(home, /userMessageId:\s*userTurn\.id/);

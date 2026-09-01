@@ -14,6 +14,7 @@ import { useChatComposer } from "../lib/useChatComposer.js";
 import { api, type AgentSessionState } from "../api/client.js";
 import { ChatSlashCommandMenu } from "../components/ChatSlashCommandMenu.js";
 import { ConversationTaskPanel } from "../components/ConversationTaskPanel.js";
+import { ConversationSavePanel } from "../components/ConversationSavePanel.js";
 import { parseChatSlashInput, type ChatSlashCommand } from "../lib/chatSlashCommands.js";
 import { APP_MENU_ITEMS, type AppMenuItem } from "../lib/appCatalog.js";
 import { requestRichNavigation } from "../lib/richNavigation.js";
@@ -199,6 +200,7 @@ export function ChatOverlay() {
   const [input, setInput] = useState("");
   const [agentSession, setAgentSession] = useState<AgentSessionState | null>(null);
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
+  const [savePanelOpen, setSavePanelOpen] = useState(false);
   /** T16: 是否切到三栏历史回看视图 */
   const [historyOpen, setHistoryOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
@@ -303,6 +305,9 @@ export function ChatOverlay() {
     } else if (command.id === "task") {
       setTaskPanelOpen(true);
       setInput("");
+    } else if (command.id === "save") {
+      setSavePanelOpen(true);
+      setInput("");
     } else {
       setInput(`${command.token} `);
     }
@@ -323,6 +328,11 @@ export function ChatOverlay() {
     }
     if (commandSlash.selected?.command === "task") {
       setTaskPanelOpen(true);
+      setInput("");
+      return true;
+    }
+    if (commandSlash.selected?.command === "save") {
+      setSavePanelOpen(true);
       setInput("");
       return true;
     }
@@ -594,6 +604,14 @@ export function ChatOverlay() {
         }).map(element => ({ id: element.id, title: element.title }))}
         messages={messages.filter((message): message is ChatMessage & { role: "user" | "assistant" } => message.role === "user" || message.role === "assistant").map(message => ({ id: message.id, role: message.role, content: message.content }))}
         onClose={() => setTaskPanelOpen(false)} />}
+      {savePanelOpen && <ConversationSavePanel conversationId={DEFAULT_CHAT_CONVERSATION_ID}
+        projects={Array.from(elements.values()).filter(element => {
+          const content = element.content;
+          return element.type === "project" && Boolean(content) && typeof content === "object"
+            && typeof (content as { localFolder?: unknown }).localFolder === "string";
+        }).map(element => ({ id: element.id, title: element.title }))}
+        messages={messages.filter((message): message is ChatMessage & { role: "user" | "assistant" } => message.role === "user" || message.role === "assistant").map(message => ({ id: message.id, role: message.role, content: message.content }))}
+        onClose={() => setSavePanelOpen(false)} />}
       <div className="chat-shell">
         {/* Raycast-style: input on TOP, content scrolls BELOW, status bar at
          *  the bottom. The input bar doubles as the draggable window region
