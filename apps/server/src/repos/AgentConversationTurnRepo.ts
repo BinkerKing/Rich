@@ -26,6 +26,8 @@ export interface CreateAgentConversationTurnInput {
   conversationId: string;
   clientRequestId: string;
   userMessageId: string;
+  content: string;
+  metadata?: Record<string, unknown>;
   now: string;
 }
 

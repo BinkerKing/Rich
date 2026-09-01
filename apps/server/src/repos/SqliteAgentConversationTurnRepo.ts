@@ -73,10 +73,16 @@ export class SqliteAgentConversationTurnRepo implements AgentConversationTurnRep
 
       const sequence = (this.db.prepare(`SELECT COALESCE(MAX(sequence), 0) + 1 AS value FROM agent_conversation_turns WHERE conversation_id = ?`)
         .get(input.conversationId) as { value: number }).value;
+      this.db.prepare(`INSERT INTO chat_messages
+        (id, conversation_id, role, content, adapter, model_session_id, metadata, created_at)
+        VALUES (?, ?, 'user', ?, NULL, NULL, ?, ?)`)
+        .run(input.userMessageId, input.conversationId, input.content, input.metadata ? JSON.stringify(input.metadata) : null, input.now);
       this.db.prepare(`INSERT INTO agent_conversation_turns
         (id, conversation_id, client_request_id, user_message_id, sequence, status, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, 'queued', ?, ?)`)
         .run(input.id, input.conversationId, input.clientRequestId, input.userMessageId, sequence, input.now, input.now);
+      this.db.prepare(`UPDATE chat_conversations SET updated_at = ?, last_message_at = ? WHERE id = ?`)
+        .run(input.now, input.now, input.conversationId);
       const row = this.db.prepare(`SELECT ${SELECT_COLUMNS} FROM agent_conversation_turns WHERE id = ?`).get(input.id) as TurnRow;
       return { turn: fromRow(row), created: true };
     }).immediate();

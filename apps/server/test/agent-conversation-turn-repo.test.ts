@@ -19,33 +19,37 @@ describe("SqliteAgentConversationTurnRepo", () => {
     const now = "2026-09-01T00:00:00.000Z";
     await conversations.ensureConversation({ id: "c1", now });
 
-    const first = await turns.createOrGet({ id: "t1", conversationId: "c1", clientRequestId: "r1", userMessageId: "m1", now });
-    const retry = await turns.createOrGet({ id: "t2", conversationId: "c1", clientRequestId: "r1", userMessageId: "m2", now });
+    const first = await turns.createOrGet({ id: "t1", conversationId: "c1", clientRequestId: "r1", userMessageId: "m1", content: "one", now });
+    const retry = await turns.createOrGet({ id: "t2", conversationId: "c1", clientRequestId: "r1", userMessageId: "m2", content: "duplicate", now });
 
     expect(first.created).toBe(true);
     expect(retry.created).toBe(false);
     expect(retry.turn.id).toBe("t1");
     expect(retry.turn.userMessageId).toBe("m1");
+    expect(await conversations.listMessages("c1", 10)).toEqual([
+      expect.objectContaining({ id: "m1", role: "user", content: "one" }),
+    ]);
   });
 
   it("rejects a competing turn while a database lease is active", async () => {
     const { conversations, turns } = setup();
     const now = "2026-09-01T00:00:00.000Z";
     await conversations.ensureConversation({ id: "c1", now });
-    await turns.createOrGet({ id: "t1", conversationId: "c1", clientRequestId: "r1", userMessageId: "m1", now });
+    await turns.createOrGet({ id: "t1", conversationId: "c1", clientRequestId: "r1", userMessageId: "m1", content: "one", now });
     expect(await turns.claim("t1", { ownerId: "worker-a", now, leaseMs: 30_000 })).toEqual(expect.objectContaining({ status: "running", leaseOwner: "worker-a" }));
 
-    await expect(turns.createOrGet({ id: "t2", conversationId: "c1", clientRequestId: "r2", userMessageId: "m2", now }))
+    await expect(turns.createOrGet({ id: "t2", conversationId: "c1", clientRequestId: "r2", userMessageId: "m2", content: "two", now }))
       .rejects.toThrow(/turn already running/i);
+    expect(await conversations.listMessages("c1", 10)).toHaveLength(1);
   });
 
   it("expires an abandoned lease before admitting the next turn", async () => {
     const { conversations, turns } = setup();
     await conversations.ensureConversation({ id: "c1", now: "2026-09-01T00:00:00.000Z" });
-    await turns.createOrGet({ id: "t1", conversationId: "c1", clientRequestId: "r1", userMessageId: "m1", now: "2026-09-01T00:00:00.000Z" });
+    await turns.createOrGet({ id: "t1", conversationId: "c1", clientRequestId: "r1", userMessageId: "m1", content: "one", now: "2026-09-01T00:00:00.000Z" });
     await turns.claim("t1", { ownerId: "worker-a", now: "2026-09-01T00:00:00.000Z", leaseMs: 1_000 });
 
-    const second = await turns.createOrGet({ id: "t2", conversationId: "c1", clientRequestId: "r2", userMessageId: "m2", now: "2026-09-01T00:00:02.000Z" });
+    const second = await turns.createOrGet({ id: "t2", conversationId: "c1", clientRequestId: "r2", userMessageId: "m2", content: "two", now: "2026-09-01T00:00:02.000Z" });
 
     expect(second.created).toBe(true);
     expect((await turns.get("t1"))?.status).toBe("failed");

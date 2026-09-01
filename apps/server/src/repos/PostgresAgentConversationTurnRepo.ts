@@ -72,12 +72,22 @@ export class PostgresAgentConversationTurnRepo implements AgentConversationTurnR
         if (!expired) throw new Error("Agent conversation turn already running");
         await client.query(`UPDATE agent_conversation_turns SET status = 'failed', error = 'turn lease expired', lease_owner = NULL, lease_expires_at = NULL, updated_at = $1 WHERE id = $2`, [input.now, row.id]);
       }
+      await client.query(`INSERT INTO chat_messages
+        (id, conversation_id, role, content, adapter, model_session_id, metadata, created_at)
+        VALUES ($1, $2, 'user', $3, NULL, NULL, $4::jsonb, $5)`, [
+        input.userMessageId,
+        input.conversationId,
+        input.content,
+        input.metadata ? JSON.stringify(input.metadata) : null,
+        input.now,
+      ]);
       const inserted = await client.query<TurnRow>(`INSERT INTO agent_conversation_turns
         (id, conversation_id, client_request_id, user_message_id, sequence, status, created_at, updated_at)
         SELECT $1, $2, $3, $4, COALESCE(MAX(sequence), 0) + 1, 'queued', $5, $5
           FROM agent_conversation_turns WHERE conversation_id = $2
         RETURNING ${SELECT_COLUMNS}`,
       [input.id, input.conversationId, input.clientRequestId, input.userMessageId, input.now]);
+      await client.query(`UPDATE chat_conversations SET updated_at = $1, last_message_at = $1 WHERE id = $2`, [input.now, input.conversationId]);
       await client.query("COMMIT");
       return { turn: fromRow(inserted.rows[0]), created: true };
     } catch (error) {
