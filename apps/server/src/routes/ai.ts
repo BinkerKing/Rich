@@ -28,14 +28,13 @@ import {
   extractKeywords,
   analyzeAttachment,
   attachUnder,
-  generateDailyNews,
   runGreatMeBrain,
   runDecomposePlan,
   runAnalyzeProgress,
   runDraftReview,
   runGuidedPractice,
-  type DailyNewsItem,
 } from "../ai/operations.js";
+import { generateDailyNews, type DailyNewsItem } from "../ai/content/operations.js";
 import { runAdjustChild, runDraftChild, runDraftPrd } from "../ai/project/operations.js";
 import { shortlistByKeywords } from "../lib/elementShortlist.js";
 import { KeyedLock } from "../lib/KeyedLock.js";

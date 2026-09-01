@@ -1,6 +1,6 @@
 import type { AIAdapter } from "./adapter.js";
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
-import { generateImageFor } from "./operations.js";
+import { generateImageFor } from "./content/operations.js";
 import { adoptImageIfLocal } from "../lib/imageAssets.js";
 import { noopLogger, type Logger } from "../lib/logger.js";
 
