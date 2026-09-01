@@ -141,6 +141,10 @@ import { dataDir, aiDir } from "./lib/paths.js";
 import { ClaudeAdapter } from "./ai/claude.js";
 import { CodexAdapter } from "./ai/codex.js";
 import { HermesAdapter } from "./ai/hermes.js";
+import { HermesTaskExecutor } from "./ai-tasks/HermesTaskExecutor.js";
+import { MulticaTaskExecutor } from "./ai-tasks/MulticaTaskExecutor.js";
+import { AiTaskDispatcher } from "./ai-tasks/AiTaskDispatcher.js";
+import { DeliverableTaskHistoryService } from "./ai-tasks/DeliverableTaskHistoryService.js";
 import { BailianAdapter } from "./ai/bailian.js";
 import { loadAIEngineSettings } from "./ai/engineSettings.js";
 import { configureOpLog, healStaleRunningOps, recordTraceForExistingOp } from "./ai/aiOpLog.js";
@@ -173,6 +177,7 @@ import { healthRoutes } from "./routes/health.js";
 import { createReminderTicker } from "./lib/reminderTicker.js";
 import { projectsRoutes } from "./routes/projects.js";
 import { projectManagementRoutes } from "./routes/projectManagement.js";
+import { aiTaskRoutes } from "./routes/aiTasks.js";
 import { multicaProjectWorkbenchRoutes } from "./routes/multicaProjectWorkbench.js";
 import { projectDictionaryTestFilesRoutes } from "./routes/projectDictionaryTestFiles.js";
 import { rikingProjectsRoutes } from "./routes/rikingProjects.js";
@@ -330,6 +335,19 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     },
   });
   multicaTaskSynchronizer.start();
+  const hermesTaskExecutor = new HermesTaskExecutor();
+  const multicaTaskExecutor = new MulticaTaskExecutor(multica.delegationAdapter, async projectId => {
+    try {
+      if (!multica.commands.runText) return false;
+      await multica.commands.runText(["--version"], { includeWorkspace: false });
+      return Boolean(await multicaBindingRepo.getBinding(projectId));
+    } catch { return false; }
+  });
+  const aiTaskDispatcher = new AiTaskDispatcher(
+    multicaWorkTasks,
+    [hermesTaskExecutor, multicaTaskExecutor],
+    new DeliverableTaskHistoryService(multicaWorkTasks),
+  );
   const manualsDir = opts.aiDir ?? aiDir();
   // ─── Toolbox runtime (gracefully no-op if SQLite repo missing) ──
   const toolRuntime = invocations ? new ToolRuntime(invocations) : null;
@@ -386,6 +404,17 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/chat/attachments", chatAttachmentsRoutes(chatAttachments));
   app.route("/api/health", healthRoutes(healthRepo));
   app.route("/api/projects", projectsRoutes(elements, projectManagement));
+  app.route("/api/ai-tasks", aiTaskRoutes({
+    availability: async projectId => ({
+      hermes: await hermesTaskExecutor.available(),
+      multica: projectId ? await multicaTaskExecutor.available(projectId) : false,
+    }),
+    publish: async input => {
+      const task = await aiTaskDispatcher.publish(input);
+      void aiTaskDispatcher.drain(task.id).catch(error => log.warn("ai_task.dispatch.failed", { taskId: task.id, error: error instanceof Error ? error.message : String(error) }));
+      return task;
+    },
+  }));
   app.route("/api/project-management", projectManagementRoutes(projectManagement, { elements, greatMe }));
   app.route("/api/project-management", projectAutomationRoutes(projectManagement, projectAutomation));
   app.route("/api/project-management", multicaProjectWorkbenchRoutes({
