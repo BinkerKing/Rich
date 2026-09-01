@@ -181,3 +181,11 @@ test("交付物记录可选择 AI 任务并显式选择 Hermes 或 Multica", () 
   assert.match(deliverables, /Multica/);
   assert.match(deliverables, /publishDeliverableAiTask/);
 });
+
+test("AI 任务记录将时间、状态和删除操作固定在同一操作栏，避免状态竖排", () => {
+  assert.match(deliverables, /className="deliverables-workspace__record-actions"/);
+  assert.match(deliverables, /deliverables-workspace__record-ai-task/);
+  assert.match(styles, /\.deliverables-workspace__record-list > \.deliverables-workspace__record \{[^}]*grid-template-columns:auto minmax\(0,1fr\) minmax\(150px,auto\);/);
+  assert.match(styles, /\.deliverables-workspace__record-actions \{[^}]*white-space:nowrap/);
+  assert.match(styles, /\.deliverables-workspace__record-ai-task \{[^}]*overflow:hidden/);
+});
