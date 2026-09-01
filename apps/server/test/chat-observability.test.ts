@@ -176,7 +176,7 @@ describe("chat observability", () => {
 
   it("records a single terminal fallback error", async () => {
     globalThis.fetch = vi.fn(async () => new Response("unavailable", { status: 503, statusText: "Unavailable" })) as typeof fetch;
-    const app = buildApp(mkdtempSync(join(tmpdir(), "ke-chat-observability-")));
+    const app = buildApp(mkdtempSync(join(tmpdir(), "ke-chat-observability-")), [new HermesAdapter()]);
 
     const response = await app.request("/api/chat/stream", {
       method: "POST",

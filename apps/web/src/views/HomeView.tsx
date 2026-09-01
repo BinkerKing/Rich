@@ -681,6 +681,8 @@ export function HomeView() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           conversationId: DEFAULT_CHAT_CONVERSATION_ID,
+          clientRequestId: reqId,
+          userMessageId: userTurn.id,
           surface: "home",
           messages: history,
           // 把图片 ref 也带上 —— 后端会从 chat_attachments 拉字节 inline 进最后一条 user message

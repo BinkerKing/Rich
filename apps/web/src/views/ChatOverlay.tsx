@@ -428,6 +428,8 @@ export function ChatOverlay() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           conversationId: DEFAULT_CHAT_CONVERSATION_ID,
+          clientRequestId: reqId,
+          userMessageId: userMsg.id,
           surface: "chat-overlay",
           messages: history,
           attachments: attRefs.length > 0

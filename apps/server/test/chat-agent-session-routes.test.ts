@@ -151,6 +151,9 @@ describe("chat Agent session routes", () => {
     const turn = await turns.getByClientRequest("c1", "request-1");
 
     expect(events).toContain(`"turnId":"${turn?.id}"`);
+    for (const line of events.split("\n").filter(line => line.startsWith("data: "))) {
+      expect(JSON.parse(line.slice(6))).toEqual(expect.objectContaining({ turnId: turn?.id }));
+    }
     expect(turn).toEqual(expect.objectContaining({ status: "succeeded", runtimeSessionId: "hs-new" }));
     expect(await conversations.listMessages("c1", 10)).toHaveLength(2);
   });

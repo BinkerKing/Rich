@@ -532,11 +532,14 @@ export function chatRoutes(
     c.header("Cache-Control", "no-cache, no-transform");
 
     return streamSSE(c, async (stream) => {
+      const eventData = (payload: Record<string, unknown>) => JSON.stringify(
+        agentTurn ? { ...payload, turnId: agentTurn.id } : payload,
+      );
       // ① 先推一个 mascot 事件 —— 让前端立刻把 Mascot 切到 thinking 表情
       //    （这是首字 SLO L1 兜底：用户感知 < 100ms，AI 真实首字独立测）
       await stream.writeSSE({
         event: "mascot",
-        data: JSON.stringify({ state: "thinking", ts: Date.now(), ...(agentTurn ? { turnId: agentTurn.id } : {}) }),
+        data: eventData({ state: "thinking", ts: Date.now() }),
       });
       const operation = await startOpRecord({
         op: "chat-stream",
@@ -573,7 +576,7 @@ export function chatRoutes(
             await opRecorder.error(message);
             await stream.writeSSE({
               event: "error",
-              data: JSON.stringify({ message, conversationId }),
+              data: eventData({ message, conversationId }),
             });
             return;
           }
@@ -582,7 +585,7 @@ export function chatRoutes(
             await opRecorder.error(result.error);
             await stream.writeSSE({
               event: "error",
-              data: JSON.stringify({ message: result.error, conversationId }),
+              data: eventData({ message: result.error, conversationId }),
             });
             return;
           }
@@ -602,7 +605,7 @@ export function chatRoutes(
           await opRecorder.done(result.fullText, result.sessionId);
           await stream.writeSSE({
             event: "done",
-            data: JSON.stringify({ finish_reason: "stop", conversationId, adapter: adapter.name }),
+            data: eventData({ finish_reason: "stop", conversationId, adapter: adapter.name }),
           });
           return;
         } finally {
@@ -631,7 +634,7 @@ export function chatRoutes(
           await opRecorder.error(message);
           await stream.writeSSE({
             event: "error",
-            data: JSON.stringify({ message, conversationId }),
+            data: eventData({ message, conversationId }),
           });
           return;
         }
@@ -653,7 +656,7 @@ export function chatRoutes(
           await opRecorder.done(fallback.fullText);
           await stream.writeSSE({
             event: "done",
-            data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
+            data: eventData({ finish_reason: "codex-fallback", conversationId }),
           });
         } else {
           await opRecorder.event({ type: "error" });
@@ -670,7 +673,7 @@ export function chatRoutes(
           await opRecorder.error(message);
           await stream.writeSSE({
             event: "error",
-            data: JSON.stringify({ message, conversationId }),
+            data: eventData({ message, conversationId }),
           });
           return;
         }
@@ -692,7 +695,7 @@ export function chatRoutes(
           await opRecorder.done(fallback.fullText);
           await stream.writeSSE({
             event: "done",
-            data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
+            data: eventData({ finish_reason: "codex-fallback", conversationId }),
           });
         } else {
           await opRecorder.event({ type: "error" });
@@ -751,7 +754,7 @@ export function chatRoutes(
                   await opRecorder.event({ type: "mcp.tool", data: { tool: p.tool, status: p.status } });
                   await stream.writeSSE({
                     event: "tool",
-                    data: JSON.stringify({ name: p.tool, status: p.status }),
+                    data: eventData({ name: p.tool, status: p.status }),
                   });
                 }
                 continue;
@@ -773,7 +776,7 @@ export function chatRoutes(
                 fullText += text;
                 await stream.writeSSE({
                   event: "text",
-                  data: JSON.stringify({ chunk: text }),
+                  data: eventData({ chunk: text }),
                 });
               }
               if (choice?.finish_reason) {
@@ -806,7 +809,7 @@ export function chatRoutes(
               fullText += text;
               await stream.writeSSE({
                 event: "text",
-                data: JSON.stringify({ chunk: text }),
+                data: eventData({ chunk: text }),
               });
             }
           } else {
@@ -816,7 +819,7 @@ export function chatRoutes(
               await opRecorder.event({ type: "error" });
               await stream.writeSSE({
                 event: "error",
-                data: JSON.stringify({
+                data: eventData({
                   message: `Hermes 需要重新授权：${message}`,
                 }),
               });
@@ -830,7 +833,7 @@ export function chatRoutes(
               await opRecorder.error(message);
               await stream.writeSSE({
                 event: "error",
-                data: JSON.stringify({ message, conversationId }),
+                data: eventData({ message, conversationId }),
               });
               return;
             }
@@ -873,7 +876,7 @@ export function chatRoutes(
         }
         await stream.writeSSE({
           event: "done",
-          data: JSON.stringify({ finish_reason: finishReason, conversationId, ...(agentTurn ? { turnId: agentTurn.id } : {}) }),
+          data: eventData({ finish_reason: finishReason, conversationId }),
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -901,7 +904,7 @@ export function chatRoutes(
           await opRecorder.done(fallback.fullText);
           await stream.writeSSE({
             event: "done",
-            data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
+            data: eventData({ finish_reason: "codex-fallback", conversationId }),
           });
           return;
         }
@@ -910,7 +913,7 @@ export function chatRoutes(
         if (agentTurn) await agentTurns?.finish(agentTurn.id, { status: "failed", error: message, now: new Date().toISOString() });
         await stream.writeSSE({
           event: "error",
-          data: JSON.stringify({ message }),
+          data: eventData({ message }),
         });
       }
     });
