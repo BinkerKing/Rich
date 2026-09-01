@@ -1,6 +1,7 @@
 import type { McpTask } from "../repos/McpTaskRepo.js";
 import { PersistentTaskService } from "../mcp-v2/tasks/persistentTaskService.js";
 import { parseAiTaskRequest, type AiTaskExecutor as AiTaskExecutorName, type AiTaskRequest } from "./types.js";
+import type { DeliverableTaskHistoryService } from "./DeliverableTaskHistoryService.js";
 
 export interface AiTaskExecutor {
   executor: AiTaskExecutorName;
@@ -11,12 +12,13 @@ export interface AiTaskExecutor {
 export class AiTaskDispatcher {
   private readonly executors = new Map<AiTaskExecutorName, AiTaskExecutor>();
 
-  constructor(private readonly tasks: PersistentTaskService, executors: AiTaskExecutor[]) {
+  constructor(private readonly tasks: PersistentTaskService, executors: AiTaskExecutor[], private readonly history?: DeliverableTaskHistoryService) {
     for (const executor of executors) this.executors.set(executor.executor, executor);
   }
 
   async publish(input: unknown): Promise<McpTask> {
-    const request = parseAiTaskRequest(input);
+    const parsed = parseAiTaskRequest(input);
+    const request = this.history ? { ...parsed, contextSnapshot: { ...parsed.contextSnapshot, history: await this.history.list(parsed.projectId, parsed.deliverableId) } } : parsed;
     const executor = this.executors.get(request.executor);
     if (!executor || !await executor.available(request.projectId)) throw new Error(`AI executor ${request.executor} is unavailable.`);
     return this.tasks.create({

@@ -40,6 +40,6 @@ export class DeliverableTaskContextService {
       const meta = metaByPath.get(file.relativePath);
       return [{ relativePath: file.relativePath, fileName: file.fileName, size: file.size, type: meta?.type ?? "material", ...(meta?.version ? { version: meta.version } : {}), ...(meta?.note ? { note: meta.note } : {}) }];
     });
-    return { version: 1, createdAt: new Date().toISOString(), deliverable: { folderPath, requirementHtml: text(content.descriptionHtml) }, records, files };
+    return { version: 1, createdAt: new Date().toISOString(), deliverable: { folderPath, requirementHtml: text(content.descriptionHtml) }, records, files, history: [] };
   }
 }

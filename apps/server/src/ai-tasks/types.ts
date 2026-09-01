@@ -28,6 +28,10 @@ const contextSnapshot = z.object({
     createdAt: z.string().datetime(),
   })),
   files: z.array(snapshotFile),
+  history: z.array(z.object({
+    id: z.string().min(1), title: z.string(), status: z.string(), reviewStatus: z.string().optional(), summary: z.string().optional(),
+    resultRefs: z.array(z.object({ type: z.string(), id: z.string(), label: z.string().optional() })), createdAt: z.string().datetime(), finishedAt: z.string().datetime().optional(),
+  })).default([]),
 });
 
 const requestSchema = z.object({
