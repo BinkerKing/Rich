@@ -50,7 +50,9 @@ describe("MCP 2.0 final regression", () => {
 
   it("contains no legacy tool names", () => {
     const names = makeRegistry().listDefinitions().map(tool => tool.name);
-    expect(names).toHaveLength(19);
+    // The deliverable-task scenario exposes three scoped task tools in
+    // addition to the established Rich catalog.
+    expect(names).toHaveLength(22);
     expect(names.every(name => name.startsWith("rich_"))).toBe(true);
     expect(names).not.toEqual(expect.arrayContaining([
       "create_element", "project_management_summary", "plan_get", "practice_get", "create_improvement",
