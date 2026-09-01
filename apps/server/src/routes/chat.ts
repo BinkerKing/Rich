@@ -13,6 +13,7 @@ import type { AIContextProvider } from "../ai/contextProvider.js";
 import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
 import type { AgentConversationConfigRepo } from "../repos/AgentConversationConfigRepo.js";
+import type { AgentConversationTurn, AgentConversationTurnRepo } from "../repos/AgentConversationTurnRepo.js";
 import { AgentConversationService } from "../agent-conversations/AgentConversationService.js";
 import type { ChatAttachmentRef } from "@ke/domain";
 import type { AIAdapter } from "../ai/adapter.js";
@@ -195,6 +196,7 @@ export function chatRoutes(
   contextProvider: AIContextProvider = createAIContextProvider(conversationsRepo),
   operationCorrelations: OperationCorrelationRegistry = new OperationCorrelationRegistry(),
   agentConfigs: AgentConversationConfigRepo | null = null,
+  agentTurns: AgentConversationTurnRepo | null = null,
 ): Hono {
   const r = new Hono();
   const codexFallback = adapters.find(adapter => adapter.name === "codex");
@@ -453,7 +455,7 @@ export function chatRoutes(
 
   r.post("/stream", async (c) => {
     const body = await c.req.json().catch(() => null) as
-      | { messages?: Message[]; attachments?: ChatAttachmentRef[]; conversationId?: string; surface?: string; model?: string }
+      | { messages?: Message[]; attachments?: ChatAttachmentRef[]; conversationId?: string; clientRequestId?: string; userMessageId?: string; surface?: string; model?: string }
       | null;
     if (!body || !Array.isArray(body.messages) || body.messages.length === 0) {
       return c.json({ error: "messages[] required" }, 400);
@@ -472,7 +474,33 @@ export function chatRoutes(
     });
 
     const originalUserMessage = lastUserMessage(body.messages);
-    if (originalUserMessage) {
+    let agentTurn: AgentConversationTurn | null = null;
+    if (activeAgentConfig && agentTurns) {
+      const clientRequestId = body.clientRequestId?.trim();
+      if (!clientRequestId) return c.json({ error: "clientRequestId required for Agent session" }, 400);
+      const userMessageId = body.userMessageId?.trim();
+      if (!userMessageId) return c.json({ error: "userMessageId required for Agent session" }, 400);
+      if (!originalUserMessage) return c.json({ error: "Agent session requires a user message" }, 400);
+      const admitted = await agentTurns.createOrGet({
+        id: randomUUID(),
+        conversationId,
+        clientRequestId,
+        userMessageId,
+        content: contentToText(originalUserMessage.content),
+        metadata: Array.isArray(body.attachments) && body.attachments.length > 0
+          ? { attachments: body.attachments.map(ref => ({ id: ref.id, mime: ref.mime })) }
+          : undefined,
+        now,
+      });
+      if (!admitted.created) {
+        return c.json({ error: "Agent request already admitted", conversationId, turn: admitted.turn }, 409);
+      }
+      const ownerId = randomUUID();
+      agentTurn = await agentTurns.claim(admitted.turn.id, { ownerId, now, leaseMs: 120_000 });
+      if (agentTurn?.status !== "running" || agentTurn.leaseOwner !== ownerId) {
+        return c.json({ error: "Agent conversation turn already running", conversationId, turn: agentTurn }, 409);
+      }
+    } else if (originalUserMessage) {
       await conversationsRepo?.appendMessage({
         id: randomUUID(),
         conversationId,
@@ -508,7 +536,7 @@ export function chatRoutes(
       //    （这是首字 SLO L1 兜底：用户感知 < 100ms，AI 真实首字独立测）
       await stream.writeSSE({
         event: "mascot",
-        data: JSON.stringify({ state: "thinking", ts: Date.now() }),
+        data: JSON.stringify({ state: "thinking", ts: Date.now(), ...(agentTurn ? { turnId: agentTurn.id } : {}) }),
       });
       const operation = await startOpRecord({
         op: "chat-stream",
@@ -598,6 +626,7 @@ export function chatRoutes(
       } catch (e) {
         const message = `Hermes unreachable: ${e instanceof Error ? e.message : String(e)}`;
         if (activeAgentConfig) {
+          await agentTurns?.finish(agentTurn!.id, { status: "failed", error: message, now: new Date().toISOString() });
           await opRecorder.event({ type: "error" });
           await opRecorder.error(message);
           await stream.writeSSE({
@@ -636,6 +665,7 @@ export function chatRoutes(
         const detail = await upstream.text().catch(() => "");
         const message = `Hermes ${upstream.status} ${upstream.statusText}${detail ? `: ${detail}` : ""}`;
         if (activeAgentConfig) {
+          await agentTurns?.finish(agentTurn!.id, { status: "failed", error: message, now: new Date().toISOString() });
           await opRecorder.event({ type: "error" });
           await opRecorder.error(message);
           await stream.writeSSE({
@@ -791,9 +821,11 @@ export function chatRoutes(
                 }),
               });
               await opRecorder.error(`Hermes 需要重新授权：${message}`);
+              if (agentTurn) await agentTurns?.finish(agentTurn.id, { status: "failed", error: message, now: new Date().toISOString() });
               return;
             }
             if (activeAgentConfig) {
+              await agentTurns?.finish(agentTurn!.id, { status: "failed", error: message, now: new Date().toISOString() });
               await opRecorder.event({ type: "error" });
               await opRecorder.error(message);
               await stream.writeSSE({
@@ -832,9 +864,16 @@ export function chatRoutes(
         }
         await opRecorder.event({ type: "output" });
         await opRecorder.done(fullText);
+        if (agentTurn) {
+          await agentTurns?.finish(agentTurn.id, {
+            status: "succeeded",
+            runtimeSessionId: hermesSessionId,
+            now: new Date().toISOString(),
+          });
+        }
         await stream.writeSSE({
           event: "done",
-          data: JSON.stringify({ finish_reason: finishReason, conversationId }),
+          data: JSON.stringify({ finish_reason: finishReason, conversationId, ...(agentTurn ? { turnId: agentTurn.id } : {}) }),
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -868,6 +907,7 @@ export function chatRoutes(
         }
         await opRecorder.event({ type: "error" });
         await opRecorder.error(message);
+        if (agentTurn) await agentTurns?.finish(agentTurn.id, { status: "failed", error: message, now: new Date().toISOString() });
         await stream.writeSSE({
           event: "error",
           data: JSON.stringify({ message }),

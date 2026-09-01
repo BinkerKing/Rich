@@ -3,6 +3,13 @@ import { chatRoutes } from "../src/routes/chat.js";
 import type { AgentConversationConfig, AgentConversationConfigRepo, AgentConversationStatus } from "../src/repos/AgentConversationConfigRepo.js";
 import type { ChatConversation, ChatConversationSummary, ChatConversationsRepo, ChatMessageRecord } from "../src/repos/ChatConversationsRepo.js";
 import type { AIAdapter } from "../src/ai/adapter.js";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { openDb } from "../src/db/sqlite.js";
+import { SqliteAgentConversationConfigRepo } from "../src/repos/SqliteAgentConversationConfigRepo.js";
+import { SqliteAgentConversationTurnRepo } from "../src/repos/SqliteAgentConversationTurnRepo.js";
+import { SqliteChatConversationsRepo } from "../src/repos/SqliteChatConversationsRepo.js";
 
 class MemoryAgentConfigs implements AgentConversationConfigRepo {
   rows = new Map<string, AgentConversationConfig>();
@@ -113,5 +120,38 @@ describe("chat Agent session routes", () => {
     expect(events).not.toContain("codex-fallback");
     expect(codexCalls).toBe(0);
     expect(await configs.get("c1")).toEqual(expect.objectContaining({ status: "active", modelSessionId: "hs-old" }));
+  });
+
+  it("admits an active Agent message as a durable turn and completes it", async () => {
+    const db = openDb(join(mkdtempSync(join(tmpdir(), "rich-chat-agent-turn-")), "rich.db"));
+    const conversations = new SqliteChatConversationsRepo(db);
+    const configs = new SqliteAgentConversationConfigRepo(db);
+    const turns = new SqliteAgentConversationTurnRepo(db);
+    const now = "2026-09-01T00:00:00.000Z";
+    await conversations.ensureConversation({ id: "c1", now });
+    await configs.save({ conversationId: "c1", executor: "hermes", permissionProfile: "chat_only", allowedMcpServers: [], status: "active", createdAt: now, updatedAt: now });
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      const body = 'data: {"session_id":"hs-new","choices":[{"delta":{"content":"done"}}]}\n\ndata: [DONE]\n\n';
+      return new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } });
+    }));
+    const app = chatRoutes(null, [], conversations, undefined, undefined, configs, turns);
+
+    const response = await app.request("/stream", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        conversationId: "c1",
+        clientRequestId: "request-1",
+        userMessageId: "message-1",
+        surface: "home",
+        messages: [{ role: "user", content: "continue" }],
+      }),
+    });
+    const events = await response.text();
+    const turn = await turns.getByClientRequest("c1", "request-1");
+
+    expect(events).toContain(`"turnId":"${turn?.id}"`);
+    expect(turn).toEqual(expect.objectContaining({ status: "succeeded", runtimeSessionId: "hs-new" }));
+    expect(await conversations.listMessages("c1", 10)).toHaveLength(2);
   });
 });
