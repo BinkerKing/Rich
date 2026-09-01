@@ -15,7 +15,7 @@ afterEach(() => {
   for (const directory of tempDirs.splice(0)) rmSync(directory, { recursive: true, force: true });
 });
 
-function makeApp() {
+function makeApp(options: { onDepsRegistryBuilt?: (count: number) => void; onOptionsRegistryBuilt?: (count: number) => void } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "rich-mcp-v2-http-"));
   tempDirs.push(directory);
   const db = openDb(join(directory, "rich.db"));
@@ -31,7 +31,8 @@ function makeApp() {
     projectManagement: new EmptyProjectManagementRepo(),
     operationRepo: new SqliteMcpOperationRepo(db),
     taskRepo: new SqliteMcpTaskRepo(db),
-  });
+    onRegistryBuilt: options.onDepsRegistryBuilt,
+  }, { onRegistryBuilt: options.onOptionsRegistryBuilt });
   return { app, db };
 }
 
@@ -78,6 +79,18 @@ describe("MCP 2.0 Streamable HTTP transport", () => {
     });
     const envelope = JSON.parse(result.result.content[0].text);
     expect(envelope).toMatchObject({ ok: true, action: "rich_context_get_overview", data: { knowledge: { total: 0 } } });
+    db.close();
+  });
+
+  it("calls dependency and mount registry callbacks in order", () => {
+    const calls: string[] = [];
+    const { db } = makeApp({
+      onDepsRegistryBuilt: count => calls.push(`deps:${count}`),
+      onOptionsRegistryBuilt: count => calls.push(`options:${count}`),
+    });
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toMatch(/^deps:\d+$/);
+    expect(calls[1]).toMatch(/^options:\d+$/);
     db.close();
   });
 });

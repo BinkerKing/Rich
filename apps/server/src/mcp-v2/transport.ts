@@ -5,6 +5,7 @@ import { buildMcpV2Server, type BuildMcpV2Deps } from "./server.js";
 export interface McpV2TransportOptions {
   onError?: (error: unknown) => void;
   state?: McpTransportState;
+  onRegistryBuilt?: (toolCount: number) => void;
 }
 
 export interface McpTransportSnapshot {
@@ -12,6 +13,7 @@ export interface McpTransportSnapshot {
   requestsTotal: number;
   lastRequestAt?: Date;
   lastSuccessAt?: Date;
+  lastErrorAt?: Date;
   lastError?: string;
 }
 
@@ -29,6 +31,7 @@ export class McpTransportState {
       startedAt: new Date(value.startedAt),
       ...(value.lastRequestAt ? { lastRequestAt: new Date(value.lastRequestAt) } : {}),
       ...(value.lastSuccessAt ? { lastSuccessAt: new Date(value.lastSuccessAt) } : {}),
+      ...(value.lastErrorAt ? { lastErrorAt: new Date(value.lastErrorAt) } : {}),
     };
   }
 }
@@ -44,11 +47,19 @@ function recordSuccess(state: McpTransportState): void {
 }
 
 function recordError(state: McpTransportState, error: unknown): void {
-  stateValues.get(state)!.lastError = error instanceof Error ? error.message : String(error);
+  const value = stateValues.get(state)!;
+  value.lastError = error instanceof Error ? error.message : String(error);
+  value.lastErrorAt = new Date();
 }
 
 export function mountMcpV2(parent: Hono, deps: BuildMcpV2Deps, options: McpV2TransportOptions = {}): void {
-  const server = buildMcpV2Server(deps);
+  const server = buildMcpV2Server({
+    ...deps,
+    onRegistryBuilt: toolCount => {
+      deps.onRegistryBuilt?.(toolCount);
+      options.onRegistryBuilt?.(toolCount);
+    },
+  });
   const state = options.state ?? new McpTransportState();
   parent.all("/mcp", async c => {
     recordRequest(state);

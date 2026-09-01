@@ -39,6 +39,7 @@ export interface BuildMcpV2Deps {
   delegationAdapter?: WorkDelegationPort;
   executionTeams?: ExecutionTeamAdministrationPort;
   taskService?: PersistentTaskService;
+  onRegistryBuilt?: (toolCount: number) => void;
   onToolEvent?: (event: McpToolEvent) => McpToolEventDelivery | void;
 }
 
@@ -85,6 +86,7 @@ function unavailableExecutionTeams(): ExecutionTeamAdministrationPort {
 
 export function buildMcpV2Server(deps: BuildMcpV2Deps): McpServer {
   const registry = buildMcpV2Registry(deps);
+  deps.onRegistryBuilt?.(registry.listRegistrations().length);
   const server = new McpServer({ name: "rich", version: "2.0.0" });
   const emitToolEvent = createToolEventQueue(deps.onToolEvent);
 

@@ -36,5 +36,6 @@ export interface McpTaskRepo {
   create(task: McpTask): MaybePromise<void>;
   get(id: string): MaybePromise<McpTask | null>;
   list(options?: McpTaskListOptions): MaybePromise<McpTask[]>;
+  count(options?: Pick<McpTaskListOptions, "status">): MaybePromise<number>;
   save(task: McpTask): MaybePromise<void>;
 }

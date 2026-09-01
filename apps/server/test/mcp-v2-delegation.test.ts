@@ -31,6 +31,7 @@ class MemoryTaskRepo implements McpTaskRepo {
   list(options: McpTaskListOptions = {}): McpTask[] {
     return Array.from(this.tasks.values()).filter(task => !options.status || task.status === options.status).map(task => structuredClone(task));
   }
+  count(options: Pick<McpTaskListOptions, "status"> = {}) { return this.list(options).length; }
   save(task: McpTask): void { this.tasks.set(task.id, structuredClone(task)); }
 }
 

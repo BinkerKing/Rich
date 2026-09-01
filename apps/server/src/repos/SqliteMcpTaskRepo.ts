@@ -33,6 +33,13 @@ export class SqliteMcpTaskRepo implements McpTaskRepo {
     return (rows as TaskRow[]).map(hydrate);
   }
 
+  count(options: Pick<McpTaskListOptions, "status"> = {}): number {
+    const row = options.status
+      ? this.db.prepare("SELECT COUNT(*) AS count FROM mcp_tasks WHERE status = ?").get(options.status)
+      : this.db.prepare("SELECT COUNT(*) AS count FROM mcp_tasks").get();
+    return Number((row as { count: number }).count);
+  }
+
   save(task: McpTask): void {
     const result = this.db.prepare(`UPDATE mcp_tasks SET
       type = ?, title = ?, request_json = ?, status = ?, backend = ?, external_task_id = ?, progress_summary = ?,

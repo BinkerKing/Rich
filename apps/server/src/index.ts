@@ -210,6 +210,7 @@ import { PostgresProjectAutomationRepo } from "./modules/project-automation/infr
 import { SqliteProjectAutomationRepo } from "./modules/project-automation/infrastructure/SqliteProjectAutomationRepo.js";
 import { projectAutomationRoutes } from "./modules/project-automation/presentation/routes.js";
 import { PersistentTaskService } from "./mcp-v2/tasks/persistentTaskService.js";
+import { createAIObservability } from "./ai/observability.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -321,6 +322,10 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     onError: error => log.warn("multica.task_sync.failed", {
       error: error instanceof Error ? error.message : String(error),
     }),
+    availabilityCheck: async () => {
+      if (!multica.commands.runText) throw new Error("DEPENDENCY_UNAVAILABLE: Multica CLI does not support version checks.");
+      await multica.commands.runText(["--version"], { includeWorkspace: false });
+    },
   });
   multicaTaskSynchronizer.start();
   const manualsDir = opts.aiDir ?? aiDir();
@@ -347,6 +352,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   imageQueue.configure(pickScenarioAdapter(ai, "image"), elements, log);
   const app = new Hono();
   const mcpTransportState = new McpTransportState();
+  let mcpRegistryToolCount = 0;
   const operationCorrelations = new OperationCorrelationRegistry();
   app.use("*", async (c, next) => {
     c.header("access-control-allow-origin", "*");
@@ -406,6 +412,14 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     corpus,
     chatConversations,
     contextProvider: aiContextProvider,
+    observability: createAIObservability({
+      adapters: ai,
+      mcpTransportState,
+      multicaTaskSynchronizer,
+      multicaWorkTasks,
+      getMcpRegistryToolCount: () => mcpRegistryToolCount,
+      childRegistryCount: () => childRegistry.size(),
+    }),
   }));
   // Mindmap PPT decks — element-backed. Every deck IS the root element of
   // a subtree that carries a `mindmap-embed` section. No separate storage.
@@ -444,6 +458,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     },
   }, {
     state: mcpTransportState,
+    onRegistryBuilt: toolCount => { mcpRegistryToolCount = toolCount; },
     onError: error => log.error("mcp.v2.transport.failed", {
       error: error instanceof Error ? error.message : String(error),
     }),

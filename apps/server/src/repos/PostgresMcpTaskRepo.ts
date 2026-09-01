@@ -36,6 +36,14 @@ export class PostgresMcpTaskRepo implements McpTaskRepo {
     return result.rows.map(hydrate);
   }
 
+  async count(options: Pick<McpTaskListOptions, "status"> = {}): Promise<number> {
+    await this.pg.ready;
+    const result = options.status
+      ? await this.pg.query<{ count: string }>("SELECT COUNT(*) AS count FROM mcp_tasks WHERE status = $1", [options.status])
+      : await this.pg.query<{ count: string }>("SELECT COUNT(*) AS count FROM mcp_tasks");
+    return Number(result.rows[0]?.count ?? 0);
+  }
+
   async save(task: McpTask): Promise<void> {
     await this.pg.ready;
     const result = await this.pg.query(`UPDATE mcp_tasks SET
