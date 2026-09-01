@@ -77,6 +77,13 @@ export class PersistentTaskService {
     return next;
   }
 
+  async bindExternal(id: string, backend: string, externalTaskId: string, progressSummary?: string): Promise<McpTask> {
+    const current = await this.get(id);
+    const next: McpTask = { ...current, backend, externalTaskId, ...(progressSummary ? { progressSummary } : {}), updatedAt: new Date().toISOString() };
+    await this.repo.save(next);
+    return next;
+  }
+
   async transition(id: string, status: McpTaskStatus, patch: TaskTransitionPatch = {}): Promise<McpTask> {
     const current = await this.get(id);
     if (current.status === status) {

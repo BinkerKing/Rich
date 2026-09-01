@@ -1,0 +1,18 @@
+.chat-command-menu { position:absolute; z-index:80; left:0; right:0; bottom:calc(100% + 10px); overflow:hidden; border:1px solid rgba(111,231,214,.28); border-radius:14px; background:linear-gradient(145deg,rgba(8,22,28,.98),rgba(15,28,35,.96)); box-shadow:0 18px 48px rgba(0,0,0,.42),inset 0 1px rgba(255,255,255,.04); backdrop-filter:blur(20px); }
+.chat-command-menu > header { display:grid; grid-template-columns:28px 1fr auto; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.07); color:rgba(229,246,247,.76); font-size:12px; }
+.chat-command-menu > header > span { color:#72ead7; font:700 18px ui-monospace,monospace; }
+.chat-command-menu > header > small { color:rgba(229,246,247,.4); }
+.chat-command-menu__items { display:grid; padding:6px; }
+.chat-command-menu__items > button { display:grid; grid-template-columns:74px 1fr; gap:10px; align-items:center; width:100%; padding:9px 10px; border:0; border-radius:9px; color:rgba(237,249,250,.88); background:transparent; text-align:left; cursor:pointer; }
+.chat-command-menu__items > button.is-active,.chat-command-menu__items > button:hover { background:rgba(80,213,194,.12); }
+.chat-command-menu__items code { color:#7bf1df; font:600 12px ui-monospace,monospace; }
+.chat-command-menu__items button > span { display:grid; gap:2px; }
+.chat-command-menu__items button strong { font-size:13px; }
+.chat-command-menu__items button small { color:rgba(229,246,247,.46); font-size:11px; }
+.agent-session-marker { position:absolute; z-index:70; left:12px; bottom:calc(100% + 8px); display:flex; align-items:center; gap:8px; padding:6px 8px 6px 10px; border:1px solid rgba(91,224,196,.3); border-radius:999px; color:#d9faf3; background:rgba(8,28,31,.92); box-shadow:0 8px 24px rgba(0,0,0,.28); font-size:11px; -webkit-app-region:no-drag; }
+.agent-session-marker::before { content:""; width:6px; height:6px; border-radius:50%; background:#58e3bd; box-shadow:0 0 10px #58e3bd; }
+.agent-session-marker > span { font-weight:700; }
+.agent-session-marker > small { color:rgba(217,250,243,.5); }
+.agent-session-marker > button { padding:2px 6px; border:0; border-radius:999px; color:rgba(217,250,243,.7); background:rgba(255,255,255,.06); cursor:pointer; }
+.chat-input > .chat-command-menu { position:static; grid-column:1 / -1; bottom:auto; -webkit-app-region:no-drag; }
+.chat-input > .agent-session-marker { position:static; grid-column:1 / -1; justify-self:start; bottom:auto; -webkit-app-region:no-drag; }

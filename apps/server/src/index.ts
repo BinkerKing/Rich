@@ -2,7 +2,10 @@ import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { fileURLToPath } from "node:url";
 import { existsSync, realpathSync } from "node:fs";
+import { readdir, stat } from "node:fs/promises";
+import { relative } from "node:path";
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { elementsRoutes } from "./routes/elements.js";
 import { relationsRoutes } from "./routes/relations.js";
 import { pathsRoutes } from "./routes/paths.js";
@@ -119,6 +122,10 @@ import { SqliteSignalsRepo } from "./repos/SqliteSignalsRepo.js";
 import { SqliteChatVisualBlocksRepo } from "./repos/SqliteChatVisualBlocksRepo.js";
 import { SqliteChatAttachmentsRepo } from "./repos/SqliteChatAttachmentsRepo.js";
 import { SqliteChatConversationsRepo } from "./repos/SqliteChatConversationsRepo.js";
+import { SqliteAgentConversationConfigRepo } from "./repos/SqliteAgentConversationConfigRepo.js";
+import { SqliteAgentConversationTurnRepo } from "./repos/SqliteAgentConversationTurnRepo.js";
+import { SqliteAgentToolCallRepo } from "./repos/SqliteAgentToolCallRepo.js";
+import { SqliteAgentApprovalRepo } from "./repos/SqliteAgentApprovalRepo.js";
 import { SqliteQARepo } from "./repos/SqliteQARepo.js";
 import { SqliteAnnotationsRepo } from "./repos/SqliteAnnotationsRepo.js";
 import { SqliteStateRepo } from "./repos/SqliteStateRepo.js";
@@ -132,6 +139,10 @@ import type { SignalsRepo } from "./repos/SignalsRepo.js";
 import type { ChatVisualBlocksRepo } from "./repos/ChatVisualBlocksRepo.js";
 import type { ChatAttachmentsRepo } from "./repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "./repos/ChatConversationsRepo.js";
+import type { AgentConversationConfigRepo } from "./repos/AgentConversationConfigRepo.js";
+import type { AgentConversationTurnRepo } from "./repos/AgentConversationTurnRepo.js";
+import type { AgentToolCallRepo } from "./repos/AgentToolCallRepo.js";
+import type { AgentApprovalRepo } from "./repos/AgentApprovalRepo.js";
 import type { HealthRepo } from "./repos/HealthRepo.js";
 import type { QARepo } from "./repos/QARepo.js";
 import type { AnnotationsRepo } from "./repos/AnnotationsRepo.js";
@@ -141,6 +152,10 @@ import { dataDir, aiDir } from "./lib/paths.js";
 import { ClaudeAdapter } from "./ai/claude.js";
 import { CodexAdapter } from "./ai/codex.js";
 import { HermesAdapter } from "./ai/hermes.js";
+import { HermesTaskExecutor } from "./ai-tasks/HermesTaskExecutor.js";
+import { MulticaTaskExecutor } from "./ai-tasks/MulticaTaskExecutor.js";
+import { AiTaskDispatcher } from "./ai-tasks/AiTaskDispatcher.js";
+import { DeliverableTaskHistoryService } from "./ai-tasks/DeliverableTaskHistoryService.js";
 import { BailianAdapter } from "./ai/bailian.js";
 import { loadAIEngineSettings } from "./ai/engineSettings.js";
 import { configureOpLog, healStaleRunningOps, recordTraceForExistingOp } from "./ai/aiOpLog.js";
@@ -173,6 +188,7 @@ import { healthRoutes } from "./routes/health.js";
 import { createReminderTicker } from "./lib/reminderTicker.js";
 import { projectsRoutes } from "./routes/projects.js";
 import { projectManagementRoutes } from "./routes/projectManagement.js";
+import { aiTaskRoutes } from "./routes/aiTasks.js";
 import { multicaProjectWorkbenchRoutes } from "./routes/multicaProjectWorkbench.js";
 import { projectDictionaryTestFilesRoutes } from "./routes/projectDictionaryTestFiles.js";
 import { rikingProjectsRoutes } from "./routes/rikingProjects.js";
@@ -194,6 +210,10 @@ import { PostgresSignalsRepo } from "./repos/PostgresSignalsRepo.js";
 import { PostgresChatVisualBlocksRepo } from "./repos/PostgresChatVisualBlocksRepo.js";
 import { PostgresChatAttachmentsRepo } from "./repos/PostgresChatAttachmentsRepo.js";
 import { PostgresChatConversationsRepo } from "./repos/PostgresChatConversationsRepo.js";
+import { PostgresAgentConversationConfigRepo } from "./repos/PostgresAgentConversationConfigRepo.js";
+import { PostgresAgentConversationTurnRepo } from "./repos/PostgresAgentConversationTurnRepo.js";
+import { PostgresAgentToolCallRepo } from "./repos/PostgresAgentToolCallRepo.js";
+import { PostgresAgentApprovalRepo } from "./repos/PostgresAgentApprovalRepo.js";
 import { PostgresHealthRepo } from "./repos/PostgresHealthRepo.js";
 import { PostgresQARepo } from "./repos/PostgresQARepo.js";
 import { PostgresAnnotationsRepo } from "./repos/PostgresAnnotationsRepo.js";
@@ -203,7 +223,7 @@ import { PostgresGreatMeRepo } from "./repos/PostgresGreatMeRepo.js";
 import { PostgresInvocationsRepo } from "./repos/PostgresInvocationsRepo.js";
 import { PostgresImprovementsRepo } from "./repos/PostgresImprovementsRepo.js";
 import { getAgentId } from "./lib/agentId.js";
-import type { ProjectManagementRepo } from "./repos/ProjectManagementRepo.js";
+import { PROJECT_MANAGEMENT_MODULES, type ProjectManagementModuleKey, type ProjectManagementRepo } from "./repos/ProjectManagementRepo.js";
 import { PostgresProjectManagementRepo } from "./repos/PostgresProjectManagementRepo.js";
 import { SqliteProjectManagementRepo } from "./repos/SqliteProjectManagementRepo.js";
 import type { ProjectAutomationRepo } from "./modules/project-automation/contracts.js";
@@ -213,6 +233,13 @@ import { projectAutomationRoutes } from "./modules/project-automation/presentati
 import { PersistentTaskService } from "./mcp-v2/tasks/persistentTaskService.js";
 import { createAIObservability } from "./ai/observability.js";
 import { syncProjectPlanTasks } from "./services/projectPlanTaskSync.js";
+import { AgentCapabilityGateway } from "./agent-conversations/AgentCapabilityGateway.js";
+import { AgentConversationService } from "./agent-conversations/AgentConversationService.js";
+import { AgentToolCallService } from "./agent-conversations/AgentToolCallService.js";
+import { AgentApprovalService } from "./agent-conversations/AgentApprovalService.js";
+import { HermesAgentRuntime } from "./agent-conversations/HermesAgentRuntime.js";
+import { ConversationPromotionService } from "./agent-conversations/ConversationPromotionService.js";
+import { DeliverableTaskContextService } from "./ai-tasks/DeliverableTaskContextService.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -245,6 +272,10 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   /** chat_attachments 同上 —— bytea 存储需要数据库后端 */
   let chatAttachments: ChatAttachmentsRepo | null = null;
   let chatConversations: ChatConversationsRepo | null = null;
+  let agentConversationConfigs: AgentConversationConfigRepo | null = null;
+  let agentConversationTurns: AgentConversationTurnRepo | null = null;
+  let agentToolCalls: AgentToolCallRepo | null = null;
+  let agentApprovals: AgentApprovalRepo | null = null;
   /** Body Insights 健康档案 —— V0.1 只支持 postgres（数据敏感、需跨机同步） */
   let healthRepo: HealthRepo | null = null;
   if (storage === "postgres") {
@@ -267,6 +298,10 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     chatVisualBlocks = new PostgresChatVisualBlocksRepo(pg);
     chatAttachments = new PostgresChatAttachmentsRepo(pg);
     chatConversations = new PostgresChatConversationsRepo(pg);
+    agentConversationConfigs = new PostgresAgentConversationConfigRepo(pg);
+    agentConversationTurns = new PostgresAgentConversationTurnRepo(pg);
+    agentToolCalls = new PostgresAgentToolCallRepo(pg);
+    agentApprovals = new PostgresAgentApprovalRepo(pg);
     healthRepo = new PostgresHealthRepo(pg);
     projectManagement = new PostgresProjectManagementRepo(pg);
     projectAutomation = new PostgresProjectAutomationRepo(pg);
@@ -290,6 +325,10 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     chatVisualBlocks = new SqliteChatVisualBlocksRepo(db);
     chatAttachments = new SqliteChatAttachmentsRepo(db);
     chatConversations = new SqliteChatConversationsRepo(db);
+    agentConversationConfigs = new SqliteAgentConversationConfigRepo(db);
+    agentConversationTurns = new SqliteAgentConversationTurnRepo(db);
+    agentToolCalls = new SqliteAgentToolCallRepo(db);
+    agentApprovals = new SqliteAgentApprovalRepo(db);
     projectManagement = new SqliteProjectManagementRepo(db);
     projectAutomation = new SqliteProjectAutomationRepo(db);
     mcpOperationRepo = new SqliteMcpOperationRepo(db);
@@ -308,6 +347,26 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     new CodexAdapter(),
     new ClaudeAdapter(),
   ];
+  const hermesAdapter = ai.find(adapter => adapter.name === "hermes") ?? null;
+  const agentExecution = agentConversationConfigs && agentConversationTurns && agentToolCalls && agentApprovals && chatConversations && hermesAdapter
+    ? (() => {
+        const gateway = new AgentCapabilityGateway(
+          process.env.RICH_AGENT_CAPABILITY_SECRET || randomUUID(),
+          (turnId, now) => agentConversationTurns!.hasActiveLease(turnId, now),
+        );
+        const toolService = new AgentToolCallService(agentToolCalls, gateway, async () => {
+          throw new Error("Agent runtime tool execution is unavailable for chat_only");
+        }, new AgentApprovalService(agentApprovals));
+        return new AgentConversationService(agentConversationConfigs, chatConversations, {
+          turns: agentConversationTurns,
+          toolCallRepo: agentToolCalls,
+          toolCalls: toolService,
+          runtime: new HermesAgentRuntime(hermesAdapter),
+          gateway,
+          workspaceRoot: richWorkspaceDir,
+        });
+      })()
+    : null;
   loadAIEngineSettings();
   const log = logger ?? opts.logger ?? noopLogger;
   const multicaSnapshots = openSqliteMulticaWorkbenchSnapshotRepo(join(root, "multica-workbench.db"));
@@ -330,6 +389,53 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     },
   });
   multicaTaskSynchronizer.start();
+  const hermesTaskExecutor = new HermesTaskExecutor();
+  const multicaTaskExecutor = new MulticaTaskExecutor(multica.delegationAdapter, async projectId => {
+    try {
+      if (!multica.commands.runText) return false;
+      await multica.commands.runText(["--version"], { includeWorkspace: false });
+      return Boolean(await multicaBindingRepo.getBinding(projectId));
+    } catch { return false; }
+  });
+  const aiTaskDispatcher = new AiTaskDispatcher(
+    multicaWorkTasks,
+    [hermesTaskExecutor, multicaTaskExecutor],
+    new DeliverableTaskHistoryService(multicaWorkTasks),
+  );
+  const promotionContext = new DeliverableTaskContextService(projectManagement, async (projectId, folderPath) => {
+    const project = await elements.get(projectId);
+    const localFolder = project?.type === "project" && project.content && typeof project.content === "object"
+      ? (project.content as { localFolder?: unknown }).localFolder
+      : null;
+    if (typeof localFolder !== "string" || !localFolder) throw new Error("Project local folder is unavailable.");
+    const projectRoot = realpathSync(localFolder);
+    const directory = pathResolve(projectRoot, folderPath);
+    const offset = relative(projectRoot, directory);
+    if (offset.startsWith("..") || pathResolve(projectRoot, offset) !== directory) throw new Error("Deliverable folder is outside the project.");
+    const entries = await readdir(directory, { withFileTypes: true });
+    return Promise.all(entries.filter(entry => entry.isFile()).map(async entry => ({
+      fileName: entry.name,
+      relativePath: `${folderPath.replace(/\/$/, "")}/${entry.name}`,
+      size: (await stat(pathResolve(directory, entry.name))).size,
+    })));
+  });
+  const conversationPromotions = chatConversations
+    ? new ConversationPromotionService(chatConversations, chatAttachments, (projectId, deliverableId) => promotionContext.createSnapshot(projectId, deliverableId), async request => {
+        const task = await aiTaskDispatcher.publish(request);
+        void aiTaskDispatcher.drain(task.id).catch(error => log.warn("ai_task.dispatch.failed", { taskId: task.id, error: error instanceof Error ? error.message : String(error) }));
+        return task;
+      }, request => aiTaskDispatcher.validate(request), scenario => aiTaskDispatcher.assertScenario(scenario), async action => {
+        const moduleKey = action.destination.moduleKey as ProjectManagementModuleKey;
+        if (!PROJECT_MANAGEMENT_MODULES.some(module => module.key === moduleKey)) {
+          throw new Error(`Unknown Rich module: ${action.destination.moduleKey}.`);
+        }
+        return projectManagement.createModuleItem(action.destination.projectId, {
+          moduleKey,
+          title: action.destination.title,
+          content: action.content,
+        });
+      })
+    : null;
   const manualsDir = opts.aiDir ?? aiDir();
   // ─── Toolbox runtime (gracefully no-op if SQLite repo missing) ──
   const toolRuntime = invocations ? new ToolRuntime(invocations) : null;
@@ -381,11 +487,22 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/state", stateRoutes(state, elements, signals));
   app.route("/api/corpus", corpusRoutes(corpus));
   app.route("/api/great-me", greatMeRoutes(greatMe));
-  app.route("/api/chat", chatRoutes(chatAttachments, ai, chatConversations, aiContextProvider, operationCorrelations));
+  app.route("/api/chat", chatRoutes(chatAttachments, ai, chatConversations, aiContextProvider, operationCorrelations, agentConversationConfigs, agentConversationTurns, agentExecution, conversationPromotions));
   app.route("/api/chat-visual-blocks", chatVisualBlocksRoutes(chatVisualBlocks));
   app.route("/api/chat/attachments", chatAttachmentsRoutes(chatAttachments));
   app.route("/api/health", healthRoutes(healthRepo));
   app.route("/api/projects", projectsRoutes(elements, projectManagement));
+  app.route("/api/ai-tasks", aiTaskRoutes({
+    availability: async projectId => ({
+      hermes: await hermesTaskExecutor.available(),
+      multica: projectId ? await multicaTaskExecutor.available(projectId) : false,
+    }),
+    publish: async input => {
+      const task = await aiTaskDispatcher.publish(input);
+      void aiTaskDispatcher.drain(task.id).catch(error => log.warn("ai_task.dispatch.failed", { taskId: task.id, error: error instanceof Error ? error.message : String(error) }));
+      return task;
+    },
+  }));
   app.route("/api/project-management", projectManagementRoutes(projectManagement, { elements, greatMe }));
   app.route("/api/project-management", projectAutomationRoutes(projectManagement, projectAutomation));
   app.route("/api/project-management", multicaProjectWorkbenchRoutes({

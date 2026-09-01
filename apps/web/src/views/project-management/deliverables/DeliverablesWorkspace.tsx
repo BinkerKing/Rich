@@ -43,7 +43,7 @@ const fileDate = (value: string) =>
     minute: "2-digit",
   });
 const recordKindLabel = (kind: DeliverableRecordKind) =>
-  kind === "requirement" ? "要求" : kind === "status" ? "状态" : kind === "change" ? "修改" : kind === "information" ? "信息" : "材料";
+  kind === "requirement" ? "要求" : kind === "status" ? "状态" : kind === "change" ? "修改" : kind === "information" ? "信息" : kind === "ai_task" ? "AI 任务" : "材料";
 const richTextHasContent = (value: string) => value.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0;
 
 export function DeliverablesWorkspace({
@@ -58,6 +58,7 @@ export function DeliverablesWorkspace({
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
   const [kind, setKind] = useState<DeliverableRecordKind>("requirement");
+  const [aiExecutor, setAiExecutor] = useState<"hermes" | "multica">("hermes");
   const [recordFiles, setRecordFiles] = useState<File[]>([]);
   const [editingRecordId, setEditingRecordId] = useState<string>();
   const [editingRecordText, setEditingRecordText] = useState("");
@@ -347,6 +348,32 @@ export function DeliverablesWorkspace({
     if (materialInputRef.current) materialInputRef.current.value = "";
     await refreshFiles(item);
   };
+  const publishDeliverableAiTask = async (item: Item) => {
+    if (!richTextHasContent(text)) return;
+    const files = (filesByFolder[item.content.folderPath] || []).flatMap(file => {
+      if (file.isDirectory) return [];
+      const meta = item.content.fileMeta.find(entry => entry.relativePath === file.relativePath);
+      return [{
+        relativePath: file.relativePath, fileName: file.fileName, size: file.size,
+        type: meta?.type || "material", ...(meta?.version ? { version: meta.version } : {}), ...(meta?.note ? { note: meta.note } : {}),
+      }];
+    });
+    const task = await api.publishDeliverableAiTask({
+      scenario: "deliverable_analysis", projectId, deliverableId: item.id, executor: aiExecutor, profile: "analysis",
+      instructions: text.trim(),
+      acceptanceCriteria: item.content.records.filter(record => record.kind === "requirement").map(record => record.text),
+      contextSnapshot: {
+        version: 1, createdAt: new Date().toISOString(),
+        deliverable: { folderPath: item.content.folderPath, requirementHtml: item.content.descriptionHtml },
+        records: item.content.records.map(record => ({ id: record.id, kind: record.kind, text: record.text, createdAt: record.createdAt })), files, history: [],
+      },
+    });
+    await save(item, addDeliverableRecord(item.content, {
+      id: crypto.randomUUID(), kind: "ai_task", text: text.trim(), createdAt: new Date().toISOString(), informationType: "information", attachments: [],
+      aiTask: { id: task.id, status: task.status, executor: aiExecutor },
+    }));
+    setText("");
+  };
   const startRecordEdit = (record: DeliverableRecord) => {
     setEditingRecordId(record.id);
     setEditingRecordText(record.text);
@@ -562,8 +589,17 @@ export function DeliverablesWorkspace({
                               <option value="change">修改</option>
                               <option value="information">信息</option>
                               <option value="material">材料</option>
+                              <option value="ai_task">AI 任务</option>
                             </select>
                           </label>
+                          {!editingRecordId && kind === "ai_task" && (
+                            <label aria-label="AI 任务执行器">
+                              <select value={aiExecutor} onChange={event => setAiExecutor(event.target.value as "hermes" | "multica")}>
+                                <option value="hermes">Hermes</option>
+                                <option value="multica">Multica</option>
+                              </select>
+                            </label>
+                          )}
                           <aside>
                             <label>
                               添加附件
@@ -585,9 +621,10 @@ export function DeliverablesWorkspace({
                           <button style={{ marginLeft: "auto" }} onClick={() => {
                             const record = item.content.records.find((current) => current.id === editingRecordId);
                             if (record) void saveRecordEdit(item, record);
+                            else if (kind === "ai_task") void publishDeliverableAiTask(item);
                             else void addRecord(item);
                           }}>
-                            {editingRecordId ? "保存" : "发布记录"}
+                            {editingRecordId ? "保存" : kind === "ai_task" ? "发布 AI 任务" : "发布记录"}
                           </button>
                           {editingRecordId && <button className="deliverables-workspace__record-edit-cancel" onClick={() => setEditingRecordId(undefined)}>取消</button>}
                         </footer>
@@ -601,6 +638,7 @@ export function DeliverablesWorkspace({
                             <b>{recordKindLabel(record.kind)}</b>
                             <div className="deliverables-workspace__record-content workflow-rich-content" onDoubleClick={() => startRecordEdit(record)} title="双击编辑" dangerouslySetInnerHTML={{ __html: record.text }} />
                             <time>{fileDate(record.createdAt)}</time>
+                            {record.aiTask && <small>AI 任务 · {record.aiTask.executor === "hermes" ? "Hermes" : "Multica"} · {record.aiTask.status}</small>}
                             <button aria-label="删除记录" title="删除记录" onClick={() => void deleteRecord(item, record)}>×</button>
                             {record.attachments.length > 0 && (
                               <ul>

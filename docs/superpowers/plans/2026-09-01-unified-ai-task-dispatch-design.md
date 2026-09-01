@@ -2,11 +2,17 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Allow a deliverable record to publish a persistent AI task explicitly to Hermes or Multica, with a frozen project/deliverable context and auditable output files.
+**Goal:** Provide one AI execution platform with two explicit execution modes in the existing Rich chat: persistent Hermes Agent sessions selected through `/agent`, and scenario-defined structured tasks. Deliverable tasks remain the first structured scenario and can run on Hermes or Multica with frozen context and auditable outputs.
 
-**Architecture:** Keep Rich as the system of record by reusing `mcp_tasks`; add a dispatcher that selects an executor and owns retries/status. The Hermes executor sends a task-scoped prompt to the local Gateway; Hermes uses new task-scoped Rich MCP tools to read the frozen context and create only new deliverable files/versions. Multica retains the existing external-adapter flow behind the same executor interface.
+**Architecture:** Keep Rich as the system of record. Structured work uses `mcp_tasks`, a scenario registry, and an executor-neutral dispatcher. `/agent` binds the current Rich conversation to a persistent Hermes session while reusing `chat_conversations`, `chat_messages`, and summaries; Agent policy lives in a small companion repository. Durable conversation turns, tool calls, and approvals make concurrency, recovery, and external side effects auditable. An enforceable capability gateway controls filesystem, Shell, browser, network, and MCP access. Conversation content reaches Rich business data only through explicit promotion or approved save actions. See `docs/ADR-20260901-agent-conversation-and-task-modes.md` for the accepted boundaries.
 
 **Tech Stack:** TypeScript, Hono, Zod, SQLite/Postgres-compatible repositories, Rich MCP v2, local Hermes OpenAI-compatible API, React.
+
+## Current implementation status
+
+The branch already implements the deliverable snapshot, Hermes and Multica executors, publication route, executor-neutral task MCP protocol, permission profiles for structured tasks, frozen prior-task history, and server integration. Tasks 1–5 below describe that delivered foundation. The next implementation checkpoint starts at Task 8; the deliverable publishing UI in Task 6 remains part of the same release. Tasks 10–13 are mandatory prerequisites for a persistent Agent session: do not start the chat runtime or UI tasks until their durable turn, tool-call, and approval contracts pass.
+
+**Delivery status (2026-09-01):** Tasks 1–15 are implemented and verified. Task 16 adds the final integration test, operator documentation, desktop package, and local smoke check. Hermes remains intentionally limited to `chat_only`: the broader profiles remain unavailable until Hermes can enforce per-session tool/workspace boundaries and resume a mediated tool call after Rich approval.
 
 ---
 
@@ -244,3 +250,490 @@ Expected: PASS.
 Run: `pnpm --filter @ke/desktop package`
 
 Expected: exit 0; replace `/Applications/Rich.app`, relaunch it, and perform one Hermes deliverable-task smoke test.
+
+### Task 8: Extract a scenario registry from deliverable-specific dispatch
+
+**Files:**
+- Create: `apps/server/src/agent-scenarios/types.ts`
+- Create: `apps/server/src/agent-scenarios/ScenarioRegistry.ts`
+- Create: `apps/server/src/agent-scenarios/deliverableAnalysisScenario.ts`
+- Modify: `apps/server/src/ai-tasks/types.ts`
+- Modify: `apps/server/src/ai-tasks/AiTaskDispatcher.ts`
+- Modify: `apps/server/src/ai-tasks/HermesTaskExecutor.ts`
+- Modify: `apps/server/src/mcp-v2/server.ts`
+- Modify: `apps/server/src/routes/aiTasks.ts`
+- Create: `apps/server/test/agent-scenario-registry.test.ts`
+
+- [ ] **Step 1: Write failing registry tests**
+
+```ts
+test("the dispatcher resolves task behavior through its scenario", async () => {
+  const scenario = registry.get("deliverable_analysis");
+  assert.equal(scenario.id, "deliverable_analysis");
+  const task = await dispatcher.publish({
+    scenario: "deliverable_analysis",
+    executor: "hermes",
+    input: { projectId: "p1", deliverableId: "d1", instructions: "analyze" },
+  });
+  assert.equal(task.request.scenario, "deliverable_analysis");
+});
+
+test("an unknown scenario is rejected before a task row is created", async () => {
+  await assert.rejects(() => dispatcher.publish({ scenario: "missing", executor: "hermes", input: {} }));
+  assert.equal(await tasks.list({ limit: 10 }).then(rows => rows.length), 0);
+});
+
+test("a scenario grants only its declared tools to its executor", async () => {
+  const task = await dispatcher.publish({ scenario: "deliverable_analysis", executor: "hermes", input });
+  expect(runtime.calls[0].tools).toEqual(["rich_task_context_get", "rich_task_write_file", "rich_task_report_result"]);
+  await expect(tools.call("rich_project_update", { taskId: task.id })).rejects.toThrow();
+});
+```
+
+- [ ] **Step 2: Verify the tests fail**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-scenario-registry.test.ts`
+
+Expected: failure because the registry does not exist.
+
+- [ ] **Step 3: Implement the minimal scenario contract**
+
+Define `AgentTaskScenario` with input parsing, snapshot building, permission policy, executor context/prompt rendering, a task-scoped `toolManifest`, result contract, result validation, and approved writeback handler. Register `deliverable_analysis` by adapting `DeliverableTaskContextService` and the existing deliverable result rules. Change the dispatcher to resolve scenario behavior before persisting, Hermes to render and expose only the scenario manifest, and the MCP server to authorize task tools from that manifest. Keep executor selection independent of the scenario. Do not claim that future scenarios are supported until they provide all seven contract members.
+
+- [ ] **Step 4: Run focused and regression tests**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-scenario-registry.test.ts test/ai-task-dispatcher.test.ts test/ai-tasks-routes.test.ts test/mcp-v2-deliverable-task-tools.test.ts`
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+Run: `git add apps/server/src/agent-scenarios apps/server/src/ai-tasks apps/server/src/routes/aiTasks.ts apps/server/test/agent-scenario-registry.test.ts && git commit -m "refactor: route AI tasks through scenarios"`
+
+### Task 9: Persist Agent conversation configuration
+
+**Files:**
+- Create: `apps/server/src/repos/AgentConversationConfigRepo.ts`
+- Create: `apps/server/src/repos/SqliteAgentConversationConfigRepo.ts`
+- Create: `apps/server/src/repos/PostgresAgentConversationConfigRepo.ts`
+- Modify: `apps/server/src/db/sqlite.ts`
+- Modify: `apps/server/src/db/postgres.ts`
+- Create: `apps/server/test/agent-conversation-config-repo.test.ts`
+
+- [ ] **Step 1: Write failing repository contract tests**
+
+```ts
+test("stores Agent policy separately from the conversation transcript", async () => {
+  await conversations.ensureConversation({ id: "c1", surface: "agent", now });
+  await configs.create({
+    conversationId: "c1",
+    executor: "hermes",
+    permissionProfile: "chat_only",
+    allowedMcpServers: [],
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  });
+  assert.equal((await configs.get("c1"))?.permissionProfile, "chat_only");
+});
+```
+
+- [ ] **Step 2: Verify the tests fail**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-config-repo.test.ts`
+
+Expected: failure because the repository and table do not exist.
+
+- [ ] **Step 3: Add the companion table and repositories**
+
+Create `agent_conversation_configs` keyed by `conversation_id`, with executor, permission profile, nullable canonical workspace root, allowed MCP server JSON, status, and timestamps. Use a foreign key with cascade deletion. Do not add Agent fields to `chat_messages`; the transcript remains unchanged.
+
+- [ ] **Step 4: Test SQLite and Postgres-compatible behavior**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-config-repo.test.ts && pnpm --filter @ke/server typecheck`
+
+Expected: PASS and exit 0.
+
+- [ ] **Step 5: Commit**
+
+Run: `git add apps/server/src/repos apps/server/src/db apps/server/test/agent-conversation-config-repo.test.ts && git commit -m "feat: persist Agent conversation policy"`
+
+### Task 10: Persist durable Agent turns and enforce idempotent admission
+
+**Files:**
+- Create: `apps/server/src/repos/AgentConversationTurnRepo.ts`
+- Create: `apps/server/src/repos/SqliteAgentConversationTurnRepo.ts`
+- Create: `apps/server/src/repos/PostgresAgentConversationTurnRepo.ts`
+- Modify: `apps/server/src/db/sqlite.ts`
+- Modify: `apps/server/src/db/postgres.ts`
+- Create: `apps/server/test/agent-conversation-turn-repo.test.ts`
+
+- [ ] **Step 1: Write failing admission and cross-process lock tests**
+
+```ts
+test("a concurrent turn is rejected without appending its user message", async () => {
+  const first = await turns.createOrGet({ conversationId: "c1", clientRequestId: "r1", content: "one" });
+  await turns.claim(first.id, { ownerId: "worker-a", now, leaseMs: 30_000 });
+  await expect(service.sendMessage("c1", { clientRequestId: "r2", content: "two" }))
+    .rejects.toThrow(/turn already running/i);
+  expect(await conversations.listMessages("c1", 10)).toHaveLength(1);
+});
+
+test("the same client request returns the original turn and never duplicates its message", async () => {
+  const first = await service.sendMessage("c1", { clientRequestId: "retry-1", content: "one" });
+  const retry = await service.sendMessage("c1", { clientRequestId: "retry-1", content: "one" });
+  expect(retry.turnId).toBe(first.turnId);
+  expect(await conversations.listMessages("c1", 10)).toHaveLength(1);
+});
+```
+
+- [ ] **Step 2: Verify the tests fail**
+
+Run: `pnpm --filter @ke/server exec vitest run test/agent-conversation-turn-repo.test.ts`
+
+Expected: FAIL because the durable turn repository and admission protocol do not exist.
+
+- [ ] **Step 3: Add the durable turn schema and repository**
+
+Create `agent_conversation_turns` with immutable turn ID, conversation ID, client request ID, user message ID, sequence, status, lease owner/expiry, runtime session ID, error, timestamps, and a unique `(conversation_id, client_request_id)` constraint. Use states `queued`, `running`, `waiting_approval`, `succeeded`, `failed`, and `cancelled`. Enforce at most one non-terminal turn per conversation with a SQLite/Postgres-compatible transactional claim; expired leases may be reclaimed only after marking the interrupted owner outcome. Create the user message and turn in the same transaction after admission succeeds.
+
+- [ ] **Step 4: Add a repository contract test for lease expiry and competing workers**
+
+Run: `pnpm --filter @ke/server exec vitest run test/agent-conversation-turn-repo.test.ts`
+
+Expected: PASS for conflict rejection, idempotent retry, lease expiry, and a second repository instance competing for the same conversation.
+
+- [ ] **Step 5: Commit**
+
+Run: `git add apps/server/src/repos/AgentConversationTurnRepo.ts apps/server/src/repos/SqliteAgentConversationTurnRepo.ts apps/server/src/repos/PostgresAgentConversationTurnRepo.ts apps/server/src/db/sqlite.ts apps/server/src/db/postgres.ts apps/server/test/agent-conversation-turn-repo.test.ts && git commit -m "feat: persist Agent conversation turns"`
+
+### Task 11: Add fail-closed conversation capability enforcement and a mediated tool protocol
+
+**Files:**
+- Create: `apps/server/src/agent-conversations/types.ts`
+- Create: `apps/server/src/agent-conversations/AgentCapabilityGateway.ts`
+- Create: `apps/server/src/agent-conversations/ConversationPermissionPolicy.ts`
+- Create: `apps/server/src/agent-conversations/AgentToolCallService.ts`
+- Create: `apps/server/src/repos/AgentToolCallRepo.ts`
+- Create: `apps/server/src/repos/SqliteAgentToolCallRepo.ts`
+- Create: `apps/server/src/repos/PostgresAgentToolCallRepo.ts`
+- Modify: `apps/server/src/ai/adapter.ts`
+- Modify: `apps/server/src/ai/hermes.ts`
+- Modify: `apps/server/src/db/sqlite.ts`
+- Modify: `apps/server/src/db/postgres.ts`
+- Create: `apps/server/test/agent-capability-gateway.test.ts`
+- Create: `apps/server/test/hermes-capability-enforcement.test.ts`
+- Create: `apps/server/test/agent-tool-call-service.test.ts`
+
+- [ ] **Step 1: Write failing denial tests**
+
+```ts
+test("chat_only denies every tool family", () => {
+  const grant = gateway.issue({ conversationId: "c1", turnId: "t1", profile: "chat_only" });
+  assert.equal(gateway.authorize(grant, { family: "filesystem", action: "read" }).allowed, false);
+  assert.equal(gateway.authorize(grant, { family: "mcp", action: "rich.project.update" }).allowed, false);
+});
+
+test("a runtime that cannot enforce a profile cannot start that turn", async () => {
+  await assert.rejects(
+    () => runtime.startTurn({ profile: "workspace_agent", workspaceRoot: workspace }),
+    /capability profile unavailable/i,
+  );
+});
+
+test("a risky tool call is persisted and does not execute before approval", async () => {
+  const call = await toolCalls.request({ turnId: "t1", name: "git.push", arguments: { remote: "origin" } });
+  expect(call.status).toBe("waiting_approval");
+  expect(runtime.executedActions).toEqual([]);
+});
+```
+
+- [ ] **Step 2: Verify the tests fail**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-capability-gateway.test.ts test/hermes-capability-enforcement.test.ts`
+
+Expected: failure because capability grants and runtime enforcement are absent.
+
+- [ ] **Step 3: Implement mediated, durable tool calls before grants**
+
+Create `agent_tool_calls` with call ID, turn ID, runtime call ID, tool name, canonical arguments JSON and digest, idempotency key, status, result/error, approval ID, and timestamps. Tool requests from Hermes must enter `AgentToolCallService` before execution. It authorizes the request, creates one durable call, and either emits a tool result, transitions it to `waiting_approval`, or rejects it. A duplicate runtime call ID or idempotency key returns the stored result and never re-executes a side effect.
+
+Create signed, in-memory grants bound to a conversation ID, turn ID, canonical workspace root, allowed tool families, allowed MCP servers, and a short expiry. Grants are valid only while the corresponding durable turn is leased. Reject path traversal after resolving the existing parent directory for a new write; reject symlink escapes and re-check the resolved target immediately before use. Mark destructive filesystem actions, out-of-workspace access, system installation, Git push/deploy, external side effects, and Rich business writes as approval-required.
+
+- [ ] **Step 4: Extend the runtime contract and probe Hermes**
+
+Add an explicit runtime capability descriptor and a resumable tool-call contract rather than overloading prompts:
+
+```ts
+export interface AgentRuntimeCapabilities {
+  profiles: AgentPermissionProfile[];
+  enforcesToolSelection: boolean;
+  enforcesWorkspaceRoot: boolean;
+}
+```
+
+`AgentRuntimePort` must stream a stable runtime tool-call ID and accept a corresponding `tool_result`/denial when Rich resumes the same turn. If the provider cannot pause before the native action, cannot receive a result for the exact call, or cannot prove per-session sandboxing, it may expose only `chat_only`. The Hermes adapter reports only profiles it can enforce through its API/configuration. Never report a broader profile based on a system prompt.
+
+- [ ] **Step 5: Run security-focused tests**
+
+Run: `pnpm --filter @ke/server exec vitest run test/agent-capability-gateway.test.ts test/hermes-capability-enforcement.test.ts test/agent-tool-call-service.test.ts`
+
+Expected: PASS, including traversal, symlink escape, expiry, cross-turn replay, duplicate runtime calls, unsupported-profile cases, and proof that approval-required calls have no pre-approval side effect.
+
+- [ ] **Step 6: Commit**
+
+Run: `git add apps/server/src/agent-conversations apps/server/src/repos/AgentToolCallRepo.ts apps/server/src/repos/SqliteAgentToolCallRepo.ts apps/server/src/repos/PostgresAgentToolCallRepo.ts apps/server/src/ai apps/server/src/db/sqlite.ts apps/server/src/db/postgres.ts apps/server/test/agent-capability-gateway.test.ts apps/server/test/hermes-capability-enforcement.test.ts apps/server/test/agent-tool-call-service.test.ts && git commit -m "feat: mediate Agent conversation tools"`
+
+### Task 12: Implement persistent Hermes Agent sessions
+
+**Files:**
+- Create: `apps/server/src/agent-conversations/AgentRuntimePort.ts`
+- Create: `apps/server/src/agent-conversations/AgentConversationService.ts`
+- Modify: `apps/server/src/routes/chat.ts`
+- Modify: `apps/server/src/index.ts`
+- Create: `apps/server/test/agent-conversation-service.test.ts`
+- Create: `apps/server/test/chat-agent-session-routes.test.ts`
+
+- [ ] **Step 1: Write failing lifecycle tests**
+
+```ts
+test("continues Hermes with the latest stored session", async () => {
+  await service.sendMessage("c1", { content: "first" });
+  await service.sendMessage("c1", { content: "continue" });
+  assert.equal(runtime.calls[1].sessionId, "hermes-session-1");
+});
+
+test("serializes turns in the same conversation", async () => {
+  const first = service.sendMessage("c1", { content: "one" });
+  await assert.rejects(() => service.sendMessage("c1", { content: "two" }), /turn already running/i);
+  await first;
+});
+
+test("does not replay a stale session after it dispatched a tool call", async () => {
+  await service.sendMessage("c1", { clientRequestId: "r1", content: "push this branch" });
+  expect(runtime.startCalls).toHaveLength(1);
+  expect((await turns.getByClientRequest("c1", "r1"))?.status).toBe("waiting_approval");
+});
+```
+
+- [ ] **Step 2: Verify the tests fail**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-service.test.ts test/chat-agent-session-routes.test.ts`
+
+Expected: failure because the service and routes do not exist.
+
+- [ ] **Step 3: Implement the conversation service**
+
+Reuse `ChatConversationsRepo`, `ChatMessageRecord.modelSessionId`, and the existing context summary provider. Create Hermes conversations with `chat_only` by default. For each turn, use the durable admission record from Task 10, claim its database lease, issue a capability grant, resume the latest Hermes session, stream typed runtime events through `AgentToolCallService`, and persist the assistant result before releasing the lease.
+
+Define a bounded recovery payload: summary version, last summary message ID, a fixed recent-message window, and selected attachment/artifact references. Retry a stale session exactly once only when the durable turn has no dispatched or completed tool call. Once a tool call exists, do not replay the model turn; continue via the runtime's exact call/result continuation or leave the turn in `waiting_approval`/`failed` with a recovery reason.
+
+- [ ] **Step 4: Expose explicit Agent routes**
+
+Extend the existing chat routes with start/resume/new/exit/status Agent-session endpoints under `/api/chat/conversations/:id/agent-session`. Keep `/api/chat/stream` as the message stream. When the stored conversation mode is `agent_session`, resolve and pass the latest Hermes `session_id`, emit `turn`, `tool`, `approval_required`, `delta`, `done`, and `error` events, and bypass `planTurn`. Include the client request ID in the stream request and the durable turn ID in every event. Do not silently fall back to Codex because executor identity and permissions must remain stable.
+
+- [ ] **Step 5: Run focused and existing chat tests**
+
+Run: `pnpm --filter @ke/server exec vitest run test/agent-conversation-service.test.ts test/chat-agent-session-routes.test.ts test/chat-observability.test.ts test/agent-conversation-turn-repo.test.ts`
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+Run: `git add apps/server/src/agent-conversations apps/server/src/routes/chat.ts apps/server/src/index.ts apps/server/test/agent-conversation-service.test.ts apps/server/test/chat-agent-session-routes.test.ts && git commit -m "feat: add persistent Hermes chat sessions"`
+
+### Task 13: Add approval handling and broader Agent profiles
+
+**Files:**
+- Create: `apps/server/src/agent-conversations/AgentApprovalService.ts`
+- Create: `apps/server/src/repos/AgentApprovalRepo.ts`
+- Create: `apps/server/src/repos/SqliteAgentApprovalRepo.ts`
+- Create: `apps/server/src/repos/PostgresAgentApprovalRepo.ts`
+- Modify: `apps/server/src/agent-conversations/AgentConversationService.ts`
+- Modify: `apps/server/src/routes/chat.ts`
+- Modify: `apps/server/src/db/sqlite.ts`
+- Modify: `apps/server/src/db/postgres.ts`
+- Create: `apps/server/test/agent-conversation-approvals.test.ts`
+
+- [ ] **Step 1: Write failing approval tests**
+
+```ts
+test("a risky action pauses until the exact action is approved", async () => {
+  const event = await nextEvent(service.sendMessage("c1", { content: "push this branch" }), "approval_required");
+  assert.equal(event.action.family, "git_remote");
+  await service.approve("c1", event.approvalId, { approved: true });
+  assert.equal(runtime.executedActions.length, 1);
+});
+
+test("approval cannot be reused by another turn", async () => {
+  await assert.rejects(() => service.approve("c1", approvalIdFromOtherTurn, { approved: true }));
+});
+
+test("an approval for old arguments cannot execute a changed action after restart", async () => {
+  await approvals.approve(approvalId, { approved: true });
+  await expect(toolCalls.executeApproved({ approvalId, arguments: { remote: "fork" } }))
+    .rejects.toThrow(/arguments do not match/i);
+});
+```
+
+- [ ] **Step 2: Verify the tests fail**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-approvals.test.ts`
+
+Expected: failure because approvals are not modeled.
+
+- [ ] **Step 3: Implement exact-action approvals**
+
+Persist approvals separately from the transient runtime with approval ID, conversation ID, turn ID, tool-call ID, normalized arguments digest, expiry, decision, and timestamps. Add approve/deny routes. Approving atomically changes only the matching `waiting_approval` tool call to executable; denial and expiry produce a terminal tool result and allow the Hermes turn to continue or end. Resume only the paused action that matches the stored call ID and digest; a changed action requires a new tool call and approval. The execution path must consume the approval once in the same transaction that records the side-effect idempotency result.
+
+- [ ] **Step 4: Enable broader profiles only when enforcement is available**
+
+Expose `workspace_agent` after Hermes demonstrates tool selection and canonical workspace enforcement. Expose `extended_agent` only after browser/network and selected MCP restrictions also pass integration tests. Keep unsupported profiles visible as unavailable with a reason.
+
+- [ ] **Step 5: Run approval and capability tests**
+
+Run: `pnpm --filter @ke/server exec vitest run test/agent-conversation-approvals.test.ts test/agent-capability-gateway.test.ts test/hermes-capability-enforcement.test.ts test/agent-tool-call-service.test.ts`
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+Run: `git add apps/server/src/agent-conversations apps/server/src/repos/AgentApprovalRepo.ts apps/server/src/repos/SqliteAgentApprovalRepo.ts apps/server/src/repos/PostgresAgentApprovalRepo.ts apps/server/src/routes/chat.ts apps/server/src/db/sqlite.ts apps/server/src/db/postgres.ts apps/server/test/agent-conversation-approvals.test.ts && git commit -m "feat: approve risky Agent actions"`
+
+### Task 14: Convert a conversation into a structured task
+
+**Files:**
+- Create: `apps/server/src/agent-conversations/ConversationPromotionService.ts`
+- Modify: `apps/server/src/routes/chat.ts`
+- Create: `apps/server/test/agent-conversation-promotion.test.ts`
+
+- [ ] **Step 1: Write failing promotion tests**
+
+```ts
+test("promotion freezes selected conversation evidence into a scenario task", async () => {
+  const preview = await promotion.preview({
+    conversationId: "c1",
+    scenario: "deliverable_analysis",
+    target: { projectId: "p1", deliverableId: "d1" },
+    selectedMessageIds: ["m1", "m4"],
+    instructions: "produce the reviewed report",
+  });
+  const task = await promotion.publish(preview.confirmationToken);
+  assert.deepEqual(task.request.promotion.selectedMessageIds, ["m1", "m4"]);
+  assert.equal(task.request.contextSnapshot.sourceConversationId, "c1");
+});
+```
+
+- [ ] **Step 2: Verify the tests fail**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-promotion.test.ts`
+
+Expected: failure because promotion is absent.
+
+- [ ] **Step 3: Implement preview and confirmed publication**
+
+Build an immutable promotion snapshot from the conversation summary, selected message IDs and contents, attachment references, selected workspace artifacts, and the user's current goal. Validate the target and inputs through `ScenarioRegistry`, show the exact snapshot in preview, and publish through `AiTaskDispatcher` only after confirmation. Do not copy the entire transcript unless the user explicitly selected all messages.
+
+- [ ] **Step 4: Add save-to-Rich as a separate approved scenario action**
+
+The route accepts an exact destination and content preview. Reuse scenario-scoped Rich tools for the write and record its approval. Do not give general conversation turns direct business-write tools.
+
+- [ ] **Step 5: Run promotion and dispatcher regressions**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-promotion.test.ts test/agent-scenario-registry.test.ts test/ai-task-dispatcher.test.ts`
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+Run: `git add apps/server/src/agent-conversations apps/server/src/routes/chat.ts apps/server/test/agent-conversation-promotion.test.ts && git commit -m "feat: promote Agent conversations to tasks"`
+
+### Task 15: Add Agent sessions to the existing Rich chat
+
+**Files:**
+- Modify: `apps/web/src/api/client.ts`
+- Create: `apps/web/src/lib/chatSlashCommands.ts`
+- Create: `apps/web/src/components/ChatSlashCommandMenu.tsx`
+- Create: `apps/web/src/components/ChatSlashCommandMenu.css`
+- Modify: `apps/web/src/views/HomeView.tsx`
+- Modify: `apps/web/src/views/ChatOverlay.tsx`
+- Modify: `apps/web/src/views/ChatOverlay.css`
+- Create: `apps/web/src/components/ChatSlashCommandMenu.test.ts`
+- Create: `apps/web/src/views/HomeAgentSession.test.ts`
+
+- [ ] **Step 1: Write failing UI contract tests**
+
+```ts
+test("typing slash exposes the shared Rich conversation modes", () => {
+  assert.deepEqual(commandIds, ["chat", "agent", "task", "find"]);
+  assert.equal(parseChatSlashCommand("/agent").command, "agent");
+  assert.equal(parseChatSlashCommand("/agent new").argument, "new");
+});
+
+test("selecting agent starts a session and does not send the command as prose", async () => {
+  await chooseCommand("agent");
+  assert.equal(api.startedSessions.length, 1);
+  assert.equal(api.sentMessages.some(message => message.content === "/agent"), false);
+});
+```
+
+- [ ] **Step 2: Verify the tests fail**
+
+Run: `pnpm --filter @ke/web exec tsx --test src/components/ChatSlashCommandMenu.test.ts src/views/HomeAgentSession.test.ts`
+
+Expected: failure because the shared menu and Agent-session state do not exist.
+
+- [ ] **Step 3: Implement conversation navigation and composer**
+
+Extract the existing `/find` parsing and panel from `ChatOverlay.tsx` into shared components. Typing `/` in the homepage or global overlay shows `/chat`, `/agent`, `/task`, and `/find`, supports arrow keys, Enter, Escape, mouse selection, command filtering, and IME composition. `/agent` starts or resumes a session; `/agent new` starts a fresh Hermes session; `/chat` exits Agent mode; `/task` opens structured-task target selection. Commands are consumed by Rich and are never sent as model prose.
+
+- [ ] **Step 4: Implement promotion and save previews**
+
+Show a compact Agent-session marker in the existing composer with Hermes status, workspace, permission profile, and an exit action. Continue rendering typed tool calls and approval requests inline with the assistant turn. “转为任务” asks for scenario, target, selected messages/artifacts, instructions, and acceptance criteria, then shows the frozen preview before publication.
+
+- [ ] **Step 5: Run UI tests and typecheck**
+
+Run: `pnpm --filter @ke/web exec tsx --test src/components/ChatSlashCommandMenu.test.ts src/views/HomeAgentSession.test.ts && pnpm --filter @ke/web typecheck`
+
+Expected: PASS and exit 0.
+
+- [ ] **Step 6: Commit**
+
+Run: `git add apps/web/src/api/client.ts apps/web/src/lib/chatSlashCommands.ts apps/web/src/components/ChatSlashCommandMenu.tsx apps/web/src/components/ChatSlashCommandMenu.css apps/web/src/views/HomeView.tsx apps/web/src/views/ChatOverlay.tsx apps/web/src/views/ChatOverlay.css apps/web/src/components/ChatSlashCommandMenu.test.ts apps/web/src/views/HomeAgentSession.test.ts && git commit -m "feat: start Hermes sessions from Rich chat"`
+
+### Task 16: End-to-end verification and release
+
+**Files:**
+- Create: `apps/server/test/agent-conversation-e2e.test.ts`
+- Modify: `docs/RICH_MCP_V2_CATALOG.md`
+- Modify: `docs/DEPLOYMENT.md`
+
+- [ ] **Step 1: Verify the two modes remain isolated**
+
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-e2e.test.ts test/agent-conversation-promotion.test.ts test/mcp-v2-deliverable-task-tools.test.ts`
+
+Expected: `/agent` starts and resumes the same Hermes session; `chat_only` cannot call tools; no business data changes before confirmed promotion; the promoted task uses the normal task lifecycle.
+
+- [ ] **Step 2: Run affected server and web suites**
+
+Run: `pnpm --filter @ke/server test && pnpm --filter @ke/server typecheck && pnpm --filter @ke/web exec tsx --test src/components/ChatSlashCommandMenu.test.ts src/views/HomeAgentSession.test.ts src/views/project-management/deliverables/DeliverablesWorkspace.test.ts && pnpm --filter @ke/web typecheck`
+
+Expected: PASS and exit 0.
+
+- [ ] **Step 3: Perform local runtime smoke tests**
+
+Start Rich and Hermes, then verify: restart recovery of a conversation; stale Hermes session recovery; simultaneous-turn rejection; unavailable permission profile reason; approval denial and approval expiry; conversation-to-deliverable-task promotion; Hermes and Multica structured task completion.
+
+- [ ] **Step 4: Update operator documentation**
+
+Document the capability matrix, Hermes enforcement prerequisites, environment variables, approval audit trail, session recovery behavior, and failure diagnostics. State clearly that prompt instructions do not grant or restrict capabilities.
+
+- [ ] **Step 5: Package and publish the desktop app**
+
+Run: `pnpm --filter @ke/desktop package`
+
+Expected: exit 0; replace `/Applications/Rich.app`, relaunch it, and repeat one `chat_only` conversation and one promoted deliverable task.
+
+- [ ] **Step 6: Commit**
+
+Run: `git add apps/server/test/agent-conversation-e2e.test.ts docs/RICH_MCP_V2_CATALOG.md docs/DEPLOYMENT.md && git commit -m "test: verify unified Agent interaction modes"`

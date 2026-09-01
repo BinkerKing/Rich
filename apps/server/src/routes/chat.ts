@@ -12,6 +12,11 @@ import { planChatTurn, planChatTurnWithModel } from "../ai/agentOrchestrator.js"
 import type { AIContextProvider } from "../ai/contextProvider.js";
 import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
+import type { AgentConversationConfigRepo } from "../repos/AgentConversationConfigRepo.js";
+import type { AgentConversationTurn, AgentConversationTurnRepo } from "../repos/AgentConversationTurnRepo.js";
+import { AgentConversationService } from "../agent-conversations/AgentConversationService.js";
+import type { AgentConversationEvent } from "../agent-conversations/AgentConversationService.js";
+import type { ConversationPromotionService } from "../agent-conversations/ConversationPromotionService.js";
 import type { ChatAttachmentRef } from "@ke/domain";
 import type { AIAdapter } from "../ai/adapter.js";
 
@@ -192,9 +197,16 @@ export function chatRoutes(
   conversationsRepo: ChatConversationsRepo | null = null,
   contextProvider: AIContextProvider = createAIContextProvider(conversationsRepo),
   operationCorrelations: OperationCorrelationRegistry = new OperationCorrelationRegistry(),
+  agentConfigs: AgentConversationConfigRepo | null = null,
+  agentTurns: AgentConversationTurnRepo | null = null,
+  agentExecution: AgentConversationService | null = null,
+  promotions: ConversationPromotionService | null = null,
 ): Hono {
   const r = new Hono();
   const codexFallback = adapters.find(adapter => adapter.name === "codex");
+  const agentSessions = agentExecution ?? (agentConfigs && conversationsRepo
+    ? new AgentConversationService(agentConfigs, conversationsRepo)
+    : null);
 
   function pickChatAdapter(scenario: AIScenario, preference?: unknown): AIAdapter | null {
     if (adapters.length === 0) return null;
@@ -447,13 +459,16 @@ export function chatRoutes(
 
   r.post("/stream", async (c) => {
     const body = await c.req.json().catch(() => null) as
-      | { messages?: Message[]; attachments?: ChatAttachmentRef[]; conversationId?: string; surface?: string; model?: string }
+      | { messages?: Message[]; attachments?: ChatAttachmentRef[]; conversationId?: string; clientRequestId?: string; userMessageId?: string; surface?: string; model?: string }
       | null;
     if (!body || !Array.isArray(body.messages) || body.messages.length === 0) {
       return c.json({ error: "messages[] required" }, 400);
     }
     const conversationId = body.conversationId?.trim() || "rich-chat-default";
-    const turnPlan = await planTurn(body.messages, c.req.raw.signal);
+    const activeAgentConfig = await agentSessions?.getActive(conversationId) ?? null;
+    const turnPlan = activeAgentConfig
+      ? { scenario: "chat" as const, intent: "answer" as const, requiresAgent: false, reason: "当前 Rich 对话已开启 Hermes Agent Session" }
+      : await planTurn(body.messages, c.req.raw.signal);
     const now = new Date().toISOString();
     await conversationsRepo?.ensureConversation({
       id: conversationId,
@@ -463,7 +478,81 @@ export function chatRoutes(
     });
 
     const originalUserMessage = lastUserMessage(body.messages);
-    if (originalUserMessage) {
+    const useAgentExecution = Boolean(
+      activeAgentConfig
+      && agentExecution
+      && (!Array.isArray(body.attachments) || body.attachments.length === 0),
+    );
+    if (useAgentExecution) {
+      const clientRequestId = body.clientRequestId?.trim();
+      const userMessageId = body.userMessageId?.trim();
+      if (!clientRequestId) return c.json({ error: "clientRequestId required for Agent session" }, 400);
+      if (!userMessageId) return c.json({ error: "userMessageId required for Agent session" }, 400);
+      if (!originalUserMessage) return c.json({ error: "Agent session requires a user message" }, 400);
+      c.header("X-Accel-Buffering", "no");
+      c.header("Cache-Control", "no-cache, no-transform");
+      return streamSSE(c, async stream => {
+        let emittedError = false;
+        const writeAgentEvent = async (event: AgentConversationEvent) => {
+          if (event.type === "turn") {
+            await stream.writeSSE({ event: "turn", data: JSON.stringify({ conversationId, turnId: event.turnId, status: event.status }) });
+            await stream.writeSSE({ event: "mascot", data: JSON.stringify({ state: "thinking", ts: Date.now(), turnId: event.turnId }) });
+          } else if (event.type === "delta") {
+            await stream.writeSSE({ event: "text", data: JSON.stringify({ chunk: event.text, turnId: event.turnId }) });
+          } else if (event.type === "tool") {
+            await stream.writeSSE({ event: "tool", data: JSON.stringify({ name: event.name, status: event.status, callId: event.callId, turnId: event.turnId }) });
+          } else if (event.type === "approval_required") {
+            await stream.writeSSE({ event: "approval_required", data: JSON.stringify(event) });
+          } else if (event.type === "done") {
+            await stream.writeSSE({ event: "done", data: JSON.stringify({ finish_reason: "stop", conversationId, turnId: event.turnId, sessionId: event.sessionId }) });
+          } else {
+            emittedError = true;
+            await stream.writeSSE({ event: "error", data: JSON.stringify({ message: event.message, conversationId, turnId: event.turnId }) });
+          }
+        };
+        try {
+          await agentExecution!.sendMessage(conversationId, {
+            clientRequestId,
+            userMessageId,
+            content: contentToText(originalUserMessage.content),
+          }, writeAgentEvent);
+        } catch (error) {
+          if (!emittedError) {
+            await stream.writeSSE({
+              event: "error",
+              data: JSON.stringify({ message: error instanceof Error ? error.message : String(error), conversationId }),
+            });
+          }
+        }
+      });
+    }
+    let agentTurn: AgentConversationTurn | null = null;
+    if (activeAgentConfig && agentTurns) {
+      const clientRequestId = body.clientRequestId?.trim();
+      if (!clientRequestId) return c.json({ error: "clientRequestId required for Agent session" }, 400);
+      const userMessageId = body.userMessageId?.trim();
+      if (!userMessageId) return c.json({ error: "userMessageId required for Agent session" }, 400);
+      if (!originalUserMessage) return c.json({ error: "Agent session requires a user message" }, 400);
+      const admitted = await agentTurns.createOrGet({
+        id: randomUUID(),
+        conversationId,
+        clientRequestId,
+        userMessageId,
+        content: contentToText(originalUserMessage.content),
+        metadata: Array.isArray(body.attachments) && body.attachments.length > 0
+          ? { attachments: body.attachments.map(ref => ({ id: ref.id, mime: ref.mime })) }
+          : undefined,
+        now,
+      });
+      if (!admitted.created) {
+        return c.json({ error: "Agent request already admitted", conversationId, turn: admitted.turn }, 409);
+      }
+      const ownerId = randomUUID();
+      agentTurn = await agentTurns.claim(admitted.turn.id, { ownerId, now, leaseMs: 120_000 });
+      if (agentTurn?.status !== "running" || agentTurn.leaseOwner !== ownerId) {
+        return c.json({ error: "Agent conversation turn already running", conversationId, turn: agentTurn }, 409);
+      }
+    } else if (originalUserMessage) {
       await conversationsRepo?.appendMessage({
         id: randomUUID(),
         conversationId,
@@ -481,7 +570,9 @@ export function chatRoutes(
     if (Array.isArray(body.attachments) && body.attachments.length > 0 && attachmentsRepo) {
       messages = await inlineAttachments(messages, body.attachments, attachmentsRepo);
     }
-    const adapter = pickChatAdapter(turnPlan.scenario, body.model);
+    const adapter = activeAgentConfig
+      ? adapters.find(candidate => candidate.name === "hermes") ?? null
+      : pickChatAdapter(turnPlan.scenario, body.model);
 
     // T02 — 首字 SLO 基础设施。
     // (1) 反代关 buffering：Nginx / Cloudflare 见到这个 header 不会攒 chunk
@@ -493,11 +584,14 @@ export function chatRoutes(
     c.header("Cache-Control", "no-cache, no-transform");
 
     return streamSSE(c, async (stream) => {
+      const eventData = (payload: Record<string, unknown>) => JSON.stringify(
+        agentTurn ? { ...payload, turnId: agentTurn.id } : payload,
+      );
       // ① 先推一个 mascot 事件 —— 让前端立刻把 Mascot 切到 thinking 表情
       //    （这是首字 SLO L1 兜底：用户感知 < 100ms，AI 真实首字独立测）
       await stream.writeSSE({
         event: "mascot",
-        data: JSON.stringify({ state: "thinking", ts: Date.now() }),
+        data: eventData({ state: "thinking", ts: Date.now() }),
       });
       const operation = await startOpRecord({
         op: "chat-stream",
@@ -534,7 +628,7 @@ export function chatRoutes(
             await opRecorder.error(message);
             await stream.writeSSE({
               event: "error",
-              data: JSON.stringify({ message, conversationId }),
+              data: eventData({ message, conversationId }),
             });
             return;
           }
@@ -543,7 +637,7 @@ export function chatRoutes(
             await opRecorder.error(result.error);
             await stream.writeSSE({
               event: "error",
-              data: JSON.stringify({ message: result.error, conversationId }),
+              data: eventData({ message: result.error, conversationId }),
             });
             return;
           }
@@ -563,7 +657,7 @@ export function chatRoutes(
           await opRecorder.done(result.fullText, result.sessionId);
           await stream.writeSSE({
             event: "done",
-            data: JSON.stringify({ finish_reason: "stop", conversationId, adapter: adapter.name }),
+            data: eventData({ finish_reason: "stop", conversationId, adapter: adapter.name }),
           });
           return;
         } finally {
@@ -581,10 +675,21 @@ export function chatRoutes(
             model: "hermes-agent",
             stream: true,
             messages: injectSystemPrompt(messages, turnPlan.requiresAgent, mcpRequestId),
+            session_id: activeAgentConfig?.modelSessionId,
           }),
         });
       } catch (e) {
         const message = `Hermes unreachable: ${e instanceof Error ? e.message : String(e)}`;
+        if (activeAgentConfig) {
+          await agentTurns?.finish(agentTurn!.id, { status: "failed", error: message, now: new Date().toISOString() });
+          await opRecorder.event({ type: "error" });
+          await opRecorder.error(message);
+          await stream.writeSSE({
+            event: "error",
+            data: eventData({ message, conversationId }),
+          });
+          return;
+        }
         await opRecorder.event({ type: "fallback" });
         const fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }), mcpRequestId);
         if (fallback.error) {
@@ -603,7 +708,7 @@ export function chatRoutes(
           await opRecorder.done(fallback.fullText);
           await stream.writeSSE({
             event: "done",
-            data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
+            data: eventData({ finish_reason: "codex-fallback", conversationId }),
           });
         } else {
           await opRecorder.event({ type: "error" });
@@ -611,9 +716,30 @@ export function chatRoutes(
         }
         return;
       }
+      if (activeAgentConfig?.modelSessionId && !upstream.ok) {
+        upstream = await fetch(`${HERMES_BASE_URL}/v1/chat/completions`, {
+          method: "POST",
+          headers: hermesJsonHeaders(),
+          body: JSON.stringify({
+            model: "hermes-agent",
+            stream: true,
+            messages: injectSystemPrompt(messages, turnPlan.requiresAgent, mcpRequestId),
+          }),
+        });
+      }
       if (!upstream.ok || !upstream.body) {
         const detail = await upstream.text().catch(() => "");
         const message = `Hermes ${upstream.status} ${upstream.statusText}${detail ? `: ${detail}` : ""}`;
+        if (activeAgentConfig) {
+          await agentTurns?.finish(agentTurn!.id, { status: "failed", error: message, now: new Date().toISOString() });
+          await opRecorder.event({ type: "error" });
+          await opRecorder.error(message);
+          await stream.writeSSE({
+            event: "error",
+            data: eventData({ message, conversationId }),
+          });
+          return;
+        }
         await opRecorder.event({ type: "fallback" });
         const fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }), mcpRequestId);
         if (fallback.error) {
@@ -632,7 +758,7 @@ export function chatRoutes(
           await opRecorder.done(fallback.fullText);
           await stream.writeSSE({
             event: "done",
-            data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
+            data: eventData({ finish_reason: "codex-fallback", conversationId }),
           });
         } else {
           await opRecorder.event({ type: "error" });
@@ -649,6 +775,7 @@ export function chatRoutes(
       let finishReason = "stop";
       let fullText = "";
       let usedAdapter = "hermes";
+      let hermesSessionId = activeAgentConfig?.modelSessionId;
 
       try {
         while (true) {
@@ -690,7 +817,7 @@ export function chatRoutes(
                   await opRecorder.event({ type: "mcp.tool", data: { tool: p.tool, status: p.status } });
                   await stream.writeSSE({
                     event: "tool",
-                    data: JSON.stringify({ name: p.tool, status: p.status }),
+                    data: eventData({ name: p.tool, status: p.status }),
                   });
                 }
                 continue;
@@ -698,11 +825,13 @@ export function chatRoutes(
 
               // OpenAI ChatCompletion chunk — pull out delta.content.
               const chunk = parsed as {
+                session_id?: string;
                 choices?: Array<{
                   delta?: { content?: string };
                   finish_reason?: string | null;
                 }>;
               };
+              if (chunk.session_id) hermesSessionId = chunk.session_id;
               const choice = chunk.choices?.[0];
               const text = choice?.delta?.content;
               if (typeof text === "string" && text.length > 0) {
@@ -710,7 +839,7 @@ export function chatRoutes(
                 fullText += text;
                 await stream.writeSSE({
                   event: "text",
-                  data: JSON.stringify({ chunk: text }),
+                  data: eventData({ chunk: text }),
                 });
               }
               if (choice?.finish_reason) {
@@ -728,19 +857,22 @@ export function chatRoutes(
               model: "hermes-agent",
               stream: false,
               messages: injectSystemPrompt(messages, turnPlan.requiresAgent, mcpRequestId),
+              session_id: activeAgentConfig?.modelSessionId,
             }),
           });
           if (fallback.ok) {
             const json = await fallback.json() as {
+              session_id?: string;
               choices?: Array<{ message?: { content?: string } }>;
             };
+            if (json.session_id) hermesSessionId = json.session_id;
             const text = json.choices?.[0]?.message?.content;
             if (typeof text === "string" && text.length > 0) {
               sawText = true;
               fullText += text;
               await stream.writeSSE({
                 event: "text",
-                data: JSON.stringify({ chunk: text }),
+                data: eventData({ chunk: text }),
               });
             }
           } else {
@@ -750,11 +882,22 @@ export function chatRoutes(
               await opRecorder.event({ type: "error" });
               await stream.writeSSE({
                 event: "error",
-                data: JSON.stringify({
+                data: eventData({
                   message: `Hermes 需要重新授权：${message}`,
                 }),
               });
               await opRecorder.error(`Hermes 需要重新授权：${message}`);
+              if (agentTurn) await agentTurns?.finish(agentTurn.id, { status: "failed", error: message, now: new Date().toISOString() });
+              return;
+            }
+            if (activeAgentConfig) {
+              await agentTurns?.finish(agentTurn!.id, { status: "failed", error: message, now: new Date().toISOString() });
+              await opRecorder.event({ type: "error" });
+              await opRecorder.error(message);
+              await stream.writeSSE({
+                event: "error",
+                data: eventData({ message, conversationId }),
+              });
               return;
             }
             await opRecorder.event({ type: "fallback" });
@@ -777,20 +920,31 @@ export function chatRoutes(
             role: "assistant",
             content: fullText,
             adapter: usedAdapter,
+            modelSessionId: usedAdapter === "hermes" ? hermesSessionId : undefined,
             createdAt: new Date().toISOString(),
           });
+          if (activeAgentConfig && usedAdapter === "hermes" && hermesSessionId) {
+            await agentSessions?.recordModelSession(conversationId, hermesSessionId);
+          }
           queueSummaryRefresh(conversationId);
         }
         await opRecorder.event({ type: "output" });
         await opRecorder.done(fullText);
+        if (agentTurn) {
+          await agentTurns?.finish(agentTurn.id, {
+            status: "succeeded",
+            runtimeSessionId: hermesSessionId,
+            now: new Date().toISOString(),
+          });
+        }
         await stream.writeSSE({
           event: "done",
-          data: JSON.stringify({ finish_reason: finishReason, conversationId }),
+          data: eventData({ finish_reason: finishReason, conversationId }),
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         let fallback: CodexFallbackResult = { wroteText: false, fullText: "" };
-        if (!sawText) {
+        if (!sawText && !activeAgentConfig) {
           await opRecorder.event({ type: "fallback" });
           fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }), mcpRequestId);
         }
@@ -813,15 +967,16 @@ export function chatRoutes(
           await opRecorder.done(fallback.fullText);
           await stream.writeSSE({
             event: "done",
-            data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
+            data: eventData({ finish_reason: "codex-fallback", conversationId }),
           });
           return;
         }
         await opRecorder.event({ type: "error" });
         await opRecorder.error(message);
+        if (agentTurn) await agentTurns?.finish(agentTurn.id, { status: "failed", error: message, now: new Date().toISOString() });
         await stream.writeSSE({
           event: "error",
-          data: JSON.stringify({ message }),
+          data: eventData({ message }),
         });
       }
     });
@@ -831,6 +986,94 @@ export function chatRoutes(
     if (!conversationsRepo) return c.json({ conversations: [] });
     const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 30), 1), 100);
     return c.json({ conversations: await conversationsRepo.listConversations(limit) });
+  });
+
+  r.get("/conversations/:id/agent-session", async (c) => {
+    const config = await agentSessions?.get(c.req.param("id"));
+    return config ? c.json(config) : c.json({ error: "Agent session not found" }, 404);
+  });
+
+  r.post("/conversations/:id/agent-session", async (c) => {
+    if (!agentSessions) return c.json({ error: "Agent sessions unavailable" }, 503);
+    const result = await agentSessions.start(c.req.param("id"));
+    return c.json({ ...result.config, resumed: result.resumed });
+  });
+
+  r.post("/conversations/:id/agent-session/new", async (c) => {
+    if (!agentSessions) return c.json({ error: "Agent sessions unavailable" }, 503);
+    const result = await agentSessions.start(c.req.param("id"), { fresh: true });
+    return c.json({ ...result.config, resumed: false });
+  });
+
+  r.delete("/conversations/:id/agent-session", async (c) => {
+    const config = await agentSessions?.exit(c.req.param("id"));
+    return config ? c.json(config) : c.json({ error: "Agent session not found" }, 404);
+  });
+
+  r.post("/conversations/:id/task-promotion/preview", async c => {
+    if (!promotions) return c.json({ error: "Conversation promotion unavailable" }, 503);
+    const body = await c.req.json().catch(() => null);
+    if (!body || typeof body !== "object") return c.json({ error: "Promotion input required" }, 400);
+    try {
+      return c.json(await promotions.preview({ ...(body as object), conversationId: c.req.param("id") } as Parameters<ConversationPromotionService["preview"]>[0]));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  r.post("/conversations/:id/task-promotion/publish", async c => {
+    if (!promotions) return c.json({ error: "Conversation promotion unavailable" }, 503);
+    const body = await c.req.json().catch(() => null) as { confirmationToken?: unknown } | null;
+    if (typeof body?.confirmationToken !== "string" || !body.confirmationToken) return c.json({ error: "confirmationToken required" }, 400);
+    try {
+      return c.json(await promotions.publish(body.confirmationToken), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 409);
+    }
+  });
+
+  r.post("/conversations/:id/save-to-rich/preview", async c => {
+    if (!promotions) return c.json({ error: "Save to Rich unavailable" }, 503);
+    const body = await c.req.json().catch(() => null) as Omit<Parameters<ConversationPromotionService["previewSave"]>[0], "conversationId"> | null;
+    if (!body || typeof body !== "object") return c.json({ error: "Save input required" }, 400);
+    try {
+      return c.json(await promotions.previewSave({ ...body, conversationId: c.req.param("id") }));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  r.post("/conversations/:id/save-to-rich/publish", async c => {
+    if (!promotions) return c.json({ error: "Save to Rich unavailable" }, 503);
+    const body = await c.req.json().catch(() => null) as { confirmationToken?: unknown } | null;
+    if (typeof body?.confirmationToken !== "string" || !body.confirmationToken) return c.json({ error: "confirmationToken required" }, 400);
+    try {
+      return c.json(await promotions.publishSave(body.confirmationToken), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 409);
+    }
+  });
+
+  r.post("/conversations/:id/agent-session/approvals/:approvalId", async (c) => {
+    if (!agentExecution) return c.json({ error: "Agent approval handling is unavailable" }, 503);
+    const body = await c.req.json().catch(() => null) as
+      | { turnId?: string; toolCallId?: string; argumentsDigest?: string; approved?: boolean }
+      | null;
+    if (!body?.turnId || !body.toolCallId || !body.argumentsDigest || typeof body.approved !== "boolean") {
+      return c.json({ error: "turnId, toolCallId, argumentsDigest, and approved are required" }, 400);
+    }
+    try {
+      const call = await agentExecution.resolveApproval(c.req.param("id"), {
+        approvalId: c.req.param("approvalId"),
+        turnId: body.turnId,
+        toolCallId: body.toolCallId,
+        argumentsDigest: body.argumentsDigest,
+        approved: body.approved,
+      });
+      return c.json({ call });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 409);
+    }
   });
 
   r.get("/conversations/:id/messages", async (c) => {

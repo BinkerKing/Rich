@@ -11,6 +11,12 @@ import { persistVisualBlocks } from "../lib/extractVisualBlocks.js";
 import { markChatSendStart, markMascotFirstFrame, markFirstTextChunk, newReqId } from "../lib/perfMarks.js";
 import { ChatHistoryView } from "./ChatHistoryView.js";
 import { useChatComposer } from "../lib/useChatComposer.js";
+import { api, type AgentSessionState } from "../api/client.js";
+import { ChatSlashCommandMenu } from "../components/ChatSlashCommandMenu.js";
+import { ConversationTaskPanel } from "../components/ConversationTaskPanel.js";
+import { ConversationSavePanel } from "../components/ConversationSavePanel.js";
+import { AgentApprovalCard, type PendingAgentApproval } from "../components/AgentApprovalCard.js";
+import { parseChatSlashInput, type ChatSlashCommand } from "../lib/chatSlashCommands.js";
 import { APP_MENU_ITEMS, type AppMenuItem } from "../lib/appCatalog.js";
 import { requestRichNavigation } from "../lib/richNavigation.js";
 import { useStore, type AppView } from "../state/store.js";
@@ -193,6 +199,10 @@ export function ChatOverlay() {
   const reset = useChatStore(s => s.reset);
 
   const [input, setInput] = useState("");
+  const [agentSession, setAgentSession] = useState<AgentSessionState | null>(null);
+  const [taskPanelOpen, setTaskPanelOpen] = useState(false);
+  const [savePanelOpen, setSavePanelOpen] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState<PendingAgentApproval | null>(null);
   /** T16: 是否切到三栏历史回看视图 */
   const [historyOpen, setHistoryOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
@@ -207,7 +217,15 @@ export function ChatOverlay() {
 
   useEffect(() => { void hydrate(); }, [hydrate]);
 
+  useEffect(() => {
+    const refresh = () => void api.getAgentSession(DEFAULT_CHAT_CONVERSATION_ID).then(setAgentSession).catch(() => undefined);
+    refresh();
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, []);
+
   const slash = useMemo(() => parseSlashInput(input), [input]);
+  const commandSlash = useMemo(() => parseChatSlashInput(input), [input]);
   const appResults = useMemo(() => {
     if (!slash.active) return [];
     const query = slash.query.toLowerCase();
@@ -279,7 +297,47 @@ export function ChatOverlay() {
     return true;
   }
 
+  async function chooseChatCommand(command: ChatSlashCommand) {
+    if (command.id === "agent") {
+      setAgentSession(await api.startAgentSession(DEFAULT_CHAT_CONVERSATION_ID));
+      setInput("");
+    } else if (command.id === "chat") {
+      if (agentSession) setAgentSession(await api.exitAgentSession(DEFAULT_CHAT_CONVERSATION_ID));
+      setInput("");
+    } else if (command.id === "task") {
+      setTaskPanelOpen(true);
+      setInput("");
+    } else if (command.id === "save") {
+      setSavePanelOpen(true);
+      setInput("");
+    } else {
+      setInput(`${command.token} `);
+    }
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
   function submitSlashCommand() {
+    if (commandSlash.open && commandSlash.matches.length > 0) {
+      void chooseChatCommand(commandSlash.matches[slashIndex] ?? commandSlash.matches[0]);
+      return true;
+    }
+    if (input.trim() === "/agent new") {
+      void api.newAgentSession(DEFAULT_CHAT_CONVERSATION_ID).then(session => {
+        setAgentSession(session);
+        setInput("");
+      });
+      return true;
+    }
+    if (commandSlash.selected?.command === "task") {
+      setTaskPanelOpen(true);
+      setInput("");
+      return true;
+    }
+    if (commandSlash.selected?.command === "save") {
+      setSavePanelOpen(true);
+      setInput("");
+      return true;
+    }
     if (!slash.active) return false;
     const normalized = normalizeSlashMessage(input);
     if (normalized) {
@@ -391,6 +449,8 @@ export function ChatOverlay() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           conversationId: DEFAULT_CHAT_CONVERSATION_ID,
+          clientRequestId: reqId,
+          userMessageId: userMsg.id,
           surface: "chat-overlay",
           messages: history,
           attachments: attRefs.length > 0
@@ -437,6 +497,8 @@ export function ChatOverlay() {
               const t = parsed as { name: string; status: "running" | "completed" };
               pushTool({ name: t.name, status: t.status, ts: Date.now() });
               dispatchMascotEvent({ type: "tool-progress", tool: t.name });
+            } else if (currentEvent === "approval_required") {
+              setPendingApproval(parsed as PendingAgentApproval);
             } else if (currentEvent === "mascot") {
               // 服务端推的状态（T02 兜底首帧 mascot:thinking）
               const m = parsed as { state: import("../lib/mascotEvents.js").MascotState };
@@ -479,6 +541,12 @@ export function ChatOverlay() {
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (commandSlash.open && commandSlash.matches.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault();
+      const delta = e.key === "ArrowDown" ? 1 : -1;
+      setSlashIndex(i => (i + delta + commandSlash.matches.length) % commandSlash.matches.length);
+      return;
+    }
     if (slash.active && slashItems.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
       e.preventDefault();
       const delta = e.key === "ArrowDown" ? 1 : -1;
@@ -532,6 +600,23 @@ export function ChatOverlay() {
 
   return (
     <div className="chat-overlay">
+      {taskPanelOpen && <ConversationTaskPanel conversationId={DEFAULT_CHAT_CONVERSATION_ID}
+        projects={Array.from(elements.values()).filter(element => {
+          const content = element.content;
+          return element.type === "project" && Boolean(content) && typeof content === "object"
+            && typeof (content as { localFolder?: unknown }).localFolder === "string";
+        }).map(element => ({ id: element.id, title: element.title }))}
+        messages={messages.filter((message): message is ChatMessage & { role: "user" | "assistant" } => message.role === "user" || message.role === "assistant").map(message => ({ id: message.id, role: message.role, content: message.content }))}
+        onClose={() => setTaskPanelOpen(false)} />}
+      {savePanelOpen && <ConversationSavePanel conversationId={DEFAULT_CHAT_CONVERSATION_ID}
+        projects={Array.from(elements.values()).filter(element => {
+          const content = element.content;
+          return element.type === "project" && Boolean(content) && typeof content === "object"
+            && typeof (content as { localFolder?: unknown }).localFolder === "string";
+        }).map(element => ({ id: element.id, title: element.title }))}
+        messages={messages.filter((message): message is ChatMessage & { role: "user" | "assistant" } => message.role === "user" || message.role === "assistant").map(message => ({ id: message.id, role: message.role, content: message.content }))}
+        onClose={() => setSavePanelOpen(false)} />}
+      {pendingApproval && <AgentApprovalCard conversationId={DEFAULT_CHAT_CONVERSATION_ID} approval={pendingApproval} onResolved={() => setPendingApproval(null)} />}
       <div className="chat-shell">
         {/* Raycast-style: input on TOP, content scrolls BELOW, status bar at
          *  the bottom. The input bar doubles as the draggable window region
@@ -554,6 +639,16 @@ export function ChatOverlay() {
             }
           }}
         >
+          {agentSession?.status === "active" && !commandSlash.open && (
+            <div className="agent-session-marker" role="status">
+              <span>Hermes Agent</span>
+              <small>{agentSession.modelSessionId ? "上下文已连接" : "等待第一轮消息"}</small>
+              <button type="button" onClick={() => void chooseChatCommand({ id: "chat", token: "/chat", label: "普通对话", hint: "" })}>退出</button>
+            </div>
+          )}
+          {commandSlash.open && (
+            <ChatSlashCommandMenu commands={commandSlash.matches} activeIndex={slashIndex} onChoose={command => void chooseChatCommand(command)} />
+          )}
           <textarea
             ref={textareaRef}
             value={input}
@@ -627,7 +722,7 @@ export function ChatOverlay() {
             </button>
           </div>
 
-          {slash.active && (
+          {slash.active && !commandSlash.open && (
             <SlashCommandPanel
               mode={slash.mode}
               query={slash.query}

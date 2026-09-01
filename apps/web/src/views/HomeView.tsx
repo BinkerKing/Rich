@@ -6,6 +6,13 @@ import { VisualBlockRenderer } from "../components/VisualBlockRenderer.js";
 import { detectBlockType, type DetectedBlockType } from "../lib/detectBlockType.js";
 import { persistVisualBlocks } from "../lib/extractVisualBlocks.js";
 import { useChatComposer } from "../lib/useChatComposer.js";
+import { api, type AgentSessionState } from "../api/client.js";
+import { ChatSlashCommandMenu } from "../components/ChatSlashCommandMenu.js";
+import { ConversationTaskPanel } from "../components/ConversationTaskPanel.js";
+import { ConversationSavePanel } from "../components/ConversationSavePanel.js";
+import { AgentApprovalCard, type PendingAgentApproval } from "../components/AgentApprovalCard.js";
+import { parseChatSlashInput, type ChatSlashCommand } from "../lib/chatSlashCommands.js";
+import { useStore } from "../state/store.js";
 
 /** 哪些 block 类型才能上舞台 = 真正『图形』、不是文字组织 */
 const STAGE_VISUAL_TYPES = new Set<DetectedBlockType>([
@@ -244,6 +251,11 @@ interface SelectionMenu {
 export function HomeView() {
   const [frame, setFrame] = useState(0);
   const [input, setInput] = useState("");
+  const [agentSession, setAgentSession] = useState<AgentSessionState | null>(null);
+  const [taskPanelOpen, setTaskPanelOpen] = useState(false);
+  const [savePanelOpen, setSavePanelOpen] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState<PendingAgentApproval | null>(null);
+  const [slashIndex, setSlashIndex] = useState(0);
   const [turns, setTurns] = useState<Turn[]>(() => loadChatHistory());
   const [busy, setBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -254,6 +266,22 @@ export function HomeView() {
   // 照片对话支持：附件状态机 + 上传逻辑都封在 hook 里，ChatOverlay 也用同款
   const composer = useChatComposer({ maxAttachments: 8 });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const slashCommand = useMemo(() => parseChatSlashInput(input), [input]);
+  const elements = useStore(state => state.elements);
+  const projects = useMemo(() => Array.from(elements.values()).filter(element => {
+    const content = element.content;
+    return element.type === "project" && Boolean(content) && typeof content === "object"
+      && typeof (content as { localFolder?: unknown }).localFolder === "string";
+  }).map(element => ({ id: element.id, title: element.title })), [elements]);
+
+  useEffect(() => {
+    const refresh = () => void api.getAgentSession(DEFAULT_CHAT_CONVERSATION_ID).then(setAgentSession).catch(() => undefined);
+    refresh();
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, []);
+
+  useEffect(() => { setSlashIndex(0); }, [input]);
   const [mascot, setMascot] = useState<MascotState>({
     current: "walk", fallback: "walk",
     startedAt: new Date().toISOString(), triggeredBy: "system",
@@ -585,6 +613,26 @@ export function HomeView() {
     };
   }, [input]);
 
+  async function chooseChatCommand(command: ChatSlashCommand) {
+    if (command.id === "agent") {
+      const session = await api.startAgentSession(DEFAULT_CHAT_CONVERSATION_ID);
+      setAgentSession(session);
+      setInput("");
+    } else if (command.id === "chat") {
+      if (agentSession) setAgentSession(await api.exitAgentSession(DEFAULT_CHAT_CONVERSATION_ID));
+      setInput("");
+    } else if (command.id === "task") {
+      setTaskPanelOpen(true);
+      setInput("");
+    } else if (command.id === "save") {
+      setSavePanelOpen(true);
+      setInput("");
+    } else {
+      setInput(`${command.token} `);
+    }
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
   async function send(text: string) {
     const trimmed = text.trim();
     const attRefs = composer.getAttachmentRefs();
@@ -652,6 +700,8 @@ export function HomeView() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           conversationId: DEFAULT_CHAT_CONVERSATION_ID,
+          clientRequestId: reqId,
+          userMessageId: userTurn.id,
           surface: "home",
           messages: history,
           // 把图片 ref 也带上 —— 后端会从 chat_attachments 拉字节 inline 进最后一条 user message
@@ -721,6 +771,9 @@ export function HomeView() {
                 saveChatHistory(next);
                 return next;
               });
+            } else if (currentEvent === "approval_required") {
+              const approval = parsed as PendingAgentApproval;
+              setPendingApproval(approval);
             } else if (currentEvent === "done") {
               setTurns(prev => {
                 const next = prev.map((t, i) =>
@@ -768,6 +821,27 @@ export function HomeView() {
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (slashCommand.open && slashCommand.matches.length > 0) {
+      void chooseChatCommand(slashCommand.matches[slashIndex] ?? slashCommand.matches[0]);
+      return;
+    }
+    if (input.trim() === "/agent new") {
+      void api.newAgentSession(DEFAULT_CHAT_CONVERSATION_ID).then(session => {
+        setAgentSession(session);
+        setInput("");
+      });
+      return;
+    }
+    if (slashCommand.selected?.command === "task") {
+      setTaskPanelOpen(true);
+      setInput("");
+      return;
+    }
+    if (slashCommand.selected?.command === "save") {
+      setSavePanelOpen(true);
+      setInput("");
+      return;
+    }
     void send(input);
   }
 
@@ -792,6 +866,13 @@ export function HomeView() {
 
   return (
     <div className="home-view">
+      {taskPanelOpen && <ConversationTaskPanel conversationId={DEFAULT_CHAT_CONVERSATION_ID} projects={projects}
+        messages={turns.filter((turn): turn is Turn & { role: "user" | "assistant" } => turn.role === "user" || turn.role === "assistant").map(turn => ({ id: turn.id, role: turn.role, content: turn.content }))}
+        onClose={() => setTaskPanelOpen(false)} />}
+      {savePanelOpen && <ConversationSavePanel conversationId={DEFAULT_CHAT_CONVERSATION_ID} projects={projects}
+        messages={turns.filter((turn): turn is Turn & { role: "user" | "assistant" } => turn.role === "user" || turn.role === "assistant").map(turn => ({ id: turn.id, role: turn.role, content: turn.content }))}
+        onClose={() => setSavePanelOpen(false)} />}
+      {pendingApproval && <AgentApprovalCard conversationId={DEFAULT_CHAT_CONVERSATION_ID} approval={pendingApproval} onResolved={() => setPendingApproval(null)} />}
       {/* Invisible drag strip across the top of the window. Native
        *  titleBarStyle is "hiddenInset" — without an explicit drag region
        *  the user can't move the window or double-click to maximize.
@@ -1019,6 +1100,16 @@ export function HomeView() {
           }
         }}
       >
+        {agentSession?.status === "active" && !slashCommand.open && (
+          <div className="agent-session-marker" role="status">
+            <span>Hermes Agent</span>
+            <small>{agentSession.modelSessionId ? "上下文已连接" : "等待第一轮消息"}</small>
+            <button type="button" onClick={() => void chooseChatCommand({ id: "chat", token: "/chat", label: "普通对话", hint: "" })}>退出</button>
+          </div>
+        )}
+        {slashCommand.open && (
+          <ChatSlashCommandMenu commands={slashCommand.matches} activeIndex={slashIndex} onChoose={command => void chooseChatCommand(command)} />
+        )}
         <div ref={measureRef} className="home-input-measure" aria-hidden="true">
           {input.slice(0, caretPos)}
           <span ref={caretMarkerRef} className="home-input-measure-marker">{"​"}</span>
@@ -1070,6 +1161,32 @@ export function HomeView() {
             void composer.attach(file).catch(err => console.warn("[home-input] paste:", err));
           }}
           onKeyDown={e => {
+            if (slashCommand.open && slashCommand.matches.length > 0) {
+              if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                e.preventDefault();
+                const delta = e.key === "ArrowDown" ? 1 : -1;
+                setSlashIndex(index => (index + delta + slashCommand.matches.length) % slashCommand.matches.length);
+                return;
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setInput("");
+                return;
+              }
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void chooseChatCommand(slashCommand.matches[slashIndex] ?? slashCommand.matches[0]);
+                return;
+              }
+            }
+            if (e.key === "Enter" && input.trim() === "/agent new") {
+              e.preventDefault();
+              void api.newAgentSession(DEFAULT_CHAT_CONVERSATION_ID).then(session => {
+                setAgentSession(session);
+                setInput("");
+              });
+              return;
+            }
             if (e.key === "Enter" && !e.shiftKey) {
               const justDictated = Date.now() - lastDictationInputAtRef.current < 1200;
               if (e.nativeEvent.isComposing || composingRef.current || justDictated) return;

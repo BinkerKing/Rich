@@ -285,6 +285,66 @@ function applySchema(db: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_chat_conversations_last ON chat_conversations(last_message_at DESC);
 
+    CREATE TABLE IF NOT EXISTS agent_conversation_configs (
+      conversation_id    TEXT PRIMARY KEY,
+      executor           TEXT NOT NULL DEFAULT 'hermes',
+      permission_profile TEXT NOT NULL DEFAULT 'chat_only',
+      workspace_root     TEXT,
+      allowed_mcp_servers TEXT NOT NULL DEFAULT '[]',
+      status             TEXT NOT NULL DEFAULT 'inactive',
+      model_session_id   TEXT,
+      created_at         TEXT NOT NULL,
+      updated_at         TEXT NOT NULL,
+      FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS agent_conversation_turns (
+      id                 TEXT PRIMARY KEY,
+      conversation_id    TEXT NOT NULL,
+      client_request_id  TEXT NOT NULL,
+      user_message_id    TEXT NOT NULL,
+      sequence           INTEGER NOT NULL,
+      status             TEXT NOT NULL DEFAULT 'queued',
+      lease_owner        TEXT,
+      lease_expires_at   TEXT,
+      runtime_session_id TEXT,
+      error              TEXT,
+      created_at         TEXT NOT NULL,
+      updated_at         TEXT NOT NULL,
+      UNIQUE (conversation_id, client_request_id),
+      UNIQUE (conversation_id, sequence),
+      FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id) ON DELETE CASCADE
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_conversation_turn_active
+      ON agent_conversation_turns(conversation_id)
+      WHERE status IN ('queued', 'running', 'waiting_approval');
+
+    CREATE TABLE IF NOT EXISTS agent_tool_calls (
+      id                TEXT PRIMARY KEY,
+      turn_id           TEXT NOT NULL,
+      runtime_call_id   TEXT NOT NULL,
+      name              TEXT NOT NULL,
+      arguments_json    TEXT NOT NULL,
+      arguments_digest  TEXT NOT NULL,
+      idempotency_key   TEXT NOT NULL,
+      status            TEXT NOT NULL DEFAULT 'requested',
+      result_json       TEXT,
+      error             TEXT,
+      approval_id       TEXT,
+      created_at        TEXT NOT NULL,
+      updated_at        TEXT NOT NULL,
+      UNIQUE (turn_id, runtime_call_id),
+      UNIQUE (turn_id, idempotency_key),
+      FOREIGN KEY (turn_id) REFERENCES agent_conversation_turns(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_agent_tool_calls_turn ON agent_tool_calls(turn_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS agent_approvals (
+      id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, turn_id TEXT NOT NULL,
+      tool_call_id TEXT NOT NULL, arguments_digest TEXT NOT NULL, expires_at TEXT NOT NULL,
+      consumed_at TEXT, decision TEXT, created_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS chat_messages (
       id               TEXT PRIMARY KEY,
       conversation_id  TEXT NOT NULL,
@@ -487,6 +547,7 @@ function applySchema(db: Database.Database) {
 
   // Idempotent column additions for older DBs created before these fields existed.
   ensureColumn(db, "qa", "anchor", "TEXT");
+  ensureColumn(db, "agent_approvals", "decision", "TEXT");
   ensureColumn(db, "improvement_tasks", "assigned_agent_id", "TEXT");
   ensureColumn(db, "improvement_tasks", "assigned_at", "TEXT");
   ensureColumn(db, "improvement_tasks", "prd_content", "TEXT NOT NULL DEFAULT ''");

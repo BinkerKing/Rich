@@ -35,8 +35,8 @@ test("项目计划中的交付物可以跳转并定位到对应工作台", () =>
 });
 
 test("展开交付物后只渲染当前表头与工作台，再次点击表头回到完整列表", () => {
-  assert.match(deliverables, /const visibleItems = openId \? items\.filter\(item => item\.id === openId\) : items/);
-  assert.match(deliverables, /visibleItems\.map\(item =>/);
+  assert.match(deliverables, /const visibleItems = openId \? items\.filter\(\(?item\)? => item\.id === openId\) : items/);
+  assert.match(deliverables, /visibleItems\.map\(\(?item\)? =>/);
   assert.match(deliverables, /setOpenId\(opening \? item\.id : undefined\)/);
 });
 
@@ -44,8 +44,8 @@ test("打开工作台时清理已失去任务交付物来源的历史关联记�
   assert.match(deliverables, /const activeKeys = new Set<string>\(\)/);
   assert.match(deliverables, /activeKeys\.add\(key\)/);
   assert.match(deliverables, /return key && !activeKeys\.has\(key\)/);
-  assert.match(deliverables, /archiveDeliverableFolder\(projectId, String\(entry\.content\.folderPath\)\)/);
-  assert.match(deliverables, /Promise\.all\(stale\.map\(entry => api\.deleteProjectManagementModuleItem\(projectId, entry\.id\)\)\)/);
+  assert.match(deliverables, /archiveDeliverableFolder\( projectId, String\(entry\.content\.folderPath\)/);
+  assert.match(deliverables, /Promise\.all\( stale\.map\(\(?entry\)? => api\.deleteProjectManagementModuleItem\(\s*projectId, entry\.id/);
 });
 
 test("交付物需求说明的富文本编辑区填满卡片并在内部滚动", () => {
@@ -64,7 +64,7 @@ test("富文本编辑在输入期间不接受旧的外部回写", () => {
   assert.match(modules, /onUpdate: \(\{ editor: nextEditor \}\) => \{ latestHtmlRef\.current = nextEditor\.getHTML\(\); \}/);
   assert.match(modules, /if \(editor && !editor\.isFocused && value !== editor\.getHTML\(\)\) editor\.commands\.setContent/);
   assert.match(modules, /onBlur: \(\{ editor: nextEditor \}\) => \{ latestHtmlRef\.current = nextEditor\.getHTML\(\); onChangeRef\.current\(latestHtmlRef\.current\); \}/);
-  assert.match(deliverables, /scrollIntoView\(\{ block: "start", behavior: "smooth" \}\); \}, \[openId\]\)/);
+  assert.match(deliverables, /scrollIntoView\(\{ block: "start", behavior: "smooth",? \}\); \}, \[openId\]\)/);
   assert.doesNotMatch(deliverables, /scrollIntoView\(\{ block: "start", behavior: "smooth" \}\); \}, \[items, openId\]\)/);
 });
 
@@ -77,22 +77,22 @@ test("项目路径可设置交付物与版本控制的默认目录", () => {
 
 test("进入交付物工作台时同步任务和交付物名称对应的目录", () => {
   assert.match(deliverables, /const existing = deliverables\.find/);
-  assert.match(deliverables, /renameDeliverableFolder\(projectId, current\.folderPath, folderPath\)/);
+  assert.match(deliverables, /renameDeliverableFolder\( projectId, current\.folderPath, folderPath/);
   assert.match(deliverables, /title: activity\.text, content/);
 });
 
 test("打开文件夹会先确保目录存在，再调用系统打开该目录", () => {
   assert.match(deliverables, /const openFolder = async \(item: Item\) => \{ await api\.createDeliverableFolder\(projectId, item\.content\.folderPath\); await api\.deliverableFileAction\(projectId, "open", item\.content\.folderPath\); \}/);
-  assert.match(deliverables, /onClick=\{\(\) => void openFolder\(item\)\}>打开文件夹<\/button>/);
+  assert.match(deliverables, /onClick=\{\(\) => void openFolder\(item\)\}>\s*打开文件夹/);
 });
 
 test("交付物版本与材料展示目录内全部文件，并支持刷新", () => {
   assert.match(deliverables, /const refreshFiles = async \(item: Item\) => \{/);
-  assert.match(deliverables, /setLoadingFolders\(all => \(\{ \.\.\.all, \[item\.content\.folderPath\]: true \}\)\)/);
-  assert.match(deliverables, /await api\.listDeliverableFiles\(projectId, item\.content\.folderPath\)/);
+  assert.match(deliverables, /setLoadingFolders\(\(?all\)? => \(\{ \.\.\.all, \[item\.content\.folderPath\]: true \}\)\)/);
+  assert.match(deliverables, /await api\.listDeliverableFiles\(\s*projectId, item\.content\.folderPath/);
   assert.match(deliverables, /交付物版本与材料/);
   assert.match(deliverables, /目录内的全部文件/);
-  assert.match(deliverables, /file\.relativePath\.slice\(item\.content\.folderPath\.length \+ 1\)/);
+  assert.match(deliverables, /file\.relativePath\.slice\(\s*item\.content\.folderPath\.length \+ 1/);
 });
 
 test("文件区标题下方的说明行不显示", () => {
@@ -140,14 +140,14 @@ test("子目录只显示目录名，并可直接打开目录", () => {
 });
 
 test("交付物文件区支持拖拽多文件上传，刷新使用图标按钮", () => {
-  assert.match(deliverables, /onDrop=\{event => \{ event\.preventDefault\(\); setDraggingFiles\(false\); void upload\(item, Array\.from\(event\.dataTransfer\.files\)\); \}\}/);
+  assert.match(deliverables, /onDrop=\{\(?event\)? => \{ event\.preventDefault\(\); setDraggingFiles\(false\); void upload\(item, Array\.from\(event\.dataTransfer\.files\)\); \}\}/);
   assert.match(deliverables, /const upload = async \(item: Item, files: File\[\]\)/);
   assert.match(deliverables, /className="deliverables-workspace__refresh" title="刷新文件清单"/);
   assert.doesNotMatch(deliverables, /交付物版本与材料[\s\S]*?<input type="file"/);
 });
 
 test("首次展开交付物时立即刷新文件清单并显示读取状态", () => {
-  assert.match(deliverables, /const item = items\.find\(current => current\.id === openId\); if \(item\) void refreshFiles\(item\);/);
+  assert.match(deliverables, /const item = items\.find\(\(?current\)? => current\.id === openId\); if \(item\) void refreshFiles\(item\);/);
   assert.match(deliverables, /if \(opening\) void refreshFiles\(item\)/);
   assert.match(deliverables, /正在读取目录文件…/);
 });
@@ -157,12 +157,12 @@ test("交付物记录支持信息与材料，材料上传后进入交付物文�
   assert.match(deliverables, /<option value="change">修改<\/option>\s*<option value="information">信息<\/option>\s*<option value="material">材料<\/option>/);
   assert.match(deliverables, /api\.uploadDeliverableFile\(projectId, item\.content\.folderPath, file\)/);
   assert.match(deliverables, /updateDeliverableFileMeta\(content, uploaded\.relativePath, \{ type: "material", version: "" \}\)/);
-  assert.match(deliverables, /添加附件\s*<input\s*ref=\{materialInputRef\}\s*type="file"\s*multiple/);
+  assert.match(deliverables, /添加附件\s*<input\s*ref=\{editingRecordId \? editingMaterialInputRef : materialInputRef\}\s*type="file"\s*multiple/);
 });
 
 test("每条交付物记录显示记录时间，并支持编辑和删除", () => {
   assert.match(deliverables, /fileDate\(record\.createdAt\)/);
-  assert.match(deliverables, /aria-label="编辑记录"/);
+  assert.match(deliverables, /onDoubleClick=\{\(\) => startRecordEdit\(record\)\}/);
   assert.match(deliverables, /aria-label="删除记录"/);
   assert.match(deliverables, /const saveRecordEdit/);
   assert.match(deliverables, /const deleteRecord/);
@@ -170,7 +170,14 @@ test("每条交付物记录显示记录时间，并支持编辑和删除", () =>
 
 test("交付物记录编辑器的操作栏位于正文下方，编辑记录在原位置展开", () => {
   assert.match(styles, /\.deliverables-workspace__record \{ order:1; \}/);
-  assert.match(deliverables, /deliverables-workspace__record-rich-editor[\s\S]*?<footer>[\s\S]*?类型：[\s\S]*?添加附件[\s\S]*?发布记录/);
-  assert.match(styles, /\.deliverables-workspace__record-composer > footer \{ display:flex; align-items:center; gap:12px;/);
-  assert.match(styles, /\.deliverables-workspace__record-composer\.is-editing \{ order:1;/);
+  assert.match(deliverables, /deliverables-workspace__record-rich-editor[\s\S]*?<footer[\s\S]*?aria-label="记录类型"[\s\S]*?添加附件[\s\S]*?发布记录/);
+  assert.match(styles, /\.deliverables-workspace__records > \.deliverables-workspace__record-composer > footer \{ display:flex; align-items:center; justify-content:flex-start; gap:12px;/);
+  assert.match(styles, /\.deliverables-workspace__records > \.deliverables-workspace__record-composer\.is-editing \{ order:1;/);
+});
+
+test("交付物记录可选择 AI 任务并显式选择 Hermes 或 Multica", () => {
+  assert.match(deliverables, /AI 任务/);
+  assert.match(deliverables, /Hermes/);
+  assert.match(deliverables, /Multica/);
+  assert.match(deliverables, /publishDeliverableAiTask/);
 });

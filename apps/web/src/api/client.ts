@@ -2,6 +2,15 @@ import type {
   Element, Relation, LearningPath, PathKind, RichnessLevel, Signal, QARecord, Annotation, AnnotationKind, MindmapDeckView,
 } from "@ke/domain";
 
+export interface AgentSessionState {
+  conversationId: string;
+  executor: "hermes";
+  permissionProfile: "chat_only" | "workspace_agent" | "extended_agent";
+  status: "active" | "inactive";
+  modelSessionId?: string;
+  resumed?: boolean;
+}
+
 // ---------- shared SSE plumbing ----------
 
 export type AiStreamEvent<TResult> =
@@ -138,6 +147,80 @@ export interface GreatMeBrainResult {
 }
 
 export const api = {
+  async getAgentSession(conversationId: string): Promise<AgentSessionState | null> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/agent-session`);
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error(`get Agent session failed: ${r.status}`);
+    return r.json();
+  },
+  async startAgentSession(conversationId: string): Promise<AgentSessionState> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/agent-session`, { method: "POST" });
+    if (!r.ok) throw new Error(`start Agent session failed: ${r.status}`);
+    return r.json();
+  },
+  async newAgentSession(conversationId: string): Promise<AgentSessionState> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/agent-session/new`, { method: "POST" });
+    if (!r.ok) throw new Error(`new Agent session failed: ${r.status}`);
+    return r.json();
+  },
+  async exitAgentSession(conversationId: string): Promise<AgentSessionState> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/agent-session`, { method: "DELETE" });
+    if (!r.ok) throw new Error(`exit Agent session failed: ${r.status}`);
+    return r.json();
+  },
+  async previewConversationTask(conversationId: string, input: Record<string, unknown>): Promise<{ confirmationToken: string; request: Record<string, unknown> }> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/task-promotion/preview`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+    });
+    const payload = await r.json().catch(() => ({})) as { confirmationToken?: string; request?: Record<string, unknown>; error?: string };
+    if (!r.ok || !payload.confirmationToken || !payload.request) throw new Error(payload.error ?? `preview conversation task failed: ${r.status}`);
+    return { confirmationToken: payload.confirmationToken, request: payload.request };
+  },
+  async publishConversationTask(conversationId: string, confirmationToken: string): Promise<{ id: string; status: string }> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/task-promotion/publish`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ confirmationToken }),
+    });
+    const payload = await r.json().catch(() => ({})) as { id?: string; status?: string; error?: string };
+    if (!r.ok || !payload.id || !payload.status) throw new Error(payload.error ?? `publish conversation task failed: ${r.status}`);
+    return { id: payload.id, status: payload.status };
+  },
+  async previewConversationSave(conversationId: string, input: ConversationSaveInput): Promise<{ confirmationToken: string; action: ConversationSaveInput }> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/save-to-rich/preview`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+    });
+    const payload = await r.json().catch(() => ({})) as { confirmationToken?: string; action?: ConversationSaveInput; error?: string };
+    if (!r.ok || !payload.confirmationToken || !payload.action) throw new Error(payload.error ?? `preview conversation save failed: ${r.status}`);
+    return { confirmationToken: payload.confirmationToken, action: payload.action };
+  },
+  async publishConversationSave(conversationId: string, confirmationToken: string): Promise<ProjectModuleItem> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/save-to-rich/publish`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ confirmationToken }),
+    });
+    const payload = await r.json().catch(() => ({})) as Partial<ProjectModuleItem> & { error?: string };
+    if (!r.ok || !payload.id || !payload.title) throw new Error(payload.error ?? `publish conversation save failed: ${r.status}`);
+    return payload as ProjectModuleItem;
+  },
+  async resolveAgentApproval(conversationId: string, input: AgentApprovalInput): Promise<void> {
+    const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/agent-session/approvals/${encodeURIComponent(input.approvalId)}`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+    });
+    if (!r.ok) {
+      const payload = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(payload.error ?? `resolve agent approval failed: ${r.status}`);
+    }
+  },
+  async publishDeliverableAiTask(input: Record<string, unknown>): Promise<{ id: string; status: string }> {
+    const r = await fetch("/api/ai-tasks", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!r.ok) {
+      const payload = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(payload.error ?? `publish deliverable AI task failed: ${r.status}`);
+    }
+    return r.json();
+  },
   // ----- generate-tree -----
   generateTreeStream(topic: string, model?: Model, richness?: RichnessLevel) {
     return sseStream<GenerateTreeResult>("/ai/generate-tree", { topic, model, richness });
@@ -1406,6 +1489,19 @@ export type ProjectManagementModuleKey =
   | "todos"
   | "healthChecks"
   | "folder";
+
+export interface ConversationSaveInput {
+  destination: { projectId: string; moduleKey: ProjectManagementModuleKey; title: string };
+  content: Record<string, unknown>;
+}
+
+export interface AgentApprovalInput {
+  approvalId: string;
+  turnId: string;
+  toolCallId: string;
+  argumentsDigest: string;
+  approved: boolean;
+}
 
 export type ProjectAutomationStep = "validate_sql" | "sync_table" | "prepare_extraction" | "extract";
 export type ProjectAutomationExecutionStatus = "pending" | "running" | "success" | "error";
