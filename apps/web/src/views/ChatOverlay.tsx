@@ -587,7 +587,11 @@ export function ChatOverlay() {
   return (
     <div className="chat-overlay">
       {taskPanelOpen && <ConversationTaskPanel conversationId={DEFAULT_CHAT_CONVERSATION_ID}
-        projects={Array.from(elements.values()).filter(element => element.type === "project").map(element => ({ id: element.id, title: element.title }))}
+        projects={Array.from(elements.values()).filter(element => {
+          const content = element.content;
+          return element.type === "project" && Boolean(content) && typeof content === "object"
+            && typeof (content as { localFolder?: unknown }).localFolder === "string";
+        }).map(element => ({ id: element.id, title: element.title }))}
         messages={messages.filter((message): message is ChatMessage & { role: "user" | "assistant" } => message.role === "user" || message.role === "assistant").map(message => ({ id: message.id, role: message.role, content: message.content }))}
         onClose={() => setTaskPanelOpen(false)} />}
       <div className="chat-shell">

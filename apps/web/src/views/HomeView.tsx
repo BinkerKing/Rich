@@ -264,7 +264,11 @@ export function HomeView() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const slashCommand = useMemo(() => parseChatSlashInput(input), [input]);
   const elements = useStore(state => state.elements);
-  const projects = useMemo(() => Array.from(elements.values()).filter(element => element.type === "project").map(element => ({ id: element.id, title: element.title })), [elements]);
+  const projects = useMemo(() => Array.from(elements.values()).filter(element => {
+    const content = element.content;
+    return element.type === "project" && Boolean(content) && typeof content === "object"
+      && typeof (content as { localFolder?: unknown }).localFolder === "string";
+  }).map(element => ({ id: element.id, title: element.title })), [elements]);
 
   useEffect(() => {
     const refresh = () => void api.getAgentSession(DEFAULT_CHAT_CONVERSATION_ID).then(setAgentSession).catch(() => undefined);
