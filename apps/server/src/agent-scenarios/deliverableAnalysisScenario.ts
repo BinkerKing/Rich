@@ -16,6 +16,8 @@ export class DeliverableAnalysisScenario implements AgentTaskScenario {
   readonly toolManifest = [
     "rich_task_context_get",
     "rich_deliverable_history_get",
+    "rich_task_material_read",
+    "rich_task_reference_read",
     "rich_task_report_result",
   ] as const;
 

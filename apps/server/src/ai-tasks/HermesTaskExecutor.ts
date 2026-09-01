@@ -3,6 +3,7 @@ import type { AiTaskExecutor } from "./AiTaskDispatcher.js";
 import { parseAiTaskRequest } from "./types.js";
 import { DeliverableAnalysisScenario } from "../agent-scenarios/deliverableAnalysisScenario.js";
 import { ScenarioRegistry } from "../agent-scenarios/ScenarioRegistry.js";
+import { deliverableTaskBrief, effectiveAcceptanceCriteria } from "./deliverableTaskBrief.js";
 
 type HermesTaskExecutorOptions = {
   baseUrl?: string;
@@ -39,7 +40,7 @@ export class HermesTaskExecutor implements AiTaskExecutor {
     const response = await this.fetcher(`${this.baseUrl}/v1/chat/completions`, {
       method: "POST",
       headers: { ...this.headers(), "content-type": "application/json" },
-      body: JSON.stringify({ model: this.model, stream: false, messages: [{ role: "user", content: taskPrompt(task.id, request.profile, scenario.toolManifest) }] }),
+      body: JSON.stringify({ model: this.model, stream: false, messages: [{ role: "user", content: taskPrompt(task.id, request, scenario.toolManifest) }] }),
       signal: AbortSignal.timeout(30_000),
     });
     if (!response.ok) throw new Error(`Hermes HTTP ${response.status}.`);
@@ -48,10 +49,13 @@ export class HermesTaskExecutor implements AiTaskExecutor {
   private headers(): Record<string, string> { return this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {}; }
 }
 
-function taskPrompt(taskId: string, profile: string, toolManifest: readonly string[]): string {
+function taskPrompt(taskId: string, request: ReturnType<typeof parseAiTaskRequest>, toolManifest: readonly string[]): string {
   return [
     `You are executing Rich task ${taskId}.`,
-    `Permission profile: ${profile}.`,
+    `Permission profile: ${request.profile}.`,
+    "", deliverableTaskBrief(request),
+    "", "## Acceptance criteria", ...effectiveAcceptanceCriteria(request).map(item => `- ${item}`),
+    "",
     `You may call only these task-scoped MCP tools: ${toolManifest.join(", ")}.`,
     "Call rich_task_context_get with this task ID before working when it is available.",
     toolManifest.includes("rich_task_report_result") ? "When complete, call rich_task_report_result with verification evidence." : "Report completion through the scenario's declared tools.",

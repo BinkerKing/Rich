@@ -2,7 +2,7 @@
 
 > 此文件由 `pnpm --filter @ke/server mcp:docs` 生成，请勿手工编辑。
 
-工具数：22；输入 Schema：19568 bytes。所有工具返回统一的 `{ ok, action, data/error, refs, changes, verification, warnings }` 信封。
+工具数：24；输入 Schema：20479 bytes。所有工具返回统一的 `{ ok, action, data/error, refs, changes, verification, warnings }` 信封。
 
 ## `rich_automation_manage`
 
@@ -332,6 +332,42 @@
 ```json
 {
   "taskId": "task-id"
+}
+```
+
+## `rich_task_material_read`
+
+- 场景：`query`
+- 用于：读取当前任务快照中明确列出的一个材料文件。不能读取快照以外的路径。
+- 不用于：用户已明确要求写入、删除或委派实际工作时。
+- 安全属性：只读=true，破坏性=false，幂等=true
+- 输入：`taskId`（必填）、`relativePath`（必填）、`maxChars`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Returns content only for a file listed in the active task snapshot.
+- 示例：
+
+```json
+{
+  "taskId": "task-id",
+  "relativePath": "07-交付/report/baseline.md"
+}
+```
+
+## `rich_task_reference_read`
+
+- 场景：`query`
+- 用于：读取当前任务冻结记录中明确写出的单个文件引用。目录和未声明的路径不会开放。
+- 不用于：用户已明确要求写入、删除或委派实际工作时。
+- 安全属性：只读=true，破坏性=false，幂等=true
+- 输入：`taskId`（必填）、`recordId`（必填）、`maxChars`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Returns a file only when its path is explicitly present in the selected frozen record.
+- 示例：
+
+```json
+{
+  "taskId": "task-id",
+  "recordId": "record-id"
 }
 ```
 
