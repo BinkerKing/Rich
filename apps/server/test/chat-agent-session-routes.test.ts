@@ -10,6 +10,8 @@ import { openDb } from "../src/db/sqlite.js";
 import { SqliteAgentConversationConfigRepo } from "../src/repos/SqliteAgentConversationConfigRepo.js";
 import { SqliteAgentConversationTurnRepo } from "../src/repos/SqliteAgentConversationTurnRepo.js";
 import { SqliteChatConversationsRepo } from "../src/repos/SqliteChatConversationsRepo.js";
+import { buildApp } from "../src/index.js";
+import { HermesAdapter as HttpHermesAdapter } from "../src/ai/hermes.js";
 
 class MemoryAgentConfigs implements AgentConversationConfigRepo {
   rows = new Map<string, AgentConversationConfig>();
@@ -179,5 +181,31 @@ describe("chat Agent session routes", () => {
     }
     expect(turn).toEqual(expect.objectContaining({ status: "succeeded", runtimeSessionId: "hs-new" }));
     expect(await conversations.listMessages("c1", 10)).toHaveLength(2);
+  });
+
+  it("streams active Agent text through AgentConversationService", async () => {
+    const requests: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      requests.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      const body = 'data: {"session_id":"service-session","choices":[{"delta":{"content":"from service"}}]}\n\ndata: [DONE]\n\n';
+      return new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } });
+    }));
+    const app = buildApp(mkdtempSync(join(tmpdir(), "rich-agent-service-route-")), [new HttpHermesAdapter()]);
+    await app.request("/api/chat/conversations/c1/agent-session", { method: "POST" });
+
+    const response = await app.request("/api/chat/stream", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        conversationId: "c1", clientRequestId: "request-1", userMessageId: "message-1",
+        surface: "home", messages: [{ role: "user", content: "continue" }],
+      }),
+    });
+    const events = await response.text();
+
+    expect(events).toContain("event: turn");
+    expect(events).toContain("from service");
+    expect(events).toContain("service-session");
+    expect(requests[0]).toMatchObject({ tools: [], tool_choice: "none" });
   });
 });

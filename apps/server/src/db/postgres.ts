@@ -331,8 +331,9 @@ async function applySchema(pool: Pool): Promise<void> {
     CREATE TABLE IF NOT EXISTS agent_approvals (
       id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, turn_id TEXT NOT NULL,
       tool_call_id TEXT NOT NULL, arguments_digest TEXT NOT NULL, expires_at TEXT NOT NULL,
-      consumed_at TEXT, created_at TEXT NOT NULL
+      consumed_at TEXT, decision TEXT, created_at TEXT NOT NULL
     );
+    ALTER TABLE agent_approvals ADD COLUMN IF NOT EXISTS decision TEXT;
 
     CREATE TABLE IF NOT EXISTS chat_messages (
       id               TEXT PRIMARY KEY,

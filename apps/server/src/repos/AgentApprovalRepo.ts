@@ -13,4 +13,5 @@ export type ConsumeAgentApprovalInput = Omit<CreateAgentApprovalInput, "id" | "e
 export interface AgentApprovalRepo {
   create(input: CreateAgentApprovalInput): Promise<void>;
   consume(id: string, input: ConsumeAgentApprovalInput): Promise<{ consumedAt: string } | null>;
+  deny(id: string, input: ConsumeAgentApprovalInput): Promise<{ consumedAt: string } | null>;
 }

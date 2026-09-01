@@ -16,6 +16,19 @@ describe("AgentApprovalService", () => {
     expect((await recoveredApprovals.consume(approval.id, { conversationId: "c1", turnId: "t1", toolCallId: "call-1", argumentsDigest: "digest", now: "2026-09-01T00:01:00.000Z" })).approved).toBe(true);
     expect((await recoveredApprovals.consume(approval.id, { conversationId: "c1", turnId: "t1", toolCallId: "call-1", argumentsDigest: "digest", now: "2026-09-01T00:01:01.000Z" })).approved).toBe(false);
   });
+
+  it("records a matching denial so it cannot later be approved", async () => {
+    const repo = new SqliteAgentApprovalRepo(openDb(join(mkdtempSync(join(tmpdir(), "rich-approval-denial-")), "rich.db")));
+    const approvals = new AgentApprovalService(repo);
+    const approval = await approvals.create({ conversationId: "c1", turnId: "t1", toolCallId: "call-1", argumentsDigest: "digest", now: "2026-09-01T00:00:00.000Z" });
+
+    expect((await approvals.deny(approval.id, {
+      conversationId: "c1", turnId: "t1", toolCallId: "call-1", argumentsDigest: "digest", now: "2026-09-01T00:01:00.000Z",
+    })).denied).toBe(true);
+    expect((await approvals.consume(approval.id, {
+      conversationId: "c1", turnId: "t1", toolCallId: "call-1", argumentsDigest: "digest", now: "2026-09-01T00:01:01.000Z",
+    })).approved).toBe(false);
+  });
 });
 
 it("persists and consumes an approval once", async () => {

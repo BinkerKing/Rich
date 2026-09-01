@@ -4,12 +4,14 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { openDb } from "../src/db/sqlite.js";
 import { AgentCapabilityGateway } from "../src/agent-conversations/AgentCapabilityGateway.js";
+import { AgentApprovalService } from "../src/agent-conversations/AgentApprovalService.js";
 import { AgentConversationService } from "../src/agent-conversations/AgentConversationService.js";
 import { AgentToolCallService } from "../src/agent-conversations/AgentToolCallService.js";
 import type { AgentRuntimeEvent, AgentRuntimePort, AgentRuntimeTurnInput, AgentRuntimeToolResult } from "../src/agent-conversations/AgentRuntimePort.js";
 import type { AgentRuntimeCapabilities } from "../src/agent-conversations/types.js";
 import { SqliteAgentConversationConfigRepo } from "../src/repos/SqliteAgentConversationConfigRepo.js";
 import { SqliteAgentConversationTurnRepo } from "../src/repos/SqliteAgentConversationTurnRepo.js";
+import { SqliteAgentApprovalRepo } from "../src/repos/SqliteAgentApprovalRepo.js";
 import { SqliteAgentToolCallRepo } from "../src/repos/SqliteAgentToolCallRepo.js";
 import { SqliteChatConversationsRepo } from "../src/repos/SqliteChatConversationsRepo.js";
 
@@ -56,10 +58,11 @@ async function setup() {
   const toolCallRepo = new SqliteAgentToolCallRepo(db);
   const runtime = new FakeRuntime();
   const gateway = new AgentCapabilityGateway("test-secret", (turnId, now) => turns.hasActiveLease(turnId, now));
-  const toolCalls = new AgentToolCallService(toolCallRepo, gateway, async () => ({ ok: true }));
+  const approvals = new AgentApprovalService(new SqliteAgentApprovalRepo(db));
+  const toolCalls = new AgentToolCallService(toolCallRepo, gateway, async () => ({ ok: true }), approvals);
   const service = new AgentConversationService(configs, conversations, { turns, toolCallRepo, toolCalls, runtime, gateway, workspaceRoot: workspace });
   await service.start("c1");
-  return { service, runtime, turns, configs, workspace };
+  return { service, runtime, turns, configs, conversations, workspace };
 }
 
 describe("AgentConversationService execution", () => {
@@ -74,6 +77,28 @@ describe("AgentConversationService execution", () => {
     await service.sendMessage("c1", { clientRequestId: "r2", userMessageId: "m2", content: "continue" });
 
     expect(runtime.calls[1]?.sessionId).toBe("hermes-session-1");
+  });
+
+  it("builds a bounded recovery context from the summary and recent transcript", async () => {
+    const { service, runtime, conversations } = await setup();
+    const now = new Date().toISOString();
+    for (let index = 0; index < 45; index += 1) {
+      await conversations.appendMessage({
+        id: `history-${index}`, conversationId: "c1", role: index % 2 === 0 ? "user" : "assistant",
+        content: `history ${index}`, createdAt: now,
+      });
+    }
+    await conversations.upsertSummary({
+      conversationId: "c1", summary: "Earlier decisions and goals", messageCount: 45,
+      lastMessageId: "history-44", updatedAt: now,
+    });
+    runtime.responses.push([{ type: "done", fullText: "continued", sessionId: "s1" }]);
+
+    await service.sendMessage("c1", { clientRequestId: "r1", userMessageId: "m1", content: "continue" });
+
+    expect(runtime.calls[0]?.messages[0]).toEqual(expect.objectContaining({ role: "system", content: expect.stringContaining("Earlier decisions and goals") }));
+    expect(runtime.calls[0]?.messages.length).toBeLessThanOrEqual(41);
+    expect(runtime.calls[0]?.messages.at(-1)).toEqual(expect.objectContaining({ role: "user", content: "continue" }));
   });
 
   it("emits text deltas before the runtime turn completes", async () => {

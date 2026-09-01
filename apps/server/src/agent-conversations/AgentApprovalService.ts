@@ -25,4 +25,8 @@ export class AgentApprovalService {
   async consume(id: string, input: ConsumeInput): Promise<{ approved: boolean }> {
     return { approved: Boolean(await this.repo.consume(id, input)) };
   }
+
+  async deny(id: string, input: ConsumeInput): Promise<{ denied: boolean }> {
+    return { denied: Boolean(await this.repo.deny(id, input)) };
+  }
 }

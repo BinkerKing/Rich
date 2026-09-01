@@ -15,6 +15,7 @@ import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
 import type { AgentConversationConfigRepo } from "../repos/AgentConversationConfigRepo.js";
 import type { AgentConversationTurn, AgentConversationTurnRepo } from "../repos/AgentConversationTurnRepo.js";
 import { AgentConversationService } from "../agent-conversations/AgentConversationService.js";
+import type { AgentConversationEvent } from "../agent-conversations/AgentConversationService.js";
 import type { ChatAttachmentRef } from "@ke/domain";
 import type { AIAdapter } from "../ai/adapter.js";
 
@@ -197,12 +198,13 @@ export function chatRoutes(
   operationCorrelations: OperationCorrelationRegistry = new OperationCorrelationRegistry(),
   agentConfigs: AgentConversationConfigRepo | null = null,
   agentTurns: AgentConversationTurnRepo | null = null,
+  agentExecution: AgentConversationService | null = null,
 ): Hono {
   const r = new Hono();
   const codexFallback = adapters.find(adapter => adapter.name === "codex");
-  const agentSessions = agentConfigs && conversationsRepo
+  const agentSessions = agentExecution ?? (agentConfigs && conversationsRepo
     ? new AgentConversationService(agentConfigs, conversationsRepo)
-    : null;
+    : null);
 
   function pickChatAdapter(scenario: AIScenario, preference?: unknown): AIAdapter | null {
     if (adapters.length === 0) return null;
@@ -474,6 +476,54 @@ export function chatRoutes(
     });
 
     const originalUserMessage = lastUserMessage(body.messages);
+    const useAgentExecution = Boolean(
+      activeAgentConfig
+      && agentExecution
+      && (!Array.isArray(body.attachments) || body.attachments.length === 0),
+    );
+    if (useAgentExecution) {
+      const clientRequestId = body.clientRequestId?.trim();
+      const userMessageId = body.userMessageId?.trim();
+      if (!clientRequestId) return c.json({ error: "clientRequestId required for Agent session" }, 400);
+      if (!userMessageId) return c.json({ error: "userMessageId required for Agent session" }, 400);
+      if (!originalUserMessage) return c.json({ error: "Agent session requires a user message" }, 400);
+      c.header("X-Accel-Buffering", "no");
+      c.header("Cache-Control", "no-cache, no-transform");
+      return streamSSE(c, async stream => {
+        let emittedError = false;
+        const writeAgentEvent = async (event: AgentConversationEvent) => {
+          if (event.type === "turn") {
+            await stream.writeSSE({ event: "turn", data: JSON.stringify({ conversationId, turnId: event.turnId, status: event.status }) });
+            await stream.writeSSE({ event: "mascot", data: JSON.stringify({ state: "thinking", ts: Date.now(), turnId: event.turnId }) });
+          } else if (event.type === "delta") {
+            await stream.writeSSE({ event: "text", data: JSON.stringify({ chunk: event.text, turnId: event.turnId }) });
+          } else if (event.type === "tool") {
+            await stream.writeSSE({ event: "tool", data: JSON.stringify({ name: event.name, status: event.status, callId: event.callId, turnId: event.turnId }) });
+          } else if (event.type === "approval_required") {
+            await stream.writeSSE({ event: "approval_required", data: JSON.stringify(event) });
+          } else if (event.type === "done") {
+            await stream.writeSSE({ event: "done", data: JSON.stringify({ finish_reason: "stop", conversationId, turnId: event.turnId, sessionId: event.sessionId }) });
+          } else {
+            emittedError = true;
+            await stream.writeSSE({ event: "error", data: JSON.stringify({ message: event.message, conversationId, turnId: event.turnId }) });
+          }
+        };
+        try {
+          await agentExecution!.sendMessage(conversationId, {
+            clientRequestId,
+            userMessageId,
+            content: contentToText(originalUserMessage.content),
+          }, writeAgentEvent);
+        } catch (error) {
+          if (!emittedError) {
+            await stream.writeSSE({
+              event: "error",
+              data: JSON.stringify({ message: error instanceof Error ? error.message : String(error), conversationId }),
+            });
+          }
+        }
+      });
+    }
     let agentTurn: AgentConversationTurn | null = null;
     if (activeAgentConfig && agentTurns) {
       const clientRequestId = body.clientRequestId?.trim();

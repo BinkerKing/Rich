@@ -7,6 +7,7 @@ import type { AgentRuntimeEvent, AgentRuntimePort, AgentRuntimeToolResult } from
 import { AgentCapabilityGateway } from "./AgentCapabilityGateway.js";
 import { AgentToolCallService } from "./AgentToolCallService.js";
 import { assertRuntimeProfileSupported } from "./ConversationPermissionPolicy.js";
+import { buildChatSystemPrompt } from "../ai/prompts/chatSystem.js";
 
 interface AgentConversationExecutionDeps {
   turns: AgentConversationTurnRepo;
@@ -124,10 +125,18 @@ export class AgentConversationService {
       now,
       ttlMs: 120_000,
     });
-    const transcript = (await this.conversations.listMessages(conversationId, 40)).map(message => ({
+    const summary = await this.conversations.getSummary(conversationId);
+    const recent = (await this.conversations.listMessages(conversationId, 40)).map(message => ({
       role: message.role,
       content: message.content,
     }));
+    const summaryContext = summary
+      ? `\n\n## Persistent conversation recovery context\nSummary version: ${summary.updatedAt}\nLast summarized message: ${summary.lastMessageId ?? "unknown"}\n${summary.summary}`
+      : "";
+    const transcript = [
+      { role: "system" as const, content: `${buildChatSystemPrompt()}${summaryContext}` },
+      ...recent,
+    ];
 
     try {
       const outcome = await this.runRuntimeTurn({
@@ -204,6 +213,7 @@ export class AgentConversationService {
 
         const call = await this.execution!.toolCalls.request({
           id: randomUUID(),
+          conversationId: input.conversationId,
           turnId: input.turnId,
           runtimeCallId: event.runtimeCallId,
           idempotencyKey: event.idempotencyKey,

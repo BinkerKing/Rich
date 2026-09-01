@@ -342,7 +342,7 @@ function applySchema(db: Database.Database) {
     CREATE TABLE IF NOT EXISTS agent_approvals (
       id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, turn_id TEXT NOT NULL,
       tool_call_id TEXT NOT NULL, arguments_digest TEXT NOT NULL, expires_at TEXT NOT NULL,
-      consumed_at TEXT, created_at TEXT NOT NULL
+      consumed_at TEXT, decision TEXT, created_at TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS chat_messages (
@@ -547,6 +547,7 @@ function applySchema(db: Database.Database) {
 
   // Idempotent column additions for older DBs created before these fields existed.
   ensureColumn(db, "qa", "anchor", "TEXT");
+  ensureColumn(db, "agent_approvals", "decision", "TEXT");
   ensureColumn(db, "improvement_tasks", "assigned_agent_id", "TEXT");
   ensureColumn(db, "improvement_tasks", "assigned_at", "TEXT");
   ensureColumn(db, "improvement_tasks", "prd_content", "TEXT NOT NULL DEFAULT ''");

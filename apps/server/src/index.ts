@@ -3,6 +3,7 @@ import { serve } from "@hono/node-server";
 import { fileURLToPath } from "node:url";
 import { existsSync, realpathSync } from "node:fs";
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { elementsRoutes } from "./routes/elements.js";
 import { relationsRoutes } from "./routes/relations.js";
 import { pathsRoutes } from "./routes/paths.js";
@@ -121,6 +122,8 @@ import { SqliteChatAttachmentsRepo } from "./repos/SqliteChatAttachmentsRepo.js"
 import { SqliteChatConversationsRepo } from "./repos/SqliteChatConversationsRepo.js";
 import { SqliteAgentConversationConfigRepo } from "./repos/SqliteAgentConversationConfigRepo.js";
 import { SqliteAgentConversationTurnRepo } from "./repos/SqliteAgentConversationTurnRepo.js";
+import { SqliteAgentToolCallRepo } from "./repos/SqliteAgentToolCallRepo.js";
+import { SqliteAgentApprovalRepo } from "./repos/SqliteAgentApprovalRepo.js";
 import { SqliteQARepo } from "./repos/SqliteQARepo.js";
 import { SqliteAnnotationsRepo } from "./repos/SqliteAnnotationsRepo.js";
 import { SqliteStateRepo } from "./repos/SqliteStateRepo.js";
@@ -136,6 +139,8 @@ import type { ChatAttachmentsRepo } from "./repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "./repos/ChatConversationsRepo.js";
 import type { AgentConversationConfigRepo } from "./repos/AgentConversationConfigRepo.js";
 import type { AgentConversationTurnRepo } from "./repos/AgentConversationTurnRepo.js";
+import type { AgentToolCallRepo } from "./repos/AgentToolCallRepo.js";
+import type { AgentApprovalRepo } from "./repos/AgentApprovalRepo.js";
 import type { HealthRepo } from "./repos/HealthRepo.js";
 import type { QARepo } from "./repos/QARepo.js";
 import type { AnnotationsRepo } from "./repos/AnnotationsRepo.js";
@@ -205,6 +210,8 @@ import { PostgresChatAttachmentsRepo } from "./repos/PostgresChatAttachmentsRepo
 import { PostgresChatConversationsRepo } from "./repos/PostgresChatConversationsRepo.js";
 import { PostgresAgentConversationConfigRepo } from "./repos/PostgresAgentConversationConfigRepo.js";
 import { PostgresAgentConversationTurnRepo } from "./repos/PostgresAgentConversationTurnRepo.js";
+import { PostgresAgentToolCallRepo } from "./repos/PostgresAgentToolCallRepo.js";
+import { PostgresAgentApprovalRepo } from "./repos/PostgresAgentApprovalRepo.js";
 import { PostgresHealthRepo } from "./repos/PostgresHealthRepo.js";
 import { PostgresQARepo } from "./repos/PostgresQARepo.js";
 import { PostgresAnnotationsRepo } from "./repos/PostgresAnnotationsRepo.js";
@@ -224,6 +231,11 @@ import { projectAutomationRoutes } from "./modules/project-automation/presentati
 import { PersistentTaskService } from "./mcp-v2/tasks/persistentTaskService.js";
 import { createAIObservability } from "./ai/observability.js";
 import { syncProjectPlanTasks } from "./services/projectPlanTaskSync.js";
+import { AgentCapabilityGateway } from "./agent-conversations/AgentCapabilityGateway.js";
+import { AgentConversationService } from "./agent-conversations/AgentConversationService.js";
+import { AgentToolCallService } from "./agent-conversations/AgentToolCallService.js";
+import { AgentApprovalService } from "./agent-conversations/AgentApprovalService.js";
+import { HermesAgentRuntime } from "./agent-conversations/HermesAgentRuntime.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -258,6 +270,8 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let chatConversations: ChatConversationsRepo | null = null;
   let agentConversationConfigs: AgentConversationConfigRepo | null = null;
   let agentConversationTurns: AgentConversationTurnRepo | null = null;
+  let agentToolCalls: AgentToolCallRepo | null = null;
+  let agentApprovals: AgentApprovalRepo | null = null;
   /** Body Insights 健康档案 —— V0.1 只支持 postgres（数据敏感、需跨机同步） */
   let healthRepo: HealthRepo | null = null;
   if (storage === "postgres") {
@@ -282,6 +296,8 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     chatConversations = new PostgresChatConversationsRepo(pg);
     agentConversationConfigs = new PostgresAgentConversationConfigRepo(pg);
     agentConversationTurns = new PostgresAgentConversationTurnRepo(pg);
+    agentToolCalls = new PostgresAgentToolCallRepo(pg);
+    agentApprovals = new PostgresAgentApprovalRepo(pg);
     healthRepo = new PostgresHealthRepo(pg);
     projectManagement = new PostgresProjectManagementRepo(pg);
     projectAutomation = new PostgresProjectAutomationRepo(pg);
@@ -307,6 +323,8 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     chatConversations = new SqliteChatConversationsRepo(db);
     agentConversationConfigs = new SqliteAgentConversationConfigRepo(db);
     agentConversationTurns = new SqliteAgentConversationTurnRepo(db);
+    agentToolCalls = new SqliteAgentToolCallRepo(db);
+    agentApprovals = new SqliteAgentApprovalRepo(db);
     projectManagement = new SqliteProjectManagementRepo(db);
     projectAutomation = new SqliteProjectAutomationRepo(db);
     mcpOperationRepo = new SqliteMcpOperationRepo(db);
@@ -325,6 +343,26 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     new CodexAdapter(),
     new ClaudeAdapter(),
   ];
+  const hermesAdapter = ai.find(adapter => adapter.name === "hermes") ?? null;
+  const agentExecution = agentConversationConfigs && agentConversationTurns && agentToolCalls && agentApprovals && chatConversations && hermesAdapter
+    ? (() => {
+        const gateway = new AgentCapabilityGateway(
+          process.env.RICH_AGENT_CAPABILITY_SECRET || randomUUID(),
+          (turnId, now) => agentConversationTurns!.hasActiveLease(turnId, now),
+        );
+        const toolService = new AgentToolCallService(agentToolCalls, gateway, async () => {
+          throw new Error("Agent runtime tool execution is unavailable for chat_only");
+        }, new AgentApprovalService(agentApprovals));
+        return new AgentConversationService(agentConversationConfigs, chatConversations, {
+          turns: agentConversationTurns,
+          toolCallRepo: agentToolCalls,
+          toolCalls: toolService,
+          runtime: new HermesAgentRuntime(hermesAdapter),
+          gateway,
+          workspaceRoot: richWorkspaceDir,
+        });
+      })()
+    : null;
   loadAIEngineSettings();
   const log = logger ?? opts.logger ?? noopLogger;
   const multicaSnapshots = openSqliteMulticaWorkbenchSnapshotRepo(join(root, "multica-workbench.db"));
@@ -411,7 +449,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/state", stateRoutes(state, elements, signals));
   app.route("/api/corpus", corpusRoutes(corpus));
   app.route("/api/great-me", greatMeRoutes(greatMe));
-  app.route("/api/chat", chatRoutes(chatAttachments, ai, chatConversations, aiContextProvider, operationCorrelations, agentConversationConfigs, agentConversationTurns));
+  app.route("/api/chat", chatRoutes(chatAttachments, ai, chatConversations, aiContextProvider, operationCorrelations, agentConversationConfigs, agentConversationTurns, agentExecution));
   app.route("/api/chat-visual-blocks", chatVisualBlocksRoutes(chatVisualBlocks));
   app.route("/api/chat/attachments", chatAttachmentsRoutes(chatAttachments));
   app.route("/api/health", healthRoutes(healthRepo));

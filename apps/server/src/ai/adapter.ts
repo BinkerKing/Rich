@@ -14,6 +14,7 @@ export interface GenerateArgs {
   systemPrompt?: string;
   sessionId?: string;
   scenario?: string;
+  disableTools?: boolean;
   signal?: AbortSignal;
 }
 

@@ -33,6 +33,7 @@ export class HermesAgentRuntime implements AgentRuntimePort {
       systemPrompt: systemPrompt || undefined,
       sessionId: input.sessionId,
       scenario: "chat",
+      disableTools: true,
     })) {
       if (event.type === "delta") {
         yield { type: "delta", text: event.text };

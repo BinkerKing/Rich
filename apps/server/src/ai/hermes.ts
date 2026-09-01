@@ -77,6 +77,7 @@ export class HermesAdapter implements AIAdapter {
             ...(args.systemPrompt ? [{ role: "system", content: args.systemPrompt }] : []),
             { role: "user", content: args.prompt },
           ],
+          ...(args.disableTools ? { tools: [], tool_choice: "none" } : {}),
           // Hermes-specific — pass through any session id so it can
           // continue a previous conversation. Hermes ignores unknown
           // fields, so safe to send always.
