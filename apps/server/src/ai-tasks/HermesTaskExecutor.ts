@@ -9,8 +9,15 @@ type HermesTaskExecutorOptions = {
   baseUrl?: string;
   apiKey?: string;
   model?: string;
+  taskTimeoutMs?: number;
   fetcher?: typeof fetch;
 };
+
+const DEFAULT_TASK_TIMEOUT_MS = 10 * 60_000;
+
+export function hermesTaskTimeoutMs(value = Number(process.env.HERMES_TASK_TIMEOUT_MS)): number {
+  return Number.isFinite(value) && value >= 30_000 ? value : DEFAULT_TASK_TIMEOUT_MS;
+}
 
 export class HermesTaskExecutor implements AiTaskExecutor {
   readonly executor = "hermes" as const;
@@ -18,6 +25,7 @@ export class HermesTaskExecutor implements AiTaskExecutor {
   private readonly apiKey?: string;
   private readonly model: string;
   private readonly fetcher: typeof fetch;
+  private readonly taskTimeoutMs: number;
 
   constructor(
     options: HermesTaskExecutorOptions = {},
@@ -27,6 +35,7 @@ export class HermesTaskExecutor implements AiTaskExecutor {
     this.apiKey = options.apiKey ?? process.env.HERMES_API_KEY;
     this.model = options.model ?? process.env.HERMES_MODEL ?? "hermes";
     this.fetcher = options.fetcher ?? fetch;
+    this.taskTimeoutMs = hermesTaskTimeoutMs(options.taskTimeoutMs);
   }
 
   async available(): Promise<boolean> {
@@ -41,7 +50,7 @@ export class HermesTaskExecutor implements AiTaskExecutor {
       method: "POST",
       headers: { ...this.headers(), "content-type": "application/json" },
       body: JSON.stringify({ model: this.model, stream: false, messages: [{ role: "user", content: taskPrompt(task.id, request, scenario.toolManifest) }] }),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(this.taskTimeoutMs),
     });
     if (!response.ok) throw new Error(`Hermes HTTP ${response.status}.`);
   }

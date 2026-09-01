@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { HermesTaskExecutor } from "../src/ai-tasks/HermesTaskExecutor.js";
+import { HermesTaskExecutor, hermesTaskTimeoutMs } from "../src/ai-tasks/HermesTaskExecutor.js";
 import { ScenarioRegistry } from "../src/agent-scenarios/ScenarioRegistry.js";
 
 describe("HermesTaskExecutor", () => {
+  it("keeps deliverable agents alive long enough for material analysis", () => {
+    expect(hermesTaskTimeoutMs()).toBe(600_000);
+    expect(hermesTaskTimeoutMs(90_000)).toBe(90_000);
+  });
+
   it("sends Hermes a readable frozen task brief with its material inputs", async () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: "accepted" } }] }), { status: 200 }));
     const executor = new HermesTaskExecutor({ baseUrl: "http://hermes.test", fetcher });
