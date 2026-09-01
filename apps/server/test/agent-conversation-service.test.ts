@@ -62,7 +62,7 @@ async function setup() {
   const toolCalls = new AgentToolCallService(toolCallRepo, gateway, async () => ({ ok: true }), approvals);
   const service = new AgentConversationService(configs, conversations, { turns, toolCallRepo, toolCalls, runtime, gateway, workspaceRoot: workspace });
   await service.start("c1");
-  return { service, runtime, turns, configs, conversations, workspace };
+  return { service, runtime, turns, toolCallRepo, configs, conversations, workspace };
 }
 
 describe("AgentConversationService execution", () => {
@@ -179,5 +179,28 @@ describe("AgentConversationService execution", () => {
     expect(runtime.calls).toHaveLength(1);
     expect(result.events.at(-1)?.type).toBe("approval_required");
     expect((await turns.getByClientRequest("c1", "r1"))?.status).toBe("waiting_approval");
+  });
+
+  it("executes only the exact approved paused tool call", async () => {
+    const { service, runtime, turns, toolCallRepo, configs, workspace } = await setup();
+    const config = await configs.get("c1");
+    await configs.save({ ...config!, permissionProfile: "workspace_agent", workspaceRoot: workspace, updatedAt: new Date().toISOString() });
+    runtime.responses.push([{
+      type: "tool_call", runtimeCallId: "runtime-call-1", idempotencyKey: "idem-1", name: "git.push",
+      arguments: { remote: "origin" }, action: { family: "shell", action: "git.push" },
+    }]);
+    const result = await service.sendMessage("c1", { clientRequestId: "r1", userMessageId: "m1", content: "push this branch" });
+    const approval = result.events.find(event => event.type === "approval_required");
+    if (!approval || approval.type !== "approval_required") throw new Error("Expected approval request");
+    const call = await toolCallRepo.get(approval.callId);
+    if (!call) throw new Error("Expected persisted tool call");
+
+    await service.resolveApproval("c1", {
+      approvalId: approval.approvalId, turnId: approval.turnId, toolCallId: approval.callId,
+      argumentsDigest: call.argumentsDigest, approved: true,
+    });
+
+    expect((await toolCallRepo.get(approval.callId))?.status).toBe("succeeded");
+    expect((await turns.getByClientRequest("c1", "r1"))?.status).toBe("failed");
   });
 });

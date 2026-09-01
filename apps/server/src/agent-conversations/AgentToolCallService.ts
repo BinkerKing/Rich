@@ -125,4 +125,25 @@ export class AgentToolCallService {
       });
     }
   }
+
+  async denyApproved(input: ExecuteApprovedAgentToolCallInput): Promise<AgentToolCall> {
+    if (!this.approvals) throw new Error("Agent approval service is unavailable");
+    const call = await this.repo.get(input.toolCallId);
+    if (!call
+      || call.turnId !== input.turnId
+      || call.status !== "waiting_approval"
+      || call.approvalId !== input.approvalId
+      || call.argumentsDigest !== input.argumentsDigest) {
+      throw new Error("Agent approval is not valid for this tool call");
+    }
+    const approval = await this.approvals.deny(input.approvalId, {
+      conversationId: input.conversationId,
+      turnId: input.turnId,
+      toolCallId: input.toolCallId,
+      argumentsDigest: input.argumentsDigest,
+      now: input.now,
+    });
+    if (!approval.denied) throw new Error("Agent approval is not valid for this tool call");
+    return this.repo.update(call.id, { status: "denied", error: "Action denied by user", now: input.now });
+  }
 }

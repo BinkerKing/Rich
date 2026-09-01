@@ -1008,6 +1008,28 @@ export function chatRoutes(
     return config ? c.json(config) : c.json({ error: "Agent session not found" }, 404);
   });
 
+  r.post("/conversations/:id/agent-session/approvals/:approvalId", async (c) => {
+    if (!agentExecution) return c.json({ error: "Agent approval handling is unavailable" }, 503);
+    const body = await c.req.json().catch(() => null) as
+      | { turnId?: string; toolCallId?: string; argumentsDigest?: string; approved?: boolean }
+      | null;
+    if (!body?.turnId || !body.toolCallId || !body.argumentsDigest || typeof body.approved !== "boolean") {
+      return c.json({ error: "turnId, toolCallId, argumentsDigest, and approved are required" }, 400);
+    }
+    try {
+      const call = await agentExecution.resolveApproval(c.req.param("id"), {
+        approvalId: c.req.param("approvalId"),
+        turnId: body.turnId,
+        toolCallId: body.toolCallId,
+        argumentsDigest: body.argumentsDigest,
+        approved: body.approved,
+      });
+      return c.json({ call });
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 409);
+    }
+  });
+
   r.get("/conversations/:id/messages", async (c) => {
     if (!conversationsRepo) return c.json({ messages: [] });
     const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 50), 1), 200);

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { AgentConversationConfig, AgentConversationConfigRepo } from "../repos/AgentConversationConfigRepo.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
 import type { AgentConversationTurn, AgentConversationTurnRepo } from "../repos/AgentConversationTurnRepo.js";
-import type { AgentToolCallRepo } from "../repos/AgentToolCallRepo.js";
+import type { AgentToolCall, AgentToolCallRepo } from "../repos/AgentToolCallRepo.js";
 import type { AgentRuntimeEvent, AgentRuntimePort, AgentRuntimeToolResult } from "./AgentRuntimePort.js";
 import { AgentCapabilityGateway } from "./AgentCapabilityGateway.js";
 import { AgentToolCallService } from "./AgentToolCallService.js";
@@ -25,6 +25,14 @@ export type AgentConversationEvent =
   | { type: "approval_required"; turnId: string; callId: string; approvalId: string; name: string; arguments: Record<string, unknown> }
   | { type: "done"; turnId: string; content: string; sessionId?: string }
   | { type: "error"; turnId: string; message: string };
+
+export interface ResolveAgentApprovalInput {
+  approvalId: string;
+  turnId: string;
+  toolCallId: string;
+  argumentsDigest: string;
+  approved: boolean;
+}
 
 export class AgentConversationService {
   constructor(
@@ -72,6 +80,27 @@ export class AgentConversationService {
 
   async recordModelSession(conversationId: string, modelSessionId: string): Promise<void> {
     await this.configs.setModelSessionId(conversationId, modelSessionId, new Date().toISOString());
+  }
+
+  async resolveApproval(conversationId: string, input: ResolveAgentApprovalInput): Promise<AgentToolCall> {
+    if (!this.execution) throw new Error("Agent conversation execution is not configured");
+    const turn = await this.execution.turns.get(input.turnId);
+    if (!turn || turn.conversationId !== conversationId || turn.status !== "waiting_approval") {
+      throw new Error("Agent approval does not belong to this conversation turn");
+    }
+    const now = new Date().toISOString();
+    const call = input.approved
+      ? await this.execution.toolCalls.executeApproved({ ...input, conversationId, now })
+      : await this.execution.toolCalls.denyApproved({ ...input, conversationId, now });
+    await this.execution.turns.finish(input.turnId, {
+      status: "failed",
+      error: input.approved
+        ? "Approved tool action completed; this runtime cannot resume the paused model turn"
+        : "Tool action denied by user",
+      runtimeSessionId: turn.runtimeSessionId,
+      now,
+    });
+    return call;
   }
 
   async sendMessage(
