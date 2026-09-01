@@ -10,6 +10,9 @@ describe("MulticaTaskExecutor", () => {
       contextSnapshot: { version: 1, createdAt: "2026-09-01T00:00:00.000Z", deliverable: { folderPath: "07-交付/report", requirementHtml: "" }, records: [], files: [] },
     } });
     expect(delegate).toHaveBeenCalledWith(expect.objectContaining({ projectId: "project-1", contextRefs: [expect.objectContaining({ id: "task-1" })] }));
+    expect(delegate.mock.calls[0]?.[0].instructions).toContain("rich_task_context_get");
+    expect(delegate.mock.calls[0]?.[0].instructions).toContain("rich_deliverable_history_get");
+    expect(delegate.mock.calls[0]?.[0].instructions).toContain("rich_task_report_result");
     expect(result.externalTaskId).toBe("issue-1");
   });
 });

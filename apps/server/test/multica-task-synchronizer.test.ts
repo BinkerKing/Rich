@@ -39,6 +39,16 @@ describe("MulticaTaskSynchronizer", () => {
     expect(synchronizer.lastError).toBeUndefined();
   });
 
+  it("waits for Rich result reporting when a deliverable issue completes externally", async () => {
+    const repo = new MemoryTasks(); const service = new PersistentTaskService(repo);
+    const task = await service.create({ type: "deliverable-ai-task", title: "Analysis", request: {}, backend: "multica", externalTaskId: "issue-2" });
+    const synchronizer = new MulticaTaskSynchronizer(repo, { backend: "multica-cli", delegate: vi.fn(), cancel: vi.fn(), getStatus: vi.fn(async () => ({ status: "succeeded" as const, progressSummary: "external complete" })) });
+
+    await synchronizer.syncOnce();
+
+    expect(repo.get(task.id)).toMatchObject({ status: "waiting_input", progressSummary: expect.stringContaining("Rich") });
+  });
+
   it("prevents overlapping sync passes and reports per-task failures", async () => {
     const repo = new MemoryTasks();
     const service = new PersistentTaskService(repo);

@@ -22,4 +22,14 @@ describe("deliverable task MCP tools", () => {
     const history = await registry.invoke("rich_deliverable_history_get", { taskId: followUp.id });
     expect(history).toMatchObject({ ok: true, data: { history: [expect.objectContaining({ id: task.id, summary: "Analysis complete" })] } });
   });
+
+  it("allows a running Multica-assigned Agent to use the same task protocol", async () => {
+    const tasks = new PersistentTaskService(new MemoryTasks());
+    const task = await tasks.create({ type: "deliverable-ai-task", title: "Multica report", backend: "multica", request: { projectId: "p", deliverableId: "d", executor: "multica", instructions: "Analyse", acceptanceCriteria: [], contextSnapshot: { version: 1, createdAt: "2026-09-01T00:00:00.000Z", deliverable: { folderPath: "07-交付/report", requirementHtml: "<p>Requirement</p>" }, records: [], files: [] } } });
+    await tasks.transition(task.id, "running");
+    const registry = new RichToolRegistry(); registerDeliverableTaskTools(registry, tasks);
+
+    expect(await registry.invoke("rich_task_context_get", { taskId: task.id })).toMatchObject({ ok: true });
+    expect(await registry.invoke("rich_task_report_result", { taskId: task.id, summary: "Multica analysis complete", evidence: [] })).toMatchObject({ ok: true, data: { task: { status: "succeeded", reviewStatus: "needs_human" } } });
+  });
 });

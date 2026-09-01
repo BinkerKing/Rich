@@ -10,7 +10,16 @@ export class MulticaTaskExecutor implements AiTaskExecutor {
   async execute(task: McpTask) {
     const request = parseAiTaskRequest(task.request);
     const receipt = await this.delegation.delegate({
-      projectId: request.projectId, title: task.title, instructions: request.instructions,
+      projectId: request.projectId, title: task.title, instructions: [
+        request.instructions,
+        "",
+        `Rich task ID: ${task.id}`,
+        `Permission profile: ${request.profile}.`,
+        "The assigned Agent must call rich_task_context_get before working.",
+        "Call rich_deliverable_history_get to read prior conclusions and intermediate outputs.",
+        "All deliverable outputs must be written through the task-scoped Rich MCP tools.",
+        "Call rich_task_report_result with summary and evidence before marking the external issue complete.",
+      ].join("\n"),
       acceptanceCriteria: request.acceptanceCriteria, requiredCapabilities: ["deliverable"],
       contextRefs: [{ type: "rich-ai-task", id: task.id, label: "Frozen deliverable context" }],
     });

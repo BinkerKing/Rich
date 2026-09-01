@@ -14,7 +14,7 @@ export class MulticaTaskSynchronizer {
 
   constructor(
     private readonly repo: McpTaskRepo,
-    adapter: WorkDelegationPort,
+    private readonly adapter: WorkDelegationPort,
     private readonly options: { intervalMs?: number; onError?: (error: unknown) => void; availabilityCheck?: () => Promise<void> } = {},
   ) {
     this.tasks = new PersistentTaskService(repo, { getExternalStatus: task => adapter.getStatus(task.externalTaskId!) });
@@ -44,10 +44,20 @@ export class MulticaTaskSynchronizer {
     try {
       await this.options.availabilityCheck?.();
       const lists = await Promise.all(ACTIVE_STATUSES.map(status => this.repo.list({ status, limit: 200 })));
-      const candidates = lists.flat().filter(task => task.backend === "multica-cli" && task.externalTaskId);
+      const candidates = lists.flat().filter(task => (task.backend === "multica-cli" || task.backend === "multica") && task.externalTaskId);
       let failed = false;
       for (const task of candidates) {
-        try { await this.tasks.sync(task.id); }
+        try {
+          const external = await this.adapter.getStatus(task.externalTaskId!);
+          if (task.type === "deliverable-ai-task" && external.status === "succeeded" && task.resultRefs.length === 0) {
+            await this.tasks.transition(task.id, "waiting_input", {
+              progressSummary: "Multica completed externally; waiting for the assigned Agent to report results through Rich MCP.",
+              lastSyncedAt: new Date().toISOString(),
+            });
+          } else {
+            await this.tasks.transition(task.id, external.status, { ...external, lastSyncedAt: new Date().toISOString() });
+          }
+        }
         catch (error) {
           failed = true;
           this._lastError = error instanceof Error ? error.message : String(error);
