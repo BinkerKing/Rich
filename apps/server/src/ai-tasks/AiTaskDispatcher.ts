@@ -23,10 +23,18 @@ export class AiTaskDispatcher {
     for (const executor of executors) this.executors.set(executor.executor, executor);
   }
 
-  async publish(input: unknown): Promise<McpTask> {
+  validate(input: unknown): AiTaskRequest {
     const parsed = parseAiTaskRequest(input);
-    const scenario = this.scenarios.get(parsed.scenario);
-    const scenarioInput = scenario.parseInput(input);
+    return this.scenarios.get(parsed.scenario).parseInput(input);
+  }
+
+  assertScenario(scenario: string): void {
+    this.scenarios.get(scenario);
+  }
+
+  async publish(input: unknown): Promise<McpTask> {
+    const scenarioInput = this.validate(input);
+    const scenario = this.scenarios.get(scenarioInput.scenario);
     const request = this.history ? { ...scenarioInput, contextSnapshot: { ...scenarioInput.contextSnapshot, history: await this.history.list(scenarioInput.projectId, scenarioInput.deliverableId) } } : scenarioInput;
     const executor = this.executors.get(request.executor);
     if (!executor || !await executor.available(request.projectId)) throw new Error(`AI executor ${request.executor} is unavailable.`);

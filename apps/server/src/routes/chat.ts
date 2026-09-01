@@ -16,6 +16,7 @@ import type { AgentConversationConfigRepo } from "../repos/AgentConversationConf
 import type { AgentConversationTurn, AgentConversationTurnRepo } from "../repos/AgentConversationTurnRepo.js";
 import { AgentConversationService } from "../agent-conversations/AgentConversationService.js";
 import type { AgentConversationEvent } from "../agent-conversations/AgentConversationService.js";
+import type { ConversationPromotionService } from "../agent-conversations/ConversationPromotionService.js";
 import type { ChatAttachmentRef } from "@ke/domain";
 import type { AIAdapter } from "../ai/adapter.js";
 
@@ -199,6 +200,7 @@ export function chatRoutes(
   agentConfigs: AgentConversationConfigRepo | null = null,
   agentTurns: AgentConversationTurnRepo | null = null,
   agentExecution: AgentConversationService | null = null,
+  promotions: ConversationPromotionService | null = null,
 ): Hono {
   const r = new Hono();
   const codexFallback = adapters.find(adapter => adapter.name === "codex");
@@ -1006,6 +1008,28 @@ export function chatRoutes(
   r.delete("/conversations/:id/agent-session", async (c) => {
     const config = await agentSessions?.exit(c.req.param("id"));
     return config ? c.json(config) : c.json({ error: "Agent session not found" }, 404);
+  });
+
+  r.post("/conversations/:id/task-promotion/preview", async c => {
+    if (!promotions) return c.json({ error: "Conversation promotion unavailable" }, 503);
+    const body = await c.req.json().catch(() => null);
+    if (!body || typeof body !== "object") return c.json({ error: "Promotion input required" }, 400);
+    try {
+      return c.json(await promotions.preview({ ...(body as object), conversationId: c.req.param("id") } as Parameters<ConversationPromotionService["preview"]>[0]));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  r.post("/conversations/:id/task-promotion/publish", async c => {
+    if (!promotions) return c.json({ error: "Conversation promotion unavailable" }, 503);
+    const body = await c.req.json().catch(() => null) as { confirmationToken?: unknown } | null;
+    if (typeof body?.confirmationToken !== "string" || !body.confirmationToken) return c.json({ error: "confirmationToken required" }, 400);
+    try {
+      return c.json(await promotions.publish(body.confirmationToken), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 409);
+    }
   });
 
   r.post("/conversations/:id/agent-session/approvals/:approvalId", async (c) => {

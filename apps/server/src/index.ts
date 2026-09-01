@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { fileURLToPath } from "node:url";
 import { existsSync, realpathSync } from "node:fs";
+import { readdir, stat } from "node:fs/promises";
+import { relative } from "node:path";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { elementsRoutes } from "./routes/elements.js";
@@ -236,6 +238,8 @@ import { AgentConversationService } from "./agent-conversations/AgentConversatio
 import { AgentToolCallService } from "./agent-conversations/AgentToolCallService.js";
 import { AgentApprovalService } from "./agent-conversations/AgentApprovalService.js";
 import { HermesAgentRuntime } from "./agent-conversations/HermesAgentRuntime.js";
+import { ConversationPromotionService } from "./agent-conversations/ConversationPromotionService.js";
+import { DeliverableTaskContextService } from "./ai-tasks/DeliverableTaskContextService.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -398,6 +402,30 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     [hermesTaskExecutor, multicaTaskExecutor],
     new DeliverableTaskHistoryService(multicaWorkTasks),
   );
+  const promotionContext = new DeliverableTaskContextService(projectManagement, async (projectId, folderPath) => {
+    const project = await elements.get(projectId);
+    const localFolder = project?.type === "project" && project.content && typeof project.content === "object"
+      ? (project.content as { localFolder?: unknown }).localFolder
+      : null;
+    if (typeof localFolder !== "string" || !localFolder) throw new Error("Project local folder is unavailable.");
+    const projectRoot = realpathSync(localFolder);
+    const directory = pathResolve(projectRoot, folderPath);
+    const offset = relative(projectRoot, directory);
+    if (offset.startsWith("..") || pathResolve(projectRoot, offset) !== directory) throw new Error("Deliverable folder is outside the project.");
+    const entries = await readdir(directory, { withFileTypes: true });
+    return Promise.all(entries.filter(entry => entry.isFile()).map(async entry => ({
+      fileName: entry.name,
+      relativePath: `${folderPath.replace(/\/$/, "")}/${entry.name}`,
+      size: (await stat(pathResolve(directory, entry.name))).size,
+    })));
+  });
+  const conversationPromotions = chatConversations
+    ? new ConversationPromotionService(chatConversations, chatAttachments, (projectId, deliverableId) => promotionContext.createSnapshot(projectId, deliverableId), async request => {
+        const task = await aiTaskDispatcher.publish(request);
+        void aiTaskDispatcher.drain(task.id).catch(error => log.warn("ai_task.dispatch.failed", { taskId: task.id, error: error instanceof Error ? error.message : String(error) }));
+        return task;
+      }, request => aiTaskDispatcher.validate(request), scenario => aiTaskDispatcher.assertScenario(scenario))
+    : null;
   const manualsDir = opts.aiDir ?? aiDir();
   // ─── Toolbox runtime (gracefully no-op if SQLite repo missing) ──
   const toolRuntime = invocations ? new ToolRuntime(invocations) : null;
@@ -449,7 +477,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/state", stateRoutes(state, elements, signals));
   app.route("/api/corpus", corpusRoutes(corpus));
   app.route("/api/great-me", greatMeRoutes(greatMe));
-  app.route("/api/chat", chatRoutes(chatAttachments, ai, chatConversations, aiContextProvider, operationCorrelations, agentConversationConfigs, agentConversationTurns, agentExecution));
+  app.route("/api/chat", chatRoutes(chatAttachments, ai, chatConversations, aiContextProvider, operationCorrelations, agentConversationConfigs, agentConversationTurns, agentExecution, conversationPromotions));
   app.route("/api/chat-visual-blocks", chatVisualBlocksRoutes(chatVisualBlocks));
   app.route("/api/chat/attachments", chatAttachmentsRoutes(chatAttachments));
   app.route("/api/health", healthRoutes(healthRepo));

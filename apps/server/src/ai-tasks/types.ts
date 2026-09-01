@@ -32,6 +32,14 @@ const contextSnapshot = z.object({
     id: z.string().min(1), title: z.string(), status: z.string(), reviewStatus: z.string().optional(), summary: z.string().optional(),
     resultRefs: z.array(z.object({ type: z.string(), id: z.string(), label: z.string().optional() })), createdAt: z.string().datetime(), finishedAt: z.string().datetime().optional(),
   })).default([]),
+  sourceConversationId: z.string().min(1).optional(),
+  conversationSummary: z.string().optional(),
+  selectedMessages: z.array(z.object({
+    id: z.string().min(1), role: z.enum(["user", "assistant", "system"]), content: z.string(), createdAt: z.string().datetime(),
+  })).optional(),
+  attachmentRefs: z.array(z.object({
+    id: z.string().min(1), messageId: z.string(), kind: z.string(), mime: z.string(), sizeBytes: z.number().nonnegative(), caption: z.string().optional(), sha256: z.string(),
+  })).optional(),
 });
 
 const requestSchema = z.object({
@@ -43,6 +51,11 @@ const requestSchema = z.object({
   instructions: z.string().trim().min(1),
   acceptanceCriteria: z.array(z.string().trim().min(1)).default([]),
   contextSnapshot,
+  promotion: z.object({
+    sourceConversationId: z.string().min(1),
+    selectedMessageIds: z.array(z.string().min(1)),
+    selectedAttachmentIds: z.array(z.string().min(1)).default([]),
+  }).optional(),
 });
 
 export type AiTaskContextSnapshot = z.infer<typeof contextSnapshot>;
