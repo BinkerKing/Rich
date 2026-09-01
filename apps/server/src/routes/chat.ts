@@ -20,6 +20,7 @@ type ContentPart =
   | { type: "image_url"; image_url: { url: string } };
 type MessageContent = string | ContentPart[];
 type Message = { role: string; content: MessageContent };
+type CodexFallbackResult = { wroteText: boolean; fullText: string; error?: string };
 
 const AGENT_TASK_INSTRUCTIONS = `
 \n## 执行任务模式
@@ -59,7 +60,16 @@ function messagesToFallbackPrompt(messages: Message[]): string {
 
 function makeChatOpRecorder(handle: OpHandle | null) {
   let recorded = false;
+  let errorEventRecorded = false;
   return {
+    async event(input: Parameters<OpHandle["recordEvent"]>[0]) {
+      if (!handle || recorded) return;
+      if (input.type === "error") {
+        if (errorEventRecorded) return;
+        errorEventRecorded = true;
+      }
+      await handle.recordEvent(input);
+    },
     async done(output: string, sessionId?: string) {
       if (!handle || recorded) return;
       recorded = true;
@@ -212,14 +222,10 @@ export function chatRoutes(
     stream: Parameters<Parameters<typeof streamSSE>[1]>[0],
     messages: Message[],
     requiresAgent = false,
-  ) {
+  ): Promise<CodexFallbackResult> {
     let fullText = "";
     if (!codexFallback || !(await codexFallback.available())) {
-      await stream.writeSSE({
-        event: "error",
-        data: JSON.stringify({ message: "Hermes 没有可用凭证，且 Codex fallback 不可用。" }),
-      });
-      return { wroteText: false, fullText };
+      return { wroteText: false, fullText, error: "Hermes 没有可用凭证，且 Codex fallback 不可用。" };
     }
 
     const controller = new AbortController();
@@ -239,19 +245,11 @@ export function chatRoutes(
             data: JSON.stringify({ chunk: event.text }),
           });
         } else if (event.type === "error") {
-          await stream.writeSSE({
-            event: "error",
-            data: JSON.stringify({ message: event.message }),
-          });
-          return { wroteText, fullText };
+          return { wroteText, fullText, error: event.message };
         }
       }
     } catch (e) {
-      await stream.writeSSE({
-        event: "error",
-        data: JSON.stringify({ message: e instanceof Error ? e.message : String(e) }),
-      });
-      return { wroteText, fullText };
+      return { wroteText, fullText, error: e instanceof Error ? e.message : String(e) };
     } finally {
       clearTimeout(timeout);
     }
@@ -263,7 +261,8 @@ export function chatRoutes(
     messages: Message[],
     hermesMessage: string,
     requiresAgent = false,
-  ): Promise<{ wroteText: boolean; fullText: string }> {
+    beforeError?: () => Promise<void>,
+  ): Promise<CodexFallbackResult> {
     await stream.writeSSE({
       event: "tool",
       data: JSON.stringify({ name: "codex-fallback", status: "running" }),
@@ -273,11 +272,16 @@ export function chatRoutes(
       event: "tool",
       data: JSON.stringify({ name: "codex-fallback", status: "completed" }),
     });
-    if (!result.wroteText) {
+    if (result.error || !result.wroteText) {
+      const failure: CodexFallbackResult = result.error
+        ? result
+        : { ...result, error: hermesMessage };
+      await beforeError?.();
       await stream.writeSSE({
         event: "error",
-        data: JSON.stringify({ message: hermesMessage }),
+        data: JSON.stringify({ message: failure.error }),
       });
+      return failure;
     }
     return result;
   }
@@ -347,6 +351,9 @@ export function chatRoutes(
         scope: { conversationId, surface: body.surface?.trim() || "api-chat", intent: turnPlan.intent, reason: turnPlan.reason },
         prompt: messagesToFallbackPrompt(contextMessages),
       }));
+      await opRecorder.event({ type: "turn.plan" });
+      await opRecorder.event({ type: "adapter.selected" });
+      if (turnPlan.requiresAgent) await opRecorder.event({ type: "agent.started" });
       let msg: { role: string; content: string } | null = null;
       let usedAdapter = adapter?.name ?? "hermes";
       if (!adapter || adapter.name === "hermes") {
@@ -360,6 +367,7 @@ export function chatRoutes(
           }),
         });
         if (!upstream.ok) {
+          await opRecorder.event({ type: "error" });
           await opRecorder.error(`Hermes ${upstream.status}`);
           return c.json({ error: `Hermes ${upstream.status}` }, 502);
         }
@@ -374,6 +382,7 @@ export function chatRoutes(
         })) {
           if (event.type === "delta") content += event.text;
           if (event.type === "error") {
+            await opRecorder.event({ type: "error" });
             await opRecorder.error(event.message);
             return c.json({ error: event.message }, 502);
           }
@@ -382,6 +391,7 @@ export function chatRoutes(
         usedAdapter = adapter.name;
       }
       if (!msg) {
+        await opRecorder.event({ type: "error" });
         await opRecorder.error("no message in response");
         return c.json({ error: "no message in response" }, 502);
       }
@@ -403,11 +413,13 @@ export function chatRoutes(
         adapter: usedAdapter,
         createdAt: new Date().toISOString(),
       });
+      await opRecorder.event({ type: "output" });
       await opRecorder.done(msg.content);
       queueSummaryRefresh(conversationId);
       return c.json({ conversationId, message: msg });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
+      await opRecorder?.event({ type: "error" });
       await opRecorder?.error(message);
       return c.json({ error: message }, 503);
     }
@@ -480,6 +492,9 @@ export function chatRoutes(
         },
         prompt: messagesToFallbackPrompt(messages),
       }));
+      await opRecorder.event({ type: "turn.plan" });
+      await opRecorder.event({ type: "adapter.selected" });
+      if (turnPlan.requiresAgent) await opRecorder.event({ type: "agent.started" });
 
       // ② 现在才开始连 Hermes（连接耗时已经从首字延迟里抠出去了）
       if (adapter && adapter.name !== "hermes") {
@@ -488,6 +503,7 @@ export function chatRoutes(
         try {
           const result = await streamGenericAdapter(stream, adapter, messages, turnPlan.scenario, controller.signal, turnPlan.requiresAgent);
           if (result.error) {
+            await opRecorder.event({ type: "error" });
             await opRecorder.error(result.error);
             await stream.writeSSE({
               event: "error",
@@ -507,6 +523,7 @@ export function chatRoutes(
             });
             queueSummaryRefresh(conversationId);
           }
+          await opRecorder.event({ type: "output" });
           await opRecorder.done(result.fullText, result.sessionId);
           await stream.writeSSE({
             event: "done",
@@ -532,8 +549,11 @@ export function chatRoutes(
         });
       } catch (e) {
         const message = `Hermes unreachable: ${e instanceof Error ? e.message : String(e)}`;
-        const fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent);
-        if (fallback.wroteText) {
+        await opRecorder.event({ type: "fallback" });
+        const fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }));
+        if (fallback.error) {
+          await opRecorder.error(fallback.error);
+        } else if (fallback.wroteText) {
           await conversationsRepo?.appendMessage({
             id: randomUUID(),
             conversationId,
@@ -543,12 +563,14 @@ export function chatRoutes(
             createdAt: new Date().toISOString(),
           });
           queueSummaryRefresh(conversationId);
+          await opRecorder.event({ type: "output" });
+          await opRecorder.done(fallback.fullText);
           await stream.writeSSE({
             event: "done",
             data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
           });
-          await opRecorder.done(fallback.fullText);
         } else {
+          await opRecorder.event({ type: "error" });
           await opRecorder.error(message);
         }
         return;
@@ -556,8 +578,11 @@ export function chatRoutes(
       if (!upstream.ok || !upstream.body) {
         const detail = await upstream.text().catch(() => "");
         const message = `Hermes ${upstream.status} ${upstream.statusText}${detail ? `: ${detail}` : ""}`;
-        const fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent);
-        if (fallback.wroteText) {
+        await opRecorder.event({ type: "fallback" });
+        const fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }));
+        if (fallback.error) {
+          await opRecorder.error(fallback.error);
+        } else if (fallback.wroteText) {
           await conversationsRepo?.appendMessage({
             id: randomUUID(),
             conversationId,
@@ -567,12 +592,14 @@ export function chatRoutes(
             createdAt: new Date().toISOString(),
           });
           queueSummaryRefresh(conversationId);
+          await opRecorder.event({ type: "output" });
+          await opRecorder.done(fallback.fullText);
           await stream.writeSSE({
             event: "done",
             data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
           });
-          await opRecorder.done(fallback.fullText);
         } else {
+          await opRecorder.event({ type: "error" });
           await opRecorder.error(message);
         }
         return;
@@ -624,6 +651,7 @@ export function chatRoutes(
                 // Hermes tool event — forward minimal shape to the client.
                 const p = parsed as { tool?: string; status?: string };
                 if (p.tool && p.status) {
+                  await opRecorder.event({ type: "mcp.tool", data: { tool: p.tool, status: p.status } });
                   await stream.writeSSE({
                     event: "tool",
                     data: JSON.stringify({ name: p.tool, status: p.status }),
@@ -683,6 +711,7 @@ export function chatRoutes(
             const json = await fallback.json().catch(() => null) as { error?: { message?: string } } | null;
             const message = json?.error?.message ?? `Hermes ${fallback.status} ${fallback.statusText}`;
             if (/No Codex credentials stored|hermes auth|hermes model/i.test(message)) {
+              await opRecorder.event({ type: "error" });
               await stream.writeSSE({
                 event: "error",
                 data: JSON.stringify({
@@ -692,7 +721,12 @@ export function chatRoutes(
               await opRecorder.error(`Hermes 需要重新授权：${message}`);
               return;
             }
-            const fallbackResult = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent);
+            await opRecorder.event({ type: "fallback" });
+            const fallbackResult = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }));
+            if (fallbackResult.error) {
+              await opRecorder.error(fallbackResult.error);
+              return;
+            }
             sawText = fallbackResult.wroteText;
             if (sawText) {
               usedAdapter = "codex";
@@ -711,6 +745,7 @@ export function chatRoutes(
           });
           queueSummaryRefresh(conversationId);
         }
+        await opRecorder.event({ type: "output" });
         await opRecorder.done(fullText);
         await stream.writeSSE({
           event: "done",
@@ -718,9 +753,15 @@ export function chatRoutes(
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        const fallback = !sawText
-          ? await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent)
-          : { wroteText: false, fullText: "" };
+        let fallback: CodexFallbackResult = { wroteText: false, fullText: "" };
+        if (!sawText) {
+          await opRecorder.event({ type: "fallback" });
+          fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }));
+        }
+        if (!sawText && fallback.error) {
+          await opRecorder.error(fallback.error);
+          return;
+        }
         if (!sawText && fallback.wroteText) {
           usedAdapter = "codex";
           await conversationsRepo?.appendMessage({
@@ -732,13 +773,15 @@ export function chatRoutes(
             createdAt: new Date().toISOString(),
           });
           queueSummaryRefresh(conversationId);
+          await opRecorder.event({ type: "output" });
+          await opRecorder.done(fallback.fullText);
           await stream.writeSSE({
             event: "done",
             data: JSON.stringify({ finish_reason: "codex-fallback", conversationId }),
           });
-          await opRecorder.done(fallback.fullText);
           return;
         }
+        await opRecorder.event({ type: "error" });
         await opRecorder.error(message);
         await stream.writeSSE({
           event: "error",
