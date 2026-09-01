@@ -43,7 +43,7 @@ describe("ConversationPromotionService", () => {
     await expect(service.preview({
       conversationId: "c1", scenario: "unknown", target: { projectId: "p1", deliverableId: "d1" },
       selectedMessageIds: ["m1"], executor: "hermes", instructions: "produce report",
-    })).rejects.toThrow(/unknown task scenario/i);
+    })).rejects.toThrow(/unknown.*scenario/i);
     expect(createContext).not.toHaveBeenCalled();
   });
 });

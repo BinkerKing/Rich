@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { AiTaskContextSnapshot, AiTaskExecutor, AiTaskProfile, AiTaskRequest } from "../ai-tasks/types.js";
 import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
+import { DeliverableAnalysisScenario } from "../agent-scenarios/deliverableAnalysisScenario.js";
+import { ScenarioRegistry } from "../agent-scenarios/ScenarioRegistry.js";
 
 export interface ConversationPromotionInput {
   conversationId: string;
@@ -26,9 +28,7 @@ export class ConversationPromotionService {
     private readonly createContext: (projectId: string, deliverableId: string) => Promise<AiTaskContextSnapshot>,
     private readonly publishTask: (request: AiTaskRequest) => Promise<unknown>,
     private readonly validateTask: (request: unknown) => AiTaskRequest = request => request as AiTaskRequest,
-    private readonly assertScenario: (scenario: string) => void = scenario => {
-      if (scenario !== "deliverable_analysis") throw new Error(`Unknown task scenario: ${scenario}.`);
-    },
+    private readonly assertScenario: (scenario: string) => void = scenario => new ScenarioRegistry([new DeliverableAnalysisScenario()]).get(scenario),
   ) {}
 
   async preview(input: ConversationPromotionInput): Promise<{ confirmationToken: string; request: AiTaskRequest }> {
