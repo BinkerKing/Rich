@@ -12,6 +12,7 @@ data/
 .superpowers/
 .gstack/
 .playwright-cli/
+.worktrees/
 
 # electron-builder 输出（255MB .app bundle，不入库）
 apps/desktop/release/
