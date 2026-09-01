@@ -12,13 +12,13 @@ import { buildGenerateMindmapPrompt } from "./prompts/generateMindmap.js";
 import { buildDraftPrdPrompt } from "./prompts/draftPrd.js";
 import { buildDraftChildPrompt } from "./prompts/draftChild.js";
 import { buildAdjustChildPrompt } from "./prompts/adjustChild.js";
-import { buildGuidedPracticePrompt } from "./prompts/guidedPractice.js";
 import { withOperationContext } from "./operationContext.js";
 import { zodValidator } from "./structuredValidation.js";
 export { analyzeAttachment, analyzeMark, attachUnder, expandElement, extendElement, extractKeywords, generatePathsFor, generateTreeFor, refineElement, refineSection } from "./knowledge/operations.js";
 export type { AnalyzeAttachmentResult, AnalyzeMarkResult, AttachOption, ElementsAndRelationsResult as ExpandResult, ElementsAndRelationsResult as ExtendResult, ExtractKeywordsResult, GenerateTreeResult, PathResult, RefineResult, SectionRefineResult } from "./knowledge/operations.js";
 export { runAnalyzeProgress, runDecomposePlan, runDraftReview, runGreatMeBrain } from "./project/operations.js";
-export type { AnalyzeProgressResult, DecomposePlanResult, DraftReviewResult, GreatMeBrainResult } from "./project/operations.js";
+export { runGuidedPractice } from "./project/operations.js";
+export type { AnalyzeProgressResult, DecomposePlanResult, DraftReviewResult, GreatMeBrainResult, GuidedPracticeResult } from "./project/operations.js";
 import type { AIManual } from "./manuals.js";
 import type { Signal } from "@ke/domain";
 
@@ -218,7 +218,7 @@ const GuidedPracticeResultSchema = z.object({
   confidence: GuidedPracticeConfidenceSchema,
   openQuestions: z.array(z.string().min(1).max(240)).max(5).default([]),
 });
-export type GuidedPracticeResult = z.infer<typeof GuidedPracticeResultSchema>;
+type LegacyGuidedPracticeResult = z.infer<typeof GuidedPracticeResultSchema>;
 
 interface SharedOpArgs {
   sessionId?: string;
@@ -292,34 +292,6 @@ export function generateMindmap(
     opLog: {
       op: "generate-mindmap", model: adapter.name,
       scope: { titleHint: args.titleHint, audience: args.audience, withImages: args.withImages, proseLength: args.prose.length },
-    },
-  });
-}
-
-export function runGuidedPractice(
-  adapter: AIAdapter,
-  args: {
-    stage: z.infer<typeof GuidedPracticeStageSchema>;
-    userInput: string;
-    draft: Parameters<typeof buildGuidedPracticePrompt>[0]["draft"];
-    messages: Parameters<typeof buildGuidedPracticePrompt>[0]["messages"];
-  } & SharedOpArgs,
-): AsyncIterable<StructuredEvent<GuidedPracticeResult>> {
-  const prompt = withOperationContext(args, buildGuidedPracticePrompt({
-    stage: args.stage,
-    userInput: args.userInput,
-    draft: args.draft,
-    messages: args.messages,
-  }), "guided-practice", "project-practice");
-  return runStructuredAI(adapter, {
-    prompt,
-    systemPrompt: "You are a product requirements analyst inside Rich. Return exactly one valid JSON object with keys reply, draftPatch, nextStage, confidence, openQuestions. Do not use Markdown.",
-    signal: args.signal,
-    validate: zodValidator(GuidedPracticeResultSchema),
-    opLog: {
-      op: "guided-practice",
-      model: adapter.name,
-      scope: { stage: args.stage, userInput: args.userInput.slice(0, 120) },
     },
   });
 }
