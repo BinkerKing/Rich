@@ -35,7 +35,6 @@ import {
   runDraftReview,
   runGuidedPractice,
 } from "../ai/operations.js";
-import { generateDailyNews, type DailyNewsItem } from "../ai/content/operations.js";
 import { runAdjustChild, runDraftChild, runDraftPrd } from "../ai/project/operations.js";
 import { shortlistByKeywords } from "../lib/elementShortlist.js";
 import { KeyedLock } from "../lib/KeyedLock.js";
@@ -43,6 +42,7 @@ import type { Logger } from "../lib/logger.js";
 import { noopLogger } from "../lib/logger.js";
 import { streamElementOp } from "./streamElementOp.js";
 import { loadManual, manualToPromptFragment, appendLearnedRules } from "../ai/manuals.js";
+import { contentRoutes } from "./ai/contentRoutes.js";
 
 export interface AiRoutesDeps {
   adapters: AIAdapter[];
@@ -1374,121 +1374,7 @@ export function aiRoutes(deps: AiRoutesDeps): Hono {
     return c.body(null, 204);
   });
 
-  // ----- AI 早报 (daily news generation) -----
-  // POST /api/ai/news/generate-daily { date?: "YYYY-MM-DD", model? }
-  // Streams SSE deltas while codex fetches & writes; on done, materializes
-  // a date-roundup parent element + N child news elements under `ai-news`.
-  r.post("/news/generate-daily", async (c) => {
-    const body = await c.req.json().catch(() => ({}));
-    const dateRaw = typeof body.date === "string" ? body.date.trim() : "";
-    const date = /^\d{4}-\d{2}-\d{2}$/.test(dateRaw)
-      ? dateRaw
-      : new Date().toISOString().slice(0, 10);
-    const model = body.model as "claude-code" | "codex" | undefined;
-    // Make sure the ai-news parent topic exists; refuse otherwise (someone
-    // could have deleted the topic root). Don't auto-create — that's an
-    // editorial choice the user should make.
-    const parent = await deps.elements.get("ai-news");
-    if (!parent) return c.json({ error: "ai-news topic not found; create it first" }, 404);
-    const adapter = pickScenarioAdapter(deps.adapters, "content", model);
-    const signal = c.req.raw.signal;
-    const reqId = newReqId();
-    const t0 = Date.now();
-    log.info("ai.op.start", { reqId, op: "/api/ai/news/generate-daily", date, adapter: adapter.name });
-
-    const dailyRoundupId = `ai-news.${date}`;
-
-    return streamSSE(c, async (stream) => {
-      let deltas = 0;
-      try {
-        for await (const ev of generateDailyNews(adapter, { date, signal })) {
-          if (ev.type === "delta") { deltas++; }
-          if (ev.type === "error") {
-            log.error("ai.op.error", { reqId, durationMs: Date.now() - t0, deltas, message: ev.message });
-            await recordSignal(deps.signals, {
-              ts: new Date().toISOString(), type: "op.failed", manual: "knowledge",
-              op: "generate-daily-news", adapter: adapter.name,
-              data: { date, durationMs: Date.now() - t0, message: ev.message },
-            });
-          }
-          await stream.writeSSE({ event: ev.type, data: JSON.stringify(ev) });
-          if (ev.type !== "done") continue;
-
-          // Materialize: build daily-roundup parent + child news elements.
-          const result = ev.result;
-          const now = new Date().toISOString();
-          const roundup: Element = {
-            id: dailyRoundupId,
-            type: "report",
-            title: `${date} AI 早报`,
-            subtitle: result.editorNote.split(/[\n。]/).find(s => s.trim()) ?? `${date} 当日 AI 进展速览`,
-            tags: ["ai-news", `date:${date}`, "daily-roundup"],
-            content: {
-              sections: [{
-                id: "editor-note",
-                title: "编辑按语",
-                blocks: [{ style: "prose", text: result.editorNote }],
-              }],
-            },
-            metadata: {
-              createdAt: now, updatedAt: now,
-              generatedBy: "ai", aiModel: adapter.name,
-              richness: 2,
-            },
-          };
-          await deps.elements.put(roundup);
-          await deps.relations.append([{
-            id: `rel.ai-news-child-${dailyRoundupId}`,
-            kind: "child", from: "ai-news", to: dailyRoundupId, createdAt: now,
-          }]);
-
-          const childRelations: Array<{ id: string; kind: "child"; from: string; to: string; createdAt: string }> = [];
-          for (let i = 0; i < result.items.length; i++) {
-            const item: DailyNewsItem = result.items[i];
-            const slug = slugify(item.title) || `item-${i + 1}`;
-            const childId = `${dailyRoundupId}.${slug}`;
-            const child: Element = {
-              id: childId,
-              type: "report",
-              title: item.title,
-              subtitle: item.subtitle,
-              tags: ["ai-news", `category:${item.category}`, `impact:${item.impact}`, `date:${date}`],
-              content: { sections: item.sections },
-              metadata: {
-                createdAt: now, updatedAt: now,
-                generatedBy: "ai", aiModel: adapter.name,
-                richness: 2,
-              },
-            };
-            await deps.elements.put(child);
-            childRelations.push({
-              id: `rel.${dailyRoundupId}-child-${childId}`,
-              kind: "child", from: dailyRoundupId, to: childId, createdAt: now,
-            });
-            // Hand off image-placeholders inside the news item to the image engine.
-            void imageQueue.scheduleForElement(childId);
-          }
-          await deps.relations.append(childRelations);
-
-          log.info("ai.op.done", { reqId, durationMs: Date.now() - t0, deltas, items: result.items.length });
-          await recordSignal(deps.signals, {
-            ts: new Date().toISOString(), type: "op.completed", manual: "knowledge",
-            op: "generate-daily-news", adapter: adapter.name, elementId: dailyRoundupId,
-            data: { date, durationMs: Date.now() - t0, itemCount: result.items.length },
-          });
-          await stream.writeSSE({
-            event: "materialized",
-            data: JSON.stringify({ roundupId: dailyRoundupId, itemCount: result.items.length }),
-          });
-        }
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        log.error("ai.op.error", { reqId, durationMs: Date.now() - t0, message: msg });
-        await stream.writeSSE({ event: "error", data: JSON.stringify({ type: "error", message: msg }) });
-      }
-    });
-  });
-
+  r.route("/", contentRoutes({ adapters: deps.adapters, elements: deps.elements, relations: deps.relations, signals: deps.signals, logger: deps.logger }));
   return r;
 }
 
