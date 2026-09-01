@@ -66,4 +66,12 @@ describe("ScenarioRegistry", () => {
     const task = await dispatcher.publish(input);
     expect(task.request).toMatchObject({ scenario: "deliverable_analysis" });
   });
+
+  it("uses readable plain text instead of rich-text markup for the external task title", () => {
+    const scenario = new DeliverableAnalysisScenario();
+    expect(scenario.title({
+      ...input,
+      instructions: '<p>核对一下<span style="color: rgb(226, 237, 249); font-family: &quot;PingFang SC&quot;">报表范围</span>。</p>',
+    })).toBe("核对一下报表范围。");
+  });
 });

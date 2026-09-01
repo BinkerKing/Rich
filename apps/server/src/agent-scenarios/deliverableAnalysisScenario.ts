@@ -1,6 +1,15 @@
 import { parseAiTaskRequest, type AiTaskRequest } from "../ai-tasks/types.js";
 import type { AgentTaskScenario } from "./types.js";
 
+function titleText(value: string): string {
+  return value
+    .replace(/<br\s*\/?\s*>/gi, " ")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&(quot|amp|lt|gt|nbsp);/gi, (_match, entity: string) => ({ quot: '"', amp: "&", lt: "<", gt: ">", nbsp: " " })[entity.toLowerCase()] ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export class DeliverableAnalysisScenario implements AgentTaskScenario {
   readonly id = "deliverable_analysis";
   readonly taskType = "deliverable-ai-task";
@@ -17,6 +26,6 @@ export class DeliverableAnalysisScenario implements AgentTaskScenario {
   }
 
   title(input: AiTaskRequest): string {
-    return input.instructions.slice(0, 160);
+    return titleText(input.instructions).slice(0, 160);
   }
 }
