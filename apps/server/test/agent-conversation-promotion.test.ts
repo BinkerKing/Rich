@@ -46,4 +46,23 @@ describe("ConversationPromotionService", () => {
     })).rejects.toThrow(/unknown.*scenario/i);
     expect(createContext).not.toHaveBeenCalled();
   });
+
+  it("saves to an exact Rich destination only after one-time confirmation", async () => {
+    const conversations = new SqliteChatConversationsRepo(openDb(join(mkdtempSync(join(tmpdir(), "rich-promotion-save-")), "rich.db")));
+    const now = "2026-09-01T00:00:00.000Z";
+    await conversations.ensureConversation({ id: "c1", now });
+    const save = vi.fn(async input => ({ id: "report-1", ...input }));
+    const service = new ConversationPromotionService(conversations, null, async () => ({
+      version: 1, createdAt: now, deliverable: { folderPath: "07-交付/report", requirementHtml: "requirement" }, records: [], files: [], history: [],
+    }), async () => ({ id: "task-1" }), undefined, undefined, save);
+
+    const preview = await service.previewSave({
+      conversationId: "c1", destination: { projectId: "p1", moduleKey: "reports", title: "评审结论" },
+      content: { text: "已确认的结论" },
+    });
+    expect(save).not.toHaveBeenCalled();
+    expect((await service.publishSave(preview.confirmationToken) as { id: string }).id).toBe("report-1");
+    await expect(service.publishSave(preview.confirmationToken)).rejects.toThrow(/already used|missing/i);
+    expect(save).toHaveBeenCalledTimes(1);
+  });
 });

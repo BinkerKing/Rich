@@ -1032,6 +1032,28 @@ export function chatRoutes(
     }
   });
 
+  r.post("/conversations/:id/save-to-rich/preview", async c => {
+    if (!promotions) return c.json({ error: "Save to Rich unavailable" }, 503);
+    const body = await c.req.json().catch(() => null) as Omit<Parameters<ConversationPromotionService["previewSave"]>[0], "conversationId"> | null;
+    if (!body || typeof body !== "object") return c.json({ error: "Save input required" }, 400);
+    try {
+      return c.json(await promotions.previewSave({ ...body, conversationId: c.req.param("id") }));
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  r.post("/conversations/:id/save-to-rich/publish", async c => {
+    if (!promotions) return c.json({ error: "Save to Rich unavailable" }, 503);
+    const body = await c.req.json().catch(() => null) as { confirmationToken?: unknown } | null;
+    if (typeof body?.confirmationToken !== "string" || !body.confirmationToken) return c.json({ error: "confirmationToken required" }, 400);
+    try {
+      return c.json(await promotions.publishSave(body.confirmationToken), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 409);
+    }
+  });
+
   r.post("/conversations/:id/agent-session/approvals/:approvalId", async (c) => {
     if (!agentExecution) return c.json({ error: "Agent approval handling is unavailable" }, 503);
     const body = await c.req.json().catch(() => null) as

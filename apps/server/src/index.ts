@@ -223,7 +223,7 @@ import { PostgresGreatMeRepo } from "./repos/PostgresGreatMeRepo.js";
 import { PostgresInvocationsRepo } from "./repos/PostgresInvocationsRepo.js";
 import { PostgresImprovementsRepo } from "./repos/PostgresImprovementsRepo.js";
 import { getAgentId } from "./lib/agentId.js";
-import type { ProjectManagementRepo } from "./repos/ProjectManagementRepo.js";
+import { PROJECT_MANAGEMENT_MODULES, type ProjectManagementModuleKey, type ProjectManagementRepo } from "./repos/ProjectManagementRepo.js";
 import { PostgresProjectManagementRepo } from "./repos/PostgresProjectManagementRepo.js";
 import { SqliteProjectManagementRepo } from "./repos/SqliteProjectManagementRepo.js";
 import type { ProjectAutomationRepo } from "./modules/project-automation/contracts.js";
@@ -424,7 +424,17 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
         const task = await aiTaskDispatcher.publish(request);
         void aiTaskDispatcher.drain(task.id).catch(error => log.warn("ai_task.dispatch.failed", { taskId: task.id, error: error instanceof Error ? error.message : String(error) }));
         return task;
-      }, request => aiTaskDispatcher.validate(request), scenario => aiTaskDispatcher.assertScenario(scenario))
+      }, request => aiTaskDispatcher.validate(request), scenario => aiTaskDispatcher.assertScenario(scenario), async action => {
+        const moduleKey = action.destination.moduleKey as ProjectManagementModuleKey;
+        if (!PROJECT_MANAGEMENT_MODULES.some(module => module.key === moduleKey)) {
+          throw new Error(`Unknown Rich module: ${action.destination.moduleKey}.`);
+        }
+        return projectManagement.createModuleItem(action.destination.projectId, {
+          moduleKey,
+          title: action.destination.title,
+          content: action.content,
+        });
+      })
     : null;
   const manualsDir = opts.aiDir ?? aiDir();
   // ─── Toolbox runtime (gracefully no-op if SQLite repo missing) ──

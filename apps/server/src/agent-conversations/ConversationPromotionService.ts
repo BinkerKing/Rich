@@ -18,9 +18,16 @@ export interface ConversationPromotionInput {
 }
 
 interface PendingPromotion { request: AiTaskRequest; publishing: boolean }
+export interface SaveToRichInput {
+  conversationId: string;
+  destination: { projectId: string; moduleKey: string; title: string };
+  content: Record<string, unknown>;
+}
+interface PendingSave { input: SaveToRichInput; publishing: boolean }
 
 export class ConversationPromotionService {
   private readonly pending = new Map<string, PendingPromotion>();
+  private readonly pendingSaves = new Map<string, PendingSave>();
 
   constructor(
     private readonly conversations: ChatConversationsRepo,
@@ -29,6 +36,7 @@ export class ConversationPromotionService {
     private readonly publishTask: (request: AiTaskRequest) => Promise<unknown>,
     private readonly validateTask: (request: unknown) => AiTaskRequest = request => request as AiTaskRequest,
     private readonly assertScenario: (scenario: string) => void = scenario => new ScenarioRegistry([new DeliverableAnalysisScenario()]).get(scenario),
+    private readonly saveToRich?: (input: SaveToRichInput) => Promise<unknown>,
   ) {}
 
   async preview(input: ConversationPromotionInput): Promise<{ confirmationToken: string; request: AiTaskRequest }> {
@@ -84,6 +92,32 @@ export class ConversationPromotionService {
       const task = await this.publishTask(structuredClone(pending.request));
       this.pending.delete(confirmationToken);
       return task;
+    } catch (error) {
+      pending.publishing = false;
+      throw error;
+    }
+  }
+
+  async previewSave(input: SaveToRichInput): Promise<{ confirmationToken: string; action: SaveToRichInput }> {
+    if (!this.saveToRich) throw new Error("Save to Rich is unavailable.");
+    if (!input.conversationId || !input.destination.projectId || !input.destination.moduleKey || !input.destination.title.trim()) {
+      throw new Error("A conversation and exact Rich destination are required.");
+    }
+    const confirmationToken = randomUUID();
+    const action = structuredClone(input);
+    this.pendingSaves.set(confirmationToken, { input: action, publishing: false });
+    return { confirmationToken, action: structuredClone(action) };
+  }
+
+  async publishSave(confirmationToken: string): Promise<unknown> {
+    const pending = this.pendingSaves.get(confirmationToken);
+    if (!pending || pending.publishing) throw new Error("Save preview is missing, expired, or already used.");
+    if (!this.saveToRich) throw new Error("Save to Rich is unavailable.");
+    pending.publishing = true;
+    try {
+      const result = await this.saveToRich(structuredClone(pending.input));
+      this.pendingSaves.delete(confirmationToken);
+      return result;
     } catch (error) {
       pending.publishing = false;
       throw error;
