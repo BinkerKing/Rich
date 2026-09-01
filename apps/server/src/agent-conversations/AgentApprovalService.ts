@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
+import type { AgentApprovalRepo } from "../repos/AgentApprovalRepo.js";
 
-type Approval = {
+export type AgentApproval = {
   id: string;
   conversationId: string;
   turnId: string;
@@ -9,23 +10,19 @@ type Approval = {
   expiresAt: string;
   consumed: boolean;
 };
-type ApprovalBinding = Omit<Approval, "id" | "expiresAt" | "consumed"> & { now: string; ttlMs?: number };
-type ConsumeInput = Pick<Approval, "conversationId" | "turnId" | "toolCallId" | "argumentsDigest"> & { now: string };
+type ApprovalBinding = Omit<AgentApproval, "id" | "expiresAt" | "consumed"> & { now: string; ttlMs?: number };
+type ConsumeInput = Pick<AgentApproval, "conversationId" | "turnId" | "toolCallId" | "argumentsDigest"> & { now: string };
 
 export class AgentApprovalService {
-  private readonly approvals = new Map<string, Approval>();
+  constructor(private readonly repo: AgentApprovalRepo) {}
 
-  create(input: ApprovalBinding): Approval {
-    const approval: Approval = { ...input, id: randomUUID(), expiresAt: new Date(new Date(input.now).getTime() + (input.ttlMs ?? 300_000)).toISOString(), consumed: false };
-    this.approvals.set(approval.id, approval);
+  async create(input: ApprovalBinding): Promise<AgentApproval> {
+    const approval: AgentApproval = { ...input, id: randomUUID(), expiresAt: new Date(new Date(input.now).getTime() + (input.ttlMs ?? 300_000)).toISOString(), consumed: false };
+    await this.repo.create({ ...approval, now: input.now });
     return approval;
   }
 
-  consume(id: string, input: ConsumeInput): { approved: boolean } {
-    const approval = this.approvals.get(id);
-    if (!approval || approval.consumed || approval.expiresAt <= input.now) return { approved: false };
-    if (approval.conversationId !== input.conversationId || approval.turnId !== input.turnId || approval.toolCallId !== input.toolCallId || approval.argumentsDigest !== input.argumentsDigest) return { approved: false };
-    approval.consumed = true;
-    return { approved: true };
+  async consume(id: string, input: ConsumeInput): Promise<{ approved: boolean }> {
+    return { approved: Boolean(await this.repo.consume(id, input)) };
   }
 }
