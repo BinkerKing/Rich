@@ -188,6 +188,20 @@ curl -N http://127.0.0.1:8642/v1/chat/completions \
 
 任何一步过不去就**别继续装 Rich**——肯定 Hermes 自己没配好。
 
+#### Agent 会话权限与审批
+
+Rich 的 `/agent` 是长期会话模式，但默认只开放 `chat_only`：Hermes 可以持续回复和复用 `session_id`，不能调用工作区、Shell、浏览器、网络或 MCP 工具。这个限制由 Rich 运行时和 Hermes 适配器共同执行，**提示词不是权限边界**。
+
+| 档位 | 当前可用性 | 运行时条件 |
+|---|---|---|
+| `chat_only` | 可用 | Hermes 调用必须禁用原生工具 |
+| `workspace_agent` | 不开放 | Hermes 必须能按会话限制工具集合和真实工作目录，并能在 Rich 审批后恢复同一工具调用 |
+| `extended_agent` | 不开放 | 另需限制浏览器、网络和指定 MCP 服务 |
+
+不要通过修改系统提示词或前端隐藏按钮来“开启”后两档。只有适配器证明上述限制可强制执行，并通过对应集成测试后，才能开放。
+
+所有 Git push、部署、外部消息、Rich 业务数据写入和其他高风险动作都会创建一条持久化审批记录，绑定会话、回合、工具调用和规范化参数摘要。用户在界面看到参数预览后只能批准或拒绝该精确动作；参数、回合或调用 ID 变更都会使审批失效。当前 Hermes 不支持暂停并恢复原生工具调用，因此不会进入会产生此类动作的权限档位。
+
 ---
 
 ### 3.3 Codex CLI（必需）
@@ -277,6 +291,10 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require
 HERMES_BASE_URL=http://127.0.0.1:8642
 HERMES_MODEL=hermes
 # HERMES_API_KEY=...   # 仅当 Hermes 配置了认证才填
+
+# === Agent capability grants ===
+# 多实例或重启后需保持签名有效时必须设置为长期随机值（不要提交）
+RICH_AGENT_CAPABILITY_SECRET=replace-with-a-long-random-secret
 
 # === Codex CLI ===
 # KE_CODEX_BIN=/Applications/Codex.app/Contents/Resources/codex  # 自动探测，通常不用填
@@ -411,6 +429,8 @@ curl -s http://127.0.0.1:31515/api/great-me/state | head -c 200
 | Rich.app 启动后秒退 | server.cjs 启动报错 | `tail /tmp/ke-desktop.log` 看具体异常；多半是 `DATABASE_URL` 不对或 Hermes 不通 |
 | 计划管理页面看到老数据 / 空数据 | 没配 `KE_STORAGE=postgres`，fallback 到本地 SQLite | 检查 .env，或检查 `process.env` 是否真的被 Rich.app 加载 |
 | AI 调用一直转圈 | Hermes 没起或 port 不对 | `curl http://127.0.0.1:8642/v1/models` 应通 |
+| `/agent` 提示权限档位不可用 | Hermes 不能强制工具/工作目录边界，或不能恢复审批的工具调用 | 保持 `chat_only`；不要用提示词绕过，待 Hermes 提供可验证能力后再开放 |
+| Agent 审批失败或已过期 | 回合、工具调用或参数摘要与审批记录不一致；审批只能消费一次 | 重新发起该动作，核对 UI 参数预览；不要重放旧审批链接 |
 | Codex 操作报 "codex CLI not found" | PATH 找不到，或 Codex.app 没装 | 设 `KE_CODEX_BIN=/Applications/Codex.app/Contents/Resources/codex` |
 | `app.asar` 跑的是老代码 | 改了 server 但只 build 没 package | 必须 `pnpm --filter @ke/desktop package` 重打 |
 | 前端改了不生效 | web-dist 是实拷贝不是软链 | 见 6.2 |

@@ -49,7 +49,9 @@ export interface AgentConversationConfig {
   permissionProfile: AgentPermissionProfile;
   workspaceRoot?: string;
   allowedMcpServers: string[];
-  status: "active" | "archived";
+  // Whether this conversation currently routes chat messages to Hermes.
+  // Conversation archival remains a ChatConversationsRepo concern.
+  status: "active" | "inactive";
   createdAt: string;
   updatedAt: string;
 }
@@ -72,7 +74,7 @@ Selecting `/agent` consumes the command; it is not sent to the model as user pro
 
 `/chat` exits Agent mode but retains the transcript and session metadata for later resume. `/agent new` explicitly starts a new Hermes session; plain `/agent` resumes the most recent session when one exists. `/task` does not implicitly convert the whole conversation: Rich shows the scenario/target confirmation before freezing selected context.
 
-Only one turn may execute at a time for a conversation. A failed or interrupted turn is recorded as a turn failure and does not close the conversation.
+Only one turn may execute at a time for a conversation. Rich creates a durable turn record before accepting work and enforces this rule with a database-backed lease, rather than an in-process mutex. A conflicting or idempotent client retry must not append a second user message. A failed or interrupted turn is recorded as a turn failure and does not close the conversation.
 
 ## Permission model
 
@@ -84,7 +86,7 @@ The user chooses a profile before an Agent can act:
 
 Profiles are enforced by an `AgentCapabilityGateway`, not only by system prompts. It issues a turn-scoped capability grant containing the canonical workspace root, allowed tool families, allowed MCP servers, expiry, and conversation/turn IDs. Every Rich-provided tool validates that grant.
 
-Native Hermes tools are a separate trust boundary. Before enabling `workspace_agent` or `extended_agent`, the Hermes runtime adapter must prove that it can enforce the requested per-session tool set and filesystem boundary. If it cannot, Rich returns a capability-unavailable error and keeps the conversation in `chat_only`; prompt-only restrictions are not accepted as enforcement.
+Native Hermes tools are a separate trust boundary. Before enabling `workspace_agent` or `extended_agent`, the Hermes runtime adapter must prove that it can enforce the requested per-session tool set and filesystem boundary. If it cannot, Rich returns a capability-unavailable error and keeps the conversation in `chat_only`; prompt-only restrictions are not accepted as enforcement. Rich must receive every tool-call request before execution, persist its normalized request and idempotency key, and return a tool result to Hermes only after authorization (and, when required, approval). An adapter that cannot pause a requested action and resume it with that tool result is not eligible for a broader profile.
 
 The following actions always require a distinct user approval even in `extended_agent`:
 
@@ -111,15 +113,17 @@ User message
     v
 AgentConversationService -- load transcript/config --> ChatConversationsRepo
     |
-    +-- serialize conversation turn
+    +-- create/idempotently resolve durable conversation turn
+    +-- acquire database-backed per-conversation lease
     +-- resolve permission profile
     +-- issue turn-scoped capability grant
     v
 AgentRuntimePort (Hermes first)
     |
     +-- stream text/tool/progress events
+    +-- persist tool-call state before authorization or execution
     +-- persist returned session_id
-    +-- audit tool requests and approvals
+    +-- audit tool requests, approvals, and idempotency outcomes
     v
 Assistant message + turn outcome
 ```
