@@ -55,6 +55,14 @@ export class PostgresAgentConversationTurnRepo implements AgentConversationTurnR
     return rows[0] ? fromRow(rows[0]) : null;
   }
 
+  async hasActiveLease(id: string, now: string): Promise<boolean> {
+    const { rows } = await this.pool.query<{ active: boolean }>(`SELECT EXISTS(
+      SELECT 1 FROM agent_conversation_turns
+       WHERE id = $1 AND status = 'running' AND lease_expires_at > $2
+    ) AS active`, [id, now]);
+    return rows[0]?.active ?? false;
+  }
+
   async createOrGet(input: CreateAgentConversationTurnInput): Promise<{ turn: AgentConversationTurn; created: boolean }> {
     const client = await this.pool.connect();
     try {

@@ -56,6 +56,12 @@ export class SqliteAgentConversationTurnRepo implements AgentConversationTurnRep
     return row ? fromRow(row) : null;
   }
 
+  async hasActiveLease(id: string, now: string): Promise<boolean> {
+    const row = this.db.prepare(`SELECT 1 AS active FROM agent_conversation_turns
+      WHERE id = ? AND status = 'running' AND lease_expires_at > ?`).get(id, now) as { active: number } | undefined;
+    return Boolean(row?.active);
+  }
+
   async createOrGet(input: CreateAgentConversationTurnInput): Promise<{ turn: AgentConversationTurn; created: boolean }> {
     return this.db.transaction(() => {
       const retry = this.db.prepare(`SELECT ${SELECT_COLUMNS} FROM agent_conversation_turns WHERE conversation_id = ? AND client_request_id = ?`)

@@ -37,6 +37,8 @@ describe("SqliteAgentConversationTurnRepo", () => {
     await conversations.ensureConversation({ id: "c1", now });
     await turns.createOrGet({ id: "t1", conversationId: "c1", clientRequestId: "r1", userMessageId: "m1", content: "one", now });
     expect(await turns.claim("t1", { ownerId: "worker-a", now, leaseMs: 30_000 })).toEqual(expect.objectContaining({ status: "running", leaseOwner: "worker-a" }));
+    expect(await turns.hasActiveLease("t1", "2026-09-01T00:00:01.000Z")).toBe(true);
+    expect(await turns.hasActiveLease("t1", "2026-09-01T00:00:31.000Z")).toBe(false);
 
     await expect(turns.createOrGet({ id: "t2", conversationId: "c1", clientRequestId: "r2", userMessageId: "m2", content: "two", now }))
       .rejects.toThrow(/turn already running/i);
