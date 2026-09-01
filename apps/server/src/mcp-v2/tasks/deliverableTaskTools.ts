@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseAiTaskRequest } from "../../ai-tasks/types.js";
+import { DeliverableTaskHistoryService } from "../../ai-tasks/DeliverableTaskHistoryService.js";
 import { RichMcpError } from "../registry/errors.js";
 import { richSuccess } from "../registry/response.js";
 import type { RichToolRegistry } from "../registry/toolRegistry.js";
@@ -13,6 +14,7 @@ function assertHermesTask(task: Awaited<ReturnType<PersistentTaskService["get"]>
 }
 
 export function registerDeliverableTaskTools(registry: RichToolRegistry, tasks: PersistentTaskService): void {
+  const history = new DeliverableTaskHistoryService(tasks);
   registry.register({
     name: "rich_task_context_get", title: "读取交付物任务上下文", category: "query",
     description: "读取指定 Hermes 交付物任务创建时冻结的要求、记录和材料目录。",
@@ -21,6 +23,16 @@ export function registerDeliverableTaskTools(registry: RichToolRegistry, tasks: 
     handler: async ({ taskId }) => {
       const task = await tasks.get(taskId); const request = assertHermesTask(task);
       return richSuccess("rich_task_context_get", { contextSnapshot: request.contextSnapshot }, { refs: [{ type: "work_task", id: task.id, label: task.title }] });
+    },
+  });
+  registry.register({
+    name: "rich_deliverable_history_get", title: "读取交付物任务历史", category: "query",
+    description: "读取当前交付物此前 AI 任务的结论、产物引用和人工复核状态。",
+    inputSchema: z.object({ taskId: z.string().min(1) }), annotations: { readOnly: true, destructive: false, idempotent: true },
+    examples: [{ description: "读取当前交付物的历史任务链", input: { taskId: "task-id" } }], verification: "Returns only prior tasks belonging to the same project and deliverable.",
+    handler: async ({ taskId }) => {
+      const task = await tasks.get(taskId); const request = assertHermesTask(task);
+      return richSuccess("rich_deliverable_history_get", { history: await history.list(request.projectId, request.deliverableId, task.id) }, { refs: [{ type: "work_task", id: task.id, label: task.title }] });
     },
   });
   registry.register({

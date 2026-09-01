@@ -16,5 +16,10 @@ describe("deliverable task MCP tools", () => {
     expect(context).toMatchObject({ ok: true, data: { contextSnapshot: { deliverable: { folderPath: "07-交付/report" } } } });
     const result = await registry.invoke("rich_task_report_result", { taskId: task.id, summary: "Analysis complete", evidence: ["source.xlsx"] });
     expect(result).toMatchObject({ ok: true, data: { task: { status: "succeeded", reviewStatus: "needs_human" } } });
+
+    const followUp = await tasks.create({ type: "deliverable-ai-task", title: "Follow up", backend: "hermes", request: task.request });
+    await tasks.transition(followUp.id, "running");
+    const history = await registry.invoke("rich_deliverable_history_get", { taskId: followUp.id });
+    expect(history).toMatchObject({ ok: true, data: { history: [expect.objectContaining({ id: task.id, summary: "Analysis complete" })] } });
   });
 });

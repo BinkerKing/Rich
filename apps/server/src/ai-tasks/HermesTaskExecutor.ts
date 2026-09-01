@@ -46,6 +46,7 @@ function taskPrompt(taskId: string, profile: string): string {
     `You are executing Rich deliverable task ${taskId}.`,
     `Permission profile: ${profile}.`,
     "Call rich_task_context_get with this task ID before working.",
+    "Call rich_deliverable_history_get to understand prior task conclusions and intermediate outputs for this deliverable.",
     "Create output only with rich_task_write_file; it allows new files only inside the assigned deliverable folder.",
     "When complete, call rich_task_report_result with verification evidence.",
     "Do not use shell commands, direct file-system access, or unscoped Rich tools.",

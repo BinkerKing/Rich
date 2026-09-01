@@ -12,6 +12,7 @@ describe("HermesTaskExecutor", () => {
 
     const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body));
     expect(body.messages[0].content).toContain("rich_task_context_get");
+    expect(body.messages[0].content).toContain("rich_deliverable_history_get");
     expect(body.messages[0].content).toContain("task-1");
     expect(body.messages[0].content).not.toContain("07-交付");
   });
