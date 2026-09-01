@@ -35,6 +35,7 @@ const contextSnapshot = z.object({
 });
 
 const requestSchema = z.object({
+  scenario: z.string().min(1).default("deliverable_analysis"),
   projectId: z.string().min(1),
   deliverableId: z.string().min(1),
   executor: z.enum(aiTaskExecutors),

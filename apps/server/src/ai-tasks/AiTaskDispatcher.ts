@@ -2,6 +2,8 @@ import type { McpTask } from "../repos/McpTaskRepo.js";
 import { PersistentTaskService } from "../mcp-v2/tasks/persistentTaskService.js";
 import { parseAiTaskRequest, type AiTaskExecutor as AiTaskExecutorName, type AiTaskRequest } from "./types.js";
 import type { DeliverableTaskHistoryService } from "./DeliverableTaskHistoryService.js";
+import { DeliverableAnalysisScenario } from "../agent-scenarios/deliverableAnalysisScenario.js";
+import { ScenarioRegistry } from "../agent-scenarios/ScenarioRegistry.js";
 
 export interface AiTaskExecutor {
   executor: AiTaskExecutorName;
@@ -12,18 +14,25 @@ export interface AiTaskExecutor {
 export class AiTaskDispatcher {
   private readonly executors = new Map<AiTaskExecutorName, AiTaskExecutor>();
 
-  constructor(private readonly tasks: PersistentTaskService, executors: AiTaskExecutor[], private readonly history?: DeliverableTaskHistoryService) {
+  constructor(
+    private readonly tasks: PersistentTaskService,
+    executors: AiTaskExecutor[],
+    private readonly history?: DeliverableTaskHistoryService,
+    private readonly scenarios = new ScenarioRegistry([new DeliverableAnalysisScenario()]),
+  ) {
     for (const executor of executors) this.executors.set(executor.executor, executor);
   }
 
   async publish(input: unknown): Promise<McpTask> {
     const parsed = parseAiTaskRequest(input);
-    const request = this.history ? { ...parsed, contextSnapshot: { ...parsed.contextSnapshot, history: await this.history.list(parsed.projectId, parsed.deliverableId) } } : parsed;
+    const scenario = this.scenarios.get(parsed.scenario);
+    const scenarioInput = scenario.parseInput(input);
+    const request = this.history ? { ...scenarioInput, contextSnapshot: { ...scenarioInput.contextSnapshot, history: await this.history.list(scenarioInput.projectId, scenarioInput.deliverableId) } } : scenarioInput;
     const executor = this.executors.get(request.executor);
     if (!executor || !await executor.available(request.projectId)) throw new Error(`AI executor ${request.executor} is unavailable.`);
     return this.tasks.create({
-      type: "deliverable-ai-task",
-      title: request.instructions.slice(0, 160),
+      type: scenario.taskType,
+      title: scenario.title(request),
       request,
       backend: request.executor,
     });
@@ -32,6 +41,7 @@ export class AiTaskDispatcher {
   async drain(taskId: string): Promise<McpTask> {
     const task = await this.tasks.get(taskId);
     const request = parseAiTaskRequest(task.request) as AiTaskRequest;
+    this.scenarios.get(request.scenario).parseInput(task.request);
     const executor = this.executors.get(request.executor);
     if (!executor) throw new Error(`AI executor ${request.executor} is not configured.`);
     const running = task.status === "queued" ? await this.tasks.transition(task.id, "running", { progressSummary: `Dispatched to ${request.executor}.` }) : task;

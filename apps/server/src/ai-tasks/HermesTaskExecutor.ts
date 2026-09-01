@@ -1,6 +1,8 @@
 import type { McpTask } from "../repos/McpTaskRepo.js";
 import type { AiTaskExecutor } from "./AiTaskDispatcher.js";
 import { parseAiTaskRequest } from "./types.js";
+import { DeliverableAnalysisScenario } from "../agent-scenarios/deliverableAnalysisScenario.js";
+import { ScenarioRegistry } from "../agent-scenarios/ScenarioRegistry.js";
 
 type HermesTaskExecutorOptions = {
   baseUrl?: string;
@@ -16,7 +18,10 @@ export class HermesTaskExecutor implements AiTaskExecutor {
   private readonly model: string;
   private readonly fetcher: typeof fetch;
 
-  constructor(options: HermesTaskExecutorOptions = {}) {
+  constructor(
+    options: HermesTaskExecutorOptions = {},
+    private readonly scenarios = new ScenarioRegistry([new DeliverableAnalysisScenario()]),
+  ) {
     this.baseUrl = options.baseUrl ?? process.env.HERMES_BASE_URL ?? "http://127.0.0.1:8642";
     this.apiKey = options.apiKey ?? process.env.HERMES_API_KEY;
     this.model = options.model ?? process.env.HERMES_MODEL ?? "hermes";
@@ -29,10 +34,12 @@ export class HermesTaskExecutor implements AiTaskExecutor {
   }
 
   async execute(task: McpTask): Promise<void> {
+    const request = parseAiTaskRequest(task.request);
+    const scenario = this.scenarios.get(request.scenario);
     const response = await this.fetcher(`${this.baseUrl}/v1/chat/completions`, {
       method: "POST",
       headers: { ...this.headers(), "content-type": "application/json" },
-      body: JSON.stringify({ model: this.model, stream: false, messages: [{ role: "user", content: taskPrompt(task.id, parseAiTaskRequest(task.request).profile) }] }),
+      body: JSON.stringify({ model: this.model, stream: false, messages: [{ role: "user", content: taskPrompt(task.id, request.profile, scenario.toolManifest) }] }),
       signal: AbortSignal.timeout(30_000),
     });
     if (!response.ok) throw new Error(`Hermes HTTP ${response.status}.`);
@@ -41,14 +48,13 @@ export class HermesTaskExecutor implements AiTaskExecutor {
   private headers(): Record<string, string> { return this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {}; }
 }
 
-function taskPrompt(taskId: string, profile: string): string {
+function taskPrompt(taskId: string, profile: string, toolManifest: readonly string[]): string {
   return [
-    `You are executing Rich deliverable task ${taskId}.`,
+    `You are executing Rich task ${taskId}.`,
     `Permission profile: ${profile}.`,
-    "Call rich_task_context_get with this task ID before working.",
-    "Call rich_deliverable_history_get to understand prior task conclusions and intermediate outputs for this deliverable.",
-    "Create output only with rich_task_write_file; it allows new files only inside the assigned deliverable folder.",
-    "When complete, call rich_task_report_result with verification evidence.",
+    `You may call only these task-scoped MCP tools: ${toolManifest.join(", ")}.`,
+    "Call rich_task_context_get with this task ID before working when it is available.",
+    toolManifest.includes("rich_task_report_result") ? "When complete, call rich_task_report_result with verification evidence." : "Report completion through the scenario's declared tools.",
     "Do not use shell commands, direct file-system access, or unscoped Rich tools.",
   ].join("\n");
 }

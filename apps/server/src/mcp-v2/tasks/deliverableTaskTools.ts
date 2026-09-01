@@ -8,6 +8,7 @@ import type { PersistentTaskService } from "./persistentTaskService.js";
 
 function assertAgentTask(task: Awaited<ReturnType<PersistentTaskService["get"]>>) {
   const request = parseAiTaskRequest(task.request);
+  if (request.scenario !== "deliverable_analysis") throw new RichMcpError("PERMISSION_DENIED", "The task scenario does not allow deliverable tools.");
   if (task.backend !== request.executor) throw new RichMcpError("PERMISSION_DENIED", "The task executor does not match its persisted backend.");
   if (task.status !== "running" && task.status !== "waiting_input") throw new RichMcpError("CONFLICT", "The deliverable task is not active.");
   return request;
