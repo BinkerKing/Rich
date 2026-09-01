@@ -1,4 +1,4 @@
-# ADR: Separate Free Agent Conversations from Structured AI Tasks
+# ADR: Embed Persistent Hermes Agent Sessions in Rich Chat
 
 - **Status:** Accepted for implementation
 - **Date:** 2026-09-01
@@ -9,19 +9,19 @@
 Rich currently has two related but different AI interactions:
 
 1. A user publishes a bounded business task, such as producing an intermediate or final deliverable. Rich must assemble scenario context, track lifecycle, validate outputs, and write approved results back to business data.
-2. A user talks with an Agent as in Codex. The Agent should keep a long-running conversation and may inspect files, run tests, browse, or use selected MCP tools, but the conversation itself must not automatically become a Rich project record.
+2. A user talks with Rich on the home screen and sometimes wants to open a Hermes conversation like a Codex thread. Hermes should keep a long-running session and may inspect files, run tests, browse, or use selected MCP tools, but the conversation itself must not automatically become a Rich project record.
 
-Treating both interactions as the same task creates false completion states, forces every conversation to have a result contract, and risks accidental writes to Rich. Treating free Agent conversation as ordinary chat is also insufficient because ordinary chat does not express enforceable workspace, Shell, browser, and MCP permissions.
+Treating both interactions as the same task creates false completion states, forces every conversation to have a result contract, and risks accidental writes to Rich. Treating a Hermes Agent session as a sequence of unrelated chat turns is also insufficient: Hermes does not reliably receive one persistent native session, and ordinary chat does not express enforceable workspace, Shell, browser, and MCP permissions.
 
 The existing server already persists `chat_conversations`, `chat_messages`, conversation summaries, and Hermes `session_id`. The structured task implementation already persists task snapshots and dispatches Hermes or Multica through a shared protocol. The design should reuse both foundations without merging their lifecycle rules.
 
 ## Decision
 
-Rich will expose two first-class interaction modes behind one AI entry layer:
+Rich will expose two first-class interaction modes in the existing chat surface:
 
-| Dimension | Free Agent conversation | Structured task |
+| Dimension | Hermes Agent session | Structured task |
 | --- | --- | --- |
-| `mode` | `conversation` | `task` |
+| `mode` | `agent_session` | `task` |
 | Typical use | Explore, analyze, develop, test, revise through dialogue | Deliverable, development, test, or another bounded scenario |
 | Lifecycle | Active or archived conversation; each turn may fail independently | Queued, running, waiting, succeeded, failed, cancelled, reviewed |
 | Context | Conversation transcript, summary, attachments, optional workspace | Scenario context snapshot frozen at publication, plus prior task history |
@@ -31,12 +31,12 @@ Rich will expose two first-class interaction modes behind one AI entry layer:
 
 Executor selection is orthogonal to mode and scenario. Hermes is the default interactive runtime. Multica remains available for structured work that benefits from internal delegation; it is not required for the first free-conversation release.
 
-## Free Agent conversation contract
+## Hermes Agent session contract
 
 Each Agent conversation has a small configuration record separate from its transcript:
 
 ```ts
-export type AgentInteractionMode = "conversation" | "task";
+export type AgentInteractionMode = "chat" | "agent_session" | "task";
 export type AgentExecutor = "hermes" | "multica";
 export type AgentPermissionProfile =
   | "chat_only"
@@ -56,6 +56,21 @@ export interface AgentConversationConfig {
 ```
 
 The transcript continues to use `ChatConversationsRepo`; a new `AgentConversationConfigRepo` stores only Agent-specific policy. The latest successful assistant message remains the source of the Hermes `modelSessionId`. If Hermes loses that session, Rich starts a replacement session with the stored summary and recent transcript rather than losing the conversation.
+
+There is no separate Free Agent page. The home chat and global chat overlay show the same conversation and the same active Hermes session. Starting an Agent session changes the behavior of the current Rich conversation until the user exits or starts another session.
+
+## Slash command entry
+
+Typing `/` in either Rich chat input opens one shared command menu. The initial conversation commands are:
+
+- `/chat` — ordinary Rich conversation; no persistent Agent execution state.
+- `/agent` — start or resume a persistent Hermes Agent session in the current Rich conversation.
+- `/task` — enter structured-task publication and select a scenario/target before dispatch.
+- `/find` — search and navigate to a Rich application or element; this preserves the existing slash-search behavior.
+
+Selecting `/agent` consumes the command; it is not sent to the model as user prose. Rich creates an Agent configuration, starts a Hermes session, and displays an inline session marker above the composer. The user then writes the actual request normally. Every later message uses the same Hermes `session_id` without re-running the general intent classifier.
+
+`/chat` exits Agent mode but retains the transcript and session metadata for later resume. `/agent new` explicitly starts a new Hermes session; plain `/agent` resumes the most recent session when one exists. `/task` does not implicitly convert the whole conversation: Rich shows the scenario/target confirmation before freezing selected context.
 
 Only one turn may execute at a time for a conversation. A failed or interrupted turn is recorded as a turn failure and does not close the conversation.
 
@@ -85,6 +100,12 @@ Permission changes apply to later turns. They are audit events and never silentl
 ## Runtime flow
 
 ```text
+`/agent` selection in the existing chat composer
+    |
+    v
+Start/resume Agent session and show inline status
+    |
+    v
 User message
     |
     v
@@ -103,7 +124,7 @@ AgentRuntimePort (Hermes first)
 Assistant message + turn outcome
 ```
 
-The explicit Agent conversation route bypasses the current chat intent classifier. The user has already selected the mode, so Rich must not reclassify the message into a business scenario. Ordinary Rich chat continues to use its current planning and routing behavior.
+An active Agent session bypasses the current chat intent classifier. The user has already selected the mode, so Rich must not reclassify later development turns into unrelated scenarios. Ordinary `/chat` messages continue to use the current planning and routing behavior.
 
 ## Promotion and writeback
 
@@ -133,15 +154,15 @@ export interface AgentTaskScenario<Input, Snapshot, Result> {
 
 ## API boundary
 
-The first server API is explicit and separate from `/api/chat/stream`:
+The Agent session API extends the existing chat boundary instead of creating a separate conversation product:
 
-- `POST /api/agent-conversations` creates a configured conversation.
-- `GET /api/agent-conversations` lists Agent conversations.
-- `GET /api/agent-conversations/:id/messages` returns its transcript.
-- `POST /api/agent-conversations/:id/messages` starts one SSE turn.
-- `PATCH /api/agent-conversations/:id` changes title, permission profile, or archive state.
-- `POST /api/agent-conversations/:id/promote` previews or publishes a structured task.
-- `POST /api/agent-conversations/:id/save-to-rich` previews or performs an approved Rich write.
+- `POST /api/chat/conversations/:id/agent-session` starts or resumes Hermes and returns session state.
+- `POST /api/chat/conversations/:id/agent-session/new` closes the active binding and starts a new Hermes session.
+- `DELETE /api/chat/conversations/:id/agent-session` exits Agent mode without deleting its transcript.
+- `GET /api/chat/conversations/:id/agent-session` returns mode, executor, permissions, workspace, capability availability, and recovery state.
+- `POST /api/chat/stream` continues to stream messages; when the conversation has an active Agent session it resolves the stored Hermes session and bypasses turn classification.
+- `POST /api/chat/conversations/:id/promote` previews or publishes a structured task.
+- `POST /api/chat/conversations/:id/save-to-rich` previews or performs an approved Rich write.
 
 Every response includes the conversation ID and turn ID. Tool, approval, progress, text, completion, and error are distinct SSE events so the UI does not infer tool activity from prose.
 
@@ -150,6 +171,7 @@ Every response includes the conversation ID and turn ID. Tool, approval, progres
 ### Positive
 
 - Conversational work is not forced into an artificial task lifecycle.
+- The existing Rich home conversation remains the only chat interface.
 - Existing transcript persistence and Hermes session continuation are reused.
 - Scenario-specific business rules remain modular.
 - Rich writeback is explicit and auditable.
@@ -171,7 +193,10 @@ Every response includes the conversation ID and turn ID. Tool, approval, progres
 
 ## Acceptance criteria
 
-- A free Agent conversation survives Rich and Hermes restarts without losing its transcript.
+- A Hermes Agent session survives Rich and Hermes restarts without losing its transcript.
+- Typing `/` in the home input and global overlay shows the same keyboard-accessible mode menu.
+- Selecting `/agent` starts or resumes a Hermes session without sending `/agent` as model text.
+- Once Agent mode is active, later messages keep the same Hermes session until `/chat`, `/agent new`, or an explicit exit.
 - Hermes continues the same session when possible and recovers from a lost session using Rich context.
 - `chat_only` cannot invoke any tool in an integration test.
 - Broader profiles are unavailable unless runtime enforcement is proven.

@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Provide one AI execution platform with two explicit modes: persistent free Agent conversations and scenario-defined structured tasks. Deliverable tasks remain the first structured scenario and can run on Hermes or Multica with frozen context and auditable outputs.
+**Goal:** Provide one AI execution platform with two explicit execution modes in the existing Rich chat: persistent Hermes Agent sessions selected through `/agent`, and scenario-defined structured tasks. Deliverable tasks remain the first structured scenario and can run on Hermes or Multica with frozen context and auditable outputs.
 
-**Architecture:** Keep Rich as the system of record. Structured work uses `mcp_tasks`, a scenario registry, and an executor-neutral dispatcher. Free Agent work reuses `chat_conversations`, `chat_messages`, summaries, and Hermes sessions while storing Agent policy in a small companion repository. An enforceable capability gateway controls filesystem, Shell, browser, network, and MCP access. Conversation content reaches Rich business data only through explicit promotion or approved save actions. See `docs/ADR-20260901-agent-conversation-and-task-modes.md` for the accepted boundaries.
+**Architecture:** Keep Rich as the system of record. Structured work uses `mcp_tasks`, a scenario registry, and an executor-neutral dispatcher. `/agent` binds the current Rich conversation to a persistent Hermes session while reusing `chat_conversations`, `chat_messages`, and summaries; Agent policy lives in a small companion repository. An enforceable capability gateway controls filesystem, Shell, browser, network, and MCP access. Conversation content reaches Rich business data only through explicit promotion or approved save actions. See `docs/ADR-20260901-agent-conversation-and-task-modes.md` for the accepted boundaries.
 
 **Tech Stack:** TypeScript, Hono, Zod, SQLite/Postgres-compatible repositories, Rich MCP v2, local Hermes OpenAI-compatible API, React.
 
@@ -410,16 +410,16 @@ Expected: PASS, including traversal, expiry, cross-turn replay, and unsupported-
 
 Run: `git add apps/server/src/agent-conversations apps/server/src/ai apps/server/test/agent-capability-gateway.test.ts apps/server/test/hermes-capability-enforcement.test.ts && git commit -m "feat: enforce Agent conversation capabilities"`
 
-### Task 11: Implement persistent free Agent turns
+### Task 11: Implement persistent Hermes Agent sessions
 
 **Files:**
 - Create: `apps/server/src/agent-conversations/AgentRuntimePort.ts`
 - Create: `apps/server/src/agent-conversations/AgentConversationService.ts`
 - Create: `apps/server/src/agent-conversations/ConversationTurnLock.ts`
-- Create: `apps/server/src/routes/agentConversations.ts`
+- Modify: `apps/server/src/routes/chat.ts`
 - Modify: `apps/server/src/index.ts`
 - Create: `apps/server/test/agent-conversation-service.test.ts`
-- Create: `apps/server/test/agent-conversation-routes.test.ts`
+- Create: `apps/server/test/chat-agent-session-routes.test.ts`
 
 - [ ] **Step 1: Write failing lifecycle tests**
 
@@ -439,7 +439,7 @@ test("serializes turns in the same conversation", async () => {
 
 - [ ] **Step 2: Verify the tests fail**
 
-Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-service.test.ts test/agent-conversation-routes.test.ts`
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-service.test.ts test/chat-agent-session-routes.test.ts`
 
 Expected: failure because the service and routes do not exist.
 
@@ -449,24 +449,24 @@ Reuse `ChatConversationsRepo`, `ChatMessageRecord.modelSessionId`, and the exist
 
 - [ ] **Step 4: Expose explicit Agent routes**
 
-Implement create/list/get messages/update/archive endpoints and an SSE message endpoint under `/api/agent-conversations`. Emit `turn`, `tool`, `approval_required`, `delta`, `done`, and `error` events. Do not call `planTurn`; explicit Agent mode bypasses the general chat classifier. Do not silently fall back to Codex because executor identity and permissions must remain stable.
+Extend the existing chat routes with start/resume/new/exit/status Agent-session endpoints under `/api/chat/conversations/:id/agent-session`. Keep `/api/chat/stream` as the message stream. When the stored conversation mode is `agent_session`, resolve and pass the latest Hermes `session_id`, emit `turn`, `tool`, `approval_required`, `delta`, `done`, and `error` events, and bypass `planTurn`. Do not silently fall back to Codex because executor identity and permissions must remain stable.
 
 - [ ] **Step 5: Run focused and existing chat tests**
 
-Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-service.test.ts test/agent-conversation-routes.test.ts test/chat-observability.test.ts`
+Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-service.test.ts test/chat-agent-session-routes.test.ts test/chat-observability.test.ts`
 
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
-Run: `git add apps/server/src/agent-conversations apps/server/src/routes/agentConversations.ts apps/server/src/index.ts apps/server/test/agent-conversation-service.test.ts apps/server/test/agent-conversation-routes.test.ts && git commit -m "feat: add persistent free Agent conversations"`
+Run: `git add apps/server/src/agent-conversations apps/server/src/routes/chat.ts apps/server/src/index.ts apps/server/test/agent-conversation-service.test.ts apps/server/test/chat-agent-session-routes.test.ts && git commit -m "feat: add persistent Hermes chat sessions"`
 
 ### Task 12: Add approval handling and broader Agent profiles
 
 **Files:**
 - Create: `apps/server/src/agent-conversations/AgentApprovalService.ts`
 - Modify: `apps/server/src/agent-conversations/AgentConversationService.ts`
-- Modify: `apps/server/src/routes/agentConversations.ts`
+- Modify: `apps/server/src/routes/chat.ts`
 - Create: `apps/server/test/agent-conversation-approvals.test.ts`
 
 - [ ] **Step 1: Write failing approval tests**
@@ -506,13 +506,13 @@ Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
-Run: `git add apps/server/src/agent-conversations apps/server/src/routes/agentConversations.ts apps/server/test/agent-conversation-approvals.test.ts && git commit -m "feat: approve risky Agent actions"`
+Run: `git add apps/server/src/agent-conversations apps/server/src/routes/chat.ts apps/server/test/agent-conversation-approvals.test.ts && git commit -m "feat: approve risky Agent actions"`
 
 ### Task 13: Convert a conversation into a structured task
 
 **Files:**
 - Create: `apps/server/src/agent-conversations/ConversationPromotionService.ts`
-- Modify: `apps/server/src/routes/agentConversations.ts`
+- Modify: `apps/server/src/routes/chat.ts`
 - Create: `apps/server/test/agent-conversation-promotion.test.ts`
 
 - [ ] **Step 1: Write failing promotion tests**
@@ -554,55 +554,60 @@ Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
-Run: `git add apps/server/src/agent-conversations apps/server/src/routes/agentConversations.ts apps/server/test/agent-conversation-promotion.test.ts && git commit -m "feat: promote Agent conversations to tasks"`
+Run: `git add apps/server/src/agent-conversations apps/server/src/routes/chat.ts apps/server/test/agent-conversation-promotion.test.ts && git commit -m "feat: promote Agent conversations to tasks"`
 
-### Task 14: Build the Free Agent conversation UI
+### Task 14: Add Agent sessions to the existing Rich chat
 
 **Files:**
 - Modify: `apps/web/src/api/client.ts`
-- Create: `apps/web/src/lib/agentConversations.ts`
-- Create: `apps/web/src/views/AgentConversationView.tsx`
-- Create: `apps/web/src/views/AgentConversationView.css`
+- Create: `apps/web/src/lib/chatSlashCommands.ts`
+- Create: `apps/web/src/components/ChatSlashCommandMenu.tsx`
+- Create: `apps/web/src/components/ChatSlashCommandMenu.css`
 - Modify: `apps/web/src/views/HomeView.tsx`
-- Create: `apps/web/src/views/AgentConversationView.test.ts`
+- Modify: `apps/web/src/views/ChatOverlay.tsx`
+- Modify: `apps/web/src/views/ChatOverlay.css`
+- Create: `apps/web/src/components/ChatSlashCommandMenu.test.ts`
+- Create: `apps/web/src/views/HomeAgentSession.test.ts`
 
 - [ ] **Step 1: Write failing UI contract tests**
 
 ```ts
-test("free Agent UI makes mode, executor, and enforced permissions visible", () => {
-  assert.match(source, /自由 Agent 对话/);
-  assert.match(source, /Hermes/);
-  assert.match(source, /仅对话/);
-  assert.match(source, /工作区 Agent/);
-  assert.match(source, /扩展 Agent/);
-  assert.match(source, /转为任务/);
-  assert.match(source, /保存到 Rich/);
+test("typing slash exposes the shared Rich conversation modes", () => {
+  assert.deepEqual(commandIds, ["chat", "agent", "task", "find"]);
+  assert.equal(parseChatSlashCommand("/agent").command, "agent");
+  assert.equal(parseChatSlashCommand("/agent new").argument, "new");
+});
+
+test("selecting agent starts a session and does not send the command as prose", async () => {
+  await chooseCommand("agent");
+  assert.equal(api.startedSessions.length, 1);
+  assert.equal(api.sentMessages.some(message => message.content === "/agent"), false);
 });
 ```
 
 - [ ] **Step 2: Verify the tests fail**
 
-Run: `pnpm --filter @ke/web exec tsx --test src/views/AgentConversationView.test.ts`
+Run: `pnpm --filter @ke/web exec tsx --test src/components/ChatSlashCommandMenu.test.ts src/views/HomeAgentSession.test.ts`
 
-Expected: failure because the view does not exist.
+Expected: failure because the shared menu and Agent-session state do not exist.
 
 - [ ] **Step 3: Implement conversation navigation and composer**
 
-Add an explicit “自由 Agent 对话” entry separate from ordinary Rich chat and task publication. Render conversation list, transcript, streaming progress, typed tool calls, pending approvals, executor, current permission profile, workspace root, and capability availability reasons. Disable broader profiles when the server cannot enforce them.
+Extract the existing `/find` parsing and panel from `ChatOverlay.tsx` into shared components. Typing `/` in the homepage or global overlay shows `/chat`, `/agent`, `/task`, and `/find`, supports arrow keys, Enter, Escape, mouse selection, command filtering, and IME composition. `/agent` starts or resumes a session; `/agent new` starts a fresh Hermes session; `/chat` exits Agent mode; `/task` opens structured-task target selection. Commands are consumed by Rich and are never sent as model prose.
 
 - [ ] **Step 4: Implement promotion and save previews**
 
-“转为任务” asks for scenario, target, selected messages/artifacts, instructions, and acceptance criteria, then shows the frozen preview before publication. “保存到 Rich” asks for an exact destination and preview before approval.
+Show a compact Agent-session marker in the existing composer with Hermes status, workspace, permission profile, and an exit action. Continue rendering typed tool calls and approval requests inline with the assistant turn. “转为任务” asks for scenario, target, selected messages/artifacts, instructions, and acceptance criteria, then shows the frozen preview before publication.
 
 - [ ] **Step 5: Run UI tests and typecheck**
 
-Run: `pnpm --filter @ke/web exec tsx --test src/views/AgentConversationView.test.ts && pnpm --filter @ke/web typecheck`
+Run: `pnpm --filter @ke/web exec tsx --test src/components/ChatSlashCommandMenu.test.ts src/views/HomeAgentSession.test.ts && pnpm --filter @ke/web typecheck`
 
 Expected: PASS and exit 0.
 
 - [ ] **Step 6: Commit**
 
-Run: `git add apps/web/src/api/client.ts apps/web/src/lib/agentConversations.ts apps/web/src/views/AgentConversationView.tsx apps/web/src/views/AgentConversationView.css apps/web/src/views/HomeView.tsx apps/web/src/views/AgentConversationView.test.ts && git commit -m "feat: add Free Agent conversation workspace"`
+Run: `git add apps/web/src/api/client.ts apps/web/src/lib/chatSlashCommands.ts apps/web/src/components/ChatSlashCommandMenu.tsx apps/web/src/components/ChatSlashCommandMenu.css apps/web/src/views/HomeView.tsx apps/web/src/views/ChatOverlay.tsx apps/web/src/views/ChatOverlay.css apps/web/src/components/ChatSlashCommandMenu.test.ts apps/web/src/views/HomeAgentSession.test.ts && git commit -m "feat: start Hermes sessions from Rich chat"`
 
 ### Task 15: End-to-end verification and release
 
@@ -615,11 +620,11 @@ Run: `git add apps/web/src/api/client.ts apps/web/src/lib/agentConversations.ts 
 
 Run: `pnpm --filter @ke/server exec tsx --test test/agent-conversation-e2e.test.ts test/agent-conversation-promotion.test.ts test/mcp-v2-deliverable-task-tools.test.ts`
 
-Expected: free conversation persists and resumes; `chat_only` cannot call tools; no business data changes before confirmed promotion; the promoted task uses the normal task lifecycle.
+Expected: `/agent` starts and resumes the same Hermes session; `chat_only` cannot call tools; no business data changes before confirmed promotion; the promoted task uses the normal task lifecycle.
 
 - [ ] **Step 2: Run affected server and web suites**
 
-Run: `pnpm --filter @ke/server test && pnpm --filter @ke/server typecheck && pnpm --filter @ke/web exec tsx --test src/views/AgentConversationView.test.ts src/views/project-management/deliverables/DeliverablesWorkspace.test.ts && pnpm --filter @ke/web typecheck`
+Run: `pnpm --filter @ke/server test && pnpm --filter @ke/server typecheck && pnpm --filter @ke/web exec tsx --test src/components/ChatSlashCommandMenu.test.ts src/views/HomeAgentSession.test.ts src/views/project-management/deliverables/DeliverablesWorkspace.test.ts && pnpm --filter @ke/web typecheck`
 
 Expected: PASS and exit 0.
 
