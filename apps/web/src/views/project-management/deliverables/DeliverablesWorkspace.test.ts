@@ -174,3 +174,10 @@ test("交付物记录编辑器的操作栏位于正文下方，编辑记录在�
   assert.match(styles, /\.deliverables-workspace__record-composer > footer \{ display:flex; align-items:center; gap:12px;/);
   assert.match(styles, /\.deliverables-workspace__record-composer\.is-editing \{ order:1;/);
 });
+
+test("交付物记录可选择 AI 任务并显式选择 Hermes 或 Multica", () => {
+  assert.match(deliverables, /AI 任务/);
+  assert.match(deliverables, /Hermes/);
+  assert.match(deliverables, /Multica/);
+  assert.match(deliverables, /publishDeliverableAiTask/);
+});

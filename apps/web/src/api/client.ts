@@ -168,6 +168,18 @@ export const api = {
     if (!r.ok) throw new Error(`exit Agent session failed: ${r.status}`);
     return r.json();
   },
+  async publishDeliverableAiTask(input: Record<string, unknown>): Promise<{ id: string; status: string }> {
+    const r = await fetch("/api/ai-tasks", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!r.ok) {
+      const payload = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(payload.error ?? `publish deliverable AI task failed: ${r.status}`);
+    }
+    return r.json();
+  },
   // ----- generate-tree -----
   generateTreeStream(topic: string, model?: Model, richness?: RichnessLevel) {
     return sseStream<GenerateTreeResult>("/ai/generate-tree", { topic, model, richness });

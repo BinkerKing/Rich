@@ -1,6 +1,6 @@
 export type DeliverableStatus = "draft" | "preparing" | "ready" | "accepted";
 export type DeliverableVersionPolicy = "latest" | "versioned";
-export type DeliverableRecordKind = "requirement" | "status" | "change" | "information" | "material";
+export type DeliverableRecordKind = "requirement" | "status" | "change" | "information" | "material" | "ai_task";
 export type DeliverableRecordInformationType = "information" | "material";
 export type DeliverableFileType = "deliverable" | "material" | "intermediate";
 
@@ -18,6 +18,7 @@ export type DeliverableRecord = {
   informationType: DeliverableRecordInformationType;
   attachments: DeliverableRecordAttachment[];
   author?: string;
+  aiTask?: { id: string; status: string; executor: "hermes" | "multica" };
 };
 
 export type DeliverableVersion = {
@@ -78,12 +79,15 @@ function records(value: unknown): DeliverableRecord[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap(entry => {
     if (!isRecord(entry) || typeof entry.id !== "string" || typeof entry.text !== "string" || typeof entry.createdAt !== "string") return [];
-    if (entry.kind !== "requirement" && entry.kind !== "status" && entry.kind !== "change" && entry.kind !== "information" && entry.kind !== "material") return [];
+    if (entry.kind !== "requirement" && entry.kind !== "status" && entry.kind !== "change" && entry.kind !== "information" && entry.kind !== "material" && entry.kind !== "ai_task") return [];
     const attachments = Array.isArray(entry.attachments) ? entry.attachments.flatMap(file => {
       if (!isRecord(file) || typeof file.fileName !== "string" || typeof file.relativePath !== "string" || typeof file.size !== "number") return [];
       return [{ fileName: file.fileName, relativePath: file.relativePath, size: file.size }];
     }) : [];
-    return [{ id: entry.id, kind: entry.informationType === "material" ? "material" : entry.kind, text: entry.text, createdAt: entry.createdAt, informationType: entry.informationType === "material" ? "material" : "information", attachments, author: typeof entry.author === "string" ? entry.author : undefined }];
+    const aiTask = isRecord(entry.aiTask) && typeof entry.aiTask.id === "string" && typeof entry.aiTask.status === "string" && (entry.aiTask.executor === "hermes" || entry.aiTask.executor === "multica")
+      ? { id: entry.aiTask.id, status: entry.aiTask.status, executor: entry.aiTask.executor as "hermes" | "multica" }
+      : undefined;
+    return [{ id: entry.id, kind: entry.informationType === "material" ? "material" : entry.kind, text: entry.text, createdAt: entry.createdAt, informationType: entry.informationType === "material" ? "material" : "information", attachments, author: typeof entry.author === "string" ? entry.author : undefined, aiTask }];
   });
 }
 
