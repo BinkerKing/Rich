@@ -461,7 +461,7 @@ export function chatRoutes(
     const conversationId = body.conversationId?.trim() || "rich-chat-default";
     const activeAgentConfig = await agentSessions?.getActive(conversationId) ?? null;
     const turnPlan = activeAgentConfig
-      ? { scenario: "agent-task" as const, intent: "operate-rich" as const, requiresAgent: true, reason: "当前 Rich 对话已开启 Hermes Agent Session" }
+      ? { scenario: "chat" as const, intent: "answer" as const, requiresAgent: false, reason: "当前 Rich 对话已开启 Hermes Agent Session" }
       : await planTurn(body.messages, c.req.raw.signal);
     const now = new Date().toISOString();
     await conversationsRepo?.ensureConversation({
@@ -597,6 +597,15 @@ export function chatRoutes(
         });
       } catch (e) {
         const message = `Hermes unreachable: ${e instanceof Error ? e.message : String(e)}`;
+        if (activeAgentConfig) {
+          await opRecorder.event({ type: "error" });
+          await opRecorder.error(message);
+          await stream.writeSSE({
+            event: "error",
+            data: JSON.stringify({ message, conversationId }),
+          });
+          return;
+        }
         await opRecorder.event({ type: "fallback" });
         const fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }), mcpRequestId);
         if (fallback.error) {
@@ -626,6 +635,15 @@ export function chatRoutes(
       if (!upstream.ok || !upstream.body) {
         const detail = await upstream.text().catch(() => "");
         const message = `Hermes ${upstream.status} ${upstream.statusText}${detail ? `: ${detail}` : ""}`;
+        if (activeAgentConfig) {
+          await opRecorder.event({ type: "error" });
+          await opRecorder.error(message);
+          await stream.writeSSE({
+            event: "error",
+            data: JSON.stringify({ message, conversationId }),
+          });
+          return;
+        }
         await opRecorder.event({ type: "fallback" });
         const fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }), mcpRequestId);
         if (fallback.error) {
@@ -775,6 +793,15 @@ export function chatRoutes(
               await opRecorder.error(`Hermes 需要重新授权：${message}`);
               return;
             }
+            if (activeAgentConfig) {
+              await opRecorder.event({ type: "error" });
+              await opRecorder.error(message);
+              await stream.writeSSE({
+                event: "error",
+                data: JSON.stringify({ message, conversationId }),
+              });
+              return;
+            }
             await opRecorder.event({ type: "fallback" });
             const fallbackResult = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }), mcpRequestId);
             if (fallbackResult.error) {
@@ -812,7 +839,7 @@ export function chatRoutes(
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         let fallback: CodexFallbackResult = { wroteText: false, fullText: "" };
-        if (!sawText) {
+        if (!sawText && !activeAgentConfig) {
           await opRecorder.event({ type: "fallback" });
           fallback = await streamCodexFallbackWithProgress(stream, messages, message, turnPlan.requiresAgent, () => opRecorder.event({ type: "error" }), mcpRequestId);
         }

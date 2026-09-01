@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { chatRoutes } from "../src/routes/chat.js";
 import type { AgentConversationConfig, AgentConversationConfigRepo, AgentConversationStatus } from "../src/repos/AgentConversationConfigRepo.js";
 import type { ChatConversation, ChatConversationSummary, ChatConversationsRepo, ChatMessageRecord } from "../src/repos/ChatConversationsRepo.js";
+import type { AIAdapter } from "../src/ai/adapter.js";
 
 class MemoryAgentConfigs implements AgentConversationConfigRepo {
   rows = new Map<string, AgentConversationConfig>();
@@ -78,7 +79,39 @@ describe("chat Agent session routes", () => {
     await response.text();
 
     expect(requests[0]?.session_id).toBe("hs-old");
+    expect(JSON.stringify(requests[0]?.messages)).not.toContain("执行任务模式");
     expect(await configs.get("c1")).toEqual(expect.objectContaining({ modelSessionId: "hs-new" }));
     expect(conversations.messages.at(-1)).toEqual(expect.objectContaining({ role: "assistant", modelSessionId: "hs-new" }));
+  });
+
+  it("does not silently switch an active Hermes session to Codex", async () => {
+    const configs = new MemoryAgentConfigs();
+    const conversations = new MemoryConversations();
+    const now = new Date().toISOString();
+    await conversations.ensureConversation({ id: "c1", now });
+    await configs.save({ conversationId: "c1", executor: "hermes", permissionProfile: "chat_only", allowedMcpServers: [], status: "active", modelSessionId: "hs-old", createdAt: now, updatedAt: now });
+    let codexCalls = 0;
+    const codex: AIAdapter = {
+      name: "codex",
+      async available() { return true; },
+      async *stream() {
+        codexCalls += 1;
+        yield { type: "delta", text: "wrong executor" };
+      },
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
+    const app = chatRoutes(null, [codex], conversations, undefined, undefined, configs);
+
+    const response = await app.request("/stream", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ conversationId: "c1", surface: "home", messages: [{ role: "user", content: "continue" }] }),
+    });
+    const events = await response.text();
+
+    expect(events).toContain("Hermes unreachable");
+    expect(events).not.toContain("codex-fallback");
+    expect(codexCalls).toBe(0);
+    expect(await configs.get("c1")).toEqual(expect.objectContaining({ status: "active", modelSessionId: "hs-old" }));
   });
 });
