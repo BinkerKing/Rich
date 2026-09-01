@@ -10,6 +10,7 @@ class MemoryTaskRepo implements McpTaskRepo {
   create(task: McpTask): void { this.tasks.set(task.id, task); }
   get(id: string): McpTask | null { return this.tasks.get(id) ?? null; }
   list(options: McpTaskListOptions = {}): McpTask[] { return Array.from(this.tasks.values()).filter(task => !options.status || task.status === options.status); }
+  count(options: Pick<McpTaskListOptions, "status"> = {}) { return this.list(options).length; }
   save(task: McpTask): void { this.tasks.set(task.id, task); }
 }
 

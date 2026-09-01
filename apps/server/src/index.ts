@@ -143,14 +143,15 @@ import { CodexAdapter } from "./ai/codex.js";
 import { HermesAdapter } from "./ai/hermes.js";
 import { BailianAdapter } from "./ai/bailian.js";
 import { loadAIEngineSettings } from "./ai/engineSettings.js";
-import { configureOpLog, healStaleRunningOps } from "./ai/aiOpLog.js";
+import { configureOpLog, healStaleRunningOps, recordTraceForExistingOp } from "./ai/aiOpLog.js";
+import { OperationCorrelationRegistry } from "./ai/operationCorrelation.js";
 import { imageQueue } from "./ai/imageQueue.js";
 import type { AIAdapter } from "./ai/adapter.js";
 import { pickScenarioAdapter } from "./ai/pickAdapter.js";
 import { createAIContextProvider } from "./ai/contextProvider.js";
 import { createLogger, noopLogger, type Logger } from "./lib/logger.js";
 import { installShutdownHandlers, childRegistry } from "./lib/childRegistry.js";
-import { mountMcpV2 } from "./mcp-v2/transport.js";
+import { McpTransportState, mountMcpV2 } from "./mcp-v2/transport.js";
 import type { MulticaBindingRepo } from "./mcp-v2/delegation/multica/MulticaBindingRepo.js";
 import { SqliteMulticaBindingRepo } from "./mcp-v2/delegation/multica/SqliteMulticaBindingRepo.js";
 import { PostgresMulticaBindingRepo } from "./mcp-v2/delegation/multica/PostgresMulticaBindingRepo.js";
@@ -209,6 +210,7 @@ import { PostgresProjectAutomationRepo } from "./modules/project-automation/infr
 import { SqliteProjectAutomationRepo } from "./modules/project-automation/infrastructure/SqliteProjectAutomationRepo.js";
 import { projectAutomationRoutes } from "./modules/project-automation/presentation/routes.js";
 import { PersistentTaskService } from "./mcp-v2/tasks/persistentTaskService.js";
+import { createAIObservability } from "./ai/observability.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -320,6 +322,10 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     onError: error => log.warn("multica.task_sync.failed", {
       error: error instanceof Error ? error.message : String(error),
     }),
+    availabilityCheck: async () => {
+      if (!multica.commands.runText) throw new Error("DEPENDENCY_UNAVAILABLE: Multica CLI does not support version checks.");
+      await multica.commands.runText(["--version"], { includeWorkspace: false });
+    },
   });
   multicaTaskSynchronizer.start();
   const manualsDir = opts.aiDir ?? aiDir();
@@ -345,6 +351,9 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   });
   imageQueue.configure(pickScenarioAdapter(ai, "image"), elements, log);
   const app = new Hono();
+  const mcpTransportState = new McpTransportState();
+  let mcpRegistryToolCount = 0;
+  const operationCorrelations = new OperationCorrelationRegistry();
   app.use("*", async (c, next) => {
     c.header("access-control-allow-origin", "*");
     c.header("access-control-allow-headers", "content-type");
@@ -361,7 +370,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/state", stateRoutes(state, elements, signals));
   app.route("/api/corpus", corpusRoutes(corpus));
   app.route("/api/great-me", greatMeRoutes(greatMe));
-  app.route("/api/chat", chatRoutes(chatAttachments, ai, chatConversations, aiContextProvider));
+  app.route("/api/chat", chatRoutes(chatAttachments, ai, chatConversations, aiContextProvider, operationCorrelations));
   app.route("/api/chat-visual-blocks", chatVisualBlocksRoutes(chatVisualBlocks));
   app.route("/api/chat/attachments", chatAttachmentsRoutes(chatAttachments));
   app.route("/api/health", healthRoutes(healthRepo));
@@ -403,6 +412,14 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     corpus,
     chatConversations,
     contextProvider: aiContextProvider,
+    observability: createAIObservability({
+      adapters: ai,
+      mcpTransportState,
+      multicaTaskSynchronizer,
+      multicaWorkTasks,
+      getMcpRegistryToolCount: () => mcpRegistryToolCount,
+      childRegistryCount: () => childRegistry.size(),
+    }),
   }));
   // Mindmap PPT decks — element-backed. Every deck IS the root element of
   // a subtree that carries a `mindmap-embed` section. No separate storage.
@@ -431,7 +448,17 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     delegationAdapter: multica.delegationAdapter,
     executionTeams: multica.executionTeams,
     taskService: multicaWorkTasks,
+    onToolEvent: event => {
+      const operationId = event.data.requestId && operationCorrelations.resolve(event.data.requestId);
+      if (!operationId) return;
+      return () => recordTraceForExistingOp(operationId, {
+        type: event.type,
+        data: { tool: event.data.tool, status: event.data.phase },
+      });
+    },
   }, {
+    state: mcpTransportState,
+    onRegistryBuilt: toolCount => { mcpRegistryToolCount = toolCount; },
     onError: error => log.error("mcp.v2.transport.failed", {
       error: error instanceof Error ? error.message : String(error),
     }),

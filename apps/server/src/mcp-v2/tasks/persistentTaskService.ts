@@ -59,6 +59,10 @@ export class PersistentTaskService {
     return this.repo.list(options);
   }
 
+  async count(options: Pick<McpTaskListOptions, "status"> = {}): Promise<number> {
+    return this.repo.count(options);
+  }
+
   async sync(id: string): Promise<McpTask> {
     const current = await this.get(id);
     if (!current.externalTaskId || !this.options.getExternalStatus || TERMINAL.has(current.status)) return current;

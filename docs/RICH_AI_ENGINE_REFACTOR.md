@@ -59,6 +59,14 @@ RICH_AI_ANALYSIS_MODEL=bailian
 
 Do not commit Token Plan installer commands, API keys, or provider-specific secret tokens. The code only contains provider names and env variable names.
 
+## AI Observability Center
+
+Backstage provides five observability pages: **服务健康** (Service health), **对话追踪** (Chat traces), **内嵌 AI 工作流** (embedded AI workflows), **任务委派闭环** (task-delegation loop), and **Agent 与 MCP** (Agent and MCP). Direct embedded-model workflows and MCP/Multica delegation have separate views so their execution paths are not conflated.
+
+Service states mean: `healthy` is available and current; `degraded` is partially available, stale, or timed out; `offline` is unavailable; and `not_configured` means the optional dependency has not been configured.
+
+Observability endpoints expose safe metadata, lifecycle events, status, timestamps, and lengths only. They never expose raw prompts, tool inputs, model outputs, task requests, errors, or review text. A normal chat/Agent trace therefore shows the lifecycle, while the raw assistant reply remains protected pending an authenticated audit view.
+
 ## Current Implementation Notes
 
 - Chat context is stored in `chat_conversations` and `chat_messages`. `chat_conversation_summaries` stores derived summaries, not source-of-truth conversation data.

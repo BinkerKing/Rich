@@ -14,6 +14,7 @@ import { createAIContextProvider } from "../ai/contextProvider.js";
 import type { CorpusRepo } from "../repos/CorpusRepo.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
 import { corpusRoutes } from "./corpus.js";
+import { createAIObservability } from "../ai/observability.js";
 
 export interface AdminRoutesDeps {
   signals: SignalsRepo;
@@ -22,6 +23,7 @@ export interface AdminRoutesDeps {
   corpus: CorpusRepo;
   chatConversations?: ChatConversationsRepo | null;
   contextProvider?: AIContextProvider;
+  observability?: ReturnType<typeof createAIObservability>;
 }
 
 /**
@@ -36,6 +38,25 @@ export function adminRoutes(deps: AdminRoutesDeps): Hono {
   const r = new Hono();
 
   r.route("/corpus", corpusRoutes(deps.corpus));
+
+  const observability = deps.observability;
+  if (observability) {
+    r.get("/ai-observability/health", async c => c.json({ items: await observability.health() }));
+    r.get("/ai-observability/traces", async c => {
+      const kind = c.req.query("kind");
+      if (kind && kind !== "chat" && kind !== "workflow" && kind !== "delegation") return c.json({ error: "bad kind" }, 400);
+      const rawLimit = c.req.query("limit");
+      const limit = rawLimit === undefined ? 50 : Number(rawLimit);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 50) return c.json({ error: "limit must be 1-50" }, 400);
+      return c.json(await observability.traces(kind as "chat" | "workflow" | "delegation" | undefined, limit));
+    });
+    r.get("/ai-observability/traces/:id", async c => {
+      const trace = await observability.trace(c.req.param("id"));
+      return trace ? c.json(trace) : c.json({ error: "not found" }, 404);
+    });
+    r.get("/ai-observability/workflows", async c => c.json(await observability.workflows()));
+    r.get("/ai-observability/delegations", async c => c.json(await observability.delegations()));
+  }
 
   // -- AI op log --
   r.get("/ops", async (c) => {

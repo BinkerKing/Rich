@@ -11,6 +11,7 @@ class MemoryTasks implements McpTaskRepo {
   list(options: McpTaskListOptions = {}) {
     return Array.from(this.tasks.values()).filter(task => !options.status || task.status === options.status).map(task => structuredClone(task));
   }
+  count(options: Pick<McpTaskListOptions, "status"> = {}) { return this.list(options).length; }
   save(task: McpTask) { this.tasks.set(task.id, structuredClone(task)); }
 }
 
@@ -33,6 +34,9 @@ describe("MulticaTaskSynchronizer", () => {
     expect(adapter.getStatus).toHaveBeenCalledTimes(1);
     expect(adapter.getStatus).toHaveBeenCalledWith("issue-1");
     expect(repo.get(multica.id)).toMatchObject({ status: "running", progressSummary: "member is coding", lastSyncedAt: expect.any(String) });
+    expect(synchronizer.lastAttemptAt).toEqual(expect.any(String));
+    expect(synchronizer.lastSuccessAt).toEqual(expect.any(String));
+    expect(synchronizer.lastError).toBeUndefined();
   });
 
   it("prevents overlapping sync passes and reports per-task failures", async () => {
@@ -53,5 +57,27 @@ describe("MulticaTaskSynchronizer", () => {
     await Promise.all([first, overlapping]);
     expect(adapter.getStatus).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenCalledTimes(1);
+    expect(synchronizer.lastAttemptAt).toEqual(expect.any(String));
+    expect(synchronizer.lastError).toBe("network");
+  });
+
+  it("records a healthy zero-task sync only after its availability check succeeds", async () => {
+    const availabilityCheck = vi.fn(async () => {});
+    const synchronizer = new MulticaTaskSynchronizer(new MemoryTasks(), {
+      backend: "multica-cli", delegate: vi.fn(), getStatus: vi.fn(), cancel: vi.fn(),
+    }, { availabilityCheck });
+    await synchronizer.syncOnce();
+    expect(availabilityCheck).toHaveBeenCalledOnce();
+    expect(synchronizer.lastAttemptAt).toEqual(expect.any(String));
+    expect(synchronizer.lastSuccessAt).toEqual(expect.any(String));
+  });
+
+  it("records unavailable Multica CLI during an empty-task sync without a false success", async () => {
+    const synchronizer = new MulticaTaskSynchronizer(new MemoryTasks(), {
+      backend: "multica-cli", delegate: vi.fn(), getStatus: vi.fn(), cancel: vi.fn(),
+    }, { availabilityCheck: async () => { throw new Error("DEPENDENCY_UNAVAILABLE: Multica CLI missing"); } });
+    await synchronizer.syncOnce();
+    expect(synchronizer.lastSuccessAt).toBeUndefined();
+    expect(synchronizer.lastError).toContain("DEPENDENCY_UNAVAILABLE");
   });
 });

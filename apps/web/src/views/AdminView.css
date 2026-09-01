@@ -709,6 +709,58 @@
 
 /* ----- Engine tab ----- */
 
+/* ----- AI observability ----- */
+
+.observability-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 12px;
+}
+.observability-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,.02);
+  padding: 12px 14px;
+  min-width: 0;
+}
+.observability-card header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.observability-card header strong { color: var(--text); font-size: 13px; }
+.observability-card header > span { color: var(--muted); font-size: 11px; }
+.observability-card p { margin: 9px 0; color: var(--soft); font-size: 12px; line-height: 1.45; }
+.observability-card dl { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 5px 8px; margin: 0; font-size: 11.5px; line-height: 1.4; }
+.observability-card dt { color: var(--muted); }
+.observability-card dd { margin: 0; color: var(--soft); overflow-wrap: anywhere; }
+.observability-state { border: 1px solid currentColor; border-radius: 999px; color: var(--muted) !important; padding: 1px 7px; font-size: 10px !important; white-space: nowrap; }
+.observability-state--healthy { color: var(--green) !important; }
+.observability-state--degraded { color: var(--amber) !important; }
+.observability-state--offline { color: var(--pink) !important; }
+.observability-state--not_configured { color: var(--muted) !important; }
+.observability-summary { padding: 9px 12px; border: 1px solid var(--line); border-radius: 7px; color: var(--soft); font-size: 12px; }
+.observability-traces { display: grid; grid-template-columns: minmax(230px, .72fr) minmax(0, 1.28fr); gap: 14px; min-height: 0; flex: 1; }
+.observability-trace-list { border: 1px solid var(--line); border-radius: 8px; overflow: auto; background: rgba(255,255,255,.02); }
+.observability-trace-list button { display: flex; width: 100%; flex-direction: column; gap: 3px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--soft); cursor: pointer; padding: 10px 12px; text-align: left; font: inherit; }
+.observability-trace-list button:hover, .observability-trace-list button.is-active { background: var(--teal-soft, rgba(61,213,205,.10)); }
+.observability-trace-list strong { color: var(--text); font-size: 12px; }
+.observability-trace-list span, .observability-trace-list small { color: var(--muted); font-size: 11px; }
+.observability-inline { margin: 0; color: var(--soft); font-family: var(--mono); font-size: 11.5px; overflow-wrap: anywhere; }
+.observability-timeline { display: flex; flex-direction: column; gap: 9px; margin: 0; padding: 0; list-style: none; }
+.observability-timeline li { display: grid; grid-template-columns: 150px minmax(130px, auto) minmax(0, 1fr); gap: 8px; color: var(--soft); font-size: 12px; }
+.observability-timeline time { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.observability-timeline strong { color: var(--text); }
+.observability-timeline span { color: var(--teal); overflow-wrap: anywhere; }
+.observability-routing { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.02); overflow: hidden; }
+.observability-routing > header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.observability-routing > header button { border: 1px solid var(--line-2); border-radius: 5px; background: transparent; color: var(--soft); cursor: pointer; font: inherit; font-size: 11px; padding: 4px 8px; }
+.observability-routing > div:last-child { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; padding: 10px 14px; }
+.observability-routing label { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center; color: var(--soft); font-size: 12px; }
+.observability-routing label em { color: var(--muted); font-size: 10.5px; font-style: normal; text-align: right; }
+.observability-routing select { grid-column: 1 / -1; border: 1px solid var(--line-2); border-radius: 5px; background: rgba(255,255,255,.04); color: var(--text); font: inherit; font-size: 12px; padding: 5px 7px; }
+@media (max-width: 860px) {
+  .observability-traces { grid-template-columns: 1fr; overflow: auto; }
+  .observability-trace-list { max-height: 260px; }
+  .observability-timeline li { grid-template-columns: 1fr; gap: 2px; }
+}
+
 .admin-engine {
   display: flex;
   flex-direction: column;
