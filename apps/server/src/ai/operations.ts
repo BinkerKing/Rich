@@ -28,17 +28,11 @@ import { buildDraftChildPrompt } from "./prompts/draftChild.js";
 import { buildAdjustChildPrompt } from "./prompts/adjustChild.js";
 import { buildGuidedPracticePrompt } from "./prompts/guidedPractice.js";
 import { buildOperationContextFragment } from "./operationContext.js";
+import { validateGeneratedTree, type GeneratedTree } from "./knowledge/generatedTreeValidator.js";
 import type { AIManual } from "./manuals.js";
 import type { Signal } from "@ke/domain";
 
 // ----- Operation result schemas (what AI must produce) -----
-
-const GenerateTreeResultSchema = z.object({
-  rootId: z.string().min(1),
-  elements: z.array(ElementSchema).min(1),
-  relations: z.array(RelationSchema),
-  paths: z.array(LearningPathSchema),
-});
 
 const RefineResultSchema = z.object({
   content: z.unknown(),
@@ -112,7 +106,7 @@ const AnalyzeAttachmentResultSchema = z.object({
   options: z.array(AttachOptionSchema).min(1).max(3),
 });
 
-export type GenerateTreeResult = z.infer<typeof GenerateTreeResultSchema>;
+export type GenerateTreeResult = GeneratedTree;
 export type RefineResult = z.infer<typeof RefineResultSchema>;
 export type SectionRefineResult = z.infer<typeof SectionRefineResultSchema>;
 export type ExpandResult = z.infer<typeof ElementsAndRelationsSchema>;
@@ -392,7 +386,7 @@ export function generateTreeFor(
     topic: args.topic, richness: args.richness ?? 2,
   }), "generate-tree", "knowledge");
   return runStructuredAI(adapter, {
-    prompt, signal: args.signal, validate: zodValidator(GenerateTreeResultSchema),
+    prompt, signal: args.signal, validate: validateGeneratedTree,
     opLog: { op: "generate", model: adapter.name, scope: { topic: args.topic, richness: args.richness } },
   });
 }
