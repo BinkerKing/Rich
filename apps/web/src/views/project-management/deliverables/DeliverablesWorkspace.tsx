@@ -634,12 +634,14 @@ export function DeliverablesWorkspace({
                           <article
                             key={record.id}
                             className={`deliverables-workspace__record is-${record.kind}${editingRecordId === record.id ? " is-editing-existing" : ""}`}
-                          >
+                            >
                             <b>{recordKindLabel(record.kind)}</b>
                             <div className="deliverables-workspace__record-content workflow-rich-content" onDoubleClick={() => startRecordEdit(record)} title="双击编辑" dangerouslySetInnerHTML={{ __html: record.text }} />
-                            <time>{fileDate(record.createdAt)}</time>
-                            {record.aiTask && <small>AI 任务 · {record.aiTask.executor === "hermes" ? "Hermes" : "Multica"} · {record.aiTask.status}</small>}
-                            <button aria-label="删除记录" title="删除记录" onClick={() => void deleteRecord(item, record)}>×</button>
+                            <aside className="deliverables-workspace__record-actions">
+                              <time>{fileDate(record.createdAt)}</time>
+                              {record.aiTask && <small className="deliverables-workspace__record-ai-task">AI 任务 · {record.aiTask.executor === "hermes" ? "Hermes" : "Multica"} · {record.aiTask.status}</small>}
+                              <button aria-label="删除记录" title="删除记录" onClick={() => void deleteRecord(item, record)}>×</button>
+                            </aside>
                             {record.attachments.length > 0 && (
                               <ul>
                                 {record.attachments.map((file) => (
