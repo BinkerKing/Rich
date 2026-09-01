@@ -1,5 +1,6 @@
 import type { McpTask } from "../repos/McpTaskRepo.js";
 import type { AiTaskExecutor } from "./AiTaskDispatcher.js";
+import { parseAiTaskRequest } from "./types.js";
 
 type HermesTaskExecutorOptions = {
   baseUrl?: string;
@@ -31,7 +32,7 @@ export class HermesTaskExecutor implements AiTaskExecutor {
     const response = await this.fetcher(`${this.baseUrl}/v1/chat/completions`, {
       method: "POST",
       headers: { ...this.headers(), "content-type": "application/json" },
-      body: JSON.stringify({ model: this.model, stream: false, messages: [{ role: "user", content: taskPrompt(task.id) }] }),
+      body: JSON.stringify({ model: this.model, stream: false, messages: [{ role: "user", content: taskPrompt(task.id, parseAiTaskRequest(task.request).profile) }] }),
       signal: AbortSignal.timeout(30_000),
     });
     if (!response.ok) throw new Error(`Hermes HTTP ${response.status}.`);
@@ -40,9 +41,10 @@ export class HermesTaskExecutor implements AiTaskExecutor {
   private headers(): Record<string, string> { return this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {}; }
 }
 
-function taskPrompt(taskId: string): string {
+function taskPrompt(taskId: string, profile: string): string {
   return [
     `You are executing Rich deliverable task ${taskId}.`,
+    `Permission profile: ${profile}.`,
     "Call rich_task_context_get with this task ID before working.",
     "Create output only with rich_task_write_file; it allows new files only inside the assigned deliverable folder.",
     "When complete, call rich_task_report_result with verification evidence.",

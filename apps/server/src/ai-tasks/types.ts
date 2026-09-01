@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const aiTaskExecutors = ["hermes", "multica"] as const;
 export type AiTaskExecutor = typeof aiTaskExecutors[number];
+export const aiTaskProfiles = ["analysis", "deliverable", "rich_update"] as const;
+export type AiTaskProfile = typeof aiTaskProfiles[number];
 
 const snapshotFile = z.object({
   relativePath: z.string().min(1),
@@ -32,6 +34,7 @@ const requestSchema = z.object({
   projectId: z.string().min(1),
   deliverableId: z.string().min(1),
   executor: z.enum(aiTaskExecutors),
+  profile: z.enum(aiTaskProfiles).default("analysis"),
   instructions: z.string().trim().min(1),
   acceptanceCriteria: z.array(z.string().trim().min(1)).default([]),
   contextSnapshot,

@@ -19,6 +19,7 @@ describe("AI deliverable task contract", () => {
     });
 
     expect(task.executor).toBe("hermes");
+    expect(task.profile).toBe("analysis");
     expect(task.contextSnapshot.deliverable.folderPath).toBe("07-交付/report");
   });
 
