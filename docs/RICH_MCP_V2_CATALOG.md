@@ -2,7 +2,7 @@
 
 > 此文件由 `pnpm --filter @ke/server mcp:docs` 生成，请勿手工编辑。
 
-工具数：19；输入 Schema：18477 bytes。所有工具返回统一的 `{ ok, action, data/error, refs, changes, verification, warnings }` 信封。
+工具数：22；输入 Schema：19568 bytes。所有工具返回统一的 `{ ok, action, data/error, refs, changes, verification, warnings }` 信封。
 
 ## `rich_automation_manage`
 
@@ -54,6 +54,23 @@
 {
   "query": "MCP",
   "projectId": "project-rich"
+}
+```
+
+## `rich_deliverable_history_get`
+
+- 场景：`query`
+- 用于：读取当前交付物此前 AI 任务的结论、产物引用和人工复核状态。
+- 不用于：用户已明确要求写入、删除或委派实际工作时。
+- 安全属性：只读=true，破坏性=false，幂等=true
+- 输入：`taskId`（必填）
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Returns only prior tasks belonging to the same project and deliverable.
+- 示例：
+
+```json
+{
+  "taskId": "task-id"
 }
 ```
 
@@ -298,6 +315,44 @@
   "context": {
     "requestId": "organize-1"
   }
+}
+```
+
+## `rich_task_context_get`
+
+- 场景：`query`
+- 用于：读取指定 Agent 交付物任务创建时冻结的要求、记录和材料目录。
+- 不用于：用户已明确要求写入、删除或委派实际工作时。
+- 安全属性：只读=true，破坏性=false，幂等=true
+- 输入：`taskId`（必填）
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Returns only the snapshot persisted on the running task.
+- 示例：
+
+```json
+{
+  "taskId": "task-id"
+}
+```
+
+## `rich_task_report_result`
+
+- 场景：`manage`
+- 用于：写入 Agent 对交付物分析任务的摘要和证据，并将任务提交给人工复核。
+- 不用于：目标对象尚未定位；此时先使用查询工具。
+- 安全属性：只读=false，破坏性=false，幂等=true
+- 输入：`taskId`（必填）、`summary`（必填）、`evidence`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Reads the completed task and confirms it requires human review.
+- 示例：
+
+```json
+{
+  "taskId": "task-id",
+  "summary": "分析完成",
+  "evidence": [
+    "source.xlsx"
+  ]
 }
 ```
 
