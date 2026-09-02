@@ -122,6 +122,7 @@ import { SqliteSignalsRepo } from "./repos/SqliteSignalsRepo.js";
 import { SqliteChatVisualBlocksRepo } from "./repos/SqliteChatVisualBlocksRepo.js";
 import { SqliteChatAttachmentsRepo } from "./repos/SqliteChatAttachmentsRepo.js";
 import { SqliteChatConversationsRepo } from "./repos/SqliteChatConversationsRepo.js";
+import { SqliteDeliverableCodexConversationRepo } from "./repos/SqliteDeliverableCodexConversationRepo.js";
 import { SqliteAgentConversationConfigRepo } from "./repos/SqliteAgentConversationConfigRepo.js";
 import { SqliteAgentConversationTurnRepo } from "./repos/SqliteAgentConversationTurnRepo.js";
 import { SqliteAgentToolCallRepo } from "./repos/SqliteAgentToolCallRepo.js";
@@ -139,6 +140,7 @@ import type { SignalsRepo } from "./repos/SignalsRepo.js";
 import type { ChatVisualBlocksRepo } from "./repos/ChatVisualBlocksRepo.js";
 import type { ChatAttachmentsRepo } from "./repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "./repos/ChatConversationsRepo.js";
+import type { DeliverableCodexConversationRepo } from "./repos/DeliverableCodexConversationRepo.js";
 import type { AgentConversationConfigRepo } from "./repos/AgentConversationConfigRepo.js";
 import type { AgentConversationTurnRepo } from "./repos/AgentConversationTurnRepo.js";
 import type { AgentToolCallRepo } from "./repos/AgentToolCallRepo.js";
@@ -210,6 +212,7 @@ import { PostgresSignalsRepo } from "./repos/PostgresSignalsRepo.js";
 import { PostgresChatVisualBlocksRepo } from "./repos/PostgresChatVisualBlocksRepo.js";
 import { PostgresChatAttachmentsRepo } from "./repos/PostgresChatAttachmentsRepo.js";
 import { PostgresChatConversationsRepo } from "./repos/PostgresChatConversationsRepo.js";
+import { PostgresDeliverableCodexConversationRepo } from "./repos/PostgresDeliverableCodexConversationRepo.js";
 import { PostgresAgentConversationConfigRepo } from "./repos/PostgresAgentConversationConfigRepo.js";
 import { PostgresAgentConversationTurnRepo } from "./repos/PostgresAgentConversationTurnRepo.js";
 import { PostgresAgentToolCallRepo } from "./repos/PostgresAgentToolCallRepo.js";
@@ -238,8 +241,11 @@ import { AgentConversationService } from "./agent-conversations/AgentConversatio
 import { AgentToolCallService } from "./agent-conversations/AgentToolCallService.js";
 import { AgentApprovalService } from "./agent-conversations/AgentApprovalService.js";
 import { HermesAgentRuntime } from "./agent-conversations/HermesAgentRuntime.js";
+import { CodexAppServerRuntime } from "./agent-conversations/CodexAppServerRuntime.js";
 import { ConversationPromotionService } from "./agent-conversations/ConversationPromotionService.js";
 import { DeliverableTaskContextService } from "./ai-tasks/DeliverableTaskContextService.js";
+import { DeliverableCodexContextService } from "./deliverable-codex/DeliverableCodexContextService.js";
+import { deliverableCodexRoutes } from "./routes/deliverableCodex.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -272,6 +278,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   /** chat_attachments 同上 —— bytea 存储需要数据库后端 */
   let chatAttachments: ChatAttachmentsRepo | null = null;
   let chatConversations: ChatConversationsRepo | null = null;
+  let deliverableCodexConversations: DeliverableCodexConversationRepo | null = null;
   let agentConversationConfigs: AgentConversationConfigRepo | null = null;
   let agentConversationTurns: AgentConversationTurnRepo | null = null;
   let agentToolCalls: AgentToolCallRepo | null = null;
@@ -298,6 +305,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     chatVisualBlocks = new PostgresChatVisualBlocksRepo(pg);
     chatAttachments = new PostgresChatAttachmentsRepo(pg);
     chatConversations = new PostgresChatConversationsRepo(pg);
+    deliverableCodexConversations = new PostgresDeliverableCodexConversationRepo(pg);
     agentConversationConfigs = new PostgresAgentConversationConfigRepo(pg);
     agentConversationTurns = new PostgresAgentConversationTurnRepo(pg);
     agentToolCalls = new PostgresAgentToolCallRepo(pg);
@@ -325,6 +333,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     chatVisualBlocks = new SqliteChatVisualBlocksRepo(db);
     chatAttachments = new SqliteChatAttachmentsRepo(db);
     chatConversations = new SqliteChatConversationsRepo(db);
+    deliverableCodexConversations = new SqliteDeliverableCodexConversationRepo(db);
     agentConversationConfigs = new SqliteAgentConversationConfigRepo(db);
     agentConversationTurns = new SqliteAgentConversationTurnRepo(db);
     agentToolCalls = new SqliteAgentToolCallRepo(db);
@@ -362,6 +371,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
           toolCallRepo: agentToolCalls,
           toolCalls: toolService,
           runtime: new HermesAgentRuntime(hermesAdapter),
+          runtimes: { hermes: new HermesAgentRuntime(hermesAdapter), codex: new CodexAppServerRuntime() },
           gateway,
           workspaceRoot: richWorkspaceDir,
         });
@@ -453,6 +463,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   // Persist every AI op prompt + output to data/ai-ops.jsonl for the admin UI.
   configureOpLog(root);
   const aiContextProvider = createAIContextProvider(chatConversations);
+  const deliverableCodexContext = new DeliverableCodexContextService(promotionContext);
   // Self-heal: any op stuck in "running" from a previous crash / pkill / OOM
   // gets a synthetic error terminal line, so the admin UI doesn't show
   // dead-but-still-running entries indefinitely. Fire-and-forget.
@@ -488,6 +499,9 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/corpus", corpusRoutes(corpus));
   app.route("/api/great-me", greatMeRoutes(greatMe));
   app.route("/api/chat", chatRoutes(chatAttachments, ai, chatConversations, aiContextProvider, operationCorrelations, agentConversationConfigs, agentConversationTurns, agentExecution, conversationPromotions));
+  if (deliverableCodexConversations && chatConversations && agentExecution) {
+    app.route("/api/deliverable-codex", deliverableCodexRoutes({ conversations: deliverableCodexConversations, chats: chatConversations, context: deliverableCodexContext, agents: agentExecution }));
+  }
   app.route("/api/chat-visual-blocks", chatVisualBlocksRoutes(chatVisualBlocks));
   app.route("/api/chat/attachments", chatAttachmentsRoutes(chatAttachments));
   app.route("/api/health", healthRoutes(healthRepo));
