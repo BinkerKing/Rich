@@ -58,7 +58,8 @@ export function deliverableCodexRoutes(deps: {
   r.get("/conversations/:id/messages", async c => {
     const existing = await deps.conversations.get(c.req.param("id"));
     if (!existing) return c.json({ error: "Conversation not found" }, 404);
-    return c.json({ messages: await deps.chats.listMessages(existing.conversationId, 200) });
+    const messages = await deps.chats.listMessages(existing.conversationId, 200);
+    return c.json({ messages: await Promise.all(messages.map(async message => ({ ...message, attachments: deps.attachments ? await deps.attachments.byMessage(message.id) : [] }))) });
   });
 
   r.get("/conversations/:id/status", async c => {
