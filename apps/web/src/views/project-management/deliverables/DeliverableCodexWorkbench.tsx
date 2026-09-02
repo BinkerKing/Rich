@@ -10,6 +10,23 @@ type ConnectionState = "checking" | "connected" | "server_offline" | "session_lo
 type WindowState = { x: number; y: number; width: number; height: number; maximized: boolean };
 const windowStorageKey = "rich.deliverable-codex.window";
 const defaultWindow: WindowState = { x: 0, y: 0, width: 980, height: 720, maximized: false };
+const workbenchMargin = 28;
+
+function fitWindowToViewport(state: WindowState): WindowState {
+  const maxWidth = Math.max(320, window.innerWidth - workbenchMargin * 2);
+  const maxHeight = Math.max(280, window.innerHeight - workbenchMargin * 2);
+  const width = Math.min(Math.max(320, state.width), maxWidth);
+  const height = Math.min(Math.max(280, state.height), maxHeight);
+  const centerX = (window.innerWidth - width) / 2;
+  const centerY = (window.innerHeight - height) / 2;
+  return {
+    ...state,
+    width,
+    height,
+    x: Math.min(Math.max(state.x, workbenchMargin - centerX), window.innerWidth - workbenchMargin - width - centerX),
+    y: Math.min(Math.max(state.y, workbenchMargin - centerY), window.innerHeight - workbenchMargin - height - centerY),
+  };
+}
 
 const modeLabel: Record<Mode, string> = { free: "自由模式", task: "任务模式", bug: "BUG 模式" };
 const taskName: Record<Mode, string> = { free: "交付物自由对话", task: "交付物任务", bug: "交付物 BUG 诊断" };
@@ -37,7 +54,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const composer = useChatComposer({ maxAttachments: 4 });
   const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<HTMLElement>(null);
-  const [windowState, setWindowState] = useState<WindowState>(() => { try { return { ...defaultWindow, ...JSON.parse(localStorage.getItem(windowStorageKey) ?? "{}") }; } catch { return defaultWindow; } });
+  const [windowState, setWindowState] = useState<WindowState>(() => { try { return fitWindowToViewport({ ...defaultWindow, ...JSON.parse(localStorage.getItem(windowStorageKey) ?? "{}") }); } catch { return fitWindowToViewport(defaultWindow); } });
   const dragRef = useRef<{ x: number; y: number; startX: number; startY: number }>();
   const active = useMemo(() => conversations.find(item => item.id === activeId), [activeId, conversations]);
 
@@ -74,8 +91,9 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   }, [input]);
   useEffect(() => { const element = messagesRef.current; if (visible && element) element.scrollTop = element.scrollHeight; }, [activeId, messages, visible]);
   useEffect(() => { localStorage.setItem(windowStorageKey, JSON.stringify(windowState)); }, [windowState]);
+  useEffect(() => { const resize = () => setWindowState(fitWindowToViewport); window.addEventListener("resize", resize); return () => window.removeEventListener("resize", resize); }, []);
   const beginDrag = (event: ReactPointerEvent<HTMLElement>) => { if (windowState.maximized || (event.target as HTMLElement).closest("button")) return; dragRef.current = { x: event.clientX, y: event.clientY, startX: windowState.x, startY: windowState.y }; event.currentTarget.setPointerCapture(event.pointerId); };
-  const drag = (event: ReactPointerEvent<HTMLElement>) => { const point = dragRef.current; if (point) setWindowState(current => ({ ...current, x: point.startX + event.clientX - point.x, y: point.startY + event.clientY - point.y })); };
+  const drag = (event: ReactPointerEvent<HTMLElement>) => { const point = dragRef.current; if (point) setWindowState(current => fitWindowToViewport({ ...current, x: point.startX + event.clientX - point.x, y: point.startY + event.clientY - point.y })); };
 
   const create = async () => {
     if (!title.trim()) return;
@@ -139,7 +157,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       {error && <p className="deliverable-codex-workbench__error">{error}</p>}
       <footer className="deliverable-codex-workbench__composer">{composer.attachments.length > 0 && <div className="deliverable-codex-workbench__attachments">{composer.attachments.map(attachment => <figure key={attachment.clientId}><button type="button" onClick={() => setPreviewUrl(attachment.previewUrl)}><img src={attachment.previewUrl} alt="已粘贴图片"/></button><button type="button" aria-label="删除图片" onClick={() => composer.detach(attachment.clientId)}>×</button></figure>)}</div>}<textarea ref={composerTextareaRef} rows={1} value={input} disabled={!active || streaming} onChange={event => setInput(event.target.value)} onPaste={event => { const image = Array.from(event.clipboardData.items).find(item => item.type.startsWith("image/"))?.getAsFile(); if (image) { event.preventDefault(); void composer.attach(image); } }} onKeyDown={event => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void send(); } }} placeholder={active ? "随心输入" : "请先新建会话"}/><div className="deliverable-codex-workbench__composer-actions"><span aria-hidden="true"/><button type="button" aria-label={streaming ? "Codex 正在响应" : "发送消息"} disabled={!active || (!input.trim() && composer.attachments.length === 0) || composer.isUploading} onClick={() => void send()}>{streaming ? "■" : "↑"}</button></div></footer>
       {previewUrl && <div className="deliverable-codex-workbench__image-preview" role="dialog" aria-modal="true" onClick={() => setPreviewUrl(undefined)}><img src={previewUrl} alt="粘贴图片预览"/></div>}
-      <i className="deliverable-codex-workbench__resize" onPointerDown={event => { const start = { x: event.clientX, y: event.clientY, width: windowState.width, height: windowState.height }; event.currentTarget.setPointerCapture(event.pointerId); const resize = (move: PointerEvent) => setWindowState(current => ({ ...current, width: Math.max(640, start.width + move.clientX - start.x), height: Math.max(460, start.height + move.clientY - start.y) })); const stop = () => { window.removeEventListener("pointermove", resize); window.removeEventListener("pointerup", stop); }; window.addEventListener("pointermove", resize); window.addEventListener("pointerup", stop); }}/>
+      <i className="deliverable-codex-workbench__resize" onPointerDown={event => { const start = { x: event.clientX, y: event.clientY, width: windowState.width, height: windowState.height }; event.currentTarget.setPointerCapture(event.pointerId); const resize = (move: PointerEvent) => setWindowState(current => fitWindowToViewport({ ...current, width: start.width + move.clientX - start.x, height: start.height + move.clientY - start.y })); const stop = () => { window.removeEventListener("pointermove", resize); window.removeEventListener("pointerup", stop); }; window.addEventListener("pointermove", resize); window.addEventListener("pointerup", stop); }}/>
     </section>
   </div>;
 }
