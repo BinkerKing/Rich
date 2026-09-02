@@ -81,6 +81,15 @@ export function DeliverablesWorkspace({
   const materialInputRef = useRef<HTMLInputElement>(null);
   const editingMaterialInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    const openWorkbench = () => {
+      const item = items.find(candidate => candidate.id === openId);
+      if (item) setCodexItem(current => current ? undefined : item);
+    };
+    window.addEventListener("rich:toggle-deliverable-codex", openWorkbench);
+    return () => window.removeEventListener("rich:toggle-deliverable-codex", openWorkbench);
+  }, [items, openId]);
+
   const refreshFiles = async (item: Item) => {
     setLoadingFolders((all) => ({ ...all, [item.content.folderPath]: true }));
     try {

@@ -738,6 +738,15 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
       return;
     }
     if (input.type !== "keyDown") return;
+    // This is intentionally app-local rather than a globalShortcut: macOS
+    // Spotlight retains Cmd+Space when Rich is not focused. The renderer
+    // resolves the currently open deliverable into its scoped workbench.
+    if ((input.meta || input.control) && (input.code === "Space" || input.key === " ")) {
+      win.webContents.executeJavaScript(`window.dispatchEvent(new Event("rich:toggle-deliverable-codex"));`)
+        .catch(() => { /* renderer may be navigating */ });
+      event.preventDefault();
+      return;
+    }
     if (
       input.shift &&
       (input.meta || input.control) &&
