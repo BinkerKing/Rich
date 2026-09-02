@@ -46,6 +46,7 @@ const requestSchema = z.object({
   scenario: z.string().min(1).default("deliverable_analysis"),
   projectId: z.string().min(1),
   deliverableId: z.string().min(1),
+  originRecordId: z.string().min(1).optional(),
   executor: z.enum(aiTaskExecutors),
   profile: z.enum(aiTaskProfiles).default("analysis"),
   instructions: z.string().trim().min(1),

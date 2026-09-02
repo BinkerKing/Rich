@@ -69,7 +69,7 @@ export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
     executionTeams,
   });
   registerTaskTools(registry, { tasks, operationRepo: deps.operationRepo });
-  registerDeliverableTaskTools(registry, tasks, deps.elements);
+  registerDeliverableTaskTools(registry, tasks, deps.elements, deps.projectManagement);
   registerDelegationTools(registry, {
     adapter,
     tasks,

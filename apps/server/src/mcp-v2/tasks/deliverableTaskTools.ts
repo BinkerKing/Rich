@@ -1,9 +1,10 @@
 import { z } from "zod";
-import { readFile, realpath, stat } from "node:fs/promises";
-import { extname, resolve } from "node:path";
+import { mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { dirname, extname, relative, resolve, sep } from "node:path";
 import { parseAiTaskRequest } from "../../ai-tasks/types.js";
 import { DeliverableTaskHistoryService } from "../../ai-tasks/DeliverableTaskHistoryService.js";
 import type { ElementsRepo } from "../../repos/ElementsRepo.js";
+import type { ProjectManagementRepo } from "../../repos/ProjectManagementRepo.js";
 import { RichMcpError } from "../registry/errors.js";
 import { richSuccess } from "../registry/response.js";
 import type { RichToolRegistry } from "../registry/toolRegistry.js";
@@ -21,6 +22,7 @@ export function registerDeliverableTaskTools(
   registry: RichToolRegistry,
   tasks: PersistentTaskService,
   elements?: Pick<ElementsRepo, "get">,
+  projects?: Pick<ProjectManagementRepo, "listAllModuleItems" | "updateModuleItem">,
 ): void {
   const history = new DeliverableTaskHistoryService(tasks);
   registry.register({
@@ -86,16 +88,45 @@ export function registerDeliverableTaskTools(
   registry.register({
     name: "rich_task_report_result", title: "回报交付物任务结果", category: "manage",
     description: "写入 Agent 对交付物分析任务的摘要和证据，并将任务提交给人工复核。",
-    inputSchema: z.object({ taskId: z.string().min(1), summary: z.string().trim().min(1).max(20_000), evidence: z.array(z.string().trim().min(1).max(1_000)).max(50).default([]) }),
+    inputSchema: z.object({ taskId: z.string().min(1), summary: z.string().trim().min(1).max(2_000), evidence: z.array(z.string().trim().min(1).max(1_000)).max(50).default([]), reportMarkdown: z.string().trim().min(1).max(100_000).optional() }),
     annotations: { readOnly: false, destructive: false, idempotent: true }, examples: [{ description: "提交分析结论等待人工复核", input: { taskId: "task-id", summary: "分析完成", evidence: ["source.xlsx"] } }], verification: "Reads the completed task and confirms it requires human review.",
-    handler: async ({ taskId, summary, evidence }) => {
-      const task = await tasks.get(taskId); assertAgentTask(task);
+    handler: async ({ taskId, summary, evidence, reportMarkdown }) => {
+      const task = await tasks.get(taskId); const request = assertAgentTask(task);
       const resultRefs = [{ type: "analysis_result", id: task.id, label: summary }, ...evidence.map(id => ({ type: "evidence", id }))];
       const completed = await tasks.transition(task.id, "succeeded", { progressSummary: summary, resultRefs, reviewStatus: "needs_human" });
+      if (request.originRecordId && projects && elements) await writeDeliverableResult(projects, elements, request, completed, summary, evidence, reportMarkdown);
       return richSuccess("rich_task_report_result", { task: completed }, { refs: [{ type: "work_task", id: completed.id, label: completed.title }] });
     },
   });
 }
+
+async function writeDeliverableResult(projects: Pick<ProjectManagementRepo, "listAllModuleItems" | "updateModuleItem">, elements: Pick<ElementsRepo, "get">, request: ReturnType<typeof parseAiTaskRequest>, task: Awaited<ReturnType<PersistentTaskService["get"]>>, summary: string, evidence: string[], reportMarkdown?: string) {
+  const deliverable = (await projects.listAllModuleItems(request.projectId, "deliverables")).find(item => item.id === request.deliverableId);
+  if (!deliverable || !request.originRecordId) throw new RichMcpError("NOT_FOUND", "The task's deliverable record is unavailable.");
+  const content = deliverable.content;
+  const records = Array.isArray(content.records) ? content.records : [];
+  const parent = records.find(record => isRecord(record) && record.id === request.originRecordId && record.kind === "ai_task");
+  if (!parent) throw new RichMcpError("NOT_FOUND", "The task's originating AI record is unavailable.");
+  const project = await elements.get(request.projectId);
+  const localFolder = project?.type === "project" && typeof (project.content as { localFolder?: unknown }).localFolder === "string" ? (project.content as { localFolder: string }).localFolder : undefined;
+  let report: { fileName: string; relativePath: string; size: number } | undefined;
+  if (reportMarkdown && localFolder) {
+    const filename = `${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${safeName(task.title)}-${task.id.slice(0, 8)}.md`;
+    const target = projectPath(localFolder, `${request.contextSnapshot.deliverable.folderPath}/AI任务结果/${filename}`);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, reportMarkdown, "utf8");
+    report = { fileName: filename, relativePath: relative(localFolder, target).replaceAll("\\", "/"), size: Buffer.byteLength(reportMarkdown) };
+  }
+  const result = { id: `ai-result-${task.id}`, kind: "ai_task_result", text: summary, createdAt: new Date().toISOString(), informationType: "information", attachments: [], parentRecordId: request.originRecordId, aiTaskResult: { taskId: task.id, status: "needs_human", executor: request.executor, completedAt: new Date().toISOString(), ...(report ? { report } : {}), evidence: evidence.map(id => ({ fileName: id, relativePath: id, size: 0 })) } };
+  const next = records.some(record => isRecord(record) && record.kind === "ai_task_result" && isRecord(record.aiTaskResult) && record.aiTaskResult.taskId === task.id)
+    ? records.map(record => isRecord(record) && record.kind === "ai_task_result" && isRecord(record.aiTaskResult) && record.aiTaskResult.taskId === task.id ? result : record)
+    : [...records, result];
+  await projects.updateModuleItem(request.projectId, deliverable.id, { content: { ...content, records: next } });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> { return Boolean(value) && typeof value === "object" && !Array.isArray(value); }
+function safeName(value: string) { return value.replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, " ").trim().slice(0, 80) || "AI任务"; }
+function projectPath(root: string, path: string) { const base = resolve(root); const target = resolve(base, path); if (relative(base, target).startsWith("..") || target === base || !target.startsWith(`${base}${sep}`)) throw new RichMcpError("PERMISSION_DENIED", "The report path is outside the project."); return target; }
 
 async function frozenFilePath(localFolder: string, recordedPath: string): Promise<string | null> {
   const normalized = recordedPath.replaceAll("\\", "/").replace(/^\/+/, "");

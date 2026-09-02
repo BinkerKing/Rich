@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as XLSX from "xlsx";
@@ -7,6 +7,7 @@ import { registerDeliverableTaskTools } from "../src/mcp-v2/tasks/deliverableTas
 import { RichToolRegistry } from "../src/mcp-v2/registry/toolRegistry.js";
 import { PersistentTaskService } from "../src/mcp-v2/tasks/persistentTaskService.js";
 import type { McpTask, McpTaskListOptions, McpTaskRepo } from "../src/repos/McpTaskRepo.js";
+import type { ProjectManagementRepo } from "../src/repos/ProjectManagementRepo.js";
 
 class MemoryTasks implements McpTaskRepo { tasks = new Map<string, McpTask>(); create(task: McpTask) { this.tasks.set(task.id, task); } get(id: string) { return this.tasks.get(id) ?? null; } list(_?: McpTaskListOptions) { return [...this.tasks.values()]; } count() { return this.tasks.size; } save(task: McpTask) { this.tasks.set(task.id, task); } }
 
@@ -14,7 +15,45 @@ const projectElements = (projectId: string, localFolder: string) => ({
   get: async (id: string) => id === projectId ? { id, type: "project", content: { localFolder } } : null,
 });
 
+function deliverableProjects() {
+  const item = {
+    id: "d", projectId: "p", moduleKey: "deliverables" as const, title: "Report", sortOrder: 0,
+    createdAt: "2026-09-02T00:00:00.000Z", updatedAt: "2026-09-02T00:00:00.000Z",
+    content: { recordType: "deliverable", folderPath: "07-交付/report", records: [{ id: "task-record", kind: "ai_task", text: "Analyse", createdAt: "2026-09-02T00:00:00.000Z", attachments: [], informationType: "information", aiTask: { id: "", status: "publishing", executor: "hermes" } }] },
+  };
+  return {
+    item,
+    repo: {
+      listAllModuleItems: async () => [item],
+      updateModuleItem: async (_projectId: string, itemId: string, patch: { content?: Record<string, unknown> }) => {
+        if (itemId !== item.id) return null;
+        if (patch.content) item.content = patch.content as typeof item.content;
+        return item;
+      },
+    } as Pick<ProjectManagementRepo, "listAllModuleItems" | "updateModuleItem">,
+  };
+}
+
 describe("deliverable task MCP tools", () => {
+  it("writes a detailed result under its originating deliverable task", async () => {
+    const folder = await mkdtemp(join(tmpdir(), "rich-task-result-"));
+    try {
+      const tasks = new PersistentTaskService(new MemoryTasks());
+      const task = await tasks.create({ type: "deliverable-ai-task", title: "Report", backend: "hermes", request: { projectId: "p", deliverableId: "d", originRecordId: "task-record", executor: "hermes", instructions: "Analyse", acceptanceCriteria: [], contextSnapshot: { version: 1, createdAt: "2026-09-02T00:00:00.000Z", deliverable: { folderPath: "07-交付/report", requirementHtml: "" }, records: [], files: [] } } });
+      await tasks.transition(task.id, "running");
+      const projects = deliverableProjects();
+      const registry = new RichToolRegistry(); registerDeliverableTaskTools(registry, tasks, projectElements("p", folder), projects.repo);
+
+      await registry.invoke("rich_task_report_result", { taskId: task.id, summary: "发现两项遗漏", evidence: ["source.xlsx"], reportMarkdown: "# 完整分析\n" });
+
+      const records = projects.item.content.records;
+      expect(records).toEqual(expect.arrayContaining([expect.objectContaining({ kind: "ai_task_result", parentRecordId: "task-record", text: "发现两项遗漏" })]));
+      const result = records.find(record => record.kind === "ai_task_result") as { aiTaskResult: { report: { relativePath: string } } };
+      await expect(readFile(join(folder, result.aiTaskResult.report.relativePath), "utf8")).resolves.toBe("# 完整分析");
+    } finally {
+      await rm(folder, { recursive: true, force: true });
+    }
+  });
   it("returns frozen context and records a Hermes result for human review", async () => {
     const tasks = new PersistentTaskService(new MemoryTasks());
     const task = await tasks.create({ type: "deliverable-ai-task", title: "Report", backend: "hermes", request: { projectId: "p", deliverableId: "d", executor: "hermes", instructions: "Analyse", acceptanceCriteria: [], contextSnapshot: { version: 1, createdAt: "2026-09-01T00:00:00.000Z", deliverable: { folderPath: "07-交付/report", requirementHtml: "<p>Requirement</p>" }, records: [], files: [] } } });
