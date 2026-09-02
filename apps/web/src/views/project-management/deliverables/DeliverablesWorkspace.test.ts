@@ -189,3 +189,10 @@ test("AI 任务记录将时间、状态和删除操作固定在同一操作栏�
   assert.match(styles, /\.deliverables-workspace__record-actions \{[^}]*white-space:nowrap/);
   assert.match(styles, /\.deliverables-workspace__record-ai-task \{[^}]*overflow:hidden/);
 });
+
+test("发布 AI 任务时先保存父记录并携带稳定关联 ID", () => {
+  assert.match(deliverables, /const originRecordId = crypto\.randomUUID\(\);/);
+  assert.match(deliverables, /aiTask: \{ id: "", status: "publishing", executor: aiExecutor \}/);
+  assert.match(deliverables, /await save\(item, addDeliverableRecord\(item\.content, parent\)\);/);
+  assert.match(deliverables, /originRecordId,/);
+});

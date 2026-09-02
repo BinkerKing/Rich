@@ -350,6 +350,13 @@ export function DeliverablesWorkspace({
   };
   const publishDeliverableAiTask = async (item: Item) => {
     if (!richTextHasContent(text)) return;
+    const originRecordId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    const parent: DeliverableRecord = {
+      id: originRecordId, kind: "ai_task", text: text.trim(), createdAt, informationType: "information", attachments: [],
+      aiTask: { id: "", status: "publishing", executor: aiExecutor },
+    };
+    await save(item, addDeliverableRecord(item.content, parent));
     const files = (filesByFolder[item.content.folderPath] || []).flatMap(file => {
       if (file.isDirectory) return [];
       const meta = item.content.fileMeta.find(entry => entry.relativePath === file.relativePath);
@@ -360,7 +367,7 @@ export function DeliverablesWorkspace({
     });
     const task = await api.publishDeliverableAiTask({
       scenario: "deliverable_analysis", projectId, deliverableId: item.id, executor: aiExecutor, profile: "analysis",
-      instructions: text.trim(),
+      originRecordId, instructions: text.trim(),
       acceptanceCriteria: item.content.records.filter(record => record.kind === "requirement").map(record => record.text),
       contextSnapshot: {
         version: 1, createdAt: new Date().toISOString(),
@@ -368,10 +375,10 @@ export function DeliverablesWorkspace({
         records: item.content.records.map(record => ({ id: record.id, kind: record.kind, text: record.text, createdAt: record.createdAt })), files, history: [],
       },
     });
-    await save(item, addDeliverableRecord(item.content, {
-      id: crypto.randomUUID(), kind: "ai_task", text: text.trim(), createdAt: new Date().toISOString(), informationType: "information", attachments: [],
-      aiTask: { id: task.id, status: task.status, executor: aiExecutor },
-    }));
+    await save(item, {
+      ...addDeliverableRecord(item.content, parent),
+      records: addDeliverableRecord(item.content, parent).records.map(record => record.id === originRecordId ? { ...record, aiTask: { id: task.id, status: task.status, executor: aiExecutor } } : record),
+    });
     setText("");
   };
   const startRecordEdit = (record: DeliverableRecord) => {
