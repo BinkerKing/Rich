@@ -45,6 +45,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     try {
       const payload = await readJson<{ conversation: Conversation }>(`/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: title.trim(), mode }) });
       setConversations(current => [payload.conversation, ...current]); setActiveId(payload.conversation.id); setTitle(""); setCreating(false);
+      if (payload.conversation.mode === "task") void send(payload.conversation, "请阅读 Rich 已提供的交付物上下文，确认你已理解当前目标，并简要说明你接下来可以协助完成什么。", "Rich 已请求 Codex 阅读并确认上述上下文。");
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
   const archive = async () => {
@@ -59,13 +60,14 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     try { await readJson(`/api/deliverable-codex/conversations/${encodeURIComponent(active.id)}/writeback`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ summary }) }); await refresh(); }
     catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
-  const send = async () => {
-    if (!active || !input.trim() || streaming) return;
-    const content = input.trim(); const userMessageId = crypto.randomUUID(); const clientRequestId = crypto.randomUUID();
-    setInput(""); setStreaming(true); setError("");
-    setMessages(current => ({ ...current, [active.id]: [...(current[active.id] ?? []), { role: "user", content }, { role: "assistant", content: "" }] }));
+  const send = async (target = active, message = input.trim(), displayContent = message) => {
+    if (!target || !message || streaming) return;
+    const content = message; const userMessageId = crypto.randomUUID(); const clientRequestId = crypto.randomUUID();
+    if (target.id === active?.id) setInput(""); setStreaming(true); setError("");
+    const displayRole: Message["role"] = displayContent === content ? "user" : "system";
+    setMessages(current => ({ ...current, [target.id]: [...(current[target.id] ?? []), { role: displayRole, content: displayContent }, { role: "assistant", content: "" }] }));
     try {
-      const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(active.id)}/stream`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, userMessageId, clientRequestId }) });
+      const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(target.id)}/stream`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, userMessageId, clientRequestId }) });
       if (!response.ok || !response.body) throw new Error(`发送失败 (${response.status})`);
       const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = "";
       while (true) {
@@ -74,7 +76,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
         for (const part of parts) {
           const event = /^event: (.+)$/m.exec(part)?.[1]; const raw = /^data: (.+)$/m.exec(part)?.[1]; if (!raw) continue;
           const data = JSON.parse(raw) as { chunk?: string; message?: string };
-          if (event === "text" && data.chunk) setMessages(current => ({ ...current, [active.id]: (current[active.id] ?? []).map((message, index, all) => index === all.length - 1 ? { ...message, content: message.content + data.chunk } : message) }));
+          if (event === "text" && data.chunk) setMessages(current => ({ ...current, [target.id]: (current[target.id] ?? []).map((message, index, all) => index === all.length - 1 ? { ...message, content: message.content + data.chunk } : message) }));
           if (event === "error") setError(data.message ?? "Codex 对话失败");
         }
       }
