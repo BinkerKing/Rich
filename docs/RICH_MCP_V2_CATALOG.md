@@ -2,7 +2,7 @@
 
 > 此文件由 `pnpm --filter @ke/server mcp:docs` 生成，请勿手工编辑。
 
-工具数：24；输入 Schema：20479 bytes。所有工具返回统一的 `{ ok, action, data/error, refs, changes, verification, warnings }` 信封。
+工具数：24；输入 Schema：20546 bytes。所有工具返回统一的 `{ ok, action, data/error, refs, changes, verification, warnings }` 信封。
 
 ## `rich_automation_manage`
 
@@ -377,7 +377,7 @@
 - 用于：写入 Agent 对交付物分析任务的摘要和证据，并将任务提交给人工复核。
 - 不用于：目标对象尚未定位；此时先使用查询工具。
 - 安全属性：只读=false，破坏性=false，幂等=true
-- 输入：`taskId`（必填）、`summary`（必填）、`evidence`
+- 输入：`taskId`（必填）、`summary`（必填）、`evidence`、`reportMarkdown`
 - 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
 - 验证：Reads the completed task and confirms it requires human review.
 - 示例：
