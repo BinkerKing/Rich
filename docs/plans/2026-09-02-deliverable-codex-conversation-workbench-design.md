@@ -22,9 +22,12 @@ Names, folder paths, and URLs are display data and must not be used as identity.
 
 - A deliverable can have any number of unarchived conversation windows.
 - The workbench is opened from that deliverable, lists all of its unarchived windows in a topmost title-tab strip, and restores the most recently active one by default.
+- With the Rich application focused, `⌘ Space` toggles the workbench from every Rich page: the first press opens the workbench for the current page scope and the second press hides it. The shortcut is handled before page-specific keyboard shortcuts and remains active while focus is in a Rich text editor or input.
 - There is no close button on a title tab. Archiving is the only removal action; it hides the tab but retains searchable history and the audit trail.
 - Closing the workbench only hides it. It does not archive the conversation or cancel a running Codex turn.
 - Title tabs show a user-editable title, fixed mode badge, and the fixed executor label. The first release always creates `codex` conversations, but executor remains persisted as a field for later Claude Code support.
+
+`⌘ Space` is intentionally scoped to an active Rich window, not registered as an operating-system-wide shortcut. macOS normally reserves that combination for Spotlight, and a browser tab cannot safely override it when Rich is not focused. A future packaged desktop host may offer a configurable global shortcut only after handling that system conflict explicitly.
 
 ### Immutable creation choices
 
@@ -58,7 +61,7 @@ Task mode never writes back merely because a turn ends. A user can say, for exam
 composer                                               [发送]
 ```
 
-The tab strip is the first row in the workbench. Project/deliverable breadcrumb and connection state are secondary, read-only context indicators. No right-side context panel is shown; chat owns the available space. Tool progress, command activity, errors, and final output appear inline in the message timeline.
+The tab strip is the first row in the workbench. Project/deliverable breadcrumb and connection state are secondary, read-only context indicators. No right-side context panel is shown; chat owns the available space. Tool progress, command activity, errors, and final output appear inline in the message timeline. From a non-deliverable page in the first release, `⌘ Space` opens a small unavailable-state workbench explaining that this page has no Codex conversation mode yet; it never guesses a deliverable scope.
 
 ## Runtime and Data Design
 
@@ -130,11 +133,12 @@ The creation route validates that the deliverable belongs to the project, that t
 1. Opening one deliverable shows only that deliverable’s unarchived Codex title tabs and restores its most recently active tab.
 2. Creating three conversations in the same deliverable produces three tabs with immutable mode labels; switching tabs restores each transcript and native Codex context.
 3. The title-tab strip is the topmost workbench row; no right context sidebar exists.
-4. Closing the workbench preserves conversations. Archiving a tab removes it from the active list and leaves an archived, recoverable history entry.
-5. Free and bug mode cannot invoke a Rich writeback tool in an integration test.
-6. Task mode does not write anything back after ordinary dialogue; an explicit user request can invoke the task-mode writeback tool and creates observable deliverable-side state.
-7. Codex text, tool activity, errors, and completion stream in real time through the workbench.
-8. A restart or stale native thread recovers using Rich conversation history without mixing scopes or modes.
+4. While an active Rich window is focused, `⌘ Space` opens the workbench and a second press hides it, including when a Rich text field has focus. Neither action archives a conversation or cancels a turn.
+5. Closing the workbench preserves conversations. Archiving a tab removes it from the active list and leaves an archived, recoverable history entry.
+6. Free and bug mode cannot invoke a Rich writeback tool in an integration test.
+7. Task mode does not write anything back after ordinary dialogue; an explicit user request can invoke the task-mode writeback tool and creates observable deliverable-side state.
+8. Codex text, tool activity, errors, and completion stream in real time through the workbench.
+9. A restart or stale native thread recovers using Rich conversation history without mixing scopes or modes.
 
 ## Deferred
 
