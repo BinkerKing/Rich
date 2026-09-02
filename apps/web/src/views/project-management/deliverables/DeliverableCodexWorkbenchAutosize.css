@@ -1,3 +1,4 @@
 .deliverable-codex-workbench__composer textarea{height:52px;min-height:52px;resize:none;overflow-y:auto}
 .deliverable-codex-backdrop.is-hidden{display:none}
 .deliverable-codex-workbench__message-images{display:flex;gap:8px;margin-top:10px}.deliverable-codex-workbench__message-images img{width:104px;height:78px;object-fit:cover;border-radius:8px;border:1px solid #4a6c7b;cursor:zoom-in}
+.deliverable-codex-workbench__tabs{cursor:grab;user-select:none}.deliverable-codex-workbench__tabs button{cursor:pointer}.deliverable-codex-workbench__resize{position:absolute;right:5px;bottom:5px;width:18px;height:18px;cursor:nwse-resize;z-index:2}.deliverable-codex-workbench.is-maximized{width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;border-radius:0;transform:none!important}.deliverable-codex-workbench.is-maximized .deliverable-codex-workbench__resize{display:none}

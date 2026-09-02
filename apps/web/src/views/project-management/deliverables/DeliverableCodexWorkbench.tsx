@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { useChatComposer } from "../../../lib/useChatComposer.js";
 import "./DeliverableCodexWorkbench.css";
 import "./DeliverableCodexWorkbenchAutosize.css";
@@ -7,6 +7,9 @@ type Mode = "free" | "task" | "bug";
 type Conversation = { id: string; title: string; mode: Mode; status: "active" | "archived"; codexThreadId?: string; lastActiveAt: string };
 type Message = { role: "user" | "assistant" | "system"; content: string; attachments?: Array<{ id?: string; url?: string; previewUrl?: string }> };
 type ConnectionState = "checking" | "connected" | "server_offline" | "session_lost";
+type WindowState = { x: number; y: number; width: number; height: number; maximized: boolean };
+const windowStorageKey = "rich.deliverable-codex.window";
+const defaultWindow: WindowState = { x: 0, y: 0, width: 980, height: 720, maximized: false };
 
 const modeLabel: Record<Mode, string> = { free: "自由模式", task: "任务模式", bug: "BUG 模式" };
 const taskName: Record<Mode, string> = { free: "交付物自由对话", task: "交付物任务", bug: "交付物 BUG 诊断" };
@@ -34,6 +37,8 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const composer = useChatComposer({ maxAttachments: 4 });
   const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<HTMLElement>(null);
+  const [windowState, setWindowState] = useState<WindowState>(() => { try { return { ...defaultWindow, ...JSON.parse(localStorage.getItem(windowStorageKey) ?? "{}") }; } catch { return defaultWindow; } });
+  const dragRef = useRef<{ x: number; y: number; startX: number; startY: number }>();
   const active = useMemo(() => conversations.find(item => item.id === activeId), [activeId, conversations]);
 
   const refresh = async () => {
@@ -68,6 +73,9 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     element.style.height = `${Math.min(element.scrollHeight, 220)}px`;
   }, [input]);
   useEffect(() => { const element = messagesRef.current; if (visible && element) element.scrollTop = element.scrollHeight; }, [activeId, messages, visible]);
+  useEffect(() => { localStorage.setItem(windowStorageKey, JSON.stringify(windowState)); }, [windowState]);
+  const beginDrag = (event: ReactPointerEvent<HTMLElement>) => { if (windowState.maximized || (event.target as HTMLElement).closest("button")) return; dragRef.current = { x: event.clientX, y: event.clientY, startX: windowState.x, startY: windowState.y }; event.currentTarget.setPointerCapture(event.pointerId); };
+  const drag = (event: ReactPointerEvent<HTMLElement>) => { const point = dragRef.current; if (point) setWindowState(current => ({ ...current, x: point.startX + event.clientX - point.x, y: point.startY + event.clientY - point.y })); };
 
   const create = async () => {
     if (!title.trim()) return;
@@ -117,12 +125,13 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   };
 
   return <div className={`deliverable-codex-backdrop${visible ? "" : " is-hidden"}`} role="dialog" aria-modal="true" aria-label="交付物 Codex 对话">
-    <section className="deliverable-codex-workbench">
-      <header className="deliverable-codex-workbench__tabs">
+    <section className={`deliverable-codex-workbench${windowState.maximized ? " is-maximized" : ""}`} style={{ width: windowState.width, height: windowState.height, transform: `translate(${windowState.x}px, ${windowState.y}px)` }}>
+      <header className="deliverable-codex-workbench__tabs" onPointerDown={beginDrag} onPointerMove={drag} onPointerUp={() => { dragRef.current = undefined; }}>
         <div className="deliverable-codex-workbench__titles">{conversations.map(conversation => <button key={conversation.id} type="button" className={conversation.id === activeId ? "is-active" : ""} onClick={() => setActiveId(conversation.id)}><span>交付物 · {conversation.title}</span><em>{modeLabel[conversation.mode]}</em></button>)}</div>
         <button type="button" onClick={() => setCreating(true)}>＋ 新会话</button>
         <button type="button" disabled={!active} onClick={() => void archive()}>归档</button>
         {active?.mode === "task" && <button type="button" disabled={streaming || !(messages[active.id] ?? []).some(message => message.role === "assistant" && message.content)} onClick={() => void writeBack()}>回写交付物</button>}
+        <button type="button" title={windowState.maximized ? "还原窗口" : "全屏"} onClick={() => setWindowState(current => ({ ...current, maximized: !current.maximized }))}>{windowState.maximized ? "↙" : "⛶"}</button>
       </header>
       <div className="deliverable-codex-workbench__scope">交付物 / {deliverableTitle} {active && <span className={`deliverable-codex-workbench__connection is-${connection}`} title={connectionLabel[connection]}><i aria-hidden="true"/>Codex <b>· {taskName[active.mode]}</b></span>}</div>
       {creating && <form className="deliverable-codex-workbench__create" onSubmit={event => { event.preventDefault(); void create(); }}><input autoFocus value={title} onChange={event => setTitle(event.target.value)} placeholder="会话标题"/><select value={mode} onChange={event => setMode(event.target.value as Mode)}><option value="free">自由模式</option><option value="task">任务模式（可按要求回写）</option><option value="bug">BUG 模式</option></select><button type="submit">创建</button><button type="button" onClick={() => setCreating(false)}>取消</button></form>}
@@ -130,6 +139,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       {error && <p className="deliverable-codex-workbench__error">{error}</p>}
       <footer className="deliverable-codex-workbench__composer">{composer.attachments.length > 0 && <div className="deliverable-codex-workbench__attachments">{composer.attachments.map(attachment => <figure key={attachment.clientId}><button type="button" onClick={() => setPreviewUrl(attachment.previewUrl)}><img src={attachment.previewUrl} alt="已粘贴图片"/></button><button type="button" aria-label="删除图片" onClick={() => composer.detach(attachment.clientId)}>×</button></figure>)}</div>}<textarea ref={composerTextareaRef} rows={1} value={input} disabled={!active || streaming} onChange={event => setInput(event.target.value)} onPaste={event => { const image = Array.from(event.clipboardData.items).find(item => item.type.startsWith("image/"))?.getAsFile(); if (image) { event.preventDefault(); void composer.attach(image); } }} onKeyDown={event => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void send(); } }} placeholder={active ? "随心输入" : "请先新建会话"}/><div className="deliverable-codex-workbench__composer-actions"><span aria-hidden="true"/><button type="button" aria-label={streaming ? "Codex 正在响应" : "发送消息"} disabled={!active || (!input.trim() && composer.attachments.length === 0) || composer.isUploading} onClick={() => void send()}>{streaming ? "■" : "↑"}</button></div></footer>
       {previewUrl && <div className="deliverable-codex-workbench__image-preview" role="dialog" aria-modal="true" onClick={() => setPreviewUrl(undefined)}><img src={previewUrl} alt="粘贴图片预览"/></div>}
+      <i className="deliverable-codex-workbench__resize" onPointerDown={event => { const start = { x: event.clientX, y: event.clientY, width: windowState.width, height: windowState.height }; event.currentTarget.setPointerCapture(event.pointerId); const resize = (move: PointerEvent) => setWindowState(current => ({ ...current, width: Math.max(640, start.width + move.clientX - start.x), height: Math.max(460, start.height + move.clientY - start.y) })); const stop = () => { window.removeEventListener("pointermove", resize); window.removeEventListener("pointerup", stop); }; window.addEventListener("pointermove", resize); window.addEventListener("pointerup", stop); }}/>
     </section>
   </div>;
 }
