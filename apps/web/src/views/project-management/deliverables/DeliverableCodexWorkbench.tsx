@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useChatComposer } from "../../../lib/useChatComposer.js";
 import "./DeliverableCodexWorkbench.css";
 import "./DeliverableCodexWorkbenchAutosize.css";
@@ -146,7 +147,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const workbenchStyle = windowState.maximized
     ? { position: "absolute" as const, inset: 0, width: "100%", height: "100%", maxWidth: "none", maxHeight: "none", border: 0, borderRadius: 0, boxShadow: "none", transform: "none" }
     : { width: windowState.width, height: windowState.height, transform: `translate(${windowState.x}px, ${windowState.y}px)` };
-  return <div className={`deliverable-codex-backdrop${visible ? "" : " is-hidden"}${windowState.maximized ? " is-maximized" : ""}`} style={windowState.maximized ? { zIndex: 2147483000, top: desktopTitlebarHeight, padding: 0, background: "#0d1c27" } : undefined} role="dialog" aria-modal="true" aria-label="交付物 Codex 对话">
+  const workbench = <div className={`deliverable-codex-backdrop${visible ? "" : " is-hidden"}${windowState.maximized ? " is-maximized" : ""}`} style={windowState.maximized ? { zIndex: 2147483000, top: desktopTitlebarHeight, padding: 0, background: "#0d1c27" } : undefined} role="dialog" aria-modal="true" aria-label="交付物 Codex 对话">
     <section className={`deliverable-codex-workbench${windowState.maximized ? " is-maximized" : ""}`} style={workbenchStyle}>
       <header className="deliverable-codex-workbench__tabs" onPointerDown={beginDrag} onPointerMove={drag} onPointerUp={() => { dragRef.current = undefined; }}>
         <div className="deliverable-codex-workbench__titles">{conversations.map(conversation => <button key={conversation.id} type="button" className={conversation.id === activeId ? "is-active" : ""} onClick={() => setActiveId(conversation.id)}><span>交付物 · {conversation.title}</span><em>{modeLabel[conversation.mode]}</em></button>)}</div>
@@ -164,4 +165,5 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       <i className="deliverable-codex-workbench__resize" onPointerDown={event => { const start = { x: event.clientX, y: event.clientY, width: windowState.width, height: windowState.height }; event.currentTarget.setPointerCapture(event.pointerId); const resize = (move: PointerEvent) => setWindowState(current => fitWindowToViewport({ ...current, width: start.width + move.clientX - start.x, height: start.height + move.clientY - start.y })); const stop = () => { window.removeEventListener("pointermove", resize); window.removeEventListener("pointerup", stop); }; window.addEventListener("pointermove", resize); window.addEventListener("pointerup", stop); }}/>
     </section>
   </div>;
+  return createPortal(workbench, document.body);
 }
