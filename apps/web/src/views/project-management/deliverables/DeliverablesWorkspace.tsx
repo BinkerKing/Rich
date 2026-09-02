@@ -13,6 +13,7 @@ import {
   deliverableFolderPath,
   linkedDeliverableContent,
   normalizeDeliverableContent,
+  orderDeliverableRecords,
   updateDeliverableFileMeta,
   type DeliverableFileType,
   type DeliverableRecord,
@@ -43,7 +44,7 @@ const fileDate = (value: string) =>
     minute: "2-digit",
   });
 const recordKindLabel = (kind: DeliverableRecordKind) =>
-  kind === "requirement" ? "要求" : kind === "status" ? "状态" : kind === "change" ? "修改" : kind === "information" ? "信息" : kind === "ai_task" ? "AI 任务" : "材料";
+  kind === "requirement" ? "要求" : kind === "status" ? "状态" : kind === "change" ? "修改" : kind === "information" ? "信息" : kind === "ai_task_result" ? "AI 回复" : kind === "ai_task" ? "AI 任务" : "材料";
 const richTextHasContent = (value: string) => value.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0;
 
 export function DeliverablesWorkspace({
@@ -637,21 +638,24 @@ export function DeliverablesWorkspace({
                         </footer>
                       </div>
                       <div className="deliverables-workspace__record-list">
-                      {item.content.records.map((record) => (
+                      {orderDeliverableRecords(item.content.records).map((record) => {
+                        const resultFiles = record.aiTaskResult ? [record.aiTaskResult.report, ...record.aiTaskResult.evidence].filter((file): file is NonNullable<typeof file> => Boolean(file)) : [];
+                        return (
                           <article
                             key={record.id}
                             className={`deliverables-workspace__record is-${record.kind}${editingRecordId === record.id ? " is-editing-existing" : ""}`}
                             >
                             <b>{recordKindLabel(record.kind)}</b>
-                            <div className="deliverables-workspace__record-content workflow-rich-content" onDoubleClick={() => startRecordEdit(record)} title="双击编辑" dangerouslySetInnerHTML={{ __html: record.text }} />
+                            <div className="deliverables-workspace__record-content workflow-rich-content" onDoubleClick={() => record.kind === "ai_task_result" ? undefined : startRecordEdit(record)} title={record.kind === "ai_task_result" ? undefined : "双击编辑"} dangerouslySetInnerHTML={{ __html: record.text }} />
                             <aside className="deliverables-workspace__record-actions">
-                              <time>{fileDate(record.createdAt)}</time>
+                              <time>{fileDate(record.aiTaskResult?.completedAt || record.createdAt)}</time>
                               {record.aiTask && <small className="deliverables-workspace__record-ai-task">AI 任务 · {record.aiTask.executor === "hermes" ? "Hermes" : "Multica"} · {record.aiTask.status}</small>}
-                              <button aria-label="删除记录" title="删除记录" onClick={() => void deleteRecord(item, record)}>×</button>
+                              {record.aiTaskResult && <small className="deliverables-workspace__record-ai-result">{record.aiTaskResult.executor === "hermes" ? "Hermes" : "Multica"} · {record.aiTaskResult.status === "archive_failed" ? "归档失败" : "待复核"}</small>}
+                              {record.kind !== "ai_task_result" && <button aria-label="删除记录" title="删除记录" onClick={() => void deleteRecord(item, record)}>×</button>}
                             </aside>
-                            {record.attachments.length > 0 && (
+                            {(record.attachments.length > 0 || resultFiles.length > 0) && (
                               <ul>
-                                {record.attachments.map((file) => (
+                                {[...record.attachments, ...resultFiles].map((file) => (
                                   <li key={file.relativePath}>
                                     <button
                                       className="deliverables-workspace__attachment-link"
@@ -671,7 +675,8 @@ export function DeliverablesWorkspace({
                               </ul>
                             )}
                           </article>
-                      ))}
+                        );
+                      })}
                       </div>
                     </section>
                     <section

@@ -161,8 +161,8 @@ test("交付物记录支持信息与材料，材料上传后进入交付物文�
 });
 
 test("每条交付物记录显示记录时间，并支持编辑和删除", () => {
-  assert.match(deliverables, /fileDate\(record\.createdAt\)/);
-  assert.match(deliverables, /onDoubleClick=\{\(\) => startRecordEdit\(record\)\}/);
+  assert.match(deliverables, /fileDate\(record\.aiTaskResult\?\.completedAt \|\| record\.createdAt\)/);
+  assert.match(deliverables, /onDoubleClick=\{\(\) => record\.kind === "ai_task_result" \? undefined : startRecordEdit\(record\)\}/);
   assert.match(deliverables, /aria-label="删除记录"/);
   assert.match(deliverables, /const saveRecordEdit/);
   assert.match(deliverables, /const deleteRecord/);
@@ -195,4 +195,13 @@ test("发布 AI 任务时先保存父记录并携带稳定关联 ID", () => {
   assert.match(deliverables, /aiTask: \{ id: "", status: "publishing", executor: aiExecutor \}/);
   assert.match(deliverables, /await save\(item, addDeliverableRecord\(item\.content, parent\)\);/);
   assert.match(deliverables, /originRecordId,/);
+});
+
+test("AI 任务结果以线程回复展示并能打开完整报告", () => {
+  assert.match(deliverables, /orderDeliverableRecords\(item\.content\.records\)/);
+  assert.match(deliverables, /AI 回复/);
+  assert.match(deliverables, /待复核/);
+  assert.match(deliverables, /record\.aiTaskResult\.report/);
+  assert.match(deliverables, /deliverableFileAction\(\s*projectId,\s*"open",\s*file\.relativePath/);
+  assert.match(styles, /\.deliverables-workspace__record\.is-ai_task_result/);
 });

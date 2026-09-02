@@ -10844,6 +10844,9 @@
 .deliverables-workspace__record-actions { display:flex; align-items:flex-start; justify-content:flex-end; gap:8px; min-width:150px; margin-top:2px; color:rgba(210,229,241,.48); font-size:11px; white-space:nowrap; }
 .deliverables-workspace__record-actions time { margin:1px 0 0; }
 .deliverables-workspace__record-ai-task { max-width:165px; overflow:hidden; color:#9ed8ff; text-overflow:ellipsis; white-space:nowrap; }
+.deliverables-workspace__record-ai-result { max-width:165px; overflow:hidden; color:#7ce7c3; text-overflow:ellipsis; white-space:nowrap; }
+.deliverables-workspace__record.is-ai_task_result { margin-left:28px; padding-left:16px; border-left:2px solid rgba(94,224,181,.4); }
+.deliverables-workspace__record.is-ai_task_result > b { color:#8cebc9; background:rgba(15,133,103,.26); }
 .deliverables-workspace__record-actions button { display:grid; flex:0 0 auto; width:22px; height:22px; place-items:center; margin-top:-3px; padding:0; border:0; border-radius:4px; color:#f09aab; background:transparent; font-size:17px; }
 .deliverables-workspace__record-actions button:hover { background:rgba(190,24,93,.16); }
 .deliverables-workspace__record-list > .deliverables-workspace__record > ul { grid-column:2 / 3; }
