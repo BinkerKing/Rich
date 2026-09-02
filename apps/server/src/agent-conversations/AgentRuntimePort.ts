@@ -3,6 +3,7 @@ import type { AgentRuntimeCapabilities, AgentCapabilityAction } from "./types.js
 export interface AgentRuntimeMessage {
   role: "user" | "assistant" | "system";
   content: string;
+  imageUrls?: string[];
 }
 
 export interface AgentRuntimeTurnInput {

@@ -6,6 +6,7 @@ import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
 import type { DeliverableCodexConversationRepo, DeliverableCodexMode } from "../repos/DeliverableCodexConversationRepo.js";
 import type { DeliverableCodexContextService } from "../deliverable-codex/DeliverableCodexContextService.js";
 import type { ProjectManagementRepo } from "../repos/ProjectManagementRepo.js";
+import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
 
 const modes: DeliverableCodexMode[] = ["free", "task", "bug"];
 
@@ -15,6 +16,7 @@ export function deliverableCodexRoutes(deps: {
   context: DeliverableCodexContextService;
   agents: AgentConversationService;
   projects: Pick<ProjectManagementRepo, "listAllModuleItems" | "updateModuleItem">;
+  attachments: ChatAttachmentsRepo | null;
 }): Hono {
   const r = new Hono();
   const scopeKey = (projectId: string, deliverableId: string) => `deliverable:${projectId}:${deliverableId}`;
@@ -86,11 +88,16 @@ export function deliverableCodexRoutes(deps: {
   r.post("/conversations/:id/stream", async c => {
     const existing = await deps.conversations.get(c.req.param("id"));
     if (!existing || existing.status !== "active") return c.json({ error: "Active conversation not found" }, 404);
-    const body = await c.req.json().catch(() => null) as { content?: unknown; clientRequestId?: unknown; userMessageId?: unknown } | null;
+    const body = await c.req.json().catch(() => null) as { content?: unknown; clientRequestId?: unknown; userMessageId?: unknown; attachments?: unknown } | null;
     const content = typeof body?.content === "string" ? body.content.trim() : "";
     const clientRequestId = typeof body?.clientRequestId === "string" ? body.clientRequestId : "";
     const userMessageId = typeof body?.userMessageId === "string" ? body.userMessageId : "";
     if (!content || !clientRequestId || !userMessageId) return c.json({ error: "content, clientRequestId and userMessageId are required" }, 400);
+    const attachmentIds = Array.isArray(body?.attachments) ? body.attachments.flatMap(item => typeof item === "object" && item && typeof (item as { id?: unknown }).id === "string" ? [(item as { id: string }).id] : []) : [];
+    const imageUrls = deps.attachments ? (await Promise.all(attachmentIds.map(async id => {
+      const image = await deps.attachments!.getData(id);
+      return image ? `data:${image.mime};base64,${Buffer.from(image.data).toString("base64")}` : undefined;
+    }))).filter((url): url is string => Boolean(url)) : [];
     await deps.conversations.touch(existing.id, new Date().toISOString());
     return streamSSE(c, async stream => {
       const write = async (event: AgentConversationEvent) => {
@@ -99,7 +106,8 @@ export function deliverableCodexRoutes(deps: {
         await stream.writeSSE({ event: name, data: JSON.stringify(data) });
       };
       try {
-        const result = await deps.agents.sendMessage(existing.conversationId, { clientRequestId, userMessageId, content }, write);
+        const result = await deps.agents.sendMessage(existing.conversationId, { clientRequestId, userMessageId, content, imageUrls }, write);
+        if (deps.attachments) await Promise.all(attachmentIds.map(id => deps.attachments!.bindToMessage(id, userMessageId)));
         const sessionId = result.turn.runtimeSessionId;
         if (sessionId) await deps.conversations.setCodexThread(existing.id, sessionId, existing.contextVersion, new Date().toISOString());
       } catch (error) {

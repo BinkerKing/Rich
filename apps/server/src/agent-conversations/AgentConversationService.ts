@@ -114,7 +114,7 @@ export class AgentConversationService {
 
   async sendMessage(
     conversationId: string,
-    input: { clientRequestId: string; userMessageId: string; content: string; metadata?: Record<string, unknown> },
+    input: { clientRequestId: string; userMessageId: string; content: string; imageUrls?: string[]; metadata?: Record<string, unknown> },
     onEvent?: (event: AgentConversationEvent) => Promise<void> | void,
   ): Promise<{ turn: AgentConversationTurn; events: AgentConversationEvent[] }> {
     if (!this.execution) throw new Error("Agent conversation execution is not configured");
@@ -175,7 +175,7 @@ export class AgentConversationService {
     const transcript = [
       { role: "system" as const, content: `${buildChatSystemPrompt()}${summaryContext}` },
       ...recent,
-    ];
+    ].map((message, index, all) => index === all.length - 1 && message.role === "user" ? { ...message, imageUrls: input.imageUrls } : message);
 
     try {
       const outcome = await this.runRuntimeTurn(runtime, {

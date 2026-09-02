@@ -500,7 +500,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/great-me", greatMeRoutes(greatMe));
   app.route("/api/chat", chatRoutes(chatAttachments, ai, chatConversations, aiContextProvider, operationCorrelations, agentConversationConfigs, agentConversationTurns, agentExecution, conversationPromotions));
   if (deliverableCodexConversations && chatConversations && agentExecution) {
-    app.route("/api/deliverable-codex", deliverableCodexRoutes({ conversations: deliverableCodexConversations, chats: chatConversations, context: deliverableCodexContext, agents: agentExecution, projects: projectManagement }));
+    app.route("/api/deliverable-codex", deliverableCodexRoutes({ conversations: deliverableCodexConversations, chats: chatConversations, context: deliverableCodexContext, agents: agentExecution, projects: projectManagement, attachments: chatAttachments }));
   }
   app.route("/api/chat-visual-blocks", chatVisualBlocksRoutes(chatVisualBlocks));
   app.route("/api/chat/attachments", chatAttachmentsRoutes(chatAttachments));

@@ -95,7 +95,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     const displayRole: Message["role"] = displayContent === content ? "user" : "system";
     setMessages(current => ({ ...current, [target.id]: [...(current[target.id] ?? []), { role: displayRole, content: displayContent }, { role: "assistant", content: "" }] }));
     try {
-      const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(target.id)}/stream`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, userMessageId, clientRequestId }) });
+      const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(target.id)}/stream`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, userMessageId, clientRequestId, attachments: composer.getAttachmentRefs() }) });
       if (!response.ok || !response.body) throw new Error(`发送失败 (${response.status})`);
       const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = "";
       while (true) {

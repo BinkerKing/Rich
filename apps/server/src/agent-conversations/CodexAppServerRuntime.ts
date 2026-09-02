@@ -95,7 +95,10 @@ export class CodexAppServerRuntime implements AgentRuntimePort {
     try {
       const result = await this.request("turn/start", {
         threadId,
-        input: input.messages.map(message => ({ type: "text", text: `${message.role}: ${message.content}` })),
+        input: input.messages.flatMap(message => [
+          { type: "text", text: `${message.role}: ${message.content}` },
+          ...(message.imageUrls ?? []).map(url => ({ type: "image", url })),
+        ]),
       });
       const turn = result.turn as { id?: unknown } | undefined;
       if (turn && typeof turn.id === "string") {
