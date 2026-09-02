@@ -285,6 +285,26 @@ function applySchema(db: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_chat_conversations_last ON chat_conversations(last_message_at DESC);
 
+    CREATE TABLE IF NOT EXISTS deliverable_codex_conversations (
+      id                TEXT PRIMARY KEY,
+      conversation_id   TEXT NOT NULL UNIQUE,
+      scope_key         TEXT NOT NULL,
+      project_id        TEXT NOT NULL,
+      deliverable_id    TEXT NOT NULL,
+      title             TEXT NOT NULL,
+      mode              TEXT NOT NULL,
+      executor          TEXT NOT NULL DEFAULT 'codex',
+      codex_thread_id   TEXT,
+      status            TEXT NOT NULL DEFAULT 'active',
+      context_version   TEXT,
+      created_at        TEXT NOT NULL,
+      updated_at        TEXT NOT NULL,
+      last_active_at    TEXT NOT NULL,
+      FOREIGN KEY (conversation_id) REFERENCES chat_conversations(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_deliverable_codex_scope_active
+      ON deliverable_codex_conversations(scope_key, status, last_active_at DESC);
+
     CREATE TABLE IF NOT EXISTS agent_conversation_configs (
       conversation_id    TEXT PRIMARY KEY,
       executor           TEXT NOT NULL DEFAULT 'hermes',
