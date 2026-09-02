@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useChatComposer } from "../../../lib/useChatComposer.js";
 import "./DeliverableCodexWorkbench.css";
+import "./DeliverableCodexWorkbenchAutosize.css";
 
 type Mode = "free" | "task" | "bug";
 type Conversation = { id: string; title: string; mode: Mode; status: "active" | "archived"; codexThreadId?: string; lastActiveAt: string };
@@ -31,6 +32,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const [connection, setConnection] = useState<ConnectionState>("checking");
   const [previewUrl, setPreviewUrl] = useState<string>();
   const composer = useChatComposer({ maxAttachments: 4 });
+  const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const active = useMemo(() => conversations.find(item => item.id === activeId), [activeId, conversations]);
 
   const refresh = async () => {
@@ -58,6 +60,12 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     const timer = window.setInterval(() => { void check(); }, 15_000);
     return () => { disposed = true; window.clearInterval(timer); };
   }, [activeId]);
+  useEffect(() => {
+    const element = composerTextareaRef.current;
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.height = `${Math.min(element.scrollHeight, 220)}px`;
+  }, [input]);
 
   const create = async () => {
     if (!title.trim()) return;
@@ -116,7 +124,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       {creating && <form className="deliverable-codex-workbench__create" onSubmit={event => { event.preventDefault(); void create(); }}><input autoFocus value={title} onChange={event => setTitle(event.target.value)} placeholder="会话标题"/><select value={mode} onChange={event => setMode(event.target.value as Mode)}><option value="free">自由模式</option><option value="task">任务模式（可按要求回写）</option><option value="bug">BUG 模式</option></select><button type="submit">创建</button><button type="button" onClick={() => setCreating(false)}>取消</button></form>}
       <main className="deliverable-codex-workbench__messages">{active ? (messages[active.id] ?? []).map((message, index) => <article key={index} className={`is-${message.role}`}><b>{message.role === "user" ? "你" : message.role === "system" ? "Rich · 已发送给 Codex 的上下文" : "Codex"}</b><p>{message.content || (streaming ? "正在响应…" : "")}</p></article>) : <p className="deliverable-codex-workbench__empty">新建一个会话，开始围绕此交付物对话。</p>}</main>
       {error && <p className="deliverable-codex-workbench__error">{error}</p>}
-      <footer className="deliverable-codex-workbench__composer">{composer.attachments.length > 0 && <div className="deliverable-codex-workbench__attachments">{composer.attachments.map(attachment => <figure key={attachment.clientId}><button type="button" onClick={() => setPreviewUrl(attachment.previewUrl)}><img src={attachment.previewUrl} alt="已粘贴图片"/></button><button type="button" aria-label="删除图片" onClick={() => composer.detach(attachment.clientId)}>×</button></figure>)}</div>}<textarea value={input} disabled={!active || streaming} onChange={event => setInput(event.target.value)} onPaste={event => { const image = Array.from(event.clipboardData.items).find(item => item.type.startsWith("image/"))?.getAsFile(); if (image) { event.preventDefault(); void composer.attach(image); } }} onKeyDown={event => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void send(); } }} placeholder={active ? "随心输入" : "请先新建会话"}/><div className="deliverable-codex-workbench__composer-actions"><span aria-hidden="true"/><button type="button" aria-label={streaming ? "Codex 正在响应" : "发送消息"} disabled={!active || (!input.trim() && composer.attachments.length === 0) || composer.isUploading} onClick={() => void send()}>{streaming ? "■" : "↑"}</button></div></footer>
+      <footer className="deliverable-codex-workbench__composer">{composer.attachments.length > 0 && <div className="deliverable-codex-workbench__attachments">{composer.attachments.map(attachment => <figure key={attachment.clientId}><button type="button" onClick={() => setPreviewUrl(attachment.previewUrl)}><img src={attachment.previewUrl} alt="已粘贴图片"/></button><button type="button" aria-label="删除图片" onClick={() => composer.detach(attachment.clientId)}>×</button></figure>)}</div>}<textarea ref={composerTextareaRef} rows={1} value={input} disabled={!active || streaming} onChange={event => setInput(event.target.value)} onPaste={event => { const image = Array.from(event.clipboardData.items).find(item => item.type.startsWith("image/"))?.getAsFile(); if (image) { event.preventDefault(); void composer.attach(image); } }} onKeyDown={event => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void send(); } }} placeholder={active ? "随心输入" : "请先新建会话"}/><div className="deliverable-codex-workbench__composer-actions"><span aria-hidden="true"/><button type="button" aria-label={streaming ? "Codex 正在响应" : "发送消息"} disabled={!active || (!input.trim() && composer.attachments.length === 0) || composer.isUploading} onClick={() => void send()}>{streaming ? "■" : "↑"}</button></div></footer>
       {previewUrl && <div className="deliverable-codex-workbench__image-preview" role="dialog" aria-modal="true" onClick={() => setPreviewUrl(undefined)}><img src={previewUrl} alt="粘贴图片预览"/></div>}
     </section>
   </div>;
