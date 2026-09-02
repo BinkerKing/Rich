@@ -83,7 +83,6 @@ export function deliverableCodexRoutes(deps: {
     const clientRequestId = typeof body?.clientRequestId === "string" ? body.clientRequestId : "";
     const userMessageId = typeof body?.userMessageId === "string" ? body.userMessageId : "";
     if (!content || !clientRequestId || !userMessageId) return c.json({ error: "content, clientRequestId and userMessageId are required" }, 400);
-    await deps.chats.appendMessage({ id: userMessageId, conversationId: existing.conversationId, role: "user", content, createdAt: new Date().toISOString() });
     await deps.conversations.touch(existing.id, new Date().toISOString());
     return streamSSE(c, async stream => {
       const write = async (event: AgentConversationEvent) => {
