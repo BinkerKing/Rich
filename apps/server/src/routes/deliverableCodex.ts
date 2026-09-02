@@ -5,6 +5,7 @@ import { AgentConversationService, type AgentConversationEvent } from "../agent-
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
 import type { DeliverableCodexConversationRepo, DeliverableCodexMode } from "../repos/DeliverableCodexConversationRepo.js";
 import type { DeliverableCodexContextService } from "../deliverable-codex/DeliverableCodexContextService.js";
+import type { ProjectManagementRepo } from "../repos/ProjectManagementRepo.js";
 
 const modes: DeliverableCodexMode[] = ["free", "task", "bug"];
 
@@ -13,6 +14,7 @@ export function deliverableCodexRoutes(deps: {
   chats: ChatConversationsRepo;
   context: DeliverableCodexContextService;
   agents: AgentConversationService;
+  projects: Pick<ProjectManagementRepo, "listAllModuleItems" | "updateModuleItem">;
 }): Hono {
   const r = new Hono();
   const scopeKey = (projectId: string, deliverableId: string) => `deliverable:${projectId}:${deliverableId}`;
@@ -55,6 +57,22 @@ export function deliverableCodexRoutes(deps: {
     const existing = await deps.conversations.get(c.req.param("id"));
     if (!existing) return c.json({ error: "Conversation not found" }, 404);
     return c.json({ messages: await deps.chats.listMessages(existing.conversationId, 200) });
+  });
+
+  r.post("/conversations/:id/writeback", async c => {
+    const existing = await deps.conversations.get(c.req.param("id"));
+    const body = await c.req.json().catch(() => null) as { summary?: unknown } | null;
+    const summary = typeof body?.summary === "string" ? body.summary.trim() : "";
+    if (!existing || existing.status !== "active") return c.json({ error: "Active conversation not found" }, 404);
+    if (existing.mode !== "task") return c.json({ error: "Writeback is available only in task mode" }, 403);
+    if (!summary || summary.length > 2_000) return c.json({ error: "A summary up to 2000 characters is required" }, 400);
+    const deliverable = (await deps.projects.listAllModuleItems(existing.projectId, "deliverables")).find(item => item.id === existing.deliverableId);
+    if (!deliverable || deliverable.content.recordType !== "deliverable") return c.json({ error: "Deliverable not found" }, 404);
+    const now = new Date().toISOString();
+    const records = Array.isArray(deliverable.content.records) ? deliverable.content.records : [];
+    const record = { id: randomUUID(), kind: "status", text: summary, createdAt: now, informationType: "information", attachments: [], author: "Codex" };
+    await deps.projects.updateModuleItem(existing.projectId, deliverable.id, { content: { ...deliverable.content, records: [...records, record] } });
+    return c.json({ record, status: "written" }, 201);
   });
 
   r.post("/conversations/:id/stream", async c => {

@@ -52,6 +52,13 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     await readJson(`/api/deliverable-codex/conversations/${encodeURIComponent(active.id)}/archive`, { method: "POST" });
     await refresh();
   };
+  const writeBack = async () => {
+    if (!active || active.mode !== "task") return;
+    const summary = [...(messages[active.id] ?? [])].reverse().find(message => message.role === "assistant")?.content.trim();
+    if (!summary) return;
+    try { await readJson(`/api/deliverable-codex/conversations/${encodeURIComponent(active.id)}/writeback`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ summary }) }); await refresh(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+  };
   const send = async () => {
     if (!active || !input.trim() || streaming) return;
     const content = input.trim(); const userMessageId = crypto.randomUUID(); const clientRequestId = crypto.randomUUID();
@@ -81,6 +88,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
         <div className="deliverable-codex-workbench__titles">{conversations.map(conversation => <button key={conversation.id} type="button" className={conversation.id === activeId ? "is-active" : ""} onClick={() => setActiveId(conversation.id)}>{conversation.title}<small>{modeLabel[conversation.mode]}</small></button>)}</div>
         <button type="button" onClick={() => setCreating(true)}>＋ 新会话</button>
         <button type="button" disabled={!active} onClick={() => void archive()}>归档</button>
+        {active?.mode === "task" && <button type="button" disabled={streaming || !(messages[active.id] ?? []).some(message => message.role === "assistant" && message.content)} onClick={() => void writeBack()}>回写交付物</button>}
       </header>
       <div className="deliverable-codex-workbench__scope">交付物 / {deliverableTitle} {active && <span>{modeLabel[active.mode]} · Codex</span>}</div>
       {creating && <form className="deliverable-codex-workbench__create" onSubmit={event => { event.preventDefault(); void create(); }}><input autoFocus value={title} onChange={event => setTitle(event.target.value)} placeholder="会话标题"/><select value={mode} onChange={event => setMode(event.target.value as Mode)}><option value="free">自由模式</option><option value="task">任务模式（可按要求回写）</option><option value="bug">BUG 模式</option></select><button type="submit">创建</button><button type="button" onClick={() => setCreating(false)}>取消</button></form>}
