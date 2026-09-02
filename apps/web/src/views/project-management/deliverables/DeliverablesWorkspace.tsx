@@ -58,6 +58,7 @@ export function DeliverablesWorkspace({
   const [items, setItems] = useState<Item[]>([]);
   const [openId, setOpenId] = useState<string>();
   const [codexItem, setCodexItem] = useState<Item>();
+  const [codexVisible, setCodexVisible] = useState(false);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
   const [kind, setKind] = useState<DeliverableRecordKind>("requirement");
@@ -84,7 +85,7 @@ export function DeliverablesWorkspace({
   useEffect(() => {
     const openWorkbench = () => {
       const item = items.find(candidate => candidate.id === openId);
-      if (item) setCodexItem(current => current ? undefined : item);
+      if (item) { setCodexItem(current => current ?? item); setCodexVisible(current => !current); }
     };
     window.addEventListener("rich:toggle-deliverable-codex", openWorkbench);
     return () => window.removeEventListener("rich:toggle-deliverable-codex", openWorkbench);
@@ -890,7 +891,7 @@ export function DeliverablesWorkspace({
           </p>
         )}
       </div>
-      {codexItem && <DeliverableCodexWorkbench projectId={projectId} deliverableId={codexItem.id} deliverableTitle={codexItem.title} />}
+      {codexItem && <DeliverableCodexWorkbench projectId={projectId} deliverableId={codexItem.id} deliverableTitle={codexItem.title} visible={codexVisible} />}
     </section>
   );
 }
