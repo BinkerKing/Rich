@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useChatComposer } from "../../../lib/useChatComposer.js";
 import "./DeliverableCodexWorkbench.css";
 
 type Mode = "free" | "task" | "bug";
@@ -28,6 +29,8 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState("");
   const [connection, setConnection] = useState<ConnectionState>("checking");
+  const [previewUrl, setPreviewUrl] = useState<string>();
+  const composer = useChatComposer({ maxAttachments: 4 });
   const active = useMemo(() => conversations.find(item => item.id === activeId), [activeId, conversations]);
 
   const refresh = async () => {
@@ -78,8 +81,8 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
   const send = async (target = active, message = input.trim(), displayContent = message) => {
-    if (!target || !message || streaming) return;
-    const content = message; const userMessageId = crypto.randomUUID(); const clientRequestId = crypto.randomUUID();
+    if (!target || (!message && composer.attachments.length === 0) || streaming || composer.isUploading) return;
+    const content = message || "请查看我附上的图片。"; const userMessageId = crypto.randomUUID(); const clientRequestId = crypto.randomUUID();
     if (target.id === active?.id) setInput(""); setStreaming(true); setError("");
     const displayRole: Message["role"] = displayContent === content ? "user" : "system";
     setMessages(current => ({ ...current, [target.id]: [...(current[target.id] ?? []), { role: displayRole, content: displayContent }, { role: "assistant", content: "" }] }));
@@ -98,7 +101,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
         }
       }
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
-    finally { setStreaming(false); }
+    finally { setStreaming(false); composer.clear(); }
   };
 
   return <div className="deliverable-codex-backdrop" role="dialog" aria-modal="true" aria-label="交付物 Codex 对话">
@@ -113,7 +116,8 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       {creating && <form className="deliverable-codex-workbench__create" onSubmit={event => { event.preventDefault(); void create(); }}><input autoFocus value={title} onChange={event => setTitle(event.target.value)} placeholder="会话标题"/><select value={mode} onChange={event => setMode(event.target.value as Mode)}><option value="free">自由模式</option><option value="task">任务模式（可按要求回写）</option><option value="bug">BUG 模式</option></select><button type="submit">创建</button><button type="button" onClick={() => setCreating(false)}>取消</button></form>}
       <main className="deliverable-codex-workbench__messages">{active ? (messages[active.id] ?? []).map((message, index) => <article key={index} className={`is-${message.role}`}><b>{message.role === "user" ? "你" : message.role === "system" ? "Rich · 已发送给 Codex 的上下文" : "Codex"}</b><p>{message.content || (streaming ? "正在响应…" : "")}</p></article>) : <p className="deliverable-codex-workbench__empty">新建一个会话，开始围绕此交付物对话。</p>}</main>
       {error && <p className="deliverable-codex-workbench__error">{error}</p>}
-      <footer className="deliverable-codex-workbench__composer"><textarea value={input} disabled={!active || streaming} onChange={event => setInput(event.target.value)} onKeyDown={event => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void send(); } }} placeholder={active ? "随心输入" : "请先新建会话"}/><div className="deliverable-codex-workbench__composer-actions"><span className="deliverable-codex-workbench__composer-mode"><i>＋</i> 任务模式</span><span className="deliverable-codex-workbench__composer-agent">⚡ Codex <small>中⌄</small><i>♩</i></span><button type="button" aria-label="发送消息" disabled={!active || !input.trim() || streaming} onClick={() => void send()}>{streaming ? "…" : "↑"}</button></div></footer>
+      <footer className="deliverable-codex-workbench__composer">{composer.attachments.length > 0 && <div className="deliverable-codex-workbench__attachments">{composer.attachments.map(attachment => <figure key={attachment.clientId}><button type="button" onClick={() => setPreviewUrl(attachment.previewUrl)}><img src={attachment.previewUrl} alt="已粘贴图片"/></button><button type="button" aria-label="删除图片" onClick={() => composer.detach(attachment.clientId)}>×</button></figure>)}</div>}<textarea value={input} disabled={!active || streaming} onChange={event => setInput(event.target.value)} onPaste={event => { const image = Array.from(event.clipboardData.items).find(item => item.type.startsWith("image/"))?.getAsFile(); if (image) { event.preventDefault(); void composer.attach(image); } }} onKeyDown={event => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void send(); } }} placeholder={active ? "随心输入" : "请先新建会话"}/><div className="deliverable-codex-workbench__composer-actions"><span aria-hidden="true"/><button type="button" aria-label={streaming ? "Codex 正在响应" : "发送消息"} disabled={!active || (!input.trim() && composer.attachments.length === 0) || composer.isUploading} onClick={() => void send()}>{streaming ? "■" : "↑"}</button></div></footer>
+      {previewUrl && <div className="deliverable-codex-workbench__image-preview" role="dialog" aria-modal="true" onClick={() => setPreviewUrl(undefined)}><img src={previewUrl} alt="粘贴图片预览"/></div>}
     </section>
   </div>;
 }
