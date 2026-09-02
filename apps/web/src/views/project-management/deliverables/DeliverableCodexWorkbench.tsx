@@ -14,7 +14,7 @@ async function readJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   return body;
 }
 
-export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverableTitle, onDismiss }: { projectId: string; deliverableId: string; deliverableTitle: string; onDismiss: () => void }): ReactNode {
+export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverableTitle }: { projectId: string; deliverableId: string; deliverableTitle: string }): ReactNode {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string>();
   const [creating, setCreating] = useState(false);
@@ -81,7 +81,6 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       <main className="deliverable-codex-workbench__messages">{active ? (messages[active.id] ?? []).map((message, index) => <article key={index} className={`is-${message.role}`}><b>{message.role === "user" ? "你" : "Codex"}</b><p>{message.content || (streaming ? "正在响应…" : "")}</p></article>) : <p className="deliverable-codex-workbench__empty">新建一个会话，开始围绕此交付物对话。</p>}</main>
       {error && <p className="deliverable-codex-workbench__error">{error}</p>}
       <footer><textarea value={input} disabled={!active || streaming} onChange={event => setInput(event.target.value)} onKeyDown={event => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void send(); } }} placeholder={active ? "输入消息，⌘ Enter 发送" : "请先新建会话"}/><button type="button" disabled={!active || !input.trim() || streaming} onClick={() => void send()}>{streaming ? "处理中…" : "发送"}</button></footer>
-      <button type="button" className="deliverable-codex-workbench__dismiss" aria-label="隐藏对话窗口" onClick={onDismiss}>×</button>
     </section>
   </div>;
 }

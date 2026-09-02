@@ -890,7 +890,7 @@ export function DeliverablesWorkspace({
           </p>
         )}
       </div>
-      {codexItem && <DeliverableCodexWorkbench projectId={projectId} deliverableId={codexItem.id} deliverableTitle={codexItem.title} onDismiss={() => setCodexItem(undefined)} />}
+      {codexItem && <DeliverableCodexWorkbench projectId={projectId} deliverableId={codexItem.id} deliverableTitle={codexItem.title} />}
     </section>
   );
 }
