@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { AgentConversationConfig, AgentConversationConfigRepo } from "../repos/AgentConversationConfigRepo.js";
+import type { AgentConversationConfig, AgentConversationExecutor, AgentConversationConfigRepo } from "../repos/AgentConversationConfigRepo.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
 import type { AgentConversationTurn, AgentConversationTurnRepo } from "../repos/AgentConversationTurnRepo.js";
 import type { AgentToolCall, AgentToolCallRepo } from "../repos/AgentToolCallRepo.js";
@@ -13,7 +13,8 @@ interface AgentConversationExecutionDeps {
   turns: AgentConversationTurnRepo;
   toolCallRepo: AgentToolCallRepo;
   toolCalls: AgentToolCallService;
-  runtime: AgentRuntimePort;
+  runtime?: AgentRuntimePort;
+  runtimes?: Partial<Record<AgentConversationExecutor, AgentRuntimePort>>;
   gateway: AgentCapabilityGateway;
   workspaceRoot?: string;
 }
@@ -50,14 +51,14 @@ export class AgentConversationService {
     return config?.status === "active" ? config : null;
   }
 
-  async start(conversationId: string, options: { fresh?: boolean } = {}): Promise<{ config: AgentConversationConfig; resumed: boolean }> {
+  async start(conversationId: string, options: { fresh?: boolean; executor?: AgentConversationExecutor } = {}): Promise<{ config: AgentConversationConfig; resumed: boolean }> {
     const now = new Date().toISOString();
     await this.conversations.ensureConversation({ id: conversationId, surface: "agent", now });
     const existing = await this.configs.get(conversationId);
     const modelSessionId = options.fresh ? undefined : existing?.modelSessionId;
     const config: AgentConversationConfig = {
       conversationId,
-      executor: "hermes",
+      executor: options.executor ?? existing?.executor ?? "hermes",
       permissionProfile: existing?.permissionProfile ?? "chat_only",
       workspaceRoot: existing?.workspaceRoot,
       allowedMcpServers: existing?.allowedMcpServers ?? [],
@@ -111,7 +112,8 @@ export class AgentConversationService {
     if (!this.execution) throw new Error("Agent conversation execution is not configured");
     const config = await this.getActive(conversationId);
     if (!config) throw new Error("Agent conversation is not active");
-    assertRuntimeProfileSupported(this.execution.runtime.agentRuntimeCapabilities(), config.permissionProfile);
+    const runtime = this.runtimeFor(config.executor);
+    assertRuntimeProfileSupported(runtime.agentRuntimeCapabilities(), config.permissionProfile);
 
     const now = new Date().toISOString();
     await this.conversations.ensureConversation({ id: conversationId, surface: "agent", now });
@@ -168,7 +170,7 @@ export class AgentConversationService {
     ];
 
     try {
-      const outcome = await this.runRuntimeTurn({
+      const outcome = await this.runRuntimeTurn(runtime, {
         conversationId,
         turnId: claimed.id,
         sessionId: config.modelSessionId,
@@ -187,7 +189,7 @@ export class AgentConversationService {
         conversationId,
         role: "assistant",
         content: outcome.fullText,
-        adapter: "hermes",
+        adapter: config.executor,
         modelSessionId: outcome.sessionId,
         createdAt: new Date().toISOString(),
       });
@@ -208,13 +210,14 @@ export class AgentConversationService {
   }
 
   private async runRuntimeTurn(
+    runtime: AgentRuntimePort,
     input: Parameters<AgentRuntimePort["startTurn"]>[0],
     publish: (event: AgentConversationEvent) => Promise<void>,
   ): Promise<{ fullText: string; sessionId?: string; waitingApproval?: boolean }> {
     let attempt = 0;
     let sessionId = input.sessionId;
     while (attempt < 2) {
-      const iterator = this.execution!.runtime.startTurn({ ...input, sessionId });
+      const iterator = runtime.startTurn({ ...input, sessionId });
       let fullText = "";
       let toolResult: AgentRuntimeToolResult | undefined;
       let shouldRetry = false;
@@ -274,5 +277,13 @@ export class AgentConversationService {
       sessionId = undefined;
     }
     throw new Error("Hermes session recovery failed");
+  }
+
+  private runtimeFor(executor: AgentConversationExecutor): AgentRuntimePort {
+    const runtime = this.execution?.runtimes
+      ? this.execution.runtimes[executor]
+      : this.execution?.runtime;
+    if (!runtime) throw new Error(`Agent runtime is not configured for ${executor}`);
+    return runtime;
   }
 }

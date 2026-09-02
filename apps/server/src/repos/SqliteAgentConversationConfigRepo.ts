@@ -16,7 +16,7 @@ interface ConfigRow {
 function fromRow(row: ConfigRow): AgentConversationConfig {
   return {
     conversationId: row.conversation_id,
-    executor: "hermes",
+    executor: row.executor as AgentConversationConfig["executor"],
     permissionProfile: row.permission_profile as AgentConversationConfig["permissionProfile"],
     workspaceRoot: row.workspace_root ?? undefined,
     allowedMcpServers: JSON.parse(row.allowed_mcp_servers) as string[],

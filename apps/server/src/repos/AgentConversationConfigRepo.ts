@@ -1,9 +1,10 @@
 export type AgentConversationStatus = "active" | "inactive";
 export type AgentPermissionProfile = "chat_only" | "workspace_agent" | "extended_agent";
+export type AgentConversationExecutor = "hermes" | "codex";
 
 export interface AgentConversationConfig {
   conversationId: string;
-  executor: "hermes";
+  executor: AgentConversationExecutor;
   permissionProfile: AgentPermissionProfile;
   workspaceRoot?: string;
   allowedMcpServers: string[];

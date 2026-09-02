@@ -57,12 +57,13 @@ async function setup() {
   const turns = new SqliteAgentConversationTurnRepo(db);
   const toolCallRepo = new SqliteAgentToolCallRepo(db);
   const runtime = new FakeRuntime();
+  const runtimes: Partial<Record<"hermes" | "codex", AgentRuntimePort>> = { hermes: runtime };
   const gateway = new AgentCapabilityGateway("test-secret", (turnId, now) => turns.hasActiveLease(turnId, now));
   const approvals = new AgentApprovalService(new SqliteAgentApprovalRepo(db));
   const toolCalls = new AgentToolCallService(toolCallRepo, gateway, async () => ({ ok: true }), approvals);
-  const service = new AgentConversationService(configs, conversations, { turns, toolCallRepo, toolCalls, runtime, gateway, workspaceRoot: workspace });
+  const service = new AgentConversationService(configs, conversations, { turns, toolCallRepo, toolCalls, runtime, runtimes, gateway, workspaceRoot: workspace });
   await service.start("c1");
-  return { service, runtime, turns, toolCallRepo, configs, conversations, workspace };
+  return { service, runtime, runtimes, turns, toolCallRepo, configs, conversations, workspace };
 }
 
 describe("AgentConversationService execution", () => {
@@ -77,6 +78,31 @@ describe("AgentConversationService execution", () => {
     await service.sendMessage("c1", { clientRequestId: "r2", userMessageId: "m2", content: "continue" });
 
     expect(runtime.calls[1]?.sessionId).toBe("hermes-session-1");
+  });
+
+  it("selects the persisted Codex executor and resumes its saved thread", async () => {
+    const { service, configs, runtimes } = await setup();
+    const codex = new FakeRuntime();
+    const config = await configs.get("c1");
+    await configs.save({
+      ...config!, executor: "codex", modelSessionId: "codex-thread-1", updatedAt: new Date().toISOString(),
+    });
+    codex.responses.push([{ type: "done", fullText: "continued", sessionId: "codex-thread-1" }]);
+    runtimes.codex = codex;
+
+    await service.sendMessage("c1", { clientRequestId: "r-codex", userMessageId: "m-codex", content: "continue" });
+
+    expect(codex.calls[0]?.sessionId).toBe("codex-thread-1");
+  });
+
+  it("does not fall back to Hermes when the configured Codex runtime is unavailable", async () => {
+    const { service, configs, runtimes } = await setup();
+    const config = await configs.get("c1");
+    await configs.save({ ...config!, executor: "codex", updatedAt: new Date().toISOString() });
+    delete runtimes.codex;
+
+    await expect(service.sendMessage("c1", { clientRequestId: "r-unavailable", userMessageId: "m-unavailable", content: "continue" }))
+      .rejects.toThrow("Agent runtime is not configured for codex");
   });
 
   it("builds a bounded recovery context from the summary and recent transcript", async () => {
