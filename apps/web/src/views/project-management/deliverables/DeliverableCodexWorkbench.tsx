@@ -100,6 +100,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     try {
       const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(target.id)}/stream`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, userMessageId, clientRequestId, attachments: composer.getAttachmentRefs() }) });
       if (!response.ok || !response.body) throw new Error(`发送失败 (${response.status})`);
+      composer.clear();
       const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = "";
       while (true) {
         const next = await reader.read(); if (next.done) break; buffer += decoder.decode(next.value, { stream: true });
@@ -112,7 +113,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
         }
       }
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
-    finally { setStreaming(false); composer.clear(); }
+    finally { setStreaming(false); }
   };
 
   return <div className={`deliverable-codex-backdrop${visible ? "" : " is-hidden"}`} role="dialog" aria-modal="true" aria-label="交付物 Codex 对话">
