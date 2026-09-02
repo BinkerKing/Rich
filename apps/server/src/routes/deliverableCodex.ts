@@ -107,8 +107,8 @@ export function deliverableCodexRoutes(deps: {
         await stream.writeSSE({ event: name, data: JSON.stringify(data) });
       };
       try {
-        const result = await deps.agents.sendMessage(existing.conversationId, { clientRequestId, userMessageId, content, imageUrls }, write);
         if (deps.attachments) await Promise.all(attachmentIds.map(id => deps.attachments!.bindToMessage(id, userMessageId)));
+        const result = await deps.agents.sendMessage(existing.conversationId, { clientRequestId, userMessageId, content, imageUrls }, write);
         const sessionId = result.turn.runtimeSessionId;
         if (sessionId) await deps.conversations.setCodexThread(existing.id, sessionId, existing.contextVersion, new Date().toISOString());
       } catch (error) {
