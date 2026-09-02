@@ -59,6 +59,14 @@ export function deliverableCodexRoutes(deps: {
     return c.json({ messages: await deps.chats.listMessages(existing.conversationId, 200) });
   });
 
+  r.get("/conversations/:id/status", async c => {
+    const existing = await deps.conversations.get(c.req.param("id"));
+    if (!existing || existing.status !== "active") return c.json({ server: true, session: false, state: "session_lost" }, 404);
+    const connection = await deps.agents.connectionStatus(existing.conversationId);
+    const state = !connection.server ? "server_offline" : !connection.session ? "session_lost" : "connected";
+    return c.json({ ...connection, state });
+  });
+
   r.post("/conversations/:id/writeback", async c => {
     const existing = await deps.conversations.get(c.req.param("id"));
     const body = await c.req.json().catch(() => null) as { summary?: unknown } | null;

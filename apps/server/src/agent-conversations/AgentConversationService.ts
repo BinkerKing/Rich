@@ -83,6 +83,14 @@ export class AgentConversationService {
     await this.configs.setModelSessionId(conversationId, modelSessionId, new Date().toISOString());
   }
 
+  async connectionStatus(conversationId: string): Promise<{ server: boolean; session: boolean }> {
+    const config = await this.getActive(conversationId);
+    if (!config) return { server: true, session: false };
+    const runtime = this.runtimeFor(config.executor);
+    if (!runtime.checkConnection) return { server: false, session: false };
+    return runtime.checkConnection(config.modelSessionId);
+  }
+
   async resolveApproval(conversationId: string, input: ResolveAgentApprovalInput): Promise<AgentToolCall> {
     if (!this.execution) throw new Error("Agent conversation execution is not configured");
     const turn = await this.execution.turns.get(input.turnId);

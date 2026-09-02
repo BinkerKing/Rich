@@ -72,6 +72,21 @@ export class CodexAppServerRuntime implements AgentRuntimePort {
 
   agentRuntimeCapabilities(): AgentRuntimeCapabilities { return capabilities; }
 
+  async checkConnection(sessionId?: string): Promise<{ server: boolean; session: boolean }> {
+    try {
+      await this.ensureReady();
+    } catch {
+      return { server: false, session: false };
+    }
+    if (!sessionId) return { server: true, session: false };
+    try {
+      await this.request("thread/resume", { threadId: sessionId });
+      return { server: true, session: true };
+    } catch {
+      return { server: true, session: false };
+    }
+  }
+
   async *startTurn(input: AgentRuntimeTurnInput): AsyncGenerator<AgentRuntimeEvent, void, AgentRuntimeToolResult | undefined> {
     await this.ensureReady();
     const threadId = await this.ensureThread(input.sessionId);

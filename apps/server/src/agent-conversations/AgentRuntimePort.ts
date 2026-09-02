@@ -36,5 +36,6 @@ export interface AgentRuntimeToolResult {
 export interface AgentRuntimePort {
   agentRuntimeCapabilities(): AgentRuntimeCapabilities;
   startTurn(input: AgentRuntimeTurnInput): AsyncGenerator<AgentRuntimeEvent, void, AgentRuntimeToolResult | undefined>;
+  checkConnection?(sessionId?: string): Promise<{ server: boolean; session: boolean }>;
   interrupt?(threadId: string, turnId: string): Promise<void>;
 }

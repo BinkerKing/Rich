@@ -4,8 +4,11 @@ import "./DeliverableCodexWorkbench.css";
 type Mode = "free" | "task" | "bug";
 type Conversation = { id: string; title: string; mode: Mode; status: "active" | "archived"; codexThreadId?: string; lastActiveAt: string };
 type Message = { role: "user" | "assistant" | "system"; content: string };
+type ConnectionState = "checking" | "connected" | "server_offline" | "session_lost";
 
 const modeLabel: Record<Mode, string> = { free: "自由模式", task: "任务模式", bug: "BUG 模式" };
+const taskName: Record<Mode, string> = { free: "交付物自由对话", task: "交付物任务", bug: "交付物 BUG 诊断" };
+const connectionLabel: Record<ConnectionState, string> = { checking: "正在检查 Codex 连接", connected: "Codex Server 与当前对话均正常", server_offline: "Codex Server 未连接", session_lost: "Codex Server 正常，但当前对话已失效" };
 
 async function readJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const response = await fetch(input, init);
@@ -24,6 +27,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState("");
+  const [connection, setConnection] = useState<ConnectionState>("checking");
   const active = useMemo(() => conversations.find(item => item.id === activeId), [activeId, conversations]);
 
   const refresh = async () => {
@@ -38,6 +42,19 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       .then(payload => setMessages(current => ({ ...current, [activeId]: payload.messages.map(message => ({ role: message.role, content: message.content })) })))
       .catch(reason => setError(reason instanceof Error ? reason.message : String(reason)));
   }, [activeId, messages]);
+  useEffect(() => {
+    if (!activeId) { setConnection("checking"); return; }
+    let disposed = false;
+    const check = async () => {
+      try {
+        const payload = await readJson<{ state: Exclude<ConnectionState, "checking"> }>(`/api/deliverable-codex/conversations/${encodeURIComponent(activeId)}/status`);
+        if (!disposed) setConnection(payload.state);
+      } catch { if (!disposed) setConnection("server_offline"); }
+    };
+    void check();
+    const timer = window.setInterval(() => { void check(); }, 15_000);
+    return () => { disposed = true; window.clearInterval(timer); };
+  }, [activeId]);
 
   const create = async () => {
     if (!title.trim()) return;
@@ -92,7 +109,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
         <button type="button" disabled={!active} onClick={() => void archive()}>归档</button>
         {active?.mode === "task" && <button type="button" disabled={streaming || !(messages[active.id] ?? []).some(message => message.role === "assistant" && message.content)} onClick={() => void writeBack()}>回写交付物</button>}
       </header>
-      <div className="deliverable-codex-workbench__scope">交付物 / {deliverableTitle} {active && <span>{modeLabel[active.mode]} · Codex</span>}</div>
+      <div className="deliverable-codex-workbench__scope">交付物 / {deliverableTitle} {active && <span className={`deliverable-codex-workbench__connection is-${connection}`} title={connectionLabel[connection]}><i aria-hidden="true"/>Codex <b>· {taskName[active.mode]}</b></span>}</div>
       {creating && <form className="deliverable-codex-workbench__create" onSubmit={event => { event.preventDefault(); void create(); }}><input autoFocus value={title} onChange={event => setTitle(event.target.value)} placeholder="会话标题"/><select value={mode} onChange={event => setMode(event.target.value as Mode)}><option value="free">自由模式</option><option value="task">任务模式（可按要求回写）</option><option value="bug">BUG 模式</option></select><button type="submit">创建</button><button type="button" onClick={() => setCreating(false)}>取消</button></form>}
       <main className="deliverable-codex-workbench__messages">{active ? (messages[active.id] ?? []).map((message, index) => <article key={index} className={`is-${message.role}`}><b>{message.role === "user" ? "你" : message.role === "system" ? "Rich · 已发送给 Codex 的上下文" : "Codex"}</b><p>{message.content || (streaming ? "正在响应…" : "")}</p></article>) : <p className="deliverable-codex-workbench__empty">新建一个会话，开始围绕此交付物对话。</p>}</main>
       {error && <p className="deliverable-codex-workbench__error">{error}</p>}
