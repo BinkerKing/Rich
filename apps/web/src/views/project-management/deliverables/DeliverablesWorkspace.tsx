@@ -19,6 +19,7 @@ import {
   type DeliverableRecord,
   type DeliverableRecordKind,
 } from "./DeliverablesModel.js";
+import { DeliverableCodexWorkbench } from "./DeliverableCodexWorkbench.js";
 
 type Item = ProjectModuleItem & {
   content: ReturnType<typeof normalizeDeliverableContent>;
@@ -56,6 +57,7 @@ export function DeliverablesWorkspace({
 }): ReactNode {
   const [items, setItems] = useState<Item[]>([]);
   const [openId, setOpenId] = useState<string>();
+  const [codexItem, setCodexItem] = useState<Item>();
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
   const [kind, setKind] = useState<DeliverableRecordKind>("requirement");
@@ -508,6 +510,7 @@ export function DeliverablesWorkspace({
                   <span>
                     文件位置 <code>{item.content.folderPath}</code>
                   </span>
+                  <button type="button" onClick={() => setCodexItem(item)}>Codex 对话</button>
                   <div
                     className="deliverables-workspace__switch"
                     role="group"
@@ -878,6 +881,7 @@ export function DeliverablesWorkspace({
           </p>
         )}
       </div>
+      {codexItem && <DeliverableCodexWorkbench projectId={projectId} deliverableId={codexItem.id} deliverableTitle={codexItem.title} onDismiss={() => setCodexItem(undefined)} />}
     </section>
   );
 }
