@@ -11,6 +11,7 @@ type WindowState = { x: number; y: number; width: number; height: number; maximi
 const windowStorageKey = "rich.deliverable-codex.window";
 const defaultWindow: WindowState = { x: 0, y: 0, width: 980, height: 720, maximized: false };
 const workbenchMargin = 28;
+const desktopTitlebarHeight = 56;
 
 function fitWindowToViewport(state: WindowState): WindowState {
   const maxWidth = Math.max(320, window.innerWidth - workbenchMargin * 2);
@@ -92,13 +93,6 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   useEffect(() => { const element = messagesRef.current; if (visible && element) element.scrollTop = element.scrollHeight; }, [activeId, messages, visible]);
   useEffect(() => { localStorage.setItem(windowStorageKey, JSON.stringify(windowState)); }, [windowState]);
   useEffect(() => { const resize = () => setWindowState(fitWindowToViewport); window.addEventListener("resize", resize); return () => window.removeEventListener("resize", resize); }, []);
-  useEffect(() => {
-    const region = document.getElementById("rich-window-drag-region");
-    if (!region) return;
-    const previous = region.style.pointerEvents;
-    region.style.pointerEvents = windowState.maximized ? "none" : previous;
-    return () => { region.style.pointerEvents = previous; };
-  }, [windowState.maximized]);
   const beginDrag = (event: ReactPointerEvent<HTMLElement>) => { if (windowState.maximized || (event.target as HTMLElement).closest("button")) return; dragRef.current = { x: event.clientX, y: event.clientY, startX: windowState.x, startY: windowState.y }; event.currentTarget.setPointerCapture(event.pointerId); };
   const drag = (event: ReactPointerEvent<HTMLElement>) => { const point = dragRef.current; if (point) setWindowState(current => fitWindowToViewport({ ...current, x: point.startX + event.clientX - point.x, y: point.startY + event.clientY - point.y })); };
 
@@ -150,9 +144,9 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   };
 
   const workbenchStyle = windowState.maximized
-    ? { position: "fixed" as const, inset: 0, width: "100vw", height: "100dvh", maxWidth: "none", maxHeight: "none", border: 0, borderRadius: 0, boxShadow: "none", transform: "none" }
+    ? { position: "absolute" as const, inset: 0, width: "100%", height: "100%", maxWidth: "none", maxHeight: "none", border: 0, borderRadius: 0, boxShadow: "none", transform: "none" }
     : { width: windowState.width, height: windowState.height, transform: `translate(${windowState.x}px, ${windowState.y}px)` };
-  return <div className={`deliverable-codex-backdrop${visible ? "" : " is-hidden"}${windowState.maximized ? " is-maximized" : ""}`} style={windowState.maximized ? { zIndex: 2147483000, padding: 0, background: "#0d1c27" } : undefined} role="dialog" aria-modal="true" aria-label="交付物 Codex 对话">
+  return <div className={`deliverable-codex-backdrop${visible ? "" : " is-hidden"}${windowState.maximized ? " is-maximized" : ""}`} style={windowState.maximized ? { zIndex: 2147483000, top: desktopTitlebarHeight, padding: 0, background: "#0d1c27" } : undefined} role="dialog" aria-modal="true" aria-label="交付物 Codex 对话">
     <section className={`deliverable-codex-workbench${windowState.maximized ? " is-maximized" : ""}`} style={workbenchStyle}>
       <header className="deliverable-codex-workbench__tabs" onPointerDown={beginDrag} onPointerMove={drag} onPointerUp={() => { dragRef.current = undefined; }}>
         <div className="deliverable-codex-workbench__titles">{conversations.map(conversation => <button key={conversation.id} type="button" className={conversation.id === activeId ? "is-active" : ""} onClick={() => setActiveId(conversation.id)}><span>交付物 · {conversation.title}</span><em>{modeLabel[conversation.mode]}</em></button>)}</div>
