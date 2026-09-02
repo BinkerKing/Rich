@@ -142,7 +142,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     finally { setStreaming(false); }
   };
 
-  return <div className={`deliverable-codex-backdrop${visible ? "" : " is-hidden"}`} role="dialog" aria-modal="true" aria-label="交付物 Codex 对话">
+  return <div className={`deliverable-codex-backdrop${visible ? "" : " is-hidden"}${windowState.maximized ? " is-maximized" : ""}`} role="dialog" aria-modal="true" aria-label="交付物 Codex 对话">
     <section className={`deliverable-codex-workbench${windowState.maximized ? " is-maximized" : ""}`} style={{ width: windowState.width, height: windowState.height, transform: `translate(${windowState.x}px, ${windowState.y}px)` }}>
       <header className="deliverable-codex-workbench__tabs" onPointerDown={beginDrag} onPointerMove={drag} onPointerUp={() => { dragRef.current = undefined; }}>
         <div className="deliverable-codex-workbench__titles">{conversations.map(conversation => <button key={conversation.id} type="button" className={conversation.id === activeId ? "is-active" : ""} onClick={() => setActiveId(conversation.id)}><span>交付物 · {conversation.title}</span><em>{modeLabel[conversation.mode]}</em></button>)}</div>
