@@ -27,7 +27,7 @@ async function fileIsExecutable(p: string): Promise<boolean> {
  *   3. ChatGPT.app / Codex.app bundled codex binary (macOS desktop install)
  * Returns null if none found.
  */
-async function resolveCodexBin(): Promise<string | null> {
+export async function resolveCodexBin(): Promise<string | null> {
   const envBin = process.env.KE_CODEX_BIN;
   if (envBin && await fileIsExecutable(envBin)) return envBin;
   try {
