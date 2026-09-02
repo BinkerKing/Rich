@@ -1,6 +1,6 @@
 export type DeliverableStatus = "draft" | "preparing" | "ready" | "accepted";
 export type DeliverableVersionPolicy = "latest" | "versioned";
-export type DeliverableRecordKind = "requirement" | "status" | "change" | "information" | "material" | "ai_task";
+export type DeliverableRecordKind = "requirement" | "status" | "change" | "information" | "material" | "ai_task" | "ai_task_result";
 export type DeliverableRecordInformationType = "information" | "material";
 export type DeliverableFileType = "deliverable" | "material" | "intermediate";
 
@@ -8,6 +8,15 @@ export type DeliverableRecordAttachment = {
   fileName: string;
   relativePath: string;
   size: number;
+};
+
+export type DeliverableTaskResult = {
+  taskId: string;
+  status: "needs_human" | "archive_failed";
+  executor: "hermes" | "multica";
+  completedAt: string;
+  report?: DeliverableRecordAttachment;
+  evidence: DeliverableRecordAttachment[];
 };
 
 export type DeliverableRecord = {
@@ -19,6 +28,8 @@ export type DeliverableRecord = {
   attachments: DeliverableRecordAttachment[];
   author?: string;
   aiTask?: { id: string; status: string; executor: "hermes" | "multica" };
+  parentRecordId?: string;
+  aiTaskResult?: DeliverableTaskResult;
 };
 
 export type DeliverableVersion = {
@@ -75,19 +86,35 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function recordAttachments(value: unknown): DeliverableRecordAttachment[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap(file => {
+    if (!isRecord(file) || typeof file.fileName !== "string" || typeof file.relativePath !== "string" || typeof file.size !== "number") return [];
+    return [{ fileName: file.fileName, relativePath: file.relativePath, size: file.size }];
+  });
+}
+
 function records(value: unknown): DeliverableRecord[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap(entry => {
     if (!isRecord(entry) || typeof entry.id !== "string" || typeof entry.text !== "string" || typeof entry.createdAt !== "string") return [];
-    if (entry.kind !== "requirement" && entry.kind !== "status" && entry.kind !== "change" && entry.kind !== "information" && entry.kind !== "material" && entry.kind !== "ai_task") return [];
-    const attachments = Array.isArray(entry.attachments) ? entry.attachments.flatMap(file => {
-      if (!isRecord(file) || typeof file.fileName !== "string" || typeof file.relativePath !== "string" || typeof file.size !== "number") return [];
-      return [{ fileName: file.fileName, relativePath: file.relativePath, size: file.size }];
-    }) : [];
+    if (entry.kind !== "requirement" && entry.kind !== "status" && entry.kind !== "change" && entry.kind !== "information" && entry.kind !== "material" && entry.kind !== "ai_task" && entry.kind !== "ai_task_result") return [];
+    const attachments = recordAttachments(entry.attachments);
     const aiTask = isRecord(entry.aiTask) && typeof entry.aiTask.id === "string" && typeof entry.aiTask.status === "string" && (entry.aiTask.executor === "hermes" || entry.aiTask.executor === "multica")
       ? { id: entry.aiTask.id, status: entry.aiTask.status, executor: entry.aiTask.executor as "hermes" | "multica" }
       : undefined;
-    return [{ id: entry.id, kind: entry.informationType === "material" ? "material" : entry.kind, text: entry.text, createdAt: entry.createdAt, informationType: entry.informationType === "material" ? "material" : "information", attachments, author: typeof entry.author === "string" ? entry.author : undefined, aiTask }];
+    const aiTaskResult = isRecord(entry.aiTaskResult) && typeof entry.aiTaskResult.taskId === "string" && typeof entry.aiTaskResult.completedAt === "string" && (entry.aiTaskResult.status === "needs_human" || entry.aiTaskResult.status === "archive_failed") && (entry.aiTaskResult.executor === "hermes" || entry.aiTaskResult.executor === "multica")
+      ? {
+        taskId: entry.aiTaskResult.taskId,
+        status: entry.aiTaskResult.status as DeliverableTaskResult["status"],
+        executor: entry.aiTaskResult.executor as DeliverableTaskResult["executor"],
+        completedAt: entry.aiTaskResult.completedAt,
+        report: recordAttachments([entry.aiTaskResult.report])[0],
+        evidence: recordAttachments(entry.aiTaskResult.evidence),
+      }
+      : undefined;
+    const kind = entry.informationType === "material" ? "material" : entry.kind as DeliverableRecordKind;
+    return [{ id: entry.id, kind, text: entry.text, createdAt: entry.createdAt, informationType: entry.informationType === "material" ? "material" : "information", attachments, author: typeof entry.author === "string" ? entry.author : undefined, aiTask, ...(kind === "ai_task_result" && typeof entry.parentRecordId === "string" ? { parentRecordId: entry.parentRecordId } : {}), ...(aiTaskResult ? { aiTaskResult } : {}) }];
   });
 }
 
@@ -144,6 +171,25 @@ export function linkedDeliverableContent(taskId: string, activity: { id: string;
 
 export function addDeliverableRecord(content: DeliverableContent, record: DeliverableRecord): DeliverableContent {
   return { ...content, records: [...content.records, record].sort((left, right) => left.createdAt.localeCompare(right.createdAt)) };
+}
+
+export function orderDeliverableRecords(records: DeliverableRecord[]): DeliverableRecord[] {
+  const byParent = new Map<string, DeliverableRecord[]>();
+  const parentIds = new Set(records.filter(record => record.kind === "ai_task").map(record => record.id));
+  for (const record of records) {
+    if (record.kind !== "ai_task_result" || !record.parentRecordId || !parentIds.has(record.parentRecordId)) continue;
+    const children = byParent.get(record.parentRecordId) || [];
+    children.push(record);
+    byParent.set(record.parentRecordId, children);
+  }
+  const ordered: DeliverableRecord[] = [];
+  for (const record of records) {
+    const isLinkedResult = record.kind === "ai_task_result" && Boolean(record.parentRecordId && parentIds.has(record.parentRecordId));
+    if (isLinkedResult) continue;
+    ordered.push(record);
+    if (record.kind === "ai_task") ordered.push(...(byParent.get(record.id) || []));
+  }
+  return ordered;
 }
 
 export function addDeliverableVersion(content: DeliverableContent, version: DeliverableVersion): DeliverableContent {

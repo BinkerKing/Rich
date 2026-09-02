@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { addDeliverableRecord, addDeliverableVersion, deliverableFolderPath, linkedDeliverableContent, normalizeDeliverableContent, updateDeliverableFileMeta } from "./DeliverablesModel.js";
+import { addDeliverableRecord, addDeliverableVersion, deliverableFolderPath, linkedDeliverableContent, normalizeDeliverableContent, orderDeliverableRecords, updateDeliverableFileMeta } from "./DeliverablesModel.js";
 
 test("交付物内容缺失时使用最新保留策略和空集合", () => {
   const content = normalizeDeliverableContent({});
@@ -10,12 +10,50 @@ test("交付物内容缺失时使用最新保留策略和空集合", () => {
   assert.deepEqual(content.versions, []);
 });
 
-test("交付物要求记录按最新时间置顶", () => {
+test("交付物要求记录按时间正序显示", () => {
   const content = addDeliverableRecord(normalizeDeliverableContent({
     records: [{ id: "old", kind: "requirement", text: "旧要求", createdAt: "2026-08-01T09:00:00.000Z" }],
   }), { id: "new", kind: "change", text: "新修改", createdAt: "2026-08-02T09:00:00.000Z" });
 
-  assert.deepEqual(content.records.map(record => record.id), ["new", "old"]);
+  assert.deepEqual(content.records.map(record => record.id), ["old", "new"]);
+});
+
+test("AI 任务结果紧跟在其父任务后显示", () => {
+  const content = normalizeDeliverableContent({
+    records: [
+      {
+        id: "result",
+        kind: "ai_task_result",
+        text: "发现两项遗漏",
+        createdAt: "2026-09-02T10:02:00.000Z",
+        parentRecordId: "task",
+        aiTaskResult: {
+          taskId: "task-1",
+          status: "needs_human",
+          executor: "hermes",
+          completedAt: "2026-09-02T10:02:00.000Z",
+          report: { fileName: "完整报告.md", relativePath: "07-交付/report/AI任务结果/完整报告.md", size: 24 },
+          evidence: [{ fileName: "source.xlsx", relativePath: "07-交付/report/source.xlsx", size: 12 }],
+        },
+      },
+      {
+        id: "note",
+        kind: "information",
+        text: "补充材料",
+        createdAt: "2026-09-02T10:01:00.000Z",
+      },
+      {
+        id: "task",
+        kind: "ai_task",
+        text: "核对交付物",
+        createdAt: "2026-09-02T10:00:00.000Z",
+        aiTask: { id: "task-1", status: "succeeded", executor: "hermes" },
+      },
+    ],
+  });
+
+  assert.deepEqual(orderDeliverableRecords(content.records).map(record => record.id), ["task", "result", "note"]);
+  assert.equal(content.records.find(record => record.id === "result")?.aiTaskResult?.report?.fileName, "完整报告.md");
 });
 
 test("只保留最新策略以同名文件替换既有版本", () => {
