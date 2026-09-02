@@ -18,6 +18,7 @@ describe("deliverable Codex routes", () => {
       chats: {
         async ensureConversation(input) { chats.push({ type: "conversation", ...input }); return { ...input, title: input.title ?? "", surface: input.surface ?? "", createdAt: input.now, updatedAt: input.now, lastMessageAt: input.now }; },
         async appendMessage(message) { chats.push({ type: "message", ...message }); },
+        async listMessages(conversationId) { return chats.filter(item => item.type === "message" && item.conversationId === conversationId) as never; },
       } as never,
       context: { async build(input) { return { scopeKey: `deliverable:${input.projectId}:${input.deliverableId}`, contextVersion: "ctx-v1", systemInstruction: "mode rules", initialContext: "deliverable context", allowedMcpTools: input.mode === "task" ? ["rich_task_report_result"] : [] }; } } as never,
       agents: { async start(id) { agents.push(`start:${id}`); return { config: {} as never, resumed: false }; }, async exit(id) { agents.push(`exit:${id}`); return null; } } as never,
@@ -30,6 +31,7 @@ describe("deliverable Codex routes", () => {
     expect(second.status).toBe(201);
     expect(firstJson.conversation).toMatchObject({ mode: "task", allowedMcpTools: ["rich_task_report_result"] });
     expect((await (await app.request("/p1/d1/conversations")).json() as { conversations: unknown[] }).conversations).toHaveLength(2);
+    expect((await (await app.request(`/conversations/${firstJson.conversation.id}/messages`)).json() as { messages: unknown[] }).messages).toHaveLength(1);
 
     const archived = await app.request(`/conversations/${firstJson.conversation.id}/archive`, { method: "POST" });
     expect(archived.status).toBe(200);

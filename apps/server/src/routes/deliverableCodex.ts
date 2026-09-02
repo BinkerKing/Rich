@@ -51,6 +51,12 @@ export function deliverableCodexRoutes(deps: {
     return c.json({ conversation: archived });
   });
 
+  r.get("/conversations/:id/messages", async c => {
+    const existing = await deps.conversations.get(c.req.param("id"));
+    if (!existing) return c.json({ error: "Conversation not found" }, 404);
+    return c.json({ messages: await deps.chats.listMessages(existing.conversationId, 200) });
+  });
+
   r.post("/conversations/:id/stream", async c => {
     const existing = await deps.conversations.get(c.req.param("id"));
     if (!existing || existing.status !== "active") return c.json({ error: "Active conversation not found" }, 404);

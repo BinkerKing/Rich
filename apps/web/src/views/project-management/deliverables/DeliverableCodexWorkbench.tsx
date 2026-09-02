@@ -32,6 +32,12 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     setActiveId(current => current && payload.conversations.some(item => item.id === current) ? current : payload.conversations[0]?.id);
   };
   useEffect(() => { void refresh().catch(reason => setError(reason instanceof Error ? reason.message : String(reason))); }, [projectId, deliverableId]);
+  useEffect(() => {
+    if (!activeId || messages[activeId]) return;
+    void readJson<{ messages: Array<{ role: "user" | "assistant" | "system"; content: string }> }>(`/api/deliverable-codex/conversations/${encodeURIComponent(activeId)}/messages`)
+      .then(payload => setMessages(current => ({ ...current, [activeId]: payload.messages.flatMap(message => message.role === "user" || message.role === "assistant" ? [{ role: message.role, content: message.content }] : []) })))
+      .catch(reason => setError(reason instanceof Error ? reason.message : String(reason)));
+  }, [activeId, messages]);
 
   const create = async () => {
     if (!title.trim()) return;
