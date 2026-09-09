@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { nodeStyleFromData, type NodeStyle } from "./nodeStyleControls.js";
+import { styleMenuOptions, type StyleMenu } from "./nodeStyleToolbarMenu.js";
 import { titleFromNodeHtml, titleNoteNodeHtml, titleOnlyNodeHtml } from "./richTextNode.js";
 import "./mindmapNodeStyleToolbar.css";
 
@@ -10,51 +11,65 @@ export type MindmapNodeStyleTarget = {
   setStyles(style: Partial<NodeStyle>): void;
 };
 
-type Props = {
-  node: MindmapNodeStyleTarget;
-};
-
-const colorInputs: Array<{ key: "color" | "fillColor" | "borderColor"; label: string }> = [
-  { key: "color", label: "文字颜色" },
-  { key: "fillColor", label: "背景颜色" },
-  { key: "borderColor", label: "边框颜色" },
-];
+type Props = { node: MindmapNodeStyleTarget };
+type OpenMenu = StyleMenu | "color" | "fillColor" | "borderColor" | "border" | null;
 
 export function MindmapNodeStyleToolbar({ node }: Props) {
   const [style, setStyle] = useState(() => nodeStyleFromData(readNodeStyle(node)));
   const [hasNote, setHasNote] = useState(() => node.getData("nodeCardStyle") === "title-note");
+  const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
 
   useEffect(() => {
     setStyle(nodeStyleFromData(readNodeStyle(node)));
     setHasNote(node.getData("nodeCardStyle") === "title-note");
+    setOpenMenu(null);
   }, [node]);
 
   const apply = (patch: Partial<NodeStyle>) => {
-    const next = { ...style, ...patch };
-    setStyle(next);
+    setStyle(current => ({ ...current, ...patch }));
     node.setStyles(patch);
   };
+  const toggle = (menu: OpenMenu) => setOpenMenu(current => current === menu ? null : menu);
+  const colorMenu = (key: "color" | "fillColor" | "borderColor", label: string) => <div className="mindmap-node-style-toolbar__menu mindmap-node-style-toolbar__menu--color"><span>{label}</span><input aria-label={label} type="color" value={style[key]} onChange={event => apply({ [key]: event.target.value })} /></div>;
 
   return <aside className="mindmap-node-style-toolbar" aria-label="节点样式">
-    <span className="mindmap-node-style-toolbar__title">节点样式</span>
-    <label title="字号">字号<select value={style.fontSize} onChange={event => apply({ fontSize: Number(event.target.value) })}>{[14, 16, 18, 22, 26].map(size => <option key={size} value={size}>{size}</option>)}</select></label>
-    <button className={style.fontWeight === "bold" ? "is-active" : ""} type="button" title="加粗" aria-pressed={style.fontWeight === "bold"} onClick={() => apply({ fontWeight: style.fontWeight === "bold" ? "normal" : "bold" })}>B</button>
-    {colorInputs.map(({ key, label }) => <label key={key} className="mindmap-node-style-toolbar__color" title={label}>{label}<input type="color" value={style[key]} onChange={event => apply({ [key]: event.target.value })} /></label>)}
-    <label title="边框粗细">边框<select value={style.borderWidth} onChange={event => apply({ borderWidth: Number(event.target.value) })}>{[0, 1, 2, 3].map(width => <option key={width} value={width}>{width}px</option>)}</select></label>
-    <label title="圆角">圆角<select value={style.borderRadius} onChange={event => apply({ borderRadius: Number(event.target.value) })}>{[0, 8, 16, 28, 48].map(radius => <option key={radius} value={radius}>{radius}px</option>)}</select></label>
+    {openMenu && <div className="mindmap-node-style-toolbar__menu-wrap">
+      {openMenu === "fontSize" && <div className="mindmap-node-style-toolbar__menu"><span>字号</span><div>{styleMenuOptions("fontSize").map(size => <button key={size} className={style.fontSize === size ? "is-active" : ""} type="button" onClick={() => { apply({ fontSize: size }); setOpenMenu(null); }}>{size}</button>)}</div></div>}
+      {openMenu === "color" && colorMenu("color", "文字颜色")}
+      {openMenu === "fillColor" && colorMenu("fillColor", "背景颜色")}
+      {openMenu === "borderColor" && colorMenu("borderColor", "边框颜色")}
+      {openMenu === "border" && <div className="mindmap-node-style-toolbar__menu mindmap-node-style-toolbar__menu--border"><span>边框</span><div><small>颜色</small><input aria-label="边框颜色" type="color" value={style.borderColor} onChange={event => apply({ borderColor: event.target.value })} /></div><div><small>粗细</small>{styleMenuOptions("borderWidth").map(width => <button key={width} className={style.borderWidth === width ? "is-active" : ""} type="button" onClick={() => apply({ borderWidth: width })}>{width}px</button>)}</div><div><small>圆角</small>{styleMenuOptions("borderRadius").map(radius => <button key={radius} className={style.borderRadius === radius ? "is-active" : ""} type="button" onClick={() => apply({ borderRadius: radius })}>{radius}</button>)}</div></div>}
+    </div>}
+    <button type="button" title="字号" aria-label="字号" aria-expanded={openMenu === "fontSize"} onClick={() => toggle("fontSize")}><ToolbarIcon name="text" /></button>
+    <button className={style.fontWeight === "bold" ? "is-active" : ""} type="button" title="加粗" aria-label="加粗" aria-pressed={style.fontWeight === "bold"} onClick={() => apply({ fontWeight: style.fontWeight === "bold" ? "normal" : "bold" })}><ToolbarIcon name="bold" /></button>
+    <button type="button" title="文字颜色" aria-label="文字颜色" aria-expanded={openMenu === "color"} onClick={() => toggle("color")}><ToolbarIcon name="color" /></button>
+    <button type="button" title="背景颜色" aria-label="背景颜色" aria-expanded={openMenu === "fillColor"} onClick={() => toggle("fillColor")}><ToolbarIcon name="fill" /></button>
+    <button type="button" title="边框样式" aria-label="边框样式" aria-expanded={openMenu === "border"} onClick={() => toggle("border")}><ToolbarIcon name="border" /></button>
     <button className={hasNote ? "is-active" : ""} type="button" title={hasNote ? "移除备注" : "增加备注"} aria-label={hasNote ? "移除备注" : "增加备注"} aria-pressed={hasNote} onClick={() => {
       const title = titleFromNodeHtml(node.getData("text"));
       if (hasNote) {
         node.setData({ nodeCardStyle: undefined });
         node.setText(titleOnlyNodeHtml(node.getData("text")), true);
         setHasNote(false);
-        return;
+      } else {
+        node.setData({ nodeCardStyle: "title-note" });
+        node.setText(titleNoteNodeHtml(title, "点击两次编辑备注"), true);
+        setHasNote(true);
       }
-      node.setData({ nodeCardStyle: "title-note" });
-      node.setText(titleNoteNodeHtml(title, "点击两次编辑备注"), true);
-      setHasNote(true);
-    }}>▤</button>
+    }}><ToolbarIcon name="note" /></button>
   </aside>;
+}
+
+function ToolbarIcon({ name }: { name: "text" | "bold" | "color" | "fill" | "border" | "note" }) {
+  const paths = {
+    text: <><path d="M5 5h14M12 5v14M8 19h8" /></>,
+    bold: <path d="M8 5h5a3 3 0 0 1 0 6H8zm0 6h6a3 3 0 0 1 0 6H8z" />,
+    color: <><path d="m8 17 4-11 4 11M9.5 13h5" /><path d="M5 20h14" /></>,
+    fill: <><path d="m7 4 10 10-5 5L2 9z" /><path d="M16 18h5" /></>,
+    border: <><rect x="5" y="5" width="14" height="14" rx="2" /><path d="M9 12h6" /></>,
+    note: <><rect x="5" y="4" width="14" height="16" rx="2" /><path d="M8 9h8M8 13h8" /></>,
+  }[name];
+  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>;
 }
 
 function readNodeStyle(node: MindmapNodeStyleTarget): Record<string, unknown> {
