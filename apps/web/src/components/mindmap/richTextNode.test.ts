@@ -95,6 +95,17 @@ test("replaces an icon after rich text has reordered its attributes", () => {
   );
 });
 
+test("replaces plain icon text left behind by the rich text editor", () => {
+  assert.equal(
+    nodeIconHtml("<p>💬 ⭐TransactionTab → BopTransaction</p>", "📌"),
+    '<p><span class="mindmap-node-icon" contenteditable="false">📌</span>TransactionTab → BopTransaction</p>',
+  );
+  assert.equal(
+    nodeIconHtml("<p>⭐⭐CifTab / AifTab</p>", "⭐"),
+    '<p><span class="mindmap-node-icon" contenteditable="false">⭐</span>CifTab / AifTab</p>',
+  );
+});
+
 test("clicking the selected node icon removes it", () => {
   assert.equal(nextNodeIcon("⚙️", "⚙️"), undefined);
   assert.equal(nextNodeIcon("⚙️", "📌"), "📌");

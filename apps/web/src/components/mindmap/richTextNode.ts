@@ -117,7 +117,7 @@ export function titleOnlyNodeHtml(value: unknown): string {
 }
 
 export function nodeIconHtml(value: unknown, icon: unknown): string {
-  const text = typeof value === "string" ? removeNodeIconHtml(value) : "";
+  const text = typeof value === "string" ? removeLeadingNodeIconText(removeNodeIconHtml(value)) : "";
   const nextIcon = typeof icon === "string" ? icon.trim() : "";
   if (!nextIcon) return text;
   const iconHtml = `<span class="mindmap-node-icon" contenteditable="false">${escapeHtml(nextIcon)}</span>`;
@@ -175,6 +175,10 @@ function removeParagraphClass(paragraph: string): string {
 
 function removeNodeIconHtml(value: string): string {
   return value.replace(/<span\b(?=[^>]*\bclass=(?:"[^"]*\bmindmap-node-icon\b[^"]*"|'[^']*\bmindmap-node-icon\b[^']*'))[^>]*>[\s\S]*?<\/span>\s*/gi, "");
+}
+
+function removeLeadingNodeIconText(value: string): string {
+  return value.replace(/(<p(?:\s[^>]*)?>)(?:\s*(?:📌|⭐|💡|⚙️|🎯|✅|⚠️|📚|🔗|🚀|💬|🔍))+/u, "$1");
 }
 
 function textFromHtml(value: string): string {
