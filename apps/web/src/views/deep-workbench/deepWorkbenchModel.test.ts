@@ -10,4 +10,5 @@ test("new deep workbench map contains only the named root node", () => {
   assert.deepEqual(map.root.children, []);
   assert.equal(map.layout, "logicalStructure");
   assert.equal(map.theme.id, "neon-violet");
+  assert.equal(map.theme.lineStyle, "curve");
 });
