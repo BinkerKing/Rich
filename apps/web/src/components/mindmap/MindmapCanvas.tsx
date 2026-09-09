@@ -8,7 +8,7 @@ import { applyPanSensitivity, boundedCanvasPanDelta, nextInertialPan, shouldStar
 import { MindmapNodeStyleToolbar, type MindmapNodeStyleTarget } from "./MindmapNodeStyleToolbar.js";
 import { nextShiftSelection, selectionOptions } from "./mindmapMultiSelection.js";
 import { clearMindmapHost } from "./mindmapHost.js";
-import { decorateTitleNoteHtml, hasNodeNote, normalizeTitleNoteTree, richTextNodeLayoutCss, titleOnlyNodeHtml } from "./richTextNode.js";
+import { decorateTitleNoteHtml, hasNodeNote, nodeIconHtml, normalizeTitleNoteTree, richTextNodeLayoutCss, titleOnlyNodeHtml } from "./richTextNode.js";
 
 MindMap.usePlugin(Drag).usePlugin(Select).usePlugin(Export).usePlugin(RichText);
 
@@ -153,10 +153,10 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
     const handleHideTextEdit = (_editor: unknown, nodes: MindmapNodeStyleTarget[]) => {
       for (const node of nodes) {
         if (node.getData("nodeCardStyle") !== "title-note") continue;
-        if (hasNodeNote(node.getData("text"))) node.setText(decorateTitleNoteHtml(node.getData("text")), true);
+        if (hasNodeNote(node.getData("text"))) node.setText(nodeIconHtml(decorateTitleNoteHtml(node.getData("text")), node.getData("nodeIcon")), true);
         else {
           node.setData({ nodeCardStyle: undefined });
-          node.setText(titleOnlyNodeHtml(node.getData("text")), true);
+          node.setText(nodeIconHtml(titleOnlyNodeHtml(node.getData("text")), node.getData("nodeIcon")), true);
         }
       }
     };

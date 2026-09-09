@@ -14,6 +14,14 @@ export const richTextNodeLayoutCss = `
     line-height: 1.25;
   }
 
+  .smm-richtext-node-wrap .mindmap-node-icon {
+    display: inline-block;
+    margin-right: .35em;
+    font-size: 1em;
+    line-height: 1;
+    vertical-align: -.08em;
+  }
+
   .smm-richtext-node-wrap .mindmap-node-note,
   .smm-richtext-node-edit-wrap .ql-editor .mindmap-node-note {
     box-sizing: border-box;
@@ -108,6 +116,15 @@ export function titleOnlyNodeHtml(value: unknown): string {
   return removeParagraphClass(richTextParagraphs(value)[0] ?? "");
 }
 
+export function nodeIconHtml(value: unknown, icon: unknown): string {
+  const text = typeof value === "string" ? removeNodeIconHtml(value) : "";
+  const nextIcon = typeof icon === "string" ? icon.trim() : "";
+  if (!nextIcon) return text;
+  const iconHtml = `<span class="mindmap-node-icon" contenteditable="false">${escapeHtml(nextIcon)}</span>`;
+  if (/<p(?:\s[^>]*)?>/i.test(text)) return text.replace(/<p(?:\s[^>]*)?>/i, match => `${match}${iconHtml}`);
+  return `<p>${iconHtml}${text}</p>`;
+}
+
 export function decorateTitleNoteHtml(value: unknown): string {
   const [title, ...note] = richTextParagraphs(value);
   if (!title) return "";
@@ -118,9 +135,10 @@ type MindmapTreeNode = { data?: Record<string, unknown>; children?: MindmapTreeN
 
 export function normalizeTitleNoteTree<T extends MindmapTreeNode>(node: T): T {
   const currentData = node.data;
-  const nextText = currentData?.nodeCardStyle === "title-note" && hasNodeNote(currentData.text)
-    ? decorateTitleNoteHtml(currentData.text)
-    : currentData?.text;
+  const textWithIcon = nodeIconHtml(currentData?.text, currentData?.nodeIcon);
+  const nextText = currentData?.nodeCardStyle === "title-note" && hasNodeNote(textWithIcon)
+    ? decorateTitleNoteHtml(textWithIcon)
+    : textWithIcon;
   const nextChildren = node.children?.map(normalizeTitleNoteTree);
   const dataChanged = nextText !== currentData?.text;
   const childrenChanged = nextChildren?.some((child, index) => child !== node.children?.[index]) ?? false;
@@ -135,7 +153,7 @@ export function normalizeTitleNoteTree<T extends MindmapTreeNode>(node: T): T {
 export function titleFromNodeHtml(value: unknown): string {
   const html = typeof value === "string" ? value : "";
   const firstParagraph = html.match(/<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/i)?.[1] ?? html;
-  return textFromHtml(firstParagraph).trim();
+  return textFromHtml(removeNodeIconHtml(firstParagraph)).trim();
 }
 
 function richTextParagraphs(value: unknown): string[] {
@@ -149,6 +167,10 @@ function addParagraphClass(paragraph: string, className: string): string {
 
 function removeParagraphClass(paragraph: string): string {
   return paragraph.replace(/^<p\s+class=(?:"mindmap-node-title"|'mindmap-node-title')>/i, "<p>");
+}
+
+function removeNodeIconHtml(value: string): string {
+  return value.replace(/<span class=(?:"mindmap-node-icon"|'mindmap-node-icon')[^>]*>[\s\S]*?<\/span>\s*/gi, "");
 }
 
 function textFromHtml(value: string): string {

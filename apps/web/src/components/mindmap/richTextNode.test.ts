@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decorateTitleNoteHtml, hasNodeNote, normalizeTitleNoteTree, richTextNodeLayoutCss, titleFromNodeHtml, titleNoteNodeHtml, titleOnlyNodeHtml } from "./richTextNode.js";
+import { decorateTitleNoteHtml, hasNodeNote, nodeIconHtml, normalizeTitleNoteTree, richTextNodeLayoutCss, titleFromNodeHtml, titleNoteNodeHtml, titleOnlyNodeHtml } from "./richTextNode.js";
 
 test("creates a title-and-note card as safely escaped rich text HTML", () => {
   assert.equal(
@@ -73,5 +73,24 @@ test("keeps the configured node color on titles with notes", () => {
   assert.match(
     richTextNodeLayoutCss,
     /\.ql-editor > p:first-child[\s\S]*?color:\s*inherit/,
+  );
+});
+
+test("adds an icon before the title without changing the knowledge-tree title", () => {
+  const text = nodeIconHtml('<p><strong>引擎诊断</strong></p>', "⚙️");
+  assert.equal(text, '<p><span class="mindmap-node-icon" contenteditable="false">⚙️</span><strong>引擎诊断</strong></p>');
+  assert.equal(titleFromNodeHtml(text), "引擎诊断");
+});
+
+test("removes the node icon while retaining the title content", () => {
+  const withIcon = '<p><span class="mindmap-node-icon" contenteditable="false">⚙️</span><strong>引擎诊断</strong></p>';
+  assert.equal(nodeIconHtml(withIcon, undefined), '<p><strong>引擎诊断</strong></p>');
+});
+
+test("restores the saved node icon when a mind map is opened", () => {
+  const tree = { data: { nodeIcon: "⚙️", text: "<p>引擎诊断</p>" }, children: [] };
+  assert.equal(
+    (normalizeTitleNoteTree(tree).data as Record<string, unknown>).text,
+    '<p><span class="mindmap-node-icon" contenteditable="false">⚙️</span>引擎诊断</p>',
   );
 });

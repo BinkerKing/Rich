@@ -4,7 +4,7 @@ import { nodeColorPresets, noteButtonState, styleMenuOptions, type NodeColorStyl
 import { applyNodeStyle } from "./mindmapMultiSelection.js";
 import { clampNodeStyleToolbarPosition, parseNodeStyleToolbarPosition, type NodeStyleToolbarPosition } from "./nodeStyleToolbarPosition.js";
 import { parseNodeStylePresets, saveNodeStylePreset, type NodeStylePreset } from "./nodeStylePresets.js";
-import { titleFromNodeHtml, titleNoteNodeHtml } from "./richTextNode.js";
+import { nodeIconHtml, titleFromNodeHtml, titleNoteNodeHtml } from "./richTextNode.js";
 import "./mindmapNodeStyleToolbar.css";
 
 export type MindmapNodeStyleTarget = {
@@ -15,14 +15,16 @@ export type MindmapNodeStyleTarget = {
 };
 
 type Props = { nodes: MindmapNodeStyleTarget[] };
-type OpenMenu = StyleMenu | "color" | "fillColor" | "borderColor" | "border" | "presets" | null;
+type OpenMenu = StyleMenu | "color" | "fillColor" | "borderColor" | "border" | "presets" | "icon" | null;
 const POSITION_STORAGE_KEY = "rich.mindmap.node-style-toolbar.position.v1";
 const PRESETS_STORAGE_KEY = "rich.mindmap.node-style-presets.v1";
+const nodeIcons = ["📌", "⭐", "💡", "⚙️", "🎯", "✅", "⚠️", "📚", "🔗", "🚀", "💬", "🔍"];
 
 export function MindmapNodeStyleToolbar({ nodes }: Props) {
   const node = nodes[0]!;
   const [style, setStyle] = useState(() => nodeStyleFromData(readNodeStyle(node)));
   const [hasNote, setHasNote] = useState(() => node.getData("nodeCardStyle") === "title-note");
+  const [nodeIcon, setNodeIcon] = useState(() => readNodeIcon(node));
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const [presets, setPresets] = useState<NodeStylePreset[]>(() => parseNodeStylePresets(localStorage.getItem(PRESETS_STORAGE_KEY)));
   const [presetName, setPresetName] = useState("");
@@ -33,6 +35,7 @@ export function MindmapNodeStyleToolbar({ nodes }: Props) {
   useEffect(() => {
     setStyle(nodeStyleFromData(readNodeStyle(node)));
     setHasNote(node.getData("nodeCardStyle") === "title-note");
+    setNodeIcon(readNodeIcon(node));
     setOpenMenu(null);
   }, [node]);
 
@@ -85,6 +88,14 @@ export function MindmapNodeStyleToolbar({ nodes }: Props) {
     applyNodeStyle(nodes, preset.style);
     setOpenMenu(null);
   };
+  const applyIcon = (icon?: string) => {
+    nodes.forEach(target => {
+      target.setData({ nodeIcon: icon });
+      target.setText(nodeIconHtml(target.getData("text"), icon), true);
+    });
+    setNodeIcon(icon);
+    setOpenMenu(null);
+  };
   const colorSwatches = (key: NodeColorStyle, label: string) => <div className="mindmap-node-style-toolbar__swatches">{nodeColorPresets(key).map(color => <button key={color} className={style[key] === color ? "is-active" : ""} type="button" title={color} aria-label={`${label}：${color}`} style={{ backgroundColor: color }} onClick={() => apply({ [key]: color })} />)}<label className="mindmap-node-style-toolbar__custom-color" title={`自定义${label}`} aria-label={`自定义${label}`}><ToolbarIcon name="palette" /><input aria-label={`自定义${label}`} type="color" value={style[key]} onChange={event => apply({ [key]: event.target.value })} /></label></div>;
   const colorMenu = (key: NodeColorStyle, label: string) => <div className="mindmap-node-style-toolbar__menu mindmap-node-style-toolbar__menu--color"><span>{label}</span>{colorSwatches(key, label)}</div>;
   const noteState = nodes.length === 1 ? noteButtonState(hasNote) : { disabled: true, label: "批量选择时不能增加备注" };
@@ -105,10 +116,12 @@ export function MindmapNodeStyleToolbar({ nodes }: Props) {
       {openMenu === "fillColor" && colorMenu("fillColor", "背景颜色")}
       {openMenu === "borderColor" && colorMenu("borderColor", "边框颜色")}
       {openMenu === "border" && <div className="mindmap-node-style-toolbar__menu mindmap-node-style-toolbar__menu--border"><span>边框</span><div><small>颜色</small>{colorSwatches("borderColor", "边框颜色")}</div><div><small>粗细</small>{styleMenuOptions("borderWidth").map(width => <button key={width} className={style.borderWidth === width ? "is-active" : ""} type="button" onClick={() => apply({ borderWidth: width })}>{width}px</button>)}</div><div><small>圆角</small>{styleMenuOptions("borderRadius").map(radius => <button key={radius} className={style.borderRadius === radius ? "is-active" : ""} type="button" onClick={() => apply({ borderRadius: radius })}>{radius}</button>)}</div></div>}
+      {openMenu === "icon" && <div className="mindmap-node-style-toolbar__menu mindmap-node-style-toolbar__menu--icons"><span>节点图标</span><div>{nodeIcons.map(icon => <button key={icon} className={nodeIcon === icon ? "is-active" : ""} type="button" title={`使用${icon}`} aria-label={`使用${icon}`} onClick={() => applyIcon(icon)}>{icon}</button>)}<button className={!nodeIcon ? "is-active" : ""} type="button" title="移除图标" aria-label="移除图标" onClick={() => applyIcon(undefined)}>×</button></div></div>}
       {openMenu === "presets" && <div className="mindmap-node-style-toolbar__menu mindmap-node-style-toolbar__menu--presets"><span>节点样式</span><div className="mindmap-node-style-toolbar__preset-list">{presets.length ? presets.map(preset => <button key={preset.id} type="button" title={`应用“${preset.name}”`} onClick={() => applyPreset(preset)}>{preset.name}</button>) : <small>保存当前样式后，可在这里复用</small>}</div><div className="mindmap-node-style-toolbar__preset-save"><input aria-label="节点样式名称" value={presetName} placeholder="例如：重点节点" maxLength={24} onChange={event => setPresetName(event.target.value)} onKeyDown={event => { if (event.key === "Enter") savePreset(); }} /><button type="button" disabled={!presetName.trim()} onClick={savePreset}>保存</button></div></div>}
     </div>}
     <button type="button" title="字号" aria-label="字号" aria-expanded={openMenu === "fontSize"} onClick={() => toggle("fontSize")}><ToolbarIcon name="text" /></button>
     <button className={style.fontWeight === "bold" ? "is-active" : ""} type="button" title="加粗" aria-label="加粗" aria-pressed={style.fontWeight === "bold"} onClick={() => apply({ fontWeight: style.fontWeight === "bold" ? "normal" : "bold" })}><ToolbarIcon name="bold" /></button>
+    <button className={nodeIcon ? "is-active" : ""} type="button" title="节点图标" aria-label="节点图标" aria-expanded={openMenu === "icon"} onClick={() => toggle("icon")}><ToolbarIcon name="icon" /></button>
     <button type="button" title="文字颜色" aria-label="文字颜色" aria-expanded={openMenu === "color"} onClick={() => toggle("color")}><ToolbarIcon name="color" /></button>
     <button type="button" title="背景颜色" aria-label="背景颜色" aria-expanded={openMenu === "fillColor"} onClick={() => toggle("fillColor")}><ToolbarIcon name="fill" /></button>
     <button type="button" title="边框样式" aria-label="边框样式" aria-expanded={openMenu === "border"} onClick={() => toggle("border")}><ToolbarIcon name="border" /></button>
@@ -116,13 +129,13 @@ export function MindmapNodeStyleToolbar({ nodes }: Props) {
     <button className={hasNote ? "is-active" : ""} type="button" disabled={noteState.disabled} title={noteState.label} aria-label={noteState.label} aria-pressed={hasNote} onClick={() => {
       const title = titleFromNodeHtml(node.getData("text"));
       node.setData({ nodeCardStyle: "title-note" });
-      node.setText(titleNoteNodeHtml(title, "点击两次编辑备注"), true);
+      node.setText(nodeIconHtml(titleNoteNodeHtml(title, "点击两次编辑备注"), nodeIcon), true);
       setHasNote(true);
     }}><ToolbarIcon name="note" /></button>
   </aside>;
 }
 
-function ToolbarIcon({ name }: { name: "text" | "bold" | "color" | "fill" | "border" | "note" | "drag" | "preset" | "palette" }) {
+function ToolbarIcon({ name }: { name: "text" | "bold" | "color" | "fill" | "border" | "note" | "drag" | "preset" | "palette" | "icon" }) {
   const paths = {
     text: <><path d="M5 5h14M12 5v14M8 19h8" /></>,
     bold: <path d="M8 5h5a3 3 0 0 1 0 6H8zm0 6h6a3 3 0 0 1 0 6H8z" />,
@@ -133,10 +146,16 @@ function ToolbarIcon({ name }: { name: "text" | "bold" | "color" | "fill" | "bor
     drag: <><circle cx="9" cy="7" r="1" /><circle cx="15" cy="7" r="1" /><circle cx="9" cy="12" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="9" cy="17" r="1" /><circle cx="15" cy="17" r="1" /></>,
     preset: <><path d="M6 4h12v16H6z" /><path d="m9 8 3-2 3 2v4l-3 2-3-2z" /><path d="M9 17h6" /></>,
     palette: <><path d="M12 4a8 8 0 1 0 0 16h1.1a1.9 1.9 0 0 0 .7-3.67 1.6 1.6 0 0 1 .6-3.08H16A4 4 0 0 0 12 4Z" /><circle cx="8" cy="11" r=".8" fill="currentColor" /><circle cx="11" cy="8" r=".8" fill="currentColor" /><circle cx="15" cy="9" r=".8" fill="currentColor" /></>,
+    icon: <><circle cx="12" cy="12" r="7" /><circle cx="9.5" cy="10" r=".7" fill="currentColor" /><circle cx="14.5" cy="10" r=".7" fill="currentColor" /><path d="M9 14c1.5 1.3 4.5 1.3 6 0" /></>,
   }[name];
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>;
 }
 
 function readNodeStyle(node: MindmapNodeStyleTarget): Record<string, unknown> {
   return Object.fromEntries(["color", "fillColor", "borderColor", "borderWidth", "borderRadius", "fontSize", "fontWeight"].map(key => [key, node.getData(key)]));
+}
+
+function readNodeIcon(node: MindmapNodeStyleTarget): string | undefined {
+  const icon = node.getData("nodeIcon");
+  return typeof icon === "string" && icon.trim() ? icon : undefined;
 }
