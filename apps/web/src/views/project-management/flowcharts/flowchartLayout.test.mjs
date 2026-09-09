@@ -74,3 +74,10 @@ test('flowchart toolbar exports the current canvas as a PNG image', () => {
   assert.match(source, /aria-label="导出 PNG"/);
   assert.match(source, /exportFlowchartPng/);
 });
+
+test('selecting a flowchart node opens the movable style editor', () => {
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(source, /FlowchartNodeStyleToolbar/);
+  assert.match(source, /node && <FlowchartNodeStyleToolbar/);
+  assert.match(source, /onChange=\{editNode\}/);
+});

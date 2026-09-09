@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { ReactFlow, Background, Controls, Handle, Position, MarkerType, applyNodeChanges, applyEdgeChanges,
   type NodeProps, type ReactFlowInstance } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -6,30 +6,43 @@ import { api, type ProjectModuleItem } from "../../../api/client.js";
 import { createFlowchart, readFlowchart, ROOT_SCOPE, scopePath, searchFlowNodes,
   type FlowchartData, type FlowNode } from "./flowchartModel.js";
 import { exportFlowchartPng } from "./flowchartExport.js";
+import { FlowchartNodeStyleToolbar } from "./FlowchartNodeStyleToolbar.js";
 import { ProjectRichTextEditor } from "../ProjectManagementModules.js";
 import "./FlowchartsWorkspace.css";
 
 const DETAIL_PANEL_WIDTH_KEY = "rich.flowchart.node-detail-panel-width";
 const detailPanelWidth = (value: number, maxWidth = Math.floor(window.innerWidth * 2 / 3)) => Math.min(maxWidth, Math.max(320, Math.round(value)));
 function RegionNode({ data, selected }: NodeProps<FlowNode>) {
-  return <div className={`pfc-region tone-${data.tone || "cyan"}${selected ? " is-selected" : ""}`}>
+  return <div className={`pfc-region tone-${data.tone || "cyan"}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
     <header><strong>{data.label}</strong>{data.caption && <span>{data.caption}</span>}</header>
   </div>;
 }
 function NoteNode({ data, selected }: NodeProps<FlowNode>) {
-  return <div className={`pfc-note tone-${data.tone || "amber"}${selected ? " is-selected" : ""}`}>
+  return <div className={`pfc-note tone-${data.tone || "amber"}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
     <span className="pfc-note-pin" aria-hidden="true" />
     <small>NOTE / 备注</small><strong>{data.label}</strong>
     {data.caption && <p>{data.caption}</p>}
   </div>;
 }
 function AnalysisNode({ data, selected }: NodeProps<FlowNode>) {
-  return <div className={`pfc-node is-${data.kind}${selected ? " is-selected" : ""}`}>
+  return <div className={`pfc-node is-${data.kind}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
     <Handle type="target" position={Position.Left} />
     <span className="pfc-node-symbol" aria-hidden="true">{data.kind === "table" ? "▤" : data.kind === "decision" ? "◇" : data.kind === "boundary" ? "◉" : "→"}</span>
     <strong>{data.label}</strong>
     <Handle type="source" position={Position.Right} />
   </div>;
+}
+function nodeStyle(data: FlowNode["data"]): CSSProperties {
+  return {
+    ...(data.color ? { color: data.color } : {}),
+    ...(data.fillColor ? { backgroundColor: data.fillColor } : {}),
+    ...(data.borderColor ? { borderColor: data.borderColor } : {}),
+    ...(data.borderWidth !== undefined ? { borderWidth: data.borderWidth } : {}),
+    ...(data.borderRadius !== undefined ? { borderRadius: data.borderRadius } : {}),
+    ...(data.fontSize ? { "--pfc-node-font-size": `${data.fontSize}px` } : {}),
+    ...(data.fontWeight ? { "--pfc-node-font-weight": data.fontWeight } : {}),
+    ...(data.color ? { "--pfc-node-color": data.color } : {}),
+  } as CSSProperties;
 }
 const nodeTypes = { analysis: AnalysisNode, region: RegionNode, note: NoteNode };
 
@@ -271,6 +284,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
             </ReactFlow>
           </div>
           <div className="pfc-legend" aria-label="流程图图例"><span>● 处理</span><span>● 数据表</span><span>◇ 判断</span><span>— 主线</span><span>┄ 规则 / 数据关联</span></div>
+          {node && <FlowchartNodeStyleToolbar node={node} onChange={editNode} />}
           {node && <aside className={`pfc-details pfc-node-detail${nodeDetailFullscreen ? " is-fullscreen" : ""}`} aria-label="节点详情" style={nodeDetailFullscreen ? undefined : { width: nodeDetailWidth }}>
             <div className="pfc-node-detail__resize-handle" role="separator" aria-label="调整节点详情宽度" aria-orientation="vertical" onPointerDown={resizeNodeDetail} />
             <header><h2>{node.data.label}</h2><div className="pfc-node-detail__header-actions"><button type="button" aria-label={nodeDetailFullscreen ? "还原节点详情" : "全屏显示节点详情"} title={nodeDetailFullscreen ? "还原" : "全屏"} onClick={() => setNodeDetailFullscreen(fullscreen => !fullscreen)}>{nodeDetailFullscreen ? "↙" : "⛶"}</button><button type="button" aria-label="关闭节点详情" onClick={() => { setSelected(""); setSelectedEdge(""); }}>×</button></div></header>

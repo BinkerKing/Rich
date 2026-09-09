@@ -1,4 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
+import type { NodeStyle } from "../../../components/mindmap/nodeStyleControls.js";
 
 export type FlowNode = Node<{
   label: string;
@@ -9,7 +10,7 @@ export type FlowNode = Node<{
   source: string;
   verified: boolean;
   scope: string;
-}>;
+} & Partial<NodeStyle>>;
 export interface FlowchartData {
   version: 1;
   objective: string;
