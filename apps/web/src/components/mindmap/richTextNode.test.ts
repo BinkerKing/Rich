@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { titleFromNodeHtml, titleNoteNodeHtml } from "./richTextNode.js";
+import { richTextNodeLayoutCss, titleFromNodeHtml, titleNoteNodeHtml } from "./richTextNode.js";
 
 test("creates a title-and-note card as safely escaped rich text HTML", () => {
   assert.equal(
@@ -12,4 +12,9 @@ test("creates a title-and-note card as safely escaped rich text HTML", () => {
 test("uses the first rich-text paragraph as the knowledge-tree title", () => {
   assert.equal(titleFromNodeHtml('<p><strong>引擎诊断</strong></p><p>问题1<br>问题2</p>'), "引擎诊断");
   assert.equal(titleFromNodeHtml("普通标题"), "普通标题");
+});
+
+test("resets paragraph margins inside SVG rich-text nodes so their content is not clipped", () => {
+  assert.match(richTextNodeLayoutCss, /\.smm-richtext-node-wrap p/);
+  assert.match(richTextNodeLayoutCss, /margin:\s*0/);
 });

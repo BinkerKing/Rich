@@ -6,6 +6,7 @@ import Export from "simple-mind-map/src/plugins/Export.js";
 import RichText from "simple-mind-map/src/plugins/RichText.js";
 import { canvasPanDelta, shouldStartCanvasPan, type CanvasPoint } from "./mindmapInteractions.js";
 import { MindmapNodeStyleToolbar, type MindmapNodeStyleTarget } from "./MindmapNodeStyleToolbar.js";
+import { richTextNodeLayoutCss } from "./richTextNode.js";
 
 MindMap.usePlugin(Drag).usePlugin(Select).usePlugin(Export).usePlugin(RichText);
 
@@ -58,6 +59,8 @@ export function MindmapCanvas({ data, layout, theme, onChange, onReady }: Mindma
       enableFreeDrag: false,
       beforeDragEnd: () => false,
     });
+    mindMap.appendCss("richTextNodeLayout", richTextNodeLayoutCss);
+    mindMap.render();
     (hostRef.current as HTMLDivElement & { __mindMap?: typeof mindMap }).__mindMap = mindMap;
     let panStart: CanvasPoint | null = null;
     let pointerId: number | null = null;
@@ -117,6 +120,7 @@ export function MindmapCanvas({ data, layout, theme, onChange, onReady }: Mindma
       hostRef.current?.removeEventListener("contextmenu", preventContextMenu);
       mindMap.off("node_active", handleNodeActive);
       mindMap.off("rich_text_selection_change", handleRichTextSelection);
+      mindMap.removeAppendCss("richTextNodeLayout");
       delete (hostRef.current as HTMLDivElement & { __mindMap?: typeof mindMap }).__mindMap;
       mindMap.destroy();
     };
