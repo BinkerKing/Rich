@@ -31,7 +31,7 @@ function AnalysisNode({ data, selected }: NodeProps<FlowNode>) {
 }
 const nodeTypes = { analysis: AnalysisNode, region: RegionNode, note: NoteNode };
 
-export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowchartIdsChange, standalone = false }: { projectId?: string; focusId?: string; flowchartIds?: string[]; onFlowchartIdsChange?: (ids: string[]) => Promise<void>; standalone?: boolean }) {
+export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowchartIdsChange, standalone = false, fullscreen = false }: { projectId?: string; focusId?: string; flowchartIds?: string[]; onFlowchartIdsChange?: (ids: string[]) => Promise<void>; standalone?: boolean; fullscreen?: boolean }) {
   const [items, setItems] = useState<ProjectModuleItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
@@ -55,6 +55,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   const [exporting, setExporting] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const draftKey = `rich-flowchart-draft:${projectId ?? "standalone"}`;
+  const isFullscreen = standalone || fullscreen;
 
   useEffect(() => {
     let cancelled = false;
@@ -173,7 +174,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     } catch (e) { setError(`导出失败：${String(e)}`); } finally { setExporting(false); }
   };
 
-  return <section className={`pfc${standalone ? " pfc--standalone" : ""}`}>
+  return <section className={`pfc${standalone ? " pfc--standalone" : ""}${fullscreen ? " pfc--fullscreen" : ""}`}>
     {error && <p role="alert" className="pfc-error">{error}</p>}
     {creating && <div className="pfc-create" role="dialog" aria-label="创建流程图任务">
         <button className="pfc-close" aria-label="关闭创建任务" onClick={() => setCreating(false)}>×</button>
@@ -197,12 +198,12 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
           else open(item);
         }}><span aria-hidden="true">{active === item.id && expanded ? "▾" : "▸"}</span><strong>{active === item.id ? title : item.title}</strong>{standalone && !(active === item.id && expanded) && <small>{new Date(item.updatedAt).toLocaleString("zh-CN")}</small>}</button>
         {active === item.id && expanded && <>
-          {standalone && <span className="pfc-save-state">{busy ? "保存中…" : dirty ? "未保存" : "已保存"}</span>}
+          {isFullscreen && <span className="pfc-save-state">{busy ? "保存中…" : dirty ? "未保存" : "已保存"}</span>}
           {dirty && <button disabled={busy} onClick={() => void save()}>{busy ? "保存中…" : "保存修改"}</button>}
           <button aria-label="导出 PNG" title="导出当前流程图为 PNG" disabled={exporting} onClick={() => void exportPng()}>{exporting ? "导出中…" : "导出 PNG"}</button>
           <button aria-label="搜索节点" title="搜索节点" aria-expanded={searchOpen} onClick={() => setSearchOpen(value => !value)}>⌕</button>
           <button aria-label="任务设置" title="任务设置" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(value => !value)}>⋯</button>
-          {standalone && <button className="pfc-back-to-list" aria-label="返回流程图清单" title="返回流程图清单" onClick={() => { setExpanded(false); setSettingsOpen(false); }}>←</button>}
+          {isFullscreen && <button className="pfc-back-to-list" aria-label="返回流程图清单" title="返回流程图清单" onClick={() => { setExpanded(false); setSettingsOpen(false); }}>←</button>}
         </>}
         {!standalone && <button aria-label="创建流程图任务" title="创建流程图任务" disabled={busy} onClick={() => setCreating(true)}>＋</button>}
       </header>
