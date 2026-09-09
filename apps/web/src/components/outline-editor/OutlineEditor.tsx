@@ -30,7 +30,7 @@ export function OutlineEditor({ root, onChange, createId, className = "" }: Outl
   };
 
   return (
-    <div className={`outline-editor ${className}`.trim()}>
+    <div className={`outline-editor ${className}`.trim()} role="tree">
       <OutlineTree
         node={root}
         rootId={root.id}

@@ -20,7 +20,7 @@ export function OutlineTree({ node, rootId, focusId, onFocused, ...actions }: Ou
   const expanded = node.expanded ?? true;
 
   return (
-    <div className="outline-tree" role="tree">
+    <div className="outline-tree">
       <OutlineNodeRow
         node={node}
         isRoot={node.id === rootId}
