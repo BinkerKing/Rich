@@ -10,6 +10,7 @@
 .pfc--standalone .pfc-list-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:12px; padding-top:16px; }
 .pfc--standalone .pfc-task { flex:0 0 auto; min-height:132px; border-color:rgba(255,255,255,.1); border-radius:8px; background:rgba(255,255,255,.03); transition:background .15s,border-color .15s; }
 .pfc--standalone .pfc-task:hover { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.18); }
+.pfc--standalone .pfc-task-title:hover { background:transparent; border-color:transparent; }
 .pfc--standalone .pfc-title-row { min-height: 132px; padding: 18px 22px; }
 .pfc--standalone .pfc-task-title { align-self:stretch; flex-direction:column; align-items:flex-start!important; justify-content:center; gap:10px!important; color:#fff; font-size:16px; font-weight:650; }
 .pfc--standalone .pfc-task-title span { width:7px; height:7px; border-radius:50%; background:#5e6ad2; color:transparent; font-size:0; }.pfc--standalone .pfc-task-title small { color:#71717a; font-size:13px; font-weight:400; }
