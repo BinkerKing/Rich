@@ -8,6 +8,7 @@ describe("node style controls", () => {
       fillColor: "#18212c",
       borderColor: "#38bdf8",
       borderWidth: 2,
+      borderRadius: 12,
       fontSize: 16,
       fontWeight: "bold",
     });
