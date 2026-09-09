@@ -44,7 +44,7 @@ export function DeepWorkbenchView() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [creating, setCreating] = useState(false);
-  const [viewMode, setViewMode] = useState<"mindmap" | "outline">("outline");
+  const [viewMode, setViewMode] = useState<"mindmap" | "outline">("mindmap");
   const [mindmapActions, setMindmapActions] = useState<MindmapCanvasActions | null>(null);
   const active = items.find(item => item.id === activeId) ?? null;
 
