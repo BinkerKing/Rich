@@ -38,6 +38,30 @@ export const richTextNodeLayoutCss = `
     margin-top: 4px;
   }
 
+  /* Quill removes the display-only title/note wrapper while editing. Keep the
+     first paragraph as the title and render the following paragraph as the
+     same inner note card, so editing never visually merges the two regions. */
+  .smm-richtext-node-edit-wrap .ql-editor > p:first-child {
+    margin: 0;
+    padding: 0;
+    color: #f8fafc;
+    font-size: 1em;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+
+  .smm-richtext-node-edit-wrap .ql-editor > p:not(:first-child) {
+    box-sizing: border-box;
+    margin: 7px 0 0;
+    padding: 5px 8px;
+    border: 1px solid rgba(148, 163, 184, .42);
+    border-radius: 6px;
+    background: rgba(15, 23, 42, .38);
+    color: #cbd5e1;
+    font-size: .82em;
+    line-height: 1.45;
+  }
+
   .smm-node.active .smm-hover-node {
     opacity: 1;
     stroke: #fef08a !important;

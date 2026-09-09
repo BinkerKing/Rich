@@ -47,3 +47,9 @@ test("resets paragraph margins inside SVG rich-text nodes so their content is no
   assert.match(richTextNodeLayoutCss, /stroke-width:\s*4px/);
   assert.match(richTextNodeLayoutCss, /drop-shadow/);
 });
+
+test("keeps the title and note visually separate while Quill is editing", () => {
+  assert.match(richTextNodeLayoutCss, /\.ql-editor > p:first-child/);
+  assert.match(richTextNodeLayoutCss, /\.ql-editor > p:not\(:first-child\)/);
+  assert.match(richTextNodeLayoutCss, /background:\s*rgba\(15, 23, 42/);
+});
