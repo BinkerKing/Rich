@@ -172,15 +172,38 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
     const handleNodeActive = (_node: MindmapNodeStyleTarget | null, nodes: MindmapNodeStyleTarget[] = []) => {
       setActiveNodes(nodes);
     };
-    const handleNodeClick = (node: MindmapNodeStyleTarget | null) => {
+    const selectNode = (node: MindmapNodeStyleTarget | null) => {
       if (!node) return;
-      // Rich-text node content can finish its click after the library has
-      // emitted `node_click`, clearing the selection that powers both the
-      // style toolbar and the `~` shortcut. Reassert this node as selected
-      // at the library event boundary before its normal activation runs.
+      if (mindMap.renderer.activeNodeList.length === 1 && mindMap.renderer.activeNodeList[0] === node) {
+        setActiveNodes([node]);
+        return;
+      }
       mindMap.renderer.clearActiveNodeList();
       mindMap.renderer.addNodeToActiveList(node);
       mindMap.renderer.emitNodeActiveEvent(node);
+    };
+    const handleNodeClick = (node: MindmapNodeStyleTarget | null) => selectNode(node);
+    const findNodeByElement = (target: EventTarget | null): MindmapNodeStyleTarget | null => {
+      if (!(target instanceof Element)) return null;
+      const group = target.closest(".smm-node");
+      if (!group) return null;
+      const find = (node: { group?: { node?: Element }; children?: unknown[] }): MindmapNodeStyleTarget | null => {
+        if (node.group?.node === group) return node as MindmapNodeStyleTarget;
+        for (const child of node.children ?? []) {
+          const match = find(child as { group?: { node?: Element }; children?: unknown[] });
+          if (match) return match;
+        }
+        return null;
+      };
+      return find(mindMap.renderer.root as unknown as { group?: { node?: Element }; children?: unknown[] });
+    };
+    const handleHostNodeClick = (event: MouseEvent) => {
+      const node = findNodeByElement(event.target);
+      if (!node) return;
+      // Rich-text content can consume the library's own node click. Let that
+      // click finish, then preserve the node selection for the style toolbar
+      // and the `~` shortcut.
+      window.setTimeout(() => selectNode(node), 0);
     };
     const handleNodeDoubleClick = (node: MindmapNodeStyleTarget | null) => {
       mindMap.richText?.hideEditText();
@@ -208,6 +231,7 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
     mindMap.on("node_mousedown", handleShiftNodeMousedown);
     mindMap.on("rich_text_selection_change", handleRichTextSelection);
     mindMap.on("hide_text_edit", handleHideTextEdit);
+    hostRef.current.addEventListener("click", handleHostNodeClick, true);
     if (normalizedData !== data) onChangeRef.current(mindMap.getData() as MindmapData);
     onReadyRef.current?.({
       undo: () => mindMap.execCommand("BACK"),
@@ -228,6 +252,7 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
       hostRef.current?.removeEventListener("pointercancel", stopPanning);
       window.removeEventListener("keydown", onKeyDown, true);
       hostRef.current?.removeEventListener("contextmenu", preventContextMenu);
+      hostRef.current?.removeEventListener("click", handleHostNodeClick, true);
       mindMap.off("node_active", handleNodeActive);
       mindMap.off("node_click", handleNodeClick);
       mindMap.off("node_dblclick", handleNodeDoubleClick);
