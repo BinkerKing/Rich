@@ -20,6 +20,8 @@
 
 /** project 元 content —— 顶层项目节点 */
 export interface ProjectContent {
+  /** 独立流程图应用中创建、并由本项目引用的流程图 ID。 */
+  flowchartIds?: string[];
   /** 兼容早期自由文本分组；新项目分区使用 groupId。 */
   group?: string;
   /** 项目选择页分区记录的 id。空值归入“未分组”。 */

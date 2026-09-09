@@ -6,6 +6,7 @@ import { AdminView } from "./views/AdminView.js";
 import { NewsView } from "./views/NewsView.js";
 import { MindmapView } from "./views/MindmapView.js";
 import { DeepWorkbenchView } from "./views/DeepWorkbenchView.js";
+import { FlowchartsView } from "./views/FlowchartsView.js";
 import { GreatMeView } from "./views/GreatMeView.js";
 import { TaskWorkbench } from "./views/task-workbench/TaskWorkbench.js";
 import { PracticeView } from "./views/PracticeView.js";
@@ -83,7 +84,7 @@ function MainApp() {
   useEffect(() => connectServerEvents(), []);
 
   useEffect(() => {
-      const validViews = new Set(["home", "apps", "tree", "admin", "news", "mindmap", "deepWorkbench", "greatme", "toolbox", "practice", "taskWorkbench", "health", "projects", "rikingProjects"]);
+      const validViews = new Set(["home", "apps", "tree", "admin", "news", "mindmap", "deepWorkbench", "flowcharts", "greatme", "toolbox", "practice", "taskWorkbench", "health", "projects", "rikingProjects"]);
     const applyNavigation = (payload: RichNavigationPayload | null) => {
       if (!payload || Date.now() - payload.ts > 30_000) return;
       if (payload.kind === "view" && validViews.has(payload.view)) {
@@ -222,6 +223,7 @@ function MainApp() {
       {appView === "news" && <NewsView />}
       {appView === "mindmap" && <MindmapView />}
       {appView === "deepWorkbench" && <ErrorBoundary><DeepWorkbenchView /></ErrorBoundary>}
+      {appView === "flowcharts" && <ErrorBoundary><FlowchartsView /></ErrorBoundary>}
       {appView === "greatme" && <GreatMeView />}
       {appView === "practice" && <PracticeView />}
       {appView === "taskWorkbench" && <TaskWorkbench />}

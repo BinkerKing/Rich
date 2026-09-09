@@ -31,7 +31,7 @@ function AnalysisNode({ data, selected }: NodeProps<FlowNode>) {
 }
 const nodeTypes = { analysis: AnalysisNode, region: RegionNode, note: NoteNode };
 
-export function FlowchartsWorkspace({ projectId, focusId }: { projectId: string; focusId?: string }) {
+export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowchartIdsChange }: { projectId?: string; focusId?: string; flowchartIds?: string[]; onFlowchartIdsChange?: (ids: string[]) => Promise<void> }) {
   const [items, setItems] = useState<ProjectModuleItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
@@ -54,11 +54,19 @@ export function FlowchartsWorkspace({ projectId, focusId }: { projectId: string;
   const [creating, setCreating] = useState(false);
   const [exporting, setExporting] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const draftKey = `rich-flowchart-draft:${projectId}`;
+  const draftKey = `rich-flowchart-draft:${projectId ?? "standalone"}`;
 
   useEffect(() => {
     let cancelled = false;
-    api.listProjectManagementModuleItems(projectId, "flowcharts").then(next => {
+    const load = flowchartIds
+      ? Promise.all([api.listFlowcharts(), projectId ? api.listProjectManagementModuleItems(projectId, "flowcharts") : Promise.resolve([])]).then(([next, legacy]) => [
+        ...next.filter(item => flowchartIds.includes(item.id)).map(item => ({ ...item, moduleKey: "flowcharts", parentId: null, subtitle: null, sortOrder: 0, content: { graph: item.graph } } as unknown as ProjectModuleItem)),
+        ...legacy.map(item => ({ ...item, content: { ...item.content, legacyFlowchart: true } })),
+      ])
+      : projectId
+      ? api.listProjectManagementModuleItems(projectId, "flowcharts")
+      : api.listFlowcharts().then(next => next.map(item => ({ ...item, moduleKey: "flowcharts", parentId: null, subtitle: null, sortOrder: 0, content: { graph: item.graph } } as unknown as ProjectModuleItem)));
+    load.then(next => {
       if (!cancelled) {
         setItems(next); setLoaded(true);
         try {
@@ -72,7 +80,7 @@ export function FlowchartsWorkspace({ projectId, focusId }: { projectId: string;
       }
     }).catch(e => { if (!cancelled) { setError(String(e)); setLoaded(true); } });
     return () => { cancelled = true; };
-  }, [projectId]);
+  }, [projectId, flowchartIds]);
   useEffect(() => {
     if (!active || !graph) return;
     try {
@@ -114,10 +122,13 @@ export function FlowchartsWorkspace({ projectId, focusId }: { projectId: string;
     setBusy(true); setError("");
     try {
       const next = createFlowchart(template === "code");
-      const item = await api.createProjectManagementModuleItem(projectId, "flowcharts", {
-        title: newTitle.trim(), content: { graph: next },
-      });
+      const item = flowchartIds
+        ? ({ ...(await api.createFlowchart({ title: newTitle.trim(), graph: next as unknown as Record<string, unknown> })), moduleKey: "flowcharts", parentId: null, subtitle: null, sortOrder: 0, content: { graph: next } } as unknown as ProjectModuleItem)
+        : projectId
+        ? await api.createProjectManagementModuleItem(projectId, "flowcharts", { title: newTitle.trim(), content: { graph: next } })
+        : ({ ...(await api.createFlowchart({ title: newTitle.trim(), graph: next as unknown as Record<string, unknown> })), moduleKey: "flowcharts", parentId: null, subtitle: null, sortOrder: 0, content: { graph: next } } as unknown as ProjectModuleItem);
       setItems(rows => [...rows, item]); setActive(item.id); setGraph(next); setTitle(item.title);
+      if (flowchartIds) await onFlowchartIdsChange?.([...flowchartIds, item.id]);
       setNewTitle(""); setDirty(false); setScope(ROOT_SCOPE); setSelected(""); setSelectedEdge(""); setQuery(""); setTarget(undefined);
       setExpanded(true); setCreating(false); setSettingsOpen(false); setSearchOpen(false);
     } catch (e) { setError(`创建失败：${String(e)}`); } finally { setBusy(false); }
@@ -127,9 +138,14 @@ export function FlowchartsWorkspace({ projectId, focusId }: { projectId: string;
     setBusy(true); setError("");
     try {
       const original = items.find(row => row.id === active);
-      const item = await api.updateProjectManagementModuleItem(projectId, active, {
-        title: title.trim(), content: { ...original?.content, graph },
-      });
+      const isLegacy = original?.content.legacyFlowchart === true;
+      const item = isLegacy && projectId
+        ? await api.updateProjectManagementModuleItem(projectId, active, { title: title.trim(), content: { ...original?.content, graph } })
+        : flowchartIds
+        ? ({ ...(await api.updateFlowchart(active, { title: title.trim(), graph: graph as unknown as Record<string, unknown> })), moduleKey: "flowcharts", parentId: null, subtitle: null, sortOrder: 0, content: { graph } } as unknown as ProjectModuleItem)
+        : projectId
+        ? await api.updateProjectManagementModuleItem(projectId, active, { title: title.trim(), content: { ...original?.content, graph } })
+        : ({ ...(await api.updateFlowchart(active, { title: title.trim(), graph: graph as unknown as Record<string, unknown> })), moduleKey: "flowcharts", parentId: null, subtitle: null, sortOrder: 0, content: { graph } } as unknown as ProjectModuleItem);
       setItems(rows => rows.map(row => row.id === item.id ? item : row)); setDirty(false);
     } catch (e) { setError(`保存失败，修改仍保留在画布：${String(e)}`); } finally { setBusy(false); }
   };
@@ -137,7 +153,11 @@ export function FlowchartsWorkspace({ projectId, focusId }: { projectId: string;
     if (!active || !window.confirm(`删除流程图任务“${title}”及其所有节点？此操作不能撤销。`)) return;
     setBusy(true); setError("");
     try {
-      await api.deleteProjectManagementModuleItem(projectId, active);
+      const original = items.find(item => item.id === active);
+      if (original?.content.legacyFlowchart === true && projectId) await api.deleteProjectManagementModuleItem(projectId, active);
+      else if (flowchartIds) await onFlowchartIdsChange?.(flowchartIds.filter(id => id !== active));
+      else if (projectId) await api.deleteProjectManagementModuleItem(projectId, active);
+      else await api.deleteFlowchart(active);
       try { sessionStorage.removeItem(draftKey); } catch { /* Optional draft storage. */ }
       setItems(rows => rows.filter(row => row.id !== active)); setActive(undefined); setGraph(undefined); setDirty(false);
     } catch (e) { setError(`删除失败：${String(e)}`); } finally { setBusy(false); }

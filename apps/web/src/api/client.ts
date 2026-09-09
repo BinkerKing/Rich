@@ -905,6 +905,25 @@ export const api = {
     if (!r.ok) throw new Error(`getProjectManagementSummary ${r.status}`);
     return r.json();
   },
+  async listFlowcharts(): Promise<Flowchart[]> {
+    const r = await fetch("/api/flowcharts");
+    if (!r.ok) throw new Error(`listFlowcharts ${r.status}`);
+    return r.json();
+  },
+  async createFlowchart(input: Pick<Flowchart, "title" | "graph">): Promise<Flowchart> {
+    const r = await fetch("/api/flowcharts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!r.ok) throw new Error(`createFlowchart ${r.status}`);
+    return r.json();
+  },
+  async updateFlowchart(id: string, patch: Partial<Pick<Flowchart, "title" | "graph">>): Promise<Flowchart> {
+    const r = await fetch(`/api/flowcharts/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) });
+    if (!r.ok) throw new Error(`updateFlowchart ${r.status}`);
+    return r.json();
+  },
+  async deleteFlowchart(id: string): Promise<void> {
+    const r = await fetch(`/api/flowcharts/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!r.ok) throw new Error(`deleteFlowchart ${r.status}`);
+  },
   async getProjectDescription(projectId: string): Promise<ProjectDescription> {
     const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/description`);
     if (!r.ok) throw new Error(`getProjectDescription ${r.status}`);
@@ -1691,6 +1710,14 @@ export interface MulticaIssueDetailSnapshot {
   runs: MulticaRun[]; runMessages: MulticaRunMessage[]; pullRequests: MulticaPullRequest[]; usage: MulticaUsage;
   metadata: Record<string, unknown>; properties: Array<Record<string, unknown>>; subscribers: MulticaActor[]; syncedAt: string;
 }
+
+export type Flowchart = {
+  id: string;
+  title: string;
+  graph: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export type ProjectManagementModuleKey =
   | "dashboard"

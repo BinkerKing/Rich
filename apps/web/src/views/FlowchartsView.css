@@ -1,0 +1,4 @@
+.flowcharts-app { height: 100vh; display: grid; grid-template-rows: auto minmax(0,1fr); overflow: hidden; background: #0a0a0b; color: #fff; }
+.flowcharts-app>header { padding: 20px 28px 12px; border-bottom: 1px solid rgba(255,255,255,.1); }
+.flowcharts-app p,.flowcharts-app span { color: #94a3b8; margin: 0; font-size: 13px; }
+.flowcharts-app h1 { margin: 4px 0; font-size: 26px; }
