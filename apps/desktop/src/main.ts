@@ -647,6 +647,9 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
       body:has(.deep-canvas) #rich-window-drag-region {
         display: none;
       }
+      body:has(.pfc--standalone .pfc-task.is-expanded) #rich-window-drag-region {
+        display: none;
+      }
       .deep-canvas__header {
         -webkit-app-region: drag;
         user-select: none;
