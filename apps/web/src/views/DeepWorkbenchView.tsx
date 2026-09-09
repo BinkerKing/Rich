@@ -7,6 +7,7 @@ import { expandAll } from "../components/outline-editor/outlineTreeOps.js";
 import { createDeepWorkbenchMap, type DeepWorkbenchItem, type DeepWorkbenchMap } from "./deep-workbench/deepWorkbenchModel.js";
 import { fromOutlineNode, toOutlineNode } from "./deep-workbench/deepWorkbenchOutlineAdapter.js";
 import { planKnowledgeTreeChanges, projectKnowledgeTree } from "./deep-workbench/knowledgeTreeWorkbench.js";
+import { workbenchTitleFromRootText } from "./deep-workbench/workbenchTitle.js";
 import { api } from "../api/client.js";
 import { useStore } from "../state/store.js";
 import "./DeepWorkbenchView.css";
@@ -105,7 +106,7 @@ export function DeepWorkbenchView() {
       return;
     }
     const plan = planKnowledgeTreeChanges(active.map.root, map.root, new Set(elements.keys()));
-    updateActive(active.id, item => ({ ...item, title: map.root.data.text, map, updatedAt: now() }));
+    updateActive(active.id, item => ({ ...item, title: workbenchTitleFromRootText(map.root.data.text), map, updatedAt: now() }));
     if (!plan.renames.length && !plan.creates.length && !plan.moves.length && !plan.reorders.length && !plan.deletes.length) return;
     window.clearTimeout(knowledgeSyncTimer.current);
     knowledgeSyncTimer.current = window.setTimeout(() => { void (async () => {
