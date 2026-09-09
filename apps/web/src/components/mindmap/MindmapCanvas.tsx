@@ -146,7 +146,13 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
       if (!node) return;
       event.preventDefault();
       event.stopPropagation();
-      mindMap.richText?.showEditText({ node });
+      // Opening the contenteditable during this key event lets the same `~`
+      // be inserted into the node. Wait until the shortcut event has fully
+      // finished, then create the editor.
+      window.setTimeout(() => {
+        if (mindMap.richText?.showTextEdit || mindMap.renderer.activeNodeList[0] !== node) return;
+        mindMap.richText?.showEditText({ node });
+      }, 0);
     };
     window.addEventListener("keydown", onKeyDown, true);
     hostRef.current.addEventListener("contextmenu", preventContextMenu);
