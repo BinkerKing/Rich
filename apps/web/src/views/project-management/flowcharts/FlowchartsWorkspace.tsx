@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { ReactFlow, Background, Controls, Handle, Position, MarkerType, applyNodeChanges, applyEdgeChanges,
   type NodeProps, type ReactFlowInstance } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { api, type ProjectModuleItem } from "../../../api/client.js";
-import { createFlowchart, readFlowchart, removeFlowNodes, ROOT_SCOPE, scopePath, searchFlowNodes,
+import { createFlowchart, readFlowchart, ROOT_SCOPE, scopePath, searchFlowNodes,
   type FlowchartData, type FlowNode } from "./flowchartModel.js";
 import { exportFlowchartPng } from "./flowchartExport.js";
+import { ProjectRichTextEditor } from "../ProjectManagementModules.js";
 import "./FlowchartsWorkspace.css";
 
-const kinds = { step: "处理", decision: "判断", table: "数据表", boundary: "开始 / 结束", region: "区域", note: "备注" };
+const DETAIL_PANEL_WIDTH_KEY = "rich.flowchart.node-detail-panel-width";
+const detailPanelWidth = (value: number, maxWidth = Math.floor(window.innerWidth * 2 / 3)) => Math.min(maxWidth, Math.max(320, Math.round(value)));
 function RegionNode({ data, selected }: NodeProps<FlowNode>) {
   return <div className={`pfc-region tone-${data.tone || "cyan"}${selected ? " is-selected" : ""}`}>
     <header><strong>{data.label}</strong>{data.caption && <span>{data.caption}</span>}</header>
@@ -53,6 +55,10 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [nodeDetailWidth, setNodeDetailWidth] = useState(() => {
+    try { return detailPanelWidth(Number(localStorage.getItem(DETAIL_PANEL_WIDTH_KEY)) || 440); } catch { return 440; }
+  });
+  const [nodeDetailFullscreen, setNodeDetailFullscreen] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const draftKey = `rich-flowchart-draft:${projectId ?? "standalone"}`;
   const isFullscreen = standalone || fullscreen;
@@ -92,6 +98,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
+  useEffect(() => { setNodeDetailFullscreen(false); }, [selected]);
   useEffect(() => {
     if (!flow) return;
     const timer = window.setTimeout(() => {
@@ -161,9 +168,24 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     } catch (e) { setError(`删除失败：${String(e)}`); } finally { setBusy(false); }
   };
   const node = graph?.nodes.find(row => row.id === selected);
-  const edge = graph?.edges.find(row => row.id === selectedEdge);
   const editNode = (patch: Partial<FlowNode["data"]>) => {
     if (graph) update({ ...graph, nodes: graph.nodes.map(row => row.id === selected ? { ...row, data: { ...row.data, ...patch } } : row) });
+  };
+  const resizeNodeDetail = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = nodeDetailWidth;
+    const onPointerMove = (moveEvent: PointerEvent) => setNodeDetailWidth(detailPanelWidth(startWidth + startX - moveEvent.clientX));
+    const onPointerUp = () => {
+      setNodeDetailWidth(width => {
+        try { localStorage.setItem(DETAIL_PANEL_WIDTH_KEY, String(width)); } catch { /* Size preference is optional. */ }
+        return width;
+      });
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp, { once: true });
   };
   const enter = (id: string) => { setScope(id); setSelected(""); setSelectedEdge(""); setTarget(undefined); };
   const exportPng = async () => {
@@ -249,25 +271,10 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
             </ReactFlow>
           </div>
           <div className="pfc-legend" aria-label="流程图图例"><span>● 处理</span><span>● 数据表</span><span>◇ 判断</span><span>— 主线</span><span>┄ 规则 / 数据关联</span></div>
-          {(node || edge) && <aside className="pfc-details">
-            <button className="pfc-close" aria-label="关闭详情" onClick={() => { setSelected(""); setSelectedEdge(""); }}>×</button>
-            {node ? <>
-              <h3>节点详情</h3><small className="pfc-id">{node.id}</small>
-              <label>名称<input value={node.data.label} onChange={e => editNode({ label: e.target.value })} /></label>
-              <label>类型<select value={node.data.kind} disabled={node.type === "region" || node.type === "note"} onChange={e => editNode({ kind: e.target.value as FlowNode["data"]["kind"] })}>{Object.entries(kinds).filter(([value]) => value === node.data.kind || (value !== "region" && value !== "note")).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-              {(node.type === "region" || node.type === "note") && <>
-                <label>画布摘要<textarea rows={3} value={node.data.caption || ""} onChange={e => editNode({ caption: e.target.value })} /></label>
-                <label>配色<select value={node.data.tone || "cyan"} onChange={e => editNode({ tone: e.target.value as FlowNode["data"]["tone"] })}><option value="cyan">冰蓝</option><option value="mint">薄荷绿</option><option value="amber">琥珀</option></select></label>
-              </>}
-              <label>源码位置<input placeholder="文件路径:行号 / 方法名" value={node.data.source} onChange={e => editNode({ source: e.target.value })} /></label>
-              <label>逻辑说明<textarea rows={16} value={node.data.description} onChange={e => editNode({ description: e.target.value })} /></label>
-              <label><input type="checkbox" checked={node.data.verified} onChange={e => editNode({ verified: e.target.checked })} />已核验源码</label>
-              {graph.nodes.some(row => row.data.scope === node.id) && <button onClick={() => enter(node.id)}>进入子流程（{graph.nodes.filter(row => row.data.scope === node.id).length}）</button>}
-              <button onClick={() => { if (window.confirm("删除此节点及其子流程、相关连线？")) { update(removeFlowNodes(graph, [node.id])); setSelected(""); } }}>删除节点</button>
-            </> : edge ? <>
-              <h3>连线条件</h3><label>说明<input placeholder="例如：是 / 否 / 异常" value={String(edge.label ?? "")} onChange={e => update({ ...graph, edges: graph.edges.map(row => row.id === edge.id ? { ...row, label: e.target.value } : row) })} /></label>
-              <button onClick={() => { update({ ...graph, edges: graph.edges.filter(row => row.id !== edge.id) }); setSelectedEdge(""); }}>删除连线</button>
-            </> : null}
+          {node && <aside className={`pfc-details pfc-node-detail${nodeDetailFullscreen ? " is-fullscreen" : ""}`} aria-label="节点详情" style={nodeDetailFullscreen ? undefined : { width: nodeDetailWidth }}>
+            <div className="pfc-node-detail__resize-handle" role="separator" aria-label="调整节点详情宽度" aria-orientation="vertical" onPointerDown={resizeNodeDetail} />
+            <header><h2>{node.data.label}</h2><div className="pfc-node-detail__header-actions"><button type="button" aria-label={nodeDetailFullscreen ? "还原节点详情" : "全屏显示节点详情"} title={nodeDetailFullscreen ? "还原" : "全屏"} onClick={() => setNodeDetailFullscreen(fullscreen => !fullscreen)}>{nodeDetailFullscreen ? "↙" : "⛶"}</button><button type="button" aria-label="关闭节点详情" onClick={() => { setSelected(""); setSelectedEdge(""); }}>×</button></div></header>
+            <div className="pfc-node-detail__body"><ProjectRichTextEditor projectId={`flowchart-${active}-${node.id}`} value={node.data.description || ""} onChange={description => editNode({ description })} /></div>
           </aside>}
       </div>}
     </article>})}</div>}
