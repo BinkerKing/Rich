@@ -3,6 +3,7 @@ import MindMap from "simple-mind-map";
 import Drag from "simple-mind-map/src/plugins/Drag.js";
 import Select from "simple-mind-map/src/plugins/Select.js";
 import Export from "simple-mind-map/src/plugins/Export.js";
+import { canvasPanDelta, shouldStartCanvasPan, type CanvasPoint } from "./mindmapInteractions.js";
 
 MindMap.usePlugin(Drag).usePlugin(Select).usePlugin(Export);
 
@@ -49,9 +50,39 @@ export function MindmapCanvas({ data, layout, theme, onChange, onReady }: Mindma
       theme: typeof theme === "string" ? theme : theme.template,
       themeConfig,
       fit: true,
+      isDisableDrag: true,
       enableFreeDrag: false,
       beforeDragEnd: () => false,
     });
+    let panStart: CanvasPoint | null = null;
+    let pointerId: number | null = null;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!shouldStartCanvasPan(event.button)) return;
+      event.preventDefault();
+      panStart = { x: event.clientX, y: event.clientY };
+      pointerId = event.pointerId;
+      hostRef.current?.setPointerCapture(event.pointerId);
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      if (!panStart || event.pointerId !== pointerId) return;
+      const next = { x: event.clientX, y: event.clientY };
+      const delta = canvasPanDelta(panStart, next);
+      mindMap.view.translateXY(delta.x, delta.y);
+      panStart = next;
+    };
+    const stopPanning = (event: PointerEvent) => {
+      if (event.pointerId !== pointerId) return;
+      panStart = null;
+      pointerId = null;
+    };
+    const preventContextMenu = (event: MouseEvent) => event.preventDefault();
+    const resizeObserver = new ResizeObserver(() => mindMap.resize());
+    hostRef.current.addEventListener("pointerdown", onPointerDown);
+    hostRef.current.addEventListener("pointermove", onPointerMove);
+    hostRef.current.addEventListener("pointerup", stopPanning);
+    hostRef.current.addEventListener("pointercancel", stopPanning);
+    hostRef.current.addEventListener("contextmenu", preventContextMenu);
+    resizeObserver.observe(hostRef.current);
     // `getData(true)` wraps the node tree with layout, theme and view config.
     // The controlled `data` prop is the node tree itself, so persisting the
     // configured payload here would corrupt the caller's root node.
@@ -68,7 +99,15 @@ export function MindmapCanvas({ data, layout, theme, onChange, onReady }: Mindma
       exportPng: (title) => mindMap.export?.export("png", true, title),
     });
 
-    return () => mindMap.destroy();
+    return () => {
+      resizeObserver.disconnect();
+      hostRef.current?.removeEventListener("pointerdown", onPointerDown);
+      hostRef.current?.removeEventListener("pointermove", onPointerMove);
+      hostRef.current?.removeEventListener("pointerup", stopPanning);
+      hostRef.current?.removeEventListener("pointercancel", stopPanning);
+      hostRef.current?.removeEventListener("contextmenu", preventContextMenu);
+      mindMap.destroy();
+    };
   // Map edits emit `data_change` and update the parent state. Recreating the
   // canvas for that new object destroys and reinitializes the renderer in a
   // loop, which presents as a visible flash. The map owns edits while mounted;
