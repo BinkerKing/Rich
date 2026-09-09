@@ -88,3 +88,11 @@ test('tilde opens inline text editing for the selected flowchart node', () => {
   assert.match(source, /setEditingNode\(selected\)/);
   assert.match(source, /aria-label="编辑节点文字"/);
 });
+
+test('node details open on double click and Escape closes only the details', () => {
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(source, /const \[detailNode, setDetailNode\] = useState\(""\)/);
+  assert.match(source, /onNodeDoubleClick=\{\(_, row\) => \{ setSelected\(row\.id\); setDetailNode\(row\.id\); \}\}/);
+  assert.match(source, /event\.key === "Escape" && detailNode/);
+  assert.match(source, /detailNode && <aside/);
+});

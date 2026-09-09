@@ -79,6 +79,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   const [creating, setCreating] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [editingNode, setEditingNode] = useState("");
+  const [detailNode, setDetailNode] = useState("");
   const [nodeDetailWidth, setNodeDetailWidth] = useState(() => {
     try { return detailPanelWidth(Number(localStorage.getItem(DETAIL_PANEL_WIDTH_KEY)) || 440); } catch { return 440; }
   });
@@ -122,16 +123,17 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
-  useEffect(() => { setNodeDetailFullscreen(false); }, [selected]);
+  useEffect(() => { setNodeDetailFullscreen(false); }, [detailNode]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && detailNode) { event.preventDefault(); event.stopPropagation(); setDetailNode(""); return; }
       if (!selected || editingNode || !isNodeEditShortcut(event)) return;
       if (event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable=true]")) return;
       event.preventDefault(); event.stopPropagation(); setEditingNode(selected);
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [selected, editingNode]);
+  }, [selected, editingNode, detailNode]);
   useEffect(() => {
     if (!flow) return;
     const timer = window.setTimeout(() => {
@@ -144,7 +146,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     if (busy || (dirty && !window.confirm("当前流程图有未保存修改，放弃修改并切换？"))) return;
     try {
       setGraph(readFlowchart(item.content)); setActive(item.id); setTitle(item.title); setDirty(false);
-      setScope(ROOT_SCOPE); setSelected(""); setSelectedEdge(""); setEditingNode(""); setQuery(""); setTarget(undefined); setError("");
+      setScope(ROOT_SCOPE); setSelected(""); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); setQuery(""); setTarget(undefined); setError("");
       setExpanded(true); setSearchOpen(false); setSettingsOpen(false);
     } catch (e) { setError(String(e)); }
   };
@@ -167,7 +169,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
         : ({ ...(await api.createFlowchart({ title: newTitle.trim(), graph: next as unknown as Record<string, unknown> })), moduleKey: "flowcharts", parentId: null, subtitle: null, sortOrder: 0, content: { graph: next } } as unknown as ProjectModuleItem);
       setItems(rows => [...rows, item]); setActive(item.id); setGraph(next); setTitle(item.title);
       if (flowchartIds) await onFlowchartIdsChange?.([...flowchartIds, item.id]);
-      setNewTitle(""); setDirty(false); setScope(ROOT_SCOPE); setSelected(""); setSelectedEdge(""); setEditingNode(""); setQuery(""); setTarget(undefined);
+      setNewTitle(""); setDirty(false); setScope(ROOT_SCOPE); setSelected(""); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); setQuery(""); setTarget(undefined);
       setExpanded(true); setCreating(false); setSettingsOpen(false); setSearchOpen(false);
     } catch (e) { setError(`创建失败：${String(e)}`); } finally { setBusy(false); }
   };
@@ -201,6 +203,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     } catch (e) { setError(`删除失败：${String(e)}`); } finally { setBusy(false); }
   };
   const node = graph?.nodes.find(row => row.id === selected);
+  const detail = graph?.nodes.find(row => row.id === detailNode);
   const editNode = (patch: Partial<FlowNode["data"]>) => {
     if (graph) update({ ...graph, nodes: graph.nodes.map(row => row.id === selected ? { ...row, data: { ...row.data, ...patch } } : row) });
   };
@@ -220,7 +223,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp, { once: true });
   };
-  const enter = (id: string) => { setScope(id); setSelected(""); setSelectedEdge(""); setEditingNode(""); setTarget(undefined); };
+  const enter = (id: string) => { setScope(id); setSelected(""); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); setTarget(undefined); };
   const exportPng = async () => {
     if (!canvasRef.current || exporting) return;
     setExporting(true); setError("");
@@ -298,17 +301,19 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
               }}
               onEdgesChange={changes => setGraph(current => current ? { ...current, edges: applyEdgeChanges(changes, current.edges) } : current)}
               onConnect={connection => update({ ...graph, edges: [...graph.edges, { ...connection, id: crypto.randomUUID(), type: "smoothstep", label: "" }] })}
-              onNodeClick={(_, row) => { setSelected(row.id); setSelectedEdge(""); setEditingNode(""); }} onNodeDoubleClick={(_, row) => { if (graph.nodes.some(node => node.data.scope === row.id)) enter(row.id); }}
-              onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); setEditingNode(""); }} onPaneClick={() => { setSelected(""); setSelectedEdge(""); setEditingNode(""); }}>
+              onNodeClick={(_, row) => { setSelected(row.id); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); }} onNodeDoubleClick={(_, row) => { setSelected(row.id); setDetailNode(row.id); }}
+              onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); setEditingNode(""); setDetailNode(""); }} onPaneClick={() => { setSelected(""); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); }}>
               <Background gap={28} size={1} color="#44444d" /><Controls />
             </ReactFlow>
           </div>
           <div className="pfc-legend" aria-label="流程图图例"><span>● 处理</span><span>● 数据表</span><span>◇ 判断</span><span>— 主线</span><span>┄ 规则 / 数据关联</span></div>
           {node && <FlowchartNodeStyleToolbar node={node} onChange={editNode} />}
-          {node && <aside className={`pfc-details pfc-node-detail${nodeDetailFullscreen ? " is-fullscreen" : ""}`} aria-label="节点详情" style={nodeDetailFullscreen ? undefined : { width: nodeDetailWidth }}>
+          {detailNode && <aside className={`pfc-details pfc-node-detail${nodeDetailFullscreen ? " is-fullscreen" : ""}`} aria-label="节点详情" style={nodeDetailFullscreen ? undefined : { width: nodeDetailWidth }}>
             <div className="pfc-node-detail__resize-handle" role="separator" aria-label="调整节点详情宽度" aria-orientation="vertical" onPointerDown={resizeNodeDetail} />
-            <header><h2>{node.data.label}</h2><div className="pfc-node-detail__header-actions"><button type="button" aria-label={nodeDetailFullscreen ? "还原节点详情" : "全屏显示节点详情"} title={nodeDetailFullscreen ? "还原" : "全屏"} onClick={() => setNodeDetailFullscreen(fullscreen => !fullscreen)}>{nodeDetailFullscreen ? "↙" : "⛶"}</button><button type="button" aria-label="关闭节点详情" onClick={() => { setSelected(""); setSelectedEdge(""); }}>×</button></div></header>
-            <div className="pfc-node-detail__body"><ProjectRichTextEditor projectId={`flowchart-${active}-${node.id}`} value={node.data.description || ""} onChange={description => editNode({ description })} /></div>
+            <header><h2>{detail?.data.label}</h2><div className="pfc-node-detail__header-actions"><button type="button" aria-label={nodeDetailFullscreen ? "还原节点详情" : "全屏显示节点详情"} title={nodeDetailFullscreen ? "还原" : "全屏"} onClick={() => setNodeDetailFullscreen(fullscreen => !fullscreen)}>{nodeDetailFullscreen ? "↙" : "⛶"}</button><button type="button" aria-label="关闭节点详情" onClick={() => setDetailNode("")}>×</button></div></header>
+            {detail && <div className="pfc-node-detail__body"><ProjectRichTextEditor projectId={`flowchart-${active}-${detail.id}`} value={detail.data.description || ""} onChange={description => {
+              update({ ...graph, nodes: graph.nodes.map(row => row.id === detail.id ? { ...row, data: { ...row.data, description } } : row) });
+            }} /></div>}
           </aside>}
       </div>}
     </article>})}</div>}
