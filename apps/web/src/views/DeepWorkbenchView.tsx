@@ -1,14 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import MindMap from "simple-mind-map";
-import Drag from "simple-mind-map/src/plugins/Drag.js";
-import Select from "simple-mind-map/src/plugins/Select.js";
-import Export from "simple-mind-map/src/plugins/Export.js";
+import { useState } from "react";
+import { MindmapCanvas, type MindmapCanvasActions } from "../components/mindmap/MindmapCanvas.js";
+import { OutlineEditor } from "../components/outline-editor/OutlineEditor.js";
+import { expandAll } from "../components/outline-editor/outlineTreeOps.js";
 import { createDeepWorkbenchMap, type DeepWorkbenchItem, type DeepWorkbenchMap } from "./deep-workbench/deepWorkbenchModel.js";
-import { indentOutlineNode, insertOutlineChild, insertOutlineSibling, outdentOutlineNode, setOutlineExpanded, updateOutlineText } from "./deep-workbench/deepWorkbenchOutline.js";
+import { fromOutlineNode, toOutlineNode } from "./deep-workbench/deepWorkbenchOutlineAdapter.js";
 import "./DeepWorkbenchView.css";
-import "./DeepWorkbenchOutline.css";
-
-MindMap.usePlugin(Drag).usePlugin(Select).usePlugin(Export);
 
 const STORAGE_KEY = "rich.deep-workbench.v1";
 const now = () => new Date().toISOString();
@@ -25,13 +21,11 @@ function persist(items: DeepWorkbenchItem[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
 }
 
-function EditorIcon({ name }: { name: "back" | "map" | "collapse" | "more" | "add" }) {
+function EditorIcon({ name }: { name: "back" | "map" | "collapse" }) {
   const paths = {
     back: <path d="m14 5-7 7 7 7M7 12h11" />,
     map: <><circle cx="5" cy="6" r="2" /><circle cx="19" cy="5" r="2" /><circle cx="19" cy="19" r="2" /><path d="M7 6h5a3 3 0 0 1 3 3v8M17 5h-2a3 3 0 0 0-3 3v1" /></>,
     collapse: <><path d="M5 8h14M5 16h14" /><path d="m9 5-3 3 3 3m6-6 3 3-3 3" /></>,
-    more: <><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></>,
-    add: <path d="M12 5v14M5 12h14" />,
   }[name];
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>;
 }
@@ -49,9 +43,7 @@ export function DeepWorkbenchView() {
   const [newTitle, setNewTitle] = useState("");
   const [creating, setCreating] = useState(false);
   const [viewMode, setViewMode] = useState<"mindmap" | "outline">("outline");
-  const [outlineFocusId, setOutlineFocusId] = useState<string | null>(null);
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const mindMapRef = useRef<any>(null);
+  const [mindmapActions, setMindmapActions] = useState<MindmapCanvasActions | null>(null);
   const active = items.find(item => item.id === activeId) ?? null;
 
   const updateItems = (next: DeepWorkbenchItem[]) => { setItems(next); persist(next); };
@@ -77,27 +69,6 @@ export function DeepWorkbenchView() {
     });
   };
 
-  useEffect(() => {
-    if (!active || !hostRef.current || viewMode !== "mindmap") return;
-    const mindMap = new MindMap({
-      el: hostRef.current,
-      data: active.map.root,
-      layout: active.map.layout,
-      theme: active.map.theme.template,
-      themeConfig: active.map.theme.config,
-      fit: true,
-      enableFreeDrag: false,
-      beforeDragEnd: () => false,
-    });
-    mindMapRef.current = mindMap;
-    const onChange = () => saveMap(mindMap.getData(true) as DeepWorkbenchMap);
-    mindMap.on("data_change", onChange);
-    mindMap.on("layout_change", onChange);
-    return () => { mindMap.destroy(); mindMapRef.current = null; };
-  // Recreate only when switching a workspace. The map itself owns editing state.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId, viewMode]);
-
   if (!active) {
     return <main className="deep-list">
       <header className="deep-list__header">
@@ -118,45 +89,16 @@ export function DeepWorkbenchView() {
     </main>;
   }
 
-  const command = (name: string) => mindMapRef.current?.execCommand(name);
-  const changeLayout = (layout: DeepWorkbenchMap["layout"]) => {
-    mindMapRef.current?.setLayout(layout); saveMap({ ...active.map, layout });
-  };
-  const updateOutline = (root: DeepWorkbenchMap["root"]) => saveMap({ ...active.map, root });
-  const addOutlineNode = (uid: string, asChild = false) => {
-    const nextId = newId();
-    updateOutline(asChild ? insertOutlineChild(active.map.root, uid, nextId) : insertOutlineSibling(active.map.root, uid, nextId));
-    setOutlineFocusId(nextId);
-  };
-  const onOutlineKeyDown = (event: React.KeyboardEvent<HTMLInputElement>, uid: string) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      addOutlineNode(uid, uid === active.map.root.data.uid);
-    }
-    if (event.key === "Tab") {
-      event.preventDefault();
-      updateOutline(event.shiftKey ? outdentOutlineNode(active.map.root, uid) : indentOutlineNode(active.map.root, uid));
-    }
-  };
-  const renderOutlineNode = (node: DeepWorkbenchMap["root"], depth = 0) => {
-    const hasChildren = node.children.length > 0;
-    const expanded = node.data.expand !== false;
-    return <li className={`deep-outline__item${depth === 0 ? " deep-outline__item--root" : ""}`} key={node.data.uid}>
-      <div className="deep-outline__row">
-        <button className={`deep-outline__toggle${hasChildren ? "" : " is-empty"}${expanded ? " is-expanded" : ""}`} type="button" aria-label={expanded ? "折叠子主题" : "展开子主题"} aria-expanded={hasChildren ? expanded : undefined} onClick={() => hasChildren && updateOutline(setOutlineExpanded(active.map.root, node.data.uid, !expanded))}>⌄</button>
-        <input autoFocus={outlineFocusId === node.data.uid} aria-label={`第 ${depth + 1} 层节点`} value={node.data.text} onFocus={() => setOutlineFocusId(null)} onChange={event => updateOutline(updateOutlineText(active.map.root, node.data.uid, event.target.value))} onKeyDown={event => onOutlineKeyDown(event, node.data.uid)} placeholder="输入节点标题" />
-        <span className="deep-outline__row-actions"><button type="button" aria-label="新增子节点" title="新增子节点" onClick={() => addOutlineNode(node.data.uid, true)}><EditorIcon name="add" /></button><button type="button" aria-label="更多操作" title="更多操作"><EditorIcon name="more" /></button></span>
-      </div>
-      {hasChildren && expanded && <ul>{node.children.map(child => renderOutlineNode(child, depth + 1))}</ul>}
-    </li>;
-  };
   const outlineStats = countOutline(active.map.root);
+  const outlineRoot = toOutlineNode(active.map.root);
+  const updateOutline = (root: typeof outlineRoot) => saveMap({ ...active.map, root: fromOutlineNode(root) });
+  const allExpanded = outlineRoot.expanded ?? true;
   return <main className="deep-canvas">
-    <header className="deep-canvas__header"><button className="deep-editor-icon" type="button" onClick={() => setActiveId(null)} aria-label="返回内容清单"><EditorIcon name="back" /></button><div className="deep-editor-title"><input aria-label="工作台标题" value={active.title} onChange={event => updateItems(items.map(item => item.id === active.id ? { ...item, title: event.target.value, updatedAt: now() } : item))} /><span>已保存</span></div>
-      <div className="deep-editor-actions"><button className={viewMode === "mindmap" ? "is-active" : ""} type="button" onClick={() => setViewMode(viewMode === "outline" ? "mindmap" : "outline")}><EditorIcon name="map" />{viewMode === "outline" ? "思维导图" : "返回大纲"}</button><button className="deep-editor-icon" type="button" title={active.map.root.data.expand === false ? "全部展开" : "全部折叠"} aria-label={active.map.root.data.expand === false ? "全部展开" : "全部折叠"} onClick={() => updateOutline(setOutlineExpanded(active.map.root, active.map.root.data.uid, active.map.root.data.expand === false))}><EditorIcon name="collapse" /></button><button className="deep-editor-icon" type="button" aria-label="更多文档操作" title="更多文档操作"><EditorIcon name="more" /></button></div>
-      {viewMode === "mindmap" && <div className="deep-canvas__tools"><button type="button" onClick={() => command("BACK")}>撤销</button><button type="button" onClick={() => command("FORWARD")}>重做</button><button type="button" onClick={() => command("INSERT_NODE")}>同级</button><button className="deep-primary" type="button" onClick={() => command("INSERT_CHILD_NODE")}>子节点</button><button type="button" onClick={() => mindMapRef.current?.export?.export("png", true, active.title)}>导出 PNG</button><select aria-label="脑图布局" value={active.map.layout} onChange={event => changeLayout(event.target.value as DeepWorkbenchMap["layout"])}><option value="logicalStructure">逻辑结构</option><option value="mindMap">思维导图</option><option value="organizationStructure">组织结构</option></select></div>}
+    <header className="deep-canvas__header"><div className="deep-editor-start"><button className="deep-editor-icon" type="button" onClick={() => setActiveId(null)} aria-label="返回内容清单"><EditorIcon name="back" /></button></div><div className="deep-editor-title"><input aria-label="工作台标题" value={active.title} onChange={event => updateItems(items.map(item => item.id === active.id ? { ...item, title: event.target.value, updatedAt: now() } : item))} /><span>已保存</span></div>
+      <div className="deep-editor-actions"><button className={viewMode === "mindmap" ? "is-active" : ""} type="button" onClick={() => setViewMode(viewMode === "outline" ? "mindmap" : "outline")}><EditorIcon name="map" />{viewMode === "outline" ? "思维导图" : "返回大纲"}</button><button className="deep-editor-icon" type="button" title={allExpanded ? "全部折叠" : "全部展开"} aria-label={allExpanded ? "全部折叠" : "全部展开"} onClick={() => updateOutline(expandAll(outlineRoot, !allExpanded))}><EditorIcon name="collapse" /></button>
+      {viewMode === "mindmap" && <div className="deep-canvas__tools"><button type="button" onClick={() => mindmapActions?.undo()}>撤销</button><button type="button" onClick={() => mindmapActions?.redo()}>重做</button><button type="button" onClick={() => mindmapActions?.insertSibling()}>同级</button><button className="deep-primary" type="button" onClick={() => mindmapActions?.insertChild()}>子节点</button><button type="button" onClick={() => mindmapActions?.exportPng(active.title)}>导出 PNG</button><select aria-label="脑图布局" value={active.map.layout} onChange={event => saveMap({ ...active.map, layout: event.target.value as DeepWorkbenchMap["layout"] })}><option value="logicalStructure">逻辑结构</option><option value="mindMap">思维导图</option><option value="organizationStructure">组织结构</option></select></div>}</div>
     </header>
-    {viewMode === "mindmap" ? <div className="deep-canvas__map" ref={hostRef} /> : <section className="deep-outline"><div className="deep-outline__document-label">文档目录</div><ul className="deep-outline__tree">{renderOutlineNode(active.map.root)}</ul></section>}
+    {viewMode === "mindmap" ? <div className="deep-canvas__map"><MindmapCanvas data={active.map.root as unknown as Record<string, unknown>} layout={active.map.layout} theme={active.map.theme} onChange={root => saveMap({ ...active.map, root: root as unknown as DeepWorkbenchMap["root"] })} onReady={setMindmapActions} /></div> : <section className="deep-outline"><div className="deep-outline__document-label">文档目录</div><OutlineEditor root={outlineRoot} onChange={updateOutline} createId={newId} /></section>}
     <footer className="deep-canvas__hint">{viewMode === "mindmap" ? "Tab 新增子节点 · Enter 新增同级节点 · 拖拽调整层级 · / 折叠 · ⌘L 整理布局" : `当前文档 ${outlineStats.topics} 条主题 · 共 ${outlineStats.words} 字`}</footer>
   </main>;
 }
