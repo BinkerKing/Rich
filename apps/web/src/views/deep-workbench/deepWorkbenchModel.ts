@@ -9,6 +9,7 @@ export interface DeepWorkbenchMap {
   root: DeepWorkbenchNode;
   layout: "logicalStructure" | "mindMap" | "organizationStructure";
   theme: { id?: DarkMindmapTheme["id"]; lineStyle?: MindmapLineStyle; template: "default"; config: Record<string, unknown> };
+  panSensitivity?: number;
   view?: Record<string, unknown>;
 }
 
@@ -28,5 +29,6 @@ export function createDeepWorkbenchMap(title: string, rootId: string): DeepWorkb
     root: { data: { uid: rootId, text: title, expand: true }, children: [] },
     layout: "logicalStructure",
     theme: { id: theme.id, lineStyle: "curve", template: "default", config: theme.config },
+    panSensitivity: 0.4,
   };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boundedCanvasPanDelta, canvasPanDelta, nextInertialPan, shouldStartCanvasPan } from "./mindmapInteractions.js";
+import { applyPanSensitivity, boundedCanvasPanDelta, canvasPanDelta, nextInertialPan, shouldStartCanvasPan } from "./mindmapInteractions.js";
 
 describe("mind-map canvas interactions", () => {
   it("starts canvas panning only from the right mouse button", () => {
@@ -13,6 +13,10 @@ describe("mind-map canvas interactions", () => {
 
   it("bounds an unusually large pointer jump so panning does not suddenly accelerate", () => {
     expect(boundedCanvasPanDelta({ x: 0, y: 0 }, { x: 100, y: 0 })).toEqual({ x: 40, y: 0 });
+  });
+
+  it("scales panning by the selected sensitivity without changing its direction", () => {
+    expect(applyPanSensitivity({ x: 40, y: -20 }, 0.4)).toEqual({ x: 16, y: -8 });
   });
 
   it("turns the final drag velocity into a short decaying inertial movement", () => {

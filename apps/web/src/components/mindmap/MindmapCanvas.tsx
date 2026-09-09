@@ -4,7 +4,7 @@ import Drag from "simple-mind-map/src/plugins/Drag.js";
 import Select from "simple-mind-map/src/plugins/Select.js";
 import Export from "simple-mind-map/src/plugins/Export.js";
 import RichText from "simple-mind-map/src/plugins/RichText.js";
-import { boundedCanvasPanDelta, nextInertialPan, shouldStartCanvasPan, type CanvasPoint } from "./mindmapInteractions.js";
+import { applyPanSensitivity, boundedCanvasPanDelta, nextInertialPan, shouldStartCanvasPan, type CanvasPoint } from "./mindmapInteractions.js";
 import { MindmapNodeStyleToolbar, type MindmapNodeStyleTarget } from "./MindmapNodeStyleToolbar.js";
 import { hasNodeNote, richTextNodeLayoutCss, titleOnlyNodeHtml } from "./richTextNode.js";
 
@@ -30,19 +30,22 @@ export interface MindmapCanvasProps {
   data: MindmapData;
   layout: string;
   theme: MindmapTheme | string;
+  panSensitivity?: number;
   onChange(data: MindmapData): void;
   onReady?(actions: MindmapCanvasActions): void;
 }
 
-export function MindmapCanvas({ data, layout, theme, onChange, onReady }: MindmapCanvasProps) {
+export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onChange, onReady }: MindmapCanvasProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [activeNode, setActiveNode] = useState<MindmapNodeStyleTarget | null>(null);
   const [richTextSelection, setRichTextSelection] = useState<{ bold?: boolean; italic?: boolean; underline?: boolean; color?: string } | null>(null);
   const onChangeRef = useRef(onChange);
   const onReadyRef = useRef(onReady);
+  const panSensitivityRef = useRef(panSensitivity);
 
   onChangeRef.current = onChange;
   onReadyRef.current = onReady;
+  panSensitivityRef.current = panSensitivity;
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -97,7 +100,7 @@ export function MindmapCanvas({ data, layout, theme, onChange, onReady }: Mindma
     const onPointerMove = (event: PointerEvent) => {
       if (!panStart || event.pointerId !== pointerId) return;
       const next = { x: event.clientX, y: event.clientY };
-      const delta = boundedCanvasPanDelta(panStart, next);
+      const delta = applyPanSensitivity(boundedCanvasPanDelta(panStart, next), panSensitivityRef.current);
       mindMap.view.translateXY(delta.x, delta.y);
       const elapsed = Math.max(performance.now() - lastPanTime, 8);
       const instantaneousVelocity = { x: delta.x / elapsed, y: delta.y / elapsed };

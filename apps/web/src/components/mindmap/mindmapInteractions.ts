@@ -16,6 +16,10 @@ export function boundedCanvasPanDelta(previous: CanvasPoint, next: CanvasPoint, 
   return { x: delta.x * ratio, y: delta.y * ratio };
 }
 
+export function applyPanSensitivity(delta: CanvasPoint, sensitivity: number): CanvasPoint {
+  return { x: delta.x * sensitivity, y: delta.y * sensitivity };
+}
+
 export function nextInertialPan(velocity: CanvasPoint): { delta: CanvasPoint; velocity: CanvasPoint } {
   const nextVelocity = { x: velocity.x * 0.85, y: velocity.y * 0.85 };
   return {
