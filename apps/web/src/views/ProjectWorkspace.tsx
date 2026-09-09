@@ -47,6 +47,7 @@ const EMPTY_STATE_SECTIONS = new Set<ProjectManagementSection>([
 
 export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const project = useStore(s => s.elements.get(projectId));
+  const hydrate = useStore(s => s.hydrate);
   const [section, setSection] = useState<ProjectManagementSection>(() => loadProjectManagementWorkspaceSection(projectId));
   const [summary, setSummary] = useState<ProjectManagementSummary | null>(null);
   const [searchVisible, setSearchVisible] = useState(false);
@@ -130,6 +131,10 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   }
 
   const c = (project.content ?? {}) as ProjectContent;
+  const saveFlowchartIds = async (flowchartIds: string[]) => {
+    await api.patchElement(project.id, { content: { ...c, flowchartIds } satisfies ProjectContent });
+    await hydrate();
+  };
   const statusLabel = ({ active: "进行中", paused: "已暂停", archived: "已归档" } as const)[c.status ?? "active"];
 
   const toggleWindowMaximize = (event: MouseEvent<HTMLElement>) => {
@@ -288,7 +293,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
           {section === "dictionary" && <DictionarySection project={project} summary={summary} searchTarget={searchTarget?.section === "dictionary" ? searchTarget : null} />}
           {section === "automation" && <AutomationSection projectId={project.id} onOpenMapping={openDictionaryMapping} />}
           {section === "workflow" && <WorkflowSection project={project} summary={summary} />}
-          {section === "flowcharts" && <FlowchartsWorkspace key={project.id} projectId={project.id} focusId={searchTarget?.section === "flowcharts" ? searchTarget.entityId : undefined} />}
+          {section === "flowcharts" && <FlowchartsWorkspace key={`${project.id}:${(c.flowchartIds ?? []).join(",")}`} projectId={project.id} flowchartIds={c.flowchartIds ?? []} onFlowchartIdsChange={saveFlowchartIds} focusId={searchTarget?.section === "flowcharts" ? searchTarget.entityId : undefined} />}
           {section === "scenarios" && <ScenariosSection project={project} summary={summary} />}
           {section === "environments" && <EnvironmentsSection project={project} summary={summary} />}
           {section === "deploymentSteps" && <ProjectDeploymentStepsSection project={project} summary={summary} />}
