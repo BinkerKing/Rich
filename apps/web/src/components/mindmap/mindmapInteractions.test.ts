@@ -19,10 +19,10 @@ describe("mind-map canvas interactions", () => {
     expect(applyPanSensitivity({ x: 40, y: -20 }, 0.4)).toEqual({ x: 16, y: -8 });
   });
 
-  it("turns the final drag velocity into a short decaying inertial movement", () => {
+  it("stops immediately on release so a quick right-drag cannot fling the canvas", () => {
     expect(nextInertialPan({ x: 1, y: -0.5 })).toEqual({
-      delta: { x: 13.6, y: -6.8 },
-      velocity: { x: 0.85, y: -0.425 },
+      delta: { x: 0, y: 0 },
+      velocity: { x: 0, y: 0 },
     });
   });
 });
