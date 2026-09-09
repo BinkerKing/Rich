@@ -8,6 +8,9 @@ import { createDeepWorkbenchMap, type DeepWorkbenchItem, type DeepWorkbenchMap }
 import { fromOutlineNode, toOutlineNode } from "./deep-workbench/deepWorkbenchOutlineAdapter.js";
 import { planKnowledgeTreeChanges, projectKnowledgeTree } from "./deep-workbench/knowledgeTreeWorkbench.js";
 import { workbenchTitleFromRootText } from "./deep-workbench/workbenchTitle.js";
+import { nodeDetails, updateNodeDetails } from "./deep-workbench/nodeDetails.js";
+import { titleFromNodeHtml } from "../components/mindmap/richTextNode.js";
+import { ProjectRichTextEditor } from "./project-management/ProjectManagementModules.js";
 import { api } from "../api/client.js";
 import { useStore } from "../state/store.js";
 import "./DeepWorkbenchView.css";
@@ -55,6 +58,7 @@ export function DeepWorkbenchView() {
   const [mindmapActions, setMindmapActions] = useState<MindmapCanvasActions | null>(null);
   const [savingKnowledge, setSavingKnowledge] = useState(false);
   const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
+  const [selectedNode, setSelectedNode] = useState<{ id: string; text: string } | null>(null);
   const knowledgeSyncTimer = useRef<number | undefined>();
   const active = items.find(item => item.id === activeId) ?? null;
   const standaloneItems = items.filter(item => item.source !== "knowledge-tree");
@@ -171,6 +175,7 @@ export function DeepWorkbenchView() {
   const activeTheme = getDarkMindmapTheme(active.map.theme.id ?? "");
   const activeLineStyle = active.map.theme.lineStyle ?? "curve";
   const activePanSensitivity = active.map.panSensitivity ?? 0.4;
+  const selectedDetails = selectedNode ? nodeDetails(findNode(active.map.root, selectedNode.id) ?? active.map.root) : "";
   const selectTheme = (themeId: string) => {
     const theme = getDarkMindmapTheme(themeId);
     saveMap({ ...active.map, theme: { id: theme.id, lineStyle: activeLineStyle, template: "default", config: { ...theme.config, lineStyle: activeLineStyle } } });
@@ -186,6 +191,15 @@ export function DeepWorkbenchView() {
       </div>
     </header>
     {knowledgeError && <p className="deep-knowledge-error" role="alert">知识树同步失败：{knowledgeError}</p>}
-    {viewMode === "mindmap" ? <div className="deep-canvas__map"><MindmapFloatingToolbar themes={DARK_MINDMAP_THEMES} theme={activeTheme.id} lineStyles={MINDMAP_LINE_STYLES} lineStyle={activeLineStyle} layouts={[{ id: "logicalStructure", name: "逻辑结构" }, { id: "mindMap", name: "思维导图" }, { id: "organizationStructure", name: "组织结构" }]} layout={active.map.layout} panSensitivity={activePanSensitivity} onThemeChange={selectTheme} onLineStyleChange={lineStyle => selectLineStyle(lineStyle as MindmapLineStyle)} onLayoutChange={layout => saveMap({ ...active.map, layout: layout as DeepWorkbenchMap["layout"] })} onPanSensitivityChange={panSensitivity => saveMap({ ...active.map, panSensitivity })} onFitView={() => mindmapActions?.fitView()} onExportPng={() => mindmapActions?.exportPng(active.title)} /><MindmapCanvas data={active.map.root as unknown as Record<string, unknown>} layout={active.map.layout} theme={active.map.theme} panSensitivity={activePanSensitivity} onChange={root => saveMap({ ...active.map, root: root as unknown as DeepWorkbenchMap["root"] })} onReady={setMindmapActions} /></div> : <section className="deep-outline"><div className="deep-outline__document-label">{active.source === "knowledge-tree" ? "知识树结构（编辑后即时同步）" : "文档目录"}</div><OutlineEditor root={outlineRoot} onChange={updateOutline} createId={newId} themeConfig={active.map.theme.config} /></section>}
+    {viewMode === "mindmap" ? <div className="deep-canvas__map"><MindmapFloatingToolbar themes={DARK_MINDMAP_THEMES} theme={activeTheme.id} lineStyles={MINDMAP_LINE_STYLES} lineStyle={activeLineStyle} layouts={[{ id: "logicalStructure", name: "逻辑结构" }, { id: "mindMap", name: "思维导图" }, { id: "organizationStructure", name: "组织结构" }]} layout={active.map.layout} panSensitivity={activePanSensitivity} onThemeChange={selectTheme} onLineStyleChange={lineStyle => selectLineStyle(lineStyle as MindmapLineStyle)} onLayoutChange={layout => saveMap({ ...active.map, layout: layout as DeepWorkbenchMap["layout"] })} onPanSensitivityChange={panSensitivity => saveMap({ ...active.map, panSensitivity })} onFitView={() => mindmapActions?.fitView()} onExportPng={() => mindmapActions?.exportPng(active.title)} /><MindmapCanvas data={active.map.root as unknown as Record<string, unknown>} layout={active.map.layout} theme={active.map.theme} panSensitivity={activePanSensitivity} onChange={root => saveMap({ ...active.map, root: root as unknown as DeepWorkbenchMap["root"] })} onNodeActive={setSelectedNode} onReady={setMindmapActions} />{selectedNode && <aside className="deep-node-detail" aria-label="节点详情"><header><div><span>节点详情</span><h2>{titleFromNodeHtml(selectedNode.text)}</h2></div><button type="button" aria-label="关闭节点详情" onClick={() => setSelectedNode(null)}>×</button></header><div className="deep-node-detail__body"><span className="deep-node-detail__label">详情</span><ProjectRichTextEditor projectId={`deep-workbench-${active.id}-${selectedNode.id}`} value={selectedDetails} onChange={detailsHtml => saveMap({ ...active.map, root: updateNodeDetails(active.map.root, selectedNode.id, detailsHtml) })} /></div></aside>}</div> : <section className="deep-outline"><div className="deep-outline__document-label">{active.source === "knowledge-tree" ? "知识树结构（编辑后即时同步）" : "文档目录"}</div><OutlineEditor root={outlineRoot} onChange={updateOutline} createId={newId} themeConfig={active.map.theme.config} /></section>}
   </main>;
+}
+
+function findNode(root: DeepWorkbenchMap["root"], nodeId: string): DeepWorkbenchMap["root"] | undefined {
+  if (root.data.uid === nodeId) return root;
+  for (const child of root.children) {
+    const match = findNode(child, nodeId);
+    if (match) return match;
+  }
+  return undefined;
 }

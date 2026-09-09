@@ -34,19 +34,22 @@ export interface MindmapCanvasProps {
   theme: MindmapTheme | string;
   panSensitivity?: number;
   onChange(data: MindmapData): void;
+  onNodeActive?(node: { id: string; text: string } | null): void;
   onReady?(actions: MindmapCanvasActions): void;
 }
 
-export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onChange, onReady }: MindmapCanvasProps) {
+export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onChange, onNodeActive, onReady }: MindmapCanvasProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [activeNodes, setActiveNodes] = useState<MindmapNodeStyleTarget[]>([]);
   const [richTextSelection, setRichTextSelection] = useState<{ bold?: boolean; italic?: boolean; underline?: boolean; color?: string } | null>(null);
   const onChangeRef = useRef(onChange);
   const onReadyRef = useRef(onReady);
+  const onNodeActiveRef = useRef(onNodeActive);
   const panSensitivityRef = useRef(panSensitivity);
 
   onChangeRef.current = onChange;
   onReadyRef.current = onReady;
+  onNodeActiveRef.current = onNodeActive;
   panSensitivityRef.current = panSensitivity;
 
   useEffect(() => {
@@ -148,7 +151,12 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
       selected.forEach(item => mindMap.renderer.addNodeToActiveList(item, true));
       mindMap.renderer.emitNodeActiveEvent(node);
     };
-    const handleNodeActive = (_node: MindmapNodeStyleTarget | null, nodes: MindmapNodeStyleTarget[] = []) => setActiveNodes(nodes);
+    const handleNodeActive = (node: MindmapNodeStyleTarget | null, nodes: MindmapNodeStyleTarget[] = []) => {
+      setActiveNodes(nodes);
+      const id = node?.getData("uid");
+      const text = node?.getData("text");
+      onNodeActiveRef.current?.(typeof id === "string" && typeof text === "string" ? { id, text } : null);
+    };
     const handleRichTextSelection = (hasRange: boolean, _rect: unknown, format: { bold?: boolean; italic?: boolean; underline?: boolean; color?: string } | null) => setRichTextSelection(hasRange ? format : null);
     const handleHideTextEdit = (_editor: unknown, nodes: MindmapNodeStyleTarget[]) => {
       for (const node of nodes) {
