@@ -641,6 +641,16 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
         -webkit-app-region: drag;
         user-select: none;
       }
+      /* The deep workbench has a full-width interactive header at the top of
+         the window. Its own header is the drag handle so the global overlay
+         never covers the outline/mindmap mode switch. */
+      body:has(.deep-canvas) #rich-window-drag-region {
+        display: none;
+      }
+      .deep-canvas__header {
+        -webkit-app-region: drag;
+        user-select: none;
+      }
       .tv-topbar button,
       .tv-topbar a,
       .tv-topbar input,
@@ -719,6 +729,11 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
       .news-page-head button,
       .news-page-head a,
       .news-page-head input,
+      .deep-canvas__header button,
+      .deep-canvas__header a,
+      .deep-canvas__header input,
+      .deep-canvas__header textarea,
+      .deep-canvas__header select,
       [data-window-drag-region="true"] button,
       [data-window-drag-region="true"] a,
       [data-window-drag-region="true"] input,
