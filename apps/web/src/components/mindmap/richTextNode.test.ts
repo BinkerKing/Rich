@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { hasNodeNote, richTextNodeLayoutCss, titleFromNodeHtml, titleNoteNodeHtml, titleOnlyNodeHtml } from "./richTextNode.js";
+import { decorateTitleNoteHtml, hasNodeNote, richTextNodeLayoutCss, titleFromNodeHtml, titleNoteNodeHtml, titleOnlyNodeHtml } from "./richTextNode.js";
 
 test("creates a title-and-note card as safely escaped rich text HTML", () => {
   assert.equal(
     titleNoteNodeHtml("引擎 <诊断>", "问题1\n问题2"),
-    '<p><strong>引擎 &lt;诊断&gt;</strong></p><p>问题1<br>问题2</p>',
+    '<p class="mindmap-node-title"><strong>引擎 &lt;诊断&gt;</strong></p><p class="mindmap-node-note">问题1<br>问题2</p>',
+  );
+});
+
+test("restores the title and note classes after rich-text editing", () => {
+  assert.equal(
+    decorateTitleNoteHtml('<p><strong>引擎诊断</strong></p><p><em>待检查</em></p>'),
+    '<p class="mindmap-node-title"><strong>引擎诊断</strong></p><p class="mindmap-node-note"><em>待检查</em></p>',
   );
 });
 
@@ -24,4 +31,6 @@ test("recognizes a note only when the content after the title is not empty", () 
 test("resets paragraph margins inside SVG rich-text nodes so their content is not clipped", () => {
   assert.match(richTextNodeLayoutCss, /\.smm-richtext-node-wrap p/);
   assert.match(richTextNodeLayoutCss, /margin:\s*0/);
+  assert.match(richTextNodeLayoutCss, /\.mindmap-node-note/);
+  assert.match(richTextNodeLayoutCss, /border:/);
 });

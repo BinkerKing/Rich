@@ -53,7 +53,6 @@ export function MindmapNodeStyleToolbar({ node }: Props) {
       node.setData({ nodeCardStyle: "title-note" });
       node.setText(titleNoteNodeHtml(title, "点击两次编辑备注"), true);
       setHasNote(true);
-      apply({ borderRadius: 28, borderWidth: 2 });
     }}>▤</button>
   </aside>;
 }

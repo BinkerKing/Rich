@@ -6,7 +6,7 @@ import Export from "simple-mind-map/src/plugins/Export.js";
 import RichText from "simple-mind-map/src/plugins/RichText.js";
 import { applyPanSensitivity, boundedCanvasPanDelta, nextInertialPan, shouldStartCanvasPan, type CanvasPoint } from "./mindmapInteractions.js";
 import { MindmapNodeStyleToolbar, type MindmapNodeStyleTarget } from "./MindmapNodeStyleToolbar.js";
-import { hasNodeNote, richTextNodeLayoutCss, titleOnlyNodeHtml } from "./richTextNode.js";
+import { decorateTitleNoteHtml, hasNodeNote, richTextNodeLayoutCss, titleOnlyNodeHtml } from "./richTextNode.js";
 
 MindMap.usePlugin(Drag).usePlugin(Select).usePlugin(Export).usePlugin(RichText);
 
@@ -133,9 +133,12 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
     const handleRichTextSelection = (hasRange: boolean, _rect: unknown, format: { bold?: boolean; italic?: boolean; underline?: boolean; color?: string } | null) => setRichTextSelection(hasRange ? format : null);
     const handleHideTextEdit = (_editor: unknown, nodes: MindmapNodeStyleTarget[]) => {
       for (const node of nodes) {
-        if (node.getData("nodeCardStyle") !== "title-note" || hasNodeNote(node.getData("text"))) continue;
-        node.setData({ nodeCardStyle: undefined });
-        node.setText(titleOnlyNodeHtml(node.getData("text")), true);
+        if (node.getData("nodeCardStyle") !== "title-note") continue;
+        if (hasNodeNote(node.getData("text"))) node.setText(decorateTitleNoteHtml(node.getData("text")), true);
+        else {
+          node.setData({ nodeCardStyle: undefined });
+          node.setText(titleOnlyNodeHtml(node.getData("text")), true);
+        }
       }
     };
 
