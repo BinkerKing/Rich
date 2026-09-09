@@ -5,6 +5,7 @@ import { TreeView } from "./views/TreeView.js";
 import { AdminView } from "./views/AdminView.js";
 import { NewsView } from "./views/NewsView.js";
 import { MindmapView } from "./views/MindmapView.js";
+import { DeepWorkbenchView } from "./views/DeepWorkbenchView.js";
 import { GreatMeView } from "./views/GreatMeView.js";
 import { PracticeView } from "./views/PracticeView.js";
 import { ProjectsView } from "./views/ProjectsView.js";
@@ -79,7 +80,7 @@ function MainApp() {
   useEffect(() => connectServerEvents(), []);
 
   useEffect(() => {
-      const validViews = new Set(["home", "apps", "tree", "admin", "news", "mindmap", "greatme", "toolbox", "practice", "health", "projects", "rikingProjects"]);
+      const validViews = new Set(["home", "apps", "tree", "admin", "news", "mindmap", "deepWorkbench", "greatme", "toolbox", "practice", "health", "projects", "rikingProjects"]);
     const applyNavigation = (payload: RichNavigationPayload | null) => {
       if (!payload || Date.now() - payload.ts > 30_000) return;
       if (payload.kind === "view" && validViews.has(payload.view)) {
@@ -215,6 +216,7 @@ function MainApp() {
       {appView === "admin" && <AdminView />}
       {appView === "news" && <NewsView />}
       {appView === "mindmap" && <MindmapView />}
+      {appView === "deepWorkbench" && <ErrorBoundary><DeepWorkbenchView /></ErrorBoundary>}
       {appView === "greatme" && <GreatMeView />}
       {appView === "practice" && <PracticeView />}
       {appView === "projects" && <ErrorBoundary><ProjectsView /></ErrorBoundary>}

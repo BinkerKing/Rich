@@ -1,0 +1,77 @@
+.outline-editor {
+  --outline-text: #e5ebf4;
+  --outline-muted: #7c8ba1;
+  --outline-focus: #76b7ff;
+  color: var(--outline-text);
+  font: 14px/1.55 ui-sans-serif, system-ui, sans-serif;
+}
+
+.outline-editor .outline-tree__children {
+  margin-left: 18px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(148, 163, 184, .16);
+}
+
+.outline-editor .outline-node-row {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  gap: 4px;
+}
+
+.outline-editor .outline-node-row__toggle,
+.outline-editor .outline-node-row__toggle-spacer {
+  width: 18px;
+  flex: 0 0 18px;
+}
+
+.outline-editor .outline-node-row__toggle,
+.outline-editor .outline-node-row__add {
+  border: 0;
+  background: transparent;
+  color: var(--outline-muted);
+  cursor: pointer;
+}
+
+.outline-editor .outline-node-row__toggle {
+  padding: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.outline-editor .outline-node-row__toggle:hover,
+.outline-editor .outline-node-row__toggle:focus-visible,
+.outline-editor .outline-node-row__add:hover,
+.outline-editor .outline-node-row__add:focus-visible {
+  color: var(--outline-focus);
+  outline: none;
+}
+
+.outline-editor .outline-node-row__input {
+  min-width: 0;
+  flex: 1;
+  padding: 3px 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.outline-editor .outline-node-row__input:focus {
+  color: #fff;
+}
+
+.outline-editor .outline-node-row__add {
+  width: 20px;
+  padding: 0;
+  opacity: 0;
+  font-size: 18px;
+  line-height: 20px;
+  transition: opacity .12s ease, color .12s ease;
+}
+
+.outline-editor .outline-node-row:hover .outline-node-row__add,
+.outline-editor .outline-node-row__add:focus-visible {
+  opacity: 1;
+}

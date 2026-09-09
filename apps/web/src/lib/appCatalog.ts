@@ -13,6 +13,7 @@ export const APP_MENU_ITEMS: AppMenuItem[] = [
   { id: "tree", label: "知识树", icon: "branch", desc: "选择、新建、细化知识元", tone: "cyan" },
   { id: "news", label: "AI 早报", icon: "calendar", desc: "每日 AI 新闻与技能推荐", tone: "green" },
   { id: "mindmap", label: "导图 PPT", icon: "diamond", desc: "把文稿和知识树变成可播放导图", tone: "violet" },
+  { id: "deepWorkbench", label: "深度工作台", icon: "branch", desc: "用脑图与幕布拆解问题、任务与学习主题", tone: "violet" },
   { id: "greatme", label: "计划管理", icon: "target", desc: "目标拆解、每日任务、每周复盘", tone: "blue" },
   { id: "practice", label: "应用开发", icon: "card", desc: "PRD、开发任务、整改建议", tone: "gold" },
   { id: "projects", label: "项目管理", icon: "card", desc: "部署、代码、待办、答疑、文件夹、日报周报", tone: "blue" },
