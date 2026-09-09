@@ -305,7 +305,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
           <div className="pfc-canvas" ref={canvasRef}>
             <ReactFlow<FlowNode> nodes={graph.nodes.filter(row => row.data.scope === scope).map(row => ({ ...row, selected: selectedIds.includes(row.id), data: { ...row.data, editing: row.id === editingNode, onLabelChange: label => { update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label } } : node) }); setEditingNode(""); }, onNoteTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); } } }))}
               edges={graph.edges.filter(row => graph.nodes.some(n => n.id === row.source && n.data.scope === scope))}
-              nodeTypes={nodeTypes} onInit={setFlow} fitView minZoom={0.1} maxZoom={2} deleteKeyCode={null} selectionOnDrag panOnDrag={[2]} multiSelectionKeyCode="Meta"
+              nodeTypes={nodeTypes} onInit={setFlow} fitView minZoom={0.1} maxZoom={2} deleteKeyCode={null} selectionOnDrag panOnDrag={[2]} zoomOnScroll={false} multiSelectionKeyCode="Meta"
               defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed } }}
               onNodesChange={changes => {
                 const selections = changes.filter(change => change.type === "select");
