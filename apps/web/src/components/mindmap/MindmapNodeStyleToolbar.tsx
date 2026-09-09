@@ -4,7 +4,7 @@ import { nodeColorPresets, noteButtonState, styleMenuOptions, type NodeColorStyl
 import { applyNodeStyle } from "./mindmapMultiSelection.js";
 import { clampNodeStyleToolbarPosition, parseNodeStyleToolbarPosition, type NodeStyleToolbarPosition } from "./nodeStyleToolbarPosition.js";
 import { parseNodeStylePresets, saveNodeStylePreset, type NodeStylePreset } from "./nodeStylePresets.js";
-import { nextNodeIcon, nodeIconHtml, titleFromNodeHtml, titleNoteNodeHtml } from "./richTextNode.js";
+import { nextNodeIcon, nodeIconFromHtml, nodeIconHtml, titleFromNodeHtml, titleNoteNodeHtml } from "./richTextNode.js";
 import "./mindmapNodeStyleToolbar.css";
 
 export type MindmapNodeStyleTarget = {
@@ -157,5 +157,5 @@ function readNodeStyle(node: MindmapNodeStyleTarget): Record<string, unknown> {
 
 function readNodeIcon(node: MindmapNodeStyleTarget): string | undefined {
   const icon = node.getData("nodeIcon");
-  return typeof icon === "string" && icon.trim() ? icon : undefined;
+  return typeof icon === "string" && icon.trim() ? icon : nodeIconFromHtml(node.getData("text"));
 }

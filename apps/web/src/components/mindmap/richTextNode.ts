@@ -129,6 +129,13 @@ export function nextNodeIcon(currentIcon: unknown, selectedIcon: string): string
   return currentIcon === selectedIcon ? undefined : selectedIcon;
 }
 
+export function nodeIconFromHtml(value: unknown): string | undefined {
+  const html = typeof value === "string" ? value : "";
+  const firstParagraph = html.match(/<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/i)?.[1] ?? html;
+  const text = textFromHtml(firstParagraph).trimStart();
+  return nodeIconChoices.find(icon => text.startsWith(icon));
+}
+
 export function decorateTitleNoteHtml(value: unknown): string {
   const [title, ...note] = richTextParagraphs(value);
   if (!title) return "";
@@ -139,17 +146,20 @@ type MindmapTreeNode = { data?: Record<string, unknown>; children?: MindmapTreeN
 
 export function normalizeTitleNoteTree<T extends MindmapTreeNode>(node: T): T {
   const currentData = node.data;
-  const textWithIcon = nodeIconHtml(currentData?.text, currentData?.nodeIcon);
+  const savedIcon = typeof currentData?.nodeIcon === "string" && currentData.nodeIcon.trim() ? currentData.nodeIcon : undefined;
+  const nodeIcon = savedIcon ?? nodeIconFromHtml(currentData?.text);
+  const textWithIcon = nodeIconHtml(currentData?.text, nodeIcon);
   const nextText = currentData?.nodeCardStyle === "title-note" && hasNodeNote(textWithIcon)
     ? decorateTitleNoteHtml(textWithIcon)
     : textWithIcon;
   const nextChildren = node.children?.map(normalizeTitleNoteTree);
   const dataChanged = nextText !== currentData?.text;
+  const iconChanged = nodeIcon !== savedIcon;
   const childrenChanged = nextChildren?.some((child, index) => child !== node.children?.[index]) ?? false;
   if (!dataChanged && !childrenChanged) return node;
   return {
     ...node,
-    ...(dataChanged ? { data: { ...currentData, text: nextText } } : {}),
+    ...(dataChanged || iconChanged ? { data: { ...currentData, text: nextText, ...(iconChanged ? { nodeIcon } : {}) } } : {}),
     ...(childrenChanged ? { children: nextChildren } : {}),
   } as T;
 }
@@ -180,6 +190,8 @@ function removeNodeIconHtml(value: string): string {
 function removeLeadingNodeIconText(value: string): string {
   return value.replace(/(<p(?:\s[^>]*)?>)(?:\s*(?:📌|⭐|💡|⚙️|🎯|✅|⚠️|📚|🔗|🚀|💬|🔍))+/u, "$1");
 }
+
+const nodeIconChoices = ["📌", "⭐", "💡", "⚙️", "🎯", "✅", "⚠️", "📚", "🔗", "🚀", "💬", "🔍"];
 
 function textFromHtml(value: string): string {
   return decodeHtml(value.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, ""));

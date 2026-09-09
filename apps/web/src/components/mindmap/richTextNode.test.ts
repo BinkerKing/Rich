@@ -118,3 +118,10 @@ test("restores the saved node icon when a mind map is opened", () => {
     '<p><span class="mindmap-node-icon" contenteditable="false">⚙️</span>引擎诊断</p>',
   );
 });
+
+test("recovers a plain text icon into node data when a mind map is reopened", () => {
+  const tree = { data: { text: "<p>💬 ⭐TransactionTab → BopTransaction</p>" }, children: [] };
+  const data = normalizeTitleNoteTree(tree).data as Record<string, unknown>;
+  assert.equal(data.nodeIcon, "💬");
+  assert.equal(data.text, '<p><span class="mindmap-node-icon" contenteditable="false">💬</span>TransactionTab → BopTransaction</p>');
+});
