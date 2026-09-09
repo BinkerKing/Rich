@@ -933,6 +933,21 @@ export const api = {
   async updateDeliverable(id: string, patch: Partial<Pick<Deliverable, "title" | "content">>): Promise<Deliverable> {
     const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) }); if (!r.ok) throw new Error(`updateDeliverable ${r.status}`); return r.json();
   },
+  async createStandaloneDeliverableFolder(id: string): Promise<void> {
+    const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}/folder`, { method: "POST" }); if (!r.ok) throw new Error(`createStandaloneDeliverableFolder ${r.status}`);
+  },
+  async listStandaloneDeliverableFiles(id: string): Promise<Array<{ fileName: string; relativePath: string; size: number; modifiedAt: string; isDirectory: boolean }>> {
+    const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}/files`); if (!r.ok) throw new Error(`listStandaloneDeliverableFiles ${r.status}`); return (await r.json()).files;
+  },
+  async uploadStandaloneDeliverableFile(id: string, file: File): Promise<{ fileName: string; relativePath: string; size: number }> {
+    const form = new FormData(); form.set("file", file, file.name); const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}/files`, { method: "POST", body: form }); if (!r.ok) throw new Error(`uploadStandaloneDeliverableFile ${r.status}`); return r.json();
+  },
+  async openStandaloneDeliverableFolder(id: string): Promise<void> {
+    const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}/open`, { method: "POST" }); if (!r.ok) throw new Error(`openStandaloneDeliverableFolder ${r.status}`);
+  },
+  async deleteStandaloneDeliverableFile(id: string, path: string): Promise<void> {
+    const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}/files`, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ path }) }); if (!r.ok) throw new Error(`deleteStandaloneDeliverableFile ${r.status}`);
+  },
   async getProjectDescription(projectId: string): Promise<ProjectDescription> {
     const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/description`);
     if (!r.ok) throw new Error(`getProjectDescription ${r.status}`);
