@@ -53,13 +53,19 @@ const richTextHasContent = (value: string) => value.replace(/<[^>]*>/g, "").repl
 const absoluteFolderPath = (projectRoot: string | undefined, folderPath: string) => projectRoot ? `${projectRoot.replace(/\/+$/, "")}/${folderPath.replace(/^\/+/, "")}` : folderPath;
 
 export function DeliverablesWorkspace({
-  projectId,
+  projectId = "",
   projectRoot,
   deliverablesRoot,
+  standalone = false,
+  deliverableIds,
+  onDeliverableIdsChange,
 }: {
-  projectId: string;
+  projectId?: string;
   projectRoot?: string;
   deliverablesRoot?: string;
+  standalone?: boolean;
+  deliverableIds?: string[];
+  onDeliverableIdsChange?: (ids: string[]) => Promise<void>;
 }): ReactNode {
   const [items, setItems] = useState<Item[]>([]);
   const [openId, setOpenId] = useState<string>();
@@ -113,12 +119,20 @@ export function DeliverablesWorkspace({
     }
   };
   const refreshItems = async () => {
+    if (standalone || deliverableIds !== undefined) {
+      const next = (await api.listDeliverables()).filter(item => standalone || (deliverableIds ?? []).includes(item.id)).map(item => ({ ...item, moduleKey: "deliverables", parentId: null, subtitle: null, sortOrder: 0, content: normalizeDeliverableContent(item.content) } as unknown as Item));
+      setItems(next);
+      return;
+    }
+    if (!projectId) return;
     const deliverables = await api.listProjectManagementModuleItems(projectId, "deliverables", undefined, true);
     const next = deliverables.map((item) => ({ ...item, content: normalizeDeliverableContent(item.content) }));
     setItems(next);
     await Promise.all(next.map(refreshFiles));
   };
   const load = async () => {
+    if (standalone || deliverableIds !== undefined) return refreshItems();
+    if (!projectId) return;
     let deliverables = await api.listProjectManagementModuleItems(
       projectId,
       "deliverables",
@@ -317,6 +331,12 @@ export function DeliverablesWorkspace({
     if (item) void refreshFiles(item);
   }, [items, openId]);
   const save = async (item: Item, content: Item["content"]) => {
+    if (standalone || deliverableIds !== undefined) {
+      const updated = await api.updateDeliverable(item.id, { content });
+      setItems(all => all.map(current => current.id === item.id ? ({ ...current, ...updated, content: normalizeDeliverableContent(updated.content) } as Item) : current));
+      return;
+    }
+    if (!projectId) return;
     const updated = await api.updateProjectManagementModuleItem(
       projectId,
       item.id,
@@ -523,7 +543,7 @@ export function DeliverablesWorkspace({
         <div>
           <p className="deliverables-workspace__eyebrow">PROJECT OUTPUTS</p>
           <h1>交付物</h1>
-          <p>由项目任务自动关联的可追溯交付记录。</p>
+          <p>{standalone ? "统一管理目录绑定的可复用交付物。" : "由项目任务自动关联的可追溯交付记录。"}</p>
         </div>
       </header>
       <div className="deliverables-workspace__list">
