@@ -924,6 +924,15 @@ export const api = {
     const r = await fetch(`/api/flowcharts/${encodeURIComponent(id)}`, { method: "DELETE" });
     if (!r.ok) throw new Error(`deleteFlowchart ${r.status}`);
   },
+  async listDeliverables(): Promise<Deliverable[]> {
+    const r = await fetch("/api/deliverables"); if (!r.ok) throw new Error(`listDeliverables ${r.status}`); return r.json();
+  },
+  async createDeliverable(input: Pick<Deliverable, "title" | "content">): Promise<Deliverable> {
+    const r = await fetch("/api/deliverables", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) }); if (!r.ok) throw new Error(`createDeliverable ${r.status}`); return r.json();
+  },
+  async updateDeliverable(id: string, patch: Partial<Pick<Deliverable, "title" | "content">>): Promise<Deliverable> {
+    const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) }); if (!r.ok) throw new Error(`updateDeliverable ${r.status}`); return r.json();
+  },
   async getProjectDescription(projectId: string): Promise<ProjectDescription> {
     const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/description`);
     if (!r.ok) throw new Error(`getProjectDescription ${r.status}`);
@@ -1718,6 +1727,7 @@ export type Flowchart = {
   createdAt: string;
   updatedAt: string;
 };
+export type Deliverable = { id: string; title: string; content: Record<string, unknown>; createdAt: string; updatedAt: string; };
 
 export type ProjectManagementModuleKey =
   | "dashboard"

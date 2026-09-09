@@ -135,6 +135,10 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
     await api.patchElement(project.id, { content: { ...c, flowchartIds } satisfies ProjectContent });
     await hydrate();
   };
+  const saveDeliverableIds = async (deliverableIds: string[]) => {
+    await api.patchElement(project.id, { content: { ...c, deliverableIds } satisfies ProjectContent });
+    await hydrate();
+  };
   const statusLabel = ({ active: "进行中", paused: "已暂停", archived: "已归档" } as const)[c.status ?? "active"];
 
   const toggleWindowMaximize = (event: MouseEvent<HTMLElement>) => {
@@ -287,7 +291,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
         <div className="prj-ws__body">
           {section === "dashboard" && <ProjectDashboard projectId={project.id} deliverablesRoot={c.defaultDeliverablesDirectory} onOpenPlan={() => selectSection("deliveryPlan")} />}
           {section === "deliveryPlan" && <DeliveryPlanWorkspace projectId={project.id} projectName={project.title} deliverablesRoot={c.defaultDeliverablesDirectory} />}
-          {section === "deliverables" && <DeliverablesWorkspace projectId={project.id} projectRoot={c.localFolder} deliverablesRoot={c.defaultDeliverablesDirectory} />}
+          {section === "deliverables" && <DeliverablesWorkspace projectId={project.id} projectRoot={c.localFolder} deliverablesRoot={c.defaultDeliverablesDirectory} deliverableIds={c.deliverableIds} onDeliverableIdsChange={saveDeliverableIds} />}
           {section === "reports" && <ReportsWorkspace projectId={project.id} />}
           {section === "description" && <ProjectDescriptionSection projectId={project.id} />}
           {section === "dictionary" && <DictionarySection project={project} summary={summary} searchTarget={searchTarget?.section === "dictionary" ? searchTarget : null} />}

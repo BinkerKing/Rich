@@ -15,6 +15,7 @@ export const APP_MENU_ITEMS: AppMenuItem[] = [
   { id: "mindmap", label: "导图 PPT", icon: "diamond", desc: "把文稿和知识树变成可播放导图", tone: "violet" },
   { id: "deepWorkbench", label: "深度工作台", icon: "branch", desc: "用脑图拆解问题、任务与学习主题", tone: "violet" },
   { id: "flowcharts", label: "流程图", icon: "map", desc: "独立创建、编辑并复用流程图", tone: "cyan" },
+  { id: "deliverables", label: "交付物", icon: "card", desc: "统一管理并复用绑定目录的交付物", tone: "gold" },
   { id: "greatme", label: "计划管理", icon: "target", desc: "目标拆解、每日任务、每周复盘", tone: "blue" },
   { id: "taskWorkbench", label: "任务工作台", icon: "card", desc: "需求、计划、Codex 执行与成果", tone: "gold" },
   { id: "practice", label: "应用开发", icon: "card", desc: "应用需求、功能拆解、代码开发与效果图", tone: "violet" },
