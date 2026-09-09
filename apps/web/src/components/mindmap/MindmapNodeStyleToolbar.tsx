@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { nodeStyleFromData, type NodeStyle } from "./nodeStyleControls.js";
-import { titleFromNodeHtml, titleNoteNodeHtml } from "./richTextNode.js";
+import { titleFromNodeHtml, titleNoteNodeHtml, titleOnlyNodeHtml } from "./richTextNode.js";
 import "./mindmapNodeStyleToolbar.css";
 
 export type MindmapNodeStyleTarget = {
@@ -22,8 +22,12 @@ const colorInputs: Array<{ key: "color" | "fillColor" | "borderColor"; label: st
 
 export function MindmapNodeStyleToolbar({ node }: Props) {
   const [style, setStyle] = useState(() => nodeStyleFromData(readNodeStyle(node)));
+  const [hasNote, setHasNote] = useState(() => node.getData("nodeCardStyle") === "title-note");
 
-  useEffect(() => setStyle(nodeStyleFromData(readNodeStyle(node))), [node]);
+  useEffect(() => {
+    setStyle(nodeStyleFromData(readNodeStyle(node)));
+    setHasNote(node.getData("nodeCardStyle") === "title-note");
+  }, [node]);
 
   const apply = (patch: Partial<NodeStyle>) => {
     const next = { ...style, ...patch };
@@ -38,12 +42,19 @@ export function MindmapNodeStyleToolbar({ node }: Props) {
     {colorInputs.map(({ key, label }) => <label key={key} className="mindmap-node-style-toolbar__color" title={label}>{label}<input type="color" value={style[key]} onChange={event => apply({ [key]: event.target.value })} /></label>)}
     <label title="边框粗细">边框<select value={style.borderWidth} onChange={event => apply({ borderWidth: Number(event.target.value) })}>{[0, 1, 2, 3].map(width => <option key={width} value={width}>{width}px</option>)}</select></label>
     <label title="圆角">圆角<select value={style.borderRadius} onChange={event => apply({ borderRadius: Number(event.target.value) })}>{[0, 8, 16, 28, 48].map(radius => <option key={radius} value={radius}>{radius}px</option>)}</select></label>
-    <button type="button" title="标题 + 备注卡片" onClick={() => {
+    <button className={hasNote ? "is-active" : ""} type="button" title={hasNote ? "移除备注" : "增加备注"} aria-label={hasNote ? "移除备注" : "增加备注"} aria-pressed={hasNote} onClick={() => {
       const title = titleFromNodeHtml(node.getData("text"));
+      if (hasNote) {
+        node.setData({ nodeCardStyle: undefined });
+        node.setText(titleOnlyNodeHtml(node.getData("text")), true);
+        setHasNote(false);
+        return;
+      }
       node.setData({ nodeCardStyle: "title-note" });
       node.setText(titleNoteNodeHtml(title, "点击两次编辑备注"), true);
+      setHasNote(true);
       apply({ borderRadius: 28, borderWidth: 2 });
-    }}>标题＋备注</button>
+    }}>▤</button>
   </aside>;
 }
 

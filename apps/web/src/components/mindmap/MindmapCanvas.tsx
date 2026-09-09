@@ -6,7 +6,7 @@ import Export from "simple-mind-map/src/plugins/Export.js";
 import RichText from "simple-mind-map/src/plugins/RichText.js";
 import { boundedCanvasPanDelta, nextInertialPan, shouldStartCanvasPan, type CanvasPoint } from "./mindmapInteractions.js";
 import { MindmapNodeStyleToolbar, type MindmapNodeStyleTarget } from "./MindmapNodeStyleToolbar.js";
-import { richTextNodeLayoutCss } from "./richTextNode.js";
+import { hasNodeNote, richTextNodeLayoutCss, titleOnlyNodeHtml } from "./richTextNode.js";
 
 MindMap.usePlugin(Drag).usePlugin(Select).usePlugin(Export).usePlugin(RichText);
 
@@ -128,11 +128,19 @@ export function MindmapCanvas({ data, layout, theme, onChange, onReady }: Mindma
     const handleChange = () => onChangeRef.current(mindMap.getData() as MindmapData);
     const handleNodeActive = (node: MindmapNodeStyleTarget | null) => setActiveNode(node);
     const handleRichTextSelection = (hasRange: boolean, _rect: unknown, format: { bold?: boolean; italic?: boolean; underline?: boolean; color?: string } | null) => setRichTextSelection(hasRange ? format : null);
+    const handleHideTextEdit = (_editor: unknown, nodes: MindmapNodeStyleTarget[]) => {
+      for (const node of nodes) {
+        if (node.getData("nodeCardStyle") !== "title-note" || hasNodeNote(node.getData("text"))) continue;
+        node.setData({ nodeCardStyle: undefined });
+        node.setText(titleOnlyNodeHtml(node.getData("text")), true);
+      }
+    };
 
     mindMap.on("data_change", handleChange);
     mindMap.on("layout_change", handleChange);
     mindMap.on("node_active", handleNodeActive);
     mindMap.on("rich_text_selection_change", handleRichTextSelection);
+    mindMap.on("hide_text_edit", handleHideTextEdit);
     onReadyRef.current?.({
       undo: () => mindMap.execCommand("BACK"),
       redo: () => mindMap.execCommand("FORWARD"),
@@ -152,6 +160,7 @@ export function MindmapCanvas({ data, layout, theme, onChange, onReady }: Mindma
       hostRef.current?.removeEventListener("contextmenu", preventContextMenu);
       mindMap.off("node_active", handleNodeActive);
       mindMap.off("rich_text_selection_change", handleRichTextSelection);
+      mindMap.off("hide_text_edit", handleHideTextEdit);
       mindMap.removeAppendCss("richTextNodeLayout");
       delete (hostRef.current as HTMLDivElement & { __mindMap?: typeof mindMap }).__mindMap;
       mindMap.destroy();

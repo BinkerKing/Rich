@@ -16,10 +16,27 @@ export function titleNoteNodeHtml(title: string, note: string): string {
   return `<p><strong>${escapeHtml(title)}</strong></p><p>${escapeHtml(note).replace(/\n/g, "<br>")}</p>`;
 }
 
+export function hasNodeNote(value: unknown): boolean {
+  return richTextParagraphs(value).slice(1).some(paragraph => textFromHtml(paragraph).trim().length > 0);
+}
+
+export function titleOnlyNodeHtml(value: unknown): string {
+  return richTextParagraphs(value)[0] ?? "";
+}
+
 export function titleFromNodeHtml(value: unknown): string {
   const html = typeof value === "string" ? value : "";
   const firstParagraph = html.match(/<p(?:\s[^>]*)?>([\s\S]*?)<\/p>/i)?.[1] ?? html;
-  return decodeHtml(firstParagraph.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, "")).trim();
+  return textFromHtml(firstParagraph).trim();
+}
+
+function richTextParagraphs(value: unknown): string[] {
+  const html = typeof value === "string" ? value : "";
+  return Array.from(html.matchAll(/<p(?:\s[^>]*)?>[\s\S]*?<\/p>/gi), match => match[0]);
+}
+
+function textFromHtml(value: string): string {
+  return decodeHtml(value.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, ""));
 }
 
 function escapeHtml(value: string): string {
