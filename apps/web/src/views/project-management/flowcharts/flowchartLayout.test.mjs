@@ -96,3 +96,12 @@ test('node details open on double click and Escape closes only the details', () 
   assert.match(source, /event\.key === "Escape" && detailNode/);
   assert.match(source, /detailNode && <aside/);
 });
+
+test('canvas supports lasso and Command multi-selection for shared node styles', () => {
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(source, /const \[selectedIds, setSelectedIds\] = useState<string\[\]>\(\[\]\)/);
+  assert.match(source, /selectionOnDrag/);
+  assert.match(source, /multiSelectionKeyCode="Meta"/);
+  assert.match(source, /onPaneClick=\{\(\) => \{\}\}/);
+  assert.match(source, /<FlowchartNodeStyleToolbar nodes=\{selectedNodes\}/);
+});

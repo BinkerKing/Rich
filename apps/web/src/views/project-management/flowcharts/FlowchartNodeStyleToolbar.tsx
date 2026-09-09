@@ -9,7 +9,8 @@ const POSITION_STORAGE_KEY = "rich.flowchart.node-style-toolbar.position.v1";
 const PRESETS_STORAGE_KEY = "rich.flowchart.node-style-presets.v1";
 type OpenMenu = "fontSize" | "color" | "fillColor" | "border" | "presets" | null;
 
-export function FlowchartNodeStyleToolbar({ node, onChange }: { node: FlowNode; onChange: (patch: Partial<FlowNode["data"]>) => void }) {
+export function FlowchartNodeStyleToolbar({ nodes, onChange }: { nodes: FlowNode[]; onChange: (patch: Partial<FlowNode["data"]>) => void }) {
+  const node = nodes[0]!;
   const [style, setStyle] = useState(() => nodeStyleFromData(node.data));
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const [presets, setPresets] = useState<NodeStylePreset[]>(() => parseNodeStylePresets(localStorage.getItem(PRESETS_STORAGE_KEY)));
@@ -67,7 +68,7 @@ export function FlowchartNodeStyleToolbar({ node, onChange }: { node: FlowNode; 
     setPresetName("");
   };
 
-  return <aside ref={toolbarRef} className="pfc-node-style-toolbar" aria-label="节点样式编辑器" style={position ? { left: position.x, top: position.y, bottom: "auto", transform: "none" } : undefined}>
+  return <aside ref={toolbarRef} className="pfc-node-style-toolbar" aria-label={`节点样式编辑器${nodes.length > 1 ? `，已选 ${nodes.length} 个节点` : ""}`} style={position ? { left: position.x, top: position.y, bottom: "auto", transform: "none" } : undefined}>
     <button className="pfc-node-style-toolbar__drag" type="button" title="拖动编辑器" aria-label="拖动编辑器" onPointerDown={startDrag}>⠿</button>
     {openMenu && <div className="pfc-node-style-toolbar__menu-wrap">
       {openMenu === "fontSize" && <div className="pfc-node-style-toolbar__menu"><span>字号</span><div>{styleMenuOptions("fontSize").map(size => <button key={size} className={style.fontSize === size ? "is-active" : ""} type="button" onClick={() => { apply({ fontSize: size }); setOpenMenu(null); }}>{size}</button>)}</div></div>}
