@@ -294,7 +294,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
           <div className="pfc-canvas" ref={canvasRef}>
             <ReactFlow<FlowNode> nodes={graph.nodes.filter(row => row.data.scope === scope).map(row => ({ ...row, selected: selectedIds.includes(row.id), data: { ...row.data, editing: row.id === editingNode, onLabelChange: label => { update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label } } : node) }); setEditingNode(""); } } }))}
               edges={graph.edges.filter(row => graph.nodes.some(n => n.id === row.source && n.data.scope === scope))}
-              nodeTypes={nodeTypes} onInit={setFlow} fitView minZoom={0.1} maxZoom={2} deleteKeyCode={null} selectionOnDrag panOnDrag={false} multiSelectionKeyCode="Meta"
+              nodeTypes={nodeTypes} onInit={setFlow} fitView minZoom={0.1} maxZoom={2} deleteKeyCode={null} selectionOnDrag panOnDrag={[2]} multiSelectionKeyCode="Meta"
               defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed } }}
               onNodesChange={changes => {
                 const selections = changes.filter(change => change.type === "select");
@@ -312,7 +312,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
                 const ids = event.metaKey ? current.includes(row.id) ? current.filter(id => id !== row.id) : [...current, row.id] : [row.id];
                 setSelected(ids[0] ?? ""); return ids;
               }); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); }} onNodeDoubleClick={(_, row) => { setSelected(row.id); setSelectedIds([row.id]); setDetailNode(row.id); }}
-              onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); setSelectedIds([]); setEditingNode(""); setDetailNode(""); }} onPaneClick={() => {}}>
+              onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); setSelectedIds([]); setEditingNode(""); setDetailNode(""); }} onPaneClick={() => {}} onPaneContextMenu={event => event.preventDefault()}>
               <Background gap={28} size={1} color="#44444d" /><Controls />
             </ReactFlow>
           </div>

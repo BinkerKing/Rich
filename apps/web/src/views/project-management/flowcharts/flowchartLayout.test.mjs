@@ -78,7 +78,7 @@ test('flowchart toolbar exports the current canvas as a PNG image', () => {
 test('selecting a flowchart node opens the movable style editor', () => {
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
   assert.match(source, /FlowchartNodeStyleToolbar/);
-  assert.match(source, /node && <FlowchartNodeStyleToolbar/);
+  assert.match(source, /selectedNodes\.length > 0 && <FlowchartNodeStyleToolbar/);
   assert.match(source, /onChange=\{editNode\}/);
 });
 
@@ -104,4 +104,10 @@ test('canvas supports lasso and Command multi-selection for shared node styles',
   assert.match(source, /multiSelectionKeyCode="Meta"/);
   assert.match(source, /onPaneClick=\{\(\) => \{\}\}/);
   assert.match(source, /<FlowchartNodeStyleToolbar nodes=\{selectedNodes\}/);
+});
+
+test('right drag pans the canvas while left drag remains reserved for lasso selection', () => {
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(source, /selectionOnDrag panOnDrag=\{\[2\]\}/);
+  assert.match(source, /onPaneContextMenu=\{event => event\.preventDefault\(\)\}/);
 });
