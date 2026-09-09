@@ -67,7 +67,12 @@ export function MindmapCanvas({ data, layout, theme, onChange, onReady }: Mindma
     });
 
     return () => mindMap.destroy();
-  }, [data, layout, theme]);
+  // Map edits emit `data_change` and update the parent state. Recreating the
+  // canvas for that new object destroys and reinitializes the renderer in a
+  // loop, which presents as a visible flash. The map owns edits while mounted;
+  // a new data tree is applied on the next mount (for example after returning
+  // from the outline view).
+  }, [layout, theme]);
 
   return <div ref={hostRef} style={{ width: "100%", height: "100%" }} />;
 }
