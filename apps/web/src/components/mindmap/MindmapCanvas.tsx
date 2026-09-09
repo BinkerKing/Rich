@@ -141,12 +141,14 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
     hostRef.current.addEventListener("pointercancel", stopPanning);
     const onKeyDown = (event: KeyboardEvent) => {
       if (!isNodeEditShortcut(event) || mindMap.richText?.showTextEdit) return;
+      if (event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable=true]")) return;
       const node = mindMap.renderer.activeNodeList[0];
       if (!node) return;
       event.preventDefault();
+      event.stopPropagation();
       mindMap.richText?.showEditText({ node });
     };
-    hostRef.current.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
     hostRef.current.addEventListener("contextmenu", preventContextMenu);
     resizeObserver.observe(hostRef.current);
     // `getData(true)` wraps the node tree with layout, theme and view config.
@@ -207,7 +209,7 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
       hostRef.current?.removeEventListener("pointermove", onPointerMove);
       hostRef.current?.removeEventListener("pointerup", stopPanning);
       hostRef.current?.removeEventListener("pointercancel", stopPanning);
-      hostRef.current?.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", onKeyDown, true);
       hostRef.current?.removeEventListener("contextmenu", preventContextMenu);
       mindMap.off("node_active", handleNodeActive);
       mindMap.off("node_dblclick", handleNodeDoubleClick);

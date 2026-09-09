@@ -4,6 +4,8 @@ import { isNodeEditShortcut } from "./nodeEditShortcut.js";
 
 test("accepts an unmodified tilde as the node edit shortcut", () => {
   assert.equal(isNodeEditShortcut({ key: "~", altKey: false, ctrlKey: false, metaKey: false }), true);
+  assert.equal(isNodeEditShortcut({ key: "～", altKey: false, ctrlKey: false, metaKey: false }), true);
+  assert.equal(isNodeEditShortcut({ key: "`", altKey: false, ctrlKey: false, metaKey: false }), true);
 });
 
 test("ignores tilde when it is combined with another shortcut modifier", () => {
