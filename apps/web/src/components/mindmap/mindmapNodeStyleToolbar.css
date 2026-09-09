@@ -56,7 +56,15 @@
 .mindmap-node-style-toolbar__menu button { min-width: 34px; height: 30px; border: 1px solid transparent; border-radius: 6px; background: #1f2937; color: #d1d5db; font: 600 12px/1 Inter, system-ui; }
 .mindmap-node-style-toolbar__menu button:hover,
 .mindmap-node-style-toolbar__menu button.is-active { border-color: #67e8f9; background: #1e3a5f; color: #fff; }
-.mindmap-node-style-toolbar__menu--color { grid-template-columns: 1fr auto; align-items: center; }
+.mindmap-node-style-toolbar__menu--color { min-width: 270px; }
+.mindmap-node-style-toolbar__swatches { display: flex; gap: 6px !important; align-items: center; }
+.mindmap-node-style-toolbar__swatches button { min-width: 0; width: 26px; height: 26px; padding: 0; border: 2px solid transparent; border-radius: 7px; box-shadow: inset 0 0 0 1px rgba(15, 23, 42, .4); }
+.mindmap-node-style-toolbar__swatches button:hover,
+.mindmap-node-style-toolbar__swatches button.is-active { border-color: #fff; box-shadow: 0 0 0 2px #38bdf8; }
+.mindmap-node-style-toolbar__custom-color { position: relative; display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid rgba(255,255,255,.35); border-radius: 7px; color: #f8fafc; cursor: pointer; }
+.mindmap-node-style-toolbar__custom-color:hover { border-color: #67e8f9; background: #1e3a5f; }
+.mindmap-node-style-toolbar__custom-color svg { width: 18px; height: 18px; }
+.mindmap-node-style-toolbar__menu .mindmap-node-style-toolbar__custom-color input { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; opacity: 0; cursor: pointer; }
 .mindmap-node-style-toolbar__menu input { width: 38px; height: 32px; padding: 2px; border: 1px solid rgba(255,255,255,.22); border-radius: 6px; background: #1f2937; }
 .mindmap-node-style-toolbar__menu--border > div { display: flex; align-items: center; gap: 5px; }
 .mindmap-node-style-toolbar__menu small { width: 29px; color: #cbd5e1; font-size: 11px; }

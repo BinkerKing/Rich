@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { nodeStyleFromData, type NodeStyle } from "./nodeStyleControls.js";
-import { noteButtonState, styleMenuOptions, type StyleMenu } from "./nodeStyleToolbarMenu.js";
+import { nodeColorPresets, noteButtonState, styleMenuOptions, type NodeColorStyle, type StyleMenu } from "./nodeStyleToolbarMenu.js";
 import { applyNodeStyle } from "./mindmapMultiSelection.js";
 import { clampNodeStyleToolbarPosition, parseNodeStyleToolbarPosition, type NodeStyleToolbarPosition } from "./nodeStyleToolbarPosition.js";
 import { parseNodeStylePresets, saveNodeStylePreset, type NodeStylePreset } from "./nodeStylePresets.js";
@@ -85,7 +85,8 @@ export function MindmapNodeStyleToolbar({ nodes }: Props) {
     applyNodeStyle(nodes, preset.style);
     setOpenMenu(null);
   };
-  const colorMenu = (key: "color" | "fillColor" | "borderColor", label: string) => <div className="mindmap-node-style-toolbar__menu mindmap-node-style-toolbar__menu--color"><span>{label}</span><input aria-label={label} type="color" value={style[key]} onChange={event => apply({ [key]: event.target.value })} /></div>;
+  const colorSwatches = (key: NodeColorStyle, label: string) => <div className="mindmap-node-style-toolbar__swatches">{nodeColorPresets(key).map(color => <button key={color} className={style[key] === color ? "is-active" : ""} type="button" title={color} aria-label={`${label}：${color}`} style={{ backgroundColor: color }} onClick={() => apply({ [key]: color })} />)}<label className="mindmap-node-style-toolbar__custom-color" title={`自定义${label}`} aria-label={`自定义${label}`}><ToolbarIcon name="palette" /><input aria-label={`自定义${label}`} type="color" value={style[key]} onChange={event => apply({ [key]: event.target.value })} /></label></div>;
+  const colorMenu = (key: NodeColorStyle, label: string) => <div className="mindmap-node-style-toolbar__menu mindmap-node-style-toolbar__menu--color"><span>{label}</span>{colorSwatches(key, label)}</div>;
   const noteState = nodes.length === 1 ? noteButtonState(hasNote) : { disabled: true, label: "批量选择时不能增加备注" };
   const startDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
     const toolbar = toolbarRef.current;
@@ -103,7 +104,7 @@ export function MindmapNodeStyleToolbar({ nodes }: Props) {
       {openMenu === "color" && colorMenu("color", "文字颜色")}
       {openMenu === "fillColor" && colorMenu("fillColor", "背景颜色")}
       {openMenu === "borderColor" && colorMenu("borderColor", "边框颜色")}
-      {openMenu === "border" && <div className="mindmap-node-style-toolbar__menu mindmap-node-style-toolbar__menu--border"><span>边框</span><div><small>颜色</small><input aria-label="边框颜色" type="color" value={style.borderColor} onChange={event => apply({ borderColor: event.target.value })} /></div><div><small>粗细</small>{styleMenuOptions("borderWidth").map(width => <button key={width} className={style.borderWidth === width ? "is-active" : ""} type="button" onClick={() => apply({ borderWidth: width })}>{width}px</button>)}</div><div><small>圆角</small>{styleMenuOptions("borderRadius").map(radius => <button key={radius} className={style.borderRadius === radius ? "is-active" : ""} type="button" onClick={() => apply({ borderRadius: radius })}>{radius}</button>)}</div></div>}
+      {openMenu === "border" && <div className="mindmap-node-style-toolbar__menu mindmap-node-style-toolbar__menu--border"><span>边框</span><div><small>颜色</small>{colorSwatches("borderColor", "边框颜色")}</div><div><small>粗细</small>{styleMenuOptions("borderWidth").map(width => <button key={width} className={style.borderWidth === width ? "is-active" : ""} type="button" onClick={() => apply({ borderWidth: width })}>{width}px</button>)}</div><div><small>圆角</small>{styleMenuOptions("borderRadius").map(radius => <button key={radius} className={style.borderRadius === radius ? "is-active" : ""} type="button" onClick={() => apply({ borderRadius: radius })}>{radius}</button>)}</div></div>}
       {openMenu === "presets" && <div className="mindmap-node-style-toolbar__menu mindmap-node-style-toolbar__menu--presets"><span>节点样式</span><div className="mindmap-node-style-toolbar__preset-list">{presets.length ? presets.map(preset => <button key={preset.id} type="button" title={`应用“${preset.name}”`} onClick={() => applyPreset(preset)}>{preset.name}</button>) : <small>保存当前样式后，可在这里复用</small>}</div><div className="mindmap-node-style-toolbar__preset-save"><input aria-label="节点样式名称" value={presetName} placeholder="例如：重点节点" maxLength={24} onChange={event => setPresetName(event.target.value)} onKeyDown={event => { if (event.key === "Enter") savePreset(); }} /><button type="button" disabled={!presetName.trim()} onClick={savePreset}>保存</button></div></div>}
     </div>}
     <button type="button" title="字号" aria-label="字号" aria-expanded={openMenu === "fontSize"} onClick={() => toggle("fontSize")}><ToolbarIcon name="text" /></button>
@@ -121,7 +122,7 @@ export function MindmapNodeStyleToolbar({ nodes }: Props) {
   </aside>;
 }
 
-function ToolbarIcon({ name }: { name: "text" | "bold" | "color" | "fill" | "border" | "note" | "drag" | "preset" }) {
+function ToolbarIcon({ name }: { name: "text" | "bold" | "color" | "fill" | "border" | "note" | "drag" | "preset" | "palette" }) {
   const paths = {
     text: <><path d="M5 5h14M12 5v14M8 19h8" /></>,
     bold: <path d="M8 5h5a3 3 0 0 1 0 6H8zm0 6h6a3 3 0 0 1 0 6H8z" />,
@@ -131,6 +132,7 @@ function ToolbarIcon({ name }: { name: "text" | "bold" | "color" | "fill" | "bor
     note: <><rect x="5" y="4" width="14" height="16" rx="2" /><path d="M8 9h8M8 13h8" /></>,
     drag: <><circle cx="9" cy="7" r="1" /><circle cx="15" cy="7" r="1" /><circle cx="9" cy="12" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="9" cy="17" r="1" /><circle cx="15" cy="17" r="1" /></>,
     preset: <><path d="M6 4h12v16H6z" /><path d="m9 8 3-2 3 2v4l-3 2-3-2z" /><path d="M9 17h6" /></>,
+    palette: <><path d="M12 4a8 8 0 1 0 0 16h1.1a1.9 1.9 0 0 0 .7-3.67 1.6 1.6 0 0 1 .6-3.08H16A4 4 0 0 0 12 4Z" /><circle cx="8" cy="11" r=".8" fill="currentColor" /><circle cx="11" cy="8" r=".8" fill="currentColor" /><circle cx="15" cy="9" r=".8" fill="currentColor" /></>,
   }[name];
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>;
 }
