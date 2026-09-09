@@ -55,6 +55,7 @@
 .pfc-node.is-decision { --node-accent: #e8c888; }
 .pfc-node.is-boundary { --node-accent: #b39bff; border-radius: 24px; }
 .pfc-node strong { display: block; color:var(--pfc-node-color,inherit); font-size:var(--pfc-node-font-size,14px); font-weight:var(--pfc-node-font-weight,600); line-height: 1.5; letter-spacing: .3px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pfc-node-label-input { width:100%; min-width:0; padding:2px 4px; border:1px solid #67e8f9; border-radius:4px; background:#0f172a; color:inherit; font:inherit; line-height:inherit; }
 .pfc-node-symbol { flex: 0 0 22px; height: 26px; display: grid; place-items: center; color: var(--node-accent); background: transparent; font-size: 18px; text-shadow: 0 0 8px color-mix(in srgb,var(--node-accent) 40%,transparent); }
 .pfc .react-flow__handle { width: 6px; height: 6px; border: 1px solid var(--node-accent); background: #191b20; }
 .pfc .react-flow__edge-path { stroke: #9ca5ce; stroke-width: 1.2; }

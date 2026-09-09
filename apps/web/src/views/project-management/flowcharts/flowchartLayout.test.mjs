@@ -81,3 +81,10 @@ test('selecting a flowchart node opens the movable style editor', () => {
   assert.match(source, /node && <FlowchartNodeStyleToolbar/);
   assert.match(source, /onChange=\{editNode\}/);
 });
+
+test('tilde opens inline text editing for the selected flowchart node', () => {
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(source, /isNodeEditShortcut/);
+  assert.match(source, /setEditingNode\(selected\)/);
+  assert.match(source, /aria-label="编辑节点文字"/);
+});

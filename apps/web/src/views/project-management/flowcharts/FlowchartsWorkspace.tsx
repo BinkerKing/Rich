@@ -8,19 +8,20 @@ import { createFlowchart, readFlowchart, ROOT_SCOPE, scopePath, searchFlowNodes,
 import { exportFlowchartPng } from "./flowchartExport.js";
 import { FlowchartNodeStyleToolbar } from "./FlowchartNodeStyleToolbar.js";
 import { ProjectRichTextEditor } from "../ProjectManagementModules.js";
+import { isNodeEditShortcut } from "../../../components/mindmap/nodeEditShortcut.js";
 import "./FlowchartsWorkspace.css";
 
 const DETAIL_PANEL_WIDTH_KEY = "rich.flowchart.node-detail-panel-width";
 const detailPanelWidth = (value: number, maxWidth = Math.floor(window.innerWidth * 2 / 3)) => Math.min(maxWidth, Math.max(320, Math.round(value)));
 function RegionNode({ data, selected }: NodeProps<FlowNode>) {
   return <div className={`pfc-region tone-${data.tone || "cyan"}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
-    <header><strong>{data.label}</strong>{data.caption && <span>{data.caption}</span>}</header>
+    <header><NodeLabel data={data} />{data.caption && <span>{data.caption}</span>}</header>
   </div>;
 }
 function NoteNode({ data, selected }: NodeProps<FlowNode>) {
   return <div className={`pfc-note tone-${data.tone || "amber"}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
     <span className="pfc-note-pin" aria-hidden="true" />
-    <small>NOTE / 备注</small><strong>{data.label}</strong>
+    <small>NOTE / 备注</small><NodeLabel data={data} />
     {data.caption && <p>{data.caption}</p>}
   </div>;
 }
@@ -28,9 +29,18 @@ function AnalysisNode({ data, selected }: NodeProps<FlowNode>) {
   return <div className={`pfc-node is-${data.kind}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
     <Handle type="target" position={Position.Left} />
     <span className="pfc-node-symbol" aria-hidden="true">{data.kind === "table" ? "▤" : data.kind === "decision" ? "◇" : data.kind === "boundary" ? "◉" : "→"}</span>
-    <strong>{data.label}</strong>
+    <NodeLabel data={data} />
     <Handle type="source" position={Position.Right} />
   </div>;
+}
+function NodeLabel({ data }: { data: FlowNode["data"] }) {
+  if (!data.editing) return <strong>{data.label}</strong>;
+  return <input className="pfc-node-label-input" aria-label="编辑节点文字" autoFocus defaultValue={data.label}
+    onClick={event => event.stopPropagation()} onKeyDown={event => {
+      event.stopPropagation();
+      if (event.key === "Enter") event.currentTarget.blur();
+      if (event.key === "Escape") { event.currentTarget.value = data.label; event.currentTarget.blur(); }
+    }} onBlur={event => data.onLabelChange?.(event.currentTarget.value.trim() || data.label)} />;
 }
 function nodeStyle(data: FlowNode["data"]): CSSProperties {
   return {
@@ -68,6 +78,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [editingNode, setEditingNode] = useState("");
   const [nodeDetailWidth, setNodeDetailWidth] = useState(() => {
     try { return detailPanelWidth(Number(localStorage.getItem(DETAIL_PANEL_WIDTH_KEY)) || 440); } catch { return 440; }
   });
@@ -113,6 +124,15 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   }, [dirty]);
   useEffect(() => { setNodeDetailFullscreen(false); }, [selected]);
   useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!selected || editingNode || !isNodeEditShortcut(event)) return;
+      if (event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable=true]")) return;
+      event.preventDefault(); event.stopPropagation(); setEditingNode(selected);
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [selected, editingNode]);
+  useEffect(() => {
     if (!flow) return;
     const timer = window.setTimeout(() => {
       void flow.fitView({ ...(target ? { nodes: [{ id: target }] } : {}), padding: 0.35, maxZoom: 1.2, duration: 250 });
@@ -124,7 +144,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     if (busy || (dirty && !window.confirm("当前流程图有未保存修改，放弃修改并切换？"))) return;
     try {
       setGraph(readFlowchart(item.content)); setActive(item.id); setTitle(item.title); setDirty(false);
-      setScope(ROOT_SCOPE); setSelected(""); setSelectedEdge(""); setQuery(""); setTarget(undefined); setError("");
+      setScope(ROOT_SCOPE); setSelected(""); setSelectedEdge(""); setEditingNode(""); setQuery(""); setTarget(undefined); setError("");
       setExpanded(true); setSearchOpen(false); setSettingsOpen(false);
     } catch (e) { setError(String(e)); }
   };
@@ -147,7 +167,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
         : ({ ...(await api.createFlowchart({ title: newTitle.trim(), graph: next as unknown as Record<string, unknown> })), moduleKey: "flowcharts", parentId: null, subtitle: null, sortOrder: 0, content: { graph: next } } as unknown as ProjectModuleItem);
       setItems(rows => [...rows, item]); setActive(item.id); setGraph(next); setTitle(item.title);
       if (flowchartIds) await onFlowchartIdsChange?.([...flowchartIds, item.id]);
-      setNewTitle(""); setDirty(false); setScope(ROOT_SCOPE); setSelected(""); setSelectedEdge(""); setQuery(""); setTarget(undefined);
+      setNewTitle(""); setDirty(false); setScope(ROOT_SCOPE); setSelected(""); setSelectedEdge(""); setEditingNode(""); setQuery(""); setTarget(undefined);
       setExpanded(true); setCreating(false); setSettingsOpen(false); setSearchOpen(false);
     } catch (e) { setError(`创建失败：${String(e)}`); } finally { setBusy(false); }
   };
@@ -200,7 +220,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp, { once: true });
   };
-  const enter = (id: string) => { setScope(id); setSelected(""); setSelectedEdge(""); setTarget(undefined); };
+  const enter = (id: string) => { setScope(id); setSelected(""); setSelectedEdge(""); setEditingNode(""); setTarget(undefined); };
   const exportPng = async () => {
     if (!canvasRef.current || exporting) return;
     setExporting(true); setError("");
@@ -268,7 +288,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
           }}>{row.data.label} <small>{row.id.slice(0, 8)}</small></button>)}</div>}
         </div>}
           <div className="pfc-canvas" ref={canvasRef}>
-            <ReactFlow<FlowNode> nodes={graph.nodes.filter(row => row.data.scope === scope).map(row => ({ ...row, selected: row.id === selected }))}
+            <ReactFlow<FlowNode> nodes={graph.nodes.filter(row => row.data.scope === scope).map(row => ({ ...row, selected: row.id === selected, data: { ...row.data, editing: row.id === editingNode, onLabelChange: label => { update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label } } : node) }); setEditingNode(""); } } }))}
               edges={graph.edges.filter(row => graph.nodes.some(n => n.id === row.source && n.data.scope === scope))}
               nodeTypes={nodeTypes} onInit={setFlow} fitView minZoom={0.1} maxZoom={2} deleteKeyCode={null}
               defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed } }}
@@ -278,8 +298,8 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
               }}
               onEdgesChange={changes => setGraph(current => current ? { ...current, edges: applyEdgeChanges(changes, current.edges) } : current)}
               onConnect={connection => update({ ...graph, edges: [...graph.edges, { ...connection, id: crypto.randomUUID(), type: "smoothstep", label: "" }] })}
-              onNodeClick={(_, row) => { setSelected(row.id); setSelectedEdge(""); }} onNodeDoubleClick={(_, row) => { if (graph.nodes.some(node => node.data.scope === row.id)) enter(row.id); }}
-              onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); }} onPaneClick={() => { setSelected(""); setSelectedEdge(""); }}>
+              onNodeClick={(_, row) => { setSelected(row.id); setSelectedEdge(""); setEditingNode(""); }} onNodeDoubleClick={(_, row) => { if (graph.nodes.some(node => node.data.scope === row.id)) enter(row.id); }}
+              onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); setEditingNode(""); }} onPaneClick={() => { setSelected(""); setSelectedEdge(""); setEditingNode(""); }}>
               <Background gap={28} size={1} color="#44444d" /><Controls />
             </ReactFlow>
           </div>
