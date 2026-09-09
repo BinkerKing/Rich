@@ -9,6 +9,7 @@ import { MindmapNodeStyleToolbar, type MindmapNodeStyleTarget } from "./MindmapN
 import { nextShiftSelection, selectionOptions } from "./mindmapMultiSelection.js";
 import { clearMindmapHost } from "./mindmapHost.js";
 import { decorateTitleNoteHtml, hasNodeNote, nodeIconHtml, normalizeTitleNoteTree, richTextNodeLayoutCss, titleOnlyNodeHtml } from "./richTextNode.js";
+import { isNodeEditShortcut } from "./nodeEditShortcut.js";
 
 MindMap.usePlugin(Drag).usePlugin(Select).usePlugin(Export).usePlugin(RichText);
 
@@ -34,22 +35,22 @@ export interface MindmapCanvasProps {
   theme: MindmapTheme | string;
   panSensitivity?: number;
   onChange(data: MindmapData): void;
-  onNodeActive?(node: { id: string; text: string } | null): void;
+  onNodeDoubleClick?(node: { id: string; text: string } | null): void;
   onReady?(actions: MindmapCanvasActions): void;
 }
 
-export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onChange, onNodeActive, onReady }: MindmapCanvasProps) {
+export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onChange, onNodeDoubleClick, onReady }: MindmapCanvasProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [activeNodes, setActiveNodes] = useState<MindmapNodeStyleTarget[]>([]);
   const [richTextSelection, setRichTextSelection] = useState<{ bold?: boolean; italic?: boolean; underline?: boolean; color?: string } | null>(null);
   const onChangeRef = useRef(onChange);
   const onReadyRef = useRef(onReady);
-  const onNodeActiveRef = useRef(onNodeActive);
+  const onNodeDoubleClickRef = useRef(onNodeDoubleClick);
   const panSensitivityRef = useRef(panSensitivity);
 
   onChangeRef.current = onChange;
   onReadyRef.current = onReady;
-  onNodeActiveRef.current = onNodeActive;
+  onNodeDoubleClickRef.current = onNodeDoubleClick;
   panSensitivityRef.current = panSensitivity;
 
   useEffect(() => {
@@ -97,6 +98,7 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
     const onPointerDown = (event: PointerEvent) => {
       if (!shouldStartCanvasPan(event.button)) return;
       event.preventDefault();
+      hostRef.current?.focus();
       stopInertia();
       panStart = { x: event.clientX, y: event.clientY };
       pointerId = event.pointerId;
@@ -137,6 +139,14 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
     hostRef.current.addEventListener("pointermove", onPointerMove);
     hostRef.current.addEventListener("pointerup", stopPanning);
     hostRef.current.addEventListener("pointercancel", stopPanning);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!isNodeEditShortcut(event) || mindMap.richText?.showTextEdit) return;
+      const node = mindMap.renderer.activeNodeList[0];
+      if (!node) return;
+      event.preventDefault();
+      mindMap.richText?.showEditText({ node });
+    };
+    hostRef.current.addEventListener("keydown", onKeyDown);
     hostRef.current.addEventListener("contextmenu", preventContextMenu);
     resizeObserver.observe(hostRef.current);
     // `getData(true)` wraps the node tree with layout, theme and view config.
@@ -151,11 +161,14 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
       selected.forEach(item => mindMap.renderer.addNodeToActiveList(item, true));
       mindMap.renderer.emitNodeActiveEvent(node);
     };
-    const handleNodeActive = (node: MindmapNodeStyleTarget | null, nodes: MindmapNodeStyleTarget[] = []) => {
+    const handleNodeActive = (_node: MindmapNodeStyleTarget | null, nodes: MindmapNodeStyleTarget[] = []) => {
       setActiveNodes(nodes);
+    };
+    const handleNodeDoubleClick = (node: MindmapNodeStyleTarget | null) => {
+      mindMap.richText?.hideEditText();
       const id = node?.getData("uid");
       const text = node?.getData("text");
-      onNodeActiveRef.current?.(typeof id === "string" && typeof text === "string" ? { id, text } : null);
+      onNodeDoubleClickRef.current?.(typeof id === "string" && typeof text === "string" ? { id, text } : null);
     };
     const handleRichTextSelection = (hasRange: boolean, _rect: unknown, format: { bold?: boolean; italic?: boolean; underline?: boolean; color?: string } | null) => setRichTextSelection(hasRange ? format : null);
     const handleHideTextEdit = (_editor: unknown, nodes: MindmapNodeStyleTarget[]) => {
@@ -172,6 +185,7 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
     mindMap.on("data_change", handleChange);
     mindMap.on("layout_change", handleChange);
     mindMap.on("node_active", handleNodeActive);
+    mindMap.on("node_dblclick", handleNodeDoubleClick);
     mindMap.on("node_mousedown", handleShiftNodeMousedown);
     mindMap.on("rich_text_selection_change", handleRichTextSelection);
     mindMap.on("hide_text_edit", handleHideTextEdit);
@@ -193,8 +207,10 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
       hostRef.current?.removeEventListener("pointermove", onPointerMove);
       hostRef.current?.removeEventListener("pointerup", stopPanning);
       hostRef.current?.removeEventListener("pointercancel", stopPanning);
+      hostRef.current?.removeEventListener("keydown", onKeyDown);
       hostRef.current?.removeEventListener("contextmenu", preventContextMenu);
       mindMap.off("node_active", handleNodeActive);
+      mindMap.off("node_dblclick", handleNodeDoubleClick);
       mindMap.off("node_mousedown", handleShiftNodeMousedown);
       mindMap.off("rich_text_selection_change", handleRichTextSelection);
       mindMap.off("hide_text_edit", handleHideTextEdit);
@@ -213,5 +229,5 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
     const map = (hostRef.current as unknown as { __mindMap?: { richText?: { formatText(style: Record<string, unknown>): void } } })?.__mindMap;
     map?.richText?.formatText(format);
   };
-  return <div style={{ position: "relative", width: "100%", height: "100%" }}><div ref={hostRef} style={{ width: "100%", height: "100%" }} />{activeNodes.length > 0 && <MindmapNodeStyleToolbar nodes={activeNodes} />}{richTextSelection && <aside className="mindmap-richtext-toolbar" aria-label="选中文字样式"><button type="button" className={richTextSelection.bold ? "is-active" : ""} onClick={() => formatSelection({ bold: !richTextSelection.bold })}>B</button><button type="button" className={richTextSelection.italic ? "is-active" : ""} onClick={() => formatSelection({ italic: !richTextSelection.italic })}>I</button><button type="button" className={richTextSelection.underline ? "is-active" : ""} onClick={() => formatSelection({ underline: !richTextSelection.underline })}>U</button><input aria-label="文字颜色" type="color" value={richTextSelection.color ?? "#f8fafc"} onChange={event => formatSelection({ color: event.target.value })} /></aside>}</div>;
+  return <div style={{ position: "relative", width: "100%", height: "100%" }}><div ref={hostRef} tabIndex={0} style={{ width: "100%", height: "100%", outline: "none" }} />{activeNodes.length > 0 && <MindmapNodeStyleToolbar nodes={activeNodes} />}{richTextSelection && <aside className="mindmap-richtext-toolbar" aria-label="选中文字样式"><button type="button" className={richTextSelection.bold ? "is-active" : ""} onClick={() => formatSelection({ bold: !richTextSelection.bold })}>B</button><button type="button" className={richTextSelection.italic ? "is-active" : ""} onClick={() => formatSelection({ italic: !richTextSelection.italic })}>I</button><button type="button" className={richTextSelection.underline ? "is-active" : ""} onClick={() => formatSelection({ underline: !richTextSelection.underline })}>U</button><input aria-label="文字颜色" type="color" value={richTextSelection.color ?? "#f8fafc"} onChange={event => formatSelection({ color: event.target.value })} /></aside>}</div>;
 }
