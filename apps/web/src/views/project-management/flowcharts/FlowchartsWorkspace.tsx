@@ -59,10 +59,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   useEffect(() => {
     let cancelled = false;
     const load = flowchartIds
-      ? Promise.all([api.listFlowcharts(), projectId ? api.listProjectManagementModuleItems(projectId, "flowcharts") : Promise.resolve([])]).then(([next, legacy]) => [
-        ...next.filter(item => flowchartIds.includes(item.id)).map(item => ({ ...item, moduleKey: "flowcharts", parentId: null, subtitle: null, sortOrder: 0, content: { graph: item.graph } } as unknown as ProjectModuleItem)),
-        ...legacy.map(item => ({ ...item, content: { ...item.content, legacyFlowchart: true } })),
-      ])
+      ? api.listFlowcharts().then(next => next.filter(item => flowchartIds.includes(item.id)).map(item => ({ ...item, moduleKey: "flowcharts", parentId: null, subtitle: null, sortOrder: 0, content: { graph: item.graph } } as unknown as ProjectModuleItem)))
       : projectId
       ? api.listProjectManagementModuleItems(projectId, "flowcharts")
       : api.listFlowcharts().then(next => next.map(item => ({ ...item, moduleKey: "flowcharts", parentId: null, subtitle: null, sortOrder: 0, content: { graph: item.graph } } as unknown as ProjectModuleItem)));
@@ -186,14 +183,19 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
           <button disabled={busy || !loaded || !newTitle.trim()}>＋ 创建流程图任务</button>
         </form>
     </div>}
-    {!loaded ? <p>加载中…</p> : items.length === 0 ? <button onClick={() => setCreating(true)}>＋ 创建流程图任务</button> : items.map((item, index) => {
+    {standalone && !expanded && <header className="pfc-list-header">
+      <div className="pfc-list-intro"><p>流程图</p><h1>用一张图，把复杂逻辑讲清楚。</h1></div>
+      <button className="pfc-list-create" type="button" disabled={busy || !loaded} onClick={() => setCreating(true)}>新建流程图</button>
+    </header>}
+    {standalone && !expanded && <div className="pfc-list-label"><span>内容清单</span><small>{items.length} 张流程图</small></div>}
+    {!loaded ? <p>加载中…</p> : items.length === 0 ? <div className="pfc-empty"><strong>还没有流程图</strong><p>创建一张图，从梳理第一个流程开始。</p><button className="pfc-list-create" type="button" onClick={() => setCreating(true)}>新建流程图</button></div> : <div className={standalone ? "pfc-list-grid" : "pfc-task-list"}>{items.map(item => {
       if (expanded && active !== item.id) return null;
       return <article key={item.id} className={`pfc-task${active === item.id && expanded ? " is-expanded" : ""}`}>
       <header className="pfc-title-row">
         <button className="pfc-task-title" aria-expanded={active === item.id && expanded} aria-controls={`pfc-chart-${item.id}`} disabled={busy} onClick={() => {
           if (active === item.id) { setExpanded(value => !value); setSettingsOpen(false); }
           else open(item);
-        }}><span aria-hidden="true">{active === item.id && expanded ? "▾" : "▸"}</span>{active === item.id ? title : item.title}</button>
+        }}><span aria-hidden="true">{active === item.id && expanded ? "▾" : "▸"}</span><strong>{active === item.id ? title : item.title}</strong>{standalone && !(active === item.id && expanded) && <small>{new Date(item.updatedAt).toLocaleString("zh-CN")}</small>}</button>
         {active === item.id && expanded && <>
           {standalone && <span className="pfc-save-state">{busy ? "保存中…" : dirty ? "未保存" : "已保存"}</span>}
           {dirty && <button disabled={busy} onClick={() => void save()}>{busy ? "保存中…" : "保存修改"}</button>}
@@ -202,7 +204,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
           <button aria-label="任务设置" title="任务设置" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(value => !value)}>⋯</button>
           {standalone && <button className="pfc-back-to-list" aria-label="返回流程图清单" title="返回流程图清单" onClick={() => { setExpanded(false); setSettingsOpen(false); }}>←</button>}
         </>}
-        {index === 0 && <button aria-label="创建流程图任务" title="创建流程图任务" disabled={busy} onClick={() => setCreating(true)}>＋</button>}
+        {!standalone && <button aria-label="创建流程图任务" title="创建流程图任务" disabled={busy} onClick={() => setCreating(true)}>＋</button>}
       </header>
       {active === item.id && expanded && graph && <div className="pfc-editor" id={`pfc-chart-${item.id}`} style={busy ? { pointerEvents: "none", opacity: 0.7 } : undefined}>
         {settingsOpen && <fieldset disabled={busy} className="pfc-settings">
@@ -267,6 +269,6 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
             </> : null}
           </aside>}
       </div>}
-    </article>})}
+    </article>})}</div>}
   </section>;
 }
