@@ -38,7 +38,7 @@ import "./ChatOverlay.css";
  * ChatOverlay — Spotlight-style global chat with Hermes.
  *
  * Lives in its own Electron BrowserWindow (frameless, transparent, always on
- * top). Opened via Cmd+Shift+Space. Esc closes (window hides, conversation
+ * top). Esc closes (window hides, conversation
  * survives — Hermes continues any in-flight tool calls in the background).
  *
  * Layout: messages stream above, input box at bottom (Spotlight-style).
@@ -206,6 +206,8 @@ export function ChatOverlay() {
   /** T16: 是否切到三栏历史回看视图 */
   const [historyOpen, setHistoryOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
+  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
+  const [serviceUnavailable, setServiceUnavailable] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
@@ -459,9 +461,11 @@ export function ChatOverlay() {
         }),
       });
       if (!r.ok || !r.body) {
+        setServiceUnavailable(true);
         const body = await r.json().catch(() => ({})) as { error?: string };
         throw new Error(body.error ?? `chat failed: ${r.status}`);
       }
+      setServiceUnavailable(false);
       const reader = r.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
@@ -513,6 +517,7 @@ export function ChatOverlay() {
               }
             } else if (currentEvent === "error") {
               const { message } = parsed as { message: string };
+              setServiceUnavailable(true);
               patchLast({ pending: false, error: message });
               dispatchMascotEvent({ type: "error", message });
             }
@@ -521,6 +526,7 @@ export function ChatOverlay() {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      setServiceUnavailable(true);
       patchLast({ pending: false, error: message });
       dispatchMascotEvent({ type: "error", message });
     } finally {
@@ -532,6 +538,21 @@ export function ChatOverlay() {
     e.preventDefault();
     if (submitSlashCommand()) return;
     void send(input);
+  }
+
+  async function attachCurrentViewScreenshot() {
+    const richWindow = (window as Window & {
+      richWindow?: { captureCurrentView?: () => Promise<string | null> };
+    }).richWindow;
+    try {
+      const dataUrl = await richWindow?.captureCurrentView?.();
+      if (!dataUrl) return;
+      const blob = await (await fetch(dataUrl)).blob();
+      await composer.attach(new File([blob], `Rich-${Date.now()}.png`, { type: "image/png" }));
+      setAttachmentMenuOpen(false);
+    } catch (err) {
+      console.warn("[chat-input] screenshot:", err);
+    }
   }
   function syncOverlayInput(el: HTMLTextAreaElement, inputType?: string) {
     if (inputType === "insertFromDictation") {
@@ -617,7 +638,7 @@ export function ChatOverlay() {
         messages={messages.filter((message): message is ChatMessage & { role: "user" | "assistant" } => message.role === "user" || message.role === "assistant").map(message => ({ id: message.id, role: message.role, content: message.content }))}
         onClose={() => setSavePanelOpen(false)} />}
       {pendingApproval && <AgentApprovalCard conversationId={DEFAULT_CHAT_CONVERSATION_ID} approval={pendingApproval} onResolved={() => setPendingApproval(null)} />}
-      <div className="chat-shell">
+      <div className={`chat-shell${serviceUnavailable ? " is-service-unavailable" : ""}`}>
         {/* Raycast-style: input on TOP, content scrolls BELOW, status bar at
          *  the bottom. The input bar doubles as the draggable window region
          *  (declared in CSS via -webkit-app-region). */}
@@ -682,13 +703,26 @@ export function ChatOverlay() {
             autoFocus
           />
           <div className="chat-input-actions">
-            <button
-              type="button"
-              className="chat-pill"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={composer.isFull}
-              title={composer.isFull ? "已达上限" : "附加图片"}
-            >📎</button>
+            <div className="chat-attachment-menu-wrap">
+              <button
+                type="button"
+                className="chat-pill chat-attachment-add"
+                onClick={() => setAttachmentMenuOpen(open => !open)}
+                disabled={composer.isFull}
+                title={composer.isFull ? "已达上限" : "添加图片"}
+                aria-expanded={attachmentMenuOpen}
+                aria-haspopup="menu"
+              >+</button>
+              {attachmentMenuOpen && (
+                <div className="chat-attachment-menu" role="menu">
+                  <button type="button" role="menuitem" onClick={() => {
+                    setAttachmentMenuOpen(false);
+                    fileInputRef.current?.click();
+                  }}>上传图片</button>
+                  <button type="button" role="menuitem" onClick={() => void attachCurrentViewScreenshot()}>定位截图</button>
+                </div>
+              )}
+            </div>
             <input
               ref={fileInputRef}
               type="file"

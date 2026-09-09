@@ -123,6 +123,7 @@ export function RikingProjectsView() {
   const [nameDraft, setNameDraft] = useState("");
   const [miniPrograms, setMiniPrograms] = useState<MiniProgram[]>([]);
   const [launchingMiniProgramId, setLaunchingMiniProgramId] = useState<string | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState({ service: false, application: false, tool: false });
 
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedId) ?? null,
@@ -132,6 +133,14 @@ export function RikingProjectsView() {
     () => miniPrograms.find((program) => miniProgramSelectionId(program.id) === selectedId) ?? null,
     [miniPrograms, selectedId],
   );
+  const projectGroups = useMemo(() => [
+    { id: "service" as const, label: "服务", projects: projects.filter((project) => project.kind === "service") },
+    { id: "application" as const, label: "应用", projects: projects.filter((project) => project.kind === "application") },
+  ], [projects]);
+
+  const toggleGroup = (group: keyof typeof collapsedGroups) => {
+    setCollapsedGroups((current) => ({ ...current, [group]: !current[group] }));
+  };
 
   const loadProjects = async (preferId?: string) => {
     setLoading(true);
@@ -360,30 +369,46 @@ export function RikingProjectsView() {
             <strong>{projects.length + miniPrograms.length}</strong>
           </div>
           <div className="rkp-project-list">
-            {projects.map((project) => (
-              <button
-                key={project.id}
-                className={`rkp-project-card is-${project.status} ${project.id === selectedId ? "is-active" : ""}`}
-                onClick={() => setSelectedId(project.id)}
-              >
-                <span className={`rkp-dot is-${project.status}`} />
-                <strong>{project.name}</strong>
-                <small>{project.kind === "service" ? "服务" : methodLabel[project.launchMethod]} · {project.location === "local" ? "本地" : "服务器"}</small>
-                <em>{statusLabel[project.status]}</em>
-              </button>
+            {projectGroups.map((group) => (
+              <section className="rkp-project-group" key={group.id}>
+                <button type="button" className="rkp-project-group-toggle" onClick={() => toggleGroup(group.id)} aria-expanded={!collapsedGroups[group.id]}>
+                  <span>{collapsedGroups[group.id] ? "›" : "⌄"}</span><strong>{group.label}</strong><em>{group.projects.length}</em>
+                </button>
+                {!collapsedGroups[group.id] && <div className="rkp-project-group-items">
+                  {group.projects.map((project) => (
+                    <button
+                      key={project.id}
+                      className={`rkp-project-card is-${project.status} ${project.id === selectedId ? "is-active" : ""}`}
+                      onClick={() => setSelectedId(project.id)}
+                    >
+                      <span className={`rkp-dot is-${project.status}`} />
+                      <strong>{project.name}</strong>
+                      <small>{project.kind === "service" ? "服务" : methodLabel[project.launchMethod]} · {project.location === "local" ? "本地" : "服务器"}</small>
+                      <em>{statusLabel[project.status]}</em>
+                    </button>
+                  ))}
+                </div>}
+              </section>
             ))}
-            {miniPrograms.map((program) => (
-              <button
-                key={program.id}
-                className={`rkp-project-card ${miniProgramSelectionId(program.id) === selectedId ? "is-active" : ""}`}
-                onClick={() => { setSelectedId(miniProgramSelectionId(program.id)); setEditing(false); setLogs(""); setMessage(""); }}
-              >
-                <span className="rkp-dot is-mini" />
-                <strong>{program.label}</strong>
-                <small>{program.category} · 工具启动项</small>
-                <em>{program.exists ? "入口可用" : "入口缺失"}</em>
+            <section className="rkp-project-group">
+              <button type="button" className="rkp-project-group-toggle" onClick={() => toggleGroup("tool")} aria-expanded={!collapsedGroups.tool}>
+                <span>{collapsedGroups.tool ? "›" : "⌄"}</span><strong>小工具</strong><em>{miniPrograms.length}</em>
               </button>
-            ))}
+              {!collapsedGroups.tool && <div className="rkp-project-group-items">
+                {miniPrograms.map((program) => (
+                  <button
+                    key={program.id}
+                    className={`rkp-project-card ${miniProgramSelectionId(program.id) === selectedId ? "is-active" : ""}`}
+                    onClick={() => { setSelectedId(miniProgramSelectionId(program.id)); setEditing(false); setLogs(""); setMessage(""); }}
+                  >
+                    <span className="rkp-dot is-mini" />
+                    <strong>{program.label}</strong>
+                    <small>{program.category} · 工具启动项</small>
+                    <em>{program.exists ? "入口可用" : "入口缺失"}</em>
+                  </button>
+                ))}
+              </div>}
+            </section>
             {projects.length === 0 && miniPrograms.length === 0 && <div className="rkp-empty">还没有启动项，可以先新增一个。</div>}
           </div>
         </aside>

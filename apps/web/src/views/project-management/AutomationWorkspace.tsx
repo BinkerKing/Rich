@@ -31,6 +31,7 @@ export function AutomationSection({
   const [currentRun, setCurrentRun] = useState<ProjectAutomationRun | null>(null);
   const [inspection, setInspection] = useState<ProjectAutomationPlanInspection | null>(null);
   const [runtimeParams, setRuntimeParams] = useState<Record<string, string>>({});
+  const [skipErrors, setSkipErrors] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [openTablePickers, setOpenTablePickers] = useState<Record<string, boolean>>({});
   const [tableSelection, setTableSelection] = useState<Record<string, string[]>>({});
@@ -165,7 +166,7 @@ export function AutomationSection({
   const startRun = () => {
     if (!plan || !inspection?.ready || missingRuntimeParams(inspection, runtimeParams).length > 0) return;
     void mutate(async () => {
-      const run = await api.startProjectAutomationRun(projectId, plan.id, runtimeParams);
+      const run = await api.startProjectAutomationRun(projectId, plan.id, { ...runtimeParams, skipErrors });
       setCurrentRun(run);
     }, false, false);
   };
@@ -173,7 +174,7 @@ export function AutomationSection({
   const resumeRun = () => {
     if (!currentRun || currentRun.status !== "paused" || !inspection?.ready || missingRuntimeParams(inspection, runtimeParams).length > 0) return;
     void mutate(async () => {
-      const run = await api.resumeProjectAutomationRun(projectId, currentRun.id, runtimeParams);
+      const run = await api.resumeProjectAutomationRun(projectId, currentRun.id, { ...runtimeParams, skipErrors });
       setCurrentRun(run);
     }, false, false);
   };
@@ -337,7 +338,8 @@ export function AutomationSection({
                 </div>}
               </>}
 
-              <div className="automation-run-actions">
+                <div className="automation-run-actions">
+                <label className="automation-skip-errors"><input type="checkbox" checked={skipErrors} onChange={event => setSkipErrors(event.target.checked)} disabled={busy || currentRun?.status === "running"} /><span>跳过错误并继续执行</span></label>
                 {currentRun?.status === "paused" && <button type="button" className="is-warning" disabled={busy || !canExecuteInspection(inspection, runtimeParams)} onClick={resumeRun}>断点续跑</button>}
                 <button type="button" className="is-primary" disabled={busy || currentRun?.status === "running" || !canExecuteInspection(inspection, runtimeParams)} onClick={startRun}>
                   {currentRun ? "重新运行" : "执行自动化"}

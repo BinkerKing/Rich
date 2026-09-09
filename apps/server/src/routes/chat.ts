@@ -499,6 +499,8 @@ export function chatRoutes(
             await stream.writeSSE({ event: "mascot", data: JSON.stringify({ state: "thinking", ts: Date.now(), turnId: event.turnId }) });
           } else if (event.type === "delta") {
             await stream.writeSSE({ event: "text", data: JSON.stringify({ chunk: event.text, turnId: event.turnId }) });
+          } else if (event.type === "activity") {
+            await stream.writeSSE({ event: "activity", data: JSON.stringify(event) });
           } else if (event.type === "tool") {
             await stream.writeSSE({ event: "tool", data: JSON.stringify({ name: event.name, status: event.status, callId: event.callId, turnId: event.turnId }) });
           } else if (event.type === "approval_required") {

@@ -32,7 +32,9 @@ export function connectServerEvents(): () => void {
   const open = () => {
     if (stopped) return;
     es = new EventSource("/api/events");
-    es.addEventListener("change", scheduleHydrate);
+    es.addEventListener("change", event => {
+      if (JSON.parse((event as MessageEvent).data).kind !== "workbench.changed") scheduleHydrate();
+    });
     // Reconnect with backoff on error; EventSource auto-reconnects on most
     // network errors but we re-open the connection ourselves to be safe.
     es.addEventListener("error", () => {

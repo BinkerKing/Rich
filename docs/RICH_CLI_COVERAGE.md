@@ -43,6 +43,7 @@ pnpm rich -- upload /api/<path> --file <path>
 | 后台 | `pnpm rich -- admin engine|ops|signals|manuals` |
 | 语料 | `pnpm corpus ...` 或 `pnpm rich -- corpus ...` |
 | 系统改进 | `pnpm rich -- improvements ...` |
+| 测试中心 | `pnpm rich -- testing tasks|cases|runs|issues|report <projectId>`；`testing create-case|start-run|finish-run|create-issue|retest ...` |
 | Multica 执行团队 | `pnpm rich -- multica team plan|apply <projectId> ...` |
 | Multica 工作委派 | `pnpm rich -- multica work delegate|status <projectId> ...`；`pnpm rich -- multica project sync <projectId>` |
 | 离线计划 | `pnpm --filter @ke/server run plan -- ...` |
@@ -54,6 +55,27 @@ pnpm rich -- upload /api/<path> --file <path>
 3. 新增后端按钮即使尚无语义命令，也必须能通过通用 `api`/`sse`/`upload` CLI 操作。
 4. 纯 UI 行为不需要 CLI：切换标签、开关弹窗、筛选、滚动、预览和保存前的本地编辑。
 5. 写入后必须读取验证；CLI 和 MCP 都遵守同一规则。
+
+## 测试中心闭环
+
+```bash
+# 1. 创建测试用例（type 可为 data 或 functional）
+pnpm rich -- testing create-case <projectId> --json '{"code":"TC-001","title":"金额汇总","objective":"明细与汇总一致","type":"data","priority":"high"}'
+
+# 2. 添加步骤并启动执行
+pnpm rich -- testing add-step <projectId> <caseId> --json '{"stepOrder":1,"instruction":"导入样本","expectedResult":"导入成功"}'
+pnpm rich -- testing start-run <projectId> <caseId>
+
+# 3. 完成执行、登记证据与问题；问题修复后发起复测
+pnpm rich -- testing finish-run <projectId> <runId> --json '{"status":"failed","actualResult":"金额差异 0.01"}'
+pnpm rich -- testing add-evidence <projectId> <runId> --json '{"title":"对账截图","kind":"image","location":"https://example.test/evidence.png"}'
+pnpm rich -- testing create-issue <projectId> --json '{"caseId":"<caseId>","runId":"<runId>","title":"金额差异","description":"待定位"}'
+pnpm rich -- testing update-issue <projectId> <issueId> --json '{"status":"fixed"}'
+pnpm rich -- testing retest <projectId> <issueId>
+
+# 4. 查看实时报告
+pnpm rich -- testing report <projectId>
+```
 
 ## Multica 项目闭环
 

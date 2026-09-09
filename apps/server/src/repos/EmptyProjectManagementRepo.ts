@@ -10,6 +10,11 @@ import {
   type ProjectDictionaryMappingScenario,
   type ProjectDictionaryMappingScenarioInput,
   type ProjectDictionaryMappingScenarioPatch,
+  type ProjectDictionaryBusinessScenario,
+  type ProjectDictionaryBusinessScenarioInput,
+  type ProjectDictionaryBusinessScenarioPatch,
+  type ProjectDictionaryBusinessScenarioLibrary,
+  type ProjectDictionaryBusinessScenarioLibraryInput,
   type ProjectDictionaryMappingRulePatch,
   type ProjectDictionaryMappingSourceFieldInput,
   type ProjectDictionaryMappingTempTable,
@@ -32,6 +37,14 @@ import {
 } from "./ProjectManagementRepo.js";
 
 export class EmptyProjectManagementRepo implements ProjectManagementRepo {
+  async listDictionaryBusinessScenarioLibraries(): Promise<ProjectDictionaryBusinessScenarioLibrary[]> { return []; }
+  async createDictionaryBusinessScenarioLibrary(_projectId: string, _input: ProjectDictionaryBusinessScenarioLibraryInput): Promise<ProjectDictionaryBusinessScenarioLibrary> { throw new Error("Project management is unavailable"); }
+  async updateDictionaryBusinessScenarioLibrary(): Promise<ProjectDictionaryBusinessScenarioLibrary | null> { return null; }
+  async listDictionaryBusinessScenarios(): Promise<ProjectDictionaryBusinessScenario[]> { return []; }
+  async listDictionaryBusinessScenariosForTable(): Promise<ProjectDictionaryBusinessScenario[]> { return []; }
+  async createDictionaryBusinessScenario(_projectId: string, _input: ProjectDictionaryBusinessScenarioInput): Promise<ProjectDictionaryBusinessScenario> { throw new Error("Project management is unavailable"); }
+  async updateDictionaryBusinessScenario(_projectId: string, _scenarioId: string, _patch: ProjectDictionaryBusinessScenarioPatch): Promise<ProjectDictionaryBusinessScenario | null> { return null; }
+  async deleteDictionaryBusinessScenario(): Promise<boolean> { return false; }
   async getSummary(projectId: string): Promise<ProjectManagementSummary> {
     return {
       projectId,

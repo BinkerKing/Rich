@@ -1,4 +1,4 @@
-export type DeliverableCodexMode = "free" | "task" | "bug";
+export type DeliverableCodexMode = "free";
 export type DeliverableCodexConversationStatus = "active" | "archived";
 
 export interface DeliverableCodexConversation {
@@ -21,7 +21,9 @@ export interface DeliverableCodexConversation {
 export interface DeliverableCodexConversationRepo {
   create(conversation: DeliverableCodexConversation): Promise<void>;
   get(id: string): Promise<DeliverableCodexConversation | null>;
+  listAllActive(): Promise<DeliverableCodexConversation[]>;
   listActive(scopeKey: string): Promise<DeliverableCodexConversation[]>;
+  rename(id: string, title: string, at: string): Promise<DeliverableCodexConversation | null>;
   touch(id: string, at: string): Promise<DeliverableCodexConversation | null>;
   archive(id: string, at: string): Promise<DeliverableCodexConversation | null>;
   setCodexThread(id: string, threadId: string | undefined, contextVersion: string | undefined, at: string): Promise<void>;

@@ -7,6 +7,7 @@ import { NewsView } from "./views/NewsView.js";
 import { MindmapView } from "./views/MindmapView.js";
 import { DeepWorkbenchView } from "./views/DeepWorkbenchView.js";
 import { GreatMeView } from "./views/GreatMeView.js";
+import { TaskWorkbench } from "./views/task-workbench/TaskWorkbench.js";
 import { PracticeView } from "./views/PracticeView.js";
 import { ProjectsView } from "./views/ProjectsView.js";
 import { OverlayTaskView } from "./views/OverlayTaskView.js";
@@ -22,6 +23,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import { CommandPalette } from "./components/CommandPalette.js";
 import { MascotDock } from "./components/MascotDock.js";
 import { FloatingTaskDock } from "./components/FloatingTaskDock.js";
+import { closeDeliverableCodex, DeliverableCodexLauncher } from "./views/project-management/deliverables/DeliverableCodexLauncher.js";
 import { connectServerEvents } from "./lib/serverEvents.js";
 import { RICH_NAV_EVENT, RICH_NAV_STORAGE_KEY, type RichNavigationPayload } from "./lib/richNavigation.js";
 import { requestShortcutOpen, useShortcutEngine } from "./lib/shortcutEngine.js";
@@ -71,6 +73,7 @@ function MainApp() {
     }), [elements]);
   useShortcutEngine(projectShortcuts, target => {
     if (target.kind !== "project") return;
+    closeDeliverableCodex();
     requestShortcutOpen(target);
     setAppView("projects");
   });
@@ -80,7 +83,7 @@ function MainApp() {
   useEffect(() => connectServerEvents(), []);
 
   useEffect(() => {
-      const validViews = new Set(["home", "apps", "tree", "admin", "news", "mindmap", "deepWorkbench", "greatme", "toolbox", "practice", "health", "projects", "rikingProjects"]);
+      const validViews = new Set(["home", "apps", "tree", "admin", "news", "mindmap", "deepWorkbench", "greatme", "toolbox", "practice", "taskWorkbench", "health", "projects", "rikingProjects"]);
     const applyNavigation = (payload: RichNavigationPayload | null) => {
       if (!payload || Date.now() - payload.ts > 30_000) return;
       if (payload.kind === "view" && validViews.has(payload.view)) {
@@ -130,6 +133,7 @@ function MainApp() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
+        closeDeliverableCodex();
         setAppView("tree");
         exitToHome();
       }
@@ -141,7 +145,7 @@ function MainApp() {
   // 视图切换快捷键：Cmd/Ctrl + 1..9 跳到对应菜单（1=首页，2=应用中心）
   // 单纯 Cmd+N，不带 Shift/Alt，避免跟系统快捷键 / 输入法冲突。
   useEffect(() => {
-    type ViewId = "home" | "apps" | "tree" | "news" | "mindmap" | "greatme" | "practice" | "health" | "toolbox" | "admin";
+    type ViewId = "home" | "apps" | "tree" | "news" | "mindmap" | "greatme" | "practice" | "taskWorkbench" | "health" | "toolbox" | "admin";
     const HOTKEYS: Record<string, ViewId> = {
       "1": "home",
       "2": "apps",
@@ -149,7 +153,7 @@ function MainApp() {
       "4": "news",
       "5": "mindmap",
       "6": "greatme",
-      "7": "practice",
+      "7": "taskWorkbench",
       "8": "health",
       "9": "toolbox",
       "0": "admin",
@@ -160,6 +164,7 @@ function MainApp() {
       const target = HOTKEYS[e.key];
       if (!target) return;
       e.preventDefault();
+      closeDeliverableCodex();
       // tree 视图：先 exitToHome 清掉 rootId，让 InputView 渲染（跟 MascotDock 一致）
       if (target === "tree") exitToHome();
       setAppView(target);
@@ -219,6 +224,7 @@ function MainApp() {
       {appView === "deepWorkbench" && <ErrorBoundary><DeepWorkbenchView /></ErrorBoundary>}
       {appView === "greatme" && <GreatMeView />}
       {appView === "practice" && <PracticeView />}
+      {appView === "taskWorkbench" && <TaskWorkbench />}
       {appView === "projects" && <ErrorBoundary><ProjectsView /></ErrorBoundary>}
       {appView === "toolbox" && <ToolboxView />}
       {appView === "health" && <ErrorBoundary><HealthView /></ErrorBoundary>}
@@ -228,6 +234,7 @@ function MainApp() {
       {appView === "tree" && (rootId ? <TreeView /> : <InputView />)}
       <Lightbox />
       <CommandPalette />
+      <DeliverableCodexLauncher />
       {appView === "home" && (
         <>
           <MascotDock />

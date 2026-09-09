@@ -54,6 +54,7 @@ export type DictionaryMappingRule = {
   field: ProjectDictionaryFieldHit;
   logic: string;
   convertedSql?: string;
+  externalSql?: string;
   remark?: string;
   sourceRefs: DictionarySourceRef[];
 };
@@ -122,6 +123,9 @@ function convertDictionaryJsonLogicToSql(logic: string, refs: DictionarySourceRe
     return parsed.error ? { status: "invalid", reason: `规则不标准：${parsed.error}` } : null;
   }
   const rule = parsed.rule;
+  if (rule.op === "union_all") {
+    return { status: "blocked", reason: "UNION ALL 多分支输出，完整字段 SQL 见本临时表 SQL 转换" };
+  }
   if (rule.op === "db_generated" || rule.op === "databasegenerated" || rule.op === "数据库生成") {
     return { status: "blocked", reason: "数据库生成" };
   }
@@ -257,6 +261,11 @@ function buildDictionaryJsonSqlExpression(rule: DictionaryMappingJsonRule, refs:
       return rule.delimiter !== undefined
         ? `CONCAT_WS(${formatDictionarySqlLiteral(rule.delimiter)}, ${pieces.join(", ")})`
         : `CONCAT(${pieces.join(", ")})`;
+    }
+    case "group_aggregate": {
+      const source = rule.source ? getDictionaryJsonSourceSqlName(rule.source, refs) : "";
+      const aggregate = typeof rule.aggregate === "string" ? rule.aggregate.toUpperCase() : "";
+      return source && /^(SUM|COUNT|AVG|MIN|MAX)$/.test(aggregate) ? `${aggregate}(${source})` : "";
     }
     case "code_mapping":
     case "码值映射": {

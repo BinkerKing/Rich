@@ -36,7 +36,7 @@ export function isSupportedDictionaryExtractionOp(op: string): boolean {
     "code_mapping", "case", "cast", "abs_cast", "coalesce", "coalesce_cast", "date_parse",
     "param", "runtime_context", "substring_marker", "split_part", "round", "divide", "multiply",
     "subtract", "add", "nullif", "concat", "required_lookup", "lookup_or_error",
-    "group_aggregate", "relative_date_boundary",
+    "group_aggregate", "relative_date_boundary", "union_all",
   ]).has(normalizeDictionaryExtractionOp(op));
 }
 
@@ -713,7 +713,9 @@ function buildDictionaryExtractionRelativeDateBoundarySql(
 
 function buildDictionaryExtractionDateCoerceSql(source: string, dialect: "postgresql" | "sqlserver"): string {
   if (dialect === "sqlserver") {
-    return `COALESCE(TRY_CONVERT(date, CONVERT(nvarchar(max), ${source}), 112), TRY_CONVERT(date, CONVERT(nvarchar(max), ${source}), 23), TRY_CONVERT(date, ${source}))`;
+    if (/^(?:GETDATE|SYSDATETIME)\(\)$/i.test(source.trim())) return `CONVERT(date, ${source})`;
+    const text = `LTRIM(RTRIM(CONVERT(nvarchar(max), ${source})))`;
+    return `CASE WHEN ${source} IS NULL OR ${text} = '' THEN NULL WHEN ${text} LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]' AND ISDATE(${text}) = 1 THEN CONVERT(date, ${text}, 112) WHEN ISDATE(${text}) = 1 THEN CONVERT(date, ${text}) ELSE NULL END`;
   }
   return [
     "CASE",
@@ -727,7 +729,9 @@ function buildDictionaryExtractionDateCoerceSql(source: string, dialect: "postgr
 
 function buildDictionaryExtractionTimestampCoerceSql(source: string, dialect: "postgresql" | "sqlserver"): string {
   if (dialect === "sqlserver") {
-    return `COALESCE(TRY_CONVERT(datetime2, CONVERT(nvarchar(max), ${source}), 112), TRY_CONVERT(datetime2, CONVERT(nvarchar(max), ${source}), 126), TRY_CONVERT(datetime2, ${source}))`;
+    if (/^(?:GETDATE|SYSDATETIME)\(\)$/i.test(source.trim())) return `CONVERT(datetime2, ${source})`;
+    const text = `LTRIM(RTRIM(CONVERT(nvarchar(max), ${source})))`;
+    return `CASE WHEN ${source} IS NULL OR ${text} = '' THEN NULL WHEN ${text} LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]' AND ISDATE(${text}) = 1 THEN CONVERT(datetime2, ${text}, 112) WHEN ISDATE(${text}) = 1 THEN CONVERT(datetime2, ${text}) ELSE NULL END`;
   }
   return [
     "CASE",

@@ -79,4 +79,18 @@ describe("project automation runner", () => {
     expect(result.status).toBe("success");
     expect(result.items[0]).toMatchObject({ status: "success", affectedRows: 9, error: undefined, failedStep: undefined });
   });
+
+  it("records a failed table and continues later tables when skipErrors is enabled", async () => {
+    const calls: string[] = [];
+    const result = await runAutomationItems([item("a", 1, 1), item("b", 1, 2)], async (runItem, step) => {
+      calls.push(`${runItem.id}:${step}`);
+      if (runItem.id === "a" && step === "extract") throw new Error("目标表不可写");
+      return {};
+    }, undefined, { runtimeParams: { skipErrors: true } });
+
+    expect(result.status).toBe("success");
+    expect(result.items[0]).toMatchObject({ status: "error", error: "目标表不可写" });
+    expect(result.items[1]?.status).toBe("success");
+    expect(calls).toContain("b:extract");
+  });
 });

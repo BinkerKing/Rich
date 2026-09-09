@@ -7,7 +7,7 @@ import { elementTypeClass, elementTypeLabel } from "./elementLabels.js";
 import "./CommandPalette.css";
 
 /**
- * Global command palette — toggled by Cmd/Ctrl+K (or Cmd/Ctrl+Space). Shows
+ * Global command palette — toggled by Cmd/Ctrl+K. Shows
  * a search input + live element matches. Pressing Enter on a non-empty input
  * kicks off an AI 搜索 (analyze-input) in the background; the resulting tab
  * lands on the home view and the search becomes a task in the task list.
@@ -24,13 +24,12 @@ export function CommandPalette() {
   const setHomeAnalysisResult = useStore(s => s.setHomeAnalysisResult);
   const setHomeAnalysisError = useStore(s => s.setHomeAnalysisError);
 
-  // Open via Cmd/Ctrl+K or Cmd/Ctrl+Space.
+  // Open via Cmd/Ctrl+K.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const meta = e.metaKey || e.ctrlKey;
       if (!meta) return;
-      if (e.key === "k" || e.key === "K" || e.code === "KeyK" ||
-          e.key === " " || e.code === "Space") {
+      if (e.key === "k" || e.key === "K" || e.code === "KeyK") {
         e.preventDefault();
         setOpen(v => !v);
       } else if (e.key === "Escape" && open) {

@@ -55,9 +55,9 @@ import "./HomeView.css";
  *   └──────────────────────────────────┘
  *
  * Input pipes to Hermes via /api/chat/stream — same backend as the global
- * Cmd+Shift+Space chat overlay. Tool calls, text deltas, errors all
+ * chat overlay. Tool calls, text deltas, errors all
  * appear in the bottom half in real time. The thread is shared with the
- * global Cmd+Shift+Space chat overlay via localStorage.
+ * global chat overlay via localStorage.
  *
  * Quick-jump buttons (top right) still surface the other entry points so
  * the user can reach the old InputView, tree, news, etc.

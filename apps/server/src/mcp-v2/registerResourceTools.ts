@@ -11,6 +11,9 @@ import { registerDictionaryTools } from "./resources/dictionaryTools.js";
 import { registerPlanningTools } from "./resources/planningTools.js";
 import { registerPracticeResourceTools } from "./resources/practiceTools.js";
 import { registerAutomationTools } from "./resources/automationTools.js";
+import { registerTestCenterTools } from "./resources/testCenterTools.js";
+import { registerStartupProjectManualTools } from "./resources/startupProjectManualTools.js";
+import type { TestCenterSqliteRepo } from "../test-center/TestCenterSqliteRepo.js";
 
 export interface ResourceToolDeps {
   elements: ElementsRepo;
@@ -18,6 +21,8 @@ export interface ResourceToolDeps {
   operationRepo?: McpOperationRepo;
   greatMe?: GreatMeRepo;
   projectAutomation?: ProjectAutomationRepo;
+  testCenter?: TestCenterSqliteRepo;
+  startupProjectsRoot?: string;
 }
 
 export function registerResourceTools(registry: RichToolRegistry, deps: ResourceToolDeps): void {
@@ -28,4 +33,6 @@ export function registerResourceTools(registry: RichToolRegistry, deps: Resource
   registerProjectTools(registry, deps.projectManagement, deps.operationRepo);
   if (deps.greatMe) registerPlanningTools(registry, deps.greatMe, deps.operationRepo);
   if (deps.projectAutomation) registerAutomationTools(registry, deps.projectAutomation, deps.operationRepo);
+  if (deps.testCenter) registerTestCenterTools(registry, deps.testCenter, deps.operationRepo);
+  registerStartupProjectManualTools(registry, deps.startupProjectsRoot, deps.operationRepo);
 }

@@ -51,7 +51,10 @@ export function MindmapCanvas({ data, layout, theme, onChange, onReady }: Mindma
       enableFreeDrag: false,
       beforeDragEnd: () => false,
     });
-    const handleChange = () => onChangeRef.current(mindMap.getData(true) as MindmapData);
+    // `getData(true)` wraps the node tree with layout, theme and view config.
+    // The controlled `data` prop is the node tree itself, so persisting the
+    // configured payload here would corrupt the caller's root node.
+    const handleChange = () => onChangeRef.current(mindMap.getData() as MindmapData);
 
     mindMap.on("data_change", handleChange);
     mindMap.on("layout_change", handleChange);

@@ -28,6 +28,13 @@ export type NativeGanttExport = { today: string; dates: string[]; rows: Array<Pi
 
 function kindOf(row: DeliveryExportRow): DeliveryItemKind { return row.kind || "task"; }
 
+export function buildDeliveryExportFilename(projectName: string | undefined, exportedAt = new Date()): string {
+  const name = (projectName || "未命名项目").replace(/[\\/:*?"<>|]/g, "_").trim() || "未命名项目";
+  const twoDigits = (value: number) => String(value).padStart(2, "0");
+  const timestamp = `${exportedAt.getFullYear()}${twoDigits(exportedAt.getMonth() + 1)}${twoDigits(exportedAt.getDate())}_${twoDigits(exportedAt.getHours())}${twoDigits(exportedAt.getMinutes())}${twoDigits(exportedAt.getSeconds())}`;
+  return `${name}_交付计划_${timestamp}.xlsx`;
+}
+
 export function buildDeliveryExportRows(rows: DeliveryExportRow[]): string[][] {
   const byId = new Map(rows.map(row => [row.id, row]));
   return [

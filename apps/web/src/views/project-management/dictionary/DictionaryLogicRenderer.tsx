@@ -125,6 +125,18 @@ function renderDictionaryJsonLogic(
   if (rule.op === "direct" && rule.source) {
     nodes.push(" ");
     renderSource(rule.source, "source");
+  } else if (rule.op === "union_all" && rule.branches?.length) {
+    rule.branches.forEach((branch, index) => {
+      if (index > 0) nodes.push("  UNION ALL  ");
+      if (branch.label) nodes.push(`${branch.label}: `);
+      if (branch.source) renderSource(branch.source, `union-${index}`);
+      else nodes.push(renderDictionaryJsonValue({ value: branch.value }, refs, onOpenFieldRef, `union-${index}-value`));
+    });
+  } else if (rule.op === "group_aggregate" && rule.source) {
+    nodes.push(` ${String(rule.aggregate || "聚合").toUpperCase()} `);
+    renderSource(rule.source, "source");
+  } else if (rule.op === "manual_logic") {
+    nodes.push(" 详见备注与完整 SQL");
   } else if (rule.op === "random") {
     nodes.push(` ${[rule.type, rule.length ? `${rule.length}位` : ""].filter(Boolean).join(" / ") || "数字ID"}`);
   } else if (rule.op === "null" || rule.op === "empty") {
@@ -804,6 +816,9 @@ function dictionaryJsonOpLabel(op: string): string {
     add: "加法",
     subtract: "减法",
     nullif: "空值保护",
+    group_aggregate: "分组聚合",
+    union_all: "UNION ALL",
+    manual_logic: "人工逻辑",
   };
   return labels[op] || op;
 }

@@ -148,11 +148,13 @@ export function DictionarySystemOverview({
     { id: "sourceKind", label: "载体类型", width: 110, minWidth: 82 },
     { id: "fileType", label: "文件类型", width: 96, minWidth: 78 },
     { id: "usageStatus", label: "是否使用", width: 96, minWidth: 76 },
+    { id: "hasMapping", label: "是否有Mapping", width: 108, minWidth: 96 },
     { id: "fieldCount", label: "字段数", width: 78, minWidth: 64 },
     { id: "description", label: "说明", width: 320, minWidth: 180 },
     { id: "caliber", label: "口径", width: 360, minWidth: 180 },
   ], []);
   const columnResize = useDictionaryResizableColumns(`dictionary-system-table-summary:${system?.id || "empty"}`, columns, loadDictionaryColumnWidths, saveDictionaryColumnWidths);
+  const summaryTables = useMemo(() => sortDictionarySystemSummaryTables(tables), [tables]);
   const indexColumnWidth = Math.max(columnResize.columnWidth("index"), 58);
   const gridStyle = useMemo(() => ({
     "--dict-summary-c1": `${indexColumnWidth}px`,
@@ -162,9 +164,10 @@ export function DictionarySystemOverview({
     "--dict-summary-c5": `${columnResize.columnWidth("sourceKind")}px`,
     "--dict-summary-c6": `${columnResize.columnWidth("fileType")}px`,
     "--dict-summary-c7": `${columnResize.columnWidth("usageStatus")}px`,
-    "--dict-summary-c8": `${columnResize.columnWidth("fieldCount")}px`,
-    "--dict-summary-c9": `${columnResize.columnWidth("description")}px`,
-    "--dict-summary-c10": `${columnResize.columnWidth("caliber")}px`,
+    "--dict-summary-c8": `${columnResize.columnWidth("hasMapping")}px`,
+    "--dict-summary-c9": `${columnResize.columnWidth("fieldCount")}px`,
+    "--dict-summary-c10": `${columnResize.columnWidth("description")}px`,
+    "--dict-summary-c11": `${columnResize.columnWidth("caliber")}px`,
     "--dict-summary-width": `${columnResize.totalWidth + indexColumnWidth - columnResize.columnWidth("index")}px`,
   }) as CSSProperties, [columnResize, indexColumnWidth]);
   if (!system) {
@@ -207,7 +210,7 @@ export function DictionarySystemOverview({
               <DictionaryResizableHeadCell key={column.id} column={column} onResizeStart={columnResize.startResize} />
             ))}
           </div>
-          {tables.map((table, index) => (
+          {summaryTables.map((table, index) => (
             <button
               key={table.id}
               type="button"
@@ -220,7 +223,8 @@ export function DictionarySystemOverview({
               <span>{table.dataLayer || "源表层"}</span>
               <span>{table.sourceKind || "数据库"}</span>
               <span>{table.fileType || "-"}</span>
-              <span>{table.usageStatus || "待确认"}</span>
+              <span className={dictionaryTableIsInUse(table) ? "is-affirmative" : ""}>{table.usageStatus || "待确认"}</span>
+              <span className={table.mappingStatus === "是" ? "is-affirmative" : ""}>{dictionaryTableMappingLabel(table)}</span>
               <em>{table.fieldCount}</em>
               <span>{compactText(table.description)}</span>
               <span>{compactText(table.caliber)}</span>
@@ -230,6 +234,26 @@ export function DictionarySystemOverview({
       </section>
     </div>
   );
+}
+
+export function sortDictionarySystemSummaryTables(tables: ProjectDictionaryTable[]): ProjectDictionaryTable[] {
+  return tables
+    .map((table, index) => ({
+      table,
+      index,
+      score: Number(dictionaryTableIsInUse(table)) + Number(table.hasMapping !== false),
+    }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map(item => item.table);
+}
+
+function dictionaryTableIsInUse(table: ProjectDictionaryTable): boolean {
+  return ["使用", "是", "yes", "true", "1", "active", "启用"]
+    .includes(table.usageStatus?.trim().toLocaleLowerCase() || "");
+}
+
+function dictionaryTableMappingLabel(table: ProjectDictionaryTable): "是" | "待补充" | "否" {
+  return table.mappingStatus ?? (table.hasMapping === false ? "否" : "待补充");
 }
 
 type DictionarySystemDbDraft = {

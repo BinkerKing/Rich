@@ -85,7 +85,14 @@ async function upsertSacTable(client: PoolClient, table: typeof SAC_TABLES[numbe
 async function markAutomationScope(client: PoolClient): Promise<void> {
   await client.query(
     `UPDATE pm_data_tables t SET usage_status='使用',
-       has_mapping=EXISTS (SELECT 1 FROM pm_mapping_scenarios s WHERE s.project_id=t.project_id AND s.table_id=t.id),
+       has_mapping=EXISTS (
+         SELECT 1
+         FROM pm_mapping_rules r
+         WHERE r.project_id=t.project_id
+           AND r.table_id=t.id
+           AND r.status NOT IN ('cancelled','archived')
+           AND NULLIF(btrim(r.logic_text),'') IS NOT NULL
+       ),
        extra=coalesce(t.extra,'{}'::jsonb)||jsonb_build_object('automationScope','RICH-2','automationScopeConfirmedAt',$3::text,'automationScopeEvidence',$4::text),updated_at=$3::text
      WHERE t.project_id=$1 AND t.table_name=ANY($2::text[])`,
     [PROJECT_ID, TARGETS, NOW, ANALYSIS_DOC],

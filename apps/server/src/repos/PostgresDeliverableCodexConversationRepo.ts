@@ -50,6 +50,11 @@ export class PostgresDeliverableCodexConversationRepo implements DeliverableCode
     return rows[0] ? fromRow(rows[0]) : null;
   }
 
+  async listAllActive(): Promise<DeliverableCodexConversation[]> {
+    const { rows } = await this.pool.query<Row>(`SELECT ${columns} FROM deliverable_codex_conversations WHERE status = 'active' ORDER BY last_active_at DESC, created_at DESC`);
+    return rows.map(fromRow);
+  }
+
   async listActive(scopeKey: string): Promise<DeliverableCodexConversation[]> {
     const { rows } = await this.pool.query<Row>(`
       SELECT ${columns} FROM deliverable_codex_conversations
@@ -57,6 +62,11 @@ export class PostgresDeliverableCodexConversationRepo implements DeliverableCode
       ORDER BY last_active_at DESC, created_at DESC
     `, [scopeKey]);
     return rows.map(fromRow);
+  }
+
+  async rename(id: string, title: string, at: string): Promise<DeliverableCodexConversation | null> {
+    await this.pool.query(`UPDATE deliverable_codex_conversations SET title = $1, updated_at = $2 WHERE id = $3`, [title, at, id]);
+    return this.get(id);
   }
 
   async touch(id: string, at: string): Promise<DeliverableCodexConversation | null> {

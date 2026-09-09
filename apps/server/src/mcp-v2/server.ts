@@ -14,8 +14,12 @@ import { registerDelegationTools } from "./scenarios/delegateWork.js";
 import { PersistentTaskService } from "./tasks/persistentTaskService.js";
 import { registerTaskTools } from "./tasks/taskTools.js";
 import { registerDeliverableTaskTools } from "./tasks/deliverableTaskTools.js";
+import { registerDeliverableWorkspaceTools } from "./tasks/deliverableWorkspaceTools.js";
 import type { ExecutionTeamAdministrationPort } from "./scenarios/manageExecutionTeam.js";
 import { RichMcpError } from "./registry/errors.js";
+import type { WorkbenchService } from "../task-workbench/service.js";
+import { registerWorkbenchTools } from "./resources/workbenchTools.js";
+import type { TestCenterSqliteRepo } from "../test-center/TestCenterSqliteRepo.js";
 
 export interface McpToolEvent {
   type: "mcp.tool";
@@ -31,12 +35,15 @@ export interface McpToolEvent {
 export type McpToolEventDelivery = () => void | Promise<void>;
 
 export interface BuildMcpV2Deps {
+  workbench?: WorkbenchService;
   elements: ElementsRepo;
   projectManagement: ProjectManagementRepo;
   operationRepo: McpOperationRepo;
   taskRepo: McpTaskRepo;
   greatMe?: GreatMeRepo;
   projectAutomation?: ProjectAutomationRepo;
+  testCenter?: TestCenterSqliteRepo;
+  startupProjectsRoot?: string;
   delegationAdapter?: WorkDelegationPort;
   executionTeams?: ExecutionTeamAdministrationPort;
   taskService?: PersistentTaskService;
@@ -61,6 +68,8 @@ export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
     operationRepo: deps.operationRepo,
     greatMe: deps.greatMe,
     projectAutomation: deps.projectAutomation,
+    testCenter: deps.testCenter,
+    startupProjectsRoot: deps.startupProjectsRoot,
   });
   registerScenarioTools(registry, {
     elements: deps.elements,
@@ -70,6 +79,8 @@ export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
   });
   registerTaskTools(registry, { tasks, operationRepo: deps.operationRepo });
   registerDeliverableTaskTools(registry, tasks, deps.elements, deps.projectManagement);
+  registerDeliverableWorkspaceTools(registry, deps.elements, deps.projectManagement, deps.operationRepo);
+  if (deps.workbench) registerWorkbenchTools(registry, deps.workbench, deps.operationRepo);
   registerDelegationTools(registry, {
     adapter,
     tasks,
@@ -107,14 +118,17 @@ export function buildMcpV2Server(deps: BuildMcpV2Deps): McpServer {
         "rich/verification": tool.verification,
         "rich/examples": tool.examples,
       },
-    }, async input => {
-      const correlation = readCorrelation(input);
+    }, async (input, extra) => {
+      // Idempotency belongs to the MCP transport, not to the model. Codex
+      // should never have to invent or copy a Rich request ID just to write.
+      const enrichedInput = injectMcpRequestContext(input, extra.requestId, extra.sessionId);
+      const correlation = readCorrelation(enrichedInput);
       emitToolEvent({ type: "mcp.tool", data: {
         phase: "started", tool: tool.name, ...correlation,
       } });
       let response;
       try {
-        response = await registry.invoke(tool.name, input);
+        response = await registry.invoke(tool.name, enrichedInput);
       } catch (error) {
         emitToolEvent({ type: "mcp.tool", data: {
           phase: "error", tool: tool.name, ...correlation, ok: false,
@@ -134,6 +148,17 @@ export function buildMcpV2Server(deps: BuildMcpV2Deps): McpServer {
     });
   }
   return server;
+}
+
+function injectMcpRequestContext(input: unknown, requestId: unknown, sessionId?: string): unknown {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return input;
+  const source = input as Record<string, unknown>;
+  const current = source.context && typeof source.context === "object" && !Array.isArray(source.context)
+    ? source.context as Record<string, unknown>
+    : {};
+  if (typeof current.requestId === "string" && current.requestId.trim()) return input;
+  const id = `mcp:${sessionId ?? "stateless"}:${String(requestId)}`;
+  return { ...source, context: { ...current, requestId: id } };
 }
 
 function readCorrelation(input: unknown): Pick<McpToolEvent["data"], "requestId" | "conversationId"> {

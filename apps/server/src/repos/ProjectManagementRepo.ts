@@ -9,6 +9,7 @@ export type ProjectManagementModuleKey =
   | "dictionary"
   | "automation"
   | "workflow"
+  | "flowcharts"
   | "scenarios"
   | "environments"
   | "deploymentSteps"
@@ -16,7 +17,149 @@ export type ProjectManagementModuleKey =
   | "codeVersions"
   | "todos"
   | "healthChecks"
+  | "testing"
   | "folder";
+
+export const TEST_CASE_STATUSES = ["draft", "ready", "testing", "passed", "failed", "blocked", "retest"] as const;
+export type TestCaseStatus = typeof TEST_CASE_STATUSES[number];
+export type TestCaseType = "data" | "functional";
+export const TEST_RUN_STATUSES = ["testing", "passed", "failed", "blocked", "retest"] as const;
+export type TestRunStatus = typeof TEST_RUN_STATUSES[number];
+
+export interface TestCenterTask {
+  id: string;
+  projectId: string;
+  title: string;
+  objective: string;
+  testData: string;
+  testLinks: string;
+  appVersion: string;
+  status: "draft" | "active" | "completed" | "archived";
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TestCenterGroup {
+  id: string;
+  projectId: string;
+  taskId: string;
+  parentGroupId?: string;
+  title: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TestCenterCase {
+  id: string;
+  projectId: string;
+  taskId?: string;
+  groupId?: string;
+  scenario: string;
+  code: string;
+  title: string;
+  objective: string;
+  type: TestCaseType;
+  priority: "low" | "medium" | "high" | "critical";
+  status: TestCaseStatus;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TestCenterRun {
+  id: string;
+  projectId: string;
+  caseId: string;
+  status: TestRunStatus;
+  actualResult: string;
+  startedAt: string;
+  finishedAt?: string;
+  createdAt: string;
+}
+
+export interface TestCenterCaseStep {
+  id: string;
+  projectId: string;
+  caseId: string;
+  stepOrder: number;
+  instruction: string;
+  expectedResult: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TestCenterRunStep {
+  id: string;
+  projectId: string;
+  runId: string;
+  caseStepId?: string;
+  stepOrder: number;
+  instruction: string;
+  expectedResult: string;
+  status: "pending" | "passed" | "failed" | "blocked";
+  actualResult: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TestCenterEvidence {
+  id: string;
+  projectId: string;
+  runId: string;
+  runStepId?: string;
+  title: string;
+  kind: string;
+  location: string;
+  createdAt: string;
+}
+
+export interface TestCenterIssue {
+  id: string;
+  projectId: string;
+  caseId: string;
+  runId?: string;
+  title: string;
+  description: string;
+  owner?: string;
+  externalRef?: string;
+  status: "open" | "fixed" | "retest" | "closed";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TestCenterIssueDiscussion {
+  id: string;
+  projectId: string;
+  issueId: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface TestCenterCaseComment {
+  id: string;
+  projectId: string;
+  caseId: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TestCenterReport {
+  totalCases: number;
+  draftCases: number;
+  readyCases: number;
+  testingCases: number;
+  passedCases: number;
+  failedCases: number;
+  blockedCases: number;
+  retestCases: number;
+  openIssues: number;
+  fixedIssues: number;
+  retestIssues: number;
+  passRate: number;
+}
 
 export interface ProjectManagementModuleSummary {
   key: ProjectManagementModuleKey;
@@ -148,13 +291,21 @@ export interface ProjectDictionaryTable {
   sourceKind?: string;
   fileType?: string;
   hasMapping?: boolean;
+  mappingStatus?: "是" | "待补充" | "否";
   usageStatus?: string;
   verificationStatus?: "未验证" | "已验证" | "待整改";
   verificationRemark?: string;
   description?: string;
   caliber?: string;
+  externalSql?: string;
   extra?: Record<string, unknown>;
   fieldCount: number;
+}
+
+/** The affirmative display state is reserved for tables with real Mapping logic. */
+export function dictionaryTableMappingStatus(hasMapping: boolean | undefined, effectiveRuleCount: number): "是" | "待补充" | "否" {
+  if (effectiveRuleCount > 0) return "是";
+  return hasMapping === false ? "否" : "待补充";
 }
 
 export interface ProjectDictionaryTablePatch {
@@ -172,6 +323,7 @@ export interface ProjectDictionaryTablePatch {
   verificationRemark?: string | null;
   description?: string | null;
   caliber?: string | null;
+  externalSql?: string | null;
   /** Merged with existing metadata so callers can patch individual flags safely. */
   extra?: Record<string, unknown>;
 }
@@ -320,6 +472,8 @@ export interface ProjectDictionaryMappingScenario {
   tableId: string;
   title: string;
   caliber?: string;
+  caliberExternalSql?: string;
+  externalSql?: string;
   remark?: string;
   sortOrder: number;
   raw?: Record<string, unknown>;
@@ -340,9 +494,31 @@ export interface ProjectDictionaryMappingScenarioInput {
 export interface ProjectDictionaryMappingScenarioPatch {
   title?: string;
   caliber?: string | null;
+  caliberExternalSql?: string | null;
+  externalSql?: string | null;
   remark?: string | null;
   sortOrder?: number;
   raw?: Record<string, unknown>;
+}
+
+export type ProjectDictionaryBusinessScenarioValidationStatus = "pending" | "passed" | "failed" | "unsupported";
+export interface ProjectDictionaryBusinessScenarioLibrary {
+  id: string; projectId: string; name: string; dbType?: "postgresql" | "sqlserver" | "mysql" | "oracle"; sqlDialect?: "postgresql" | "sqlserver" | "mysql" | "oracle";
+  connection?: ProjectDictionaryConnectionConfig; createdAt: string; updatedAt: string;
+}
+export interface ProjectDictionaryBusinessScenarioLibraryInput { id?: string; name: string; dbType?: ProjectDictionaryBusinessScenarioLibrary["dbType"]; sqlDialect?: ProjectDictionaryBusinessScenarioLibrary["sqlDialect"]; connection?: ProjectDictionaryConnectionConfig; }
+
+export interface ProjectDictionaryBusinessScenario {
+  id: string; projectId: string; libraryId: string; title: string; procedureName: string; externalLocation?: string;
+  sqlText: string; remark?: string; sortOrder: number; tableIds: string[];
+  validationStatus: ProjectDictionaryBusinessScenarioValidationStatus; validationSqlFingerprint?: string; validationMessage?: string; validatedAt?: string;
+  createdAt: string; updatedAt: string;
+}
+export interface ProjectDictionaryBusinessScenarioInput {
+  id?: string; libraryId: string; title: string; procedureName: string; externalLocation?: string | null; sqlText: string; remark?: string | null; sortOrder?: number; tableIds: string[];
+}
+export interface ProjectDictionaryBusinessScenarioPatch extends Partial<Omit<ProjectDictionaryBusinessScenarioInput, "id" | "systemId">> {
+  validationStatus?: ProjectDictionaryBusinessScenarioValidationStatus; validationSqlFingerprint?: string | null; validationMessage?: string | null; validatedAt?: string | null;
 }
 
 export interface ProjectDictionaryMappingAction {
@@ -371,6 +547,7 @@ export interface ProjectDictionaryMappingRule {
   status: string;
   logicText?: string;
   convertedSql?: string;
+  externalSql?: string;
   remark?: string;
   verificationStatus?: "未验证" | "已验证" | "待整改";
   verificationRemark?: string;
@@ -390,6 +567,7 @@ export interface ProjectDictionaryMappingRulePatch {
   status?: string;
   logicText?: string | null;
   convertedSql?: string | null;
+  externalSql?: string | null;
   remark?: string | null;
   verificationStatus?: "未验证" | "已验证" | "待整改" | null;
   verificationRemark?: string | null;
@@ -461,6 +639,7 @@ export interface ProjectDictionaryMappingTempField {
   fieldLength?: string;
   logicText?: string;
   convertedSql?: string;
+  externalSql?: string;
   remark?: string;
   sortOrder: number;
   raw?: Record<string, unknown>;
@@ -476,6 +655,7 @@ export interface ProjectDictionaryMappingTempTable {
   tableCn?: string;
   logicText?: string;
   convertedSql?: string;
+  externalSql?: string;
   remark?: string;
   sortOrder: number;
   raw?: Record<string, unknown>;
@@ -492,6 +672,7 @@ export interface ProjectDictionaryMappingTempFieldInput {
   fieldLength?: string | null;
   logicText?: string | null;
   convertedSql?: string | null;
+  externalSql?: string | null;
   remark?: string | null;
   sortOrder?: number;
   raw?: Record<string, unknown>;
@@ -503,6 +684,7 @@ export interface ProjectDictionaryMappingTempTableInput {
   tableCn?: string | null;
   logicText?: string | null;
   convertedSql?: string | null;
+  externalSql?: string | null;
   remark?: string | null;
   sortOrder?: number;
   raw?: Record<string, unknown>;
@@ -588,6 +770,14 @@ export interface ProjectManagementRepo {
   createDictionaryMappingScenario(projectId: string, input: ProjectDictionaryMappingScenarioInput): Promise<ProjectDictionaryMappingScenario>;
   updateDictionaryMappingScenario(projectId: string, scenarioId: string, patch: ProjectDictionaryMappingScenarioPatch): Promise<ProjectDictionaryMappingScenario | null>;
   deleteDictionaryMappingScenario(projectId: string, scenarioId: string): Promise<boolean>;
+  listDictionaryBusinessScenarios(projectId: string, libraryId?: string): Promise<ProjectDictionaryBusinessScenario[]>;
+  listDictionaryBusinessScenarioLibraries(projectId: string): Promise<ProjectDictionaryBusinessScenarioLibrary[]>;
+  createDictionaryBusinessScenarioLibrary(projectId: string, input: ProjectDictionaryBusinessScenarioLibraryInput): Promise<ProjectDictionaryBusinessScenarioLibrary>;
+  updateDictionaryBusinessScenarioLibrary(projectId: string, libraryId: string, patch: Partial<ProjectDictionaryBusinessScenarioLibraryInput>): Promise<ProjectDictionaryBusinessScenarioLibrary | null>;
+  listDictionaryBusinessScenariosForTable(projectId: string, tableId: string): Promise<ProjectDictionaryBusinessScenario[]>;
+  createDictionaryBusinessScenario(projectId: string, input: ProjectDictionaryBusinessScenarioInput): Promise<ProjectDictionaryBusinessScenario>;
+  updateDictionaryBusinessScenario(projectId: string, scenarioId: string, patch: ProjectDictionaryBusinessScenarioPatch): Promise<ProjectDictionaryBusinessScenario | null>;
+  deleteDictionaryBusinessScenario(projectId: string, scenarioId: string): Promise<boolean>;
   getDictionaryMappingRule(projectId: string, mappingRuleId: string): Promise<ProjectDictionaryMappingRule | null>;
   updateDictionaryMappingRule(projectId: string, mappingRuleId: string, patch: ProjectDictionaryMappingRulePatch): Promise<ProjectDictionaryMappingRule | null>;
   updateDictionaryMappingAction(projectId: string, actionId: string, patch: ProjectDictionaryMappingActionPatch): Promise<ProjectDictionaryMappingAction | null>;
@@ -609,6 +799,7 @@ export const PROJECT_MANAGEMENT_MODULES: Array<{ key: ProjectManagementModuleKey
   { key: "dictionary", label: "数据字典" },
   { key: "automation", label: "数据自动化" },
   { key: "workflow", label: "作业流程" },
+  { key: "flowcharts", label: "项目流程图" },
   { key: "scenarios", label: "场景手册" },
   { key: "environments", label: "环境配置" },
   { key: "deploymentSteps", label: "部署步骤" },
@@ -616,6 +807,7 @@ export const PROJECT_MANAGEMENT_MODULES: Array<{ key: ProjectManagementModuleKey
   { key: "codeVersions", label: "版本控制" },
   { key: "todos", label: "项目代办" },
   { key: "healthChecks", label: "项目健康检查" },
+  { key: "testing", label: "测试中心" },
   { key: "folder", label: "文件夹" },
 ];
 

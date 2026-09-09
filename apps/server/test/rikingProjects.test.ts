@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createServer } from "node:http";
 import { createServer as createTcpServer } from "node:net";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -26,6 +26,22 @@ async function createProjectStore(status: "running" | "stopped", appUrl = "", cu
 }
 
 describe("rikingProjectsRoutes", () => {
+  it("persists an AI manual field on a startup project", async () => {
+    const root = await mkdtemp(join(tmpdir(), "riking-projects-"));
+    temporaryRoots.push(root);
+    const aiManual = "# ETL AI 使用手册\n\n先检查日志。";
+
+    const response = await rikingProjectsRoutes(root).request("http://localhost/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "ETL", aiManual }),
+    });
+
+    expect((await response.json()).project.aiManual).toBe(aiManual);
+    const saved = JSON.parse(await readFile(join(root, "riking-projects.json"), "utf8"));
+    expect(saved.projects[0].aiManual).toBe(aiManual);
+  });
+
   it("marks a persisted running status as stopped when no live evidence exists", async () => {
     const root = await createProjectStore("running");
     const response = await rikingProjectsRoutes(root).request("http://localhost/");
@@ -102,6 +118,22 @@ describe("rikingProjectsRoutes", () => {
     expect(projects).toHaveLength(1);
     expect(projects[0].status).toBe("starting");
     await app.request("http://localhost/project-1/stop", { method: "POST" });
+  });
+
+  it("stops a launched command after the Rich process restarts", async () => {
+    const root = await createProjectStore("stopped", "", "sleep 30");
+    const started = await rikingProjectsRoutes(root).request("http://localhost/project-1/start", { method: "POST" });
+    expect(started.ok).toBe(true);
+    const saved = JSON.parse(await readFile(join(root, "riking-projects.json"), "utf8"));
+    const pid = saved.projects[0].processId;
+    expect(pid).toEqual(expect.any(Number));
+
+    vi.resetModules();
+    const { rikingProjectsRoutes: routesAfterRestart } = await import("../src/routes/rikingProjects.js");
+    await routesAfterRestart(root).request("http://localhost/project-1/stop", { method: "POST" });
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(() => process.kill(pid, 0)).toThrow();
   });
 
   it("clears only the configured local log file", async () => {

@@ -15,6 +15,14 @@ Usage:
   pnpm rich -- upload <PATH> --file <path> [--field files|file] [--value k=v]
 
 Common semantic commands:
+  workbench list
+  workbench get <taskId>
+  workbench create --file task.json
+  workbench plan <taskId> --json '{"expectedVersion":1,"input":{"steps":[{"id":"s1","title":"理解需求"}]}}'
+  workbench step <taskId> --json '{"expectedVersion":2,"input":{"id":"s1","status":"done","evidence":"已确认需求"}}'
+  workbench update|record|resource|confirm|checkpoint|answer <taskId> --file write.json
+  workbench history <taskId>
+
   elements list
   elements get <id>
   elements create --json '{"title":"X","type":"topic","parentId":"optional"}'
@@ -84,6 +92,14 @@ Common semantic commands:
   project-health list <projectId>
   project-health create <projectId> --json '{"title":"...","severity":"high","category":"architecture","status":"open","evidence":"...","repairPlan":"...","repairResult":""}'
   project-health patch <projectId> <recordId> --json '{"status":"verified","repairResult":"..."}'
+
+  testing tasks|cases|runs|issues|report <projectId>
+  testing create-task|create-case|create-cases <projectId> --json '{...}'
+  testing add-step|start-run <projectId> <caseId> --json '{...}'
+  testing finish-run|add-evidence <projectId> <runId> --json '{...}'
+  testing finish-step <projectId> <runStepId> --json '{...}'
+  testing create-issue <projectId> --json '{"caseId":"...",...}'
+  testing update-issue|discuss|retest <projectId> <issueId> --json '{...}'
 
   multica team plan <projectId> --file team.json
   multica team apply <projectId> --confirmed --json '{"planId":"..."}'
@@ -290,6 +306,13 @@ async function semantic(positional, flags) {
     if (action === "project" && operation === "sync") return request("POST", `${base}/sync`, flags, body ?? {});
   }
 
+  if (domain === "workbench") {
+    if (action === "list") return request("GET", "/api/workbench", flags);
+    if (action === "create") return request("POST", "/api/workbench", flags, body ?? {});
+    if (action === "get") return request("GET", `/api/workbench/${id(a)}`, flags);
+    if (action === "history") return request("GET", `/api/workbench/${id(a)}/history`, flags);
+    if (["update", "plan", "step", "record", "resource", "confirm", "checkpoint", "answer"].includes(action)) return request("POST", `/api/workbench/${id(a)}/write`, flags, { ...(body ?? {}), action });
+  }
   if (domain === "elements") {
     if (action === "list") return request("GET", withQuery("/api/elements", flags), flags);
     if (action === "get") return request("GET", `/api/elements/${id(a)}`, flags);
@@ -405,6 +428,28 @@ async function semantic(positional, flags) {
       });
     }
     if (action === "patch") return request("PATCH", `/api/project-management/${encodeURIComponent(projectId)}/health-checks/${encodeURIComponent(id(b))}`, flags, body ?? {});
+  }
+
+  if (domain === "testing") {
+    const projectId = id(a, "projectId");
+    const base = `/api/project-management/testing/${projectId}`;
+    if (action === "tasks") return request("GET", `${base}/tasks`, flags);
+    if (action === "cases") return request("GET", `${base}/cases`, flags);
+    if (action === "runs") return request("GET", `${base}/runs`, flags);
+    if (action === "issues") return request("GET", `${base}/issues`, flags);
+    if (action === "report") return request("GET", `${base}/report`, flags);
+    if (action === "create-task") return request("POST", `${base}/tasks`, flags, body ?? {});
+    if (action === "create-case") return request("POST", `${base}/cases`, flags, body ?? {});
+    if (action === "create-cases") return request("POST", `${base}/cases/batch`, flags, body ?? {});
+    if (action === "add-step") return request("POST", `${base}/cases/${id(b, "caseId")}/steps`, flags, body ?? {});
+    if (action === "start-run") return request("POST", `${base}/cases/${id(b, "caseId")}/runs`, flags);
+    if (action === "finish-run") return request("POST", `${base}/runs/${id(b, "runId")}/finish`, flags, body ?? {});
+    if (action === "finish-step") return request("POST", `${base}/run-steps/${id(b, "runStepId")}/finish`, flags, body ?? {});
+    if (action === "add-evidence") return request("POST", `${base}/runs/${id(b, "runId")}/evidence`, flags, body ?? {});
+    if (action === "create-issue") return request("POST", `${base}/issues`, flags, body ?? {});
+    if (action === "update-issue") return request("PATCH", `${base}/issues/${id(b, "issueId")}`, flags, body ?? {});
+    if (action === "discuss") return request("POST", `${base}/issues/${id(b, "issueId")}/discussions`, flags, body ?? {});
+    if (action === "retest") return request("POST", `${base}/issues/${id(b, "issueId")}/retest`, flags);
   }
 
   if (domain === "corpus") {

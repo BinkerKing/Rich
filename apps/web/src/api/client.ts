@@ -977,6 +977,166 @@ export const api = {
     });
     if (!r.ok) throw new Error(`reorderProjectManagementModuleItems ${r.status}`);
   },
+  async listTestCenterCases(projectId: string): Promise<TestCenterCase[]> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/cases`);
+    if (!r.ok) throw new Error(`listTestCenterCases ${r.status}`);
+    return r.json();
+  },
+  async listTestCenterTasks(projectId: string): Promise<TestCenterTask[]> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/tasks`);
+    if (!r.ok) throw new Error(`listTestCenterTasks ${r.status}`);
+    return r.json();
+  },
+  async createTestCenterTask(projectId: string, input: Pick<TestCenterTask, "title" | "objective">): Promise<TestCenterTask> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/tasks`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+    });
+    if (!r.ok) throw new Error(`createTestCenterTask ${r.status}`);
+    return r.json();
+  },
+  async updateTestCenterTaskDetails(projectId: string, taskId: string, input: Pick<TestCenterTask, "objective" | "testData" | "testLinks" | "appVersion">): Promise<TestCenterTask> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/details`, {
+      method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+    });
+    if (!r.ok) throw new Error(`updateTestCenterTaskDetails ${r.status}`);
+    return r.json();
+  },
+  async deleteTestCenterTask(projectId: string, taskId: string): Promise<void> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}`, { method: "DELETE" });
+    if (!r.ok) throw new Error(`deleteTestCenterTask ${r.status}`);
+  },
+  async moveTestCenterTask(projectId: string, taskId: string, beforeTaskId?: string): Promise<void> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/move`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ beforeTaskId: beforeTaskId ?? null }) });
+    if (!r.ok) throw new Error(`moveTestCenterTask ${r.status}`);
+  },
+  async listTestCenterGroups(projectId: string): Promise<TestCenterGroup[]> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/groups`);
+    if (!r.ok) throw new Error(`listTestCenterGroups ${r.status}`);
+    return r.json();
+  },
+  async createTestCenterGroup(projectId: string, input: Pick<TestCenterGroup, "taskId" | "title"> & { parentGroupId?: string }): Promise<TestCenterGroup> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/groups`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!r.ok) throw new Error(`createTestCenterGroup ${r.status}`);
+    return r.json();
+  },
+  async deleteTestCenterGroup(projectId: string, groupId: string): Promise<void> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/groups/${encodeURIComponent(groupId)}`, { method: "DELETE" });
+    if (!r.ok) throw new Error(`deleteTestCenterGroup ${r.status}`);
+  },
+  async moveTestCenterGroup(projectId: string, groupId: string, input: { parentGroupId?: string; beforeGroupId?: string }): Promise<void> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/groups/${encodeURIComponent(groupId)}/move`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ parentGroupId: input.parentGroupId ?? null, beforeGroupId: input.beforeGroupId ?? null }) });
+    if (!r.ok) throw new Error(`moveTestCenterGroup ${r.status}`);
+  },
+  async createTestCenterCase(projectId: string, input: TestCenterCaseInput): Promise<TestCenterCase> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/cases`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+    });
+    if (!r.ok) throw new Error(`createTestCenterCase ${r.status}`);
+    return r.json();
+  },
+  async moveTestCenterCase(projectId: string, caseId: string, input: { taskId?: string; groupId?: string; beforeCaseId?: string }): Promise<void> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/cases/${encodeURIComponent(caseId)}/move`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ taskId: input.taskId ?? null, groupId: input.groupId ?? null, beforeCaseId: input.beforeCaseId ?? null }) });
+    if (!r.ok) throw new Error(`moveTestCenterCase ${r.status}`);
+  },
+  async listTestCenterCaseSteps(projectId: string, caseId: string): Promise<TestCenterCaseStep[]> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/cases/${encodeURIComponent(caseId)}/steps`);
+    if (!r.ok) throw new Error(`listTestCenterCaseSteps ${r.status}`);
+    return r.json();
+  },
+  async addTestCenterCaseStep(projectId: string, caseId: string, input: Pick<TestCenterCaseStep, "stepOrder" | "instruction" | "expectedResult">): Promise<TestCenterCaseStep> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/cases/${encodeURIComponent(caseId)}/steps`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!r.ok) throw new Error(`addTestCenterCaseStep ${r.status}`);
+    return r.json();
+  },
+  async listTestCenterRuns(projectId: string): Promise<TestCenterRun[]> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/runs`);
+    if (!r.ok) throw new Error(`listTestCenterRuns ${r.status}`);
+    return r.json();
+  },
+  async startTestCenterRun(projectId: string, caseId: string): Promise<TestCenterRun> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/cases/${encodeURIComponent(caseId)}/runs`, { method: "POST" });
+    if (!r.ok) throw new Error(`startTestCenterRun ${r.status}`);
+    return r.json();
+  },
+  async finishTestCenterRun(projectId: string, runId: string, input: { status: "passed" | "failed" | "blocked" | "retest"; actualResult: string }): Promise<TestCenterRun> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/finish`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!r.ok) throw new Error(`finishTestCenterRun ${r.status}`);
+    return r.json();
+  },
+  async listTestCenterRunSteps(projectId: string, runId: string): Promise<TestCenterRunStep[]> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/steps`);
+    if (!r.ok) throw new Error(`listTestCenterRunSteps ${r.status}`);
+    return r.json();
+  },
+  async finishTestCenterRunStep(projectId: string, runStepId: string, input: { status: "passed" | "failed" | "blocked"; actualResult: string }): Promise<TestCenterRunStep> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/run-steps/${encodeURIComponent(runStepId)}/finish`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!r.ok) throw new Error(`finishTestCenterRunStep ${r.status}`);
+    return r.json();
+  },
+  async listTestCenterRunEvidence(projectId: string, runId: string): Promise<TestCenterEvidence[]> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/evidence`);
+    if (!r.ok) throw new Error(`listTestCenterRunEvidence ${r.status}`);
+    return r.json();
+  },
+  async addTestCenterEvidence(projectId: string, runId: string, input: Pick<TestCenterEvidence, "title" | "kind" | "location">): Promise<TestCenterEvidence> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/evidence`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!r.ok) throw new Error(`addTestCenterEvidence ${r.status}`);
+    return r.json();
+  },
+  async listTestCenterIssues(projectId: string): Promise<TestCenterIssue[]> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/issues`);
+    if (!r.ok) throw new Error(`listTestCenterIssues ${r.status}`);
+    return r.json();
+  },
+  async createTestCenterIssue(projectId: string, input: Pick<TestCenterIssue, "caseId" | "title" | "description"> & { runId?: string; owner?: string; externalRef?: string }): Promise<TestCenterIssue> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/issues`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!r.ok) throw new Error(`createTestCenterIssue ${r.status}`);
+    return r.json();
+  },
+  async updateTestCenterIssue(projectId: string, issueId: string, input: { status?: "open" | "fixed" | "retest" | "closed"; owner?: string | null; externalRef?: string | null }): Promise<TestCenterIssue> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!r.ok) throw new Error(`updateTestCenterIssue ${r.status}`);
+    return r.json();
+  },
+  async startTestCenterRetest(projectId: string, issueId: string): Promise<TestCenterRun> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}/retest`, { method: "POST" });
+    if (!r.ok) throw new Error(`startTestCenterRetest ${r.status}`);
+    return r.json();
+  },
+  async listTestCenterIssueDiscussions(projectId: string, issueId: string): Promise<TestCenterIssueDiscussion[]> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}/discussions`);
+    if (!r.ok) throw new Error(`listTestCenterIssueDiscussions ${r.status}`);
+    return r.json();
+  },
+  async addTestCenterIssueDiscussion(projectId: string, issueId: string, content: string): Promise<TestCenterIssueDiscussion> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}/discussions`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content }) });
+    if (!r.ok) throw new Error(`addTestCenterIssueDiscussion ${r.status}`);
+    return r.json();
+  },
+  async listTestCenterCaseComments(projectId: string, caseId: string): Promise<TestCenterCaseComment[]> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/cases/${encodeURIComponent(caseId)}/comments`);
+    if (!r.ok) throw new Error(`listTestCenterCaseComments ${r.status}`);
+    return r.json();
+  },
+  async addTestCenterCaseComment(projectId: string, caseId: string, content: string): Promise<TestCenterCaseComment> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/cases/${encodeURIComponent(caseId)}/comments`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content }) });
+    if (!r.ok) throw new Error(`addTestCenterCaseComment ${r.status}`);
+    return r.json();
+  },
+  async updateTestCenterCaseComment(projectId: string, commentId: string, content: string): Promise<TestCenterCaseComment> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/case-comments/${encodeURIComponent(commentId)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ content }) });
+    if (!r.ok) throw new Error(`updateTestCenterCaseComment ${r.status}`);
+    return r.json();
+  },
+  async deleteTestCenterCaseComment(projectId: string, commentId: string): Promise<void> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/case-comments/${encodeURIComponent(commentId)}`, { method: "DELETE" });
+    if (!r.ok) throw new Error(`deleteTestCenterCaseComment ${r.status}`);
+  },
+  async getTestCenterReport(projectId: string): Promise<TestCenterReport> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/report`);
+    if (!r.ok) throw new Error(`getTestCenterReport ${r.status}`);
+    return r.json();
+  },
   async getMulticaBoard(projectId: string): Promise<MulticaBoardSnapshot> {
     return multicaRequest(projectId, "/board");
   },
@@ -1134,6 +1294,53 @@ export const api = {
     if (!r.ok) throw new Error(`listProjectDictionaryTables ${r.status}`);
     return r.json();
   },
+  async listProjectDictionaryBusinessScenarios(projectId: string, libraryId?: string): Promise<ProjectDictionaryBusinessScenario[]> {
+    const suffix = libraryId ? `?libraryId=${encodeURIComponent(libraryId)}` : "";
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/business-scenarios${suffix}`, { cache: "no-store" });
+    if (!r.ok) throw new Error(`listProjectDictionaryBusinessScenarios ${r.status}`);
+    return r.json();
+  },
+  async listProjectDictionaryBusinessScenarioLibraries(projectId: string): Promise<ProjectDictionaryBusinessScenarioLibrary[]> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/business-scenario-libraries`, { cache: "no-store" });
+    if (!r.ok) throw new Error(`listProjectDictionaryBusinessScenarioLibraries ${r.status}`);
+    return r.json();
+  },
+  async createProjectDictionaryBusinessScenarioLibrary(projectId: string, input: Omit<ProjectDictionaryBusinessScenarioLibrary, "id" | "projectId" | "createdAt" | "updatedAt">): Promise<ProjectDictionaryBusinessScenarioLibrary> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/business-scenario-libraries`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!r.ok) throw new Error(`createProjectDictionaryBusinessScenarioLibrary ${r.status}`);
+    return r.json();
+  },
+  async updateProjectDictionaryBusinessScenarioLibrary(projectId: string, libraryId: string, patch: Partial<Omit<ProjectDictionaryBusinessScenarioLibrary, "id" | "projectId" | "createdAt" | "updatedAt">>): Promise<ProjectDictionaryBusinessScenarioLibrary> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/business-scenario-libraries/${encodeURIComponent(libraryId)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) });
+    if (!r.ok) throw new Error(`updateProjectDictionaryBusinessScenarioLibrary ${r.status}`);
+    return r.json();
+  },
+  async listProjectDictionaryBusinessScenariosForTable(projectId: string, tableId: string): Promise<ProjectDictionaryBusinessScenario[]> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/business-scenarios`, { cache: "no-store" });
+    if (!r.ok) throw new Error(`listProjectDictionaryBusinessScenariosForTable ${r.status}`);
+    return r.json();
+  },
+  async formatProjectDictionaryBusinessScenario(projectId: string, scenarioId: string): Promise<ProjectDictionaryBusinessScenario> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/business-scenarios/${encodeURIComponent(scenarioId)}/format`, { method: "POST" });
+    if (!r.ok) throw new Error(`formatProjectDictionaryBusinessScenario ${r.status}`);
+    return r.json();
+  },
+  async validateProjectDictionaryBusinessScenario(projectId: string, scenarioId: string): Promise<ProjectDictionaryBusinessScenario> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/business-scenarios/${encodeURIComponent(scenarioId)}/validate`, { method: "POST" });
+    const payload = await r.json().catch(() => ({})) as ProjectDictionaryBusinessScenario & { error?: string };
+    if (!r.ok) throw new Error(payload.validationMessage || payload.error || `validateProjectDictionaryBusinessScenario ${r.status}`);
+    return payload;
+  },
+  async createProjectDictionaryBusinessScenario(projectId: string, input: Omit<ProjectDictionaryBusinessScenario, "id" | "projectId" | "sortOrder" | "validationStatus" | "createdAt" | "updatedAt">): Promise<ProjectDictionaryBusinessScenario> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/business-scenarios`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!r.ok) throw new Error(`createProjectDictionaryBusinessScenario ${r.status}`);
+    return r.json();
+  },
+  async updateProjectDictionaryBusinessScenario(projectId: string, scenarioId: string, patch: Partial<Pick<ProjectDictionaryBusinessScenario, "title" | "procedureName" | "externalLocation" | "sqlText" | "remark" | "tableIds">>): Promise<ProjectDictionaryBusinessScenario> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/business-scenarios/${encodeURIComponent(scenarioId)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) });
+    if (!r.ok) throw new Error(`updateProjectDictionaryBusinessScenario ${r.status}`);
+    return r.json();
+  },
   async listProjectDictionaryFields(projectId: string, tableId: string): Promise<ProjectDictionaryFieldHit[]> {
     const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/fields`, { cache: "no-store" });
     if (!r.ok) throw new Error(`listProjectDictionaryFields ${r.status}`);
@@ -1147,6 +1354,21 @@ export const api = {
   async listProjectDictionaryMappingScenarios(projectId: string, tableId: string): Promise<ProjectDictionaryMappingScenario[]> {
     const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}/mapping/scenarios`, { cache: "no-store" });
     if (!r.ok) throw new Error(`listProjectDictionaryMappingScenarios ${r.status}`);
+    return r.json();
+  },
+  async updateProjectDictionaryTable(projectId: string, tableId: string, patch: { externalSql?: string | null }): Promise<ProjectDictionaryTable> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) });
+    if (!r.ok) throw new Error(`updateProjectDictionaryTable ${r.status}`);
+    return r.json();
+  },
+  async updateProjectDictionaryMappingScenario(projectId: string, scenarioId: string, patch: { caliberExternalSql?: string | null; externalSql?: string | null }): Promise<ProjectDictionaryMappingScenario> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/mapping/scenarios/${encodeURIComponent(scenarioId)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) });
+    if (!r.ok) throw new Error(`updateProjectDictionaryMappingScenario ${r.status}`);
+    return r.json();
+  },
+  async updateProjectDictionaryMappingRule(projectId: string, ruleId: string, patch: { externalSql?: string | null }): Promise<ProjectDictionaryMappingRuleSummary> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/mapping/rules/${encodeURIComponent(ruleId)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) });
+    if (!r.ok) throw new Error(`updateProjectDictionaryMappingRule ${r.status}`);
     return r.json();
   },
   async replaceProjectDictionaryMappingTempTables(
@@ -1481,6 +1703,7 @@ export type ProjectManagementModuleKey =
   | "dictionary"
   | "automation"
   | "workflow"
+  | "flowcharts"
   | "scenarios"
   | "environments"
   | "deploymentSteps"
@@ -1488,6 +1711,7 @@ export type ProjectManagementModuleKey =
   | "codeVersions"
   | "todos"
   | "healthChecks"
+  | "testing"
   | "folder";
 
 export interface ConversationSaveInput {
@@ -1601,6 +1825,29 @@ export interface ProjectManagementSummary {
     fields: number;
   };
 }
+
+export type TestCenterCase = {
+  id: string; projectId?: string; taskId?: string; groupId?: string; scenario: string; code: string; title: string; objective: string; type: "data" | "functional";
+  priority: "low" | "medium" | "high" | "critical"; status: string; sortOrder: number; updatedAt: string;
+};
+export type TestCenterTask = { id: string; projectId?: string; title: string; objective: string; testData: string; testLinks: string; appVersion: string; status: "draft" | "active" | "completed" | "archived"; sortOrder: number; updatedAt: string };
+export type TestCenterGroup = { id: string; taskId: string; parentGroupId?: string; title: string; sortOrder: number; updatedAt: string };
+export type TestCenterCaseInput = Pick<TestCenterCase, "code" | "title" | "objective" | "type" | "priority"> & { taskId?: string; groupId?: string; scenario?: string };
+export type TestCenterCaseStep = { id: string; caseId: string; stepOrder: number; instruction: string; expectedResult: string };
+export type TestCenterRun = {
+  id: string; caseId: string; status: string; actualResult: string; startedAt: string; finishedAt?: string; createdAt: string;
+};
+export type TestCenterRunStep = { id: string; runId: string; stepOrder: number; instruction: string; expectedResult: string; status: "pending" | "passed" | "failed" | "blocked"; actualResult: string };
+export type TestCenterEvidence = { id: string; runId: string; title: string; kind: string; location: string; createdAt: string };
+export type TestCenterIssue = {
+  id: string; caseId: string; runId?: string; title: string; description: string; owner?: string; externalRef?: string; status: string; updatedAt: string;
+};
+export type TestCenterIssueDiscussion = { id: string; issueId: string; content: string; createdAt: string };
+export type TestCenterCaseComment = { id: string; caseId: string; content: string; createdAt: string; updatedAt: string };
+export type TestCenterReport = {
+  totalCases: number; draftCases: number; readyCases: number; testingCases: number; passedCases: number; failedCases: number;
+  blockedCases: number; retestCases: number; openIssues: number; fixedIssues: number; retestIssues: number; passRate: number;
+};
 
 export interface ProjectManagementSearchHit {
   id: string;
@@ -1721,13 +1968,24 @@ export interface ProjectDictionaryTable {
   sourceKind?: string;
   fileType?: string;
   hasMapping?: boolean;
+  mappingStatus?: "是" | "待补充" | "否";
   usageStatus?: string;
   verificationStatus?: "未验证" | "已验证" | "待整改";
   verificationRemark?: string;
   description?: string;
   caliber?: string;
+  externalSql?: string;
   extra?: Record<string, unknown>;
   fieldCount: number;
+}
+
+export interface ProjectDictionaryBusinessScenario {
+  id: string; projectId: string; libraryId: string; title: string; procedureName: string; externalLocation?: string; sqlText: string; remark?: string; sortOrder: number; tableIds: string[];
+  validationStatus: "pending" | "passed" | "failed" | "unsupported"; validationSqlFingerprint?: string; validationMessage?: string; validatedAt?: string; createdAt: string; updatedAt: string;
+}
+export interface ProjectDictionaryBusinessScenarioLibrary {
+  id: string; projectId: string; name: string; dbType?: "postgresql" | "sqlserver" | "mysql" | "oracle"; sqlDialect?: "postgresql" | "sqlserver" | "mysql" | "oracle";
+  connection?: ProjectDictionaryConnectionConfig; createdAt: string; updatedAt: string;
 }
 
 export interface ProjectDictionaryEntitySyncResult {
@@ -1804,6 +2062,7 @@ export interface ProjectDictionaryMappingTempField {
   fieldLength?: string;
   logicText?: string;
   convertedSql?: string;
+  externalSql?: string;
   remark?: string;
   verificationStatus?: "未验证" | "已验证" | "待整改";
   verificationRemark?: string;
@@ -1818,6 +2077,7 @@ export interface ProjectDictionaryMappingRuleSummary {
   fieldId?: string;
   logicText?: string;
   convertedSql?: string;
+  externalSql?: string;
   remark?: string;
   verificationStatus?: "未验证" | "已验证" | "待整改";
   verificationRemark?: string;
@@ -1830,6 +2090,8 @@ export interface ProjectDictionaryMappingScenario {
   tableId: string;
   title: string;
   caliber?: string;
+  caliberExternalSql?: string;
+  externalSql?: string;
   remark?: string;
   sortOrder: number;
   rules: ProjectDictionaryMappingRuleSummary[];
@@ -1843,6 +2105,7 @@ export interface ProjectDictionaryMappingTempTable {
   tableCn?: string;
   logicText?: string;
   convertedSql?: string;
+  externalSql?: string;
   remark?: string;
   sortOrder: number;
   raw?: Record<string, unknown>;
@@ -1859,6 +2122,7 @@ export interface ProjectDictionaryMappingTempFieldInput {
   fieldLength?: string | null;
   logicText?: string | null;
   convertedSql?: string | null;
+  externalSql?: string | null;
   remark?: string | null;
   sortOrder?: number;
   raw?: Record<string, unknown>;
@@ -1870,6 +2134,7 @@ export interface ProjectDictionaryMappingTempTableInput {
   tableCn?: string | null;
   logicText?: string | null;
   convertedSql?: string | null;
+  externalSql?: string | null;
   remark?: string | null;
   sortOrder?: number;
   raw?: Record<string, unknown>;

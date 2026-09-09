@@ -53,6 +53,8 @@ export type DictionaryMappingJsonRule = {
   scale?: number;
   /** Aggregate function used by group_aggregate: sum/count/avg/min/max. */
   aggregate?: string;
+  /** Ordered source/value branches used by a UNION ALL projection. */
+  branches?: Array<{ label?: string; source?: string; value?: unknown }>;
   /** Relative date unit used by relative_date_boundary. */
   unit?: "day" | "month" | "year";
   /** Signed offset from source before applying the boundary. */

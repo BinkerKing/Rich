@@ -59,12 +59,21 @@ export class SqliteDeliverableCodexConversationRepo implements DeliverableCodexC
     return row ? fromRow(row) : null;
   }
 
+  async listAllActive(): Promise<DeliverableCodexConversation[]> {
+    return (this.db.prepare(`SELECT ${columns} FROM deliverable_codex_conversations WHERE status = 'active' ORDER BY last_active_at DESC, created_at DESC`).all() as Row[]).map(fromRow);
+  }
+
   async listActive(scopeKey: string): Promise<DeliverableCodexConversation[]> {
     return (this.db.prepare(`
       SELECT ${columns} FROM deliverable_codex_conversations
       WHERE scope_key = ? AND status = 'active'
       ORDER BY last_active_at DESC, created_at DESC
     `).all(scopeKey) as Row[]).map(fromRow);
+  }
+
+  async rename(id: string, title: string, at: string): Promise<DeliverableCodexConversation | null> {
+    this.db.prepare(`UPDATE deliverable_codex_conversations SET title = ?, updated_at = ? WHERE id = ?`).run(title, at, id);
+    return this.get(id);
   }
 
   async touch(id: string, at: string): Promise<DeliverableCodexConversation | null> {

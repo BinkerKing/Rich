@@ -117,8 +117,45 @@
   overflow: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   padding-right: 4px;
+}
+
+.rkp-project-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.rkp-project-group-toggle {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 3px 4px;
+  border: 0;
+  background: transparent;
+  color: rgba(145, 255, 246, 0.82);
+  text-align: left;
+  box-shadow: none;
+}
+
+.rkp-project-group-toggle:hover { color: #91fff6; background: rgba(125, 249, 238, 0.06); }
+.rkp-project-group-toggle > span { font-size: 18px; line-height: 12px; }
+.rkp-project-group-toggle strong { font-size: 13px; }
+.rkp-project-group-toggle em {
+  min-width: 20px;
+  color: rgba(232, 245, 255, 0.45);
+  font-size: 12px;
+  font-style: normal;
+  text-align: center;
+}
+
+.rkp-project-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .rkp-project-card {

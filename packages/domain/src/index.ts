@@ -1,4 +1,5 @@
 export * from "./types/element.js";
+export * from "./types/workbench.js";
 export * from "./types/relation.js";
 export * from "./types/path.js";
 export * from "./types/signal.js";

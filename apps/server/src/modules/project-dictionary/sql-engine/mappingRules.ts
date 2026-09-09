@@ -143,6 +143,12 @@ export function validateDictionaryExtractionJsonRule(rule: DictionaryMappingJson
         errors.push(`${path}.group_aggregate aggregate 仅支持 sum/count/avg/min/max`);
       }
       break;
+    case "union_all":
+      if (!rule.branches?.length) errors.push(`${path}.union_all 缺少 branches`);
+      rule.branches?.forEach((branch, index) => {
+        if (!dictionaryEntityString(branch.source) && branch.value === undefined) errors.push(`${path}.union_all.branches[${index}] 缺少 source/value`);
+      });
+      break;
     case "relative_date_boundary":
       requireSource();
       if (rule.unit && !["day", "month", "year"].includes(rule.unit)) errors.push(`${path}.relative_date_boundary unit 仅支持 day/month/year`);

@@ -181,6 +181,18 @@ function validateDictionaryJsonRule(rule: DictionaryMappingJsonRule, path = "规
     case "concat":
       if (!rule.sources || rule.sources.length === 0) errors.push(`${path}.concat 缺少 sources`);
       break;
+    case "group_aggregate":
+      requireSource();
+      if (!/^(sum|count|avg|min|max)$/i.test(String(rule.aggregate || ""))) {
+        errors.push(`${path}.group_aggregate aggregate 仅支持 sum/count/avg/min/max`);
+      }
+      break;
+    case "union_all":
+      if (!rule.branches?.length) errors.push(`${path}.union_all 缺少 branches`);
+      rule.branches?.forEach((branch, index) => {
+        if (!isNonEmptyString(branch.source) && branch.value === undefined) errors.push(`${path}.union_all.branches[${index}] 缺少 source/value`);
+      });
+      break;
     case "code_mapping":
       requireSource();
       if (!rule.map || typeof rule.map !== "object" || Array.isArray(rule.map) || Object.keys(rule.map).length === 0) {

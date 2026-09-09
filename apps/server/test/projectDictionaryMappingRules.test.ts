@@ -5,8 +5,16 @@ import {
   parseDictionaryExtractionJsonRule,
   validateDictionaryExtractionJsonRule,
 } from "../src/modules/project-dictionary/sql-engine/mappingRules.js";
+import { dictionaryTableMappingStatus } from "../src/repos/ProjectManagementRepo.js";
 
 describe("project dictionary mapping rules", () => {
+  it("only marks a table as mapped when it has at least one effective mapping rule", () => {
+    expect(dictionaryTableMappingStatus(false, 0)).toBe("否");
+    expect(dictionaryTableMappingStatus(true, 0)).toBe("待补充");
+    expect(dictionaryTableMappingStatus(false, 1)).toBe("是");
+    expect(dictionaryTableMappingStatus(true, 1)).toBe("是");
+  });
+
   it("normalizes direct runtime references into param rules", () => {
     expect(parseDictionaryExtractionJsonRule('{"op":"direct","source":":reportDate"}')).toMatchObject({ op: "param", name: "reportDate" });
   });

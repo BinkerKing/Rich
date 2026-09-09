@@ -17,6 +17,7 @@ import { EventEmitter } from "node:events";
  * because the consumers always re-hydrate on any event anyway.
  */
 export type EventKind =
+  | "workbench.changed"
   | "element.changed"
   | "relation.changed"
   | "qa.changed"

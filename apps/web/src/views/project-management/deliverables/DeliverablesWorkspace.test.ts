@@ -6,6 +6,8 @@ const navigation = readFileSync(new URL("../ProjectManagementNavigation.tsx", im
 const workspace = readFileSync(new URL("../../ProjectWorkspace.tsx", import.meta.url), "utf8");
 const deliveryPlan = readFileSync(new URL("../delivery/DeliveryWorkspace.tsx", import.meta.url), "utf8");
 const deliverables = readFileSync(new URL("./DeliverablesWorkspace.tsx", import.meta.url), "utf8").replace(/\s+/g, " ");
+const deliverableModel = readFileSync(new URL("./DeliverablesModel.ts", import.meta.url), "utf8");
+const codexWorkbench = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
 const modules = readFileSync(new URL("../ProjectManagementModules.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../../ProjectsView.css", import.meta.url), "utf8");
 
@@ -22,9 +24,9 @@ test("项目计划不再维护正式交付物占位页", () => {
 
 test("交付物工作区采用需求说明左侧、记录右上、版本右下布局", () => {
   assert.match(deliverables, /ProjectRichTextEditor/);
-  assert.match(deliverables, /交付物需求说明/);
-  assert.match(deliverables, /交付物要求记录/);
-  assert.match(deliverables, /交付物版本/);
+  assert.match(deliverables, /<h2>需求说明<\/h2>/);
+  assert.match(deliverables, /<h2>记录<\/h2>/);
+  assert.match(deliverables, /<h2>版本与材料<\/h2>/);
 });
 
 test("项目计划中的交付物可以跳转并定位到对应工作台", () => {
@@ -32,6 +34,18 @@ test("项目计划中的交付物可以跳转并定位到对应工作台", () =>
   assert.match(deliveryPlan, /requestDeliverableFocus\(task.id, activity.id\)/);
   assert.match(workspace, /DELIVERABLE_FOCUS_EVENT/);
   assert.match(deliverables, /consumeDeliverableFocus\(projectId\)/);
+});
+
+test("勾选交付物时同步工作台状态并显示完成", () => {
+  assert.match(deliveryPlan, /async function syncLinkedDeliverableStatus\(projectId: string, taskId: string, activity: DeliveryActivity, done: boolean\)/);
+  assert.match(deliveryPlan, /status: done \? "accepted" : "preparing"/);
+  assert.match(deliveryPlan, /await syncLinkedDeliverableStatus\(projectId, task\.id, activity, !activity\.done\)/);
+  assert.match(deliverables, /accepted: "已完成"/);
+});
+
+test("切换交付物后，Codex 会话上下文同步为当前定位的交付物", () => {
+  assert.match(deliverables, /const item = items\.find\(candidate => candidate\.id === openId\); if \(item\) \{ setCodexItem\(item\); setCodexVisible\(current => !current\); \}/);
+  assert.doesNotMatch(deliverables, /setCodexItem\(current => current \?\? item\)/);
 });
 
 test("展开交付物后只渲染当前表头与工作台，再次点击表头回到完整列表", () => {
@@ -49,7 +63,7 @@ test("打开工作台时清理已失去任务交付物来源的历史关联记�
 });
 
 test("交付物需求说明的富文本编辑区填满卡片并在内部滚动", () => {
-  assert.match(modules, /<EditorContent editor=\{editor\} className="prj-pm-rich-content"\/>/);
+  assert.match(modules, /<EditorContent[\s\S]*editor=\{editor\}[\s\S]*className="prj-pm-rich-content"/);
   assert.match(styles, /\.deliverables-workspace__description > \.prj-pm-rich-editor \{ display:flex; flex:1 1 auto; flex-direction:column; min-height:0; height:0;/);
   assert.match(styles, /\.deliverables-workspace__description > \.prj-pm-rich-editor > \.prj-pm-rich-content \{ display:flex; flex:1 1 auto; min-height:0; overflow:hidden; \}/);
   assert.match(styles, /\.deliverables-workspace__description > \.prj-pm-rich-editor > \.prj-pm-rich-content > \.tiptap \{ flex:1 1 auto; min-height:0; max-height:none; overflow-y:auto;/);
@@ -90,9 +104,39 @@ test("交付物版本与材料展示目录内全部文件，并支持刷新", ()
   assert.match(deliverables, /const refreshFiles = async \(item: Item\) => \{/);
   assert.match(deliverables, /setLoadingFolders\(\(?all\)? => \(\{ \.\.\.all, \[item\.content\.folderPath\]: true \}\)\)/);
   assert.match(deliverables, /await api\.listDeliverableFiles\(\s*projectId, item\.content\.folderPath/);
-  assert.match(deliverables, /交付物版本与材料/);
+  assert.match(deliverables, /<h2>版本与材料<\/h2>/);
   assert.match(deliverables, /目录内的全部文件/);
   assert.match(deliverables, /file\.relativePath\.slice\(\s*item\.content\.folderPath\.length \+ 1/);
+});
+
+test("Codex 通过交付物 MCP 写入成功后，刷新当前交付物页面数据", () => {
+  assert.match(deliverableModel, /DELIVERABLE_DATA_CHANGED_EVENT/);
+  assert.match(deliverableModel, /notifyDeliverableDataChanged\(projectId: string, deliverableId: string\)/);
+  assert.match(codexWorkbench, /event === "tool" && data\.status === "succeeded" && isDeliverableWriteTool\(data\.name\)/);
+  assert.match(codexWorkbench, /notifyDeliverableDataChanged\(projectId, deliverableId\)/);
+  assert.match(deliverables, /window\.addEventListener\(DELIVERABLE_DATA_CHANGED_EVENT, refreshDeliverableData\)/);
+  assert.match(deliverables, /void refreshItems\(\);/);
+});
+
+test("Codex 对话消息、卡片和图片支持右键复制", () => {
+  assert.match(codexWorkbench, /onContextMenu=\{event => openMessageContextMenu\(event, message\.content\)\}/);
+  assert.match(codexWorkbench, /openMessageContextMenu\(event, message\.content, attachment\)/);
+  assert.match(codexWorkbench, /复制图片/);
+  assert.match(codexWorkbench, /navigator\.clipboard\.write\(/);
+});
+
+test("任务规则更新在本次发送时立即以规则卡片展示", () => {
+  assert.match(codexWorkbench, /kind\?: "task-mode-started" \| "task-mode-instruction" \| "task-mode-policy-updated"/);
+  assert.match(codexWorkbench, /event === "policy" && policyContent/);
+  assert.match(codexWorkbench, /kind: "task-mode-policy-updated"/);
+  assert.match(codexWorkbench, /message\.kind === "task-mode-policy-updated"/);
+});
+
+test("Codex 右键菜单限制在对话窗口内，并在滚动时关闭", () => {
+  assert.match(codexWorkbench, /const workbenchRef = useRef<HTMLElement>\(null\);/);
+  assert.match(codexWorkbench, /workbenchRef\.current\?\.getBoundingClientRect\(\)/);
+  assert.match(codexWorkbench, /element\?\.addEventListener\("scroll", closeOnScroll\)/);
+  assert.match(codexWorkbench, /event\.key === "Escape"/);
 });
 
 test("文件区标题下方的说明行不显示", () => {
@@ -143,7 +187,7 @@ test("交付物文件区支持拖拽多文件上传，刷新使用图标按钮",
   assert.match(deliverables, /onDrop=\{\(?event\)? => \{ event\.preventDefault\(\); setDraggingFiles\(false\); void upload\(item, Array\.from\(event\.dataTransfer\.files\)\); \}\}/);
   assert.match(deliverables, /const upload = async \(item: Item, files: File\[\]\)/);
   assert.match(deliverables, /className="deliverables-workspace__refresh" title="刷新文件清单"/);
-  assert.doesNotMatch(deliverables, /交付物版本与材料[\s\S]*?<input type="file"/);
+  assert.doesNotMatch(deliverables, /<h2>版本与材料<\/h2>[\s\S]*?<input type="file"/);
 });
 
 test("首次展开交付物时立即刷新文件清单并显示读取状态", () => {
@@ -158,6 +202,17 @@ test("交付物记录支持信息与材料，材料上传后进入交付物文�
   assert.match(deliverables, /api\.uploadDeliverableFile\(projectId, item\.content\.folderPath, file\)/);
   assert.match(deliverables, /updateDeliverableFileMeta\(content, uploaded\.relativePath, \{ type: "material", version: "" \}\)/);
   assert.match(deliverables, /添加附件\s*<input\s*ref=\{editingRecordId \? editingMaterialInputRef : materialInputRef\}\s*type="file"\s*multiple/);
+});
+
+test("交付物记录提供 Codex 操作记录和 AI 可选的决策、问题、风险类型", () => {
+  assert.match(deliverables, /<option value="decision">决策<\/option>/);
+  assert.match(deliverables, /<option value="issue">问题<\/option>/);
+  assert.match(deliverables, /<option value="risk">风险<\/option>/);
+  assert.match(deliverables, /<option value="codex">Codex<\/option>/);
+  assert.match(styles, /\.deliverables-workspace__record\.is-codex/);
+  assert.match(styles, /\.deliverables-workspace__record\.is-decision/);
+  assert.match(styles, /\.deliverables-workspace__record\.is-issue/);
+  assert.match(styles, /\.deliverables-workspace__record\.is-risk/);
 });
 
 test("每条交付物记录显示记录时间，并支持编辑和删除", () => {

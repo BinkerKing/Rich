@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type Dispatch, type DragEvent, type MouseEvent, type ReactNode, type SetStateAction, type WheelEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type Dispatch, type DragEvent, type MouseEvent, type ReactNode, type SetStateAction, type WheelEvent } from "react";
 import { api, type ProjectModuleItem } from "../../../api/client.js";
 import { actualStartDateFor, buildDeliveryDashboard, buildGanttRows, buildGanttTimelineRange, childTaskScheduleDefaults, china2026HolidayDates, ganttEndBoundary, ganttTimelineDates, plannedDueDate, syncDeliverySchedule, workingDaysBetween, type DeliveryItemKind, type DeliveryItemLike, type DeliveryItemStatus, type GanttCalendarMode } from "./DeliveryPlanModel.js";
-import { buildDeliveryExportRows, buildNativeGanttExport } from "./DeliveryPlanExport.js";
+import { buildDeliveryExportFilename, buildDeliveryExportRows, buildNativeGanttExport } from "./DeliveryPlanExport.js";
 import { deliverableFolderPath, linkedDeliverableContent, requestDeliverableFocus } from "../deliverables/DeliverablesModel.js";
 
 type DeliveryActivityKind = "record" | "todo" | "deliverable" | "risk" | "reminder" | "end";
@@ -27,6 +27,12 @@ function readHolidayDates(key: string): string[] {
     const dates = JSON.parse(window.localStorage.getItem(key) || "[]");
     return Array.isArray(dates) ? dates.filter((date): date is string => typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) : [];
   } catch { return []; }
+}
+async function syncLinkedDeliverableStatus(projectId: string, taskId: string, activity: DeliveryActivity, done: boolean) {
+  if (activity.kind !== "deliverable") return;
+  const linkedActivityKey = `${taskId}:${activity.id}`;
+  const deliverables = await api.listProjectManagementModuleItems(projectId, "deliverables", undefined, true);
+  await Promise.all(deliverables.filter(deliverable => deliverable.content.linkedActivityKey === linkedActivityKey).map(deliverable => api.updateProjectManagementModuleItem(projectId, deliverable.id, { content: { ...deliverable.content, status: done ? "accepted" : "preparing" } })));
 }
 function initializeHolidayDates(key: string): string[] {
   const dates = readHolidayDates(key);
@@ -63,7 +69,7 @@ function value(item: ProjectModuleItem, holidays: readonly string[] = []): Deliv
     }) : [];
     return [{ id: typeof entry.id === "string" ? entry.id : `${entry.createdAt}-${entry.text}`, kind: entry.kind, text: entry.text, createdAt: entry.createdAt, done: entry.done === true, completedAt: typeof entry.completedAt === "string" ? entry.completedAt : undefined, author: typeof entry.author === "string" ? entry.author : undefined, source: typeof entry.source === "string" ? entry.source : undefined, dueDate: typeof entry.dueDate === "string" ? entry.dueDate : undefined, previousStatus: entry.previousStatus === "todo" || entry.previousStatus === "doing" || entry.previousStatus === "blocked" || entry.previousStatus === "done" ? entry.previousStatus : undefined, previousDueDate: typeof entry.previousDueDate === "string" ? entry.previousDueDate : undefined, attachments }];
   }) : [];
-  const endedOn = activities.filter(activity => activity.kind === "end").map(activity => activity.createdAt.slice(0, 10)).sort().at(-1);
+  const endedOn = status === "done" ? activities.filter(activity => activity.kind === "end").map(activity => activity.createdAt.slice(0, 10)).sort().at(-1) : undefined;
   return {
     item, id: item.id, title: item.title.replace(/^(?:\d+(?:\.\d+)*|M\d+)\s+/, ""), status,
     startDate,
@@ -118,11 +124,19 @@ function deadlineText(value?: string) {
 }
 function deadlineUrgencyClass(value?: string) {
   const days = remainingDays(value);
-  return days !== undefined && days <= 3 && days >= 0 ? "is-critical" : days !== undefined && days <= 5 && days > 3 ? "is-near" : "";
+  return days !== undefined && days < 0 ? "is-overdue" : days !== undefined && days <= 3 ? "is-critical" : days !== undefined && days <= 5 ? "is-near" : "";
 }
 function kindLabel(kind: DeliveryItemKind) { return ({ phase: "阶段", group: "分组", task: "任务", milestone: "里程碑", risk: "风险点" } as const)[kind]; }
 function defaultTitle(kind: DeliveryItemKind) { return kind === "phase" ? "新阶段" : kind === "group" ? "新分组" : kind === "milestone" ? "新里程碑" : "新任务"; }
 function activityLabel(kind: DeliveryActivityKind) { return ({ record: "记录", todo: "待办", deliverable: "交付物", risk: "风险", reminder: "催办", end: "结束" } as const)[kind]; }
+function pastedImageFiles(event: ClipboardEvent<HTMLInputElement>) {
+  return Array.from(event.clipboardData.items).flatMap(item => {
+    if (!item.type.startsWith("image/")) return [];
+    const file = item.getAsFile();
+    return file ? [file] : [];
+  });
+}
+function isImageAttachment(file: DeliveryAttachment) { return /\.(?:png|jpe?g|gif|webp|svg)$/i.test(file.name); }
 
 export function ProjectDashboard({ projectId, onOpenPlan, deliverablesRoot }: { projectId: string; onOpenPlan: () => void; deliverablesRoot?: string }): ReactNode {
   const [items, setItems] = useState<DeliveryItem[]>([]);
@@ -159,27 +173,28 @@ export function ProjectDashboard({ projectId, onOpenPlan, deliverablesRoot }: { 
   };
   useEffect(() => { void load(); }, [projectId]);
   const taskRows = useMemo(() => buildGanttRows(items, isoToday()), [items]);
-  const actionItems = taskRows.filter(row => row.kind === "task" && (row.status === "doing" || (row.status === "todo" && row.startDate === isoToday()) || row.endedOn === isoToday()) && (!row.endedOn || row.endedOn === isoToday()) && row.item.content.dashboardHidden !== true).sort((left, right) => {
+  const actionItems = taskRows.filter(row => row.kind === "task" && (row.status === "doing" || plannedDueDate(row) === isoToday() || row.endedOn === isoToday()) && (!row.endedOn || row.endedOn === isoToday()) && row.item.content.dashboardHidden !== true).sort((left, right) => {
     const leftEnded = left.endedOn === isoToday() ? 1 : 0;
     const rightEnded = right.endedOn === isoToday() ? 1 : 0;
     if (leftEnded !== rightEnded) return leftEnded - rightEnded;
     return (plannedDueDate(left) || "9999-12-31").localeCompare(plannedDueDate(right) || "9999-12-31");
   });
   const allActivities = actionItems.flatMap(task => task.activities.map(activity => ({ ...activity, task }))).sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-  const todayActivities = allActivities.filter(activity => activity.createdAt.slice(0, 10) === isoToday() || activity.completedAt?.slice(0, 10) === isoToday() || (activity.kind === "todo" && !activity.done));
+  const todayActivities = allActivities.filter(activity => activity.createdAt.slice(0, 10) === isoToday() || activity.completedAt?.slice(0, 10) === isoToday() || (activity.kind === "todo" && !activity.done) || (activity.kind === "risk" && (!activity.done || activity.completedAt?.slice(0, 10) === isoToday())));
   const activityFeed = (showAllActivities ? allActivities : todayActivities).filter(activity => activityFilter === "all" || activity.kind === activityFilter);
-  const todos = allActivities.filter(activity => (activity.kind === "todo" || activity.kind === "deliverable") && (!activity.done || activity.completedAt?.slice(0, 10) === isoToday()));
+  const todos = allActivities.filter(activity => (activity.kind === "todo" || activity.kind === "deliverable") && (!activity.done || isToday(activity.completedAt)));
   const pendingTodos = todos.filter(activity => !activity.done);
-  const risks = allActivities.filter(activity => activity.kind === "risk");
+  const risks = allActivities.filter(activity => activity.kind === "risk" && (!activity.done || activity.completedAt?.slice(0, 10) === isoToday()));
+  const pendingRisks = risks.filter(activity => !activity.done);
   const completedToday = allActivities.filter(activity => activity.kind === "todo" && activity.done && activity.createdAt.slice(0, 10) === isoToday()).length;
   const itemsById = new Map(items.map(item => [item.id, item]));
   const pathFor = (task: DeliveryItem) => { const path: string[] = []; let parent = task.parentId ? itemsById.get(task.parentId) : undefined; while (parent) { path.unshift(parent.title); parent = parent.parentId ? itemsById.get(parent.parentId) : undefined; } return path.join(" / "); };
   const addActivity = async (task: DeliveryItem) => {
-    const text = activityText.trim(); if (!text) return;
+    const text = activityText.trim(); if (!text && activityFiles.length === 0) return;
     setSavingActivity(true);
     try {
       const attachments = await api.uploadAttachments(task.id, activityFiles);
-      const activity: DeliveryActivity = { id: crypto.randomUUID(), kind: activityKind, text, createdAt: new Date().toISOString(), author: task.owner || "我", dueDate: activityKind === "todo" ? task.dueDate : undefined, previousStatus: activityKind === "end" ? task.status : undefined, previousDueDate: activityKind === "end" ? task.dueDate : undefined, attachments };
+      const activity: DeliveryActivity = { id: crypto.randomUUID(), kind: activityKind, text: text || "图片附件", createdAt: new Date().toISOString(), author: task.owner || "我", dueDate: activityKind === "todo" ? task.dueDate : undefined, previousStatus: activityKind === "end" ? task.status : undefined, previousDueDate: activityKind === "end" ? task.dueDate : undefined, attachments };
       const updated = await api.updateProjectManagementModuleItem(projectId, task.id, { content: { ...task.item.content, status: activityKind === "end" ? "done" : task.status, dueDate: activityKind === "end" ? isoToday() : task.item.content.dueDate, activities: [...task.activities, activity] } });
       if (activity.kind === "deliverable") {
         const taskCode = taskRows.find(row => row.id === task.id)?.wbsCode || String((task.sortOrder ?? 0) + 1);
@@ -193,8 +208,10 @@ export function ProjectDashboard({ projectId, onOpenPlan, deliverablesRoot }: { 
     } finally { setSavingActivity(false); }
   };
   const updateTodo = async (task: DeliveryItem, activityId: string) => {
+    const activity = task.activities.find(candidate => candidate.id === activityId);
     const activities = task.activities.map(activity => activity.id === activityId ? { ...activity, done: !activity.done, completedAt: activity.done ? undefined : new Date().toISOString() } : activity);
     const updated = await api.updateProjectManagementModuleItem(projectId, task.id, { content: { ...task.item.content, activities } });
+    if (activity) await syncLinkedDeliverableStatus(projectId, task.id, activity, !activity.done);
     setItems(current => current.map(item => item.id === task.id ? value(updated) : item));
   };
   const updateActivityText = async (task: DeliveryItem, activityId: string, text: string) => {
@@ -202,6 +219,13 @@ export function ProjectDashboard({ projectId, onOpenPlan, deliverablesRoot }: { 
     const activity = task.activities.find(candidate => candidate.id === activityId);
     if (!activity || !nextText || nextText === activity.text) return;
     const activities = task.activities.map(candidate => candidate.id === activityId ? { ...candidate, text: nextText } : candidate);
+    const updated = await api.updateProjectManagementModuleItem(projectId, task.id, { content: { ...task.item.content, activities } });
+    setItems(current => current.map(item => item.id === task.id ? value(updated) : item));
+  };
+  const addActivityAttachments = async (task: DeliveryItem, activityId: string, files: File[]) => {
+    const attachments = await api.uploadAttachments(task.id, files);
+    if (!attachments.length) return;
+    const activities = task.activities.map(activity => activity.id === activityId ? { ...activity, attachments: [...(activity.attachments || []), ...attachments] } : activity);
     const updated = await api.updateProjectManagementModuleItem(projectId, task.id, { content: { ...task.item.content, activities } });
     setItems(current => current.map(item => item.id === task.id ? value(updated) : item));
   };
@@ -231,16 +255,20 @@ export function ProjectDashboard({ projectId, onOpenPlan, deliverablesRoot }: { 
   return <section className="delivery delivery--dashboard">
     <div className="delivery-dashboard-top">
       <DashboardHeader/>
-      <div className="delivery-dashboard-kpis"><DashboardKpi icon="▣" tone="blue" label="待跟进" value={actionItems.length}/><DashboardKpi icon="▤" tone="amber" label="待办" value={pendingTodos.length}/><DashboardKpi icon="⚠" tone="red" label="风险" value={risks.length}/><DashboardKpi icon="✓" tone="teal" label="已完成" value={completedToday}/></div>
+      <div className="delivery-dashboard-kpis"><DashboardKpi icon="▣" tone="blue" label="待跟进" value={actionItems.length}/><DashboardKpi icon="▤" tone="amber" label="待办" value={pendingTodos.length}/><DashboardKpi icon="⚠" tone="red" label="风险" value={pendingRisks.length}/><DashboardKpi icon="✓" tone="teal" label="已完成" value={completedToday}/></div>
     </div>
     <div className="delivery-dashboard-grid">
       <main className="delivery-dashboard-main">
-        <section className="delivery-dashboard-tasks"><h2>今日需要处理</h2>{actionItems.length ? actionItems.map((task, index) => <DashboardTask key={task.id} task={task} index={index} expanded={expandedTaskId === task.id} path={pathFor(task)} activityKind={activityKind} activityText={activityText} activityFiles={activityFiles} saving={savingActivity} onToggle={() => setExpandedTaskId(current => current === task.id ? undefined : task.id)} onKindChange={setActivityKind} onTextChange={setActivityText} onAdd={() => void addActivity(task)} onToggleTodo={activityId => void updateTodo(task, activityId)} onSaveActivityText={(activityId, text) => updateActivityText(task, activityId, text)} onActivityMenu={(event, activityId) => openActivityMenu(event, task, activityId)} onSelectFiles={selectFiles} onRemoveFile={fileIndex => setActivityFiles(files => files.filter((_, index) => index !== fileIndex))} onOpenFilePicker={() => fileInputRef.current?.click()} onEmoji={appendEmoji} fileInputRef={fileInputRef}/>) : <DashboardEmpty text="当前没有进行中的任务。"/>}</section>
+        <section className="delivery-dashboard-tasks"><h2>今日需要处理</h2>{actionItems.length ? actionItems.map((task, index) => <DashboardTask key={task.id} task={task} index={index} expanded={expandedTaskId === task.id} path={pathFor(task)} activityKind={activityKind} activityText={activityText} activityFiles={activityFiles} saving={savingActivity} onToggle={() => setExpandedTaskId(current => current === task.id ? undefined : task.id)} onKindChange={setActivityKind} onTextChange={setActivityText} onAdd={() => void addActivity(task)} onToggleTodo={activityId => void updateTodo(task, activityId)} onSaveActivityText={(activityId, text) => updateActivityText(task, activityId, text)} onAddAttachments={(activityId, files) => addActivityAttachments(task, activityId, files)} onActivityMenu={(event, activityId) => openActivityMenu(event, task, activityId)} onSelectFiles={selectFiles} onPasteFiles={files => setActivityFiles(current => [...current, ...files])} onRemoveFile={fileIndex => setActivityFiles(files => files.filter((_, index) => index !== fileIndex))} onOpenFilePicker={() => fileInputRef.current?.click()} onEmoji={appendEmoji} fileInputRef={fileInputRef}/>) : <DashboardEmpty text="当前没有进行中的任务。"/>}</section>
       </main>
       <aside className="delivery-dashboard-side">
-        <section className="delivery-dashboard-panel delivery-dashboard-feed"><header><h2>今日动态</h2><button type="button" onClick={() => setShowAllActivities(current => !current)}>{showAllActivities ? "只看今天" : "查看全部动态"} ›</button></header><nav>{(["all", "record", "todo", "deliverable", "risk", "reminder", "end"] as const).map(kind => <button key={kind} className={activityFilter === kind ? "is-active" : ""} type="button" onClick={() => setActivityFilter(kind)}>{kind === "all" ? "全部" : activityLabel(kind)}</button>)}</nav><div className="delivery-dashboard-feed__list">{activityFeed.length ? activityFeed.slice(0, showAllActivities ? undefined : 5).map(activity => <ActivityFeedRow key={`${activity.task.id}-${activity.id}`} activity={activity} onSaveText={text => updateActivityText(activity.task, activity.id, text)} onContextMenu={event => openActivityMenu(event, activity.task, activity.id)}/>) : <DashboardEmpty text={showAllActivities ? "暂无项目动态。" : "今天还没有新的动态。"}/>}</div></section>
-        <DashboardSummary title="待办清单" count={pendingTodos.length} onOpen={() => { setActivityFilter("all"); setShowAllActivities(true); }} empty="暂无待办" items={todos.slice(0, 3).map(activity => <button type="button" className={`delivery-dashboard-summary__todo ${activity.done ? "is-done" : ""}`} onClick={() => void updateTodo(activity.task, activity.id)}><i>{activity.done ? "✓" : ""}</i><span><b className={activity.kind === "deliverable" ? "is-deliverable" : "is-event"}>{activity.kind === "deliverable" ? "交付物：" : "事件："}</b>{activity.text}</span><time>{activity.done ? "已完成" : `截止 ${dateText(activity.dueDate || activity.task.dueDate)} ${activity.dueDate || activity.task.dueDate ? "18:00" : ""}`}</time></button>)}/>
-        <DashboardSummary title="风险提醒" count={risks.length} onOpen={() => { setActivityFilter("risk"); setShowAllActivities(true); }} empty="暂无风险" items={risks.slice(0, 1).map(activity => <article className="delivery-dashboard-summary__risk"><b>⚠</b><span>{activity.text}<small>问题{actionItems.findIndex(task => task.id === activity.task.id) + 1}</small><em>发生于 {timeText(activity.createdAt)}</em></span></article>)}/>
+        <section className="delivery-dashboard-panel delivery-dashboard-feed"><header><h2>今日动态</h2><button type="button" onClick={() => setShowAllActivities(current => !current)}>{showAllActivities ? "只看今天" : "查看全部动态"} ›</button></header><nav>{(["all", "record", "todo", "deliverable", "risk", "reminder", "end"] as const).map(kind => <button key={kind} className={activityFilter === kind ? "is-active" : ""} type="button" onClick={() => setActivityFilter(kind)}>{kind === "all" ? "全部" : activityLabel(kind)}</button>)}</nav><div className="delivery-dashboard-feed__list">{activityFeed.length ? activityFeed.slice(0, showAllActivities ? undefined : 5).map(activity => <ActivityFeedRow key={`${activity.task.id}-${activity.id}`} activity={activity} onSaveText={text => updateActivityText(activity.task, activity.id, text)} onAddAttachments={files => addActivityAttachments(activity.task, activity.id, files)} onContextMenu={event => openActivityMenu(event, activity.task, activity.id)}/>) : <DashboardEmpty text={showAllActivities ? "暂无项目动态。" : "今天还没有新的动态。"}/>}</div></section>
+        <DashboardSummary title="待办清单" count={pendingTodos.length} onOpen={() => { setActivityFilter("all"); setShowAllActivities(true); }} empty="暂无待办" items={todos.map(activity => <div key={activity.id} className={`delivery-dashboard-summary__todo ${activity.kind === "deliverable" ? "is-deliverable" : ""} ${activity.done ? "is-done" : ""}`}>
+          <button type="button" className="delivery-dashboard-summary__todo-toggle" aria-label={activity.done ? "取消完成" : "完成待办"} onClick={() => void updateTodo(activity.task, activity.id)}>{activity.done ? "✓" : ""}</button>
+          <span><b className={activity.kind === "deliverable" ? "is-deliverable" : "is-event"}>{activity.kind === "deliverable" ? "交付物：" : "事件："}</b>{activity.text}</span>
+          {activity.kind === "deliverable" && <div className="delivery-dashboard-summary__todo-actions"><button type="button" className="delivery-dashboard-summary__todo-open" aria-label="打开交付物" title="打开交付物" onClick={() => requestDeliverableFocus(activity.task.id, activity.id)}>↗</button></div>}
+        </div>)}/>
+        <DashboardSummary title="风险提醒" count={pendingRisks.length} onOpen={() => { setActivityFilter("risk"); setShowAllActivities(true); }} empty="暂无风险" items={risks.slice(0, 1).map(activity => <button type="button" className={`delivery-dashboard-summary__risk ${activity.done ? "is-done" : ""}`} onClick={() => void updateTodo(activity.task, activity.id)}><i>{activity.done ? "✓" : ""}</i><span><b>风险：</b>{activity.text}<small>问题{actionItems.findIndex(task => task.id === activity.task.id) + 1}</small></span><time>{activity.done ? "已关闭" : `发生于 ${timeText(activity.createdAt)}`}</time></button>)}/>
       </aside>
     </div>{activityMenu && <div ref={activityMenuRef} className="delivery-dashboard-activity-menu" style={{ left: activityMenu.x, top: activityMenu.y }}><button type="button" onClick={() => void deleteActivity(activityMenu.task, activityMenu.activityId)}>删除</button></div>}
   </section>;
@@ -259,26 +287,35 @@ function timeText(value: string) {
   if (date.toLocaleDateString("en-CA") === isoToday()) return time;
   return `${date.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" })} ${time}`;
 }
-function DashboardTask({ task, index, expanded, path, activityKind, activityText, activityFiles, saving, onToggle, onKindChange, onTextChange, onAdd, onToggleTodo, onSaveActivityText, onActivityMenu, onSelectFiles, onRemoveFile, onOpenFilePicker, onEmoji, fileInputRef }: { task: DeliveryItem; index: number; expanded: boolean; path: string; activityKind: DeliveryActivityKind; activityText: string; activityFiles: File[]; saving: boolean; onToggle: () => void; onKindChange: (kind: DeliveryActivityKind) => void; onTextChange: (value: string) => void; onAdd: () => void; onToggleTodo: (activityId: string) => void; onSaveActivityText: (activityId: string, text: string) => Promise<void>; onActivityMenu: (event: MouseEvent<HTMLElement>, activityId: string) => void; onSelectFiles: (event: ChangeEvent<HTMLInputElement>) => void; onRemoveFile: (index: number) => void; onOpenFilePicker: () => void; onEmoji: () => void; fileInputRef: React.RefObject<HTMLInputElement> }) {
-  const taskRisks = task.activities.filter(activity => activity.kind === "risk").length;
+function isToday(value?: string) { return Boolean(value) && new Date(value!).toLocaleDateString("en-CA") === isoToday(); }
+function DashboardTask({ task, index, expanded, path, activityKind, activityText, activityFiles, saving, onToggle, onKindChange, onTextChange, onAdd, onToggleTodo, onSaveActivityText, onAddAttachments, onActivityMenu, onSelectFiles, onPasteFiles, onRemoveFile, onOpenFilePicker, onEmoji, fileInputRef }: { task: DeliveryItem; index: number; expanded: boolean; path: string; activityKind: DeliveryActivityKind; activityText: string; activityFiles: File[]; saving: boolean; onToggle: () => void; onKindChange: (kind: DeliveryActivityKind) => void; onTextChange: (value: string) => void; onAdd: () => void; onToggleTodo: (activityId: string) => void; onSaveActivityText: (activityId: string, text: string) => Promise<void>; onAddAttachments: (activityId: string, files: File[]) => Promise<void>; onActivityMenu: (event: MouseEvent<HTMLElement>, activityId: string) => void; onSelectFiles: (event: ChangeEvent<HTMLInputElement>) => void; onPasteFiles: (files: File[]) => void; onRemoveFile: (index: number) => void; onOpenFilePicker: () => void; onEmoji: () => void; fileInputRef: React.RefObject<HTMLInputElement> }) {
+  const taskRisks = task.activities.filter(activity => activity.kind === "risk" && !activity.done).length;
   const todayRecordCount = task.activities.filter(activity => activity.kind === "record" && activity.createdAt.slice(0, 10) === isoToday()).length;
   const pendingTodos = task.activities.filter(activity => activity.kind === "todo" && !activity.done).length;
   const pendingDeliverables = task.activities.filter(activity => activity.kind === "deliverable" && !activity.done).length;
   const deadline = task.endedOn ? "已结束" : plannedDueDate(task);
-  return <article className={`delivery-dashboard-task is-${task.status} ${expanded ? "is-expanded" : ""}`}><button type="button" className="delivery-dashboard-task__head" onClick={onToggle}><b>{index + 1}</b><span><strong>{task.title}</strong><small>{path || "未归属分组"}</small></span><div className="delivery-dashboard-task__badges">{todayRecordCount > 0 && <i className="is-record">今日记录 {todayRecordCount}</i>}{pendingTodos > 0 && <i className="is-todo">待办 {pendingTodos}</i>}{pendingDeliverables > 0 && <i className="is-deliverable">交付物 {pendingDeliverables}</i>}{taskRisks > 0 && <i className="is-risk">风险 {taskRisks}</i>}</div><time className={expanded || task.endedOn ? undefined : deadlineUrgencyClass(deadline)}>{task.endedOn ? "已结束" : expanded ? <>截止日期 <em>{dateText(deadline)}</em></> : deadlineText(deadline)}</time></button>{expanded && <div className="delivery-dashboard-task__body"><div className="delivery-dashboard-timeline">{task.activities.length ? task.activities.slice().sort((left, right) => left.createdAt.localeCompare(right.createdAt)).map(activity => <ActivityCard key={activity.id} activity={activity} task={task} onSaveText={text => onSaveActivityText(activity.id, text)} onToggleTodo={onToggleTodo} onContextMenu={event => onActivityMenu(event, activity.id)}/>) : <DashboardEmpty text="尚无动态，添加第一条记录。"/>}</div><div className="delivery-dashboard-composer"><select value={activityKind} onChange={event => onKindChange(event.target.value as DeliveryActivityKind)}>{(["record", "todo", "deliverable", "risk", "reminder", "end"] as const).map(kind => <option key={kind} value={kind}>{activityLabel(kind)}</option>)}</select><div><input value={activityText} onChange={event => onTextChange(event.target.value)} onKeyDown={event => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") onAdd(); }} placeholder="添加记录、待办、交付物、风险、催办或结束说明…"/><button type="button" onClick={onOpenFilePicker} title="添加附件">⌕</button><button type="button" onClick={onEmoji} title="添加表情">☺</button><input ref={fileInputRef} className="delivery-dashboard-file-input" type="file" multiple onChange={onSelectFiles}/></div><button type="button" disabled={!activityText.trim() || saving} onClick={onAdd}>{saving ? "发布中…" : "发布"}</button>{activityFiles.length > 0 && <aside>{activityFiles.map((file, fileIndex) => <span key={`${file.name}-${fileIndex}`}>{file.name}<button type="button" onClick={() => onRemoveFile(fileIndex)}>×</button></span>)}</aside>}</div></div>}</article>;
+  return <article className={`delivery-dashboard-task is-${task.status} ${expanded ? "is-expanded" : ""}`}><button type="button" className="delivery-dashboard-task__head" onClick={onToggle}><b>{index + 1}</b><span><strong>{task.title}</strong><small>{path || "未归属分组"}</small></span><div className="delivery-dashboard-task__badges">{todayRecordCount > 0 && <i className="is-record">今日记录 {todayRecordCount}</i>}{pendingTodos > 0 && <i className="is-todo">待办 {pendingTodos}</i>}{pendingDeliverables > 0 && <i className="is-deliverable">交付物 {pendingDeliverables}</i>}{taskRisks > 0 && <i className="is-risk">风险 {taskRisks}</i>}</div><time className={expanded || task.endedOn ? undefined : deadlineUrgencyClass(deadline)}>{task.endedOn ? "已结束" : expanded ? <>截止日期 <em>{dateText(deadline)}</em></> : deadlineText(deadline)}</time></button>{expanded && <div className="delivery-dashboard-task__body"><div className="delivery-dashboard-timeline">{task.activities.length ? task.activities.slice().sort((left, right) => left.createdAt.localeCompare(right.createdAt)).map(activity => <ActivityCard key={activity.id} activity={activity} task={task} onSaveText={text => onSaveActivityText(activity.id, text)} onAddAttachments={files => onAddAttachments(activity.id, files)} onToggleTodo={onToggleTodo} onContextMenu={event => onActivityMenu(event, activity.id)}/>) : <DashboardEmpty text="尚无动态，添加第一条记录。"/>}</div><div className="delivery-dashboard-composer"><select value={activityKind} onChange={event => onKindChange(event.target.value as DeliveryActivityKind)}>{(["record", "todo", "deliverable", "risk", "reminder", "end"] as const).map(kind => <option key={kind} value={kind}>{activityLabel(kind)}</option>)}</select><div><input value={activityText} onChange={event => onTextChange(event.target.value)} onPaste={event => { const pastedFiles = pastedImageFiles(event); if (pastedFiles.length) { event.preventDefault(); onPasteFiles(pastedFiles); } }} onKeyDown={event => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") onAdd(); }} placeholder="添加记录、待办、交付物、风险、催办或结束说明…"/><button type="button" onClick={onOpenFilePicker} title="添加附件">⌕</button><button type="button" onClick={onEmoji} title="添加表情">☺</button><input ref={fileInputRef} className="delivery-dashboard-file-input" type="file" multiple onChange={onSelectFiles}/></div><button type="button" disabled={(!activityText.trim() && activityFiles.length === 0) || saving} onClick={onAdd}>{saving ? "发布中…" : "发布"}</button>{activityFiles.length > 0 && <aside>{activityFiles.map((file, fileIndex) => <span key={`${file.name}-${fileIndex}`}>{file.name}<button type="button" onClick={() => onRemoveFile(fileIndex)}>×</button></span>)}</aside>}</div></div>}</article>;
 }
-function EditableActivityText({ text, onSave }: { text: string; onSave: (text: string) => Promise<void> }) {
+function EditableActivityText({ text, onSave, onAddAttachments }: { text: string; onSave: (text: string) => Promise<void>; onAddAttachments: (files: File[]) => Promise<void> }) {
   const [draft, setDraft] = useState(text); const [editing, setEditing] = useState(false); const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { if (!editing) setDraft(text); }, [text, editing]);
   useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
   const save = () => { setEditing(false); void onSave(draft); };
-  return editing ? <input ref={inputRef} className="delivery-dashboard-activity__edit" value={draft} onChange={event => setDraft(event.target.value)} onBlur={save} onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setDraft(text); setEditing(false); } }}/> : <strong title="双击编辑" onDoubleClick={() => setEditing(true)}>{text}</strong>;
+  return editing ? <input ref={inputRef} className="delivery-dashboard-activity__edit" value={draft} onChange={event => setDraft(event.target.value)} onPaste={event => { const pastedFiles = pastedImageFiles(event); if (pastedFiles.length) { event.preventDefault(); void onAddAttachments(pastedFiles); } }} onBlur={save} onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setDraft(text); setEditing(false); } }}/> : <strong title="双击编辑" onDoubleClick={() => setEditing(true)}>{text}</strong>;
 }
-function ActivityCard({ activity, task, onSaveText, onToggleTodo, onContextMenu }: { activity: DeliveryActivity; task: DeliveryItem; onSaveText: (text: string) => Promise<void>; onToggleTodo: (activityId: string) => void; onContextMenu: (event: MouseEvent<HTMLElement>) => void }) { const actionable = activity.kind === "todo" || activity.kind === "deliverable"; return <article className={`delivery-dashboard-activity is-${activity.kind} ${activity.done ? "is-done" : ""}`} onContextMenu={onContextMenu}><time>{timeText(activity.createdAt)}</time><i/><div><header><b>{actionable && activity.done ? "已完成" : activityLabel(activity.kind)}</b><EditableActivityText text={activity.text} onSave={onSaveText}/>{activity.kind === "deliverable" && <button type="button" className="delivery-dashboard-open-deliverable" aria-label="打开交付物工作台" title="打开交付物工作台" onClick={() => requestDeliverableFocus(task.id, activity.id)}>↗</button>}{actionable ? <button type="button" className="delivery-dashboard-check" aria-label={activity.done ? "取消完成" : "完成待办"} onClick={() => onToggleTodo(activity.id)}>{activity.done ? "✓" : ""}</button> : <button type="button" aria-label="更多操作">•••</button>}</header>{activity.attachments?.length ? <aside>{activity.attachments.map(file => <a key={file.src} href={file.src} target="_blank" rel="noreferrer">⌕ {file.name}</a>)}</aside> : null}</div></article>; }
-function ActivityFeedRow({ activity, onSaveText, onContextMenu }: { activity: DeliveryActivity & { task: DeliveryItem }; onSaveText: (text: string) => Promise<void>; onContextMenu: (event: MouseEvent<HTMLElement>) => void }) { const actionable = activity.kind === "todo" || activity.kind === "deliverable"; return <article className={`delivery-dashboard-feed-row is-${activity.kind} ${activity.done ? "is-done" : ""}`} onContextMenu={onContextMenu}><time>{timeText(activity.done && activity.completedAt ? activity.completedAt : activity.createdAt)}</time><i/><div><b>{actionable && activity.done ? "已完成" : activityLabel(activity.kind)}</b><EditableActivityText text={activity.text} onSave={onSaveText}/><small>{activity.task.title} · {activity.author || activity.task.owner || "我"}</small></div><em>{timeText(activity.done && activity.completedAt ? activity.completedAt : activity.createdAt)}</em></article>; }
+function ActivityAttachments({ attachments }: { attachments: DeliveryAttachment[] }) {
+  return <aside className="delivery-dashboard-activity__attachments">{attachments.map(file => isImageAttachment(file)
+    ? <button key={file.src} type="button" className="delivery-dashboard-activity__attachment is-image" aria-label={`放大查看 ${file.name}`} onClick={() => window.dispatchEvent(new CustomEvent("ke-lightbox-open", { detail: { src: file.src, alt: file.name } }))}><img src={file.src} alt={file.name}/></button>
+    : <a key={file.src} className="delivery-dashboard-activity__attachment" href={file.src} target="_blank" rel="noreferrer">⌕ {file.name}</a>)}</aside>;
+}
+function ActivityCard({ activity, task, onSaveText, onAddAttachments, onToggleTodo, onContextMenu, compact }: { activity: DeliveryActivity; task: DeliveryItem; onSaveText: (text: string) => Promise<void>; onAddAttachments: (files: File[]) => Promise<void>; onToggleTodo: (activityId: string) => void; onContextMenu: (event: MouseEvent<HTMLElement>) => void; compact?: boolean }) {
+  const actionable = activity.kind === "todo" || activity.kind === "deliverable" || activity.kind === "risk";
+  return <article className={`delivery-dashboard-activity is-${activity.kind} ${activity.done ? "is-done" : ""}`} onContextMenu={onContextMenu}><time>{timeText(activity.createdAt)}</time><i/><div><header><b>{activity.kind === "risk" && activity.done ? "已关闭" : actionable && activity.done ? "已完成" : activityLabel(activity.kind)}</b><EditableActivityText text={activity.text} onSave={onSaveText} onAddAttachments={onAddAttachments}/>{activity.kind === "deliverable" && <button type="button" className="delivery-dashboard-open-deliverable" aria-label="打开交付物工作台" title="打开交付物工作台" onClick={() => requestDeliverableFocus(task.id, activity.id)}>↗</button>}{actionable ? <button type="button" className="delivery-dashboard-check" aria-label={activity.kind === "risk" ? activity.done ? "重新打开风险" : "关闭风险" : activity.done ? "取消完成" : "完成待办"} onClick={() => onToggleTodo(activity.id)}>{activity.done ? "✓" : ""}</button> : !compact && <button type="button" aria-label="更多操作">•••</button>}</header>{activity.attachments?.length ? <ActivityAttachments attachments={activity.attachments}/> : null}</div></article>;
+}
+function ActivityFeedRow({ activity, onSaveText, onAddAttachments, onContextMenu }: { activity: DeliveryActivity & { task: DeliveryItem }; onSaveText: (text: string) => Promise<void>; onAddAttachments: (files: File[]) => Promise<void>; onContextMenu: (event: MouseEvent<HTMLElement>) => void }) { const actionable = activity.kind === "todo" || activity.kind === "deliverable" || activity.kind === "risk"; return <article className={`delivery-dashboard-feed-row is-${activity.kind} ${activity.done ? "is-done" : ""}`} onContextMenu={onContextMenu}><time>{timeText(activity.done && activity.completedAt ? activity.completedAt : activity.createdAt)}</time><i/><div><b>{activity.kind === "risk" && activity.done ? "已关闭" : actionable && activity.done ? "已完成" : activityLabel(activity.kind)}</b><EditableActivityText text={activity.text} onSave={onSaveText} onAddAttachments={onAddAttachments}/>{activity.attachments?.length ? <ActivityAttachments attachments={activity.attachments}/> : null}<small>{activity.task.title} · {activity.author || activity.task.owner || "我"}</small></div><em>{timeText(activity.done && activity.completedAt ? activity.completedAt : activity.createdAt)}</em></article>; }
 function DashboardSummary({ title, count, onOpen, empty, items }: { title: string; count: number; onOpen: () => void; empty: string; items: ReactNode[] }) { return <section className="delivery-dashboard-panel delivery-dashboard-summary"><header><h2>{title}</h2><button type="button" onClick={onOpen}>查看全部</button></header>{items.length ? <div>{items}</div> : <DashboardEmpty text={empty}/>}</section>; }
 
-export function DeliveryPlanWorkspace({ projectId }: { projectId: string }): ReactNode {
+export function DeliveryPlanWorkspace({ projectId, projectName, deliverablesRoot }: { projectId: string; projectName?: string; deliverablesRoot?: string }): ReactNode {
   const viewStorageKey = `rich:delivery-plan:${projectId}:view`;
   const ganttExpansionStorageKey = `rich:delivery-plan:${projectId}:gantt-expansion`;
   const holidayStorageKey = `rich:delivery-plan:${projectId}:holidays`;
@@ -297,13 +334,6 @@ export function DeliveryPlanWorkspace({ projectId }: { projectId: string }): Rea
     });
     setItems(current => [...current, value(created)]);
   };
-  const addRisk = async (parent: DeliveryItem) => {
-    const created = await api.createProjectManagementModuleItem(projectId, "deliveryPlan", {
-      title: "新风险点", parentId: parent.id, sortOrder: items.length,
-      content: { recordType: "delivery-item", kind: "risk", status: "todo", startDate: parent.startDate, dueDate: parent.dueDate, baselineDueDate: parent.baselineDueDate },
-    });
-    setItems(current => [...current, value(created)]);
-  };
   const addChildTask = async (parent: DeliveryItem) => {
     const schedule = childTaskScheduleDefaults(parent.startDate, isoToday(), holidays);
     const created = await api.createProjectManagementModuleItem(projectId, "deliveryPlan", {
@@ -313,6 +343,57 @@ export function DeliveryPlanWorkspace({ projectId }: { projectId: string }): Rea
     setItems(current => [...current, value(created)]);
   };
   const patch = async (row: DeliveryItem, patchValue: Partial<DeliveryItemLike>) => { const schedule = syncDeliverySchedule(row, patchValue, holidays); const content = { ...row.item.content, ...patchValue, ...schedule }; const updated = await api.updateProjectManagementModuleItem(projectId, row.id, { title: patchValue.title ?? row.title, content }); setItems(current => current.map(item => item.id === row.id ? value(updated) : item)); };
+  const addActivity = async (task: DeliveryItem, kind: DeliveryActivityKind, text: string, files: File[]) => {
+    const nextText = text.trim();
+    if (!nextText && files.length === 0) return;
+    const attachments = await api.uploadAttachments(task.id, files);
+    const activity: DeliveryActivity = { id: crypto.randomUUID(), kind, text: nextText || "图片附件", createdAt: new Date().toISOString(), author: task.owner || "我", dueDate: kind === "todo" ? task.dueDate : undefined, previousStatus: kind === "end" ? task.status : undefined, previousDueDate: kind === "end" ? task.dueDate : undefined, attachments };
+    const updated = await api.updateProjectManagementModuleItem(projectId, task.id, { content: { ...task.item.content, status: kind === "end" ? "done" : task.status, dueDate: kind === "end" ? isoToday() : task.item.content.dueDate, activities: [...task.activities, activity] } });
+    if (kind === "deliverable") {
+      const taskCode = rows.find(row => row.id === task.id)?.wbsCode || String((task.sortOrder ?? 0) + 1);
+      const deliverableNumber = task.activities.filter(candidate => candidate.kind === "deliverable").length + 1;
+      const folderPath = deliverableFolderPath(taskCode, task.title, deliverableNumber, activity.text, deliverablesRoot);
+      await api.createDeliverableFolder(projectId, folderPath);
+      await api.createProjectManagementModuleItem(projectId, "deliverables", { title: activity.text, content: linkedDeliverableContent(task.id, activity, folderPath) });
+    }
+    setItems(current => current.map(item => item.id === task.id ? value(updated) : item));
+  };
+  const toggleActivity = async (task: DeliveryItem, activityId: string) => {
+    const activity = task.activities.find(candidate => candidate.id === activityId);
+    const activities = task.activities.map(activity => activity.id === activityId ? { ...activity, done: !activity.done, completedAt: activity.done ? undefined : new Date().toISOString() } : activity);
+    const updated = await api.updateProjectManagementModuleItem(projectId, task.id, { content: { ...task.item.content, activities } });
+    if (activity) await syncLinkedDeliverableStatus(projectId, task.id, activity, !activity.done);
+    setItems(current => current.map(item => item.id === task.id ? value(updated) : item));
+  };
+  const updateActivityText = async (task: DeliveryItem, activityId: string, text: string) => {
+    const nextText = text.trim();
+    const activity = task.activities.find(candidate => candidate.id === activityId);
+    if (!activity || !nextText || nextText === activity.text) return;
+    const activities = task.activities.map(candidate => candidate.id === activityId ? { ...candidate, text: nextText } : candidate);
+    const updated = await api.updateProjectManagementModuleItem(projectId, task.id, { content: { ...task.item.content, activities } });
+    setItems(current => current.map(item => item.id === task.id ? value(updated) : item));
+  };
+  const addActivityAttachments = async (task: DeliveryItem, activityId: string, files: File[]) => {
+    const attachments = await api.uploadAttachments(task.id, files);
+    if (!attachments.length) return;
+    const activities = task.activities.map(activity => activity.id === activityId ? { ...activity, attachments: [...(activity.attachments || []), ...attachments] } : activity);
+    const updated = await api.updateProjectManagementModuleItem(projectId, task.id, { content: { ...task.item.content, activities } });
+    setItems(current => current.map(item => item.id === task.id ? value(updated) : item));
+  };
+  const deleteActivity = async (task: DeliveryItem, activityId: string) => {
+    const deletedActivity = task.activities.find(activity => activity.id === activityId);
+    if (deletedActivity?.kind === "deliverable") {
+      const linkedActivityKey = `${task.id}:${activityId}`;
+      const deliverables = await api.listProjectManagementModuleItems(projectId, "deliverables", undefined, true);
+      const linkedDeliverables = deliverables.filter(deliverable => deliverable.content.linkedActivityKey === linkedActivityKey);
+      await Promise.all(linkedDeliverables.map(deliverable => typeof deliverable.content.folderPath === "string" && deliverable.content.folderPath ? api.archiveDeliverableFolder(projectId, deliverable.content.folderPath) : undefined));
+      await Promise.all(linkedDeliverables.map(deliverable => api.deleteProjectManagementModuleItem(projectId, deliverable.id)));
+    }
+    const activities = task.activities.filter(activity => activity.id !== activityId);
+    const restoreTask = deletedActivity?.kind === "end" && !activities.some(activity => activity.kind === "end");
+    const updated = await api.updateProjectManagementModuleItem(projectId, task.id, { content: { ...task.item.content, status: restoreTask ? deletedActivity.previousStatus || "doing" : task.status, dueDate: restoreTask ? deletedActivity.previousDueDate ?? "" : task.item.content.dueDate, activities } });
+    setItems(current => current.map(item => item.id === task.id ? value(updated) : item));
+  };
   const patchParent = async (row: DeliveryItem, parentId?: string) => {
     const updated = await api.updateProjectManagementModuleItem(projectId, row.id, { parentId: parentId || null });
     setItems(current => current.map(item => item.id === row.id ? value(updated) : item));
@@ -378,12 +459,12 @@ export function DeliveryPlanWorkspace({ projectId }: { projectId: string }): Rea
     await (window as Window & { richWindow?: { exportDeliveryPlan?: (payload: unknown) => Promise<boolean> } }).richWindow?.exportDeliveryPlan?.({
       gantt: buildNativeGanttExport(rows, isoToday(), calendarMode, holidays),
       tableRows: buildDeliveryExportRows(rows),
-      filename: `交付计划_${isoToday()}.xlsx`,
+      filename: buildDeliveryExportFilename(projectName),
     });
   };
   return <section className="delivery delivery--plan">
     <header className="delivery__header"><div><h1>交付计划</h1><p>用阶段、分组、任务与里程碑维护 WBS，并在甘特图中跟踪进度。</p></div><div className="delivery__toolbar"><span>临期 <b>{rows.filter(row => !row.isAtRisk && row.status !== "done" && row.dueDate && row.dueDate <= addDays(3)).length}</b></span><span>高风险 <b>{rows.filter(row => row.isAtRisk || row.status === "blocked").length}</b></span>{view === "gantt" && <><button type="button" onClick={() => void exportSnapshot()}>导出 Excel</button><div className="delivery-gantt-calendar-actions delivery__toolbar-calendar-actions" aria-label="甘特图日历设置"><div className="delivery-switch"><button type="button" className={calendarMode === "calendar" ? "is-active" : ""} onClick={() => setCalendarMode("calendar")}>自然日</button><button type="button" className={calendarMode === "working" ? "is-active" : ""} onClick={() => setCalendarMode("working")}>工作日</button></div><button type="button" onClick={() => setHolidayCalendarOpen(true)}>假期</button><button type="button" className={`delivery-gantt-detail-toggle${showDependencies ? " is-active" : ""}`} onClick={() => setShowDependencies(current => !current)}>详情</button></div></>}<div className="delivery-switch"><button className={view === "gantt" ? "is-active" : ""} onClick={() => setView("gantt")}>甘特图</button><button className={view === "table" ? "is-active" : ""} onClick={() => setView("table")}>Excel 列表</button></div></div></header>
-    {loading ? <div className="delivery__loading">正在加载交付计划…</div> : view === "gantt" ? <Gantt rows={rows} holidays={holidays} calendarMode={calendarMode} showDependencies={showDependencies} onPatch={patch} onAddRisk={addRisk} onAddChildTask={addChildTask} onDelete={remove} onMoveTask={moveTask} storageKey={ganttExpansionStorageKey} /> : <PlanTable rows={rows} phases={rows.filter(row => row.kind === "phase")} onPatch={patch} onPatchParent={patchParent} onAdd={async () => setCreateKind("task")} onDelete={remove} onReorder={reorder} storageKey={`rich:delivery-plan:${projectId}:columns`} />}
+    {loading ? <div className="delivery__loading">正在加载交付计划…</div> : view === "gantt" ? <Gantt rows={rows} holidays={holidays} calendarMode={calendarMode} showDependencies={showDependencies} onPatch={patch} onAddChildTask={addChildTask} onDelete={remove} onMoveTask={moveTask} onAddActivity={addActivity} onToggleActivity={toggleActivity} onUpdateActivityText={updateActivityText} onAddAttachments={addActivityAttachments} onDeleteActivity={deleteActivity} storageKey={ganttExpansionStorageKey} /> : <PlanTable rows={rows} phases={rows.filter(row => row.kind === "phase")} onPatch={patch} onPatchParent={patchParent} onAdd={async () => setCreateKind("task")} onDelete={remove} onReorder={reorder} storageKey={`rich:delivery-plan:${projectId}:columns`} />}
     {createKind && (
       <CreateDeliveryItemDrawer kind={createKind} rows={rows} onClose={() => setCreateKind(undefined)} onCreate={async draft => { await add(createKind, draft); setCreateKind(undefined); }}/>
     )}
@@ -413,7 +494,7 @@ export function ProjectPlanWorkspace({ projectId, deliverablesRoot }: { projectI
   const pages = [
     ["dashboard", "驾驶舱"], ["plan", "交付计划"], ["requirements", "需求"], ["risks", "风险与问题"],
   ] as const;
-  return <div className="project-plan"><nav className="project-plan__nav">{pages.map(([id, label]) => <button key={id} className={page === id ? "is-active" : ""} onClick={() => setPage(id)}>{label}</button>)}</nav>{page === "dashboard" && <ProjectDashboard projectId={projectId} onOpenPlan={() => setPage("plan")} deliverablesRoot={deliverablesRoot} />}{page === "plan" && <DeliveryPlanWorkspace projectId={projectId} />}{page === "requirements" && <DeliveryPlaceholder title="需求与范围" description="持续记录、澄清并追溯项目需求。" />}{page === "risks" && <DeliveryPlaceholder title="风险与问题" description="识别风险、维护应对措施并跟踪已发生的问题。" />}</div>;
+  return <div className="project-plan"><nav className="project-plan__nav">{pages.map(([id, label]) => <button key={id} className={page === id ? "is-active" : ""} onClick={() => setPage(id)}>{label}</button>)}</nav>{page === "dashboard" && <ProjectDashboard projectId={projectId} onOpenPlan={() => setPage("plan")} deliverablesRoot={deliverablesRoot} />}{page === "plan" && <DeliveryPlanWorkspace projectId={projectId} deliverablesRoot={deliverablesRoot} />}{page === "requirements" && <DeliveryPlaceholder title="需求与范围" description="持续记录、澄清并追溯项目需求。" />}{page === "risks" && <DeliveryPlaceholder title="风险与问题" description="识别风险、维护应对措施并跟踪已发生的问题。" />}</div>;
 }
 
 export function DeliveryPlaceholder({ title, description }: { title: string; description: string }): ReactNode {
@@ -423,7 +504,7 @@ export function DeliveryPlaceholder({ title, description }: { title: string; des
 function Kpi({ tone, label, value, sub }: { tone: string; label: string; value: string; sub: string }) { return <article className={`delivery-kpi is-${tone}`}><span>{label}</span><strong>{value}</strong><small>{sub}</small></article>; }
 function Empty({ onOpenPlan }: { onOpenPlan: () => void }) { return <div className="delivery-empty"><h2>从第一条交付事项开始</h2><p>先录入任务、里程碑或待交付物；驾驶舱会自动生成进度、临期和风险提醒。</p><button type="button" onClick={onOpenPlan}>打开交付计划</button></div>; }
 type DeliveryGanttRow = DeliveryItem & { progress: number; isAtRisk: boolean; depth: number; hasChildren: boolean; kind: DeliveryItemKind; wbsCode: string; phaseIndex: number };
-function Gantt({ rows, holidays, calendarMode, showDependencies, onPatch, onAddRisk, onAddChildTask, onDelete, onMoveTask, storageKey }: { rows: DeliveryGanttRow[]; holidays: string[]; calendarMode: GanttCalendarMode; showDependencies: boolean; onPatch: (row: DeliveryItem, patch: Partial<DeliveryItemLike>) => Promise<void>; onAddRisk: (row: DeliveryItem) => Promise<void>; onAddChildTask: (row: DeliveryItem) => Promise<void>; onDelete: (row: DeliveryItem) => Promise<void>; onMoveTask: (dragged: DeliveryItem, target: DeliveryItem, placement: GanttDropPlacement) => Promise<void>; storageKey: string }) {
+function Gantt({ rows, holidays, calendarMode, showDependencies, onPatch, onAddChildTask, onDelete, onMoveTask, onAddActivity, onToggleActivity, onUpdateActivityText, onAddAttachments, onDeleteActivity, storageKey }: { rows: DeliveryGanttRow[]; holidays: string[]; calendarMode: GanttCalendarMode; showDependencies: boolean; onPatch: (row: DeliveryItem, patch: Partial<DeliveryItemLike>) => Promise<void>; onAddChildTask: (row: DeliveryItem) => Promise<void>; onDelete: (row: DeliveryItem) => Promise<void>; onMoveTask: (dragged: DeliveryItem, target: DeliveryItem, placement: GanttDropPlacement) => Promise<void>; onAddActivity: (task: DeliveryItem, kind: DeliveryActivityKind, text: string, files: File[]) => Promise<void>; onToggleActivity: (task: DeliveryItem, activityId: string) => Promise<void>; onUpdateActivityText: (task: DeliveryItem, activityId: string, text: string) => Promise<void>; onAddAttachments: (task: DeliveryItem, activityId: string, files: File[]) => Promise<void>; onDeleteActivity: (task: DeliveryItem, activityId: string) => Promise<void>; storageKey: string }) {
   const fixedRef = useRef<HTMLDivElement>(null);
   const timeRef = useRef<HTMLDivElement>(null);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set(readGanttExpansion(storageKey).collapsedIds));
@@ -693,7 +774,7 @@ function Gantt({ rows, holidays, calendarMode, showDependencies, onPatch, onAddR
       <button type="button" onClick={() => { void onAddChildTask(taskMenu.row); setTaskMenu(undefined); }}>+ 增加下级任务</button>
       {taskMenu.row.kind === "task" && <button type="button" className="is-danger" onClick={() => { if (window.confirm(`删除“${taskMenu.row.title}”及其全部下级任务吗？`)) void onDelete(taskMenu.row); setTaskMenu(undefined); }}>删除</button>}
     </div>}
-    {detailRow && <TaskDetailDrawer row={detailRow} rows={rows} holidays={holidays} onClose={() => setDetailRowId(undefined)} onPatch={onPatch} onAddRisk={onAddRisk} />}
+    {detailRow && <TaskDetailDrawer row={detailRow} rows={rows} holidays={holidays} onClose={() => setDetailRowId(undefined)} onPatch={onPatch} onAddActivity={onAddActivity} onToggleActivity={onToggleActivity} onUpdateActivityText={onUpdateActivityText} onAddAttachments={onAddAttachments} onDeleteActivity={onDeleteActivity} />}
   </div>
   <div className="delivery-gantt-split__zoom" aria-label="甘特图日期密度">
     <button type="button" aria-label="缩小时间轴" title="缩小时间轴" disabled={timelineZoom === 0} onClick={() => setTimelineZoom(current => Math.max(0, current - 1))}><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
@@ -724,9 +805,10 @@ function HolidayCalendar({ holidays, onChange, onClose }: { holidays: string[]; 
   </div>;
 }
 
-function TaskDetailDrawer({ row, rows, holidays, onClose, onPatch, onAddRisk }: { row: DeliveryGanttRow; rows: DeliveryGanttRow[]; holidays: string[]; onClose: () => void; onPatch: (row: DeliveryItem, patch: Partial<DeliveryItemLike>) => Promise<void>; onAddRisk: (row: DeliveryItem) => Promise<void> }) {
+function TaskDetailDrawer({ row, rows, holidays, onClose, onPatch, onAddActivity, onToggleActivity, onUpdateActivityText, onAddAttachments, onDeleteActivity }: { row: DeliveryGanttRow; rows: DeliveryGanttRow[]; holidays: string[]; onClose: () => void; onPatch: (row: DeliveryItem, patch: Partial<DeliveryItemLike>) => Promise<void>; onAddActivity: (task: DeliveryItem, kind: DeliveryActivityKind, text: string, files: File[]) => Promise<void>; onToggleActivity: (task: DeliveryItem, activityId: string) => Promise<void>; onUpdateActivityText: (task: DeliveryItem, activityId: string, text: string) => Promise<void>; onAddAttachments: (task: DeliveryItem, activityId: string, files: File[]) => Promise<void>; onDeleteActivity: (task: DeliveryItem, activityId: string) => Promise<void> }) {
   const [draft, setDraft] = useState<Partial<DeliveryItemLike>>({});
   const [saving, setSaving] = useState(false);
+  const [infoExpanded, setInfoExpanded] = useState(true);
   useEffect(() => { setDraft({ title: row.title, kind: row.kind, owner: row.owner || "", status: row.status, progressOffsetDays: row.progressOffsetDays || 0, startDate: row.startDate || "", actualStartDate: row.actualStartDate || "", dueDate: row.dueDate || "", baselineDueDate: row.baselineDueDate || "", periodDays: row.periodDays ?? 0, actualPersonDays: row.actualPersonDays ?? 0, dependencyIds: row.dependencyIds || [] }); }, [row]);
   const tasks = rows.filter(candidate => candidate.kind === "task" && candidate.id !== row.id);
   const update = <K extends keyof DeliveryItemLike>(key: K, next: DeliveryItemLike[K]) => setDraft(current => ({ ...current, [key]: next }));
@@ -740,27 +822,55 @@ function TaskDetailDrawer({ row, rows, holidays, onClose, onPatch, onAddRisk }: 
     <div className="delivery-task-drawer__backdrop" role="presentation" onClick={onClose}/>
     <aside className="delivery-task-drawer__panel">
       <header><div><small>{row.wbsCode || kindLabel(row.kind)} · {kindLabel(row.kind)}详情</small><h2>{row.title}</h2></div><button type="button" aria-label="关闭" onClick={onClose}>×</button></header>
-      <div className="delivery-task-drawer__form">
-        <label className="delivery-task-drawer__wide"><span>任务名称</span><input value={String(draft.title ?? "")} onChange={event => update("title", event.target.value)}/></label>
-        {row.kind !== "risk" && <label><span>类型</span><select value={draft.kind || "task"} onChange={event => update("kind", event.target.value as DeliveryItemKind)}>{(["phase", "group", "task", "milestone"] as const).map(kind => <option key={kind} value={kind}>{kindLabel(kind)}</option>)}</select></label>}
-        <label><span>负责人</span><input value={String(draft.owner ?? "")} onChange={event => update("owner", event.target.value)}/></label>
+      <section className="delivery-task-drawer__info">
+        <button type="button" className="delivery-task-drawer__info-toggle" aria-expanded={infoExpanded} onClick={() => setInfoExpanded(current => !current)}><span>任务信息</span><i>{infoExpanded ? "收起" : "展开"} {infoExpanded ? "⌃" : "⌄"}</i></button>
+        {infoExpanded && <><div className="delivery-task-drawer__form">
+        <div className="delivery-task-drawer__name-row delivery-task-drawer__wide">{row.kind !== "risk" && <label><span>类型</span><select value={draft.kind || "task"} onChange={event => update("kind", event.target.value as DeliveryItemKind)}>{(["phase", "group", "task", "milestone"] as const).map(kind => <option key={kind} value={kind}>{kindLabel(kind)}</option>)}</select></label>}<label><span>任务名称</span><input value={String(draft.title ?? "")} onChange={event => update("title", event.target.value)}/></label></div>
         <label><span>状态</span><select value={draft.status || "todo"} onChange={event => update("status", event.target.value as DeliveryItemStatus)}>{(["todo", "doing", "blocked", "done"] as const).map(status => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></label>
-        <label><span>自动进度</span><output>{row.status === "done" ? "完成" : `${row.progress}%`}</output></label>
-        <label><span>进度偏移（天）</span><input type="number" step="1" value={Number(draft.progressOffsetDays ?? 0)} onChange={event => update("progressOffsetDays", Number(event.target.value) || 0)}/></label>
+        <label><span>负责人</span><input value={String(draft.owner ?? "")} onChange={event => update("owner", event.target.value)}/></label>
         <div className="delivery-task-drawer__date-pairs delivery-task-drawer__wide">
           <label><span>计划开始时间</span><input type="date" value={String(draft.startDate ?? "")} onChange={event => updateSchedule({ startDate: event.target.value })}/></label>
           <label><span>计划结束时间</span><input type="date" value={String(draft.baselineDueDate ?? "")} onChange={event => updateSchedule({ baselineDueDate: event.target.value })}/></label>
           <label><span>实际开始时间</span><input type="date" value={String(draft.actualStartDate ?? "")} onChange={event => update("actualStartDate", event.target.value)}/></label>
           <label><span>实际结束时间</span><input type="date" value={String(draft.dueDate ?? "")} onChange={event => update("dueDate", event.target.value)}/></label>
         </div>
-        <label><span>周期（工作日）</span><input type="number" min="1" step="1" value={Math.max(1, Number(draft.periodDays ?? 1))} onChange={event => updateSchedule({ periodDays: Math.max(1, Number(event.target.value) || 1) })}/></label>
-        <label><span>实际人天</span><input type="number" min="0" step="0.5" value={Number(draft.actualPersonDays ?? 0)} onChange={event => update("actualPersonDays", Math.max(0, Number(event.target.value) || 0))}/></label>
+        <div className="delivery-task-drawer__metrics-row delivery-task-drawer__wide"><label><span>进度偏移（天）</span><input type="number" step="1" value={Number(draft.progressOffsetDays ?? 0)} onChange={event => update("progressOffsetDays", Number(event.target.value) || 0)}/></label><label><span>周期（工作日）</span><input type="number" min="1" step="1" value={Math.max(1, Number(draft.periodDays ?? 1))} onChange={event => updateSchedule({ periodDays: Math.max(1, Number(event.target.value) || 1) })}/></label><label><span>实际人天</span><input type="number" min="0" step="0.5" value={Number(draft.actualPersonDays ?? 0)} onChange={event => update("actualPersonDays", Math.max(0, Number(event.target.value) || 0))}/></label></div>
         {row.kind === "task" && <label className="delivery-task-drawer__wide"><span>前置依赖</span><select value={draft.dependencyIds?.[0] || ""} onChange={event => update("dependencyIds", event.target.value ? [event.target.value] : [])}><option value="">无</option>{tasks.map(task => <option key={task.id} value={task.id}>{task.wbsCode} {task.title}</option>)}</select></label>}
-      </div>
-      {row.kind === "task" && <section className="delivery-task-drawer__risks"><div><h3>风险点</h3><button type="button" onClick={() => void onAddRisk(row)}>+ 增加风险点</button></div>{rows.filter(candidate => candidate.kind === "risk" && candidate.parentId === row.id).map(risk => <p key={risk.id}>⚠ {risk.title}</p>)}{!rows.some(candidate => candidate.kind === "risk" && candidate.parentId === row.id) && <p className="is-empty">暂无风险点</p>}</section>}
-      <footer><button type="button" onClick={onClose}>取消</button><button type="button" className="is-primary" disabled={saving} onClick={() => void save()}>{saving ? "保存中…" : "保存"}</button></footer>
+        </div><footer className="delivery-task-drawer__info-actions"><button type="button" onClick={onClose}>取消</button><button type="button" className="is-primary" disabled={saving} onClick={() => void save()}>{saving ? "保存中…" : "保存任务信息"}</button></footer></>}
+      </section>
+      {row.kind === "task" && <TaskActivityPanel task={row} onAddActivity={onAddActivity} onToggleActivity={onToggleActivity} onUpdateActivityText={onUpdateActivityText} onAddAttachments={onAddAttachments} onDeleteActivity={onDeleteActivity}/>}
     </aside>
   </div>;
+}
+
+function TaskActivityPanel({ task, onAddActivity, onToggleActivity, onUpdateActivityText, onAddAttachments, onDeleteActivity }: { task: DeliveryItem; onAddActivity: (task: DeliveryItem, kind: DeliveryActivityKind, text: string, files: File[]) => Promise<void>; onToggleActivity: (task: DeliveryItem, activityId: string) => Promise<void>; onUpdateActivityText: (task: DeliveryItem, activityId: string, text: string) => Promise<void>; onAddAttachments: (task: DeliveryItem, activityId: string, files: File[]) => Promise<void>; onDeleteActivity: (task: DeliveryItem, activityId: string) => Promise<void> }) {
+  const [kind, setKind] = useState<DeliveryActivityKind>("record");
+  const [text, setText] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [activityMenu, setActivityMenu] = useState<{ activityId: string; x: number; y: number }>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const activityMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { setText(""); setFiles([]); }, [task.id]);
+  useEffect(() => {
+    if (!activityMenu) return;
+    const dismiss = (event: PointerEvent) => { if (!activityMenuRef.current?.contains(event.target as Node)) setActivityMenu(undefined); };
+    const dismissOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setActivityMenu(undefined); };
+    window.addEventListener("pointerdown", dismiss); window.addEventListener("keydown", dismissOnEscape);
+    return () => { window.removeEventListener("pointerdown", dismiss); window.removeEventListener("keydown", dismissOnEscape); };
+  }, [activityMenu]);
+  const publish = async () => {
+    if (!text.trim() && files.length === 0) return;
+    setSaving(true);
+    try { await onAddActivity(task, kind, text, files); setText(""); setFiles([]); }
+    finally { setSaving(false); }
+  };
+  return <section className="delivery-task-drawer__activities">
+    <header><div><h3>任务动态</h3><p>记录、待办和交付物与驾驶舱保持同步。</p></div></header>
+    <div className="delivery-dashboard-timeline">{task.activities.length ? task.activities.slice().sort((left, right) => left.createdAt.localeCompare(right.createdAt)).map(activity => <ActivityCard key={activity.id} activity={activity} task={task} onSaveText={text => onUpdateActivityText(task, activity.id, text)} onAddAttachments={files => onAddAttachments(task, activity.id, files)} onToggleTodo={activityId => void onToggleActivity(task, activityId)} onContextMenu={event => { event.preventDefault(); setActivityMenu({ activityId: activity.id, x: event.clientX, y: event.clientY }); }} compact={true}/>) : <DashboardEmpty text="尚无动态，添加第一条记录。"/>}</div>
+    <div className="delivery-dashboard-composer"><select value={kind} onChange={event => setKind(event.target.value as DeliveryActivityKind)}>{(["record", "todo", "deliverable", "risk", "reminder", "end"] as const).map(activityKind => <option key={activityKind} value={activityKind}>{activityLabel(activityKind)}</option>)}</select><div><input value={text} onChange={event => setText(event.target.value)} onPaste={event => { const pastedFiles = pastedImageFiles(event); if (pastedFiles.length) { event.preventDefault(); setFiles(current => [...current, ...pastedFiles]); } }} onKeyDown={event => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") void publish(); }} placeholder="添加记录、待办、交付物、风险、催办或结束说明…"/><button type="button" onClick={() => fileInputRef.current?.click()} title="添加附件">⌕</button><button type="button" onClick={() => setText(current => `${current}${current ? " " : ""}🙂`)} title="添加表情">☺</button><input ref={fileInputRef} className="delivery-dashboard-file-input" type="file" multiple onChange={event => setFiles(current => [...current, ...Array.from(event.target.files || [])])}/></div><button type="button" disabled={(!text.trim() && files.length === 0) || saving} onClick={() => void publish()}>{saving ? "发布中…" : "发布"}</button>{files.length > 0 && <aside>{files.map((file, index) => <span key={`${file.name}-${index}`}>{file.name}<button type="button" onClick={() => setFiles(current => current.filter((_, fileIndex) => fileIndex !== index))}>×</button></span>)}</aside>}</div>
+    {activityMenu && <div ref={activityMenuRef} className="delivery-dashboard-activity-menu" style={{ left: activityMenu.x, top: activityMenu.y }}><button type="button" onClick={() => { void onDeleteActivity(task, activityMenu.activityId); setActivityMenu(undefined); }}>删除</button></div>}
+  </section>;
 }
 
 function GanttLegacySplit({ rows, onPatch }: { rows: DeliveryGanttRow[]; onPatch: (row: DeliveryItem, patch: Partial<DeliveryItemLike>) => Promise<void> }) {

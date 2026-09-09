@@ -74,7 +74,7 @@ import {
 } from "./DictionaryLogicRenderer.js";
 
 type DictionaryView = "field-design" | "mapping" | "temp-table" | "relations" | "test-data" | "table-info";
-type DictionaryPropertyKind = "fieldDetail" | "tableDetail" | "systemDetail" | "description" | "codeValue" | "formatPattern" | "mappingLogic" | "mappingCaliber" | "sourceRefs" | "generic";
+type DictionaryPropertyKind = "fieldDetail" | "tableDetail" | "systemDetail" | "description" | "codeValue" | "formatPattern" | "mappingLogic" | "mappingCaliber" | "externalSql" | "sourceRefs" | "generic";
 type DictionaryMappingJsonValue = DictionaryMappingJsonRuleValue;
 type DictionaryCaliberJsonRule = DictionaryCaliberRule;
 type DictionaryRectificationTarget = Pick<ProjectDictionaryRectificationInput, "entityType" | "entityId" | "propertyKey"> & { label: string; currentValue?: string };
@@ -93,6 +93,11 @@ type DictionaryPropertyPayload = {
   sqlValidation?: ProjectDictionaryMappingSqlValidationResult["caliber"] | ProjectDictionaryMappingSqlValidationResult["fields"][number];
   sqlValidationBusy?: boolean;
 };
+
+function ExternalSqlButton({ title, subtitle, sql, onInspectProperty }: { title: string; subtitle?: string; sql?: string; onInspectProperty: (payload: DictionaryPropertyPayload) => void }) {
+  if (!sql?.trim()) return null;
+  return <button type="button" className="prj-pm-dict-mapping__external-sql-btn" onClick={event => { event.stopPropagation(); onInspectProperty({ kind: "externalSql", title, subtitle, value: sql || "" }); }}>外部 SQL</button>;
+}
 
 
 export function DictionaryFieldGrid({
@@ -155,6 +160,7 @@ export function DictionaryFieldGrid({
     { id: "codeValue", label: "码值说明", width: 280, minWidth: 140 },
     { id: "verificationStatus", label: "验证状态", width: 100, minWidth: 82 },
     { id: "remark", label: "备注", width: 220, minWidth: 120 },
+    { id: "externalSql", label: "外部SQL", width: 160, minWidth: 120 },
   ], []);
   const columnResize = useDictionaryResizableColumns(storageKey, columns, loadDictionaryColumnWidths, saveDictionaryColumnWidths);
   const gridStyle = useMemo(() => ({
@@ -252,12 +258,16 @@ export function DictionaryMappingPanel({
       key: scenario.id,
       title: scenario.title,
       caliber: scenario.caliber || table?.caliber || table?.description || "当前场景暂未维护独立业务口径。",
+      caliberExternalSql: scenario.caliberExternalSql,
+      externalSql: scenario.externalSql,
       rules: fields.map(field => {
         const rule = scenario.rules.find(item => item.fieldId === field.id);
         return {
+          id: rule?.id,
           field,
           logic: rule?.logicText || '{"op":"null"}',
           convertedSql: rule?.convertedSql,
+          externalSql: rule?.externalSql,
           remark: rule?.remark,
           verificationStatus: rule?.verificationStatus || "未验证",
           verificationRemark: rule?.verificationRemark,
@@ -292,6 +302,7 @@ export function DictionaryMappingPanel({
     { id: "sql", label: "SQL转换", width: 420, minWidth: 220 },
     { id: "verificationStatus", label: "验证状态", width: 100, minWidth: 82 },
     { id: "remark", label: "备注", width: 220, minWidth: 120 },
+    { id: "externalSql", label: "外部SQL", width: 160, minWidth: 120 },
   ], []);
   const mappingColumnResize = useDictionaryResizableColumns(
     `dictionary-mapping-table:${table?.id || "empty"}`,
@@ -307,6 +318,7 @@ export function DictionaryMappingPanel({
     "--dict-map-c5": `${mappingColumnResize.columnWidth("sql")}px`,
     "--dict-map-c6": `${mappingColumnResize.columnWidth("verificationStatus")}px`,
     "--dict-map-c7": `${mappingColumnResize.columnWidth("remark")}px`,
+    "--dict-map-c8": `${mappingColumnResize.columnWidth("externalSql")}px`,
     "--dict-map-width": `${mappingColumnResize.totalWidth}px`,
   }) as CSSProperties, [mappingColumnResize]);
 
@@ -422,6 +434,8 @@ export function DictionaryMappingPanel({
                     disabled={sqlValidationBusy}>
                     {sqlValidationBusy ? "验证中" : "验证SQL"}
                   </button>
+                  <ExternalSqlButton title="场景外部 SQL" subtitle={activeScenario.title} sql={activeScenario.externalSql} onInspectProperty={onInspectProperty} />
+                  <ExternalSqlButton title="场景口径外部 SQL" subtitle={activeScenario.title} sql={activeScenario.caliberExternalSql} onInspectProperty={onInspectProperty} />
                   {sqlValidationMessage ? (
                     <small className={`prj-pm-dict-mapping__validate-message${sqlValidation?.ok ? " is-ok" : " is-error"}`}>
                       {sqlValidationMessage}
@@ -536,6 +550,7 @@ export function DictionaryMappingPanel({
                             {rule.verificationRemark?.trim() ? <small className="prj-pm-dict-verification__remark">{rule.verificationRemark}</small> : null}
                           </td>
                           <td className="prj-pm-dict-mapping-table__remark">{tableRemark || "-"}</td>
+                          <td>{rule.externalSql?.trim() ? <ExternalSqlButton title="字段 Mapping 外部 SQL" subtitle={rule.field.fieldName} sql={rule.externalSql} onInspectProperty={onInspectProperty} /> : "-"}</td>
                         </tr>
                       );
                     })}
@@ -590,10 +605,12 @@ function DictionaryCaliberSummaryRow({
       ? `${formatDictionarySqlForDisplay(validation.sql)}${validationError ? `\n\n数据库报错：${validationError}` : ""}`
       : validationBusy
         ? "正在通过后端生成并验证数据库可执行 SQL..."
-      : validationError
+        : validationError
         ? `${caliber.conversion.reason || statusLabel}\n\n数据库报错：${validationError}`
         : caliber.conversion.status === "invalid"
           ? caliber.conversion.reason || statusLabel
+          : caliber.conversion.status === "complete" && caliber.conversion.sql
+            ? formatDictionarySqlForDisplay(caliber.conversion.sql)
           : "待验证SQL";
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -728,11 +745,13 @@ export function DictionaryTempTablePanel({
   onOpenTableRef: (tableId: string) => void;
 }) {
   const sqlDialect = getDictionarySystemSqlDialect(system);
+  const [editableTempTables, setEditableTempTables] = useState(tempTables);
+  useEffect(() => setEditableTempTables(tempTables), [tempTables]);
   const fieldRefIndex = useMemo(() => buildDictionaryFieldRefIndex(allFields), [allFields]);
   const tableRefIndex = useMemo(() => buildDictionaryTableRefIndex(table, allFields), [allFields, table]);
   const orderedTempTables = useMemo(
-    () => tempTables.slice().sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
-    [tempTables],
+    () => editableTempTables.slice().sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
+    [editableTempTables],
   );
   const [activeTempTableId, setActiveTempTableId] = useState("");
   useEffect(() => {
@@ -760,13 +779,22 @@ export function DictionaryTempTablePanel({
       field: targetField,
       logic,
       convertedSql: field.convertedSql,
+      externalSql: field.externalSql,
       remark: field.remark,
       sourceRefs: bindDictionarySourceRefs(extractMappingSourceRefs(targetField, logic), fieldRefIndex),
     };
   }), [fieldRefIndex, table, tempTable]);
   const activeCaliber = useMemo(
-    () => tempTable ? buildDictionaryCaliberView(tempTable.logicText || "", fieldRefIndex, tableRefIndex, sqlDialect) : null,
+    () => {
+      if (!tempTable) return null;
+      const caliber = buildDictionaryCaliberView(tempTable.logicText || "", fieldRefIndex, tableRefIndex, sqlDialect);
+      return caliber;
+    },
     [fieldRefIndex, sqlDialect, tableRefIndex, tempTable],
+  );
+  const hasAutoConvertibleTempField = useMemo(
+    () => tempRules.some(rule => !["manual_logic", "union_all"].includes(parseDictionaryJsonRuleStrict(rule.logic).rule?.op || "")),
+    [tempRules],
   );
   const [sqlValidation, setSqlValidation] = useState<ProjectDictionaryMappingSqlValidationResult | null>(null);
   const [sqlValidationBusy, setSqlValidationBusy] = useState(false);
@@ -776,7 +804,7 @@ export function DictionaryTempTablePanel({
     setSqlValidationMessage("");
   }, [tempTable?.id, tempTable?.logicText, tempTable?.updatedAt]);
   const validateSql = useCallback(async () => {
-    if (!table || !tempTable) return;
+    if (!table || !tempTable || !hasAutoConvertibleTempField) return;
     setSqlValidationBusy(true);
     setSqlValidationMessage("");
     try {
@@ -789,11 +817,11 @@ export function DictionaryTempTablePanel({
     } finally {
       setSqlValidationBusy(false);
     }
-  }, [projectId, table, tempTable]);
+  }, [hasAutoConvertibleTempField, projectId, table, tempTable]);
   useEffect(() => {
-    if (!tempTable || sqlValidation || sqlValidationBusy) return;
+    if (!tempTable || !hasAutoConvertibleTempField || sqlValidation || sqlValidationBusy) return;
     void validateSql();
-  }, [sqlValidation, sqlValidationBusy, tempTable, validateSql]);
+  }, [hasAutoConvertibleTempField, sqlValidation, sqlValidationBusy, tempTable, validateSql]);
   const validationByFieldAndLogic = useMemo(() => {
     const map = new Map<string, NonNullable<ProjectDictionaryMappingSqlValidationResult["fields"]>[number]>();
     sqlValidation?.fields.forEach(item => {
@@ -809,6 +837,7 @@ export function DictionaryTempTablePanel({
     { id: "logic", label: "逻辑", width: 640, minWidth: 240 },
     { id: "sql", label: "SQL转换", width: 420, minWidth: 220 },
     { id: "remark", label: "备注", width: 220, minWidth: 120 },
+    { id: "externalSql", label: "外部SQL", width: 160, minWidth: 120 },
   ], []);
   const tempMappingColumnResize = useDictionaryResizableColumns(
     `dictionary-temp-table:${table?.id || "empty"}`,
@@ -823,6 +852,7 @@ export function DictionaryTempTablePanel({
     "--dict-map-c4": `${tempMappingColumnResize.columnWidth("logic")}px`,
     "--dict-map-c5": `${tempMappingColumnResize.columnWidth("sql")}px`,
     "--dict-map-c6": `${tempMappingColumnResize.columnWidth("remark")}px`,
+    "--dict-map-c7": `${tempMappingColumnResize.columnWidth("externalSql")}px`,
     "--dict-map-width": `${tempMappingColumnResize.totalWidth}px`,
   }) as CSSProperties, [tempMappingColumnResize]);
 
@@ -863,9 +893,10 @@ export function DictionaryTempTablePanel({
                       event.stopPropagation();
                       void validateSql();
                     }}
-                    disabled={sqlValidationBusy}>
+                    disabled={sqlValidationBusy || !hasAutoConvertibleTempField}>
                     {sqlValidationBusy ? "验证中" : "验证SQL"}
                   </button>
+                  <ExternalSqlButton title="临时表外部 SQL" subtitle={tempTable.tableCn || tempTable.tableName} sql={tempTable.externalSql} onInspectProperty={onInspectProperty} />
                   {sqlValidationMessage ? (
                     <small className={`prj-pm-dict-mapping__validate-message${sqlValidation?.ok ? " is-ok" : " is-error"}`}>
                       {sqlValidationMessage}
@@ -911,7 +942,7 @@ export function DictionaryTempTablePanel({
                 <tbody>
                   {tempTable.fields.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="prj-pm-dict-temp__no-fields">暂无字段。</td>
+                      <td colSpan={7} className="prj-pm-dict-temp__no-fields">暂无字段。</td>
                     </tr>
                   ) : (
                     tempRules.map((rule, fieldIndex) => {
@@ -928,6 +959,7 @@ export function DictionaryTempTablePanel({
                           <td className="prj-pm-dict-mapping-table__text">{renderDictionaryLogicWithRefs(rule.logic, rule.sourceRefs, onOpenFieldRef)}</td>
                           <td><DictionarySqlConversionBadge conversion={sqlConversion} validation={sqlValidationField} validationBusy={sqlValidationBusy} sourceKind={sqlValidation?.sourceKind} /></td>
                           <td className="prj-pm-dict-mapping-table__remark">{rule.remark || "-"}</td>
+                          <td>{rule.externalSql?.trim() ? <ExternalSqlButton title="临时表字段外部 SQL" subtitle={rule.field.fieldName} sql={rule.externalSql} onInspectProperty={onInspectProperty} /> : "-"}</td>
                         </tr>
                       );
                     })
@@ -1073,6 +1105,9 @@ export function DictionaryPropertyViewer({
           <span>{payload.title}</span>
         </div>
         <div className="prj-pm-dict-property-viewer__actions">
+          {payload.kind === "externalSql" && (
+            <button type="button" onClick={() => void navigator.clipboard?.writeText(payload.value)}>复制</button>
+          )}
           <button type="button" onClick={() => setCollapsed(value => !value)}>
             {collapsed ? "展开" : "收起"}
           </button>
@@ -1190,6 +1225,10 @@ function DictionaryPropertyContent({
         ) : null}
       </div>
     );
+  }
+
+  if (payload.kind === "externalSql") {
+    return <div className="prj-pm-dict-property-viewer__logic"><p>仅供参考，不参与 Mapping 解析、SQL 转换或校验。</p><pre>{payload.value || "-"}</pre></div>;
   }
 
   if (payload.kind === "mappingCaliber") {
@@ -1388,7 +1427,7 @@ function DictionaryTablePropertyContent({ table }: { table: ProjectDictionaryTab
           <span>表类型</span><strong>{table.tableType || "未标注"}</strong>
           <span>载体类型</span><strong>{table.sourceKind || "数据库"}</strong>
           <span>文件类型</span><strong>{table.fileType || "-"}</strong>
-          <span>是否有Mapping</span><strong>{table.hasMapping === false ? "否" : "是"}</strong>
+          <span>是否有Mapping</span><strong>{dictionaryTableMappingLabel(table)}</strong>
           <span>是否使用</span><strong>{table.usageStatus || "待确认"}</strong>
           <span>验证状态</span><strong>{table.verificationStatus || "未验证"}</strong>
           <span>字段数</span><strong>{table.fieldCount}</strong>
@@ -1396,6 +1435,12 @@ function DictionaryTablePropertyContent({ table }: { table: ProjectDictionaryTab
       </section>
       <DictionaryFileSourceBlock table={table} />
       <DictionaryStageSourceLinkBlock table={table} />
+      {table.externalSql?.trim() ? (
+        <section className="prj-pm-dict-field-popover__section is-sql">
+          <header><strong>外部 SQL</strong><span>整表参考 SQL</span></header>
+          <pre>{table.externalSql}</pre>
+        </section>
+      ) : null}
       {table.description?.trim() ? (
         <section className="prj-pm-dict-field-popover__section is-code">
           <header>
@@ -1487,7 +1532,7 @@ type DictionaryImportedTestData = {
 };
 
 
-export function DictionaryTableInfoPanel({ table, fields }: { table?: ProjectDictionaryTable; fields: ProjectDictionaryFieldHit[] }) {
+export function DictionaryTableInfoPanel({ table, fields, onInspectProperty }: { table?: ProjectDictionaryTable; fields: ProjectDictionaryFieldHit[]; onInspectProperty: (payload: DictionaryPropertyPayload) => void }) {
   if (!table) {
     return <div className="prj-pm-dict__grid-empty">请选择左侧表后查看表说明。</div>;
   }
@@ -1550,6 +1595,7 @@ export function DictionaryTableInfoPanel({ table, fields }: { table?: ProjectDic
           <span>{table.tableName}</span>
         </header>
         <p>{table.description || "暂无表说明。"}</p>
+        <ExternalSqlButton title="整表外部 SQL" subtitle={table.tableCn || table.tableName} sql={table.externalSql} onInspectProperty={onInspectProperty} />
       </section>
 
       <section className="prj-pm-dict-table-info__section is-caliber">
@@ -2256,6 +2302,10 @@ function sampleDictionaryValue(field: ProjectDictionaryFieldHit, index: number):
   if (/int|number|decimal|numeric|float|double|数值|金额|数量|order/i.test(type)) return String(index + 1);
   const prefix = field.fieldName.replace(/[^A-Za-z0-9]/g, "").slice(0, 6) || "VAL";
   return `${prefix}${String(index + 1).padStart(3, "0")}`;
+}
+
+function dictionaryTableMappingLabel(table: ProjectDictionaryTable): "是" | "待补充" | "否" {
+  return table.mappingStatus ?? (table.hasMapping === false ? "否" : "待补充");
 }
 
 export function dictionaryRectificationStatusLabel(status: ProjectDictionaryRectification["status"]): string {

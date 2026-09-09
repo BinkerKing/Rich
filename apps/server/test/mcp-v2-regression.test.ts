@@ -50,9 +50,17 @@ describe("MCP 2.0 final regression", () => {
 
   it("contains no legacy tool names", () => {
     const names = makeRegistry().listDefinitions().map(tool => tool.name);
-    // The deliverable-task scenario exposes five scoped task tools in
-    // addition to the established Rich catalog.
-    expect(names).toHaveLength(24);
+    // Optional business modules may register tools, within the registry budget.
+    expect(names.length).toBeLessThanOrEqual(40);
+    expect(new Set(names).size).toBe(names.length);
+    expect(names).toEqual(expect.arrayContaining([
+      "rich_deliverable_get", "rich_deliverable_files_get", "rich_deliverable_file_read",
+      "rich_project_files_get", "rich_project_file_read",
+      "rich_deliverable_record_create", "rich_deliverable_record_update",
+      "rich_deliverable_requirement_update", "rich_deliverable_settings_update",
+      "rich_deliverable_file_meta_update",
+      "rich_startup_project_manual",
+    ]));
     expect(names.every(name => name.startsWith("rich_"))).toBe(true);
     expect(names).not.toEqual(expect.arrayContaining([
       "create_element", "project_management_summary", "plan_get", "practice_get", "create_improvement",

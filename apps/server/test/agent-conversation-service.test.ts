@@ -171,6 +171,32 @@ describe("AgentConversationService execution", () => {
     await first;
   });
 
+  it("interrupts an active Codex turn before accepting its next message", async () => {
+    const { service, configs, runtimes } = await setup();
+    const codex = new FakeRuntime();
+    const config = await configs.get("c1");
+    await configs.save({ ...config!, executor: "codex", modelSessionId: "codex-thread-1", updatedAt: new Date().toISOString() });
+    runtimes.codex = codex;
+    let release!: () => void;
+    let started!: () => void;
+    codex.block = new Promise<void>(resolve => { release = resolve; });
+    const didStart = new Promise<void>(resolve => { started = resolve; });
+    codex.onStart = started;
+    codex.interrupt = async (threadId: string, turnId: string) => {
+      expect(threadId).toBe("codex-thread-1");
+      expect(turnId).toBeTruthy();
+      release();
+    };
+    codex.responses.push([{ type: "done", fullText: "stopped", sessionId: "codex-thread-1" }]);
+
+    const first = service.sendMessage("c1", { clientRequestId: "r1", userMessageId: "m1", content: "first" });
+    await didStart;
+    expect(service.isRunning("c1")).toBe(true);
+    await expect(service.interrupt("c1")).resolves.toBe(true);
+    await first;
+    expect(service.isRunning("c1")).toBe(false);
+  });
+
   it("retries a stale session once when no tool call was dispatched", async () => {
     const { service, runtime, configs } = await setup();
     await configs.setModelSessionId("c1", "stale", new Date().toISOString());

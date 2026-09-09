@@ -8,7 +8,7 @@ import { useStore } from "../state/store.js";
 import { normalizeProjectHealthRecord, type ProjectHealthCategory, type ProjectHealthSeverity, type ProjectHealthStatus } from "./project-health/projectHealthRecord.js";
 import "./AdminView.css";
 
-type Tab = "health" | "traces" | "workflows" | "delegations" | "agents" | "ops" | "signals" | "manuals" | "corpus" | "learning" | "cron" | "improvements" | "projectHealth";
+type Tab = "health" | "traces" | "workflows" | "delegations" | "agents" | "ops" | "signals" | "manuals" | "prompts" | "corpus" | "learning" | "cron" | "improvements" | "projectHealth";
 
 interface OpListItem {
   id: string;
@@ -50,6 +50,19 @@ interface ManualItem {
   content: string;
 }
 
+interface PromptTemplateItem {
+  key: string;
+  name: string;
+  kind: "common" | "scene";
+  description: string;
+  content: string;
+  includes: string[];
+  enabled: boolean;
+  updatedAt: string;
+}
+
+interface PromptMigrationItem { key: string; label: string; status: string; source: string; }
+
 interface LearningManualModule {
   id: string;
   page: string;
@@ -63,7 +76,7 @@ const OP_FILTERS = ["", "generate", "refine", "section-refine", "expand", "exten
 const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
   {
     id: "home-chat",
-    page: "首页 / 全局输入框 / ⌘⇧Space",
+    page: "首页 / 全局输入框",
     scene: "用户直接向 Rich 或 Hermes 下达任务、查询状态、触发系统级动作。",
     manual: [
       "先识别任务属于查询、整理、精确管理、规划、委派或验收；对象不明确时先搜索。",
@@ -160,20 +173,185 @@ const LEARNING_MANUAL_MODULES: LearningManualModule[] = [
     ],
   },
   {
-    id: "project-management",
-    page: "项目管理",
-    scene: "维护项目说明、流程、环境、部署、监控、版本控制、待办与文件夹信息。",
+    id: "project-dashboard",
+    page: "项目管理 / 驾驶舱",
+    scene: "查看项目交付、待办和模块状态，判断当前最需要处理的工作。",
     manual: [
-      "对象不明确时先搜索；项目和模块已明确后才进行精确读取或更新。",
-      "对话同时产生摘要、决定和待办时，应一次整理进项目结构，避免分散写入。",
-      "删除、取消或覆盖前必须再次读取当前状态并取得明确确认。",
+      "先读取项目汇总，再判断哪些模块为空、逾期或需要更新；驾驶舱只用于发现问题，不应成为重复记录的地方。",
+      "从驾驶舱得出的行动，要回到对应菜单维护，并在写入后重新读取验证。",
+      "进度、风险和下一步必须区分已确认事实与待核验判断。",
     ],
     cli: [
-      "MCP: rich_context_search / rich_project_manage",
-      "MCP: rich_project_organize_conversation",
-      "MCP: rich_project_analyze_and_plan（只分析，不执行）",
+      "MCP: project_management_summary",
+      "MCP: project_management_search（对象尚未定位时）",
       "DOC: docs/PROJECT_MANAGEMENT_MCP_MANUAL.md",
     ],
+  },
+  {
+    id: "project-delivery-plan",
+    page: "项目管理 / 交付计划",
+    scene: "拆分交付阶段、里程碑和责任，跟踪计划与实际偏差。",
+    manual: [
+      "先读当前计划、依赖和完成状态，再新增或调整节点；不要用新计划覆盖既有进度。",
+      "每个计划项写清可验收产出、负责人、截止时间和前置条件。",
+      "计划变化同步到项目待办、报告或交付物，但只更新确有变化的对象。",
+    ],
+    cli: ["MCP: project_management_list_items / project_management_update_item", "MCP: project_management_reorder_items", "CLI: pnpm rich -- api GET /api/projects/<projectId>/management/summary"],
+  },
+  {
+    id: "project-deliverables",
+    page: "项目管理 / 交付物",
+    scene: "登记交付物、准备验收材料，并追踪与计划、文件和任务的关联。",
+    manual: [
+      "先核对交付物名称、版本、验收标准和实际文件，再记录状态。",
+      "交付物状态不能替代文件事实；文件路径、版本和验收证据应可追溯。",
+      "涉及对外发送、覆盖或删除文件时，先确认目标、影响范围和可恢复性。",
+    ],
+    cli: ["MCP: project_management_list_items / project_management_update_item", "MCP: project_management_search", "CLI: pnpm rich -- api POST /api/projects/<projectId>/folder/scan"],
+  },
+  {
+    id: "project-reports",
+    page: "项目管理 / 报告",
+    scene: "沉淀日报、周报、月报和会议纪要，输出可追溯的项目状态。",
+    manual: [
+      "先读取已有报告和项目事实；报告应标出报告周期、来源、风险和下一步。",
+      "区分已完成、进行中、阻塞和待确认，不能把计划写成事实。",
+      "生成后核对报告归档目录和链接的项目对象。",
+    ],
+    cli: ["MCP: project_management_list_items / project_management_create_item", "MCP: project_management_search", "CLI: pnpm rich -- api POST /api/projects/<projectId>/reports"],
+  },
+  {
+    id: "project-description",
+    page: "项目管理 / 项目说明",
+    scene: "维护项目目标、范围、干系人、约束、目录和接手上下文。",
+    manual: [
+      "先读现有说明，只更新用户确认的字段；未知信息明确标为待确认。",
+      "说明应提供后续 Agent 接手所需的事实入口，而非复制所有执行细节。",
+      "本地目录、敏感配置和外部系统权限只记录引用与责任人，不记录密钥。",
+    ],
+    cli: ["MCP: project_management_list_items / project_management_update_item", "MCP: project_management_search", "DOC: docs/PROJECT_MANAGEMENT_MCP_MANUAL.md"],
+  },
+  {
+    id: "project-dictionary",
+    page: "项目管理 / 数据字典",
+    scene: "维护系统、表、字段、码值、Mapping 和场景的受控定义。",
+    manual: [
+      "先读取当前 published 模板和证据；属性缺失或固定码值不合法时停止写入，不猜业务含义。",
+      "字段逻辑、场景口径和临时表属于受控结构，不能以备注或自由文本替代。",
+      "模板外的新属性、枚举或语义先创建变更记录，发布后再录入。",
+    ],
+    cli: ["MCP: rich_dictionary_manage", "MCP: project_dictionary_search_fields / project_dictionary_get_field", "DOC: docs/PROJECT_DICTIONARY_MAPPING_RULES.md"],
+  },
+  {
+    id: "project-automation",
+    page: "项目管理 / 数据自动化",
+    scene: "编排字典已有的同步、验证、抽取与运行步骤，跟踪执行结果。",
+    manual: [
+      "自动化只编排已定义的规则，不在此菜单改写 Mapping 语义。",
+      "运行前确认环境、目标库、写入模式和影响范围；生产写入必须明确确认。",
+      "失败时记录运行时间、错误、影响范围和 table_id，并回到数据字典或环境配置定位。",
+    ],
+    cli: ["MCP: rich_automation_manage", "MCP: project_management_list_items", "DOC: docs/PROJECT_MANAGEMENT_MAINTENANCE_MANUAL.md"],
+  },
+  {
+    id: "project-workflow",
+    page: "项目管理 / 作业流程",
+    scene: "维护标准作业步骤、输入输出、责任边界和质量检查点。",
+    manual: [
+      "流程按可执行顺序描述，明确触发条件、输入、输出、责任人和验收点。",
+      "变更流程前先确认受影响的场景、自动化和交付物。",
+      "流程异常要记录实际偏差和处置结果，不用理想步骤掩盖问题。",
+    ],
+    cli: ["MCP: project_management_list_items / project_management_update_item", "MCP: project_management_reorder_items", "MCP: project_management_search"],
+  },
+  {
+    id: "project-scenarios",
+    page: "项目管理 / 场景手册",
+    scene: "把跨菜单的任务组织成可复用流程，并明确每一步的输入、输出和验证。",
+    manual: [
+      "场景引用已有菜单中的事实，不复制或制造第二份配置。",
+      "按顺序写明前置条件、执行动作、输出和失败处理，步骤完成后再进入下一步。",
+      "场景涉及环境、部署、版本或外部系统时，必须标注确认点与回滚入口。",
+    ],
+    cli: ["MCP: project_management_list_items / project_management_create_item", "MCP: project_management_search", "DOC: docs/PROJECT_MANAGEMENT_MCP_MANUAL.md"],
+  },
+  {
+    id: "project-environments",
+    page: "项目管理 / 环境配置",
+    scene: "登记本地、测试和生产环境的依赖、变量引用、服务地址和准备状态。",
+    manual: [
+      "先确认环境名称、用途和所有者；配置只记录非敏感值或凭据引用。",
+      "本地环境的依赖版本、启动命令和校验方式必须可复现。",
+      "环境差异、缺失依赖和访问限制要显式记录，不能默认本地等同生产。",
+    ],
+    cli: ["MCP: project_management_list_items / project_management_update_item", "MCP: project_management_search", "DOC: docs/PROJECT_MANAGEMENT_MAINTENANCE_MANUAL.md"],
+  },
+  {
+    id: "project-deployment-steps",
+    page: "项目管理 / 部署步骤",
+    scene: "维护部署、回滚和验证步骤，保证不同环境的发布过程可执行。",
+    manual: [
+      "部署前读取目标环境、当前版本、依赖和变更范围；缺少前置条件时停止。",
+      "每一步包含执行命令或动作、预期结果、验证方式和失败后的回滚动作。",
+      "部署记录要写入实际结果和版本号，不能把计划步骤标记为已完成。",
+    ],
+    cli: ["MCP: project_management_list_items / project_management_update_item", "MCP: project_management_reorder_items", "MCP: project_management_search"],
+  },
+  {
+    id: "project-monitoring",
+    page: "项目管理 / 监控预警",
+    scene: "维护监控项、阈值、告警渠道、值班责任和故障处置。",
+    manual: [
+      "先确认指标来源、采样范围和阈值依据；没有证据的阈值标为待确认。",
+      "告警必须关联负责人、响应时限和处置流程，避免只有通知没有行动。",
+      "监控异常先保留事实与时间线，再判断根因；不要直接改监控记录掩盖故障。",
+    ],
+    cli: ["MCP: project_management_list_items / project_management_update_item", "MCP: project_management_search", "DOC: docs/PROJECT_MANAGEMENT_MAINTENANCE_MANUAL.md"],
+  },
+  {
+    id: "project-code-versions",
+    page: "项目管理 / 版本控制",
+    scene: "登记代码仓库、分支、版本、变更说明和发布关联。",
+    manual: [
+      "先读取当前版本和目标环境，明确本次变更对应的 commit、分支或发布包。",
+      "不要把未验证的工作区状态标成可发布版本；版本记录必须能回溯来源。",
+      "涉及合并、打标签、推送或回滚时，先确认仓库、分支和影响范围。",
+    ],
+    cli: ["MCP: project_management_list_items / project_management_update_item", "MCP: project_management_search", "CLI: git status / git log --oneline"],
+  },
+  {
+    id: "project-todos",
+    page: "项目管理 / 项目待办",
+    scene: "管理项目行动项、负责人、截止时间、阻塞原因和完成验证。",
+    manual: [
+      "待办要足够具体，可由负责人验收；避免用模糊标题代替行动。",
+      "完成待办时实际写回状态，并记录交付证据或关联产物。",
+      "阻塞项写清等待对象与下一步，不把未完成工作直接关闭。",
+    ],
+    cli: ["MCP: project_management_list_items / project_management_create_item / project_management_update_item", "MCP: project_management_search", "MCP: project_management_reorder_items"],
+  },
+  {
+    id: "project-folder",
+    page: "项目管理 / 文件夹",
+    scene: "扫描和维护项目目录，定位资料、补充备注并验证交付文件。",
+    manual: [
+      "先扫描目录并读取文件/目录备注，再新增说明或建立目录。",
+      "新建路径必须位于项目根目录下，使用约定业务目录；不覆盖同名文件。",
+      "移动、删除或对外发送文件前，确认精确路径、关联交付物和恢复方案。",
+    ],
+    cli: ["CLI: pnpm rich -- api POST /api/projects/<projectId>/folder/scan", "CLI: pnpm rich -- api POST /api/projects/<projectId>/folder/mkdirs", "MCP: project_management_search"],
+  },
+  {
+    id: "project-local-environment-scenario",
+    page: "项目管理 / 场景 / 搭建项目本地环境",
+    scene: "将环境配置、部署步骤、版本控制与项目启动串成一次可验证的本地接手流程。",
+    manual: [
+      "1. 环境配置：读取本地环境所需的运行时、依赖、变量引用与服务地址；敏感值只从凭据系统或本机环境变量取得。",
+      "2. 版本控制：确认仓库、目标分支或提交、工作区状态和依赖锁文件；不在不明状态下覆盖本地改动。",
+      "3. 部署步骤：按项目记录安装依赖、准备配置和初始化服务；每一步完成后执行其验证，不跳过失败步骤。",
+      "4. 项目启动：执行记录的启动命令，验证健康检查、关键页面或接口；将实际版本、结果、阻塞和下一步写回对应菜单。",
+    ],
+    cli: ["关联菜单：环境配置 → 版本控制 → 部署步骤 → 驾驶舱 / 项目待办", "MCP: project_management_search / project_management_list_items", "CLI: git status / git rev-parse --short HEAD", "CLI: pnpm install && pnpm dev（以项目记录的命令为准）"],
   },
   {
     id: "project-dictionary-template",
@@ -312,6 +490,9 @@ export function AdminView() {
             >
               <span className="sidebar-node__title">知识手册 · 反思</span>
             </button>
+            <button type="button" className={`sidebar-node ${tab === "prompts" ? "is-active" : ""}`} onClick={() => setTab("prompts")}>
+              <span className="sidebar-node__title">提示词库</span>
+            </button>
             <button
               type="button"
               className={`sidebar-node ${tab === "corpus" ? "is-active" : ""}`}
@@ -360,6 +541,7 @@ export function AdminView() {
         {tab === "ops" && <OpsTab />}
         {tab === "signals" && <SignalsTab />}
         {tab === "manuals" && <ManualsTab />}
+        {tab === "prompts" && <PromptLibraryTab />}
         {tab === "corpus" && <CorpusTab />}
         {tab === "learning" && <LearningManualTab />}
         {tab === "cron" && <CronTab />}
@@ -917,6 +1099,64 @@ function ManualsTab() {
   );
 }
 
+/* ----------------------------- Prompt library ---------------------------- */
+
+function PromptLibraryTab() {
+  const [templates, setTemplates] = useState<PromptTemplateItem[]>([]);
+  const [migrationCatalog, setMigrationCatalog] = useState<PromptMigrationItem[]>([]);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [draft, setDraft] = useState<PromptTemplateItem | null>(null);
+  const [preview, setPreview] = useState("");
+  const [busy, setBusy] = useState(false);
+  const active = templates.find(item => item.key === activeKey) ?? null;
+
+  async function load() {
+    const response = await fetch("/api/prompt-library/templates");
+    const data = await response.json() as { templates?: PromptTemplateItem[]; migrationCatalog?: PromptMigrationItem[] };
+    const items = data.templates ?? [];
+    setTemplates(items); setMigrationCatalog(data.migrationCatalog ?? []);
+    const selected = items.find(item => item.key === activeKey) ?? items[0] ?? null;
+    setActiveKey(selected?.key ?? null); setDraft(selected ? { ...selected, includes: [...selected.includes] } : null);
+  }
+  useEffect(() => { void load(); }, []);
+  useEffect(() => { if (active) setDraft({ ...active, includes: [...active.includes] }); }, [activeKey]);
+
+  async function save() {
+    if (!draft) return;
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/prompt-library/templates/${encodeURIComponent(draft.key)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: draft.name, description: draft.description, content: draft.content, includes: draft.includes, enabled: draft.enabled }) });
+      if (!response.ok) throw new Error("保存失败");
+      await load();
+    } finally { setBusy(false); }
+  }
+  async function renderPreview() {
+    if (!draft || draft.kind !== "scene") return;
+    setBusy(true);
+    try {
+      const response = await fetch("/api/prompt-library/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: draft.key, variables: { modeLabel: "交付物分析", page: "项目管理 / 交付物", businessKind: "交付物", businessTitle: "示例交付物", project: "示例项目", projectId: "project-example", deliverableId: "deliverable-example", deliverableContext: "（此处为当前交付物的实时资料）" } }) });
+      const data = await response.json() as { content?: string; error?: string };
+      setPreview(data.content ?? data.error ?? "无法生成预览");
+    } finally { setBusy(false); }
+  }
+  return <div className="admin-pane">
+    <header className="admin-pane__head"><div><h1>提示词库</h1><p className="admin-pane__desc">场景显式引用通用模板。保存后，下一次运行即时使用新内容；历史消息不会变化。</p></div><button type="button" onClick={() => void load()}>刷新</button></header>
+    <div className="admin-manuals">
+      <div className="admin-manuals-list">{templates.map(item => <button key={item.key} type="button" className={`sidebar-node ${activeKey === item.key ? "is-active" : ""}`} onClick={() => setActiveKey(item.key)}><span className="sidebar-node__title">{item.name}</span><em className="admin-manual-len">{item.kind === "scene" ? "场景" : "通用"}</em></button>)}</div>
+      <div className="admin-manual-detail">{draft && <>
+        <header className="admin-detail__head"><strong>{draft.key}</strong><label><input type="checkbox" checked={draft.enabled} onChange={event => setDraft({ ...draft, enabled: event.target.checked })} /> 启用</label></header>
+        <label>名称<input value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} /></label>
+        <label>说明<input value={draft.description} onChange={event => setDraft({ ...draft, description: event.target.value })} /></label>
+        <label>引用模板（以逗号分隔，按顺序展开）<input value={draft.includes.join(", ")} onChange={event => setDraft({ ...draft, includes: event.target.value.split(",").map(value => value.trim()).filter(Boolean) })} /></label>
+        <label>Markdown 提示词<textarea rows={18} value={draft.content} onChange={event => setDraft({ ...draft, content: event.target.value })} /></label>
+        <div className="admin-filters"><button type="button" disabled={busy} onClick={() => void save()}>保存并即时生效</button>{draft.kind === "scene" && <button type="button" disabled={busy} onClick={() => void renderPreview()}>预览最终提示词</button>}</div>
+        {preview && <pre className="admin-pre admin-manual-pre">{preview}</pre>}
+      </>}</div>
+    </div>
+    <section className="admin-pane" style={{ marginTop: 24 }}><h2>迁移清单</h2><table className="admin-table"><thead><tr><th>场景</th><th>状态</th><th>当前来源</th></tr></thead><tbody>{migrationCatalog.map(item => <tr key={item.key}><td>{item.label}<br /><code>{item.key}</code></td><td>{item.status}</td><td>{item.source}</td></tr>)}</tbody></table></section>
+  </div>;
+}
+
 /* ---------------------------- Learning Manual ----------------------------- */
 
 function LearningManualTab() {
@@ -1469,7 +1709,7 @@ function CronTab() {
 
       <p className="admin-pane__desc">
         Hermes 的定时任务清单（读自 <code>~/.hermes/cron/jobs.json</code>）。要新增 / 暂停 / 删除任务，
-        请按 <kbd>⌘⇧Space</kbd> 唤起 Hermes 对话，比如：
+        请在首页输入框中唤起 Hermes 对话，比如：
         <em>「帮我每天早上 10 点生成当天的 AI 早报」</em>。
       </p>
 

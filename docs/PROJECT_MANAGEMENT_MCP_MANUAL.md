@@ -12,6 +12,7 @@
 | 结合项目资料分析风险、依赖和步骤，不执行 | `rich_project_analyze_and_plan` |
 | 精确读取、新建、更新或删除项目条目 | `rich_project_manage` |
 | 管理数据字典系统、表和字段 | `rich_dictionary_manage` |
+| 管理测试任务、用例、执行、证据、问题、复测与报告 | `rich_test_center_manage` |
 | 管理项目自动化计划定义 | `rich_automation_manage` |
 | 把明确开发工作交给外部 Agent | `rich_work_delegate` |
 
@@ -69,6 +70,32 @@
 更新前必须先定位系统内 ID。字段类型、码值、格式或 Mapping 逻辑不确定时，不得猜测。
 
 MCP 2.0 当前没有暴露 Mapping 场景、规则、血缘和整改的全部原子操作。这些操作继续遵守 `docs/PROJECT_DICTIONARY_MAPPING_RULES.md`，并通过 Rich CLI/API 完成；不要退回调用已删除的 MCP v1 工具。
+
+## 测试中心
+
+`rich_test_center_manage` 以测试用例为主线。测试任务定义范围；用例保存目标和步骤；每次执行创建独立历史；证据、问题、讨论和复测均回溯至指定用例或执行。它支持：
+
+- 读取：`list_tasks`、`list_cases`、`list_runs`、`list_issues`、`get_report`。
+- 写入：`create_task`、`create_case`、`create_cases`、`add_case_step`、`start_run`、`finish_run`、`finish_run_step`、`add_evidence`、`create_issue`、`update_issue`、`add_discussion`、`start_retest`。
+
+写入必须带 `context.requestId`；网络重试复用同一 ID。批量用例创建使用 `create_cases` 的 `input.cases`，每条用例仍需 `code`、`title`、`objective`、`type`（`data` 或 `functional`）和 `priority`。问题只有进入 `fixed` 后才允许 `start_retest`；它会从问题的源用例创建一条新执行记录，并把问题标为 `retest`，不会覆盖失败历史。
+
+示例：
+
+```json
+{
+  "action": "create_case",
+  "projectId": "project-rich",
+  "input": {
+    "code": "TC-001",
+    "title": "金额汇总校验",
+    "objective": "验证源明细与汇总金额一致",
+    "type": "data",
+    "priority": "high"
+  },
+  "context": { "requestId": "tc-001-create" }
+}
+```
 
 ## 写安全
 

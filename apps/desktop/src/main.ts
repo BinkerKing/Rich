@@ -388,6 +388,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
     if (result.canceled || !result.filePath) return false;
     const workbook = new ExcelJS.Workbook();
     const ganttSheet = workbook.addWorksheet("甘特图");
+    const today = gantt.today;
     const dates = gantt.dates.filter((date): date is string => typeof date === "string");
     const rows = gantt.rows.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object");
     ganttSheet.columns = [{ width: 46 }, { width: 14 }, { width: 10 }, ...dates.map(() => ({ width: 5 }))];
@@ -421,17 +422,24 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
         const cell = row.getCell(dateIndex + 4); const phaseEnd = phase?.baselineDueDate || phase?.dueDate || phase?.startDate;
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF050505" } };
         if (phase && inRange(date, phase.startDate, phaseEnd)) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: phaseColors[(Number(item.phaseIndex) || 0) % phaseColors.length]! } };
-        const end = item.baselineDueDate || item.dueDate || item.startDate;
-        if (item.kind === "milestone" && date === end) { cell.value = "⚑"; cell.font = { name: "PingFang SC", size: 12, color: { argb: "FFFBBF24" } }; }
-        else if (item.kind === "risk" && inRange(date, item.startDate || end, end)) { cell.value = "⚠"; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE11D48" } }; }
-        else if (item.kind === "task" && inRange(date, item.startDate || end, end)) {
-          const taskStartIndex = dates.findIndex(candidate => candidate >= String(item.startDate || end));
+        const plannedEnd = item.baselineDueDate || item.dueDate || item.startDate;
+        const delayEnd = typeof item.dueDate === "string" && item.dueDate > String(plannedEnd)
+          ? item.dueDate
+          : !item.dueDate && String(plannedEnd) < today ? today : undefined;
+        const renderedEnd = delayEnd || plannedEnd;
+        if (item.kind === "milestone" && date === plannedEnd) { cell.value = "⚑"; cell.font = { name: "PingFang SC", size: 12, color: { argb: "FFFBBF24" } }; }
+        else if (item.kind === "risk" && inRange(date, item.startDate || plannedEnd, plannedEnd)) { cell.value = "⚠"; cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE11D48" } }; }
+        else if (item.kind === "task" && inRange(date, item.startDate || renderedEnd, renderedEnd)) {
+          const taskStartIndex = dates.findIndex(candidate => candidate >= String(item.startDate || plannedEnd));
           let taskEndIndex = -1;
-          for (let index = dates.length - 1; index >= 0; index -= 1) if (dates[index]! <= String(end)) { taskEndIndex = index; break; }
+          for (let index = dates.length - 1; index >= 0; index -= 1) if (dates[index]! <= String(plannedEnd)) { taskEndIndex = index; break; }
           const completeDateIndex = taskStartIndex + Math.ceil((taskEndIndex - taskStartIndex + 1) * Math.min(100, Math.max(0, Number(item.progress || 0))) / 100) - 1;
           const taskStyle = item.status === "blocked" ? { fill: "FFFB7185", border: "FFFDA4AF" } : item.status === "done" ? { fill: "FF00A878", border: "FF6EE7B7" } : item.status === "todo" ? { fill: "FF718096", border: "FFCBD5E1" } : { fill: dateIndex <= completeDateIndex ? "FF00A878" : "FF718096", border: "FF6EE7B7" };
-          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: taskStyle.fill } };
-          cell.border = { top: { style: "medium", color: { argb: taskStyle.border } }, bottom: { style: "medium", color: { argb: taskStyle.border } }, left: dateIndex === taskStartIndex ? { style: "medium", color: { argb: taskStyle.border } } : undefined, right: dateIndex === taskEndIndex ? { style: "medium", color: { argb: taskStyle.border } } : undefined };
+          const isDelay = Boolean(delayEnd && date > String(plannedEnd));
+          cell.fill = isDelay
+            ? { type: "pattern", pattern: "darkTrellis", fgColor: { argb: "FFFB7185" }, bgColor: { argb: "FFE11D48" } }
+            : { type: "pattern", pattern: "solid", fgColor: { argb: taskStyle.fill } };
+          cell.border = { top: { style: "medium", color: { argb: isDelay ? "FFE11D48" : taskStyle.border } }, bottom: { style: "medium", color: { argb: isDelay ? "FFE11D48" : taskStyle.border } }, left: dateIndex === taskStartIndex ? { style: "medium", color: { argb: taskStyle.border } } : undefined, right: dateIndex === taskEndIndex ? { style: "medium", color: { argb: taskStyle.border } } : undefined };
         }
       });
       if (item.kind === "phase" || item.kind === "group") row.eachCell(cell => { cell.font = { name: "PingFang SC", size: 10, bold: true, color: { argb: "FFFFFFFF" } }; });
@@ -456,19 +464,33 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
     });
     for (let rowNumber = 3; rowNumber <= rows.length + 2; rowNumber += 1) for (let columnNumber = 4; columnNumber <= dates.length + 3; columnNumber += 1) {
       const cell = ganttSheet.getCell(rowNumber, columnNumber);
-      const item = rows[rowNumber - 3]; const end = item?.baselineDueDate || item?.dueDate || item?.startDate;
-      const isTaskBar = item?.kind === "task" && inRange(dates[columnNumber - 4]!, item.startDate || end, end);
+      const item = rows[rowNumber - 3]; const plannedEnd = item?.baselineDueDate || item?.dueDate || item?.startDate;
+      const delayEnd = typeof item?.dueDate === "string" && item.dueDate > String(plannedEnd)
+        ? item.dueDate
+        : !item?.dueDate && String(plannedEnd) < today ? today : undefined;
+      const renderedEnd = delayEnd || plannedEnd;
+      const isTaskBar = item?.kind === "task" && inRange(dates[columnNumber - 4]!, item.startDate || renderedEnd, renderedEnd);
       if (!isTaskBar && !cell.border?.left) cell.border = { ...cell.border, left: { style: "thin", color: { argb: "FF6B7280" } } };
     }
     rows.forEach((item, index) => {
       if (item.kind !== "task") return;
-      const end = item.baselineDueDate || item.dueDate || item.startDate;
-      const startIndex = dates.findIndex(date => date >= String(item.startDate || end));
+      const plannedEnd = item.baselineDueDate || item.dueDate || item.startDate;
+      const delayEnd = typeof item.dueDate === "string" && item.dueDate > String(plannedEnd)
+        ? item.dueDate
+        : !item.dueDate && String(plannedEnd) < today ? today : undefined;
+      const renderedEnd = delayEnd || plannedEnd;
+      const startIndex = dates.findIndex(date => date >= String(item.startDate || plannedEnd));
+      let plannedEndIndex = -1;
+      for (let dateIndex = dates.length - 1; dateIndex >= 0; dateIndex -= 1) if (dates[dateIndex]! <= String(plannedEnd)) { plannedEndIndex = dateIndex; break; }
       let endIndex = -1;
-      for (let dateIndex = dates.length - 1; dateIndex >= 0; dateIndex -= 1) if (dates[dateIndex]! <= String(end)) { endIndex = dateIndex; break; }
+      for (let dateIndex = dates.length - 1; dateIndex >= 0; dateIndex -= 1) if (dates[dateIndex]! <= String(renderedEnd)) { endIndex = dateIndex; break; }
       if (startIndex < 0 || endIndex < startIndex) return;
       const border = item.status === "blocked" ? "FFFDA4AF" : item.status === "todo" ? "FFCBD5E1" : "FF6EE7B7";
-      for (let dateIndex = startIndex; dateIndex <= endIndex; dateIndex += 1) ganttSheet.getCell(index + 3, dateIndex + 4).border = { top: { style: "medium", color: { argb: border } }, bottom: { style: "medium", color: { argb: border } }, left: dateIndex === startIndex ? { style: "medium", color: { argb: border } } : undefined, right: dateIndex === endIndex ? { style: "medium", color: { argb: border } } : undefined };
+      for (let dateIndex = startIndex; dateIndex <= endIndex; dateIndex += 1) {
+        const isDelay = Boolean(delayEnd && dateIndex > plannedEndIndex);
+        const edgeColor = isDelay ? "FFE11D48" : border;
+        ganttSheet.getCell(index + 3, dateIndex + 4).border = { top: { style: "medium", color: { argb: edgeColor } }, bottom: { style: "medium", color: { argb: edgeColor } }, left: dateIndex === startIndex ? { style: "medium", color: { argb: border } } : undefined, right: dateIndex === plannedEndIndex ? { style: "medium", color: { argb: border } } : dateIndex === endIndex ? { style: "medium", color: { argb: edgeColor } } : undefined };
+      }
     });
     const todayColumn = dates.indexOf(gantt.today) + 4;
     if (todayColumn >= 4) for (let rowNumber = 1; rowNumber <= rows.length + 2; rowNumber += 1) {
@@ -574,6 +596,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
         height: "56px",
         zIndex: "2147483646",
         WebkitAppRegion: "drag",
+        pointerEvents: "none",
         userSelect: "none",
       });
       if (!region.dataset.richWindowRestoreHandler) {
@@ -719,6 +742,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
         if (event.clientY > 120) return;
         const target = event.target instanceof Element ? event.target : null;
         if (!target || target.closest("button, a, input, textarea, select, [role='button'], [role='tab'], [contenteditable='true']")) return;
+        if (target.closest(".deliverable-codex-workbench")) return;
         if (!target.closest("header, [data-window-drag-region='true']")) return;
         event.preventDefault();
         event.stopPropagation();
@@ -738,12 +762,16 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
       return;
     }
     if (input.type !== "keyDown") return;
-    // This is intentionally app-local rather than a globalShortcut: macOS
-    // Spotlight retains Cmd+Space when Rich is not focused. The renderer
-    // resolves the currently open deliverable into its scoped workbench.
-    if ((input.meta || input.control) && (input.code === "Space" || input.key === " ")) {
-      win.webContents.executeJavaScript(`window.dispatchEvent(new Event("rich:toggle-deliverable-codex"));`)
-        .catch(() => { /* renderer may be navigating */ });
+    // When Rich is already the foreground app, keep these shortcuts local to
+    // this window. The global Shift+Cmd+Space registration would otherwise
+    // consume Cmd+Space before Electron can deliver it here.
+    if (input.shift && (input.meta || input.control) && (input.code === "Space" || input.key === " ")) {
+      toggleRichMainWindow(win);
+      event.preventDefault();
+      return;
+    }
+    if (!input.shift && (input.meta || input.control) && (input.code === "Space" || input.key === " ")) {
+      openDeliverableCodex(win);
       event.preventDefault();
       return;
     }
@@ -821,7 +849,7 @@ let breakReminderUntil = 0;
 let breakReminderPoller: NodeJS.Timeout | null = null;
 
 /** Spotlight-style chat overlay window. Created lazily on first invocation
- *  of the Cmd+Shift+Space shortcut, then kept alive (hidden on Esc/blur)
+ *  of the Cmd+~ shortcut, then kept alive (hidden on Esc/blur)
  *  so the conversation state in the renderer survives across opens. */
 let chatWindow: BrowserWindow | null = null;
 let overlayVisible = false;
@@ -931,13 +959,15 @@ function showRichMainWindow(mainWin: BrowserWindow) {
   app.focus({ steal: true });
 }
 
-/** Toggle the main Rich window from the global shortcut. Normal app
- *  activation must always reveal the window; it should never reuse this
- *  toggle path because macOS can mark the window focused during activation. */
+function openDeliverableCodex(mainWin: BrowserWindow) {
+  if (mainWin.isDestroyed()) return;
+  mainWin.webContents.executeJavaScript(`window.dispatchEvent(new Event("rich:toggle-deliverable-codex"));`)
+    .catch(() => { /* renderer may be navigating */ });
+}
+
 function toggleRichMainWindow(mainWin: BrowserWindow) {
   if (mainWin.isDestroyed()) return;
-  const visibleAndFocused = mainWin.isVisible() && mainWin.isFocused() && !mainWin.isMinimized();
-  if (visibleAndFocused) {
+  if (mainWin.isVisible() && mainWin.isFocused() && !mainWin.isMinimized()) {
     mainWin.hide();
     return;
   }
@@ -945,22 +975,22 @@ function toggleRichMainWindow(mainWin: BrowserWindow) {
 }
 
 function setupRichSummonShortcut(mainWin: BrowserWindow) {
-  // Cmd+Shift+Enter brings the main Rich window to front. We deliberately
-  // moved off the original Cmd+Space binding because:
-  //   1. Cmd+Space is macOS Spotlight — grabbing it broke Spotlight while
-  //      Rich was running.
-  //   2. The chat overlay now owns Cmd+Shift+Space, so Cmd+Shift+Enter is
-  //      the natural "twin" — same modifier, different key, distinct intent.
-  const shortcuts = ["CommandOrControl+Shift+Return"];
-  for (const accelerator of shortcuts) {
+  const shortcuts = ["CommandOrControl+Shift+Space"];
+  const accelerator = shortcuts[0]!;
+  const registerShortcut = () => {
+    if (mainWin.isDestroyed() || mainWin.isFocused() || globalShortcut.isRegistered(accelerator)) return;
     const ok = globalShortcut.register(accelerator, () => toggleRichMainWindow(mainWin));
     console.log(`[ke-desktop] summon shortcut ${accelerator}: ${ok ? "registered" : "failed"}`);
     if (!ok) {
       console.warn(`[ke-desktop] summon shortcut ${accelerator} failed; another app may already own it.`);
     }
-  }
+  };
+  const unregisterShortcut = () => globalShortcut.unregister(accelerator);
+  mainWin.on("focus", unregisterShortcut);
+  mainWin.on("blur", registerShortcut);
+  registerShortcut();
   app.on("will-quit", () => {
-    for (const accelerator of shortcuts) globalShortcut.unregister(accelerator);
+    globalShortcut.unregister(accelerator);
   });
 }
 
@@ -1052,6 +1082,12 @@ function setupBreakReminder(port: number) {
 const CHAT_WINDOW_WIDTH = 760;
 const CHAT_WINDOW_HEIGHT = 600;
 
+ipcMain.handle("rich-chat:capture-current-view", async (event) => {
+  if ((event.sender !== chatWindow?.webContents && event.sender !== mainWindow?.webContents) || !mainWindow || mainWindow.isDestroyed()) return null;
+  const image = await mainWindow.webContents.capturePage();
+  return image.toDataURL();
+});
+
 function createChatWindow(port: number): BrowserWindow {
   const display = screen.getPrimaryDisplay();
   const x = Math.round(display.bounds.x + (display.bounds.width - CHAT_WINDOW_WIDTH) / 2);
@@ -1076,6 +1112,7 @@ function createChatWindow(port: number): BrowserWindow {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      preload: join(__dirname, "preload.cjs"),
     },
   });
 
@@ -1119,7 +1156,7 @@ function createChatWindow(port: number): BrowserWindow {
 
   // Hide (don't destroy) on blur so the conversation state in the renderer
   // survives across opens. The blur path only hides the chat — for the
-  // full Spotlight-style "go away entirely" behavior, the Cmd+Shift+Space
+  // full Spotlight-style "go away entirely" behavior, the Cmd+~
   // re-press and the Esc key both go through hideChatAndApp() (which
   // additionally sends the Rich app to background).
   win.on("blur", () => {
@@ -1213,16 +1250,15 @@ function toggleChatWindow() {
   }
 }
 
-function setupChatOverlay(port: number) {
-  // Register Cmd+Shift+Space globally (works even when Rich isn't focused).
-  // Cmd+Space is taken by Spotlight (and Rich's own summon shortcut below),
-  // so we pick the Shift variant — free on macOS by default.
-  const accelerator = "CommandOrControl+Shift+Space";
-  const ok = globalShortcut.register(accelerator, toggleChatWindow);
-  console.log(`[ke-desktop] chat shortcut ${accelerator}: ${ok ? "registered" : "failed"}`);
-  if (!ok) {
-    console.warn(`[ke-desktop] chat shortcut ${accelerator} failed; another app may already own it.`);
-  }
+function setupChatOverlay(port: number, mainWin: BrowserWindow) {
+  const accelerator = "CommandOrControl+`";
+  const ok = globalShortcut.register(accelerator, () => {
+    const quickChatVisible = Boolean(chatWindow && !chatWindow.isDestroyed() && chatWindow.isVisible());
+    if (!quickChatVisible && mainWin.isVisible()) mainWin.hide();
+    toggleChatWindow();
+  });
+  console.log(`[ke-desktop] Command+~ shortcut ${accelerator}: ${ok ? "registered" : "failed"}`);
+  if (!ok) console.warn(`[ke-desktop] chat shortcut ${accelerator} failed; another app may already own it.`);
   app.on("will-quit", () => globalShortcut.unregister(accelerator));
 
   // Pre-warm the window so the first invocation is instant. Keeps the
@@ -1348,9 +1384,9 @@ app.whenReady().then(async () => {
     await bootServer(port);
     const mainWin = await openMainWindow(port);
     setupOverlayControls(port);
-    setupBreakReminder(port);
-    setupRichSummonShortcut(mainWin);
-    setupChatOverlay(port);
+        setupBreakReminder(port);
+        setupRichSummonShortcut(mainWin);
+        setupChatOverlay(port, mainWin);
     setupTray(mainWin);
     setTimeout(() => ensureDockApplication("startup settled"), 1000);
     flog(`startup ok, port=${port}, tray=${tray ? "yes" : "no"}`);

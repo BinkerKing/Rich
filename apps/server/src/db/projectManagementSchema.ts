@@ -34,6 +34,7 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     usage_status TEXT,
     verification_status TEXT NOT NULL DEFAULT '未验证',
     verification_remark TEXT,
+    external_sql TEXT,
     description TEXT,
     caliber TEXT,
     extra JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -98,6 +99,7 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
   ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS usage_status TEXT;
   ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS verification_status TEXT NOT NULL DEFAULT '未验证';
   ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS verification_remark TEXT;
+  ALTER TABLE pm_data_tables ADD COLUMN IF NOT EXISTS external_sql TEXT;
 
   CREATE TABLE IF NOT EXISTS pm_data_fields (
     id TEXT PRIMARY KEY,
@@ -261,6 +263,8 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     table_id TEXT NOT NULL REFERENCES pm_data_tables(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     caliber TEXT,
+    caliber_external_sql TEXT,
+    external_sql TEXT,
     remark TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0,
     raw JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -269,6 +273,28 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     UNIQUE(project_id, table_id, title)
   );
   CREATE INDEX IF NOT EXISTS idx_pm_mapping_scenarios_table ON pm_mapping_scenarios(project_id, table_id, sort_order);
+  CREATE TABLE IF NOT EXISTS pm_business_scenarios (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, system_id TEXT REFERENCES pm_data_systems(id) ON DELETE CASCADE,
+    title TEXT NOT NULL, procedure_name TEXT NOT NULL, external_location TEXT, sql_text TEXT NOT NULL, remark TEXT, sort_order INTEGER NOT NULL DEFAULT 0,
+    validation_status TEXT NOT NULL DEFAULT 'pending', validation_sql_fingerprint TEXT, validation_message TEXT, validated_at TEXT,
+    created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pm_business_scenario_libraries (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, name TEXT NOT NULL, db_type TEXT, sql_dialect TEXT,
+    connection JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+    UNIQUE(project_id, name)
+  );
+  ALTER TABLE pm_business_scenarios ADD COLUMN IF NOT EXISTS library_id TEXT REFERENCES pm_business_scenario_libraries(id) ON DELETE RESTRICT;
+  ALTER TABLE pm_business_scenarios ALTER COLUMN system_id DROP NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_pm_business_scenario_libraries_project ON pm_business_scenario_libraries(project_id, name);
+  CREATE INDEX IF NOT EXISTS idx_pm_business_scenarios_system ON pm_business_scenarios(project_id, system_id, sort_order);
+  CREATE TABLE IF NOT EXISTS pm_business_scenario_tables (
+    project_id TEXT NOT NULL, scenario_id TEXT NOT NULL REFERENCES pm_business_scenarios(id) ON DELETE CASCADE,
+    table_id TEXT NOT NULL REFERENCES pm_data_tables(id) ON DELETE CASCADE, sort_order INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (scenario_id, table_id)
+  );
+  ALTER TABLE pm_mapping_scenarios ADD COLUMN IF NOT EXISTS external_sql TEXT;
+  ALTER TABLE pm_mapping_scenarios ADD COLUMN IF NOT EXISTS caliber_external_sql TEXT;
 
   CREATE TABLE IF NOT EXISTS pm_mapping_rules (
     id TEXT PRIMARY KEY,
@@ -280,6 +306,7 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     status TEXT NOT NULL DEFAULT 'draft',
     logic_text TEXT,
     converted_sql TEXT,
+    external_sql TEXT,
     remark TEXT,
     verification_status TEXT NOT NULL DEFAULT '未验证',
     verification_remark TEXT,
@@ -300,6 +327,16 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     ALTER COLUMN raw SET DEFAULT '{}'::jsonb;
   ALTER TABLE pm_mapping_rules ADD COLUMN IF NOT EXISTS verification_status TEXT NOT NULL DEFAULT '未验证';
   ALTER TABLE pm_mapping_rules ADD COLUMN IF NOT EXISTS verification_remark TEXT;
+  ALTER TABLE pm_mapping_rules ADD COLUMN IF NOT EXISTS external_sql TEXT;
+
+  -- 将早期写入 raw 的参考 SQL 迁移到专用列；专用列已有值时绝不覆盖。
+  UPDATE pm_data_tables SET external_sql = extra->>'externalSql'
+   WHERE NULLIF(btrim(external_sql), '') IS NULL AND NULLIF(btrim(extra->>'externalSql'), '') IS NOT NULL;
+  UPDATE pm_mapping_scenarios SET external_sql = raw->>'externalSql', caliber_external_sql = raw->>'caliberExternalSql'
+   WHERE (NULLIF(btrim(external_sql), '') IS NULL AND NULLIF(btrim(raw->>'externalSql'), '') IS NOT NULL)
+      OR (NULLIF(btrim(caliber_external_sql), '') IS NULL AND NULLIF(btrim(raw->>'caliberExternalSql'), '') IS NOT NULL);
+  UPDATE pm_mapping_rules SET external_sql = raw->>'externalSql'
+   WHERE NULLIF(btrim(external_sql), '') IS NULL AND NULLIF(btrim(raw->>'externalSql'), '') IS NOT NULL;
 
   INSERT INTO pm_mapping_scenarios (id, project_id, table_id, title, caliber, sort_order, raw, created_at, updated_at)
   SELECT 'pm-map-scenario-' || md5(project_id || ':' || table_id || ':' || jsonb_extract_path_text(raw::jsonb, 'scenario')),
@@ -430,6 +467,7 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     table_cn TEXT,
     logic_text TEXT,
     converted_sql TEXT,
+    external_sql TEXT,
     remark TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0,
     raw JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -437,6 +475,8 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     updated_at TEXT NOT NULL
   );
   ALTER TABLE pm_mapping_temp_tables ADD COLUMN IF NOT EXISTS scenario_id TEXT REFERENCES pm_mapping_scenarios(id) ON DELETE SET NULL;
+  ALTER TABLE pm_mapping_temp_tables ADD COLUMN IF NOT EXISTS external_sql TEXT;
+  ALTER TABLE pm_mapping_temp_fields ADD COLUMN IF NOT EXISTS external_sql TEXT;
   ALTER TABLE pm_mapping_temp_tables
     ALTER COLUMN raw TYPE JSONB USING raw::jsonb,
     ALTER COLUMN raw SET DEFAULT '{}'::jsonb;
@@ -453,6 +493,7 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     field_length TEXT,
     logic_text TEXT,
     converted_sql TEXT,
+    external_sql TEXT,
     remark TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0,
     raw JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -462,6 +503,10 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
   ALTER TABLE pm_mapping_temp_fields
     ALTER COLUMN raw TYPE JSONB USING raw::jsonb,
     ALTER COLUMN raw SET DEFAULT '{}'::jsonb;
+  UPDATE pm_mapping_temp_tables SET external_sql = raw->>'externalSql'
+   WHERE NULLIF(btrim(external_sql), '') IS NULL AND NULLIF(btrim(raw->>'externalSql'), '') IS NOT NULL;
+  UPDATE pm_mapping_temp_fields SET external_sql = raw->>'externalSql'
+   WHERE NULLIF(btrim(external_sql), '') IS NULL AND NULLIF(btrim(raw->>'externalSql'), '') IS NOT NULL;
   CREATE INDEX IF NOT EXISTS idx_pm_mapping_temp_fields_table
     ON pm_mapping_temp_fields(project_id, temp_table_id, sort_order);
   CREATE INDEX IF NOT EXISTS idx_pm_mapping_temp_fields_ref
@@ -563,6 +608,44 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     finished_at TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_pm_automation_run_items_run ON pm_automation_run_items(run_id, group_order, item_order);
+
+  CREATE TABLE IF NOT EXISTS pm_test_tasks (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, title TEXT NOT NULL, objective TEXT NOT NULL DEFAULT '', test_data TEXT NOT NULL DEFAULT '', test_links TEXT NOT NULL DEFAULT '', app_version TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'draft', sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pm_test_groups (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, task_id TEXT NOT NULL REFERENCES pm_test_tasks(id) ON DELETE CASCADE, parent_group_id TEXT REFERENCES pm_test_groups(id) ON DELETE SET NULL, title TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_test_groups_tree ON pm_test_groups(project_id, task_id, parent_group_id, sort_order);
+  CREATE TABLE IF NOT EXISTS pm_test_cases (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, task_id TEXT REFERENCES pm_test_tasks(id) ON DELETE SET NULL, group_id TEXT REFERENCES pm_test_groups(id) ON DELETE SET NULL, scenario TEXT NOT NULL DEFAULT '', code TEXT NOT NULL, title TEXT NOT NULL, objective TEXT NOT NULL DEFAULT '', type TEXT NOT NULL, priority TEXT NOT NULL DEFAULT 'medium', status TEXT NOT NULL DEFAULT 'draft', sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+    UNIQUE(project_id, code)
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_test_cases_project ON pm_test_cases(project_id, status, updated_at DESC);
+  CREATE TABLE IF NOT EXISTS pm_test_runs (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, case_id TEXT NOT NULL REFERENCES pm_test_cases(id) ON DELETE CASCADE, status TEXT NOT NULL DEFAULT 'testing', actual_result TEXT NOT NULL DEFAULT '', started_at TEXT NOT NULL, finished_at TEXT, created_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_test_runs_case ON pm_test_runs(project_id, case_id, created_at DESC);
+  CREATE TABLE IF NOT EXISTS pm_test_case_steps (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, case_id TEXT NOT NULL REFERENCES pm_test_cases(id) ON DELETE CASCADE, step_order INTEGER NOT NULL, instruction TEXT NOT NULL, expected_result TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pm_test_run_steps (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, run_id TEXT NOT NULL REFERENCES pm_test_runs(id) ON DELETE CASCADE, case_step_id TEXT REFERENCES pm_test_case_steps(id) ON DELETE SET NULL, step_order INTEGER NOT NULL, instruction TEXT NOT NULL DEFAULT '', expected_result TEXT NOT NULL DEFAULT '', status TEXT NOT NULL, actual_result TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  ALTER TABLE pm_test_run_steps ADD COLUMN IF NOT EXISTS instruction TEXT NOT NULL DEFAULT '';
+  ALTER TABLE pm_test_run_steps ADD COLUMN IF NOT EXISTS expected_result TEXT NOT NULL DEFAULT '';
+  CREATE TABLE IF NOT EXISTS pm_test_evidence (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, run_id TEXT NOT NULL REFERENCES pm_test_runs(id) ON DELETE CASCADE, run_step_id TEXT REFERENCES pm_test_run_steps(id) ON DELETE SET NULL, title TEXT NOT NULL, kind TEXT NOT NULL, location TEXT NOT NULL, created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pm_test_issues (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, case_id TEXT NOT NULL REFERENCES pm_test_cases(id) ON DELETE CASCADE, run_id TEXT REFERENCES pm_test_runs(id) ON DELETE SET NULL, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', owner TEXT, external_ref TEXT, status TEXT NOT NULL DEFAULT 'open', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pm_test_issue_discussions (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, issue_id TEXT NOT NULL REFERENCES pm_test_issues(id) ON DELETE CASCADE, content TEXT NOT NULL, created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pm_test_case_comments (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, case_id TEXT NOT NULL REFERENCES pm_test_cases(id) ON DELETE CASCADE, content TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_test_case_comments_case ON pm_test_case_comments(project_id, case_id, created_at DESC);
 
   CREATE TABLE IF NOT EXISTS pm_search_index (
     id TEXT PRIMARY KEY,
@@ -800,6 +883,8 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
     table_id TEXT NOT NULL REFERENCES pm_data_tables(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     caliber TEXT,
+    caliber_external_sql TEXT,
+    external_sql TEXT,
     remark TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0,
     raw TEXT NOT NULL DEFAULT '{}',
@@ -808,6 +893,24 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
     UNIQUE(project_id, table_id, title)
   );
   CREATE INDEX IF NOT EXISTS idx_pm_mapping_scenarios_table ON pm_mapping_scenarios(project_id, table_id, sort_order);
+  CREATE TABLE IF NOT EXISTS pm_business_scenarios (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, system_id TEXT REFERENCES pm_data_systems(id) ON DELETE CASCADE,
+    title TEXT NOT NULL, procedure_name TEXT NOT NULL, external_location TEXT, sql_text TEXT NOT NULL, remark TEXT, sort_order INTEGER NOT NULL DEFAULT 0,
+    validation_status TEXT NOT NULL DEFAULT 'pending', validation_sql_fingerprint TEXT, validation_message TEXT, validated_at TEXT,
+    created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pm_business_scenario_libraries (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, name TEXT NOT NULL, db_type TEXT, sql_dialect TEXT,
+    connection TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+    UNIQUE(project_id, name)
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_business_scenario_libraries_project ON pm_business_scenario_libraries(project_id, name);
+  CREATE INDEX IF NOT EXISTS idx_pm_business_scenarios_system ON pm_business_scenarios(project_id, system_id, sort_order);
+  CREATE TABLE IF NOT EXISTS pm_business_scenario_tables (
+    project_id TEXT NOT NULL, scenario_id TEXT NOT NULL REFERENCES pm_business_scenarios(id) ON DELETE CASCADE,
+    table_id TEXT NOT NULL REFERENCES pm_data_tables(id) ON DELETE CASCADE, sort_order INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (scenario_id, table_id)
+  );
 
   CREATE TABLE IF NOT EXISTS pm_mapping_rules (
     id TEXT PRIMARY KEY,
@@ -819,6 +922,7 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
     status TEXT NOT NULL DEFAULT 'draft',
     logic_text TEXT,
     converted_sql TEXT,
+    external_sql TEXT,
     remark TEXT,
     verification_status TEXT NOT NULL DEFAULT '未验证',
     verification_remark TEXT,
@@ -843,6 +947,21 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
                            AND scenario.table_id = pm_mapping_rules.table_id
                            AND scenario.title = json_extract(pm_mapping_rules.raw, '$.scenario'))
    WHERE scenario_id IS NULL AND coalesce(json_extract(raw, '$.scenario'), '') <> '';
+
+  CREATE TABLE IF NOT EXISTS pm_mapping_temp_tables (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, target_table_id TEXT NOT NULL REFERENCES pm_data_tables(id) ON DELETE CASCADE,
+    scenario_id TEXT REFERENCES pm_mapping_scenarios(id) ON DELETE SET NULL, table_name TEXT NOT NULL, table_cn TEXT,
+    logic_text TEXT, converted_sql TEXT, external_sql TEXT, remark TEXT, sort_order INTEGER NOT NULL DEFAULT 0,
+    raw TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_mapping_temp_tables_target ON pm_mapping_temp_tables(project_id, target_table_id, sort_order);
+  CREATE TABLE IF NOT EXISTS pm_mapping_temp_fields (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, temp_table_id TEXT NOT NULL REFERENCES pm_mapping_temp_tables(id) ON DELETE CASCADE,
+    field_name TEXT NOT NULL, field_cn TEXT, field_type TEXT, field_length TEXT, logic_text TEXT, converted_sql TEXT,
+    external_sql TEXT, remark TEXT, sort_order INTEGER NOT NULL DEFAULT 0, raw TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_mapping_temp_fields_table ON pm_mapping_temp_fields(project_id, temp_table_id, sort_order);
 
   -- 历史字段 Mapping 在引入场景表之前没有 scenario 标识。仅为已声明 has_mapping
   -- 且尚未维护任何结构化场景的表补一个默认场景，避免源文件、码表等无 Mapping 表被误展示。
@@ -1056,6 +1175,39 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
   );
   CREATE UNIQUE INDEX IF NOT EXISTS idx_pm_search_entity ON pm_search_index(project_id, entity_type, entity_id);
   CREATE INDEX IF NOT EXISTS idx_pm_search_project_module ON pm_search_index(project_id, module_key);
+
+  CREATE TABLE IF NOT EXISTS pm_test_tasks (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, title TEXT NOT NULL, objective TEXT NOT NULL DEFAULT '', test_data TEXT NOT NULL DEFAULT '', test_links TEXT NOT NULL DEFAULT '', app_version TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'draft', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pm_test_cases (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, task_id TEXT REFERENCES pm_test_tasks(id) ON DELETE SET NULL, scenario TEXT NOT NULL DEFAULT '', code TEXT NOT NULL, title TEXT NOT NULL, objective TEXT NOT NULL DEFAULT '', type TEXT NOT NULL, priority TEXT NOT NULL DEFAULT 'medium', status TEXT NOT NULL DEFAULT 'draft', created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+    UNIQUE(project_id, code)
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_test_cases_project ON pm_test_cases(project_id, status, updated_at DESC);
+  CREATE TABLE IF NOT EXISTS pm_test_runs (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, case_id TEXT NOT NULL REFERENCES pm_test_cases(id) ON DELETE CASCADE, status TEXT NOT NULL DEFAULT 'testing', actual_result TEXT NOT NULL DEFAULT '', started_at TEXT NOT NULL, finished_at TEXT, created_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_test_runs_case ON pm_test_runs(project_id, case_id, created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS pm_test_case_steps (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, case_id TEXT NOT NULL REFERENCES pm_test_cases(id) ON DELETE CASCADE, step_order INTEGER NOT NULL, instruction TEXT NOT NULL, expected_result TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pm_test_run_steps (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, run_id TEXT NOT NULL REFERENCES pm_test_runs(id) ON DELETE CASCADE, case_step_id TEXT REFERENCES pm_test_case_steps(id) ON DELETE SET NULL, step_order INTEGER NOT NULL, instruction TEXT NOT NULL DEFAULT '', expected_result TEXT NOT NULL DEFAULT '', status TEXT NOT NULL, actual_result TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pm_test_evidence (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, run_id TEXT NOT NULL REFERENCES pm_test_runs(id) ON DELETE CASCADE, run_step_id TEXT REFERENCES pm_test_run_steps(id) ON DELETE SET NULL, title TEXT NOT NULL, kind TEXT NOT NULL, location TEXT NOT NULL, created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pm_test_issues (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, case_id TEXT NOT NULL REFERENCES pm_test_cases(id) ON DELETE CASCADE, run_id TEXT REFERENCES pm_test_runs(id) ON DELETE SET NULL, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', owner TEXT, external_ref TEXT, status TEXT NOT NULL DEFAULT 'open', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pm_test_issue_discussions (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, issue_id TEXT NOT NULL REFERENCES pm_test_issues(id) ON DELETE CASCADE, content TEXT NOT NULL, created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pm_test_case_comments (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, case_id TEXT NOT NULL REFERENCES pm_test_cases(id) ON DELETE CASCADE, content TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_pm_test_case_comments_case ON pm_test_case_comments(project_id, case_id, created_at DESC);
 
   CREATE VIRTUAL TABLE IF NOT EXISTS pm_search_index_fts USING fts5(
     title,

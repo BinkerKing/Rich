@@ -26,6 +26,7 @@ interface RikingProject {
   customCommand: string;
   appUrl: string;
   logPath: string;
+  aiManual: string;
   db: {
     type: string;
     host: string;
@@ -53,6 +54,7 @@ interface RikingProject {
   updatedAt: string;
   lastStartedAt?: string;
   lastError?: string;
+  processId?: number;
 }
 
 interface RikingProjectStore {
@@ -94,6 +96,10 @@ function text(value: unknown) {
   return typeof value === "string" ? value : "";
 }
 
+function processId(value: unknown) {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : undefined;
+}
+
 function normalizeProject(input: Partial<RikingProject>): RikingProject {
   const now = new Date().toISOString();
   return {
@@ -115,6 +121,7 @@ function normalizeProject(input: Partial<RikingProject>): RikingProject {
     customCommand: text(input.customCommand),
     appUrl: text(input.appUrl),
     logPath: text(input.logPath),
+    aiManual: text(input.aiManual),
     db: {
       type: text(input.db?.type),
       host: text(input.db?.host),
@@ -142,6 +149,7 @@ function normalizeProject(input: Partial<RikingProject>): RikingProject {
     updatedAt: text(input.updatedAt) || now,
     lastStartedAt: text(input.lastStartedAt) || undefined,
     lastError: text(input.lastError) || undefined,
+    processId: processId(input.processId),
   };
 }
 
@@ -269,7 +277,7 @@ async function monitorStartup(root: string, project: RikingProject, pid: number 
 
 async function markStarting(root: string, project: RikingProject, pid: number | undefined, startedAt: string) {
   runtime.set(project.id, { status: "starting", pid, startedAt });
-  await persistStatus(root, project.id, "starting", { lastStartedAt: startedAt, lastError: undefined });
+  await persistStatus(root, project.id, "starting", { lastStartedAt: startedAt, lastError: undefined, processId: pid });
   void monitorStartup(root, project, pid, startedAt);
 }
 
@@ -336,20 +344,23 @@ async function stopProject(root: string, project: RikingProject) {
     spawnDetached(project.shutdownScript, [], project.tomcatPath || project.projectPath || undefined);
   } else if (project.launchMethod === "command" && project.shutdownScript) {
     spawnDetached("sh", ["-lc", project.shutdownScript], project.projectPath || undefined);
-  } else if (state?.pid) {
-    try {
-      process.kill(-state.pid, "SIGTERM");
-    } catch {
+  } else {
+    const pid = state?.pid ?? project.processId;
+    if (pid) {
       try {
-        process.kill(state.pid, "SIGTERM");
+        process.kill(-pid, "SIGTERM");
       } catch {
-        // The process may already have exited. Persisting stopped is still correct for the UI action.
+        try {
+          process.kill(pid, "SIGTERM");
+        } catch {
+          // The process may already have exited. Persisting stopped is still correct for the UI action.
+        }
       }
     }
   }
 
   runtime.set(project.id, { status: "stopped" });
-  await persistStatus(root, project.id, "stopped");
+  await persistStatus(root, project.id, "stopped", { processId: undefined });
 }
 
 async function readLocalLog(logPath: string, maxLines: number) {

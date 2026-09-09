@@ -209,6 +209,15 @@ function WorkflowEditor({
   );
 }
 
+function deploymentChecklistPlacement(item: Record<string, unknown>) {
+  const placement = textValue(item, "placement");
+  return placement === "middle" || placement === "after" ? placement : "before";
+}
+
+function deploymentChecklistStage(placement: string) {
+  return placement === "middle" ? "步骤中检查" : placement === "after" ? "部署后验证" : "部署前检查";
+}
+
 export function DeploymentStepEditor({
   projectId,
   draft,
@@ -253,17 +262,22 @@ export function DeploymentStepEditor({
           value={textValue(draft, "executionHtml") || textValue(draft, "executionText")}
           onChange={executionHtml => onChange({ ...draft, executionHtml, executionText: htmlToPlainText(executionHtml) })}
         />
-      </section>
-
-      <section className="deployment-edit-section">
-        <div className="deployment-edit-section-head">
-          <h4>Checklist</h4>
-        </div>
+        <label className="deployment-check-editor-label">
+          <span>可勾选检查项（部署前检查 / 部署后验证）</span>
         <textarea
           className="deployment-check-textarea"
-          value={arrayRecords(draft.checklist).map(item => `${truthy(item.done) ? "x" : " "} ${textValue(item, "label")}`).join("\n")}
-          onChange={event => onChange({ ...draft, checklist: splitLines(event.target.value).map(row => ({ done: row.trim().toLowerCase().startsWith("x "), label: row.replace(/^[x ]\s+/i, "") })) })}
+          value={arrayRecords(draft.checklist).map(item => {
+            const placement = deploymentChecklistPlacement(item);
+            const prefix = placement === "middle" ? "[中]" : placement === "after" ? "[后]" : "[前]";
+            return `${prefix} ${truthy(item.done) ? "x" : " "} ${textValue(item, "label")}`;
+          }).join("\n")}
+          onChange={event => onChange({ ...draft, checklist: splitLines(event.target.value).map(row => {
+            const placement = row.match(/^\[(前|中|后)\]\s*/)?.[1] === "中" ? "middle" : row.match(/^\[(前|中|后)\]\s*/)?.[1] === "后" ? "after" : "before";
+            const value = row.replace(/^\[(前|中|后)\]\s*/, "");
+            return { placement, stage: deploymentChecklistStage(placement), done: value.trim().toLowerCase().startsWith("x "), label: value.replace(/^[x ]\s+/i, "") };
+          }) })}
         />
+        </label>
       </section>
 
       <section className="deployment-edit-section">
@@ -711,7 +725,20 @@ export function ProjectRichTextEditor({
           }}
         />
       </div>
-      <EditorContent editor={editor} className="prj-pm-rich-content"/>
+      <EditorContent
+        editor={editor}
+        className="prj-pm-rich-content"
+        onPaste={event => {
+          const pastedImages = Array.from(event.clipboardData.items).flatMap(item => {
+            if (!item.type.startsWith("image/")) return [];
+            const file = item.getAsFile();
+            return file ? [file] : [];
+          });
+          if (!pastedImages.length) return;
+          event.preventDefault();
+          void uploadAndInsert(pastedImages);
+        }}
+      />
     </div>
   );
 }
@@ -909,7 +936,30 @@ function workflowModalTitle(type: WorkflowModalType): string {
   return "流程说明";
 }
 
-export function DeploymentStepDetail({ item, environments, onEdit }: { item: ProjectModuleItem; environments?: ProjectModuleItem[]; onEdit?: () => void }) {
+function splitDeploymentExecutionHtml(html: string) {
+  if (!html || typeof DOMParser === "undefined") return { before: html, after: "" };
+  const document = new DOMParser().parseFromString(html, "text/html");
+  const list = document.body.querySelector("ol, ul");
+  if (!list || list.children.length < 2) return { before: html, after: "" };
+  const splitAt = Math.ceil(list.children.length / 2);
+  const beforeList = list.cloneNode(false) as HTMLElement;
+  const afterList = list.cloneNode(false) as HTMLElement;
+  Array.from(list.children).forEach((child, index) => (index < splitAt ? beforeList : afterList).append(child.cloneNode(true)));
+  const before = document.createElement("div");
+  const after = document.createElement("div");
+  let passedList = false;
+  Array.from(document.body.childNodes).forEach(node => {
+    if (node === list) {
+      before.append(beforeList);
+      after.append(afterList);
+      passedList = true;
+    } else (passedList ? after : before).append(node.cloneNode(true));
+  });
+  return { before: before.innerHTML, after: after.innerHTML };
+}
+
+export function DeploymentStepDetail({ item, environments, onEdit, onToggleChecklist }: { item: ProjectModuleItem; environments?: ProjectModuleItem[]; onEdit?: () => void; onToggleChecklist?: (index: number) => void }) {
+  const [serversOpen, setServersOpen] = useState(false);
   const original = recordValue(item.content.original);
   const checklist = arrayRecords(original.checklist);
   const steps = arrayRecords(original.steps);
@@ -920,6 +970,21 @@ export function DeploymentStepDetail({ item, environments, onEdit }: { item: Pro
   const recordCount = textValue(original, "rowCount") || String(steps.length || 0);
   const countLabel = textValue(original, "sourceType") === "excel-sheet" ? "记录行" : "执行步骤";
   const serverGroups = deploymentServerGroups(original, environments ?? []);
+  const serverCount = serverGroups.reduce((count, group) => count + group.servers.length, 0);
+  const executionParts = splitDeploymentExecutionHtml(html);
+  const checklistGroups = checklist.reduce<Array<{ placement: "before" | "middle" | "after"; title: string; rows: Array<{ row: Record<string, unknown>; index: number }> }>>((groups, row, index) => {
+    const placementValue = textValue(row, "placement");
+    const placement = placementValue === "middle" || placementValue === "after" ? placementValue : "before";
+    const title = textValue(row, "stage") || (placement === "before" ? "部署前检查" : placement === "middle" ? "步骤中检查" : "部署后验证");
+    const group = groups.find(entry => entry.placement === placement && entry.title === title);
+    if (group) group.rows.push({ row, index });
+    else groups.push({ placement, title, rows: [{ row, index }] });
+    return groups;
+  }, []);
+
+  useEffect(() => {
+    setServersOpen(false);
+  }, [item.id]);
 
   return (
     <article className="deployment-detail-card">
@@ -941,8 +1006,12 @@ export function DeploymentStepDetail({ item, environments, onEdit }: { item: Pro
       {serverGroups.length > 0 && (
         <section className="deployment-meta-grid">
           <div className="deployment-server-list-card">
-            <span>关联服务器</span>
-            <div className="deployment-server-list">
+            <button type="button" className="deployment-detail-toggle" onClick={() => setServersOpen(open => !open)} aria-expanded={serversOpen}>
+              <span>关联服务器</span>
+              <small>{serverGroups.length} 个环境 · {serverCount} 台服务器</small>
+              <i aria-hidden="true">{serversOpen ? "收起" : "展开"}</i>
+            </button>
+            {serversOpen && <div className="deployment-server-list">
               {serverGroups.map(group => (
                 <section className="deployment-server-group" key={group.environmentId || group.environmentName}>
                   <h5>{group.environmentName}</h5>
@@ -957,40 +1026,75 @@ export function DeploymentStepDetail({ item, environments, onEdit }: { item: Pro
                   ))}
                 </section>
               ))}
-            </div>
+            </div>}
           </div>
         </section>
       )}
 
-      {checklist.length > 0 && (
-        <section className="deployment-detail-section">
-          <h4>部署检查 <span>{doneCount(checklist)}/{checklist.length}</span></h4>
-          <div className="checks">
-            {checklist.map((row, index) => (
-              <label key={`${textValue(row, "label")}-${index}`} className={`check${truthy(row.done) ? " is-done" : ""}`}>
-                <input type="checkbox" checked={truthy(row.done)} readOnly />
-                <span>{textValue(row, "label") || `检查项 ${index + 1}`}</span>
-              </label>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section className="deployment-detail-section">
+      <section className="deployment-detail-section deployment-execution-section">
         <h4>执行步骤</h4>
         <div className="deployment-execution-view workflow-rich-content">
-          {html ? <div dangerouslySetInnerHTML={{ __html: html }} /> : text ? <p>{text}</p> : steps.length > 0 ? (
-            <div className="prj-pm-deploy-detail__step-list">
-              {steps.map((step, index) => (
-                <div key={`${textValue(step, "action")}-${index}`}>
-                  <b>{textValue(step, "action") || `步骤 ${index + 1}`}</b>
-                  {textValue(step, "actor") && <span>{textValue(step, "actor")}</span>}
-                  {textValue(step, "command") && <code>{textValue(step, "command")}</code>}
-                  {textValue(step, "check") && <p>{textValue(step, "check")}</p>}
-                </div>
+          {checklistGroups.filter(group => group.placement === "before").map(group => <section className="deployment-execution-checklist" key={`before-${group.title}`}>
+            <div className="deployment-execution-checklist-group">
+                <h5>{group.title}</h5>
+                {group.rows.map(({ row, index }) => (
+                  <label key={`${textValue(row, "label")}-${index}`} className={`check${truthy(row.done) ? " is-done" : ""}`}>
+                    <input type="checkbox" checked={truthy(row.done)} onChange={() => onToggleChecklist?.(index)} disabled={!onToggleChecklist} />
+                  <span>{textValue(row, "label") || `检查项 ${index + 1}`}</span>
+                </label>
+                ))}
+            </div>
+          </section>)}
+          <div className="deployment-execution-rich-content">
+            {html ? <div dangerouslySetInnerHTML={{ __html: executionParts.before }} /> : text ? <p>{text}</p> : steps.length > 0 ? (
+              <div className="prj-pm-deploy-detail__step-list">
+                {steps.slice(0, Math.ceil(steps.length / 2)).map((step, index) => (
+                  <div key={`${textValue(step, "action")}-${index}`}>
+                    <b>{textValue(step, "action") || `步骤 ${index + 1}`}</b>
+                    {textValue(step, "actor") && <span>{textValue(step, "actor")}</span>}
+                    {textValue(step, "command") && <code>{textValue(step, "command")}</code>}
+                    {textValue(step, "check") && <p>{textValue(step, "check")}</p>}
+                  </div>
+                ))}
+              </div>
+            ) : <p className="empty-note">暂无执行步骤。</p>}
+          </div>
+          {checklistGroups.filter(group => group.placement === "middle").map(group => <section className="deployment-execution-checklist" key={`middle-${group.title}`}>
+            <div className="deployment-execution-checklist-group">
+              <h5>{group.title}</h5>
+              {group.rows.map(({ row, index }) => (
+                <label key={`${textValue(row, "label")}-${index}`} className={`check${truthy(row.done) ? " is-done" : ""}`}>
+                  <input type="checkbox" checked={truthy(row.done)} onChange={() => onToggleChecklist?.(index)} disabled={!onToggleChecklist} />
+                  <span>{textValue(row, "label") || `检查项 ${index + 1}`}</span>
+                </label>
               ))}
             </div>
-          ) : <p className="empty-note">暂无执行步骤。</p>}
+          </section>)}
+          {(html ? Boolean(executionParts.after) : steps.length > 1) && <div className="deployment-execution-rich-content">
+            {html ? <div dangerouslySetInnerHTML={{ __html: executionParts.after }} /> : (
+              <div className="prj-pm-deploy-detail__step-list">
+                {steps.slice(Math.ceil(steps.length / 2)).map((step, index) => (
+                  <div key={`${textValue(step, "action")}-${index}`}>
+                    <b>{textValue(step, "action") || `步骤 ${Math.ceil(steps.length / 2) + index + 1}`}</b>
+                    {textValue(step, "actor") && <span>{textValue(step, "actor")}</span>}
+                    {textValue(step, "command") && <code>{textValue(step, "command")}</code>}
+                    {textValue(step, "check") && <p>{textValue(step, "check")}</p>}
+                  </div>
+              ))}
+              </div>
+            )}
+          </div>}
+          {checklistGroups.filter(group => group.placement === "after").map(group => <section className="deployment-execution-checklist" key={`after-${group.title}`}>
+            <div className="deployment-execution-checklist-group">
+              <h5>{group.title}</h5>
+              {group.rows.map(({ row, index }) => (
+                <label key={`${textValue(row, "label")}-${index}`} className={`check${truthy(row.done) ? " is-done" : ""}`}>
+                  <input type="checkbox" checked={truthy(row.done)} onChange={() => onToggleChecklist?.(index)} disabled={!onToggleChecklist} />
+                  <span>{textValue(row, "label") || `检查项 ${index + 1}`}</span>
+                </label>
+              ))}
+            </div>
+          </section>)}
         </div>
       </section>
     </article>

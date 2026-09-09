@@ -1,6 +1,6 @@
 export type DeliverableStatus = "draft" | "preparing" | "ready" | "accepted";
 export type DeliverableVersionPolicy = "latest" | "versioned";
-export type DeliverableRecordKind = "requirement" | "status" | "change" | "information" | "material" | "ai_task" | "ai_task_result";
+export type DeliverableRecordKind = "requirement" | "status" | "decision" | "issue" | "risk" | "change" | "information" | "material" | "codex" | "ai_task" | "ai_task_result";
 export type DeliverableRecordInformationType = "information" | "material";
 export type DeliverableFileType = "deliverable" | "material" | "intermediate";
 
@@ -50,6 +50,9 @@ export type DeliverableFileMeta = {
 
 export const DELIVERABLE_FOCUS_EVENT = "rich:open-deliverable";
 const DELIVERABLE_FOCUS_KEY = "rich-project-deliverable-focus";
+export const DELIVERABLE_ITEM_FOCUS_EVENT = "rich:open-deliverable-item";
+const DELIVERABLE_ITEM_FOCUS_KEY = "rich-project-deliverable-item-focus";
+export const DELIVERABLE_DATA_CHANGED_EVENT = "rich:deliverable-data-changed";
 
 export function requestDeliverableFocus(taskId: string, activityId: string) {
   const target = { linkedActivityKey: `${taskId}:${activityId}` };
@@ -67,6 +70,25 @@ export function consumeDeliverableFocus(projectId: string) {
     if (target?.projectId !== projectId || typeof target.linkedActivityKey !== "string") return undefined;
     window.sessionStorage.removeItem(DELIVERABLE_FOCUS_KEY);
     return target.linkedActivityKey;
+  } catch { return undefined; }
+}
+
+export function requestDeliverableItemFocus(projectId: string, deliverableId: string) {
+  const target = { projectId, deliverableId };
+  try { window.sessionStorage.setItem(DELIVERABLE_ITEM_FOCUS_KEY, JSON.stringify(target)); } catch {}
+  window.dispatchEvent(new CustomEvent(DELIVERABLE_ITEM_FOCUS_EVENT, { detail: target }));
+}
+
+export function notifyDeliverableDataChanged(projectId: string, deliverableId: string) {
+  window.dispatchEvent(new CustomEvent(DELIVERABLE_DATA_CHANGED_EVENT, { detail: { projectId, deliverableId } }));
+}
+
+export function consumeDeliverableItemFocus(projectId: string) {
+  try {
+    const target = JSON.parse(window.sessionStorage.getItem(DELIVERABLE_ITEM_FOCUS_KEY) || "null") as { projectId?: unknown; deliverableId?: unknown } | null;
+    if (target?.projectId !== projectId || typeof target.deliverableId !== "string") return undefined;
+    window.sessionStorage.removeItem(DELIVERABLE_ITEM_FOCUS_KEY);
+    return target.deliverableId;
   } catch { return undefined; }
 }
 
@@ -98,7 +120,7 @@ function records(value: unknown): DeliverableRecord[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap(entry => {
     if (!isRecord(entry) || typeof entry.id !== "string" || typeof entry.text !== "string" || typeof entry.createdAt !== "string") return [];
-    if (entry.kind !== "requirement" && entry.kind !== "status" && entry.kind !== "change" && entry.kind !== "information" && entry.kind !== "material" && entry.kind !== "ai_task" && entry.kind !== "ai_task_result") return [];
+    if (entry.kind !== "requirement" && entry.kind !== "status" && entry.kind !== "decision" && entry.kind !== "issue" && entry.kind !== "risk" && entry.kind !== "change" && entry.kind !== "information" && entry.kind !== "material" && entry.kind !== "codex" && entry.kind !== "ai_task" && entry.kind !== "ai_task_result") return [];
     const attachments = recordAttachments(entry.attachments);
     const aiTask = isRecord(entry.aiTask) && typeof entry.aiTask.id === "string" && typeof entry.aiTask.status === "string" && (entry.aiTask.executor === "hermes" || entry.aiTask.executor === "multica")
       ? { id: entry.aiTask.id, status: entry.aiTask.status, executor: entry.aiTask.executor as "hermes" | "multica" }

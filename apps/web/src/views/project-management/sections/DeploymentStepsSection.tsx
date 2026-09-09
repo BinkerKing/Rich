@@ -140,6 +140,21 @@ export function ProjectDeploymentStepsSection({ project, summary }: { project: E
       setItems(next);
     }
   };
+  const toggleChecklistItem = async (index: number) => {
+    if (!selected) return;
+    const selectedOriginal = recordValue(selected.content.original);
+    const checklist = arrayRecords(selectedOriginal.checklist);
+    const nextChecklist = checklist.map((row, rowIndex) => rowIndex === index ? { ...row, done: !Boolean(row.done) } : row);
+    setError(null);
+    try {
+      const updated = await api.updateProjectManagementModuleItem(project.id, selected.id, {
+        content: { ...selected.content, original: { ...selectedOriginal, checklist: nextChecklist } },
+      });
+      setItems(current => current.map(item => item.id === updated.id ? updated : item));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
   const reorderDeploymentGroups = async (names: string[], dragged: string, before: string, scopedItems: ProjectModuleItem[], groupOf: (item: ProjectModuleItem) => string) => {
     if (!editing || !dragged || dragged === before) return;
     const from = names.indexOf(dragged);
@@ -234,7 +249,7 @@ export function ProjectDeploymentStepsSection({ project, summary }: { project: E
             </div>
           </section>
 
-          <section className="deployment-title-row">
+          <section className="deployment-title-row deployment-sheet-row">
             <div className="deployment-title-tabs">
               {sheets.map(name => {
                 const versionSteps = releaseItems.filter(item => deploymentSheetOf(recordValue(item.content.original)) === name);
@@ -311,7 +326,7 @@ export function ProjectDeploymentStepsSection({ project, summary }: { project: E
                     onSave={() => void save()}
                     onCancel={() => setEditing(false)}
                   />
-                ) : <DeploymentStepDetail item={selected} environments={environmentItems} />
+                ) : <DeploymentStepDetail item={selected} environments={environmentItems} onToggleChecklist={index => void toggleChecklistItem(index)} />
               ) : <div className="prj-pm-empty">请选择部署模块。</div>}
             </section>
           </section>

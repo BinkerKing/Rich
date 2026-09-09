@@ -10,12 +10,16 @@ export interface AgentRuntimeTurnInput {
   conversationId: string;
   turnId: string;
   sessionId?: string;
+  /** Filesystem root the runtime may inspect for this conversation. */
+  workspaceRoot?: string;
   messages: AgentRuntimeMessage[];
   capabilityToken: string;
 }
 
 export type AgentRuntimeEvent =
+  | { type: "activity"; text: string }
   | { type: "delta"; text: string }
+  | { type: "image"; path: string }
   | {
       type: "tool_call";
       runtimeCallId: string;

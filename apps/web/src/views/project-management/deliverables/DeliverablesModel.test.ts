@@ -18,6 +18,20 @@ test("交付物要求记录按时间正序显示", () => {
   assert.deepEqual(content.records.map(record => record.id), ["old", "new"]);
 });
 
+test("交付物记录保留 AI 可选的业务类型与 Codex 操作记录", () => {
+  const content = normalizeDeliverableContent({
+    records: [
+      { id: "decision", kind: "decision", text: "采用现有接口", createdAt: "2026-09-03T10:00:00.000Z" },
+      { id: "issue", kind: "issue", text: "缺少映射", createdAt: "2026-09-03T10:01:00.000Z" },
+      { id: "risk", kind: "risk", text: "接口权限待确认", createdAt: "2026-09-03T10:02:00.000Z" },
+      { id: "codex", kind: "codex", text: "已更新需求说明并完成回读验证", createdAt: "2026-09-03T10:03:00.000Z", author: "Codex" },
+    ],
+  });
+
+  assert.deepEqual(content.records.map(record => record.kind), ["decision", "issue", "risk", "codex"]);
+  assert.equal(content.records.find(record => record.kind === "codex")?.author, "Codex");
+});
+
 test("AI 任务结果紧跟在其父任务后显示", () => {
   const content = normalizeDeliverableContent({
     records: [

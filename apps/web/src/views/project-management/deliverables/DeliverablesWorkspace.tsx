@@ -9,7 +9,7 @@ import { ProjectRichTextEditor } from "../ProjectManagementModules.js";
 import {
   addDeliverableRecord,
   addDeliverableVersion,
-  consumeDeliverableFocus,
+  consumeDeliverableFocus, consumeDeliverableItemFocus, DELIVERABLE_DATA_CHANGED_EVENT, DELIVERABLE_ITEM_FOCUS_EVENT,
   deliverableFolderPath,
   linkedDeliverableContent,
   normalizeDeliverableContent,
@@ -19,7 +19,10 @@ import {
   type DeliverableRecord,
   type DeliverableRecordKind,
 } from "./DeliverablesModel.js";
-import { DeliverableCodexWorkbench } from "./DeliverableCodexWorkbench.js";
+import {
+  setDeliverableCodexTarget,
+  showDeliverableCodex,
+} from "./DeliverableCodexLauncher.js";
 
 type Item = ProjectModuleItem & {
   content: ReturnType<typeof normalizeDeliverableContent>;
@@ -45,20 +48,21 @@ const fileDate = (value: string) =>
     minute: "2-digit",
   });
 const recordKindLabel = (kind: DeliverableRecordKind) =>
-  kind === "requirement" ? "要求" : kind === "status" ? "状态" : kind === "change" ? "修改" : kind === "information" ? "信息" : kind === "ai_task_result" ? "AI 回复" : kind === "ai_task" ? "AI 任务" : "材料";
+  kind === "requirement" ? "要求" : kind === "status" ? "进展" : kind === "decision" ? "决策" : kind === "issue" ? "问题" : kind === "risk" ? "风险" : kind === "change" ? "变更" : kind === "information" ? "信息" : kind === "material" ? "材料" : kind === "codex" ? "Codex" : kind === "ai_task_result" ? "AI 回复" : "AI 任务";
 const richTextHasContent = (value: string) => value.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0;
+const absoluteFolderPath = (projectRoot: string | undefined, folderPath: string) => projectRoot ? `${projectRoot.replace(/\/+$/, "")}/${folderPath.replace(/^\/+/, "")}` : folderPath;
 
 export function DeliverablesWorkspace({
   projectId,
+  projectRoot,
   deliverablesRoot,
 }: {
   projectId: string;
+  projectRoot?: string;
   deliverablesRoot?: string;
 }): ReactNode {
   const [items, setItems] = useState<Item[]>([]);
   const [openId, setOpenId] = useState<string>();
-  const [codexItem, setCodexItem] = useState<Item>();
-  const [codexVisible, setCodexVisible] = useState(false);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
   const [kind, setKind] = useState<DeliverableRecordKind>("requirement");
@@ -83,13 +87,15 @@ export function DeliverablesWorkspace({
   const editingMaterialInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const openWorkbench = () => {
-      const item = items.find(candidate => candidate.id === openId);
-      if (item) { setCodexItem(current => current ?? item); setCodexVisible(current => !current); }
-    };
-    window.addEventListener("rich:toggle-deliverable-codex", openWorkbench);
-    return () => window.removeEventListener("rich:toggle-deliverable-codex", openWorkbench);
-  }, [items, openId]);
+    const item = items.find((candidate) => candidate.id === openId);
+    if (item) {
+      setDeliverableCodexTarget({
+        projectId,
+        deliverableId: item.id,
+        deliverableTitle: item.title,
+      });
+    }
+  }, [items, openId, projectId]);
 
   const refreshFiles = async (item: Item) => {
     setLoadingFolders((all) => ({ ...all, [item.content.folderPath]: true }));
@@ -105,6 +111,12 @@ export function DeliverablesWorkspace({
         [item.content.folderPath]: false,
       }));
     }
+  };
+  const refreshItems = async () => {
+    const deliverables = await api.listProjectManagementModuleItems(projectId, "deliverables", undefined, true);
+    const next = deliverables.map((item) => ({ ...item, content: normalizeDeliverableContent(item.content) }));
+    setItems(next);
+    await Promise.all(next.map(refreshFiles));
   };
   const load = async () => {
     let deliverables = await api.listProjectManagementModuleItems(
@@ -166,7 +178,8 @@ export function DeliverablesWorkspace({
           const current = normalizeDeliverableContent(existing.content);
           if (
             existing.title !== activity.text ||
-            current.folderPath !== folderPath
+            current.folderPath !== folderPath ||
+            current.status !== (activity.done === true ? "accepted" : "preparing")
           ) {
             const moved =
               current.folderPath && current.folderPath !== folderPath
@@ -183,6 +196,7 @@ export function DeliverablesWorkspace({
                 : path;
             const content = {
               ...current,
+              status: activity.done === true ? "accepted" : "preparing" as const,
               folderPath: nextFolderPath,
               versions: current.versions.map((version) => ({
                 ...version,
@@ -263,10 +277,21 @@ export function DeliverablesWorkspace({
     const focused = next.find(
       (entry) => entry.content.linkedActivityKey === focusKey,
     );
-    if (focused) setOpenId(focused.id);
+    const focusedItemId = consumeDeliverableItemFocus(projectId);
+    if (focusedItemId && next.some(entry => entry.id === focusedItemId)) setOpenId(focusedItemId);
+    else if (focused) setOpenId(focused.id);
   };
   useEffect(() => {
     void load();
+  }, [projectId, deliverablesRoot]);
+  useEffect(() => {
+    const refreshDeliverableData = (event: Event) => {
+      const target = (event as CustomEvent<{ projectId?: string; deliverableId?: string }>).detail;
+      if (target?.projectId !== projectId || typeof target.deliverableId !== "string") return;
+      void refreshItems();
+    };
+    window.addEventListener(DELIVERABLE_DATA_CHANGED_EVENT, refreshDeliverableData);
+    return () => window.removeEventListener(DELIVERABLE_DATA_CHANGED_EVENT, refreshDeliverableData);
   }, [projectId, deliverablesRoot]);
   useEffect(() => {
     if (openId)
@@ -275,6 +300,18 @@ export function DeliverablesWorkspace({
         behavior: "smooth",
       });
   }, [openId]);
+  useEffect(() => {
+    const openDeliverableItem = (event: Event) => {
+      const target = (event as CustomEvent<{ projectId?: string; deliverableId?: string }>).detail;
+      if (target?.projectId !== projectId || typeof target.deliverableId !== "string") return;
+      const item = items.find(entry => entry.id === target.deliverableId);
+      if (!item) return;
+      setOpenId(item.id);
+      void refreshFiles(item);
+    };
+    window.addEventListener(DELIVERABLE_ITEM_FOCUS_EVENT, openDeliverableItem);
+    return () => window.removeEventListener(DELIVERABLE_ITEM_FOCUS_EVENT, openDeliverableItem);
+  }, [items, projectId]);
   useEffect(() => {
     const item = items.find((current) => current.id === openId);
     if (item) void refreshFiles(item);
@@ -509,7 +546,7 @@ export function DeliverablesWorkspace({
             >
               <b>{String(items.indexOf(item) + 1).padStart(2, "0")}</b>
               <strong>{item.title}</strong>
-              <i>准备中</i>
+              <i>{({ draft: "草稿", preparing: "准备中", ready: "待交付", accepted: "已完成" } as const)[item.content.status]}</i>
               <time>
                 {new Date(item.updatedAt).toLocaleDateString("zh-CN")}
               </time>
@@ -518,9 +555,20 @@ export function DeliverablesWorkspace({
               <div className="deliverables-workspace__body">
                 <div className="deliverables-workspace__toolbar">
                   <span>
-                    文件位置 <code>{item.content.folderPath}</code>
+                    文件位置 <code>{absoluteFolderPath(projectRoot, item.content.folderPath)}</code>
                   </span>
-                  <button type="button" onClick={() => setCodexItem(item)}>Codex 对话</button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      showDeliverableCodex({
+                        projectId,
+                        deliverableId: item.id,
+                        deliverableTitle: item.title,
+                      })
+                    }
+                  >
+                    Codex 对话
+                  </button>
                   <div
                     className="deliverables-workspace__switch"
                     role="group"
@@ -564,7 +612,7 @@ export function DeliverablesWorkspace({
                 <div className="deliverables-workspace__grid">
                   <section className="deliverables-workspace__description">
                     <header>
-                      <h2>交付物需求说明</h2>
+                      <h2>需求说明</h2>
                       <button onClick={() => setEditing(!editing)}>
                         {editing ? "取消" : "编辑"}
                       </button>
@@ -586,14 +634,14 @@ export function DeliverablesWorkspace({
                         dangerouslySetInnerHTML={{
                           __html:
                             item.content.descriptionHtml ||
-                            "<p>暂无交付物需求说明。</p>",
+                            "<p>暂无需求说明。</p>",
                         }}
                       />
                     )}
                   </section>
                   <div className="deliverables-workspace__right">
                     <section className="deliverables-workspace__records">
-                      <h2>交付物要求记录</h2>
+                      <h2>记录</h2>
                       <div className={`deliverables-workspace__record-composer${editingRecordId ? " is-editing-existing" : ""}`} style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
                         <div className="deliverables-workspace__record-rich-editor" style={{ width: "100%" }}>
                           <ProjectRichTextEditor
@@ -606,10 +654,14 @@ export function DeliverablesWorkspace({
                           <label aria-label="记录类型">
                             <select className={`deliverables-workspace__record-kind-select is-${editingRecordId ? editingRecordKind : kind}`} value={editingRecordId ? editingRecordKind : kind} aria-label="记录类型" onChange={(event) => editingRecordId ? setEditingRecordKind(event.target.value as DeliverableRecordKind) : setKind(event.target.value as DeliverableRecordKind)}>
                               <option value="requirement">要求</option>
-                              <option value="status">状态</option>
-                              <option value="change">修改</option>
+                              <option value="status">进展</option>
+                              <option value="decision">决策</option>
+                              <option value="issue">问题</option>
+                              <option value="risk">风险</option>
+                              <option value="change">变更</option>
                               <option value="information">信息</option>
                               <option value="material">材料</option>
+                              <option value="codex">Codex</option>
                               <option value="ai_task">AI 任务</option>
                             </select>
                           </label>
@@ -710,7 +762,7 @@ export function DeliverablesWorkspace({
                     >
                       <header>
                         <div>
-                          <h2>交付物版本与材料</h2>
+                          <h2>版本与材料</h2>
                           <small>拖拽文件到此处上传 · 目录内的全部文件</small>
                         </div>
                         <button
@@ -891,7 +943,6 @@ export function DeliverablesWorkspace({
           </p>
         )}
       </div>
-      {codexItem && <DeliverableCodexWorkbench projectId={projectId} deliverableId={codexItem.id} deliverableTitle={codexItem.title} visible={codexVisible} />}
     </section>
   );
 }

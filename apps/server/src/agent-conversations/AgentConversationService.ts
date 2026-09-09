@@ -1,9 +1,12 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { extname } from "node:path";
 import type { AgentConversationConfig, AgentConversationExecutor, AgentConversationConfigRepo } from "../repos/AgentConversationConfigRepo.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
+import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
 import type { AgentConversationTurn, AgentConversationTurnRepo } from "../repos/AgentConversationTurnRepo.js";
 import type { AgentToolCall, AgentToolCallRepo } from "../repos/AgentToolCallRepo.js";
-import type { AgentRuntimeEvent, AgentRuntimePort, AgentRuntimeToolResult } from "./AgentRuntimePort.js";
+import type { AgentRuntimeEvent, AgentRuntimeMessage, AgentRuntimePort, AgentRuntimeToolResult } from "./AgentRuntimePort.js";
 import { AgentCapabilityGateway } from "./AgentCapabilityGateway.js";
 import { AgentToolCallService } from "./AgentToolCallService.js";
 import { assertRuntimeProfileSupported } from "./ConversationPermissionPolicy.js";
@@ -16,16 +19,33 @@ interface AgentConversationExecutionDeps {
   runtime?: AgentRuntimePort;
   runtimes?: Partial<Record<AgentConversationExecutor, AgentRuntimePort>>;
   gateway: AgentCapabilityGateway;
+  attachments?: ChatAttachmentsRepo | null;
   workspaceRoot?: string;
 }
 
 export type AgentConversationEvent =
+  | { type: "activity"; turnId: string; text: string }
   | { type: "turn"; turnId: string; status: AgentConversationTurn["status"] }
   | { type: "delta"; turnId: string; text: string }
   | { type: "tool"; turnId: string; callId: string; name: string; status: string }
   | { type: "approval_required"; turnId: string; callId: string; approvalId: string; name: string; arguments: Record<string, unknown>; argumentsDigest: string }
   | { type: "done"; turnId: string; content: string; sessionId?: string }
   | { type: "error"; turnId: string; message: string };
+
+const generatedImageMime: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+};
+
+export async function readGeneratedImage(path: string): Promise<{ data: Uint8Array; mime: string; sha256: string }> {
+  const mime = generatedImageMime[extname(path).toLowerCase()];
+  if (!mime) throw new Error(`Unsupported Codex image format: ${path}`);
+  const data = new Uint8Array(await readFile(path));
+  if (data.byteLength === 0) throw new Error(`Codex generated an empty image: ${path}`);
+  return { data, mime, sha256: createHash("sha256").update(data).digest("hex") };
+}
 
 export interface ResolveAgentApprovalInput {
   approvalId: string;
@@ -35,7 +55,30 @@ export interface ResolveAgentApprovalInput {
   approved: boolean;
 }
 
+export function buildAgentRuntimeMessages(input: {
+  executor: AgentConversationExecutor;
+  content: string;
+  imageUrls?: string[];
+  recent: Array<{ role: "user" | "assistant" | "system"; content: string }>;
+  summaryContext: string;
+}): AgentRuntimeMessage[] {
+  // Codex owns the thread context. Rich only supplies explicit context that
+  // belongs to this turn (for example, the user's attached location prefix).
+  if (input.executor === "codex") {
+    return [{ role: "user", content: input.content, imageUrls: input.imageUrls }];
+  }
+
+  return [
+    { role: "system" as const, content: `${buildChatSystemPrompt()}${input.summaryContext}` },
+    ...input.recent,
+  ].map((message, index, all) => index === all.length - 1
+    ? { ...message, imageUrls: input.imageUrls }
+    : message);
+}
+
 export class AgentConversationService {
+  private readonly activeRuns = new Map<string, { runtime: AgentRuntimePort; turnId: string; finished: Promise<void>; resolve: () => void }>();
+
   constructor(
     private readonly configs: AgentConversationConfigRepo,
     private readonly conversations: ChatConversationsRepo,
@@ -51,7 +94,7 @@ export class AgentConversationService {
     return config?.status === "active" ? config : null;
   }
 
-  async start(conversationId: string, options: { fresh?: boolean; executor?: AgentConversationExecutor } = {}): Promise<{ config: AgentConversationConfig; resumed: boolean }> {
+  async start(conversationId: string, options: { fresh?: boolean; executor?: AgentConversationExecutor; workspaceRoot?: string } = {}): Promise<{ config: AgentConversationConfig; resumed: boolean }> {
     const now = new Date().toISOString();
     await this.conversations.ensureConversation({ id: conversationId, surface: "agent", now });
     const existing = await this.configs.get(conversationId);
@@ -60,7 +103,7 @@ export class AgentConversationService {
       conversationId,
       executor: options.executor ?? existing?.executor ?? "hermes",
       permissionProfile: existing?.permissionProfile ?? "chat_only",
-      workspaceRoot: existing?.workspaceRoot,
+      workspaceRoot: options.workspaceRoot ?? existing?.workspaceRoot,
       allowedMcpServers: existing?.allowedMcpServers ?? [],
       status: "active",
       modelSessionId,
@@ -89,6 +132,18 @@ export class AgentConversationService {
     const runtime = this.runtimeFor(config.executor);
     if (!runtime.checkConnection) return { server: false, session: false };
     return runtime.checkConnection(config.modelSessionId);
+  }
+
+  isRunning(conversationId: string): boolean { return this.activeRuns.has(conversationId); }
+
+  async interrupt(conversationId: string): Promise<boolean> {
+    const active = this.activeRuns.get(conversationId);
+    if (!active?.runtime.interrupt) return false;
+    const config = await this.getActive(conversationId);
+    if (!config) return false;
+    await active.runtime.interrupt(config.modelSessionId ?? "", active.turnId);
+    await active.finished;
+    return true;
   }
 
   async resolveApproval(conversationId: string, input: ResolveAgentApprovalInput): Promise<AgentToolCall> {
@@ -172,16 +227,23 @@ export class AgentConversationService {
     const summaryContext = summary
       ? `\n\n## Persistent conversation recovery context\nSummary version: ${summary.updatedAt}\nLast summarized message: ${summary.lastMessageId ?? "unknown"}\n${summary.summary}`
       : "";
-    const transcript = [
-      { role: "system" as const, content: `${buildChatSystemPrompt()}${summaryContext}` },
-      ...recent,
-    ].map((message, index, all) => index === all.length - 1 && message.role === "user" ? { ...message, imageUrls: input.imageUrls } : message);
+    const transcript = buildAgentRuntimeMessages({
+      executor: config.executor,
+      content: input.content,
+      imageUrls: input.imageUrls,
+      recent,
+      summaryContext,
+    });
 
+    let resolveActiveRun!: () => void;
+    const activeRun = { runtime, turnId: claimed.id, finished: new Promise<void>(resolve => { resolveActiveRun = resolve; }), resolve: () => resolveActiveRun() };
+    this.activeRuns.set(conversationId, activeRun);
     try {
       const outcome = await this.runRuntimeTurn(runtime, {
         conversationId,
         turnId: claimed.id,
         sessionId: config.modelSessionId,
+        workspaceRoot: config.workspaceRoot ?? this.execution.workspaceRoot,
         messages: transcript,
         capabilityToken: grant.token,
       }, publish);
@@ -192,8 +254,9 @@ export class AgentConversationService {
         }) ?? claimed;
         return { turn, events };
       }
+      const assistantMessageId = randomUUID();
       await this.conversations.appendMessage({
-        id: randomUUID(),
+        id: assistantMessageId,
         conversationId,
         role: "assistant",
         content: outcome.fullText,
@@ -201,6 +264,7 @@ export class AgentConversationService {
         modelSessionId: outcome.sessionId,
         createdAt: new Date().toISOString(),
       });
+      await this.persistGeneratedImages(assistantMessageId, outcome.images);
       if (outcome.sessionId) await this.recordModelSession(conversationId, outcome.sessionId);
       const turn = await this.execution.turns.finish(claimed.id, {
         status: "succeeded",
@@ -214,6 +278,9 @@ export class AgentConversationService {
       const turn = await this.execution.turns.finish(claimed.id, { status: "failed", error: message, now: new Date().toISOString() }) ?? claimed;
       await publish({ type: "error", turnId: claimed.id, message });
       throw Object.assign(new Error(message), { turn, events });
+    } finally {
+      if (this.activeRuns.get(conversationId) === activeRun) this.activeRuns.delete(conversationId);
+      activeRun.resolve();
     }
   }
 
@@ -221,12 +288,13 @@ export class AgentConversationService {
     runtime: AgentRuntimePort,
     input: Parameters<AgentRuntimePort["startTurn"]>[0],
     publish: (event: AgentConversationEvent) => Promise<void>,
-  ): Promise<{ fullText: string; sessionId?: string; waitingApproval?: boolean }> {
+  ): Promise<{ fullText: string; sessionId?: string; waitingApproval?: boolean; images: string[] }> {
     let attempt = 0;
     let sessionId = input.sessionId;
     while (attempt < 2) {
       const iterator = runtime.startTurn({ ...input, sessionId });
       let fullText = "";
+      const images: string[] = [];
       let toolResult: AgentRuntimeToolResult | undefined;
       let shouldRetry = false;
       while (true) {
@@ -239,8 +307,13 @@ export class AgentConversationService {
           await publish({ type: "delta", turnId: input.turnId, text: event.text });
           continue;
         }
+        if (event.type === "activity") { await publish({ type: "activity", turnId: input.turnId, text: event.text }); continue; }
+        if (event.type === "image") {
+          images.push(event.path);
+          continue;
+        }
         if (event.type === "done") {
-          return { fullText: event.fullText || fullText, sessionId: event.sessionId ?? sessionId };
+          return { fullText: event.fullText || fullText, sessionId: event.sessionId ?? sessionId, images };
         }
         if (event.type === "error") {
           const hasToolCalls = (await this.execution!.toolCallRepo.listByTurn(input.turnId)).length > 0;
@@ -274,13 +347,13 @@ export class AgentConversationService {
             arguments: call.arguments,
             argumentsDigest: call.argumentsDigest,
           });
-          return { fullText, sessionId: event.sessionId ?? sessionId, waitingApproval: true };
+          return { fullText, sessionId: event.sessionId ?? sessionId, waitingApproval: true, images };
         }
         toolResult = call.status === "succeeded"
           ? { runtimeCallId: event.runtimeCallId, result: call.result }
           : { runtimeCallId: event.runtimeCallId, error: call.error ?? `Tool call ${call.status}` };
       }
-      if (!shouldRetry) return { fullText, sessionId };
+      if (!shouldRetry) return { fullText, sessionId, images };
       attempt += 1;
       sessionId = undefined;
     }
@@ -293,5 +366,26 @@ export class AgentConversationService {
       : this.execution?.runtime;
     if (!runtime) throw new Error(`Agent runtime is not configured for ${executor}`);
     return runtime;
+  }
+
+  private async persistGeneratedImages(messageId: string, paths: string[]): Promise<void> {
+    if (!this.execution?.attachments) return;
+    for (const path of paths) {
+      try {
+        const image = await readGeneratedImage(path);
+        await this.execution.attachments.put({
+          id: randomUUID(),
+          messageId,
+          kind: "image",
+          mime: image.mime,
+          sizeBytes: image.data.byteLength,
+          data: image.data,
+          sha256: image.sha256,
+          createdAt: new Date().toISOString(),
+        });
+      } catch {
+        // Text replies remain usable even if Codex cleans up a preview before Rich persists it.
+      }
+    }
   }
 }

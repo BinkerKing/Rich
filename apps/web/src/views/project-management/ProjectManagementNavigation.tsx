@@ -18,12 +18,14 @@ export const PROJECT_MANAGEMENT_SECTIONS: Array<{
   { id: "dictionary", label: "数据字典", icon: "▦" },
   { id: "automation", label: "数据自动化", icon: "▶" },
   { id: "workflow", label: "作业流程", icon: "⇄" },
+  { id: "flowcharts", label: "项目流程图", icon: "◇" },
   { id: "scenarios", label: "场景手册", icon: "▤" },
   { id: "environments", label: "环境配置", icon: "◎" },
   { id: "deploymentSteps", label: "部署步骤", icon: "☑" },
   { id: "monitoring", label: "监控预警", icon: "⌁" },
   { id: "codeVersions", label: "版本控制", icon: "⌘" },
   { id: "todos", label: "项目代办", icon: "✓" },
+  { id: "testing", label: "测试中心", icon: "✓" },
   { id: "folder", label: "文件夹", icon: "▣" },
 ];
 

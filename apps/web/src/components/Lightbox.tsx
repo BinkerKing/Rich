@@ -22,7 +22,7 @@ export function Lightbox() {
 
       // <img> inside any section/article in the element panel
       const img = target.closest("img") as HTMLImageElement | null;
-      if (img && img.closest(".body-section, .sec-image, .sec-image-pair")) {
+      if (img && img.closest(".body-section, .sec-image, .sec-image-pair, .workflow-rich-content")) {
         if (!img.src) return;
         event.preventDefault();
         event.stopPropagation();

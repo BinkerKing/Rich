@@ -1,4 +1,4 @@
-import type { AiTaskRequest } from "./types.js";
+import type { AiTaskContextSnapshot, AiTaskRequest } from "./types.js";
 
 export function plainTaskText(value: string): string {
   return value
@@ -18,17 +18,22 @@ export function effectiveAcceptanceCriteria(request: AiTaskRequest): string[] {
   ];
 }
 
-export function deliverableTaskBrief(request: AiTaskRequest): string {
-  const snapshot = request.contextSnapshot;
+export function deliverableTaskContextBrief(snapshot: AiTaskContextSnapshot, deliverableFolder = snapshot.deliverable.folderPath): string {
   const records = snapshot.records.map(record => `- [${record.kind}] ${plainTaskText(record.text)}`).join("\n") || "- None";
   const files = snapshot.files.map(file => `- [${file.type}] ${file.relativePath}${file.note ? ` — ${file.note}` : ""}`).join("\n") || "- None";
   return [
-    "## Requested outcome", plainTaskText(request.instructions),
-    "", "## Delivery requirement", plainTaskText(snapshot.deliverable.requirementHtml) || "- None",
-    "", "## Frozen delivery inputs (read before concluding)",
-    `- Deliverable folder: ${snapshot.deliverable.folderPath}`,
+    "## Delivery requirement", plainTaskText(snapshot.deliverable.requirementHtml) || "- None",
+    "", "## Frozen delivery inputs",
+    `- Deliverable folder: ${deliverableFolder}`,
     records,
     files,
+  ].join("\n");
+}
+
+export function deliverableTaskBrief(request: AiTaskRequest): string {
+  return [
+    "## Requested outcome", plainTaskText(request.instructions),
+    "", deliverableTaskContextBrief(request.contextSnapshot),
     "", "## Evidence rule",
     "Treat frozen material files as primary evidence. Do not conclude that evidence is missing before reading every relevant frozen material and checking the listed navigation, source, and analysis paths.",
   ].join("\n");

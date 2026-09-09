@@ -8,6 +8,8 @@ import {
   type ProjectDictionaryRectification,
   type ProjectDictionaryRectificationInput,
   type ProjectDictionarySystem,
+  type ProjectDictionaryBusinessScenario,
+  type ProjectDictionaryBusinessScenarioLibrary,
   type ProjectDictionaryTable,
   type ProjectManagementSummary,
 } from "../../api/client.js";
@@ -38,7 +40,7 @@ type DictionarySourceRef = { label: string; field?: ProjectDictionaryFieldHit };
 type DictionaryTableRef = { label: string; table?: ProjectDictionaryTable };
 type DictionarySqlConversion = { status: "complete" | "blocked" | "invalid"; sql?: string; reason?: string };
 type DictionaryPropertyPayload = {
-  kind: "fieldDetail" | "tableDetail" | "systemDetail" | "description" | "codeValue" | "formatPattern" | "mappingLogic" | "mappingCaliber" | "sourceRefs" | "generic";
+  kind: "fieldDetail" | "tableDetail" | "systemDetail" | "description" | "codeValue" | "formatPattern" | "mappingLogic" | "mappingCaliber" | "externalSql" | "sourceRefs" | "generic";
   title: string; subtitle?: string; value: string; remark?: string;
   system?: ProjectDictionarySystem; table?: ProjectDictionaryTable; field?: ProjectDictionaryFieldHit;
   refs?: DictionarySourceRef[]; tableRefs?: DictionaryTableRef[]; sqlConversion?: DictionarySqlConversion;
@@ -49,12 +51,23 @@ type DictionaryRectificationTarget = Pick<ProjectDictionaryRectificationInput, "
 type DictionaryTreeDragState = { kind: "system"; id: string } | { kind: "table"; id: string; systemId: string };
 type DictionaryWorkspaceState = { selectedSystemId: string; expandedSystemIds: string[]; selectedTableId: string; openTableTitleIds: string[] };
 type DictionaryTreeDragEvent = { dataTransfer: DataTransfer; preventDefault: () => void };
+type DictionaryCatalog = "business-scenarios" | "tables";
 
 export function DictionarySection({ project, summary, searchTarget }: { project: Element; summary: ProjectManagementSummary | null; searchTarget?: ProjectManagementSearchTarget | null }) {
   const rememberedWorkspace = useMemo(() => loadDictionaryWorkspaceState(project.id), [project.id]);
   const [systems, setSystems] = useState<ProjectDictionarySystem[]>([]);
+  const [catalog, setCatalog] = useState<DictionaryCatalog>("tables");
+  const [businessScenarios, setBusinessScenarios] = useState<ProjectDictionaryBusinessScenario[]>([]);
+  const [businessScenarioLibraries, setBusinessScenarioLibraries] = useState<ProjectDictionaryBusinessScenarioLibrary[]>([]);
+  const [selectedBusinessScenarioLibraryId, setSelectedBusinessScenarioLibraryId] = useState("");
+  const [creatingBusinessScenario, setCreatingBusinessScenario] = useState(false);
+  const [businessScenarioLibraryDraft, setBusinessScenarioLibraryDraft] = useState({ name: "", dbType: "postgresql", host: "", port: "", database: "", username: "", password: "" });
+  const [selectedBusinessScenarioId, setSelectedBusinessScenarioId] = useState("");
+  const [businessScenarioBusy, setBusinessScenarioBusy] = useState(false);
+  const [businessScenarioDraft, setBusinessScenarioDraft] = useState({ title: "", procedureName: "", externalLocation: "", sqlText: "", remark: "", tableIds: [] as string[] });
   const [selectedSystemId, setSelectedSystemId] = useState<string>(rememberedWorkspace.selectedSystemId);
   const [expandedSystemIds, setExpandedSystemIds] = useState<string[]>(rememberedWorkspace.expandedSystemIds);
+  const [expandedScenarioSystemIds, setExpandedScenarioSystemIds] = useState<string[]>([]);
   const [tables, setTables] = useState<ProjectDictionaryTable[]>([]);
   const [tableTrees, setTableTrees] = useState<Record<string, ProjectDictionaryTable[]>>({});
   const [selectedTableId, setSelectedTableId] = useState<string>(rememberedWorkspace.selectedTableId);
@@ -102,6 +115,13 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
       })
       .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); })
       .finally(() => { if (!cancelled) setSystemsLoaded(true); });
+    return () => { cancelled = true; };
+  }, [project.id, refreshKey]);
+  useEffect(() => { let cancelled = false; void api.listProjectDictionaryBusinessScenarioLibraries(project.id).then(items => { if (!cancelled) { setBusinessScenarioLibraries(items); setSelectedBusinessScenarioLibraryId(current => current || items[0]?.id || ""); } }).catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); }); return () => { cancelled = true; }; }, [project.id, refreshKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api.listProjectDictionaryBusinessScenarios(project.id).then(items => { if (!cancelled) setBusinessScenarios(items); }).catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
     return () => { cancelled = true; };
   }, [project.id, refreshKey]);
 
@@ -295,17 +315,27 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
   ), [rectifications]);
   const selectedSystem = orderedSystems.find(system => system.id === selectedSystemId);
   const selectedTable = orderedTables.find(table => table.id === selectedTableId) ?? tableCache[selectedTableId];
+  const selectedBusinessScenario = businessScenarios.find(scenario => scenario.id === selectedBusinessScenarioId);
+  const selectedBusinessScenarioLibrary = businessScenarioLibraries.find(library => library.id === selectedBusinessScenarioLibraryId);
+  useEffect(() => { if (selectedBusinessScenarioLibrary) setBusinessScenarioLibraryDraft({ name: selectedBusinessScenarioLibrary.name, dbType: selectedBusinessScenarioLibrary.dbType || "postgresql", host: selectedBusinessScenarioLibrary.connection?.host || "", port: String(selectedBusinessScenarioLibrary.connection?.port || ""), database: selectedBusinessScenarioLibrary.connection?.database || "", username: selectedBusinessScenarioLibrary.connection?.username || "", password: selectedBusinessScenarioLibrary.connection?.password || "" }); }, [selectedBusinessScenarioLibrary?.updatedAt, selectedBusinessScenarioLibraryId]);
+  const scenarioLibraryTree = businessScenarioLibraries.map(library => ({ id: library.id, code: library.name, name: library.name, assetLayer: "业务场景", tableCount: 0, fieldCount: 0 } as ProjectDictionarySystem));
+  useEffect(() => { if (selectedBusinessScenario) setBusinessScenarioDraft({ title: selectedBusinessScenario.title, procedureName: selectedBusinessScenario.procedureName, externalLocation: selectedBusinessScenario.externalLocation || "", sqlText: selectedBusinessScenario.sqlText, remark: selectedBusinessScenario.remark || "", tableIds: selectedBusinessScenario.tableIds }); }, [selectedBusinessScenarioId, selectedBusinessScenario?.updatedAt]);
   const mappingAvailable = dictionaryTableSupportsMapping(selectedTable);
+  const tempTablesAvailable = dictionaryTableHasTempTables(selectedTable, tempTables);
 
   useEffect(() => {
     let cancelled = false;
-    if (activeView !== "mapping") {
-      setMappingRefFields([...tableFields, ...dictionaryTempTablesToFieldHits(selectedSystem, selectedTable, tempTables)]);
+    const tempRefFields = dictionaryTempTablesToFieldHits(selectedSystem, selectedTable, tempTables);
+    const baseRefFields = [...tableFields, ...tempRefFields];
+    if (activeView !== "mapping" && activeView !== "temp-table") {
+      setMappingRefFields(baseRefFields);
       return () => { cancelled = true; };
     }
-    const refs = collectDictionaryMappingRefLabels(selectedTable, tableFields);
+    const refs = activeView === "temp-table"
+      ? collectDictionaryMappingRefLabels(selectedTable, tempRefFields)
+      : collectDictionaryMappingRefLabels(selectedTable, tableFields);
     if (refs.length === 0) {
-      setMappingRefFields([...tableFields, ...dictionaryTempTablesToFieldHits(selectedSystem, selectedTable, tempTables)]);
+      setMappingRefFields(baseRefFields);
       return () => { cancelled = true; };
     }
     void api.resolveProjectDictionaryFieldRefs(project.id, refs)
@@ -313,7 +343,7 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
         if (cancelled) return;
         const byId = new Map<string, ProjectDictionaryFieldHit>();
         tableFields.forEach(field => byId.set(field.id, field));
-        dictionaryTempTablesToFieldHits(selectedSystem, selectedTable, tempTables).forEach(field => byId.set(field.id, field));
+        tempRefFields.forEach(field => byId.set(field.id, field));
         next.forEach(field => byId.set(field.id, field));
         setMappingRefFields(Array.from(byId.values()));
       })
@@ -403,8 +433,12 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
     });
   };
   useEffect(() => {
-    if (!mappingAvailable && ["mapping", "temp-table", "relations"].includes(activeView)) setActiveView("field-design");
-  }, [activeView, mappingAvailable]);
+    if (!mappingAvailable && ["mapping", "temp-table", "relations"].includes(activeView)) {
+      setActiveView("field-design");
+      return;
+    }
+    if (!tempTablesAvailable && activeView === "temp-table") setActiveView(mappingAvailable ? "mapping" : "field-design");
+  }, [activeView, mappingAvailable, tempTablesAvailable]);
   const visibleFields = query.trim()
     ? results
     : tableFields;
@@ -428,8 +462,10 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
   };
   const handleSystemClick = (system: ProjectDictionarySystem) => {
     setPropertyViewer(null);
-    setSelectedSystemId(system.id);
-    toggleSystemExpanded(system.id);
+    if (catalog === "business-scenarios") { setSelectedBusinessScenarioLibraryId(system.id); setSelectedBusinessScenarioId(""); setCreatingBusinessScenario(false); }
+    else setSelectedSystemId(system.id);
+    if (catalog === "business-scenarios") setExpandedScenarioSystemIds(current => current.includes(system.id) ? current.filter(id => id !== system.id) : [...current, system.id]);
+    else toggleSystemExpanded(system.id);
     setSelectedTableId("");
     setActiveView("field-design");
     setSelectedFieldId("");
@@ -656,10 +692,17 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
 
       <div className="prj-pm-dict__layout no-inspector">
         <aside className="prj-pm-dict__systems">
+          <div className="prj-pm-dict__tabs" aria-label="数据字典分类">
+            <button type="button" className={catalog === "business-scenarios" ? "is-active" : ""} onClick={() => { setCatalog("business-scenarios"); setSelectedTableId(""); }}>业务场景</button>
+            <button type="button" className={catalog === "tables" ? "is-active" : ""} onClick={() => { setCatalog("tables"); setSelectedBusinessScenarioId(""); setCreatingBusinessScenario(false); }}>表清单</button>
+            {catalog === "business-scenarios" && <button type="button" onClick={() => { const name = window.prompt("场景库名称"); if (!name?.trim()) return; void api.createProjectDictionaryBusinessScenarioLibrary(project.id, { name: name.trim() }).then(next => { setBusinessScenarioLibraries(items => [...items, next]); setSelectedBusinessScenarioLibraryId(next.id); setExpandedScenarioSystemIds(items => [...items, next.id]); }).catch(e => setError(e instanceof Error ? e.message : String(e))); }}>新建库</button>}
+            {catalog === "business-scenarios" && <button type="button" disabled={!selectedBusinessScenarioLibraryId} onClick={() => { const library = businessScenarioLibraries.find(item => item.id === selectedBusinessScenarioLibraryId); if (!library) return; const dbType = window.prompt("数据库类型（postgresql / sqlserver）", library.dbType || "postgresql"); if (!dbType) return; const host = window.prompt("主机", library.connection?.host || ""); const database = window.prompt("数据库名", library.connection?.database || ""); const username = window.prompt("用户名", library.connection?.username || ""); if (host === null || database === null || username === null) return; void api.updateProjectDictionaryBusinessScenarioLibrary(project.id, library.id, { dbType: dbType as "postgresql" | "sqlserver", sqlDialect: dbType as "postgresql" | "sqlserver", connection: { ...library.connection, host, database, username } }).then(next => setBusinessScenarioLibraries(items => items.map(item => item.id === next.id ? next : item))).catch(e => setError(e instanceof Error ? e.message : String(e))); }}>配置库</button>}
+            {catalog === "business-scenarios" && <button type="button" onClick={() => { if (!selectedBusinessScenarioLibraryId) return; setSelectedBusinessScenarioId(""); setCreatingBusinessScenario(true); setBusinessScenarioDraft({ title: "", procedureName: "", externalLocation: "", sqlText: "", remark: "", tableIds: [] }); }}>新建场景</button>}
+          </div>
           {systems.length === 0 ? (
             <div className="prj-pm-empty">还没有导入首都银行一表通 Mapping 数据。</div>
           ) : (
-            orderedSystems.map(system => (
+            (catalog === "business-scenarios" ? scenarioLibraryTree : orderedSystems).map(system => (
               <div
                 className={`prj-pm-dict__tree-group${treeDrag?.kind === "system" && treeDrag.id === system.id ? " is-dragging" : ""}`}
                 key={system.id}
@@ -676,12 +719,17 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
                     entityType: "library", entityId: system.id, propertyKey: "entity",
                     label: `库：${system.name || system.code}`,
                   })}>
-                  <span>{expandedSystemIds.includes(system.id) ? "▾" : "▸"}</span>
+                  <span>{(catalog === "business-scenarios" ? expandedScenarioSystemIds : expandedSystemIds).includes(system.id) ? "▾" : "▸"}</span>
                   <b>{system.code || system.name}</b>
-                  <small>{system.assetLayer || system.type || "mapping"}</small>
-                  <em>{system.tableCount} / {system.fieldCount}</em>
+                  <small>{catalog === "business-scenarios" ? "业务场景" : system.assetLayer || system.type || "mapping"}</small>
+                  <em>{catalog === "business-scenarios" ? `${businessScenarios.filter(scenario => scenario.libraryId === system.id).length} 个` : `${system.tableCount} / ${system.fieldCount}`}</em>
                 </button>
-                {expandedSystemIds.includes(system.id) && (
+                {expandedScenarioSystemIds.includes(system.id) && catalog === "business-scenarios" && (
+                  <div className="prj-pm-dict__table-tree prj-pm-dict__scenario-tree">
+                    {businessScenarios.filter(scenario => scenario.libraryId === system.id).map(scenario => <button key={scenario.id} type="button" className={selectedBusinessScenarioId === scenario.id ? "is-active" : ""} onClick={() => { setSelectedBusinessScenarioId(scenario.id); setCreatingBusinessScenario(false); setSelectedTableId(""); }}><span>{scenario.title}</span><code>{scenario.procedureName}</code></button>)}
+                  </div>
+                )}
+                {expandedSystemIds.includes(system.id) && catalog === "tables" && (
                   <div className="prj-pm-dict__table-tree">
                     {getVisibleTreeTables(system.id).map(table => (
                       <button
@@ -722,11 +770,30 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
 
         <section className={[
           "prj-pm-dict__workspace",
+          selectedBusinessScenario || (catalog === "business-scenarios" && !selectedBusinessScenarioId) ? "is-business-scenario" : "",
           !query.trim() && !selectedTable ? "is-system-overview" : "",
           titleTables.length > 0 || titleSystems.length > 0 ? "has-table-rail" : "",
           titleTables.length > 0 && titleSystems.length > 0 ? "has-system-and-table-rail" : "",
         ].filter(Boolean).join(" ")}>
-          {!query.trim() && !selectedTable ? (
+          {catalog === "business-scenarios" && creatingBusinessScenario ? (
+            <div className="prj-pm-dict__scenario-detail"><h2>新建业务场景</h2><BusinessScenarioEditor draft={businessScenarioDraft} setDraft={setBusinessScenarioDraft} tables={orderedTables} busy={businessScenarioBusy} onSave={() => { if (!selectedBusinessScenarioLibraryId) return; setBusinessScenarioBusy(true); void api.createProjectDictionaryBusinessScenario(project.id, { libraryId: selectedBusinessScenarioLibraryId, ...businessScenarioDraft }).then(next => { setBusinessScenarios(items => [...items, next]); setSelectedBusinessScenarioId(next.id); }).catch(e => setError(e instanceof Error ? e.message : String(e))).finally(() => setBusinessScenarioBusy(false)); }} /></div>
+          ) : selectedBusinessScenario ? (
+            <div className="prj-pm-dict__scenario-detail">
+              <h2>{selectedBusinessScenario.title}</h2>
+              <p>SQL 校验：{selectedBusinessScenario.validationStatus === "passed" ? "已通过" : selectedBusinessScenario.validationStatus === "failed" ? "失败" : "待校验"}</p>
+              {selectedBusinessScenario.validationMessage && <p>{selectedBusinessScenario.validationMessage}</p>}
+              <p>
+                <button type="button" disabled={businessScenarioBusy} onClick={() => { setBusinessScenarioBusy(true); void api.formatProjectDictionaryBusinessScenario(project.id, selectedBusinessScenario.id).then(next => setBusinessScenarios(items => items.map(item => item.id === next.id ? next : item))).catch(e => setError(e instanceof Error ? e.message : String(e))).finally(() => setBusinessScenarioBusy(false)); }}>格式化 SQL</button>
+                <button type="button" disabled={businessScenarioBusy} onClick={() => { setBusinessScenarioBusy(true); void api.validateProjectDictionaryBusinessScenario(project.id, selectedBusinessScenario.id).then(next => setBusinessScenarios(items => items.map(item => item.id === next.id ? next : item))).catch(e => setError(e instanceof Error ? e.message : String(e))).finally(() => setBusinessScenarioBusy(false)); }}>SQL 校验</button>
+              </p>
+              {selectedBusinessScenario.externalLocation && <p>外部位置：{selectedBusinessScenario.externalLocation}</p>}
+              <h3>完整 SQL</h3><pre>{selectedBusinessScenario.sqlText}</pre>
+              <h3>关联表</h3><p>{selectedBusinessScenario.tableIds.map(id => orderedTables.find(table => table.id === id)?.tableName || id).join("、") || "未关联表"}</p>
+              <BusinessScenarioEditor draft={businessScenarioDraft} setDraft={setBusinessScenarioDraft} tables={orderedTables} busy={businessScenarioBusy} onSave={() => { setBusinessScenarioBusy(true); void api.updateProjectDictionaryBusinessScenario(project.id, selectedBusinessScenario.id, businessScenarioDraft).then(next => setBusinessScenarios(items => items.map(item => item.id === next.id ? next : item))).catch(e => setError(e instanceof Error ? e.message : String(e))).finally(() => setBusinessScenarioBusy(false)); }} />
+            </div>
+          ) : catalog === "business-scenarios" && selectedBusinessScenarioLibrary ? (
+            <div className="prj-pm-dict__scenario-detail"><h2>场景库：{selectedBusinessScenarioLibrary.name}</h2><p>该库下的所有场景与存储过程均使用以下数据库配置。</p><ScenarioLibraryEditor draft={businessScenarioLibraryDraft} setDraft={setBusinessScenarioLibraryDraft} onSave={() => { void api.updateProjectDictionaryBusinessScenarioLibrary(project.id, selectedBusinessScenarioLibrary.id, { name: businessScenarioLibraryDraft.name, dbType: businessScenarioLibraryDraft.dbType as "postgresql" | "sqlserver", sqlDialect: businessScenarioLibraryDraft.dbType as "postgresql" | "sqlserver", connection: { host: businessScenarioLibraryDraft.host, port: Number(businessScenarioLibraryDraft.port) || undefined, database: businessScenarioLibraryDraft.database, username: businessScenarioLibraryDraft.username, password: businessScenarioLibraryDraft.password || undefined } }).then(next => setBusinessScenarioLibraries(items => items.map(item => item.id === next.id ? next : item))).catch(e => setError(e instanceof Error ? e.message : String(e))); }} /></div>
+          ) : !query.trim() && !selectedTable ? (
             <>
               <div className="prj-pm-dict-title-rail-combo">
                 <DictionarySystemTitleRail
@@ -789,7 +856,7 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
               <div className="prj-pm-dict__tabs">
                 <button type="button" className={activeView === "field-design" ? "is-active" : ""} onClick={() => selectDictionaryView("field-design")}>字段设计</button>
                 {mappingAvailable && <button type="button" className={activeView === "mapping" ? "is-active" : ""} onClick={() => selectDictionaryView("mapping")}>Mapping</button>}
-                {mappingAvailable && <button type="button" className={activeView === "temp-table" ? "is-active" : ""} onClick={() => selectDictionaryView("temp-table")}>临时表</button>}
+                {tempTablesAvailable && <button type="button" className={activeView === "temp-table" ? "is-active" : ""} onClick={() => selectDictionaryView("temp-table")}>临时表</button>}
                 {mappingAvailable && <button type="button" className={activeView === "relations" ? "is-active" : ""} onClick={() => selectDictionaryView("relations")}>关联关系</button>}
                 <button type="button" className={activeView === "test-data" ? "is-active" : ""} onClick={() => selectDictionaryView("test-data")}>测试数据</button>
                 <button type="button" className={activeView === "table-info" ? "is-active" : ""} onClick={() => selectDictionaryView("table-info")}>表说明</button>
@@ -834,7 +901,7 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
               )}
               {activeView === "relations" && <DictionaryRelationsPanel fields={visibleFields} />}
               {activeView === "test-data" && <DictionaryTestDataPanel key={selectedTableId || "search"} projectId={project.id} table={selectedTable} fields={visibleFields} storageKey={`dictionary-test-data:${project.id}:${selectedTableId || "search"}`} />}
-              {activeView === "table-info" && <DictionaryTableInfoPanel table={selectedTable} fields={visibleFields} />}
+              {activeView === "table-info" && <DictionaryTableInfoPanel table={selectedTable} fields={visibleFields} onInspectProperty={setPropertyViewer} />}
             </>
           )}
         </section>
@@ -889,8 +956,15 @@ function dictionaryTableIsInUse(table: ProjectDictionaryTable): boolean {
     .includes(table.usageStatus?.trim().toLocaleLowerCase() || "");
 }
 
-function dictionaryTableSupportsMapping(table?: ProjectDictionaryTable): boolean {
-  return !["源文件", "码值表"].includes(table?.tableType ?? "");
+export function dictionaryTableSupportsMapping(table?: ProjectDictionaryTable): boolean {
+  return table?.hasMapping !== false && !["源文件", "码值表"].includes(table?.tableType ?? "");
+}
+
+export function dictionaryTableHasTempTables(
+  table: ProjectDictionaryTable | undefined,
+  tempTables: ProjectDictionaryMappingTempTable[],
+): boolean {
+  return dictionaryTableSupportsMapping(table) && tempTables.length > 0;
 }
 
 function pinnedDictionarySystemsKey(projectId: string) {
@@ -942,6 +1016,24 @@ function savePinnedDictionaryTables(projectId: string, tableIds: string[]) {
 
 function dictionaryWorkspaceStateKey(projectId: string) {
   return `rich-project-dictionary-workspace:${projectId}`;
+}
+
+function BusinessScenarioEditor({ draft, setDraft, tables, busy, onSave }: { draft: { title: string; procedureName: string; externalLocation: string; sqlText: string; remark: string; tableIds: string[] }; setDraft: (value: { title: string; procedureName: string; externalLocation: string; sqlText: string; remark: string; tableIds: string[] }) => void; tables: ProjectDictionaryTable[]; busy: boolean; onSave: () => void }) {
+  const set = (key: "title" | "procedureName" | "externalLocation" | "sqlText" | "remark", value: string) => setDraft({ ...draft, [key]: value });
+  return <div className="prj-pm-dict__scenario-editor">
+    <label>场景名称<input value={draft.title} onChange={event => set("title", event.target.value)} /></label>
+    <label>存储过程<input value={draft.procedureName} onChange={event => set("procedureName", event.target.value)} /></label>
+    <label>外部位置<input value={draft.externalLocation} onChange={event => set("externalLocation", event.target.value)} /></label>
+    <label>完整 SQL<textarea rows={14} value={draft.sqlText} onChange={event => set("sqlText", event.target.value)} /></label>
+    <label>备注<textarea rows={3} value={draft.remark} onChange={event => set("remark", event.target.value)} /></label>
+    <fieldset><legend>关联表</legend>{tables.map(table => <label key={table.id}><input type="checkbox" checked={draft.tableIds.includes(table.id)} onChange={() => setDraft({ ...draft, tableIds: draft.tableIds.includes(table.id) ? draft.tableIds.filter(id => id !== table.id) : [...draft.tableIds, table.id] })} />{table.tableCn || table.tableName}</label>)}</fieldset>
+    <button type="button" disabled={busy || !draft.title.trim() || !draft.procedureName.trim() || !draft.sqlText.trim()} onClick={onSave}>保存业务场景</button>
+  </div>;
+}
+
+function ScenarioLibraryEditor({ draft, setDraft, onSave }: { draft: { name: string; dbType: string; host: string; port: string; database: string; username: string; password: string }; setDraft: (value: { name: string; dbType: string; host: string; port: string; database: string; username: string; password: string }) => void; onSave: () => void }) {
+  const set = (key: keyof typeof draft, value: string) => setDraft({ ...draft, [key]: value });
+  return <div className="prj-pm-dict__scenario-editor"><label>库名称<input value={draft.name} onChange={event => set("name", event.target.value)} /></label><label>数据库类型<select value={draft.dbType} onChange={event => set("dbType", event.target.value)}><option value="postgresql">PostgreSQL</option><option value="sqlserver">SQL Server</option></select></label><label>主机<input value={draft.host} onChange={event => set("host", event.target.value)} /></label><label>端口<input value={draft.port} onChange={event => set("port", event.target.value)} /></label><label>数据库名<input value={draft.database} onChange={event => set("database", event.target.value)} /></label><label>用户名<input value={draft.username} onChange={event => set("username", event.target.value)} /></label><label>密码<input type="password" value={draft.password} onChange={event => set("password", event.target.value)} /></label><button type="button" onClick={onSave}>保存场景库配置</button></div>;
 }
 
 function loadDictionaryWorkspaceState(projectId: string): DictionaryWorkspaceState {

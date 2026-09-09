@@ -503,9 +503,10 @@ async function buildDictionaryExtractionProcedurePlan(input: {
   })));
   const procedureName = dictionaryExtractionProcedureName(input.table);
   const tempRuntimeParamTypes = resolveDictionaryExtractionTempTableRuntimeParamTypes(tempTables, dialect);
+  const bodySql = dictionaryExtractionWriteBodySql(input.table, insertSql);
   const runtimeParamNames = Array.from(new Set([
     ...Object.keys(tempRuntimeParamTypes),
-    ...extractDictionaryExtractionRuntimeParamNames(insertSql),
+    ...extractDictionaryExtractionRuntimeParamNames(bodySql),
   ]));
   const runtimeParamTypes = {
     ...resolveDictionaryExtractionRuntimeParamTypes(
@@ -521,7 +522,7 @@ async function buildDictionaryExtractionProcedurePlan(input: {
     table: input.table,
     dialect,
     procedureName,
-    bodySql: insertSql,
+    bodySql,
     setupSql: tempTableSetupSql,
     precheckSql: plans.flatMap(plan => plan.precheckSql),
     runtimeParamNames,
@@ -540,6 +541,18 @@ async function buildDictionaryExtractionProcedurePlan(input: {
     validationIssues,
     statementError,
   };
+}
+
+/**
+ * A small number of legacy processes update existing business rows instead of
+ * append-only loading.  Their mapped fields remain validated normally, while
+ * the table-level write body preserves that lifecycle in the generated procedure.
+ */
+export function dictionaryExtractionWriteBodySql(table: ProjectDictionaryTable, defaultInsertSql: string): string {
+  const configured = typeof table.extra?.extractionWriteSql === "string"
+    ? table.extra.extractionWriteSql.trim()
+    : "";
+  return configured || defaultInsertSql;
 }
 
 
@@ -651,7 +664,10 @@ export function buildDictionaryExtractionProcedureSql(input: {
   runtimeParamTypes: Record<string, string>;
 }): string {
   const procedureName = dictionaryExtractionQualifiedProcedureName(input.system, input.table, input.procedureName, input.dialect);
-  const clearSql = `DELETE FROM ${dictionaryEntityQualifiedTableName(input.system, input.table, input.dialect)}`;
+  const clearWhere = typeof input.table.extra?.extractionClearWhere === "string"
+    ? input.table.extra.extractionClearWhere.trim()
+    : "";
+  const clearSql = `DELETE FROM ${dictionaryEntityQualifiedTableName(input.system, input.table, input.dialect)}${clearWhere ? ` WHERE ${clearWhere}` : ""}`;
   const statements = [...(input.setupSql ?? []), ...(input.precheckSql ?? []), clearSql, input.bodySql]
     .map(statement => replaceDictionaryExtractionRuntimePlaceholdersForProcedure(statement, input.runtimeParamNames, input.dialect).trim().replace(/;+$/g, ""))
     .filter(Boolean)
@@ -711,11 +727,10 @@ function replaceDictionaryExtractionTempTableRuntimePlaceholdersForValidation(
 }
 
 function dictionaryExtractionTempTableQuery(tempTable: ProjectDictionaryMappingTempTable): string {
-  const query = (tempTable.convertedSql || tempTable.logicText || "").trim().replace(/;+$/g, "");
-  if (!/^(select|with)\b/i.test(query)) {
-    throw new Error(`临时表 ${tempTable.tableName} 缺少可执行的 SELECT SQL（请填写 SQL转换）`);
+  if (tempTable.convertedSql?.trim()) {
+    throw new Error(`临时表 ${tempTable.tableName} 的外部参考 SQL 仅供查看，不能用于生成或执行存储过程；请补齐结构化 Mapping。`);
   }
-  return query;
+  throw new Error(`临时表 ${tempTable.tableName} 尚不能从结构化 Mapping 生成 SELECT SQL。`);
 }
 
 function dictionaryExtractionTempTableName(tableName: string, dialect: "postgresql" | "sqlserver"): string {

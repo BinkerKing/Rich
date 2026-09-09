@@ -27,3 +27,10 @@ test("桌面端暴露交付计划快照导出桥接", () => {
   assert.match(main, /type\.startsWith\("阶段"\)/);
   assert.match(main, /statusColor = status\.value === "已完成"/);
 });
+
+test("甘特图导出将任务的延期区间绘制为独立的延期条", () => {
+  assert.match(main, /const delayEnd = typeof item\.dueDate === "string" && item\.dueDate > String\(plannedEnd\)/);
+  assert.match(main, /const renderedEnd = delayEnd \|\| plannedEnd/);
+  assert.match(main, /const isDelay = Boolean\(delayEnd && date > String\(plannedEnd\)\)/);
+  assert.match(main, /pattern: "darkTrellis"/);
+});

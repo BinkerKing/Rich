@@ -190,6 +190,8 @@ import { healthRoutes } from "./routes/health.js";
 import { createReminderTicker } from "./lib/reminderTicker.js";
 import { projectsRoutes } from "./routes/projects.js";
 import { projectManagementRoutes } from "./routes/projectManagement.js";
+import { testCenterRoutes } from "./routes/testCenter.js";
+import { TestCenterSqliteRepo } from "./test-center/TestCenterSqliteRepo.js";
 import { aiTaskRoutes } from "./routes/aiTasks.js";
 import { multicaProjectWorkbenchRoutes } from "./routes/multicaProjectWorkbench.js";
 import { projectDictionaryTestFilesRoutes } from "./routes/projectDictionaryTestFiles.js";
@@ -246,6 +248,12 @@ import { ConversationPromotionService } from "./agent-conversations/Conversation
 import { DeliverableTaskContextService } from "./ai-tasks/DeliverableTaskContextService.js";
 import { DeliverableCodexContextService } from "./deliverable-codex/DeliverableCodexContextService.js";
 import { deliverableCodexRoutes } from "./routes/deliverableCodex.js";
+import { PromptLibraryService } from "./prompt-library/PromptLibraryService.js";
+import { promptLibraryRoutes } from "./routes/promptLibrary.js";
+import { SqliteWorkbenchRepo, PostgresWorkbenchRepo, type WorkbenchRepo } from "./task-workbench/repository.js";
+import { WorkbenchService } from "./task-workbench/service.js";
+import { WorkbenchCommands } from "./task-workbench/commands.js";
+import { taskWorkbenchRoutes } from "./routes/taskWorkbench.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -264,11 +272,13 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let qa: QARepo;
   let annotations: AnnotationsRepo;
   let state: StateRepo;
+  let workbenchRepo: WorkbenchRepo | null = null;
   let corpus: CorpusRepo;
   let greatMe: GreatMeRepo;
   let improvements: ImprovementsStore | null = null;
   let invocations: InvocationsStore | null = null;
   let projectManagement: ProjectManagementRepo;
+  let testCenter: TestCenterSqliteRepo | null = null;
   let projectAutomation: ProjectAutomationRepo;
   let mcpOperationRepo: McpOperationRepo;
   let mcpTaskRepo: McpTaskRepo;
@@ -298,6 +308,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     qa = new PostgresQARepo(pg);
     annotations = new PostgresAnnotationsRepo(pg);
     state = new PostgresStateRepo(pg);
+    workbenchRepo = new PostgresWorkbenchRepo(pg);
     corpus = new PostgresCorpusRepo(pg);
     greatMe = new PostgresGreatMeRepo(pg);
     invocations = new PostgresInvocationsRepo(pg);
@@ -312,6 +323,10 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     agentApprovals = new PostgresAgentApprovalRepo(pg);
     healthRepo = new PostgresHealthRepo(pg);
     projectManagement = new PostgresProjectManagementRepo(pg);
+    // Test center is single-user execution data. Keep its SQLite repository
+    // available in PostgreSQL deployments until a PostgreSQL implementation
+    // exists, so the project menu and MCP/CLI contract remain usable.
+    testCenter = new TestCenterSqliteRepo(openDb(join(root, "test-center.db")));
     projectAutomation = new PostgresProjectAutomationRepo(pg);
     mcpOperationRepo = new PostgresMcpOperationRepo(pg);
     mcpTaskRepo = new PostgresMcpTaskRepo(pg);
@@ -326,6 +341,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     qa = new SqliteQARepo(db);
     annotations = new SqliteAnnotationsRepo(db);
     state = new SqliteStateRepo(db);
+    workbenchRepo = new SqliteWorkbenchRepo(db);
     corpus = new SqliteCorpusRepo(db);
     greatMe = new SqliteGreatMeRepo(db);
     improvements = new ImprovementsRepo(db);
@@ -339,6 +355,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     agentToolCalls = new SqliteAgentToolCallRepo(db);
     agentApprovals = new SqliteAgentApprovalRepo(db);
     projectManagement = new SqliteProjectManagementRepo(db);
+    testCenter = new TestCenterSqliteRepo(db);
     projectAutomation = new SqliteProjectAutomationRepo(db);
     mcpOperationRepo = new SqliteMcpOperationRepo(db);
     mcpTaskRepo = new SqliteMcpTaskRepo(db);
@@ -373,6 +390,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
           runtime: new HermesAgentRuntime(hermesAdapter),
           runtimes: { hermes: new HermesAgentRuntime(hermesAdapter), codex: new CodexAppServerRuntime() },
           gateway,
+          attachments: chatAttachments,
           workspaceRoot: richWorkspaceDir,
         });
       })()
@@ -447,6 +465,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
       })
     : null;
   const manualsDir = opts.aiDir ?? aiDir();
+  const promptLibrary = new PromptLibraryService(join(root, "prompt-library.json"));
   // ─── Toolbox runtime (gracefully no-op if SQLite repo missing) ──
   const toolRuntime = invocations ? new ToolRuntime(invocations) : null;
   const breakReminder = new BreakReminder(join(root, "break-reminder.json"));
@@ -463,7 +482,8 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   // Persist every AI op prompt + output to data/ai-ops.jsonl for the admin UI.
   configureOpLog(root);
   const aiContextProvider = createAIContextProvider(chatConversations);
-  const deliverableCodexContext = new DeliverableCodexContextService(promotionContext);
+  const deliverableCodexContext = new DeliverableCodexContextService(promotionContext, elements);
+  const workbench = workbenchRepo && deliverableCodexConversations ? new WorkbenchService(workbenchRepo, deliverableCodexConversations) : undefined;
   // Self-heal: any op stuck in "running" from a previous crash / pkill / OOM
   // gets a synthetic error terminal line, so the admin UI doesn't show
   // dead-but-still-running entries indefinitely. Fire-and-forget.
@@ -500,8 +520,15 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/great-me", greatMeRoutes(greatMe));
   app.route("/api/chat", chatRoutes(chatAttachments, ai, chatConversations, aiContextProvider, operationCorrelations, agentConversationConfigs, agentConversationTurns, agentExecution, conversationPromotions));
   if (deliverableCodexConversations && chatConversations && agentExecution) {
-    app.route("/api/deliverable-codex", deliverableCodexRoutes({ conversations: deliverableCodexConversations, chats: chatConversations, context: deliverableCodexContext, agents: agentExecution, projects: projectManagement, attachments: chatAttachments }));
+    if (workbench) {
+      const commands = new WorkbenchCommands(workbench, agentExecution, deliverableCodexContext);
+      const ready = commands.recoverInterrupted();
+      app.use("/api/workbench/*", async (_c, next) => { await ready; await next(); });
+      app.route("/api/workbench", taskWorkbenchRoutes(workbench, commands, join(root, "task-materials")));
+    }
+    app.route("/api/deliverable-codex", deliverableCodexRoutes({ conversations: deliverableCodexConversations, chats: chatConversations, context: deliverableCodexContext, agents: agentExecution, attachments: chatAttachments, prompts: promptLibrary }));
   }
+  app.route("/api/prompt-library", promptLibraryRoutes(promptLibrary));
   app.route("/api/chat-visual-blocks", chatVisualBlocksRoutes(chatVisualBlocks));
   app.route("/api/chat/attachments", chatAttachmentsRoutes(chatAttachments));
   app.route("/api/health", healthRoutes(healthRepo));
@@ -518,6 +545,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     },
   }));
   app.route("/api/project-management", projectManagementRoutes(projectManagement, { elements, greatMe }));
+  if (testCenter) app.route("/api/project-management/testing", testCenterRoutes(testCenter));
   app.route("/api/project-management", projectAutomationRoutes(projectManagement, projectAutomation));
   app.route("/api/project-management", multicaProjectWorkbenchRoutes({
     workbench: multica.workbench,
@@ -581,12 +609,15 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   // adapters as the rest of this Hono app, so an agent edit lands in
   // the same SQLite the Rich UI is reading from.
   mountMcpV2(app, {
+    workbench,
     elements,
     projectManagement,
     operationRepo: mcpOperationRepo,
     taskRepo: mcpTaskRepo,
     greatMe,
     projectAutomation,
+    testCenter: testCenter ?? undefined,
+    startupProjectsRoot: root,
     delegationAdapter: multica.delegationAdapter,
     executionTeams: multica.executionTeams,
     taskService: multicaWorkTasks,
@@ -729,7 +760,10 @@ if (isMainModule() || process.env.KE_AUTO_START === "1") {
   const port = Number(process.env.PORT ?? 3001);
   const log = createLogger({ bound: { app: "ke-server" } });
   const app = buildApp(dataDir(), undefined, log);
-  serve({ fetch: app.fetch, port });
+  // Bind explicitly to IPv4 localhost. The desktop launcher probes candidate
+  // ports on 127.0.0.1; leaving this unspecified can bind IPv6 and let a
+  // second desktop instance mistakenly select an already occupied port.
+  serve({ fetch: app.fetch, port, hostname: "127.0.0.1" });
   log.info("server.started", { port, url: `http://localhost:${port}` });
 
   // Publish the MCP URL to a known location so external agent configs

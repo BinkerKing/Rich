@@ -95,6 +95,7 @@ CLI 按钮覆盖见 `docs/RICH_CLI_COVERAGE.md`。
 - 一段对话同时产生摘要、决定和待办时，使用 `rich_project_organize_conversation`。
 - 数据字典系统、表、字段的读取和精确更新使用 `rich_dictionary_manage`。
 - Mapping 规则仍必须遵守 `docs/PROJECT_DICTIONARY_MAPPING_RULES.md`；MCP 2.0 当前未暴露的 Mapping 专项操作使用 Rich CLI/API。
+- 维护字段逻辑 JSON、场景口径 JSON 或临时表前，必须先读 `docs/PROJECT_MANAGEMENT_MAINTENANCE_MANUAL.md`；它们是 SQL 生成和验证使用的受控结构，不能用自由文本、备注或未经发布的新键替代。
 - GreatMe 计划整体状态可通过 `rich_planning_manage` 读取或确认后替换；日常细粒度计划命令继续使用 plan CLI。
 
 ## AI 引擎和上下文

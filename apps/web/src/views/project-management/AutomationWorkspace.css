@@ -37,6 +37,8 @@
 .automation-main .automation-check-errors button { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; color: #fecaca; border-color: rgba(248,113,113,.25); background: rgba(127,29,29,.15); text-align: left; }
 .automation-check-errors span { color: #fca5a5; font-size: 11px; }
 .automation-run-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 14px; border-top: 1px solid rgba(148,163,184,.12); }
+.automation-skip-errors { margin-right: auto; display: inline-flex; align-items: center; gap: 7px; color: #cbd5e1; font-size: 12px; cursor: pointer; }
+.automation-skip-errors input { width: 15px; height: 15px; accent-color: #fbbf24; }
 .automation-main button { border: 1px solid rgba(148,163,184,.24); border-radius: 7px; color: #cbd5e1; background: #111c2b; padding: 7px 10px; }
 .automation-main button { cursor: pointer; }
 .automation-main button:disabled { opacity: .4; cursor: default; }

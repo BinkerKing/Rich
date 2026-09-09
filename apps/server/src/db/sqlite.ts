@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { WORKBENCH_SCHEMA } from "../task-workbench/repository.js";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { SQLITE_PROJECT_MANAGEMENT_SCHEMA } from "./projectManagementSchema.js";
@@ -25,6 +26,7 @@ export function openDb(filePath: string): Database.Database {
 }
 
 function applySchema(db: Database.Database) {
+  db.exec(WORKBENCH_SCHEMA);
   db.exec(`
     CREATE TABLE IF NOT EXISTS elements (
       id TEXT PRIMARY KEY,
@@ -564,6 +566,10 @@ function applySchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_health_alert_status ON health_alert(status, created_at DESC);
   `);
   db.exec(SQLITE_PROJECT_MANAGEMENT_SCHEMA);
+  const businessScenarioColumns = db.prepare("PRAGMA table_info(pm_business_scenarios)").all() as Array<{ name: string }>;
+  if (!businessScenarioColumns.some(column => column.name === "library_id")) {
+    db.exec("ALTER TABLE pm_business_scenarios ADD COLUMN library_id TEXT REFERENCES pm_business_scenario_libraries(id) ON DELETE RESTRICT");
+  }
 
   // Idempotent column additions for older DBs created before these fields existed.
   ensureColumn(db, "qa", "anchor", "TEXT");
@@ -619,7 +625,44 @@ function applySchema(db: Database.Database) {
   ensureColumn(db, "pm_data_fields", "carrier_kind", "TEXT");
   ensureColumn(db, "pm_data_fields", "field_order", "INTEGER");
   ensureColumn(db, "pm_data_fields", "source_field_order", "INTEGER");
+  ensureColumn(db, "pm_data_tables", "external_sql", "TEXT");
+  ensureColumn(db, "pm_mapping_scenarios", "caliber_external_sql", "TEXT");
+  ensureColumn(db, "pm_mapping_scenarios", "external_sql", "TEXT");
+  ensureColumn(db, "pm_mapping_rules", "external_sql", "TEXT");
+  ensureColumn(db, "pm_mapping_temp_tables", "external_sql", "TEXT");
+  ensureColumn(db, "pm_mapping_temp_tables", "scenario_id", "TEXT");
+  ensureColumn(db, "pm_mapping_temp_fields", "external_sql", "TEXT");
+  db.exec(`
+    UPDATE pm_data_tables SET external_sql=json_extract(extra, '$.externalSql')
+      WHERE nullif(trim(external_sql), '') IS NULL AND nullif(trim(json_extract(extra, '$.externalSql')), '') IS NOT NULL;
+    UPDATE pm_mapping_scenarios SET external_sql=json_extract(raw, '$.externalSql'), caliber_external_sql=json_extract(raw, '$.caliberExternalSql')
+      WHERE (nullif(trim(external_sql), '') IS NULL AND nullif(trim(json_extract(raw, '$.externalSql')), '') IS NOT NULL)
+         OR (nullif(trim(caliber_external_sql), '') IS NULL AND nullif(trim(json_extract(raw, '$.caliberExternalSql')), '') IS NOT NULL);
+    UPDATE pm_mapping_rules SET external_sql=json_extract(raw, '$.externalSql')
+      WHERE nullif(trim(external_sql), '') IS NULL AND nullif(trim(json_extract(raw, '$.externalSql')), '') IS NOT NULL;
+    UPDATE pm_mapping_temp_tables SET external_sql=json_extract(raw, '$.externalSql')
+      WHERE nullif(trim(external_sql), '') IS NULL AND nullif(trim(json_extract(raw, '$.externalSql')), '') IS NOT NULL;
+    UPDATE pm_mapping_temp_fields SET external_sql=json_extract(raw, '$.externalSql')
+      WHERE nullif(trim(external_sql), '') IS NULL AND nullif(trim(json_extract(raw, '$.externalSql')), '') IS NOT NULL;
+  `);
   ensureColumn(db, "pm_automation_runs", "runtime_params", "TEXT NOT NULL DEFAULT '{}'");
+  ensureColumn(db, "pm_test_run_steps", "instruction", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, "pm_test_run_steps", "expected_result", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, "pm_test_cases", "scenario", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, "pm_test_tasks", "sort_order", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(db, "pm_test_tasks", "test_data", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, "pm_test_tasks", "test_links", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, "pm_test_tasks", "app_version", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, "pm_test_cases", "group_id", "TEXT");
+  ensureColumn(db, "pm_test_cases", "sort_order", "INTEGER NOT NULL DEFAULT 0");
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pm_test_groups (
+      id TEXT PRIMARY KEY, project_id TEXT NOT NULL, task_id TEXT NOT NULL REFERENCES pm_test_tasks(id) ON DELETE CASCADE, parent_group_id TEXT REFERENCES pm_test_groups(id) ON DELETE SET NULL, title TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_pm_test_groups_tree ON pm_test_groups(project_id, task_id, parent_group_id, sort_order);
+    UPDATE pm_test_tasks SET sort_order=rowid WHERE sort_order=0;
+    UPDATE pm_test_cases SET sort_order=rowid WHERE sort_order=0;
+  `);
 }
 
 function ensureColumn(db: Database.Database, table: string, column: string, type: string) {

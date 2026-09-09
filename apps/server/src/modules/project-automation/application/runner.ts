@@ -55,6 +55,7 @@ export async function runAutomationItems(
   onChange?: (items: AutomationRunItem[]) => Promise<void> | void,
   context: AutomationExecutionContext = {},
 ): Promise<AutomationRunResult> {
+  const skipErrors = context.runtimeParams?.skipErrors === true;
   const items = [...inputItems]
     .sort((left, right) => left.groupOrder - right.groupOrder || left.itemOrder - right.itemOrder)
     .map(cloneRunItem);
@@ -91,13 +92,16 @@ export async function runAutomationItems(
         item.error = error;
         item.finishedAt = step.finishedAt;
         await onChange?.(items);
-        return { status: "paused", items, error };
+        if (!skipErrors) return { status: "paused", items, error };
+        break;
       }
     }
 
-    item.status = "success";
-    item.finishedAt = new Date().toISOString();
-    await onChange?.(items);
+    if (item.status !== "error") {
+      item.status = "success";
+      item.finishedAt = new Date().toISOString();
+      await onChange?.(items);
+    }
   }
 
   return { status: "success", items };

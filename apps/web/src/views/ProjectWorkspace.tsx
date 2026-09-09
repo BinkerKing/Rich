@@ -25,12 +25,14 @@ import {
   PROJECT_MANAGEMENT_SECTIONS,
   ScenariosSection,
   TodosSection,
+  TestCenterWorkspace,
   WorkflowSection,
   type ProjectManagementSection,
   type ProjectManagementSearchTarget,
 } from "./project-management/index.js";
 import { shouldScrollFocusedFolderIntoView } from "./project-management/folderFocus.js";
-import { DELIVERABLE_FOCUS_EVENT, storeDeliverableFocus } from "./project-management/deliverables/DeliverablesModel.js";
+import { DELIVERABLE_FOCUS_EVENT, DELIVERABLE_ITEM_FOCUS_EVENT, storeDeliverableFocus } from "./project-management/deliverables/DeliverablesModel.js";
+import { FlowchartsWorkspace } from "./project-management/flowcharts/FlowchartsWorkspace.js";
 
 interface Props { projectId: string }
 type ProjectMenuConfig = {
@@ -79,6 +81,15 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
     };
     window.addEventListener(DELIVERABLE_FOCUS_EVENT, openDeliverable);
     return () => window.removeEventListener(DELIVERABLE_FOCUS_EVENT, openDeliverable);
+  }, [projectId, selectSection]);
+
+  useEffect(() => {
+    const openDeliverableItem = (event: Event) => {
+      const target = (event as CustomEvent<{ projectId?: string }>).detail;
+      if (target?.projectId === projectId) selectSection("deliverables");
+    };
+    window.addEventListener(DELIVERABLE_ITEM_FOCUS_EVENT, openDeliverableItem);
+    return () => window.removeEventListener(DELIVERABLE_ITEM_FOCUS_EVENT, openDeliverableItem);
   }, [projectId, selectSection]);
 
   useEffect(() => {
@@ -270,19 +281,21 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
       <div className="prj-ws__main">
         <div className="prj-ws__body">
           {section === "dashboard" && <ProjectDashboard projectId={project.id} deliverablesRoot={c.defaultDeliverablesDirectory} onOpenPlan={() => selectSection("deliveryPlan")} />}
-          {section === "deliveryPlan" && <DeliveryPlanWorkspace projectId={project.id} />}
-          {section === "deliverables" && <DeliverablesWorkspace projectId={project.id} deliverablesRoot={c.defaultDeliverablesDirectory} />}
+          {section === "deliveryPlan" && <DeliveryPlanWorkspace projectId={project.id} projectName={project.title} deliverablesRoot={c.defaultDeliverablesDirectory} />}
+          {section === "deliverables" && <DeliverablesWorkspace projectId={project.id} projectRoot={c.localFolder} deliverablesRoot={c.defaultDeliverablesDirectory} />}
           {section === "reports" && <ReportsWorkspace projectId={project.id} />}
           {section === "description" && <ProjectDescriptionSection projectId={project.id} />}
           {section === "dictionary" && <DictionarySection project={project} summary={summary} searchTarget={searchTarget?.section === "dictionary" ? searchTarget : null} />}
           {section === "automation" && <AutomationSection projectId={project.id} onOpenMapping={openDictionaryMapping} />}
           {section === "workflow" && <WorkflowSection project={project} summary={summary} />}
+          {section === "flowcharts" && <FlowchartsWorkspace key={project.id} projectId={project.id} focusId={searchTarget?.section === "flowcharts" ? searchTarget.entityId : undefined} />}
           {section === "scenarios" && <ScenariosSection project={project} summary={summary} />}
           {section === "environments" && <EnvironmentsSection project={project} summary={summary} />}
           {section === "deploymentSteps" && <ProjectDeploymentStepsSection project={project} summary={summary} />}
           {section === "monitoring" && <MonitoringSection project={project} summary={summary} />}
           {section === "codeVersions" && <CodeVersionsSection project={project} summary={summary} />}
           {section === "todos" && <TodosSection project={project} summary={summary} />}
+          {section === "testing" && <TestCenterWorkspace projectId={project.id} />}
           {section === "folder" && <FolderSection project={project} searchTarget={searchTarget?.section === "folder" ? searchTarget : null} />}
         </div>
       </div>

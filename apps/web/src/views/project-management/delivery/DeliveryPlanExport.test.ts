@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildDeliveryExportRows, buildDeliveryExportWorkbook, buildGanttExportRows, buildGanttExportTimeline } from "./DeliveryPlanExport.js";
+import { buildDeliveryExportFilename, buildDeliveryExportRows, buildDeliveryExportWorkbook, buildGanttExportRows, buildGanttExportTimeline } from "./DeliveryPlanExport.js";
+
+test("交付计划导出文件名包含项目名称和秒级时间序号", () => {
+  assert.equal(
+    buildDeliveryExportFilename("SAFE 报送", new Date(2026, 8, 2, 8, 34, 56)),
+    "SAFE 报送_交付计划_20260902_083456.xlsx",
+  );
+});
 
 test("交付计划导出保留列表的 WBS、层级、计划日期和依赖", () => {
   const rows = buildDeliveryExportRows([

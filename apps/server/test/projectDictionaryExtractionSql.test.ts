@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildDictionaryExtractionProcedureSql,
   buildDictionaryExtractionTempTableSetupSql,
+  dictionaryExtractionWriteBodySql,
   dictionaryExtractionProcedureParamType,
   formatDictionaryExtractionSelectExpressions,
   resolveDictionaryExtractionRuntimeParamTypes,
@@ -84,8 +85,29 @@ describe("project dictionary extraction SQL", () => {
     expect(sql).toMatch(/\$dictionary_drop_procedure\$;\nCREATE OR REPLACE PROCEDURE "vtb"\."cfaca_tab_extract_test_data"\(p_importdate DATE\)/);
   });
 
-  it("creates configured temporary tables before the extraction INSERT", () => {
-    const setup = buildDictionaryExtractionTempTableSetupSql([{
+  it("uses a table-configured scoped delete when generating an extraction procedure", () => {
+    const sql = buildDictionaryExtractionProcedureSql({
+      system: { id: "system-1", code: "SYS", name: "系统", fieldCount: 0, tableCount: 0, connection: { schema: "public" } },
+      table: { id: "table-1", tableName: "target", fieldCount: 0, extra: { extractionClearWhere: "business_date = :dataDate" } },
+      dialect: "postgresql",
+      procedureName: "target_extract_test_data",
+      bodySql: 'INSERT INTO "public"."target" DEFAULT VALUES',
+      runtimeParamNames: ["dataDate"],
+      runtimeParamTypes: { dataDate: "DATE" },
+    });
+
+    expect(sql).toContain('DELETE FROM "public"."target" WHERE business_date = p_datadate');
+  });
+
+  it("uses a table-configured write body for legacy update lifecycles", () => {
+    expect(dictionaryExtractionWriteBodySql(
+      { id: "table-1", tableName: "target", fieldCount: 0, extra: { extractionWriteSql: "UPDATE target SET amount = source.amount" } },
+      "INSERT INTO target DEFAULT VALUES",
+    )).toBe("UPDATE target SET amount = source.amount");
+  });
+
+  it("rejects external temporary-table SQL as a procedure input", () => {
+    expect(() => buildDictionaryExtractionTempTableSetupSql([{
       id: "temp-1",
       projectId: "project-1",
       targetTableId: "table-1",
@@ -95,19 +117,7 @@ describe("project dictionary extraction SQL", () => {
       sortOrder: 0,
       createdAt: "2026-08-25T00:00:00.000Z",
       updatedAt: "2026-08-25T00:00:00.000Z",
-    }], "postgresql");
-    const sql = buildDictionaryExtractionProcedureSql({
-      system: { id: "system-1", code: "SYS", name: "系统", fieldCount: 0, tableCount: 0, connection: { schema: "public" } },
-      table: { id: "table-1", tableName: "target", fieldCount: 0 },
-      dialect: "postgresql",
-      procedureName: "target_extract_test_data",
-      bodySql: 'INSERT INTO "public"."target" DEFAULT VALUES',
-      setupSql: setup,
-      runtimeParamNames: [],
-      runtimeParamTypes: {},
-    });
-    expect(sql).toContain('CREATE TEMP TABLE "tmp_transaction" ON COMMIT DROP AS');
-    expect(sql.indexOf('CREATE TEMP TABLE "tmp_transaction"')).toBeLessThan(sql.indexOf('INSERT INTO "public"."target"'));
+    }], "postgresql")).toThrow("外部参考 SQL");
   });
 
   it("compiles group aggregates and relative date boundaries as standard Mapping actions", () => {

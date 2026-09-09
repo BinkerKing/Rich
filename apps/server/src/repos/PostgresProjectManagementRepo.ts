@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { PgPool } from "../db/postgres.js";
 import {
   PROJECT_MANAGEMENT_MODULES,
+  dictionaryTableMappingStatus,
   parseDictionaryCodeItems,
   projectDictionarySystemFromRow,
   type ProjectDictionaryMappingAction,
@@ -11,6 +12,11 @@ import {
   type ProjectDictionaryMappingScenario,
   type ProjectDictionaryMappingScenarioInput,
   type ProjectDictionaryMappingScenarioPatch,
+  type ProjectDictionaryBusinessScenario,
+  type ProjectDictionaryBusinessScenarioInput,
+  type ProjectDictionaryBusinessScenarioPatch,
+  type ProjectDictionaryBusinessScenarioLibrary,
+  type ProjectDictionaryBusinessScenarioLibraryInput,
   type ProjectDictionaryMappingRulePatch,
   type ProjectDictionaryMappingSourceField,
   type ProjectDictionaryMappingSourceFieldInput,
@@ -145,6 +151,7 @@ interface MappingRuleRow {
   status: string;
   logic_text: string | null;
   converted_sql: string | null;
+  external_sql: string | null;
   remark: string | null;
   verification_status: string | null;
   verification_remark: string | null;
@@ -160,6 +167,8 @@ interface MappingScenarioRow {
   table_id: string;
   title: string;
   caliber: string | null;
+  caliber_external_sql: string | null;
+  external_sql: string | null;
   remark: string | null;
   sort_order: string | number;
   raw: Record<string, unknown> | null;
@@ -210,6 +219,7 @@ interface MappingTempTableRow {
   table_cn: string | null;
   logic_text: string | null;
   converted_sql: string | null;
+  external_sql: string | null;
   remark: string | null;
   sort_order: string | number;
   raw: Record<string, unknown> | null;
@@ -227,6 +237,7 @@ interface MappingTempFieldRow {
   field_length: string | null;
   logic_text: string | null;
   converted_sql: string | null;
+  external_sql: string | null;
   remark: string | null;
   sort_order: string | number;
   raw: Record<string, unknown> | null;
@@ -250,8 +261,10 @@ interface TableRow {
   verification_remark: string | null;
   description: string | null;
   caliber: string | null;
+  external_sql: string | null;
   extra: Record<string, unknown> | null;
   field_count: string | number;
+  mapping_rule_count: string | number;
 }
 
 interface DictionaryRectificationRow {
@@ -575,8 +588,9 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
     if (systemId) params.push(systemId);
     const result = await this.pg.query<TableRow>(
       `SELECT
-         t.id, t.system_id, t.table_name, t.table_cn, t.table_group, t.data_layer, t.table_type, t.source_kind, t.file_type, t.has_mapping, t.usage_status, t.verification_status, t.verification_remark, t.description, t.caliber, t.extra,
-         COALESCE(fc.field_count, 0) AS field_count
+         t.id, t.system_id, t.table_name, t.table_cn, t.table_group, t.data_layer, t.table_type, t.source_kind, t.file_type, t.has_mapping, t.usage_status, t.verification_status, t.verification_remark, t.description, t.caliber, t.external_sql, t.extra,
+         COALESCE(fc.field_count, 0) AS field_count,
+         COALESCE(mc.mapping_rule_count, 0) AS mapping_rule_count
        FROM pm_data_tables t
        LEFT JOIN (
          SELECT table_id, count(*) AS field_count
@@ -584,6 +598,14 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
          WHERE project_id = $1
          GROUP BY table_id
        ) fc ON fc.table_id = t.id
+       LEFT JOIN (
+         SELECT table_id, count(*) AS mapping_rule_count
+         FROM pm_mapping_rules
+         WHERE project_id = $1
+           AND status NOT IN ('cancelled', 'archived')
+           AND NULLIF(btrim(logic_text), '') IS NOT NULL
+         GROUP BY table_id
+       ) mc ON mc.table_id = t.id
        WHERE t.project_id = $1
        ${systemFilter}
        ORDER BY t.table_cn ASC NULLS LAST, t.table_name ASC`,
@@ -600,11 +622,13 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
       sourceKind: row.source_kind ?? undefined,
       fileType: row.file_type ?? undefined,
       hasMapping: row.has_mapping,
+      mappingStatus: dictionaryTableMappingStatus(row.has_mapping, Number(row.mapping_rule_count)),
       usageStatus: row.usage_status ?? undefined,
       verificationStatus: verificationStatus(row.verification_status),
       verificationRemark: row.verification_remark ?? undefined,
       description: row.description ?? undefined,
       caliber: row.caliber ?? undefined,
+      externalSql: row.external_sql ?? (typeof row.extra?.externalSql === "string" ? row.extra.externalSql : undefined),
       extra: row.extra ?? undefined,
       fieldCount: Number(row.field_count),
     }));
@@ -617,7 +641,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
       `UPDATE pm_data_tables
        SET system_id=$3, table_name=$4, table_cn=$5, table_group=$6, data_layer=$7, table_type=$8,
            source_kind=$9, file_type=$10, has_mapping=$11, usage_status=$12, verification_status=$13, verification_remark=$14, description=$15,
-           caliber=$16, extra=$17::jsonb, updated_at=$18
+           caliber=$16, external_sql=$17, extra=$18::jsonb, updated_at=$19
        WHERE project_id=$1 AND id=$2`,
       [
         projectId,
@@ -636,6 +660,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
         patch.verificationRemark === undefined ? current.verificationRemark ?? null : patch.verificationRemark,
         patch.description === undefined ? current.description ?? null : patch.description,
         patch.caliber === undefined ? current.caliber ?? null : patch.caliber,
+        patch.externalSql === undefined ? current.externalSql ?? null : patch.externalSql,
         JSON.stringify(patch.extra === undefined ? current.extra ?? {} : { ...current.extra, ...patch.extra }),
         new Date().toISOString(),
       ],
@@ -1062,7 +1087,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
   async listDictionaryMappingRules(projectId: string, tableId: string): Promise<ProjectDictionaryMappingRule[]> {
     const result = await this.pg.query<MappingRuleRow>(
       `SELECT id, project_id, scenario_id, system_id, table_id, field_id, status,
-              logic_text, converted_sql, remark, verification_status, verification_remark, sort_order, raw, created_at, updated_at
+              logic_text, converted_sql, external_sql, remark, verification_status, verification_remark, sort_order, raw, created_at, updated_at
          FROM pm_mapping_rules
         WHERE project_id = $1 AND table_id = $2
         ORDER BY sort_order ASC, id ASC`,
@@ -1073,12 +1098,33 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
 
   async listDictionaryMappingScenarios(projectId: string, tableId: string): Promise<ProjectDictionaryMappingScenario[]> {
     const result = await this.pg.query<MappingScenarioRow>(
-      `SELECT id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at
+      `SELECT id, project_id, table_id, title, caliber, caliber_external_sql, external_sql, remark, sort_order, raw, created_at, updated_at
          FROM pm_mapping_scenarios WHERE project_id=$1 AND table_id=$2 ORDER BY sort_order, id`,
       [projectId, tableId],
     );
-    return result.rows.map(row => ({ id: row.id, projectId: row.project_id, tableId: row.table_id, title: row.title, caliber: row.caliber ?? undefined, remark: row.remark ?? undefined, sortOrder: Number(row.sort_order), raw: row.raw ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at }));
+    return result.rows.map(row => ({ id: row.id, projectId: row.project_id, tableId: row.table_id, title: row.title, caliber: row.caliber ?? undefined, caliberExternalSql: row.caliber_external_sql ?? undefined, externalSql: row.external_sql ?? (typeof row.raw?.externalSql === "string" ? row.raw.externalSql : undefined), remark: row.remark ?? undefined, sortOrder: Number(row.sort_order), raw: row.raw ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at }));
   }
+
+  async listDictionaryBusinessScenarios(projectId: string, libraryId?: string): Promise<ProjectDictionaryBusinessScenario[]> {
+    const result = await this.pg.query(`SELECT * FROM pm_business_scenarios WHERE project_id=$1${libraryId ? " AND library_id=$2" : ""} ORDER BY sort_order,id`, libraryId ? [projectId, libraryId] : [projectId]);
+    return Promise.all(result.rows.map(row => this.businessScenarioFromRow(row)));
+  }
+  async listDictionaryBusinessScenarioLibraries(projectId: string): Promise<ProjectDictionaryBusinessScenarioLibrary[]> { const result=await this.pg.query(`SELECT * FROM pm_business_scenario_libraries WHERE project_id=$1 ORDER BY name`,[projectId]); return result.rows.map((row:any)=>({id:row.id,projectId:row.project_id,name:row.name,dbType:row.db_type??undefined,sqlDialect:row.sql_dialect??undefined,connection:row.connection??undefined,createdAt:row.created_at,updatedAt:row.updated_at})); }
+  async createDictionaryBusinessScenarioLibrary(projectId: string, input: ProjectDictionaryBusinessScenarioLibraryInput): Promise<ProjectDictionaryBusinessScenarioLibrary> { const id=input.id??`pm-business-library-${randomUUID()}`,now=new Date().toISOString(); await this.pg.query(`INSERT INTO pm_business_scenario_libraries (id,project_id,name,db_type,sql_dialect,connection,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$7)`,[id,projectId,input.name,input.dbType??null,input.sqlDialect??null,JSON.stringify(input.connection??{}),now]); return {id,projectId,name:input.name,dbType:input.dbType,sqlDialect:input.sqlDialect,connection:input.connection,createdAt:now,updatedAt:now}; }
+  async updateDictionaryBusinessScenarioLibrary(projectId: string, libraryId: string, patch: Partial<ProjectDictionaryBusinessScenarioLibraryInput>): Promise<ProjectDictionaryBusinessScenarioLibrary | null> { const row=(await this.pg.query(`SELECT * FROM pm_business_scenario_libraries WHERE project_id=$1 AND id=$2`,[projectId,libraryId])).rows[0] as any; if(!row)return null; const now=new Date().toISOString(), connection=patch.connection??row.connection??{}; await this.pg.query(`UPDATE pm_business_scenario_libraries SET name=$3,db_type=$4,sql_dialect=$5,connection=$6::jsonb,updated_at=$7 WHERE project_id=$1 AND id=$2`,[projectId,libraryId,patch.name??row.name,patch.dbType===undefined?row.db_type:patch.dbType,patch.sqlDialect===undefined?row.sql_dialect:patch.sqlDialect,JSON.stringify(connection),now]); return {id:row.id,projectId,name:patch.name??row.name,dbType:patch.dbType===undefined?row.db_type??undefined:patch.dbType,sqlDialect:patch.sqlDialect===undefined?row.sql_dialect??undefined:patch.sqlDialect,connection,createdAt:row.created_at,updatedAt:now}; }
+  async listDictionaryBusinessScenariosForTable(projectId: string, tableId: string): Promise<ProjectDictionaryBusinessScenario[]> {
+    const result = await this.pg.query(`SELECT scenario.* FROM pm_business_scenarios scenario JOIN pm_business_scenario_tables relation ON relation.scenario_id=scenario.id WHERE scenario.project_id=$1 AND relation.table_id=$2 ORDER BY scenario.sort_order,scenario.id`, [projectId, tableId]);
+    return Promise.all(result.rows.map(row => this.businessScenarioFromRow(row)));
+  }
+  async createDictionaryBusinessScenario(projectId: string, input: ProjectDictionaryBusinessScenarioInput): Promise<ProjectDictionaryBusinessScenario> {
+    const id = input.id ?? `pm-business-scenario-${randomUUID()}`; const now = new Date().toISOString();
+    await this.pg.query(`INSERT INTO pm_business_scenarios (id,project_id,library_id,title,procedure_name,external_location,sql_text,remark,sort_order,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)`, [id,projectId,input.libraryId,input.title,input.procedureName,input.externalLocation ?? null,input.sqlText,input.remark ?? null,input.sortOrder ?? 0,now]);
+    for (const [sortOrder, tableId] of input.tableIds.entries()) await this.pg.query(`INSERT INTO pm_business_scenario_tables (project_id,scenario_id,table_id,sort_order) VALUES ($1,$2,$3,$4)`, [projectId,id,tableId,sortOrder]);
+    return (await this.listDictionaryBusinessScenarios(projectId)).find(item => item.id === id)!;
+  }
+  async updateDictionaryBusinessScenario(projectId: string, scenarioId: string, patch: ProjectDictionaryBusinessScenarioPatch): Promise<ProjectDictionaryBusinessScenario | null> { const current=(await this.pg.query(`SELECT * FROM pm_business_scenarios WHERE project_id=$1 AND id=$2`,[projectId,scenarioId])).rows[0]; if(!current)return null; const sqlChanged=patch.sqlText!==undefined&&patch.sqlText!==current.sql_text; const now=new Date().toISOString(); await this.pg.query(`UPDATE pm_business_scenarios SET title=$3,procedure_name=$4,external_location=$5,sql_text=$6,remark=$7,sort_order=$8,validation_status=$9,validation_sql_fingerprint=$10,validation_message=$11,validated_at=$12,updated_at=$13 WHERE project_id=$1 AND id=$2`,[projectId,scenarioId,patch.title??current.title,patch.procedureName??current.procedure_name,patch.externalLocation===undefined?current.external_location:patch.externalLocation,patch.sqlText??current.sql_text,patch.remark===undefined?current.remark:patch.remark,patch.sortOrder??current.sort_order,sqlChanged?"pending":patch.validationStatus??current.validation_status,sqlChanged?null:patch.validationSqlFingerprint===undefined?current.validation_sql_fingerprint:patch.validationSqlFingerprint,sqlChanged?null:patch.validationMessage===undefined?current.validation_message:patch.validationMessage,sqlChanged?null:patch.validatedAt===undefined?current.validated_at:patch.validatedAt,now]); if(patch.tableIds){await this.pg.query(`DELETE FROM pm_business_scenario_tables WHERE scenario_id=$1`,[scenarioId]);for(const [sortOrder,tableId] of patch.tableIds.entries())await this.pg.query(`INSERT INTO pm_business_scenario_tables (project_id,scenario_id,table_id,sort_order) VALUES ($1,$2,$3,$4)`,[projectId,scenarioId,tableId,sortOrder]);} return (await this.listDictionaryBusinessScenarios(projectId)).find(item=>item.id===scenarioId)??null; }
+  async deleteDictionaryBusinessScenario(projectId: string, scenarioId: string): Promise<boolean> { return ((await this.pg.query(`DELETE FROM pm_business_scenarios WHERE project_id=$1 AND id=$2`,[projectId,scenarioId])).rowCount??0)>0; }
+  private async businessScenarioFromRow(row: any): Promise<ProjectDictionaryBusinessScenario> { const relations=await this.pg.query(`SELECT table_id FROM pm_business_scenario_tables WHERE scenario_id=$1 ORDER BY sort_order`,[row.id]); return {id:row.id,projectId:row.project_id,libraryId:row.library_id,title:row.title,procedureName:row.procedure_name,externalLocation:row.external_location??undefined,sqlText:row.sql_text,remark:row.remark??undefined,sortOrder:Number(row.sort_order),tableIds:relations.rows.map((item:any)=>item.table_id),validationStatus:row.validation_status,validationSqlFingerprint:row.validation_sql_fingerprint??undefined,validationMessage:row.validation_message??undefined,validatedAt:row.validated_at??undefined,createdAt:row.created_at,updatedAt:row.updated_at}; }
 
   async createDictionaryMappingScenario(projectId: string, input: ProjectDictionaryMappingScenarioInput): Promise<ProjectDictionaryMappingScenario> {
     const now = new Date().toISOString();
@@ -1086,25 +1132,25 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
     const result = await this.pg.query<MappingScenarioRow>(
       `INSERT INTO pm_mapping_scenarios (id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$9)
-       RETURNING id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at`,
+       RETURNING id, project_id, table_id, title, caliber, caliber_external_sql, external_sql, remark, sort_order, raw, created_at, updated_at`,
       [id, projectId, input.tableId, input.title, input.caliber ?? null, input.remark ?? null, input.sortOrder ?? 0, JSON.stringify(input.raw ?? {}), now],
     );
     const row = result.rows[0];
-    return { id: row.id, projectId: row.project_id, tableId: row.table_id, title: row.title, caliber: row.caliber ?? undefined, remark: row.remark ?? undefined, sortOrder: Number(row.sort_order), raw: row.raw ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at };
+    return { id: row.id, projectId: row.project_id, tableId: row.table_id, title: row.title, caliber: row.caliber ?? undefined, caliberExternalSql: row.caliber_external_sql ?? undefined, externalSql: row.external_sql ?? undefined, remark: row.remark ?? undefined, sortOrder: Number(row.sort_order), raw: row.raw ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at };
   }
 
   async updateDictionaryMappingScenario(projectId: string, scenarioId: string, patch: ProjectDictionaryMappingScenarioPatch): Promise<ProjectDictionaryMappingScenario | null> {
-    const existing = await this.pg.query<MappingScenarioRow>(`SELECT id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at FROM pm_mapping_scenarios WHERE project_id=$1 AND id=$2`, [projectId, scenarioId]);
+    const existing = await this.pg.query<MappingScenarioRow>(`SELECT id, project_id, table_id, title, caliber, caliber_external_sql, external_sql, remark, sort_order, raw, created_at, updated_at FROM pm_mapping_scenarios WHERE project_id=$1 AND id=$2`, [projectId, scenarioId]);
     const current = existing.rows[0];
     if (!current) return null;
     const result = await this.pg.query<MappingScenarioRow>(
-      `UPDATE pm_mapping_scenarios SET title=$3, caliber=$4, remark=$5, sort_order=$6, raw=$7::jsonb, updated_at=$8
+      `UPDATE pm_mapping_scenarios SET title=$3, caliber=$4, caliber_external_sql=$5, external_sql=$6, remark=$7, sort_order=$8, raw=$9::jsonb, updated_at=$10
         WHERE project_id=$1 AND id=$2
-        RETURNING id, project_id, table_id, title, caliber, remark, sort_order, raw, created_at, updated_at`,
-      [projectId, scenarioId, patch.title ?? current.title, patch.caliber === undefined ? current.caliber : patch.caliber, patch.remark === undefined ? current.remark : patch.remark, patch.sortOrder ?? current.sort_order, JSON.stringify(patch.raw ?? current.raw ?? {}), new Date().toISOString()],
+        RETURNING id, project_id, table_id, title, caliber, caliber_external_sql, external_sql, remark, sort_order, raw, created_at, updated_at`,
+      [projectId, scenarioId, patch.title ?? current.title, patch.caliber === undefined ? current.caliber : patch.caliber, patch.caliberExternalSql === undefined ? current.caliber_external_sql : patch.caliberExternalSql, patch.externalSql === undefined ? current.external_sql : patch.externalSql, patch.remark === undefined ? current.remark : patch.remark, patch.sortOrder ?? current.sort_order, JSON.stringify({ ...(current.raw ?? {}), ...(patch.raw ?? {}) }), new Date().toISOString()],
     );
     const row = result.rows[0];
-    return row ? { id: row.id, projectId: row.project_id, tableId: row.table_id, title: row.title, caliber: row.caliber ?? undefined, remark: row.remark ?? undefined, sortOrder: Number(row.sort_order), raw: row.raw ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at } : null;
+    return row ? { id: row.id, projectId: row.project_id, tableId: row.table_id, title: row.title, caliber: row.caliber ?? undefined, caliberExternalSql: row.caliber_external_sql ?? undefined, externalSql: row.external_sql ?? undefined, remark: row.remark ?? undefined, sortOrder: Number(row.sort_order), raw: row.raw ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at } : null;
   }
 
   async deleteDictionaryMappingScenario(projectId: string, scenarioId: string): Promise<boolean> {
@@ -1116,7 +1162,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
   async getDictionaryMappingRule(projectId: string, mappingRuleId: string): Promise<ProjectDictionaryMappingRule | null> {
     const result = await this.pg.query<MappingRuleRow>(
       `SELECT id, project_id, scenario_id, system_id, table_id, field_id, status,
-              logic_text, converted_sql, remark, verification_status, verification_remark, sort_order, raw, created_at, updated_at
+              logic_text, converted_sql, external_sql, remark, verification_status, verification_remark, sort_order, raw, created_at, updated_at
          FROM pm_mapping_rules
         WHERE project_id = $1 AND id = $2
         LIMIT 1`,
@@ -1134,7 +1180,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
   ): Promise<ProjectDictionaryMappingRule | null> {
     const existing = await this.pg.query<MappingRuleRow>(
       `SELECT id, project_id, scenario_id, system_id, table_id, field_id, status,
-              logic_text, converted_sql, remark, verification_status, verification_remark, sort_order, raw, created_at, updated_at
+              logic_text, converted_sql, external_sql, remark, verification_status, verification_remark, sort_order, raw, created_at, updated_at
          FROM pm_mapping_rules
         WHERE project_id = $1 AND id = $2
         LIMIT 1`,
@@ -1146,8 +1192,8 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
     await this.pg.query(
       `UPDATE pm_mapping_rules
           SET scenario_id = $3, system_id = $4, table_id = $5, field_id = $6, status = $7,
-              logic_text = $8, converted_sql = $9, remark = $10, verification_status = $11, verification_remark = $12, sort_order = $13,
-              raw = $14::jsonb, updated_at = $15
+              logic_text = $8, converted_sql = $9, external_sql = $10, remark = $11, verification_status = $12, verification_remark = $13, sort_order = $14,
+              raw = $15::jsonb, updated_at = $16
         WHERE project_id = $1 AND id = $2`,
       [
         projectId,
@@ -1159,6 +1205,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
         patch.status ?? current.status,
         patch.logicText === undefined ? current.logic_text : patch.logicText,
         patch.convertedSql === undefined ? current.converted_sql : patch.convertedSql,
+        patch.externalSql === undefined ? current.external_sql : patch.externalSql,
         patch.remark === undefined ? current.remark : patch.remark,
         patch.verificationStatus === undefined ? current.verification_status ?? "未验证" : patch.verificationStatus,
         patch.verificationRemark === undefined ? current.verification_remark : patch.verificationRemark,
@@ -1311,7 +1358,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
 
   async listDictionaryMappingTempTables(projectId: string, targetTableId: string): Promise<ProjectDictionaryMappingTempTable[]> {
     const result = await this.pg.query<MappingTempTableRow>(
-      `SELECT id, project_id, target_table_id, table_name, table_cn, logic_text, converted_sql,
+      `SELECT id, project_id, target_table_id, table_name, table_cn, logic_text, converted_sql, external_sql,
               remark, sort_order, raw, created_at, updated_at
          FROM pm_mapping_temp_tables
         WHERE project_id = $1 AND target_table_id = $2
@@ -1333,9 +1380,9 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
       const tableId = tempTable.id ?? `pm-map-temp-table-${randomUUID()}`;
       await this.pg.query(
         `INSERT INTO pm_mapping_temp_tables (
-           id, project_id, target_table_id, table_name, table_cn, logic_text, converted_sql,
+           id, project_id, target_table_id, table_name, table_cn, logic_text, converted_sql, external_sql,
            remark, sort_order, raw, created_at, updated_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$11)`,
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$12)`,
         [
           tableId,
           projectId,
@@ -1344,6 +1391,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
           tempTable.tableCn ?? null,
           tempTable.logicText ?? null,
           tempTable.convertedSql ?? null,
+          tempTable.externalSql ?? null,
           tempTable.remark ?? null,
           tempTable.sortOrder ?? tableIndex,
           JSON.stringify(tempTable.raw ?? {}),
@@ -1356,8 +1404,8 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
         await this.pg.query(
           `INSERT INTO pm_mapping_temp_fields (
              id, project_id, temp_table_id, field_name, field_cn, field_type, field_length,
-             logic_text, converted_sql, remark, sort_order, raw, created_at, updated_at
-           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$13)`,
+             logic_text, converted_sql, external_sql, remark, sort_order, raw, created_at, updated_at
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$14)`,
           [
             field.id ?? `pm-map-temp-field-${randomUUID()}`,
             projectId,
@@ -1368,6 +1416,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
             field.fieldLength ?? null,
             field.logicText ?? null,
             field.convertedSql ?? null,
+            field.externalSql ?? null,
             field.remark ?? null,
             field.sortOrder ?? fieldIndex,
             JSON.stringify(field.raw ?? {}),
@@ -1441,7 +1490,7 @@ export class PostgresProjectManagementRepo implements ProjectManagementRepo {
     const ids = rows.map(row => row.id);
     const fieldResult = await this.pg.query<MappingTempFieldRow>(
       `SELECT id, project_id, temp_table_id, field_name, field_cn, field_type, field_length,
-              logic_text, converted_sql, remark, sort_order, raw, created_at, updated_at
+              logic_text, converted_sql, external_sql, remark, sort_order, raw, created_at, updated_at
          FROM pm_mapping_temp_fields
         WHERE project_id = $1 AND temp_table_id = ANY($2::text[])
         ORDER BY sort_order ASC, id ASC`,
@@ -1467,6 +1516,7 @@ function mappingRuleFromRow(
     status: row.status,
     logicText: row.logic_text ?? undefined,
     convertedSql: row.converted_sql ?? undefined,
+    externalSql: row.external_sql ?? (typeof row.raw?.externalSql === "string" ? row.raw.externalSql : undefined),
     remark: row.remark ?? undefined,
     verificationStatus: verificationStatus(row.verification_status),
     verificationRemark: row.verification_remark ?? undefined,
@@ -1523,6 +1573,7 @@ function mappingTempTableFromRow(row: MappingTempTableRow, fields: ProjectDictio
     tableCn: row.table_cn ?? undefined,
     logicText: row.logic_text ?? undefined,
     convertedSql: row.converted_sql ?? undefined,
+    externalSql: row.external_sql ?? (typeof row.raw?.externalSql === "string" ? row.raw.externalSql : undefined),
     remark: row.remark ?? undefined,
     sortOrder: Number(row.sort_order),
     raw: row.raw ?? undefined,
@@ -1543,6 +1594,7 @@ function mappingTempFieldFromRow(row: MappingTempFieldRow): ProjectDictionaryMap
     fieldLength: row.field_length ?? undefined,
     logicText: row.logic_text ?? undefined,
     convertedSql: row.converted_sql ?? undefined,
+    externalSql: row.external_sql ?? (typeof row.raw?.externalSql === "string" ? row.raw.externalSql : undefined),
     remark: row.remark ?? undefined,
     sortOrder: Number(row.sort_order),
     raw: row.raw ?? undefined,

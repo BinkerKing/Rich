@@ -9,6 +9,7 @@ import {
   type ProjectDictionaryFieldDetail,
   type ProjectDictionaryMappingRule,
   type ProjectDictionaryMappingScenario,
+  type ProjectDictionaryMappingScenarioPatch,
   type ProjectDictionaryMappingTempTableInput,
   type ProjectDictionaryRectificationInput,
   type ProjectDictionaryRectificationPatch,
@@ -41,6 +42,16 @@ import {
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
 import type { GreatMeRepo } from "../repos/GreatMeRepo.js";
 import { syncProjectPlanTasks } from "../services/projectPlanTaskSync.js";
+import { executeDictionaryEntitySql } from "../modules/project-dictionary/infrastructure/databaseClient.js";
+
+function formatBusinessScenarioSql(sql: string): string {
+  return sql.trim().replace(/\s*;\s*/g, ";\n").replace(/\b(create|procedure|begin|end|select|from|where|join|left join|inner join|insert into|update|delete from|values|as)\b/gi, value => value.toUpperCase()).replace(/\n{3,}/g, "\n\n");
+}
+function businessScenarioSqlFingerprint(sql: string): string {
+  let hash = 2166136261;
+  for (const char of sql) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return `sql-${(hash >>> 0).toString(16)}`;
+}
 
 const ASSET_MIMES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -267,6 +278,63 @@ export function projectManagementRoutes(repo: ProjectManagementRepo, options: Pr
     return c.json(await repo.listDictionaryTables(projectId, systemId));
   });
 
+  r.get("/:projectId/dictionary/business-scenarios", async c => {
+    return c.json(await repo.listDictionaryBusinessScenarios(c.req.param("projectId"), c.req.query("libraryId") || undefined));
+  });
+  r.get("/:projectId/dictionary/business-scenario-libraries", async c => c.json(await repo.listDictionaryBusinessScenarioLibraries(c.req.param("projectId"))));
+  r.post("/:projectId/dictionary/business-scenario-libraries", async c => {
+    const body = await c.req.json().catch(() => ({})) as { name?: string };
+    if (!body.name?.trim()) return c.json({ error: "场景库名称必填" }, 400);
+    return c.json(await repo.createDictionaryBusinessScenarioLibrary(c.req.param("projectId"), { ...body, name: body.name }), 201);
+  });
+  r.patch("/:projectId/dictionary/business-scenario-libraries/:libraryId", async c => {
+    const library = await repo.updateDictionaryBusinessScenarioLibrary(c.req.param("projectId"), c.req.param("libraryId"), await c.req.json().catch(() => ({})));
+    return library ? c.json(library) : c.json({ error: "scenario library not found" }, 404);
+  });
+  r.get("/:projectId/dictionary/tables/:tableId/business-scenarios", async c => {
+    return c.json(await repo.listDictionaryBusinessScenariosForTable(c.req.param("projectId"), c.req.param("tableId")));
+  });
+  r.post("/:projectId/dictionary/business-scenarios", async c => {
+    const body = await c.req.json().catch(() => ({}));
+    if (!body || typeof body !== "object") return c.json({ error: "invalid business scenario" }, 400);
+    const input = body as { libraryId?: string; title?: string; procedureName?: string; sqlText?: string; tableIds?: unknown };
+    if (!input.libraryId || !input.title?.trim() || !input.procedureName?.trim() || !input.sqlText?.trim() || !Array.isArray(input.tableIds)) return c.json({ error: "libraryId、title、procedureName、sqlText、tableIds 必填" }, 400);
+    return c.json(await repo.createDictionaryBusinessScenario(c.req.param("projectId"), input as any), 201);
+  });
+  r.patch("/:projectId/dictionary/business-scenarios/:scenarioId", async c => {
+    const scenario = await repo.updateDictionaryBusinessScenario(c.req.param("projectId"), c.req.param("scenarioId"), await c.req.json().catch(() => ({})) as any);
+    return scenario ? c.json(scenario) : c.json({ error: "business scenario not found" }, 404);
+  });
+  r.delete("/:projectId/dictionary/business-scenarios/:scenarioId", async c => {
+    return (await repo.deleteDictionaryBusinessScenario(c.req.param("projectId"), c.req.param("scenarioId"))) ? c.body(null, 204) : c.json({ error: "business scenario not found" }, 404);
+  });
+  r.post("/:projectId/dictionary/business-scenarios/:scenarioId/format", async c => {
+    const projectId = c.req.param("projectId");
+    const scenario = (await repo.listDictionaryBusinessScenarios(projectId)).find(item => item.id === c.req.param("scenarioId"));
+    if (!scenario) return c.json({ error: "business scenario not found" }, 404);
+    const sqlText = formatBusinessScenarioSql(scenario.sqlText);
+    return c.json(await repo.updateDictionaryBusinessScenario(projectId, scenario.id, { sqlText })!);
+  });
+  r.post("/:projectId/dictionary/business-scenarios/:scenarioId/validate", async c => {
+    const projectId = c.req.param("projectId");
+    const scenario = (await repo.listDictionaryBusinessScenarios(projectId)).find(item => item.id === c.req.param("scenarioId"));
+    if (!scenario) return c.json({ error: "business scenario not found" }, 404);
+    const library = (await repo.listDictionaryBusinessScenarioLibraries(projectId)).find(item => item.id === scenario.libraryId);
+    if (!library) return c.json({ error: "scenario test database not found" }, 404);
+    const system = { id: library.id, projectId, code: library.name, name: library.name, dbType: library.dbType, sqlDialect: library.sqlDialect, connection: library.connection, fieldCount: 0, tableCount: 0 } as ProjectDictionarySystem;
+    try {
+      await executeDictionaryEntitySql(system, scenario.sqlText);
+      return c.json(await repo.updateDictionaryBusinessScenario(projectId, scenario.id, { validationStatus: "passed", validationSqlFingerprint: businessScenarioSqlFingerprint(scenario.sqlText), validationMessage: "外部测试数据库已执行", validatedAt: new Date().toISOString() }));
+    } catch (errorValue) {
+      return c.json(await repo.updateDictionaryBusinessScenario(projectId, scenario.id, { validationStatus: "failed", validationSqlFingerprint: businessScenarioSqlFingerprint(scenario.sqlText), validationMessage: errorValue instanceof Error ? errorValue.message : String(errorValue), validatedAt: new Date().toISOString() }), 400);
+    }
+  });
+
+  r.patch("/:projectId/dictionary/tables/:tableId", async c => {
+    const updated = await repo.updateDictionaryTable(c.req.param("projectId"), c.req.param("tableId"), await c.req.json().catch(() => ({})));
+    return updated ? c.json(updated) : c.json({ error: "table not found" }, 404);
+  });
+
   r.get("/:projectId/dictionary/tables/:tableId/fields", async c => {
     const projectId = c.req.param("projectId");
     const tableId = c.req.param("tableId");
@@ -290,6 +358,20 @@ export function projectManagementRoutes(repo: ProjectManagementRepo, options: Pr
       ...scenario,
       rules: rules.filter(rule => rule.scenarioId === scenario.id),
     })));
+  });
+
+  r.patch("/:projectId/dictionary/mapping/scenarios/:scenarioId", async c => {
+    const scenario = await repo.updateDictionaryMappingScenario(
+      c.req.param("projectId"),
+      c.req.param("scenarioId"),
+      await c.req.json().catch(() => ({})) as ProjectDictionaryMappingScenarioPatch,
+    );
+    return scenario ? c.json(scenario) : c.json({ error: "mapping scenario not found" }, 404);
+  });
+
+  r.patch("/:projectId/dictionary/mapping/rules/:ruleId", async c => {
+    const updated = await repo.updateDictionaryMappingRule(c.req.param("projectId"), c.req.param("ruleId"), await c.req.json().catch(() => ({})));
+    return updated ? c.json(updated) : c.json({ error: "mapping rule not found" }, 404);
   });
 
   r.put("/:projectId/dictionary/tables/:tableId/mapping/temp-tables", async c => {
@@ -416,6 +498,29 @@ export function projectManagementRoutes(repo: ProjectManagementRepo, options: Pr
       const tempTables = await repo.listDictionaryMappingTempTables(projectId, tableId);
       const tempTable = tempTables.find(item => item.id === tempTableId);
       if (!tempTable) return c.json({ error: "临时表不存在" }, 404);
+      const requiredTempTableNames = new Set([tempTable.tableName]);
+      let dependencyAdded = true;
+      while (dependencyAdded) {
+        dependencyAdded = false;
+        tempTables
+          .filter(item => requiredTempTableNames.has(item.tableName))
+          .forEach(item => {
+            const sql = item.convertedSql || item.logicText || "";
+            for (const match of sql.matchAll(/#([A-Za-z_][\w$]*)/g)) {
+              if (!requiredTempTableNames.has(match[1])) {
+                requiredTempTableNames.add(match[1]);
+                dependencyAdded = true;
+              }
+            }
+          });
+      }
+      const scopedTempTables = tempTables.filter(item => requiredTempTableNames.has(item.tableName));
+      const scopedRepo = Object.create(repo) as typeof repo;
+      scopedRepo.listDictionaryMappingTempTables = async (nextProjectId: string, nextTableId: string) => (
+        nextProjectId === projectId && nextTableId === tableId
+          ? scopedTempTables
+          : repo.listDictionaryMappingTempTables(nextProjectId, nextTableId)
+      );
       const fields: ProjectDictionaryFieldDetail[] = tempTable.fields.map(field => ({
         id: field.id,
         projectId,
@@ -436,7 +541,7 @@ export function projectManagementRoutes(repo: ProjectManagementRepo, options: Pr
       const result = await validateDictionaryMappingSql({
         ...target,
         projectId,
-        repo,
+        repo: scopedRepo,
         table: { ...target.table, caliber: tempTable.logicText || "" },
         fields,
         runtimeParams: body.runtimeParams && typeof body.runtimeParams === "object" && !Array.isArray(body.runtimeParams)
