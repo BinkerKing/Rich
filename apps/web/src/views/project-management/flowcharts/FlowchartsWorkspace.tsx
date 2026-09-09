@@ -38,9 +38,10 @@ function NodeLabel({ data }: { data: FlowNode["data"] }) {
   return <strong className="pfc-node-label-editor nodrag nopan" aria-label="编辑节点文字" contentEditable suppressContentEditableWarning autoFocus
     onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()} onKeyDown={event => {
       event.stopPropagation();
+      if (event.key === "Enter" && event.metaKey) { event.preventDefault(); document.execCommand("insertLineBreak"); return; }
       if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); }
       if (event.key === "Escape") { event.currentTarget.textContent = data.label; event.currentTarget.blur(); }
-    }} onBlur={event => data.onLabelChange?.(event.currentTarget.textContent?.trim() || data.label)}>{data.label}</strong>;
+    }} onBlur={event => data.onLabelChange?.(event.currentTarget.innerText.trim() || data.label)}>{data.label}</strong>;
 }
 function nodeStyle(data: FlowNode["data"]): CSSProperties {
   return {

@@ -96,6 +96,14 @@ test('inline node editing turns the original label itself into editable text', (
   assert.doesNotMatch(source, /pfc-node-label-input/);
 });
 
+test('Command Enter inserts a line break while Enter saves node editing', () => {
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(source, /event\.key === "Enter" && event\.metaKey/);
+  assert.match(source, /document\.execCommand\("insertLineBreak"\)/);
+  assert.match(source, /event\.currentTarget\.innerText\.trim\(\)/);
+  assert.match(source, /event\.key === "Enter"\) \{ event\.preventDefault\(\); event\.currentTarget\.blur\(\); \}/);
+});
+
 test('left double click opens details while right double click enters a child flowchart', () => {
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
   assert.match(source, /const \[detailNode, setDetailNode\] = useState\(""\)/);
