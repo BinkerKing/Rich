@@ -54,7 +54,7 @@ export const richTextNodeLayoutCss = `
     padding: 0;
     color: inherit;
     font-size: 1em;
-    font-weight: 700;
+    font-weight: inherit;
     line-height: 1.25;
   }
 
@@ -105,7 +105,7 @@ export const richTextNodeLayoutCss = `
 `;
 
 export function titleNoteNodeHtml(title: string, note: string): string {
-  return `<p class="mindmap-node-title"><strong>${escapeHtml(title)}</strong></p><div class="mindmap-node-note"><p>${escapeHtml(note).replace(/\n/g, "<br>")}</p></div>`;
+  return `<p class="mindmap-node-title">${escapeHtml(title)}</p><div class="mindmap-node-note"><p>${escapeHtml(note).replace(/\n/g, "<br>")}</p></div>`;
 }
 
 export function hasNodeNote(value: unknown): boolean {
@@ -113,7 +113,7 @@ export function hasNodeNote(value: unknown): boolean {
 }
 
 export function titleOnlyNodeHtml(value: unknown): string {
-  return removeParagraphClass(richTextParagraphs(value)[0] ?? "");
+  return removeDefaultTitleWeight(removeParagraphClass(richTextParagraphs(value)[0] ?? ""));
 }
 
 export function nodeIconHtml(value: unknown, icon: unknown): string {
@@ -146,9 +146,10 @@ type MindmapTreeNode = { data?: Record<string, unknown>; children?: MindmapTreeN
 
 export function normalizeTitleNoteTree<T extends MindmapTreeNode>(node: T): T {
   const currentData = node.data;
+  const normalizedTitleWeight = removeDefaultTitleWeight(typeof currentData?.text === "string" ? currentData.text : "");
   const savedIcon = typeof currentData?.nodeIcon === "string" && currentData.nodeIcon.trim() ? currentData.nodeIcon : undefined;
-  const nodeIcon = savedIcon ?? nodeIconFromHtml(currentData?.text);
-  const textWithIcon = nodeIconHtml(currentData?.text, nodeIcon);
+  const nodeIcon = savedIcon ?? nodeIconFromHtml(normalizedTitleWeight);
+  const textWithIcon = nodeIconHtml(normalizedTitleWeight, nodeIcon);
   const nextText = currentData?.nodeCardStyle === "title-note" && hasNodeNote(textWithIcon)
     ? decorateTitleNoteHtml(textWithIcon)
     : textWithIcon;
@@ -181,6 +182,17 @@ function addParagraphClass(paragraph: string, className: string): string {
 
 function removeParagraphClass(paragraph: string): string {
   return paragraph.replace(/^<p\s+class=(?:"mindmap-node-title"|'mindmap-node-title')>/i, "<p>");
+}
+
+// Early title-note cards wrapped every title in <strong>. It made the node
+// toolbar's normal weight ineffective because inline formatting wins over the
+// node's inherited style. Only unwrap a strong tag that owns the whole title;
+// partial strong tags remain available for per-character rich text formatting.
+function removeDefaultTitleWeight(value: string): string {
+  return value.replace(
+    /^(<p(?:\s[^>]*)?>)((?:<span\b(?=[^>]*\bclass=(?:"[^"]*\bmindmap-node-icon\b[^"]*"|'[^']*\bmindmap-node-icon\b[^']*'))[^>]*>[\s\S]*?<\/span>)?)<strong>([\s\S]*?)<\/strong><\/p>/i,
+    "$1$2$3</p>",
+  );
 }
 
 function removeNodeIconHtml(value: string): string {

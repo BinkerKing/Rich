@@ -5,7 +5,7 @@ import { decorateTitleNoteHtml, hasNodeNote, nextNodeIcon, nodeIconHtml, normali
 test("creates a title-and-note card as safely escaped rich text HTML", () => {
   assert.equal(
     titleNoteNodeHtml("引擎 <诊断>", "问题1\n问题2"),
-    '<p class="mindmap-node-title"><strong>引擎 &lt;诊断&gt;</strong></p><div class="mindmap-node-note"><p>问题1<br>问题2</p></div>',
+    '<p class="mindmap-node-title">引擎 &lt;诊断&gt;</p><div class="mindmap-node-note"><p>问题1<br>问题2</p></div>',
   );
 });
 
@@ -25,6 +25,15 @@ test("migrates existing title-note cards to one grouped note module", () => {
   );
 });
 
+test("removes legacy whole-title bold so the node style controls its weight", () => {
+  const tree = { data: { text: "<p><strong>贴源表与共享前置加工</strong></p>" }, children: [] };
+  assert.equal(
+    (normalizeTitleNoteTree(tree).data as Record<string, unknown>).text,
+    "<p>贴源表与共享前置加工</p>",
+  );
+  assert.equal(titleOnlyNodeHtml("<p><strong>标题</strong></p><p>备注</p>"), "<p>标题</p>");
+});
+
 test("uses the first rich-text paragraph as the knowledge-tree title", () => {
   assert.equal(titleFromNodeHtml('<p><strong>引擎诊断</strong></p><p>问题1<br>问题2</p>'), "引擎诊断");
   assert.equal(titleFromNodeHtml("普通标题"), "普通标题");
@@ -33,7 +42,7 @@ test("uses the first rich-text paragraph as the knowledge-tree title", () => {
 test("recognizes a note only when the content after the title is not empty", () => {
   const emptyNote = '<p><strong>引擎诊断</strong></p><p><br></p>';
   assert.equal(hasNodeNote(emptyNote), false);
-  assert.equal(titleOnlyNodeHtml(emptyNote), '<p><strong>引擎诊断</strong></p>');
+  assert.equal(titleOnlyNodeHtml(emptyNote), '<p>引擎诊断</p>');
   assert.equal(hasNodeNote('<p><strong>引擎诊断</strong></p><p>待检查</p>'), true);
 });
 
@@ -52,6 +61,7 @@ test("keeps the title and note visually separate while Quill is editing", () => 
   assert.match(richTextNodeLayoutCss, /\.ql-editor > p:first-child/);
   assert.match(richTextNodeLayoutCss, /\.ql-editor > p:not\(:first-child\)/);
   assert.match(richTextNodeLayoutCss, /background:\s*rgba\(15, 23, 42/);
+  assert.match(richTextNodeLayoutCss, /\.ql-editor > p:first-child[\s\S]*?font-weight:\s*inherit/);
 });
 
 test("groups multiple editing note paragraphs into one continuous card", () => {
