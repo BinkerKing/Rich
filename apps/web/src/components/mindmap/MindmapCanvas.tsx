@@ -18,6 +18,7 @@ export interface MindmapCanvasActions {
   redo(): void;
   insertSibling(): void;
   insertChild(): void;
+  fitView(): void;
   exportPng(title?: string): void;
 }
 
@@ -63,6 +64,7 @@ export function MindmapCanvas({ data, layout, theme, onChange, onReady }: Mindma
       redo: () => mindMap.execCommand("FORWARD"),
       insertSibling: () => mindMap.execCommand("INSERT_NODE"),
       insertChild: () => mindMap.execCommand("INSERT_CHILD_NODE"),
+      fitView: () => mindMap.view.fit(),
       exportPng: (title) => mindMap.export?.export("png", true, title),
     });
 
