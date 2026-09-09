@@ -4,7 +4,7 @@ import Drag from "simple-mind-map/src/plugins/Drag.js";
 import Select from "simple-mind-map/src/plugins/Select.js";
 import Export from "simple-mind-map/src/plugins/Export.js";
 import RichText from "simple-mind-map/src/plugins/RichText.js";
-import { canvasPanDelta, shouldStartCanvasPan, type CanvasPoint } from "./mindmapInteractions.js";
+import { boundedCanvasPanDelta, nextInertialPan, shouldStartCanvasPan, type CanvasPoint } from "./mindmapInteractions.js";
 import { MindmapNodeStyleToolbar, type MindmapNodeStyleTarget } from "./MindmapNodeStyleToolbar.js";
 import { richTextNodeLayoutCss } from "./richTextNode.js";
 
@@ -64,24 +64,55 @@ export function MindmapCanvas({ data, layout, theme, onChange, onReady }: Mindma
     (hostRef.current as HTMLDivElement & { __mindMap?: typeof mindMap }).__mindMap = mindMap;
     let panStart: CanvasPoint | null = null;
     let pointerId: number | null = null;
+    let panVelocity: CanvasPoint = { x: 0, y: 0 };
+    let lastPanTime = 0;
+    let inertiaFrame: number | null = null;
+    const stopInertia = () => {
+      if (inertiaFrame !== null) window.cancelAnimationFrame(inertiaFrame);
+      inertiaFrame = null;
+    };
+    const startInertia = () => {
+      const tick = () => {
+        const next = nextInertialPan(panVelocity);
+        panVelocity = next.velocity;
+        if (Math.hypot(panVelocity.x, panVelocity.y) < 0.02) {
+          inertiaFrame = null;
+          return;
+        }
+        mindMap.view.translateXY(next.delta.x, next.delta.y);
+        inertiaFrame = window.requestAnimationFrame(tick);
+      };
+      if (Math.hypot(panVelocity.x, panVelocity.y) >= 0.02) inertiaFrame = window.requestAnimationFrame(tick);
+    };
     const onPointerDown = (event: PointerEvent) => {
       if (!shouldStartCanvasPan(event.button)) return;
       event.preventDefault();
+      stopInertia();
       panStart = { x: event.clientX, y: event.clientY };
       pointerId = event.pointerId;
+      panVelocity = { x: 0, y: 0 };
+      lastPanTime = performance.now();
       hostRef.current?.setPointerCapture(event.pointerId);
     };
     const onPointerMove = (event: PointerEvent) => {
       if (!panStart || event.pointerId !== pointerId) return;
       const next = { x: event.clientX, y: event.clientY };
-      const delta = canvasPanDelta(panStart, next);
+      const delta = boundedCanvasPanDelta(panStart, next);
       mindMap.view.translateXY(delta.x, delta.y);
+      const elapsed = Math.max(performance.now() - lastPanTime, 8);
+      const instantaneousVelocity = { x: delta.x / elapsed, y: delta.y / elapsed };
+      panVelocity = {
+        x: Math.max(-1.5, Math.min(1.5, panVelocity.x * 0.7 + instantaneousVelocity.x * 0.3)),
+        y: Math.max(-1.5, Math.min(1.5, panVelocity.y * 0.7 + instantaneousVelocity.y * 0.3)),
+      };
+      lastPanTime = performance.now();
       panStart = next;
     };
     const stopPanning = (event: PointerEvent) => {
       if (event.pointerId !== pointerId) return;
       panStart = null;
       pointerId = null;
+      startInertia();
     };
     const preventContextMenu = (event: MouseEvent) => event.preventDefault();
     const resizeObserver = new ResizeObserver(() => mindMap.resize());
@@ -113,6 +144,7 @@ export function MindmapCanvas({ data, layout, theme, onChange, onReady }: Mindma
 
     return () => {
       resizeObserver.disconnect();
+      stopInertia();
       hostRef.current?.removeEventListener("pointerdown", onPointerDown);
       hostRef.current?.removeEventListener("pointermove", onPointerMove);
       hostRef.current?.removeEventListener("pointerup", stopPanning);
