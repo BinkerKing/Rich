@@ -1,3 +1,5 @@
+import { DEFAULT_DARK_MINDMAP_THEME_ID, getDarkMindmapTheme, type DarkMindmapTheme } from "../../components/mindmap/darkMindmapThemes.js";
+
 export interface DeepWorkbenchNode {
   data: { uid: string; text: string; expand?: boolean };
   children: DeepWorkbenchNode[];
@@ -6,7 +8,7 @@ export interface DeepWorkbenchNode {
 export interface DeepWorkbenchMap {
   root: DeepWorkbenchNode;
   layout: "logicalStructure" | "mindMap" | "organizationStructure";
-  theme: { template: "default"; config: Record<string, unknown> };
+  theme: { id?: DarkMindmapTheme["id"]; template: "default"; config: Record<string, unknown> };
   view?: Record<string, unknown>;
 }
 
@@ -19,31 +21,10 @@ export interface DeepWorkbenchItem {
 }
 
 export function createDeepWorkbenchMap(title: string, rootId: string): DeepWorkbenchMap {
+  const theme = getDarkMindmapTheme(DEFAULT_DARK_MINDMAP_THEME_ID);
   return {
     root: { data: { uid: rootId, text: title, expand: true }, children: [] },
     layout: "logicalStructure",
-    theme: { template: "default", config: linearMindmapTheme },
+    theme: { id: theme.id, template: "default", config: theme.config },
   };
 }
-
-export const linearMindmapTheme: Record<string, unknown> = {
-  backgroundColor: "#0a0a0b",
-  lineColor: "rgba(94, 106, 210, .72)",
-  lineWidth: 1,
-  lineStyle: "curve",
-  root: {
-    shape: "roundedRectangle", fillColor: "#17171a", color: "#ffffff", fontSize: 18,
-    fontWeight: "bold", borderColor: "#5e6ad2", borderWidth: 1, borderRadius: 8,
-    hoverRectColor: "rgba(94, 106, 210, .55)",
-  },
-  second: {
-    shape: "roundedRectangle", fillColor: "#141416", color: "#ffffff", fontSize: 15,
-    borderColor: "rgba(255,255,255,.16)", borderWidth: 1, borderRadius: 8,
-    marginX: 70, marginY: 28, hoverRectColor: "rgba(94, 106, 210, .55)",
-  },
-  node: {
-    shape: "roundedRectangle", fillColor: "#111114", color: "#a1a1aa", fontSize: 14,
-    borderColor: "rgba(255,255,255,.10)", borderWidth: 1, borderRadius: 6,
-    marginX: 42, marginY: 16, hoverRectColor: "rgba(94, 106, 210, .55)",
-  },
-};

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MindmapCanvas, type MindmapCanvasActions } from "../components/mindmap/MindmapCanvas.js";
+import { DARK_MINDMAP_THEMES, getDarkMindmapTheme } from "../components/mindmap/darkMindmapThemes.js";
 import { OutlineEditor } from "../components/outline-editor/OutlineEditor.js";
 import { expandAll } from "../components/outline-editor/outlineTreeOps.js";
 import { createDeepWorkbenchMap, type DeepWorkbenchItem, type DeepWorkbenchMap } from "./deep-workbench/deepWorkbenchModel.js";
@@ -93,10 +94,15 @@ export function DeepWorkbenchView() {
   const outlineRoot = toOutlineNode(active.map.root);
   const updateOutline = (root: typeof outlineRoot) => saveMap({ ...active.map, root: fromOutlineNode(root) });
   const allExpanded = outlineRoot.expanded ?? true;
+  const activeTheme = getDarkMindmapTheme(active.map.theme.id ?? "");
+  const selectTheme = (themeId: string) => {
+    const theme = getDarkMindmapTheme(themeId);
+    saveMap({ ...active.map, theme: { id: theme.id, template: "default", config: theme.config } });
+  };
   return <main className="deep-canvas">
     <header className="deep-canvas__header"><div className="deep-editor-start"><button className="deep-editor-icon" type="button" onClick={() => setActiveId(null)} aria-label="返回内容清单"><EditorIcon name="back" /></button></div><div className="deep-editor-title"><input aria-label="工作台标题" value={active.title} onChange={event => updateItems(items.map(item => item.id === active.id ? { ...item, title: event.target.value, updatedAt: now() } : item))} /><span>已保存</span></div>
       <div className="deep-editor-actions"><button className={viewMode === "mindmap" ? "is-active" : ""} type="button" onClick={() => setViewMode(viewMode === "outline" ? "mindmap" : "outline")}><EditorIcon name="map" />{viewMode === "outline" ? "思维导图" : "返回大纲"}</button><button className="deep-editor-icon" type="button" title={allExpanded ? "全部折叠" : "全部展开"} aria-label={allExpanded ? "全部折叠" : "全部展开"} onClick={() => updateOutline(expandAll(outlineRoot, !allExpanded))}><EditorIcon name="collapse" /></button>
-      {viewMode === "mindmap" && <div className="deep-canvas__tools"><button type="button" onClick={() => mindmapActions?.undo()}>撤销</button><button type="button" onClick={() => mindmapActions?.redo()}>重做</button><button type="button" onClick={() => mindmapActions?.insertSibling()}>同级</button><button className="deep-primary" type="button" onClick={() => mindmapActions?.insertChild()}>子节点</button><button type="button" onClick={() => mindmapActions?.exportPng(active.title)}>导出 PNG</button><select aria-label="脑图布局" value={active.map.layout} onChange={event => saveMap({ ...active.map, layout: event.target.value as DeepWorkbenchMap["layout"] })}><option value="logicalStructure">逻辑结构</option><option value="mindMap">思维导图</option><option value="organizationStructure">组织结构</option></select></div>}</div>
+      {viewMode === "mindmap" && <div className="deep-canvas__tools"><button type="button" onClick={() => mindmapActions?.undo()}>撤销</button><button type="button" onClick={() => mindmapActions?.redo()}>重做</button><button type="button" onClick={() => mindmapActions?.insertSibling()}>同级</button><button className="deep-primary" type="button" onClick={() => mindmapActions?.insertChild()}>子节点</button><button type="button" onClick={() => mindmapActions?.exportPng(active.title)}>导出 PNG</button><label className="deep-theme-picker"><i style={{ backgroundColor: activeTheme.accent }} aria-hidden="true" /><select aria-label="脑图主题" value={activeTheme.id} onChange={event => selectTheme(event.target.value)}>{DARK_MINDMAP_THEMES.map(theme => <option key={theme.id} value={theme.id}>{theme.name}</option>)}</select></label><select aria-label="脑图布局" value={active.map.layout} onChange={event => saveMap({ ...active.map, layout: event.target.value as DeepWorkbenchMap["layout"] })}><option value="logicalStructure">逻辑结构</option><option value="mindMap">思维导图</option><option value="organizationStructure">组织结构</option></select></div>}</div>
     </header>
     {viewMode === "mindmap" ? <div className="deep-canvas__map"><MindmapCanvas data={active.map.root as unknown as Record<string, unknown>} layout={active.map.layout} theme={active.map.theme} onChange={root => saveMap({ ...active.map, root: root as unknown as DeepWorkbenchMap["root"] })} onReady={setMindmapActions} /></div> : <section className="deep-outline"><div className="deep-outline__document-label">文档目录</div><OutlineEditor root={outlineRoot} onChange={updateOutline} createId={newId} /></section>}
     <footer className="deep-canvas__hint">{viewMode === "mindmap" ? "Tab 新增子节点 · Enter 新增同级节点 · 拖拽调整层级 · / 折叠 · ⌘L 整理布局" : `当前文档 ${outlineStats.topics} 条主题 · 共 ${outlineStats.words} 字`}</footer>
