@@ -172,6 +172,16 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
     const handleNodeActive = (_node: MindmapNodeStyleTarget | null, nodes: MindmapNodeStyleTarget[] = []) => {
       setActiveNodes(nodes);
     };
+    const handleNodeClick = (node: MindmapNodeStyleTarget | null) => {
+      if (!node) return;
+      // Rich-text node content can finish its click after the library has
+      // emitted `node_click`, clearing the selection that powers both the
+      // style toolbar and the `~` shortcut. Reassert this node as selected
+      // at the library event boundary before its normal activation runs.
+      mindMap.renderer.clearActiveNodeList();
+      mindMap.renderer.addNodeToActiveList(node);
+      mindMap.renderer.emitNodeActiveEvent(node);
+    };
     const handleNodeDoubleClick = (node: MindmapNodeStyleTarget | null) => {
       mindMap.richText?.hideEditText();
       const id = node?.getData("uid");
@@ -193,6 +203,7 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
     mindMap.on("data_change", handleChange);
     mindMap.on("layout_change", handleChange);
     mindMap.on("node_active", handleNodeActive);
+    mindMap.on("node_click", handleNodeClick);
     mindMap.on("node_dblclick", handleNodeDoubleClick);
     mindMap.on("node_mousedown", handleShiftNodeMousedown);
     mindMap.on("rich_text_selection_change", handleRichTextSelection);
@@ -218,6 +229,7 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
       window.removeEventListener("keydown", onKeyDown, true);
       hostRef.current?.removeEventListener("contextmenu", preventContextMenu);
       mindMap.off("node_active", handleNodeActive);
+      mindMap.off("node_click", handleNodeClick);
       mindMap.off("node_dblclick", handleNodeDoubleClick);
       mindMap.off("node_mousedown", handleShiftNodeMousedown);
       mindMap.off("rich_text_selection_change", handleRichTextSelection);
