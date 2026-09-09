@@ -52,14 +52,40 @@ export const richTextNodeLayoutCss = `
 
   .smm-richtext-node-edit-wrap .ql-editor > p:not(:first-child) {
     box-sizing: border-box;
-    margin: 7px 0 0;
-    padding: 5px 8px;
-    border: 1px solid rgba(148, 163, 184, .42);
-    border-radius: 6px;
+    margin: 0;
+    padding: 0 8px;
     background: rgba(15, 23, 42, .38);
     color: #cbd5e1;
     font-size: .82em;
     line-height: 1.45;
+  }
+
+  .smm-richtext-node-edit-wrap .ql-editor > p:nth-child(2):not(:last-child) {
+    margin-top: 7px;
+    padding-top: 5px;
+    border: 1px solid rgba(148, 163, 184, .42);
+    border-bottom: 0;
+    border-radius: 6px 6px 0 0;
+  }
+
+  .smm-richtext-node-edit-wrap .ql-editor > p:nth-child(n + 3):not(:last-child) {
+    border-right: 1px solid rgba(148, 163, 184, .42);
+    border-left: 1px solid rgba(148, 163, 184, .42);
+  }
+
+  .smm-richtext-node-edit-wrap .ql-editor > p:not(:first-child):last-child {
+    padding-bottom: 5px;
+    border-right: 1px solid rgba(148, 163, 184, .42);
+    border-bottom: 1px solid rgba(148, 163, 184, .42);
+    border-left: 1px solid rgba(148, 163, 184, .42);
+    border-radius: 0 0 6px 6px;
+  }
+
+  .smm-richtext-node-edit-wrap .ql-editor > p:nth-child(2):last-child {
+    margin-top: 7px;
+    padding: 5px 8px;
+    border: 1px solid rgba(148, 163, 184, .42);
+    border-radius: 6px;
   }
 
   .smm-node.active .smm-hover-node {

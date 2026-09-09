@@ -53,3 +53,9 @@ test("keeps the title and note visually separate while Quill is editing", () => 
   assert.match(richTextNodeLayoutCss, /\.ql-editor > p:not\(:first-child\)/);
   assert.match(richTextNodeLayoutCss, /background:\s*rgba\(15, 23, 42/);
 });
+
+test("groups multiple editing note paragraphs into one continuous card", () => {
+  assert.match(richTextNodeLayoutCss, /\.ql-editor > p:nth-child\(2\):not\(:last-child\)/);
+  assert.match(richTextNodeLayoutCss, /\.ql-editor > p:nth-child\(n \+ 3\):not\(:last-child\)/);
+  assert.match(richTextNodeLayoutCss, /\.ql-editor > p:not\(:first-child\):last-child/);
+});
