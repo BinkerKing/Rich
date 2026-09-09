@@ -86,6 +86,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   });
   const [nodeDetailFullscreen, setNodeDetailFullscreen] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const rightClickNode = useRef<{ id: string; time: number } | null>(null);
   const draftKey = `rich-flowchart-draft:${projectId ?? "standalone"}`;
   const isFullscreen = standalone;
 
@@ -311,7 +312,13 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
               onNodeClick={(event, row) => { setSelectedIds(current => {
                 const ids = event.metaKey ? current.includes(row.id) ? current.filter(id => id !== row.id) : [...current, row.id] : [row.id];
                 setSelected(ids[0] ?? ""); return ids;
-              }); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); }} onNodeDoubleClick={(_, row) => { setSelected(row.id); setSelectedIds([row.id]); setDetailNode(row.id); }}
+              }); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); }} onNodeContextMenu={(event, row) => {
+                event.preventDefault();
+                const now = Date.now();
+                if (rightClickNode.current?.id === row.id && now - rightClickNode.current.time < 450) {
+                  setSelected(row.id); setSelectedIds([row.id]); setDetailNode(row.id); rightClickNode.current = null;
+                } else rightClickNode.current = { id: row.id, time: now };
+              }}
               onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); setSelectedIds([]); setEditingNode(""); setDetailNode(""); }} onPaneClick={() => {}} onPaneContextMenu={event => event.preventDefault()}>
               <Background gap={28} size={1} color="#44444d" /><Controls />
             </ReactFlow>
