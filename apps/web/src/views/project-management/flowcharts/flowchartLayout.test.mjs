@@ -150,9 +150,9 @@ test('canvas supports lasso and Command multi-selection for shared node styles',
   assert.match(source, /<FlowchartNodeStyleToolbar nodes=\{selectedNodes\}/);
 });
 
-test('right drag pans the canvas while left drag remains reserved for lasso selection', () => {
+test('trackpad two-finger scrolling pans while left drag remains reserved for lasso selection', () => {
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
-  assert.match(source, /selectionOnDrag panOnDrag=\{\[2\]\}/);
+  assert.match(source, /selectionOnDrag panOnDrag=\{false\} panOnScroll panOnScrollMode=\{PanOnScrollMode\.Free\}/);
   assert.match(source, /zoomOnScroll=\{false\}/);
   assert.match(source, /onPaneContextMenu=\{event => event\.preventDefault\(\)\}/);
 });
