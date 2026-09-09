@@ -1,9 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import MindMap from "simple-mind-map";
 import Drag from "simple-mind-map/src/plugins/Drag.js";
 import Select from "simple-mind-map/src/plugins/Select.js";
 import Export from "simple-mind-map/src/plugins/Export.js";
 import { canvasPanDelta, shouldStartCanvasPan, type CanvasPoint } from "./mindmapInteractions.js";
+import { MindmapNodeStyleToolbar, type MindmapNodeStyleTarget } from "./MindmapNodeStyleToolbar.js";
 
 MindMap.usePlugin(Drag).usePlugin(Select).usePlugin(Export);
 
@@ -33,6 +34,7 @@ export interface MindmapCanvasProps {
 
 export function MindmapCanvas({ data, layout, theme, onChange, onReady }: MindmapCanvasProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const [activeNode, setActiveNode] = useState<MindmapNodeStyleTarget | null>(null);
   const onChangeRef = useRef(onChange);
   const onReadyRef = useRef(onReady);
 
@@ -87,9 +89,11 @@ export function MindmapCanvas({ data, layout, theme, onChange, onReady }: Mindma
     // The controlled `data` prop is the node tree itself, so persisting the
     // configured payload here would corrupt the caller's root node.
     const handleChange = () => onChangeRef.current(mindMap.getData() as MindmapData);
+    const handleNodeActive = (node: MindmapNodeStyleTarget | null) => setActiveNode(node);
 
     mindMap.on("data_change", handleChange);
     mindMap.on("layout_change", handleChange);
+    mindMap.on("node_active", handleNodeActive);
     onReadyRef.current?.({
       undo: () => mindMap.execCommand("BACK"),
       redo: () => mindMap.execCommand("FORWARD"),
@@ -106,6 +110,7 @@ export function MindmapCanvas({ data, layout, theme, onChange, onReady }: Mindma
       hostRef.current?.removeEventListener("pointerup", stopPanning);
       hostRef.current?.removeEventListener("pointercancel", stopPanning);
       hostRef.current?.removeEventListener("contextmenu", preventContextMenu);
+      mindMap.off("node_active", handleNodeActive);
       mindMap.destroy();
     };
   // Map edits emit `data_change` and update the parent state. Recreating the
@@ -115,5 +120,5 @@ export function MindmapCanvas({ data, layout, theme, onChange, onReady }: Mindma
   // from the outline view).
   }, [layout, theme]);
 
-  return <div ref={hostRef} style={{ width: "100%", height: "100%" }} />;
+  return <div style={{ position: "relative", width: "100%", height: "100%" }}><div ref={hostRef} style={{ width: "100%", height: "100%" }} />{activeNode && <MindmapNodeStyleToolbar node={activeNode} />}</div>;
 }
