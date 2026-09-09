@@ -96,6 +96,14 @@ test('inline node editing turns the original label itself into editable text', (
   assert.doesNotMatch(source, /pfc-node-label-input/);
 });
 
+test('inline note editing includes both its title and visible note content', () => {
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(source, /function NoteNode[\s\S]*data\.editing \? <NoteContent data=\{data\} \/> : <><NodeLabel data=\{data\} \/>\{data\.caption && <p>\{data\.caption\}<\/p>\}<\/>/);
+  assert.match(source, /function NoteContent/);
+  assert.match(source, /data\.onNoteTextChange\?\.\(event\.currentTarget\.innerText\)/);
+  assert.match(source, /onNoteTextChange: text =>/);
+});
+
 test('Command Enter inserts a line break while Enter saves node editing', () => {
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
   assert.match(source, /event\.key === "Enter" && event\.metaKey/);
