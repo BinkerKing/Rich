@@ -68,6 +68,22 @@ export function MindmapNodeStyleToolbar({ nodes }: Props) {
     };
   }, []);
 
+  useEffect(() => {
+    const toolbar = toolbarRef.current;
+    const canvas = toolbar?.parentElement;
+    if (!toolbar || !canvas || !position) return;
+    const keepVisible = () => {
+      const next = clampNodeStyleToolbarPosition(position, canvas.getBoundingClientRect(), toolbar.getBoundingClientRect());
+      if (next.x === position.x && next.y === position.y) return;
+      localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(next));
+      setPosition(next);
+    };
+    keepVisible();
+    const observer = new ResizeObserver(keepVisible);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [position]);
+
   const apply = (patch: Partial<NodeStyle>) => {
     setStyle(current => ({ ...current, ...patch }));
     applyNodeStyle(nodes, patch);
