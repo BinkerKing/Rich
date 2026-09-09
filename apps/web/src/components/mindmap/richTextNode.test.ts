@@ -87,6 +87,14 @@ test("removes the node icon while retaining the title content", () => {
   assert.equal(nodeIconHtml(withIcon, undefined), '<p><strong>引擎诊断</strong></p>');
 });
 
+test("replaces an icon after rich text has reordered its attributes", () => {
+  const editedText = '<p><span contenteditable="false" class="mindmap-node-icon">⚙️</span>引擎诊断</p>';
+  assert.equal(
+    nodeIconHtml(editedText, "📌"),
+    '<p><span class="mindmap-node-icon" contenteditable="false">📌</span>引擎诊断</p>',
+  );
+});
+
 test("restores the saved node icon when a mind map is opened", () => {
   const tree = { data: { nodeIcon: "⚙️", text: "<p>引擎诊断</p>" }, children: [] };
   assert.equal(

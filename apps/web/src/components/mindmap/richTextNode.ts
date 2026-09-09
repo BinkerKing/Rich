@@ -170,7 +170,7 @@ function removeParagraphClass(paragraph: string): string {
 }
 
 function removeNodeIconHtml(value: string): string {
-  return value.replace(/<span class=(?:"mindmap-node-icon"|'mindmap-node-icon')[^>]*>[\s\S]*?<\/span>\s*/gi, "");
+  return value.replace(/<span\b(?=[^>]*\bclass=(?:"[^"]*\bmindmap-node-icon\b[^"]*"|'[^']*\bmindmap-node-icon\b[^']*'))[^>]*>[\s\S]*?<\/span>\s*/gi, "");
 }
 
 function textFromHtml(value: string): string {
