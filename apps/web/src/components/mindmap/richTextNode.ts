@@ -9,7 +9,7 @@ export const richTextNodeLayoutCss = `
 
   .smm-richtext-node-wrap .mindmap-node-title,
   .smm-richtext-node-edit-wrap .ql-editor .mindmap-node-title {
-    color: #f8fafc;
+    color: inherit;
     font-size: 1em;
     line-height: 1.25;
   }
@@ -44,7 +44,7 @@ export const richTextNodeLayoutCss = `
   .smm-richtext-node-edit-wrap .ql-editor > p:first-child {
     margin: 0;
     padding: 0;
-    color: #f8fafc;
+    color: inherit;
     font-size: 1em;
     font-weight: 700;
     line-height: 1.25;

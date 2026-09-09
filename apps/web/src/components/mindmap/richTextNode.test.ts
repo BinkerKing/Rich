@@ -64,3 +64,14 @@ test("leaves a generous gap before notes in display and edit modes", () => {
   const noteGaps = Array.from(richTextNodeLayoutCss.matchAll(/margin-top:\s*(\d+)px/g), match => Number(match[1]));
   assert.ok(noteGaps.filter(gap => gap >= 12).length >= 2);
 });
+
+test("keeps the configured node color on titles with notes", () => {
+  assert.match(
+    richTextNodeLayoutCss,
+    /\.smm-richtext-node-wrap \.mindmap-node-title,[\s\S]*?color:\s*inherit/,
+  );
+  assert.match(
+    richTextNodeLayoutCss,
+    /\.ql-editor > p:first-child[\s\S]*?color:\s*inherit/,
+  );
+});
