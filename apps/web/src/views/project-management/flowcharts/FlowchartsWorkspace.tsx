@@ -33,7 +33,7 @@ function AnalysisNode({ data, selected }: NodeProps<FlowNode>) {
 }
 const nodeTypes = { analysis: AnalysisNode, region: RegionNode, note: NoteNode };
 
-export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowchartIdsChange, standalone = false, fullscreen = false }: { projectId?: string; focusId?: string; flowchartIds?: string[]; onFlowchartIdsChange?: (ids: string[]) => Promise<void>; standalone?: boolean; fullscreen?: boolean }) {
+export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowchartIdsChange, standalone = false, embedded = false }: { projectId?: string; focusId?: string; flowchartIds?: string[]; onFlowchartIdsChange?: (ids: string[]) => Promise<void>; standalone?: boolean; embedded?: boolean }) {
   const [items, setItems] = useState<ProjectModuleItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
@@ -61,7 +61,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   const [nodeDetailFullscreen, setNodeDetailFullscreen] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const draftKey = `rich-flowchart-draft:${projectId ?? "standalone"}`;
-  const isFullscreen = standalone || fullscreen;
+  const isFullscreen = standalone;
 
   useEffect(() => {
     let cancelled = false;
@@ -196,7 +196,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     } catch (e) { setError(`导出失败：${String(e)}`); } finally { setExporting(false); }
   };
 
-  return <section className={`pfc${standalone ? " pfc--standalone" : ""}${fullscreen ? " pfc--fullscreen" : ""}`}>
+  return <section className={`pfc${standalone ? " pfc--standalone" : ""}${embedded ? " pfc--embedded" : ""}`}>
     {error && <p role="alert" className="pfc-error">{error}</p>}
     {creating && <div className="pfc-create" role="dialog" aria-label="创建流程图任务">
         <button className="pfc-close" aria-label="关闭创建任务" onClick={() => setCreating(false)}>×</button>

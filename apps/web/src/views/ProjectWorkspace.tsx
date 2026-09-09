@@ -297,7 +297,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
           {section === "dictionary" && <DictionarySection project={project} summary={summary} searchTarget={searchTarget?.section === "dictionary" ? searchTarget : null} />}
           {section === "automation" && <AutomationSection projectId={project.id} onOpenMapping={openDictionaryMapping} />}
           {section === "workflow" && <WorkflowSection project={project} summary={summary} />}
-          {section === "flowcharts" && <FlowchartsWorkspace key={`${project.id}:${(c.flowchartIds ?? []).join(",")}`} projectId={project.id} flowchartIds={c.flowchartIds ?? []} onFlowchartIdsChange={saveFlowchartIds} focusId={searchTarget?.section === "flowcharts" ? searchTarget.entityId : undefined} fullscreen />}
+          {section === "flowcharts" && <FlowchartsWorkspace key={`${project.id}:${(c.flowchartIds ?? []).join(",")}`} projectId={project.id} flowchartIds={c.flowchartIds ?? []} onFlowchartIdsChange={saveFlowchartIds} focusId={searchTarget?.section === "flowcharts" ? searchTarget.entityId : undefined} embedded />}
           {section === "scenarios" && <ScenariosSection project={project} summary={summary} />}
           {section === "environments" && <EnvironmentsSection project={project} summary={summary} />}
           {section === "deploymentSteps" && <ProjectDeploymentStepsSection project={project} summary={summary} />}

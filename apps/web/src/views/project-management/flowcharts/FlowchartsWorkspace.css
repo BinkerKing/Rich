@@ -3,6 +3,8 @@
 .pfc p,.pfc small { color: #94a3b8; }
 .pfc-task { display: flex; flex-direction: column; flex: 0 0 auto; min-height: 0; min-width: 0; border: 1px solid #334155; border-radius: 8px; background: #101b2b; overflow: hidden; }
 .pfc-task.is-expanded { flex: 1 0 320px; min-height: 0; }
+.pfc--embedded .pfc-task.is-expanded { position:absolute; z-index:5; inset:0; display:grid; grid-template-rows:42px minmax(0,1fr); }
+.pfc--embedded .pfc-editor { height:auto; min-height:0; }
 .pfc-title-row { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; min-height: 42px; padding: 0 8px; }
 .pfc .pfc-task-title { display: flex; align-items: center; gap: 10px; flex: 1; border: 0; background: transparent; text-align: left; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .pfc-title-row > button { border: 0; background: transparent; }

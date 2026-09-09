@@ -14,14 +14,14 @@
 .pfc--standalone .pfc-title-row { min-height: 132px; padding: 18px 22px; }
 .pfc--standalone .pfc-task-title { align-self:stretch; flex-direction:column; align-items:flex-start!important; justify-content:center; gap:10px!important; color:#fff; font-size:16px; font-weight:650; }
 .pfc--standalone .pfc-task-title span { width:7px; height:7px; border-radius:50%; background:#5e6ad2; color:transparent; font-size:0; }.pfc--standalone .pfc-task-title small { color:#71717a; font-size:13px; font-weight:400; }
-:is(.pfc--standalone,.pfc--fullscreen) .pfc-task.is-expanded { position:fixed; z-index:40; inset:0; display:grid; grid-template-rows:58px minmax(0,1fr); border:0; border-radius:0; background:#071013; }
-:is(.pfc--standalone,.pfc--fullscreen) .pfc-task.is-expanded .pfc-title-row { min-height:58px; height:58px; padding:0 16px 0 96px; border-bottom:1px solid rgba(255,255,255,.1); -webkit-app-region:drag; user-select:none; }
-:is(.pfc--standalone,.pfc--fullscreen) .pfc-task.is-expanded .pfc-title-row button { -webkit-app-region:no-drag; }
-:is(.pfc--standalone,.pfc--fullscreen) .pfc-task.is-expanded .pfc-task-title { position:static; min-width:0; align-self:auto; flex:1 1 auto; flex-direction:row; font-size:16px; }
-:is(.pfc--standalone,.pfc--fullscreen) .pfc-task.is-expanded .pfc-task-title strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-:is(.pfc--standalone,.pfc--fullscreen) .pfc-task.is-expanded .pfc-task-title span { display:none; }:is(.pfc--standalone,.pfc--fullscreen) .pfc-editor { height:calc(100vh - 58px); border:0; }
-:is(.pfc--standalone,.pfc--fullscreen) .pfc-save-state { flex:0 0 auto; color:#71717a; font-size:13px; }:is(.pfc--standalone,.pfc--fullscreen) .pfc-back-to-list { flex:0 0 auto; font-size:18px; }
-:is(.pfc--standalone,.pfc--fullscreen) .pfc-task.is-expanded .pfc-legend { bottom:16px; }.pfc--standalone .pfc-create { top:110px; }
+.pfc--standalone .pfc-task.is-expanded { position:fixed; z-index:40; inset:0; display:grid; grid-template-rows:58px minmax(0,1fr); border:0; border-radius:0; background:#071013; }
+.pfc--standalone .pfc-task.is-expanded .pfc-title-row { min-height:58px; height:58px; padding:0 16px 0 96px; border-bottom:1px solid rgba(255,255,255,.1); -webkit-app-region:drag; user-select:none; }
+.pfc--standalone .pfc-task.is-expanded .pfc-title-row button { -webkit-app-region:no-drag; }
+.pfc--standalone .pfc-task.is-expanded .pfc-task-title { position:static; min-width:0; align-self:auto; flex:1 1 auto; flex-direction:row; font-size:16px; }
+.pfc--standalone .pfc-task.is-expanded .pfc-task-title strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pfc--standalone .pfc-task.is-expanded .pfc-task-title span { display:none; }.pfc--standalone .pfc-editor { height:calc(100vh - 58px); border:0; }
+.pfc--standalone .pfc-save-state { flex:0 0 auto; color:#71717a; font-size:13px; }.pfc--standalone .pfc-back-to-list { flex:0 0 auto; font-size:18px; }
+.pfc--standalone .pfc-task.is-expanded .pfc-legend { bottom:16px; }.pfc--standalone .pfc-create { top:110px; }
 .pfc--standalone .pfc-empty { margin-top:30px; max-width:460px; padding:32px; border:1px solid rgba(255,255,255,.1); border-radius:8px; background:rgba(255,255,255,.03); }
 .pfc--standalone .pfc-empty strong { display:block; color:#fff; }.pfc--standalone .pfc-empty p { margin:10px 0 16px; color:#a1a1aa; }
 @media(max-width:760px){.flowcharts-app .pfc--standalone{padding:28px 18px}.pfc--standalone .pfc-list-header{gap:18px}.pfc--standalone .pfc-task.is-expanded .pfc-title-row{padding:0 8px}.pfc--standalone .pfc-save-state{display:none}}
