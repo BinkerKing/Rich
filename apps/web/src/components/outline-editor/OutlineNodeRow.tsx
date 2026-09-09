@@ -1,10 +1,13 @@
 import { useEffect, useRef } from "react";
 import type { KeyboardEvent } from "react";
+import { nodeStyleFromData } from "../mindmap/nodeStyleControls.js";
 import type { OutlineNode } from "./types.js";
 
 type OutlineNodeRowProps = {
   node: OutlineNode;
   isRoot: boolean;
+  level: number;
+  themeConfig?: Record<string, unknown>;
   focus: boolean;
   onFocused: () => void;
   onTextChange: (nodeId: string, text: string) => void;
@@ -19,6 +22,8 @@ type OutlineNodeRowProps = {
 export function OutlineNodeRow({
   node,
   isRoot,
+  level,
+  themeConfig,
   focus,
   onFocused,
   onTextChange,
@@ -29,9 +34,14 @@ export function OutlineNodeRow({
   onOutdent,
   onRemove,
 }: OutlineNodeRowProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLDivElement>(null);
   const hasChildren = node.children.length > 0;
   const expanded = node.expanded ?? true;
+  const themeStyle = themeConfig?.[level === 0 ? "root" : level === 1 ? "second" : "node"];
+  const style = nodeStyleFromData({
+    ...(themeStyle && typeof themeStyle === "object" ? themeStyle as Record<string, unknown> : {}),
+    ...node.data,
+  });
 
   useEffect(() => {
     if (!focus) return;
@@ -39,7 +49,12 @@ export function OutlineNodeRow({
     onFocused();
   }, [focus, onFocused]);
 
-  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    if (document.activeElement === inputRef.current || !inputRef.current || inputRef.current.innerHTML === node.text) return;
+    inputRef.current.innerHTML = node.text;
+  }, [node.text]);
+
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Enter" && !isRoot) {
       event.preventDefault();
       onInsertSibling(node.id);
@@ -49,7 +64,7 @@ export function OutlineNodeRow({
       if (event.shiftKey) onOutdent(node.id);
       else onIndent(node.id);
     }
-    if (event.key === "Backspace" && !isRoot && !node.text) {
+    if (event.key === "Backspace" && !isRoot && !event.currentTarget.textContent?.trim()) {
       event.preventDefault();
       onRemove(node.id);
     }
@@ -67,12 +82,25 @@ export function OutlineNodeRow({
           {expanded ? "▾" : "▸"}
         </button>
       ) : <span className="outline-node-row__toggle-spacer" aria-hidden="true" />}
-      <input
+      <div
         ref={inputRef}
-        className="outline-node-row__input"
-        value={node.text}
+        className="outline-node-row__input outline-node-row__rich-input"
+        contentEditable
+        suppressContentEditableWarning
+        role="textbox"
+        tabIndex={0}
         aria-label={isRoot ? "Outline title" : "Outline item"}
-        onChange={(event) => onTextChange(node.id, event.target.value)}
+        style={{
+          color: style.color,
+          backgroundColor: style.fillColor,
+          borderColor: style.borderColor,
+          borderWidth: style.borderWidth,
+          borderRadius: style.borderRadius,
+          fontSize: style.fontSize,
+          fontWeight: style.fontWeight,
+        }}
+        dangerouslySetInnerHTML={{ __html: node.text }}
+        onInput={(event) => onTextChange(node.id, event.currentTarget.innerHTML)}
         onKeyDown={onKeyDown}
       />
       <button

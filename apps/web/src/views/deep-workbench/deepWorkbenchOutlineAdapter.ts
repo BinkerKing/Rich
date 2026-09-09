@@ -5,6 +5,7 @@ export function toOutlineNode(node: DeepWorkbenchNode): OutlineNode {
   return {
     id: node.data.uid,
     text: node.data.text,
+    data: node.data,
     ...(node.data.expand === undefined ? {} : { expanded: node.data.expand }),
     children: node.children.map(toOutlineNode),
   };
@@ -13,6 +14,7 @@ export function toOutlineNode(node: DeepWorkbenchNode): OutlineNode {
 export function fromOutlineNode(node: OutlineNode): DeepWorkbenchNode {
   return {
     data: {
+      ...node.data,
       uid: node.id,
       text: node.text,
       ...(node.expanded === undefined ? {} : { expand: node.expanded }),

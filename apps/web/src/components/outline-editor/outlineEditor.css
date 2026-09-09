@@ -14,8 +14,8 @@
 
 .outline-editor .outline-node-row {
   display: flex;
-  align-items: center;
-  min-height: 30px;
+  align-items: flex-start;
+  min-height: 38px;
   gap: 4px;
 }
 
@@ -50,16 +50,39 @@
 .outline-editor .outline-node-row__input {
   min-width: 0;
   flex: 1;
-  padding: 3px 0;
-  border: 0;
+  padding: 8px 12px;
+  border-style: solid;
   outline: none;
-  background: transparent;
   color: inherit;
   font: inherit;
 }
 
 .outline-editor .outline-node-row__input:focus {
-  color: #fff;
+  box-shadow: 0 0 0 2px rgba(125, 211, 252, .34);
+}
+
+.outline-editor .outline-node-row__rich-input {
+  line-height: 1.45;
+}
+
+.outline-editor .outline-node-row__rich-input p {
+  margin: 0;
+}
+
+.outline-editor .outline-node-row__rich-input .mindmap-node-note {
+  box-sizing: border-box;
+  margin-top: 7px;
+  padding: 5px 8px;
+  border: 1px solid rgba(148, 163, 184, .42);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, .38);
+  color: #cbd5e1;
+  font-size: .82em;
+  font-weight: normal;
+}
+
+.outline-editor .outline-node-row__rich-input .mindmap-node-note p + p {
+  margin-top: 4px;
 }
 
 .outline-editor .outline-node-row__add {

@@ -1,6 +1,7 @@
 export type OutlineNode = {
   id: string;
   text: string;
+  data?: Record<string, unknown>;
   expanded?: boolean;
   children: OutlineNode[];
 };
@@ -10,4 +11,5 @@ export type OutlineEditorProps = {
   onChange: (root: OutlineNode) => void;
   createId: () => string;
   className?: string;
+  themeConfig?: Record<string, unknown>;
 };
