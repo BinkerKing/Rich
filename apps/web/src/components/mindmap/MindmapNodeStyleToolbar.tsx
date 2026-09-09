@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { nodeStyleFromData, type NodeStyle } from "./nodeStyleControls.js";
 import { noteButtonState, styleMenuOptions, type StyleMenu } from "./nodeStyleToolbarMenu.js";
+import { applyNodeStyle } from "./mindmapMultiSelection.js";
 import { clampNodeStyleToolbarPosition, parseNodeStyleToolbarPosition, type NodeStyleToolbarPosition } from "./nodeStyleToolbarPosition.js";
 import { titleFromNodeHtml, titleNoteNodeHtml } from "./richTextNode.js";
 import "./mindmapNodeStyleToolbar.css";
@@ -12,11 +13,12 @@ export type MindmapNodeStyleTarget = {
   setStyles(style: Partial<NodeStyle>): void;
 };
 
-type Props = { node: MindmapNodeStyleTarget };
+type Props = { nodes: MindmapNodeStyleTarget[] };
 type OpenMenu = StyleMenu | "color" | "fillColor" | "borderColor" | "border" | null;
 const POSITION_STORAGE_KEY = "rich.mindmap.node-style-toolbar.position.v1";
 
-export function MindmapNodeStyleToolbar({ node }: Props) {
+export function MindmapNodeStyleToolbar({ nodes }: Props) {
+  const node = nodes[0]!;
   const [style, setStyle] = useState(() => nodeStyleFromData(readNodeStyle(node)));
   const [hasNote, setHasNote] = useState(() => node.getData("nodeCardStyle") === "title-note");
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
@@ -61,11 +63,11 @@ export function MindmapNodeStyleToolbar({ node }: Props) {
 
   const apply = (patch: Partial<NodeStyle>) => {
     setStyle(current => ({ ...current, ...patch }));
-    node.setStyles(patch);
+    applyNodeStyle(nodes, patch);
   };
   const toggle = (menu: OpenMenu) => setOpenMenu(current => current === menu ? null : menu);
   const colorMenu = (key: "color" | "fillColor" | "borderColor", label: string) => <div className="mindmap-node-style-toolbar__menu mindmap-node-style-toolbar__menu--color"><span>{label}</span><input aria-label={label} type="color" value={style[key]} onChange={event => apply({ [key]: event.target.value })} /></div>;
-  const noteState = noteButtonState(hasNote);
+  const noteState = nodes.length === 1 ? noteButtonState(hasNote) : { disabled: true, label: "批量选择时不能增加备注" };
   const startDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
     const toolbar = toolbarRef.current;
     if (!toolbar) return;
@@ -75,7 +77,7 @@ export function MindmapNodeStyleToolbar({ node }: Props) {
     setPosition({ x: rect.left - toolbar.parentElement!.getBoundingClientRect().left, y: rect.top - toolbar.parentElement!.getBoundingClientRect().top });
   };
 
-  return <aside ref={toolbarRef} className="mindmap-node-style-toolbar" aria-label="节点样式" style={position ? { left: position.x, top: position.y, bottom: "auto", transform: "none" } : undefined}>
+  return <aside ref={toolbarRef} className="mindmap-node-style-toolbar" aria-label={`节点样式${nodes.length > 1 ? `，已选 ${nodes.length} 个节点` : ""}`} style={position ? { left: position.x, top: position.y, bottom: "auto", transform: "none" } : undefined}>
     <button className="mindmap-node-style-toolbar__drag" type="button" title="拖动编辑器" aria-label="拖动编辑器" onPointerDown={startDrag}><ToolbarIcon name="drag" /></button>
     {openMenu && <div className="mindmap-node-style-toolbar__menu-wrap">
       {openMenu === "fontSize" && <div className="mindmap-node-style-toolbar__menu"><span>字号</span><div>{styleMenuOptions("fontSize").map(size => <button key={size} className={style.fontSize === size ? "is-active" : ""} type="button" onClick={() => { apply({ fontSize: size }); setOpenMenu(null); }}>{size}</button>)}</div></div>}
