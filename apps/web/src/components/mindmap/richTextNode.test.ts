@@ -59,3 +59,8 @@ test("groups multiple editing note paragraphs into one continuous card", () => {
   assert.match(richTextNodeLayoutCss, /\.ql-editor > p:nth-child\(n \+ 3\):not\(:last-child\)/);
   assert.match(richTextNodeLayoutCss, /\.ql-editor > p:not\(:first-child\):last-child/);
 });
+
+test("leaves a generous gap before notes in display and edit modes", () => {
+  const noteGaps = Array.from(richTextNodeLayoutCss.matchAll(/margin-top:\s*(\d+)px/g), match => Number(match[1]));
+  assert.ok(noteGaps.filter(gap => gap >= 12).length >= 2);
+});

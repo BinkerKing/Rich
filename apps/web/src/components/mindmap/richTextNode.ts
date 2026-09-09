@@ -17,7 +17,7 @@ export const richTextNodeLayoutCss = `
   .smm-richtext-node-wrap .mindmap-node-note,
   .smm-richtext-node-edit-wrap .ql-editor .mindmap-node-note {
     box-sizing: border-box;
-    margin-top: 7px;
+    margin-top: 14px;
     padding: 5px 8px;
     border: 1px solid rgba(148, 163, 184, .42);
     border-radius: 6px;
@@ -61,7 +61,7 @@ export const richTextNodeLayoutCss = `
   }
 
   .smm-richtext-node-edit-wrap .ql-editor > p:nth-child(2):not(:last-child) {
-    margin-top: 7px;
+    margin-top: 14px;
     padding-top: 5px;
     border: 1px solid rgba(148, 163, 184, .42);
     border-bottom: 0;
@@ -82,7 +82,7 @@ export const richTextNodeLayoutCss = `
   }
 
   .smm-richtext-node-edit-wrap .ql-editor > p:nth-child(2):last-child {
-    margin-top: 7px;
+    margin-top: 14px;
     padding: 5px 8px;
     border: 1px solid rgba(148, 163, 184, .42);
     border-radius: 6px;
