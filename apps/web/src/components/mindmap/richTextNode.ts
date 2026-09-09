@@ -125,6 +125,10 @@ export function nodeIconHtml(value: unknown, icon: unknown): string {
   return `<p>${iconHtml}${text}</p>`;
 }
 
+export function nextNodeIcon(currentIcon: unknown, selectedIcon: string): string | undefined {
+  return currentIcon === selectedIcon ? undefined : selectedIcon;
+}
+
 export function decorateTitleNoteHtml(value: unknown): string {
   const [title, ...note] = richTextParagraphs(value);
   if (!title) return "";

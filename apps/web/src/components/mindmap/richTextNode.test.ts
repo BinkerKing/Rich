@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decorateTitleNoteHtml, hasNodeNote, nodeIconHtml, normalizeTitleNoteTree, richTextNodeLayoutCss, titleFromNodeHtml, titleNoteNodeHtml, titleOnlyNodeHtml } from "./richTextNode.js";
+import { decorateTitleNoteHtml, hasNodeNote, nextNodeIcon, nodeIconHtml, normalizeTitleNoteTree, richTextNodeLayoutCss, titleFromNodeHtml, titleNoteNodeHtml, titleOnlyNodeHtml } from "./richTextNode.js";
 
 test("creates a title-and-note card as safely escaped rich text HTML", () => {
   assert.equal(
@@ -93,6 +93,11 @@ test("replaces an icon after rich text has reordered its attributes", () => {
     nodeIconHtml(editedText, "📌"),
     '<p><span class="mindmap-node-icon" contenteditable="false">📌</span>引擎诊断</p>',
   );
+});
+
+test("clicking the selected node icon removes it", () => {
+  assert.equal(nextNodeIcon("⚙️", "⚙️"), undefined);
+  assert.equal(nextNodeIcon("⚙️", "📌"), "📌");
 });
 
 test("restores the saved node icon when a mind map is opened", () => {
