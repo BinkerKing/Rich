@@ -89,6 +89,16 @@ test('tilde opens inline text editing for the selected flowchart node', () => {
   assert.match(source, /aria-label="编辑节点文字"/);
 });
 
+test('inline node editing keeps the original node label appearance', () => {
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(source, /return <strong><input className="pfc-node-label-input"/);
+  const inputRule = rule('.pfc-node-label-input');
+  assert.match(inputRule, /border:0/);
+  assert.match(inputRule, /background:transparent/);
+  assert.match(inputRule, /padding:0/);
+  assert.match(inputRule, /font:inherit/);
+});
+
 test('node details open only after two right clicks and Escape closes only the details', () => {
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
   assert.match(source, /const \[detailNode, setDetailNode\] = useState\(""\)/);

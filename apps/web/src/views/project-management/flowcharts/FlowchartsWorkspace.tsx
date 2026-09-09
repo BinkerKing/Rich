@@ -35,12 +35,12 @@ function AnalysisNode({ data, selected }: NodeProps<FlowNode>) {
 }
 function NodeLabel({ data }: { data: FlowNode["data"] }) {
   if (!data.editing) return <strong>{data.label}</strong>;
-  return <input className="pfc-node-label-input" aria-label="编辑节点文字" autoFocus defaultValue={data.label}
+  return <strong><input className="pfc-node-label-input" aria-label="编辑节点文字" autoFocus defaultValue={data.label}
     onClick={event => event.stopPropagation()} onKeyDown={event => {
       event.stopPropagation();
       if (event.key === "Enter") event.currentTarget.blur();
       if (event.key === "Escape") { event.currentTarget.value = data.label; event.currentTarget.blur(); }
-    }} onBlur={event => data.onLabelChange?.(event.currentTarget.value.trim() || data.label)} />;
+    }} onBlur={event => data.onLabelChange?.(event.currentTarget.value.trim() || data.label)} /></strong>;
 }
 function nodeStyle(data: FlowNode["data"]): CSSProperties {
   return {
