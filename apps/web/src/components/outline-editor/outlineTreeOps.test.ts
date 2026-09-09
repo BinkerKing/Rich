@@ -16,7 +16,7 @@ const tree = (): OutlineNode => ({
   text: "Root",
   children: [
     { id: "a", text: "A", children: [] },
-    { id: "b", text: "B", children: [{ id: "b1", text: "B1", children: [] }] },
+    { id: "b", text: "", children: [{ id: "b1", text: "B1", children: [] }] },
   ],
 });
 
@@ -35,7 +35,8 @@ test("insertSiblingAfter adds an empty sibling immediately after a node without 
 });
 
 test("appendChild adds an empty child and expands its parent", () => {
-  const result = appendChild(tree(), "a", ids("new"));
+  const root = tree();
+  const result = appendChild(root, "a", ids("new"));
 
   assert.deepEqual(result.children[0], {
     id: "a",
@@ -43,14 +44,19 @@ test("appendChild adds an empty child and expands its parent", () => {
     expanded: true,
     children: [{ id: "new", text: "", children: [] }],
   });
+  assert.notStrictEqual(result, root);
+  assert.deepEqual(root, tree());
 });
 
 test("indentNode nests a node under its previous sibling", () => {
-  const result = indentNode(tree(), "b");
+  const root = tree();
+  const result = indentNode(root, "b");
 
   assert.deepEqual(result.children.map(({ id }) => id), ["a"]);
   assert.deepEqual(result.children[0]?.children.map(({ id }) => id), ["b"]);
   assert.equal(result.children[0]?.expanded, true);
+  assert.notStrictEqual(result, root);
+  assert.deepEqual(root, tree());
 });
 
 test("indentNode leaves a first sibling and the root unchanged", () => {
@@ -69,6 +75,12 @@ test("outdentNode moves a nested node after its parent", () => {
 
   assert.deepEqual(result.children.map(({ id }) => id), ["a", "b"]);
   assert.deepEqual(result.children[0]?.children, []);
+  assert.notStrictEqual(result, root);
+  assert.deepEqual(root, {
+    id: "root",
+    text: "Root",
+    children: [{ id: "a", text: "A", children: [{ id: "b", text: "B", children: [] }] }],
+  });
 });
 
 test("outdentNode leaves top-level nodes and the root unchanged", () => {
@@ -78,18 +90,12 @@ test("outdentNode leaves top-level nodes and the root unchanged", () => {
 });
 
 test("removeEmptyNode removes a blank non-root node and promotes children at its index", () => {
-  const root: OutlineNode = {
-    id: "root",
-    text: "Root",
-    children: [
-      { id: "a", text: "A", children: [] },
-      { id: "blank", text: "", children: [{ id: "b", text: "B", children: [] }] },
-      { id: "c", text: "C", children: [] },
-    ],
-  };
-  const result = removeEmptyNode(root, "blank");
+  const root = tree();
+  const result = removeEmptyNode(root, "b");
 
-  assert.deepEqual(result.children.map(({ id }) => id), ["a", "b", "c"]);
+  assert.deepEqual(result.children.map(({ id }) => id), ["a", "b1"]);
+  assert.notStrictEqual(result, root);
+  assert.deepEqual(root, tree());
 });
 
 test("removeEmptyNode preserves non-empty nodes and the root", () => {
@@ -107,10 +113,13 @@ test("updateNodeText changes only the matching node", () => {
 });
 
 test("expandAll sets every node expansion state", () => {
-  const result = expandAll(tree(), false);
+  const root = tree();
+  const result = expandAll(root, false);
 
   assert.equal(result.expanded, false);
   assert.equal(result.children[0]?.expanded, false);
   assert.equal(result.children[1]?.children[0]?.expanded, false);
   assert.equal(expandAll(tree()).children[1]?.expanded, true);
+  assert.notStrictEqual(result, root);
+  assert.deepEqual(root, tree());
 });
