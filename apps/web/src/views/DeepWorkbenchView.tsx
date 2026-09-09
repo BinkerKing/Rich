@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MindmapCanvas, type MindmapCanvasActions } from "../components/mindmap/MindmapCanvas.js";
 import { DARK_MINDMAP_THEMES, MINDMAP_LINE_STYLES, getDarkMindmapTheme, type MindmapLineStyle } from "../components/mindmap/darkMindmapThemes.js";
 import { MindmapFloatingToolbar } from "../components/mindmap/MindmapFloatingToolbar.js";
@@ -63,6 +63,18 @@ export function DeepWorkbenchView() {
   const [nodeDetailPanelWidth, setNodeDetailPanelWidth] = useState(() => loadNodeDetailPanelWidth(localStorage.getItem(NODE_DETAIL_PANEL_WIDTH_KEY), nodeDetailPanelMaxWidth(window.innerWidth)));
   const [nodeDetailPanelFullscreen, setNodeDetailPanelFullscreen] = useState(false);
   const knowledgeSyncTimer = useRef<number | undefined>();
+  useEffect(() => {
+    if (!selectedNode) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setSelectedNode(null);
+      setNodeDetailPanelFullscreen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape, true);
+    return () => window.removeEventListener("keydown", closeOnEscape, true);
+  }, [selectedNode]);
   const active = items.find(item => item.id === activeId) ?? null;
   const standaloneItems = items.filter(item => item.source !== "knowledge-tree");
   const knowledgeRoots = useMemo(() => {
