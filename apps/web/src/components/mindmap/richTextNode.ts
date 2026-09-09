@@ -37,6 +37,13 @@ export const richTextNodeLayoutCss = `
   .smm-richtext-node-edit-wrap .ql-editor .mindmap-node-note p + p {
     margin-top: 4px;
   }
+
+  .smm-node.active .smm-hover-node {
+    opacity: 1;
+    stroke: #fef08a !important;
+    stroke-width: 4px;
+    filter: drop-shadow(0 0 5px rgba(250, 204, 21, .95));
+  }
 `;
 
 export function titleNoteNodeHtml(title: string, note: string): string {

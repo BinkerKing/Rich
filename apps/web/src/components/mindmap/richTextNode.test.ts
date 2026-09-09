@@ -43,4 +43,7 @@ test("resets paragraph margins inside SVG rich-text nodes so their content is no
   assert.match(richTextNodeLayoutCss, /\.mindmap-node-note/);
   assert.match(richTextNodeLayoutCss, /border:/);
   assert.match(richTextNodeLayoutCss, /\.smm-richtext-node-edit-wrap/);
+  assert.match(richTextNodeLayoutCss, /\.smm-node\.active \.smm-hover-node/);
+  assert.match(richTextNodeLayoutCss, /stroke-width:\s*4px/);
+  assert.match(richTextNodeLayoutCss, /drop-shadow/);
 });
