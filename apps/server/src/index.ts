@@ -120,6 +120,7 @@ import { SqliteRelationsRepo } from "./repos/SqliteRelationsRepo.js";
 import { SqlitePathsRepo } from "./repos/SqlitePathsRepo.js";
 import { SqliteSignalsRepo } from "./repos/SqliteSignalsRepo.js";
 import { SqliteChatVisualBlocksRepo } from "./repos/SqliteChatVisualBlocksRepo.js";
+import { SqliteFlowchartsRepo } from "./repos/SqliteFlowchartsRepo.js";
 import { SqliteChatAttachmentsRepo } from "./repos/SqliteChatAttachmentsRepo.js";
 import { SqliteChatConversationsRepo } from "./repos/SqliteChatConversationsRepo.js";
 import { SqliteDeliverableCodexConversationRepo } from "./repos/SqliteDeliverableCodexConversationRepo.js";
@@ -138,6 +139,7 @@ import type { RelationsRepo } from "./repos/RelationsRepo.js";
 import type { PathsRepo } from "./repos/PathsRepo.js";
 import type { SignalsRepo } from "./repos/SignalsRepo.js";
 import type { ChatVisualBlocksRepo } from "./repos/ChatVisualBlocksRepo.js";
+import type { FlowchartsRepo } from "./repos/FlowchartsRepo.js";
 import type { ChatAttachmentsRepo } from "./repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "./repos/ChatConversationsRepo.js";
 import type { DeliverableCodexConversationRepo } from "./repos/DeliverableCodexConversationRepo.js";
@@ -190,6 +192,7 @@ import { healthRoutes } from "./routes/health.js";
 import { createReminderTicker } from "./lib/reminderTicker.js";
 import { projectsRoutes } from "./routes/projects.js";
 import { projectManagementRoutes } from "./routes/projectManagement.js";
+import { flowchartsRoutes } from "./routes/flowcharts.js";
 import { testCenterRoutes } from "./routes/testCenter.js";
 import { TestCenterSqliteRepo } from "./test-center/TestCenterSqliteRepo.js";
 import { aiTaskRoutes } from "./routes/aiTasks.js";
@@ -212,6 +215,7 @@ import { PostgresRelationsRepo } from "./repos/PostgresRelationsRepo.js";
 import { PostgresPathsRepo } from "./repos/PostgresPathsRepo.js";
 import { PostgresSignalsRepo } from "./repos/PostgresSignalsRepo.js";
 import { PostgresChatVisualBlocksRepo } from "./repos/PostgresChatVisualBlocksRepo.js";
+import { PostgresFlowchartsRepo } from "./repos/PostgresFlowchartsRepo.js";
 import { PostgresChatAttachmentsRepo } from "./repos/PostgresChatAttachmentsRepo.js";
 import { PostgresChatConversationsRepo } from "./repos/PostgresChatConversationsRepo.js";
 import { PostgresDeliverableCodexConversationRepo } from "./repos/PostgresDeliverableCodexConversationRepo.js";
@@ -285,6 +289,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let multicaBindingRepo: MulticaBindingRepo;
   /** chat_visual_blocks 仅 sqlite + postgres 后端支持；json 模式下保持 null。 */
   let chatVisualBlocks: ChatVisualBlocksRepo | null = null;
+  let flowcharts: FlowchartsRepo;
   /** chat_attachments 同上 —— bytea 存储需要数据库后端 */
   let chatAttachments: ChatAttachmentsRepo | null = null;
   let chatConversations: ChatConversationsRepo | null = null;
@@ -314,6 +319,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     invocations = new PostgresInvocationsRepo(pg);
     improvements = new PostgresImprovementsRepo(pg);
     chatVisualBlocks = new PostgresChatVisualBlocksRepo(pg);
+    flowcharts = new PostgresFlowchartsRepo(pg);
     chatAttachments = new PostgresChatAttachmentsRepo(pg);
     chatConversations = new PostgresChatConversationsRepo(pg);
     deliverableCodexConversations = new PostgresDeliverableCodexConversationRepo(pg);
@@ -347,6 +353,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     improvements = new ImprovementsRepo(db);
     invocations = new InvocationsRepo(db);
     chatVisualBlocks = new SqliteChatVisualBlocksRepo(db);
+    flowcharts = new SqliteFlowchartsRepo(db);
     chatAttachments = new SqliteChatAttachmentsRepo(db);
     chatConversations = new SqliteChatConversationsRepo(db);
     deliverableCodexConversations = new SqliteDeliverableCodexConversationRepo(db);
@@ -545,6 +552,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     },
   }));
   app.route("/api/project-management", projectManagementRoutes(projectManagement, { elements, greatMe }));
+  app.route("/api/flowcharts", flowchartsRoutes(flowcharts));
   if (testCenter) app.route("/api/project-management/testing", testCenterRoutes(testCenter));
   app.route("/api/project-management", projectAutomationRoutes(projectManagement, projectAutomation));
   app.route("/api/project-management", multicaProjectWorkbenchRoutes({
