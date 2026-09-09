@@ -4,6 +4,7 @@ import type { NodeStyle } from "../../../components/mindmap/nodeStyleControls.js
 export type FlowNode = Node<{
   label: string;
   kind: "step" | "decision" | "table" | "boundary" | "region" | "note";
+  icon?: string;
   caption?: string;
   tone?: "cyan" | "mint" | "amber";
   description: string;

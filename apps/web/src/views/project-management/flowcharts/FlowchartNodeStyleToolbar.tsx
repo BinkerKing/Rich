@@ -7,11 +7,13 @@ import type { FlowNode } from "./flowchartModel.js";
 
 const POSITION_STORAGE_KEY = "rich.flowchart.node-style-toolbar.position.v1";
 const PRESETS_STORAGE_KEY = "rich.flowchart.node-style-presets.v1";
-type OpenMenu = "fontSize" | "color" | "fillColor" | "border" | "presets" | null;
+type OpenMenu = "fontSize" | "color" | "fillColor" | "border" | "presets" | "icon" | null;
+const nodeIcons = ["📌", "⭐", "💡", "⚙️", "🎯", "✅", "⚠️", "📚", "🔗", "🚀", "💬", "🔍"];
 
 export function FlowchartNodeStyleToolbar({ nodes, onChange }: { nodes: FlowNode[]; onChange: (patch: Partial<FlowNode["data"]>) => void }) {
   const node = nodes[0]!;
   const [style, setStyle] = useState(() => nodeStyleFromData(node.data));
+  const [icon, setIcon] = useState(node.data.icon);
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const [presets, setPresets] = useState<NodeStylePreset[]>(() => parseNodeStylePresets(localStorage.getItem(PRESETS_STORAGE_KEY)));
   const [presetName, setPresetName] = useState("");
@@ -19,7 +21,7 @@ export function FlowchartNodeStyleToolbar({ nodes, onChange }: { nodes: FlowNode
   const toolbarRef = useRef<HTMLElement>(null);
   const dragRef = useRef<{ offsetX: number; offsetY: number } | null>(null);
 
-  useEffect(() => { setStyle(nodeStyleFromData(node.data)); setOpenMenu(null); }, [node]);
+  useEffect(() => { setStyle(nodeStyleFromData(node.data)); setIcon(node.data.icon); setOpenMenu(null); }, [node]);
   useEffect(() => {
     const move = (event: PointerEvent) => {
       const toolbar = toolbarRef.current;
@@ -75,10 +77,12 @@ export function FlowchartNodeStyleToolbar({ nodes, onChange }: { nodes: FlowNode
       {openMenu === "color" && <div className="pfc-node-style-toolbar__menu"><span>文字颜色</span>{colorSwatches("color", "文字颜色")}</div>}
       {openMenu === "fillColor" && <div className="pfc-node-style-toolbar__menu"><span>背景颜色</span>{colorSwatches("fillColor", "背景颜色")}</div>}
       {openMenu === "border" && <div className="pfc-node-style-toolbar__menu pfc-node-style-toolbar__menu--border"><span>边框</span><div><small>颜色</small>{colorSwatches("borderColor", "边框颜色")}</div><div><small>粗细</small>{styleMenuOptions("borderWidth").map(width => <button key={width} className={style.borderWidth === width ? "is-active" : ""} type="button" onClick={() => apply({ borderWidth: width })}>{width}px</button>)}</div><div><small>圆角</small>{styleMenuOptions("borderRadius").map(radius => <button key={radius} className={style.borderRadius === radius ? "is-active" : ""} type="button" onClick={() => apply({ borderRadius: radius })}>{radius}</button>)}</div></div>}
+      {openMenu === "icon" && <div className="pfc-node-style-toolbar__menu pfc-node-style-toolbar__menu--icons"><span>节点图标</span><div>{nodeIcons.map(nextIcon => <button key={nextIcon} className={icon === nextIcon ? "is-active" : ""} type="button" title={icon === nextIcon ? `移除${nextIcon}` : `使用${nextIcon}`} aria-label={icon === nextIcon ? `移除${nextIcon}` : `使用${nextIcon}`} onClick={() => { const value = icon === nextIcon ? undefined : nextIcon; setIcon(value); onChange({ icon: value }); }}><span>{nextIcon}</span></button>)}<button className={!icon ? "is-active" : ""} type="button" title="移除图标" aria-label="移除图标" onClick={() => { setIcon(undefined); onChange({ icon: undefined }); }}>×</button></div></div>}
       {openMenu === "presets" && <div className="pfc-node-style-toolbar__menu pfc-node-style-toolbar__menu--presets"><span>节点样式</span><div className="pfc-node-style-toolbar__preset-list">{presets.length ? presets.map(preset => <button key={preset.id} type="button" onClick={() => { setStyle(preset.style); onChange(preset.style); setOpenMenu(null); }}>{preset.name}</button>) : <small>保存当前样式后，可在这里复用</small>}</div><div className="pfc-node-style-toolbar__preset-save"><input aria-label="节点样式名称" value={presetName} placeholder="例如：重点节点" maxLength={24} onChange={event => setPresetName(event.target.value)} onKeyDown={event => { if (event.key === "Enter") savePreset(); }} /><button type="button" disabled={!presetName.trim()} onClick={savePreset}>保存</button></div></div>}
     </div>}
     <button type="button" title="字号" aria-label="字号" aria-expanded={openMenu === "fontSize"} onClick={() => toggle("fontSize")}>T</button>
     <button className={style.fontWeight === "bold" ? "is-active" : ""} type="button" title="加粗" aria-label="加粗" aria-pressed={style.fontWeight === "bold"} onClick={() => apply({ fontWeight: style.fontWeight === "bold" ? "normal" : "bold" })}>B</button>
+    <button className={icon ? "is-active" : ""} type="button" title="节点图标" aria-label="节点图标" aria-expanded={openMenu === "icon"} onClick={() => toggle("icon")}>☺</button>
     <button type="button" title="文字颜色" aria-label="文字颜色" aria-expanded={openMenu === "color"} onClick={() => toggle("color")}>A</button>
     <button type="button" title="背景颜色" aria-label="背景颜色" aria-expanded={openMenu === "fillColor"} onClick={() => toggle("fillColor")}>▰</button>
     <button type="button" title="边框样式" aria-label="边框样式" aria-expanded={openMenu === "border"} onClick={() => toggle("border")}>□</button>

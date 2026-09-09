@@ -82,6 +82,18 @@ test('selecting a flowchart node opens the movable style editor', () => {
   assert.match(source, /onChange=\{editNode\}/);
 });
 
+test('flowchart style editor supports persistent custom node icons', () => {
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  const model = readFileSync(new URL('./flowchartModel.ts', import.meta.url), 'utf8');
+  const toolbar = readFileSync(new URL('./FlowchartNodeStyleToolbar.tsx', import.meta.url), 'utf8');
+  assert.match(model, /icon\?: string/);
+  assert.match(source, /data\.icon \|\|/);
+  assert.match(toolbar, /type OpenMenu = .*"icon"/);
+  assert.match(toolbar, /openMenu === "icon"/);
+  assert.match(toolbar, /aria-label="节点图标"/);
+  assert.match(toolbar, /onChange\(\{ icon:/);
+});
+
 test('tilde opens inline text editing for the selected flowchart node', () => {
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
   assert.match(source, /isNodeEditShortcut/);
@@ -134,7 +146,7 @@ test('canvas supports lasso and Command multi-selection for shared node styles',
   assert.match(source, /const \[selectedIds, setSelectedIds\] = useState<string\[\]>\(\[\]\)/);
   assert.match(source, /selectionOnDrag/);
   assert.match(source, /multiSelectionKeyCode="Meta"/);
-  assert.match(source, /onPaneClick=\{\(\) => \{\}\}/);
+  assert.match(source, /onPaneClick=\{\(\) => setEditingNode\(""\)\}/);
   assert.match(source, /<FlowchartNodeStyleToolbar nodes=\{selectedNodes\}/);
 });
 

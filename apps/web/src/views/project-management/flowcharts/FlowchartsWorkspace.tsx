@@ -27,7 +27,7 @@ function NoteNode({ data, selected }: NodeProps<FlowNode>) {
 function AnalysisNode({ data, selected }: NodeProps<FlowNode>) {
   return <div className={`pfc-node is-${data.kind}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
     <Handle type="target" position={Position.Left} />
-    <span className="pfc-node-symbol" aria-hidden="true">{data.kind === "table" ? "▤" : data.kind === "decision" ? "◇" : data.kind === "boundary" ? "◉" : "→"}</span>
+    <span className="pfc-node-symbol" aria-hidden="true">{data.icon || (data.kind === "table" ? "▤" : data.kind === "decision" ? "◇" : data.kind === "boundary" ? "◉" : "→")}</span>
     <NodeLabel data={data} />
     <Handle type="source" position={Position.Right} />
   </div>;
