@@ -6,6 +6,7 @@ import Export from "simple-mind-map/src/plugins/Export.js";
 import RichText from "simple-mind-map/src/plugins/RichText.js";
 import { applyPanSensitivity, boundedCanvasPanDelta, nextInertialPan, shouldStartCanvasPan, type CanvasPoint } from "./mindmapInteractions.js";
 import { MindmapNodeStyleToolbar, type MindmapNodeStyleTarget } from "./MindmapNodeStyleToolbar.js";
+import { clearMindmapHost } from "./mindmapHost.js";
 import { decorateTitleNoteHtml, hasNodeNote, richTextNodeLayoutCss, titleOnlyNodeHtml } from "./richTextNode.js";
 
 MindMap.usePlugin(Drag).usePlugin(Select).usePlugin(Export).usePlugin(RichText);
@@ -168,7 +169,7 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
       mindMap.off("rich_text_selection_change", handleRichTextSelection);
       mindMap.off("hide_text_edit", handleHideTextEdit);
       mindMap.removeAppendCss("richTextNodeLayout");
-      delete (hostRef.current as HTMLDivElement & { __mindMap?: typeof mindMap }).__mindMap;
+      clearMindmapHost(hostRef.current);
       mindMap.destroy();
     };
   // Map edits emit `data_change` and update the parent state. Recreating the
