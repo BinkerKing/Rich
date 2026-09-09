@@ -7,7 +7,7 @@ import RichText from "simple-mind-map/src/plugins/RichText.js";
 import { applyPanSensitivity, boundedCanvasPanDelta, nextInertialPan, shouldStartCanvasPan, type CanvasPoint } from "./mindmapInteractions.js";
 import { MindmapNodeStyleToolbar, type MindmapNodeStyleTarget } from "./MindmapNodeStyleToolbar.js";
 import { clearMindmapHost } from "./mindmapHost.js";
-import { decorateTitleNoteHtml, hasNodeNote, richTextNodeLayoutCss, titleOnlyNodeHtml } from "./richTextNode.js";
+import { decorateTitleNoteHtml, hasNodeNote, normalizeTitleNoteTree, richTextNodeLayoutCss, titleOnlyNodeHtml } from "./richTextNode.js";
 
 MindMap.usePlugin(Drag).usePlugin(Select).usePlugin(Export).usePlugin(RichText);
 
@@ -52,9 +52,10 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
     if (!hostRef.current) return;
 
     const themeConfig = typeof theme === "string" ? undefined : theme.config;
+    const normalizedData = normalizeTitleNoteTree(data);
     const mindMap = new MindMap({
       el: hostRef.current,
-      data,
+      data: normalizedData,
       layout,
       theme: typeof theme === "string" ? theme : theme.template,
       themeConfig,
@@ -148,6 +149,7 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
     mindMap.on("node_active", handleNodeActive);
     mindMap.on("rich_text_selection_change", handleRichTextSelection);
     mindMap.on("hide_text_edit", handleHideTextEdit);
+    if (normalizedData !== data) onChangeRef.current(mindMap.getData() as MindmapData);
     onReadyRef.current?.({
       undo: () => mindMap.execCommand("BACK"),
       redo: () => mindMap.execCommand("FORWARD"),

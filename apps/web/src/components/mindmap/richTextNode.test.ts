@@ -1,18 +1,27 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decorateTitleNoteHtml, hasNodeNote, richTextNodeLayoutCss, titleFromNodeHtml, titleNoteNodeHtml, titleOnlyNodeHtml } from "./richTextNode.js";
+import { decorateTitleNoteHtml, hasNodeNote, normalizeTitleNoteTree, richTextNodeLayoutCss, titleFromNodeHtml, titleNoteNodeHtml, titleOnlyNodeHtml } from "./richTextNode.js";
 
 test("creates a title-and-note card as safely escaped rich text HTML", () => {
   assert.equal(
     titleNoteNodeHtml("引擎 <诊断>", "问题1\n问题2"),
-    '<p class="mindmap-node-title"><strong>引擎 &lt;诊断&gt;</strong></p><p class="mindmap-node-note">问题1<br>问题2</p>',
+    '<p class="mindmap-node-title"><strong>引擎 &lt;诊断&gt;</strong></p><div class="mindmap-node-note"><p>问题1<br>问题2</p></div>',
   );
 });
 
 test("restores the title and note classes after rich-text editing", () => {
   assert.equal(
     decorateTitleNoteHtml('<p><strong>引擎诊断</strong></p><p><em>待检查</em></p>'),
-    '<p class="mindmap-node-title"><strong>引擎诊断</strong></p><p class="mindmap-node-note"><em>待检查</em></p>',
+    '<p class="mindmap-node-title"><strong>引擎诊断</strong></p><div class="mindmap-node-note"><p><em>待检查</em></p></div>',
+  );
+});
+
+test("migrates existing title-note cards to one grouped note module", () => {
+  const tree = { data: { nodeCardStyle: "title-note", text: "<p>标题</p><p>第一条</p><p>第二条</p>" }, children: [] };
+  const normalized = normalizeTitleNoteTree(tree);
+  assert.equal(
+    (normalized.data as Record<string, unknown>).text,
+    '<p class="mindmap-node-title">标题</p><div class="mindmap-node-note"><p>第一条</p><p>第二条</p></div>',
   );
 });
 
@@ -33,4 +42,5 @@ test("resets paragraph margins inside SVG rich-text nodes so their content is no
   assert.match(richTextNodeLayoutCss, /margin:\s*0/);
   assert.match(richTextNodeLayoutCss, /\.mindmap-node-note/);
   assert.match(richTextNodeLayoutCss, /border:/);
+  assert.match(richTextNodeLayoutCss, /\.smm-richtext-node-edit-wrap/);
 });
