@@ -9,3 +9,9 @@ const options: Record<StyleMenu, number[]> = {
 export function styleMenuOptions(menu: StyleMenu): number[] {
   return options[menu];
 }
+
+export function noteButtonState(hasNote: boolean): { disabled: boolean; label: string } {
+  return hasNote
+    ? { disabled: true, label: "删除备注内容即可关闭" }
+    : { disabled: false, label: "增加备注" };
+}

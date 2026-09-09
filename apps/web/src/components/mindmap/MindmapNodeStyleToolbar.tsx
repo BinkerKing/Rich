@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { nodeStyleFromData, type NodeStyle } from "./nodeStyleControls.js";
-import { styleMenuOptions, type StyleMenu } from "./nodeStyleToolbarMenu.js";
-import { titleFromNodeHtml, titleNoteNodeHtml, titleOnlyNodeHtml } from "./richTextNode.js";
+import { noteButtonState, styleMenuOptions, type StyleMenu } from "./nodeStyleToolbarMenu.js";
+import { titleFromNodeHtml, titleNoteNodeHtml } from "./richTextNode.js";
 import "./mindmapNodeStyleToolbar.css";
 
 export type MindmapNodeStyleTarget = {
@@ -31,6 +31,7 @@ export function MindmapNodeStyleToolbar({ node }: Props) {
   };
   const toggle = (menu: OpenMenu) => setOpenMenu(current => current === menu ? null : menu);
   const colorMenu = (key: "color" | "fillColor" | "borderColor", label: string) => <div className="mindmap-node-style-toolbar__menu mindmap-node-style-toolbar__menu--color"><span>{label}</span><input aria-label={label} type="color" value={style[key]} onChange={event => apply({ [key]: event.target.value })} /></div>;
+  const noteState = noteButtonState(hasNote);
 
   return <aside className="mindmap-node-style-toolbar" aria-label="节点样式">
     {openMenu && <div className="mindmap-node-style-toolbar__menu-wrap">
@@ -45,17 +46,11 @@ export function MindmapNodeStyleToolbar({ node }: Props) {
     <button type="button" title="文字颜色" aria-label="文字颜色" aria-expanded={openMenu === "color"} onClick={() => toggle("color")}><ToolbarIcon name="color" /></button>
     <button type="button" title="背景颜色" aria-label="背景颜色" aria-expanded={openMenu === "fillColor"} onClick={() => toggle("fillColor")}><ToolbarIcon name="fill" /></button>
     <button type="button" title="边框样式" aria-label="边框样式" aria-expanded={openMenu === "border"} onClick={() => toggle("border")}><ToolbarIcon name="border" /></button>
-    <button className={hasNote ? "is-active" : ""} type="button" title={hasNote ? "移除备注" : "增加备注"} aria-label={hasNote ? "移除备注" : "增加备注"} aria-pressed={hasNote} onClick={() => {
+    <button className={hasNote ? "is-active" : ""} type="button" disabled={noteState.disabled} title={noteState.label} aria-label={noteState.label} aria-pressed={hasNote} onClick={() => {
       const title = titleFromNodeHtml(node.getData("text"));
-      if (hasNote) {
-        node.setData({ nodeCardStyle: undefined });
-        node.setText(titleOnlyNodeHtml(node.getData("text")), true);
-        setHasNote(false);
-      } else {
-        node.setData({ nodeCardStyle: "title-note" });
-        node.setText(titleNoteNodeHtml(title, "点击两次编辑备注"), true);
-        setHasNote(true);
-      }
+      node.setData({ nodeCardStyle: "title-note" });
+      node.setText(titleNoteNodeHtml(title, "点击两次编辑备注"), true);
+      setHasNote(true);
     }}><ToolbarIcon name="note" /></button>
   </aside>;
 }
