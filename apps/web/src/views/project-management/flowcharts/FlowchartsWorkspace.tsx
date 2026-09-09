@@ -35,12 +35,12 @@ function AnalysisNode({ data, selected }: NodeProps<FlowNode>) {
 }
 function NodeLabel({ data }: { data: FlowNode["data"] }) {
   if (!data.editing) return <strong>{data.label}</strong>;
-  return <strong><input className="pfc-node-label-input" aria-label="编辑节点文字" autoFocus defaultValue={data.label}
-    onClick={event => event.stopPropagation()} onKeyDown={event => {
+  return <strong className="pfc-node-label-editor nodrag nopan" aria-label="编辑节点文字" contentEditable suppressContentEditableWarning autoFocus
+    onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()} onKeyDown={event => {
       event.stopPropagation();
-      if (event.key === "Enter") event.currentTarget.blur();
-      if (event.key === "Escape") { event.currentTarget.value = data.label; event.currentTarget.blur(); }
-    }} onBlur={event => data.onLabelChange?.(event.currentTarget.value.trim() || data.label)} /></strong>;
+      if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); }
+      if (event.key === "Escape") { event.currentTarget.textContent = data.label; event.currentTarget.blur(); }
+    }} onBlur={event => data.onLabelChange?.(event.currentTarget.textContent?.trim() || data.label)}>{data.label}</strong>;
 }
 function nodeStyle(data: FlowNode["data"]): CSSProperties {
   return {
@@ -312,14 +312,14 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
               onNodeClick={(event, row) => { setSelectedIds(current => {
                 const ids = event.metaKey ? current.includes(row.id) ? current.filter(id => id !== row.id) : [...current, row.id] : [row.id];
                 setSelected(ids[0] ?? ""); return ids;
-              }); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); }} onNodeContextMenu={(event, row) => {
+              }); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); }} onNodeDoubleClick={(_, row) => { setSelected(row.id); setSelectedIds([row.id]); setDetailNode(row.id); }} onNodeContextMenu={(event, row) => {
                 event.preventDefault();
                 const now = Date.now();
                 if (rightClickNode.current?.id === row.id && now - rightClickNode.current.time < 450) {
-                  setSelected(row.id); setSelectedIds([row.id]); setDetailNode(row.id); rightClickNode.current = null;
+                  enter(row.id); rightClickNode.current = null;
                 } else rightClickNode.current = { id: row.id, time: now };
               }}
-              onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); setSelectedIds([]); setEditingNode(""); setDetailNode(""); }} onPaneClick={() => {}} onPaneContextMenu={event => event.preventDefault()}>
+              onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); setSelectedIds([]); setEditingNode(""); setDetailNode(""); }} onPaneClick={() => setEditingNode("")} onPaneContextMenu={event => event.preventDefault()}>
               <Background gap={28} size={1} color="#44444d" /><Controls />
             </ReactFlow>
           </div>

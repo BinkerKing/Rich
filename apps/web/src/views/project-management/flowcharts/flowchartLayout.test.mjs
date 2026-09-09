@@ -89,25 +89,28 @@ test('tilde opens inline text editing for the selected flowchart node', () => {
   assert.match(source, /aria-label="编辑节点文字"/);
 });
 
-test('inline node editing keeps the original node label appearance', () => {
+test('inline node editing turns the original label itself into editable text', () => {
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
-  assert.match(source, /return <strong><input className="pfc-node-label-input"/);
-  const inputRule = rule('.pfc-node-label-input');
-  assert.match(inputRule, /border:0/);
-  assert.match(inputRule, /background:transparent/);
-  assert.match(inputRule, /padding:0/);
-  assert.match(inputRule, /font:inherit/);
+  assert.match(source, /contentEditable/);
+  assert.match(source, /className="pfc-node-label-editor nodrag nopan"/);
+  assert.doesNotMatch(source, /pfc-node-label-input/);
 });
 
-test('node details open only after two right clicks and Escape closes only the details', () => {
+test('left double click opens details while right double click enters a child flowchart', () => {
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
   assert.match(source, /const \[detailNode, setDetailNode\] = useState\(""\)/);
+  assert.match(source, /onNodeDoubleClick=\{\(_, row\) => \{ setSelected\(row\.id\); setSelectedIds\(\[row\.id\]\); setDetailNode\(row\.id\); \}\}/);
   assert.match(source, /onNodeContextMenu=\{\(event, row\) => \{/);
   assert.match(source, /event\.preventDefault\(\)/);
   assert.match(source, /rightClickNode\.current\?\.id === row\.id/);
-  assert.doesNotMatch(source, /onNodeDoubleClick=/);
+  assert.match(source, /enter\(row\.id\)/);
   assert.match(source, /event\.key === "Escape" && detailNode/);
   assert.match(source, /detailNode && <aside/);
+});
+
+test('clicking the canvas exits inline node editing', () => {
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(source, /onPaneClick=\{\(\) => setEditingNode\(""\)\}/);
 });
 
 test('canvas supports lasso and Command multi-selection for shared node styles', () => {
