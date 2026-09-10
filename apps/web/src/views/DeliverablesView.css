@@ -201,6 +201,139 @@ main.deliverables-app .deliverables-workspace--standalone .deliverables-workspac
 
 main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__primary{display:grid;place-items:center;width:40px;height:40px;padding:0;border:0;border-radius:0;background:transparent;color:#e4e4e7;font-size:22px;cursor:pointer}main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__primary:hover,main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__primary:focus-visible{border:0;background:transparent;color:#fff;transform:scale(1.08);outline:0}main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__primary svg{width:27px;height:27px}main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__list::before{content:"交付物"}main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__list>article{height:86px}main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__row{height:86px;padding:16px 18px;grid-template-columns:32px minmax(0,1fr);align-items:center;gap:16px}main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__row::before{display:none}main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__list-icon{display:grid;place-items:center;color:#c7c7cc}main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__list-icon svg{width:28px;height:28px;stroke-width:2.2}main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__row strong{font-size:16px;line-height:1.4}
 
+/* Detail surfaces use one neutral dark scale; color only marks file and record semantics. */
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__list > article.is-open,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__body { background:#0b0b0c; }
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__list > article.is-open > .deliverables-workspace__row {
+  border-bottom-color:#29292d;
+  background:#121214;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__switch {
+  border-color:#303034;
+  background:#101011;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__switch button { color:#a1a1aa!important; }
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__switch button.is-active {
+  color:#f4f4f5!important;
+  background:#27272a!important;
+  box-shadow:none;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__description,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__records,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__versions {
+  border-color:#303034;
+  border-left-color:#71717a;
+  background:#121214;
+  box-shadow:0 16px 42px rgba(0,0,0,.28);
+  backdrop-filter:none;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__description > header,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__versions > header,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__records > h2 {
+  border-bottom-color:#29292d;
+  color:#f4f4f5;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__description > .prj-pm-rich-editor,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-composer .prj-pm-rich-editor {
+  border-color:#303034;
+  background:#0b0b0c;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .prj-pm-rich-toolbar {
+  border-bottom-color:#303034;
+  background:#151517;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .prj-pm-rich-surface { color:#e4e4e7; }
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-composer:not(.is-editing-existing) {
+  border-top-color:#303034;
+  background:#121214;
+  box-shadow:none;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-composer > footer > aside {
+  border-left-color:#303034;
+  color:#a1a1aa;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-composer > footer > aside label { color:#c8fbff; }
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-composer > footer select,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-composer > footer > button,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-edit-cancel {
+  border-color:#3f3f46!important;
+  color:#e4e4e7!important;
+  background:#18181b!important;
+  box-shadow:none;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-composer > footer > button:hover,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-edit-cancel:hover {
+  border-color:#71717a!important;
+  background:#27272a!important;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-kind-select.is-requirement,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-kind-select.is-status,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-kind-select.is-change,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-kind-select.is-information,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-kind-select.is-material,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-kind-select.is-decision,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-kind-select.is-issue,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-kind-select.is-risk,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__record-kind-select.is-codex {
+  border-color:#3f3f46;
+  background:#18181b;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__refresh,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__file-row aside button {
+  border-color:#3f3f46;
+  color:#d4d4d8;
+  background:#151517;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__refresh:hover,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__file-row aside button:hover {
+  border-color:#71717a;
+  color:#fff;
+  background:#27272a;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__file-table {
+  border-color:#303034;
+  background:#0b0b0c;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__file-head {
+  color:#a1a1aa;
+  background:#151517;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__file-row { border-top-color:#29292d; }
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__file-row:hover,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__file-row.is-directory { background:#171719; }
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__file-row select,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__file-row > input,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__file-note input {
+  border-color:#3f3f46;
+  color:#e4e4e7;
+  background:#151517;
+}
+
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__file-row select { color:#c8fbff; }
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__file-row > strong em { color:#f4f4f5; }
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__file-row > strong small,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__file-row time,
+main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__file-size { color:#a1a1aa; }
+
 @media (max-width:1050px) {
   main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__list > article.is-open { overflow:auto; }
   main.deliverables-app .deliverables-workspace--standalone .deliverables-workspace__body { height:auto; min-height:calc(100vh - 58px); }
