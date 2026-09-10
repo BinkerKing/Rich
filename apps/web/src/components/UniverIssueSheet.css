@@ -1,0 +1,12 @@
+.univer-issue-sheet {
+  height: min(72vh, 760px);
+  min-height: 520px;
+  overflow: hidden;
+  border: 1px solid #3e4a50;
+  border-radius: 10px;
+  background: #1d2326;
+}
+
+.univer-issue-sheet .univer-shell {
+  height: 100%;
+}

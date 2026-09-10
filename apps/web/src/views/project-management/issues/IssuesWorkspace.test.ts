@@ -16,3 +16,10 @@ test("新建问题表按钮采用工作台统一的青绿色主操作样式", ()
   assert.match(source, /className="issues-workspace__create-button"/);
   assert.match(styles, /\.issues-workspace__create-button\s*\{[^}]*background:linear-gradient\(135deg,#1b928c,#166d6f\)/s);
 });
+
+test("打开问题表时使用 Univer 编辑器而非旧的配置表格", () => {
+  assert.match(source, /lazy\(\(\) => import\("\.\.\/\.\.\/\.\.\/components\/UniverIssueSheet\.js"\)\)/);
+  assert.match(source, /<Suspense fallback=/);
+  assert.match(source, /<UniverIssueSheet/);
+  assert.doesNotMatch(source, /<ConfigurableDataGrid ariaLabel=\{`\$\{active\.title\} 表格`\}/);
+});
