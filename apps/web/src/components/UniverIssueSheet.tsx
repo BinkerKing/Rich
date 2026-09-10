@@ -103,3 +103,5 @@ export function UniverIssueSheet({ tableId, tableName, issues, onIssueChange }: 
 
   return <div ref={containerRef} className="univer-issue-sheet" aria-label={`${tableName} Excel 编辑器`} />;
 }
+
+export default UniverIssueSheet;
