@@ -26,6 +26,7 @@ import {
 
 type Item = ProjectModuleItem & {
   content: ReturnType<typeof normalizeDeliverableContent>;
+  standalone?: boolean;
 };
 type DeliverableFile = {
   fileName: string;
@@ -53,13 +54,19 @@ const richTextHasContent = (value: string) => value.replace(/<[^>]*>/g, "").repl
 const absoluteFolderPath = (projectRoot: string | undefined, folderPath: string) => projectRoot ? `${projectRoot.replace(/\/+$/, "")}/${folderPath.replace(/^\/+/, "")}` : folderPath;
 
 export function DeliverablesWorkspace({
-  projectId,
+  projectId = "",
   projectRoot,
   deliverablesRoot,
+  standalone = false,
+  deliverableIds,
+  onDeliverableIdsChange,
 }: {
-  projectId: string;
+  projectId?: string;
   projectRoot?: string;
   deliverablesRoot?: string;
+  standalone?: boolean;
+  deliverableIds?: string[];
+  onDeliverableIdsChange?: (ids: string[]) => Promise<void>;
 }): ReactNode {
   const [items, setItems] = useState<Item[]>([]);
   const [openId, setOpenId] = useState<string>();
@@ -82,6 +89,11 @@ export function DeliverablesWorkspace({
   const [draggingFiles, setDraggingFiles] = useState(false);
   const [editingFileNotePath, setEditingFileNotePath] = useState<string>();
   const [editingFileNote, setEditingFileNote] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newFolderPath, setNewFolderPath] = useState("");
+  const [binding, setBinding] = useState(false);
+  const [availableDeliverables, setAvailableDeliverables] = useState<Array<{ id: string; title: string }>>([]);
   const itemRefs = useRef<Record<string, HTMLElement | null>>({});
   const materialInputRef = useRef<HTMLInputElement>(null);
   const editingMaterialInputRef = useRef<HTMLInputElement>(null);
@@ -100,10 +112,9 @@ export function DeliverablesWorkspace({
   const refreshFiles = async (item: Item) => {
     setLoadingFolders((all) => ({ ...all, [item.content.folderPath]: true }));
     try {
-      const files = await api.listDeliverableFiles(
-        projectId,
-        item.content.folderPath,
-      );
+      const files = standalone || deliverableIds !== undefined
+        ? await api.listStandaloneDeliverableFiles(item.id)
+        : await api.listDeliverableFiles(projectId, item.content.folderPath);
       setFilesByFolder((all) => ({ ...all, [item.content.folderPath]: files }));
     } finally {
       setLoadingFolders((all) => ({
@@ -113,12 +124,22 @@ export function DeliverablesWorkspace({
     }
   };
   const refreshItems = async () => {
+    if (standalone || deliverableIds !== undefined) {
+      const global = (await api.listDeliverables()).filter(item => standalone || (deliverableIds ?? []).includes(item.id)).map(item => ({ ...item, moduleKey: "deliverables", parentId: null, subtitle: null, sortOrder: 0, content: normalizeDeliverableContent(item.content), standalone: true } as unknown as Item));
+      if (standalone) { setItems(global); return; }
+      const legacy = await api.listProjectManagementModuleItems(projectId, "deliverables", undefined, true);
+      setItems([...global, ...legacy.map(item => ({ ...item, content: normalizeDeliverableContent(item.content) }))]);
+      return;
+    }
+    if (!projectId) return;
     const deliverables = await api.listProjectManagementModuleItems(projectId, "deliverables", undefined, true);
     const next = deliverables.map((item) => ({ ...item, content: normalizeDeliverableContent(item.content) }));
     setItems(next);
     await Promise.all(next.map(refreshFiles));
   };
   const load = async () => {
+    if (standalone || deliverableIds !== undefined) return refreshItems();
+    if (!projectId) return;
     let deliverables = await api.listProjectManagementModuleItems(
       projectId,
       "deliverables",
@@ -283,7 +304,7 @@ export function DeliverablesWorkspace({
   };
   useEffect(() => {
     void load();
-  }, [projectId, deliverablesRoot]);
+  }, [projectId, deliverablesRoot, standalone, deliverableIds]);
   useEffect(() => {
     const refreshDeliverableData = (event: Event) => {
       const target = (event as CustomEvent<{ projectId?: string; deliverableId?: string }>).detail;
@@ -292,7 +313,7 @@ export function DeliverablesWorkspace({
     };
     window.addEventListener(DELIVERABLE_DATA_CHANGED_EVENT, refreshDeliverableData);
     return () => window.removeEventListener(DELIVERABLE_DATA_CHANGED_EVENT, refreshDeliverableData);
-  }, [projectId, deliverablesRoot]);
+  }, [projectId, deliverablesRoot, standalone, deliverableIds]);
   useEffect(() => {
     if (openId)
       itemRefs.current[openId]?.scrollIntoView({
@@ -317,6 +338,12 @@ export function DeliverablesWorkspace({
     if (item) void refreshFiles(item);
   }, [items, openId]);
   const save = async (item: Item, content: Item["content"]) => {
+    if (standalone || deliverableIds !== undefined) {
+      const updated = await api.updateDeliverable(item.id, { content });
+      setItems(all => all.map(current => current.id === item.id ? ({ ...current, ...updated, content: normalizeDeliverableContent(updated.content) } as Item) : current));
+      return;
+    }
+    if (!projectId) return;
     const updated = await api.updateProjectManagementModuleItem(
       projectId,
       item.id,
@@ -334,11 +361,39 @@ export function DeliverablesWorkspace({
     );
   };
   const openFolder = async (item: Item) => {
+    if (standalone || deliverableIds !== undefined) { await api.createStandaloneDeliverableFolder(item.id); await api.openStandaloneDeliverableFolder(item.id); return; }
     await api.createDeliverableFolder(projectId, item.content.folderPath);
     await api.deliverableFileAction(projectId, "open", item.content.folderPath);
   };
+  const createStandalone = async () => {
+    if (!newTitle.trim() || !newFolderPath.trim()) return;
+    const item = await api.createDeliverable({ title: newTitle.trim(), content: normalizeDeliverableContent({ folderPath: newFolderPath.trim() }) });
+    await api.createStandaloneDeliverableFolder(item.id);
+    setNewTitle(""); setNewFolderPath(""); setCreating(false);
+    await refreshItems(); setOpenId(item.id);
+  };
+  const openBinding = async () => {
+    setAvailableDeliverables((await api.listDeliverables()).filter(item => !(deliverableIds ?? []).includes(item.id)).map(item => ({ id: item.id, title: item.title })));
+    setBinding(true);
+  };
+  const bind = async (id: string) => {
+    if (!onDeliverableIdsChange) return;
+    await onDeliverableIdsChange([...(deliverableIds ?? []), id]);
+    setBinding(false);
+  };
+  const unbind = async (item: Item) => {
+    if (!onDeliverableIdsChange || !item.standalone || !window.confirm(`解除“${item.title}”与当前项目的关联？交付物和目录不会删除。`)) return;
+    await onDeliverableIdsChange((deliverableIds ?? []).filter(id => id !== item.id));
+  };
   const upload = async (item: Item, files: File[]) => {
     if (!files.length) return;
+    if (standalone || deliverableIds !== undefined) {
+      const uploaded = [];
+      for (const file of files) uploaded.push(await api.uploadStandaloneDeliverableFile(item.id, file));
+      await save(item, uploaded.reduce((content, file) => addDeliverableVersion(content, { id: crypto.randomUUID(), ...file, createdAt: new Date().toISOString() }), item.content));
+      await refreshFiles(item);
+      return;
+    }
     await api.createDeliverableFolder(projectId, item.content.folderPath);
     const uploaded = [];
     for (const file of files)
@@ -480,7 +535,8 @@ export function DeliverablesWorkspace({
   };
   const deleteFile = async (item: Item, file: DeliverableFile) => {
     if (!window.confirm(`删除 ${file.fileName}？`)) return;
-    await api.deleteDeliverableFile(projectId, file.relativePath);
+    if (standalone || item.standalone) await api.deleteStandaloneDeliverableFile(item.id, file.relativePath);
+    else await api.deleteDeliverableFile(projectId, file.relativePath);
     await save(item, {
       ...item.content,
       versions: item.content.versions.filter(
@@ -518,14 +574,22 @@ export function DeliverablesWorkspace({
     : items;
 
   return (
-    <section className="deliverables-workspace">
+    <section className={`deliverables-workspace${standalone ? " deliverables-workspace--standalone" : ""}`}>
       <header>
         <div>
           <p className="deliverables-workspace__eyebrow">PROJECT OUTPUTS</p>
           <h1>交付物</h1>
-          <p>由项目任务自动关联的可追溯交付记录。</p>
+          <p>{standalone ? "统一管理目录绑定的可复用交付物。" : "由项目任务自动关联的可追溯交付记录。"}</p>
         </div>
+        {standalone && <button className="deliverables-workspace__primary" type="button" onClick={() => setCreating(value => !value)}>{creating ? "取消" : "新建交付物"}</button>}
+        {!standalone && onDeliverableIdsChange && <button type="button" onClick={() => void openBinding()}>绑定已有交付物</button>}
       </header>
+      {standalone && creating && <form className="deliverables-workspace__create" onSubmit={event => { event.preventDefault(); void createStandalone(); }}>
+        <input aria-label="交付物名称" placeholder="交付物名称" value={newTitle} onChange={event => setNewTitle(event.target.value)} />
+        <input aria-label="交付物目录" placeholder="绝对目录，例如 /Users/me/Deliverables/UAT" value={newFolderPath} onChange={event => setNewFolderPath(event.target.value)} />
+        <button disabled={!newTitle.trim() || !newFolderPath.trim()}>创建并绑定目录</button>
+      </form>}
+      {binding && <div className="deliverables-workspace__binding" role="dialog" aria-label="绑定已有交付物"><header><strong>绑定已有交付物</strong><button onClick={() => setBinding(false)}>×</button></header>{availableDeliverables.length ? availableDeliverables.map(item => <button key={item.id} onClick={() => void bind(item.id)}>{item.title}</button>) : <p>没有可绑定的交付物。</p>}</div>}
       <div className="deliverables-workspace__list">
         {visibleItems.map((item) => (
           <article
@@ -608,6 +672,7 @@ export function DeliverablesWorkspace({
                   <button onClick={() => void openFolder(item)}>
                     打开文件夹
                   </button>
+                  {!standalone && item.standalone && <button onClick={() => void unbind(item)}>解除项目绑定</button>}
                 </div>
                 <div className="deliverables-workspace__grid">
                   <section className="deliverables-workspace__description">

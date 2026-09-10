@@ -905,6 +905,49 @@ export const api = {
     if (!r.ok) throw new Error(`getProjectManagementSummary ${r.status}`);
     return r.json();
   },
+  async listFlowcharts(): Promise<Flowchart[]> {
+    const r = await fetch("/api/flowcharts");
+    if (!r.ok) throw new Error(`listFlowcharts ${r.status}`);
+    return r.json();
+  },
+  async createFlowchart(input: Pick<Flowchart, "title" | "graph">): Promise<Flowchart> {
+    const r = await fetch("/api/flowcharts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!r.ok) throw new Error(`createFlowchart ${r.status}`);
+    return r.json();
+  },
+  async updateFlowchart(id: string, patch: Partial<Pick<Flowchart, "title" | "graph">>): Promise<Flowchart> {
+    const r = await fetch(`/api/flowcharts/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) });
+    if (!r.ok) throw new Error(`updateFlowchart ${r.status}`);
+    return r.json();
+  },
+  async deleteFlowchart(id: string): Promise<void> {
+    const r = await fetch(`/api/flowcharts/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!r.ok) throw new Error(`deleteFlowchart ${r.status}`);
+  },
+  async listDeliverables(): Promise<Deliverable[]> {
+    const r = await fetch("/api/deliverables"); if (!r.ok) throw new Error(`listDeliverables ${r.status}`); return r.json();
+  },
+  async createDeliverable(input: Pick<Deliverable, "title" | "content">): Promise<Deliverable> {
+    const r = await fetch("/api/deliverables", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) }); if (!r.ok) throw new Error(`createDeliverable ${r.status}`); return r.json();
+  },
+  async updateDeliverable(id: string, patch: Partial<Pick<Deliverable, "title" | "content">>): Promise<Deliverable> {
+    const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) }); if (!r.ok) throw new Error(`updateDeliverable ${r.status}`); return r.json();
+  },
+  async createStandaloneDeliverableFolder(id: string): Promise<void> {
+    const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}/folder`, { method: "POST" }); if (!r.ok) throw new Error(`createStandaloneDeliverableFolder ${r.status}`);
+  },
+  async listStandaloneDeliverableFiles(id: string): Promise<Array<{ fileName: string; relativePath: string; size: number; modifiedAt: string; isDirectory: boolean }>> {
+    const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}/files`); if (!r.ok) throw new Error(`listStandaloneDeliverableFiles ${r.status}`); return (await r.json()).files;
+  },
+  async uploadStandaloneDeliverableFile(id: string, file: File): Promise<{ fileName: string; relativePath: string; size: number }> {
+    const form = new FormData(); form.set("file", file, file.name); const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}/files`, { method: "POST", body: form }); if (!r.ok) throw new Error(`uploadStandaloneDeliverableFile ${r.status}`); return r.json();
+  },
+  async openStandaloneDeliverableFolder(id: string): Promise<void> {
+    const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}/open`, { method: "POST" }); if (!r.ok) throw new Error(`openStandaloneDeliverableFolder ${r.status}`);
+  },
+  async deleteStandaloneDeliverableFile(id: string, path: string): Promise<void> {
+    const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}/files`, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ path }) }); if (!r.ok) throw new Error(`deleteStandaloneDeliverableFile ${r.status}`);
+  },
   async getProjectDescription(projectId: string): Promise<ProjectDescription> {
     const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/description`);
     if (!r.ok) throw new Error(`getProjectDescription ${r.status}`);
@@ -1691,6 +1734,15 @@ export interface MulticaIssueDetailSnapshot {
   runs: MulticaRun[]; runMessages: MulticaRunMessage[]; pullRequests: MulticaPullRequest[]; usage: MulticaUsage;
   metadata: Record<string, unknown>; properties: Array<Record<string, unknown>>; subscribers: MulticaActor[]; syncedAt: string;
 }
+
+export type Flowchart = {
+  id: string;
+  title: string;
+  graph: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
+export type Deliverable = { id: string; title: string; content: Record<string, unknown>; createdAt: string; updatedAt: string; };
 
 export type ProjectManagementModuleKey =
   | "dashboard"

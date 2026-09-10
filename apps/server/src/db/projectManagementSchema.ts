@@ -540,6 +540,24 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_pm_items_project_key ON pm_module_items(project_id, module_key, sort_order);
   CREATE INDEX IF NOT EXISTS idx_pm_items_parent ON pm_module_items(parent_id, sort_order);
 
+  CREATE TABLE IF NOT EXISTS flowcharts (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    graph_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_flowcharts_updated_at ON flowcharts(updated_at DESC);
+
+  CREATE TABLE IF NOT EXISTS deliverables (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    content_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_deliverables_updated_at ON deliverables(updated_at DESC);
+
   CREATE TABLE IF NOT EXISTS pm_automation_plans (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL,
@@ -1091,6 +1109,24 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_pm_items_project_key ON pm_module_items(project_id, module_key, sort_order);
   CREATE INDEX IF NOT EXISTS idx_pm_items_parent ON pm_module_items(parent_id, sort_order);
+
+  CREATE TABLE IF NOT EXISTS flowcharts (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    graph_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_flowcharts_updated_at ON flowcharts(updated_at DESC);
+
+  CREATE TABLE IF NOT EXISTS deliverables (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    content_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_deliverables_updated_at ON deliverables(updated_at DESC);
 
   CREATE TABLE IF NOT EXISTS pm_automation_plans (
     id TEXT PRIMARY KEY,

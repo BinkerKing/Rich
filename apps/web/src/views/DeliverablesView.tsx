@@ -1,0 +1,7 @@
+import { DeliverablesWorkspace } from "./project-management/deliverables/DeliverablesWorkspace.js";
+import "./ProjectsView.css";
+import "./DeliverablesView.css";
+
+export function DeliverablesView() {
+  return <main className="deliverables-app" aria-label="交付物应用"><DeliverablesWorkspace standalone /></main>;
+}
