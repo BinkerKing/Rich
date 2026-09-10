@@ -167,6 +167,13 @@ test('phase one exposes node type, resize, edge styling and reconnecting control
   assert.match(toolbar, /onKindChange/);
 });
 
+test('resized node borders fill the same bounds as the resize controls', () => {
+  assert.match(rule('.pfc-node'), /width: 100%/);
+  assert.match(rule('.pfc-node'), /height: 100%/);
+  assert.match(rule('.pfc-note'), /width: 100%/);
+  assert.match(rule('.pfc-note'), /height: 100%/);
+});
+
 test('phase one makes drawing and arranging productive from the canvas', () => {
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
   assert.match(source, /MiniMap/);

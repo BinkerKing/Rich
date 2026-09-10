@@ -36,6 +36,14 @@ test("创建节点保留语义类型、画布位置与默认文字", () => {
   assert.equal(node.data.label, "判断条件");
   assert.deepEqual(node.position, { x: 240, y: 180 });
   assert.equal(node.data.scope, "root");
+  assert.deepEqual(node.style, { width: 180, height: 68 });
+});
+
+test("读取旧流程图时补全节点可调整的默认尺寸", () => {
+  const graph = createFlowchart(false);
+  delete graph.nodes[0].style;
+  const restored = readFlowchart({ graph });
+  assert.deepEqual(restored.nodes[0].style, { width: 180, height: 68 });
 });
 
 test("创建连线带有可编辑的默认外观", () => {

@@ -26,9 +26,10 @@ export interface FlowchartData {
 }
 export const ROOT_SCOPE = "root";
 const nodeLabels: Record<FlowNodeKind, string> = { step: "处理步骤", decision: "判断条件", table: "数据表", boundary: "开始 / 结束", region: "流程区域", note: "备注" };
+const nodeSizes: Record<FlowNodeKind, { width: number; height: number }> = { step: { width: 180, height: 68 }, decision: { width: 180, height: 68 }, table: { width: 180, height: 68 }, boundary: { width: 180, height: 68 }, region: { width: 460, height: 240 }, note: { width: 260, height: 150 } };
 export function flowNodeType(kind: FlowNodeKind): FlowNode["type"] { return kind === "region" ? "region" : kind === "note" ? "note" : "analysis"; }
 export function createFlowNode(kind: FlowNodeKind, position: XYPosition, scope = ROOT_SCOPE): FlowNode {
-  return { id: crypto.randomUUID(), type: flowNodeType(kind), position, data: { label: nodeLabels[kind], kind, description: "", source: "", verified: false, scope } };
+  return { id: crypto.randomUUID(), type: flowNodeType(kind), position, style: { ...nodeSizes[kind] }, data: { label: nodeLabels[kind], kind, description: "", source: "", verified: false, scope } };
 }
 export function createFlowEdge(connection: Pick<Connection, "source" | "target"> & Partial<Pick<Connection, "sourceHandle" | "targetHandle">>): FlowEdge {
   return { ...connection, id: crypto.randomUUID(), type: "smoothstep", label: "", data: { lineStyle: "solid", lineWidth: 1.5, markerEnd: "arrow" } };
@@ -46,7 +47,7 @@ export function readFlowchart(content: Record<string, unknown>): FlowchartData {
   if (!graph || graph.version !== 1 || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) {
     throw new Error("流程图数据格式不正确，无法加载。");
   }
-  return graph;
+  return { ...graph, nodes: graph.nodes.map(node => ({ ...node, style: { ...nodeSizes[node.data.kind], ...node.style } })) };
 }
 export function scopePath(nodes: FlowNode[], scope: string): FlowNode[] {
   const path: FlowNode[] = [];
