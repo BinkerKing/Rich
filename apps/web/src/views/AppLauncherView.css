@@ -100,7 +100,7 @@
   border-style: dashed;
   transform: translateY(-2px);
 }
-.app-launcher-card__icon {
+html[data-theme] .app-launcher .app-launcher-card__icon {
   width: 68px;
   height: 68px;
   display: grid;
