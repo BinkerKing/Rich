@@ -55,7 +55,7 @@
 .pfc-node.is-decision { --node-accent: #e8c888; }
 .pfc-node.is-boundary { --node-accent: #b39bff; border-radius: 24px; }
 .pfc-node strong { display: block; color:var(--pfc-node-color,inherit); font-size:var(--pfc-node-font-size,14px); font-weight:var(--pfc-node-font-weight,600); line-height: 1.5; letter-spacing: .3px; white-space: pre-wrap; overflow-wrap: anywhere; }
-.pfc-node-label-editor { cursor:text; outline:0; }
+.pfc-node-label-editor { cursor:text; outline:0; caret-color:#f8fafc; }
 .pfc-node-label-editor:focus { box-shadow:0 1px 0 currentColor; }
 .pfc-node-symbol { flex: 0 0 22px; height: 26px; display: grid; place-items: center; color: var(--node-accent); background: transparent; font-size: 18px; text-shadow: 0 0 8px color-mix(in srgb,var(--node-accent) 40%,transparent); }
 .pfc .react-flow__handle { width: 6px; height: 6px; border: 1px solid var(--node-accent); background: #191b20; }
@@ -75,6 +75,11 @@
 .pfc-region header { display: flex; align-items: baseline; gap: 22px; padding: 22px 28px; }
 .pfc-region strong { color:var(--pfc-node-color,var(--section-accent)); font-size:var(--pfc-node-font-size,18px); font-weight:var(--pfc-node-font-weight,inherit); letter-spacing: 1px; }
 .pfc-region header span { font-size: 12px; color: #8297a7; }
+.pfc-region-content-editor { display:grid; width:100%; min-height:112px; align-content:start; gap:12px; padding:2px 0; caret-color:#fff; }
+.pfc-region-content-editor strong,.pfc-region-content-editor span { display:block; width:100%; min-height:28px; padding:0 2px 7px; border-bottom:1px solid rgba(var(--section-rgb),.64); }
+.pfc-region-content-editor span { min-height:34px; color:#b8cad7; font-size:13px; }
+.pfc-note-content-editor { display:block; min-height:96px; caret-color:#fff; }
+.pfc-note-content-editor strong,.pfc-note-content-editor p { display:block; min-height:28px; padding-bottom:6px; border-bottom:1px solid rgba(var(--section-rgb),.56); }
 .pfc-region.is-selected { border-color: var(--section-accent); }
 .pfc-note { width: 100%; height: 100%; min-height:0; box-sizing: border-box; position: relative; padding: 22px 20px 18px; border: 0; border-left: 1px solid rgba(var(--section-rgb),.7); border-radius: 0 8px 8px 0; background: rgba(30,30,35,.18); box-shadow: -4px 0 10px rgba(var(--section-rgb),.025); }
 .pfc-note-pin { position: absolute; width: 6px; height: 6px; border-radius: 50%; left: 18px; top: -3px; background: var(--section-accent); box-shadow: 0 0 10px var(--section-accent); }

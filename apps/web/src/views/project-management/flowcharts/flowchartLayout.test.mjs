@@ -120,6 +120,9 @@ test('inline region editing includes its title and small explanatory text', () =
   assert.match(source, /function RegionContent/);
   assert.match(source, /data\.editing \? <RegionContent data=\{data\} \/>/);
   assert.match(source, /onRegionTextChange/);
+  assert.match(rule('.pfc-region-content-editor'), /min-height:112px/);
+  assert.match(rule('.pfc-region-content-editor strong,.pfc-region-content-editor span'), /border-bottom:/);
+  assert.match(rule('.pfc-node-label-editor'), /caret-color:/);
 });
 
 test('Command Enter inserts a line break while Enter saves node editing', () => {
