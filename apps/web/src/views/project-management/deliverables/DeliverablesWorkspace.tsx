@@ -365,6 +365,13 @@ export function DeliverablesWorkspace({
     await api.createDeliverableFolder(projectId, item.content.folderPath);
     await api.deliverableFileAction(projectId, "open", item.content.folderPath);
   };
+  const fileAction = async (item: Item, action: "open" | "reveal", path: string) => {
+    if (standalone || deliverableIds !== undefined) {
+      await api.standaloneDeliverableFileAction(item.id, action, path);
+      return;
+    }
+    await api.deliverableFileAction(projectId, action, path);
+  };
   const createStandalone = async () => {
     if (!newTitle.trim() || !newFolderPath.trim()) return;
     const item = await api.createDeliverable({ title: newTitle.trim(), content: normalizeDeliverableContent({ folderPath: newFolderPath.trim() }) });
@@ -790,13 +797,7 @@ export function DeliverablesWorkspace({
                                     <button
                                       className="deliverables-workspace__attachment-link"
                                       title={`打开 ${file.fileName}`}
-                                      onClick={() =>
-                                        void api.deliverableFileAction(
-                                          projectId,
-                                          "open",
-                                          file.relativePath,
-                                        )
-                                      }
+                                      onClick={() => void fileAction(item, "open", file.relativePath)}
                                     >
                                       {file.fileName} · {fileSize(file.size)}
                                     </button>
@@ -861,7 +862,7 @@ export function DeliverablesWorkspace({
                                   <time>{fileDate(file.modifiedAt)}</time>
                                   <small className="deliverables-workspace__file-size">—</small>
                                   <aside>
-                                    <button title="打开目录" aria-label="打开目录" onClick={() => void api.deliverableFileAction(projectId, "open", file.relativePath)}>↗</button>
+                                    <button title="打开目录" aria-label="打开目录" onClick={() => void fileAction(item, "open", file.relativePath)}>↗</button>
                                   </aside>
                                 </div>
                               );
@@ -956,26 +957,14 @@ export function DeliverablesWorkspace({
                                     <button
                                       title="打开"
                                       aria-label="打开"
-                                      onClick={() =>
-                                        void api.deliverableFileAction(
-                                          projectId,
-                                          "open",
-                                          file.relativePath,
-                                        )
-                                      }
+                                      onClick={() => void fileAction(item, "open", file.relativePath)}
                                     >
                                       ↗
                                     </button>
                                     <button
                                       title="在访达中显示"
                                       aria-label="在访达中显示"
-                                      onClick={() =>
-                                        void api.deliverableFileAction(
-                                          projectId,
-                                          "reveal",
-                                          file.relativePath,
-                                        )
-                                      }
+                                      onClick={() => void fileAction(item, "reveal", file.relativePath)}
                                     >
                                       ⌕
                                     </button>

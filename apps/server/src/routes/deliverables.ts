@@ -8,6 +8,11 @@ const content = (value: unknown) => value && typeof value === "object" && !Array
 const directory = (value: Record<string, unknown>) => typeof value.folderPath === "string" && isAbsolute(value.folderPath) && !value.folderPath.includes("\0") ? resolve(value.folderPath) : null;
 const inside = (root: string, target: string) => target.startsWith(`${root}/`);
 
+const openPath = (path: string, reveal = false) => {
+  const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer" : "xdg-open";
+  const child = spawn(command, process.platform === "darwin" && reveal ? ["-R", path] : [path], { detached: true, stdio: "ignore" });
+  child.unref();
+};
 export function deliverablesRoutes(repo: DeliverablesRepo): Hono {
   const route = new Hono();
   route.get("/", async c => c.json(await repo.list()));
@@ -44,9 +49,20 @@ export function deliverablesRoutes(repo: DeliverablesRepo): Hono {
     if (!path || !inside(path, target)) return c.json({ error: "file must be inside deliverable folder" }, 400);
     await rm(target); return c.json({ ok: true });
   });
+  route.post("/:id/files/:action", async c => {
+    const path = await folder(c.req.param("id"));
+    const action = c.req.param("action");
+    const body = await c.req.json().catch(() => ({})) as { path?: unknown };
+    const target = typeof body.path === "string" ? resolve(body.path) : "";
+    if (!path || !inside(path, target)) return c.json({ error: "file must be inside deliverable folder" }, 400);
+    if (action !== "open" && action !== "reveal") return c.json({ error: "unsupported file action" }, 400);
+    if (!(await stat(target).catch(() => null))) return c.json({ error: "file not found" }, 404);
+    openPath(target, action === "reveal");
+    return c.json({ ok: true });
+  });
   route.post("/:id/open", async c => {
     const path = await folder(c.req.param("id")); if (!path) return c.json({ error: "deliverable folder not found" }, 404);
-    const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer" : "xdg-open"; const child = spawn(command, [path], { detached: true, stdio: "ignore" }); child.unref(); return c.json({ ok: true });
+    openPath(path); return c.json({ ok: true });
   });
   route.patch("/:id", async c => {
     const body = await c.req.json().catch(() => ({})) as { title?: unknown; content?: unknown };

@@ -945,6 +945,9 @@ export const api = {
   async openStandaloneDeliverableFolder(id: string): Promise<void> {
     const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}/open`, { method: "POST" }); if (!r.ok) throw new Error(`openStandaloneDeliverableFolder ${r.status}`);
   },
+  async standaloneDeliverableFileAction(id: string, action: "open" | "reveal", path: string): Promise<void> {
+    const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}/files/${action}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path }) }); if (!r.ok) throw new Error(`standaloneDeliverableFileAction ${r.status}`);
+  },
   async deleteStandaloneDeliverableFile(id: string, path: string): Promise<void> {
     const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}/files`, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ path }) }); if (!r.ok) throw new Error(`deleteStandaloneDeliverableFile ${r.status}`);
   },
