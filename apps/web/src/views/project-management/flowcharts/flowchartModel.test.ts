@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createFlowchart, createFlowEdge, createFlowNode, removeFlowNodes, scopePath, searchFlowNodes, readFlowchart } from "./flowchartModel.js";
+import { alignFlowNodes, copyFlowSelection, createFlowGroup, createFlowchart, createFlowEdge, createFlowNode, distributeFlowNodes, layoutFlowNodes, pasteFlowSelection, removeFlowNodes, scopePath, searchFlowNodes, readFlowchart, toggleFlowGroup } from "./flowchartModel.js";
 
 test("删除父节点同时清理深层子流程和相关连线，保留其他分支", () => {
   const graph = createFlowchart(true);
@@ -51,4 +51,52 @@ test("创建连线带有可编辑的默认外观", () => {
   assert.equal(edge.type, "smoothstep");
   assert.equal(edge.label, "");
   assert.deepEqual(edge.data, { lineStyle: "solid", lineWidth: 1.5, markerEnd: "arrow" });
+});
+
+test("多选节点可按边缘对齐并保持各自尺寸", () => {
+  const left = createFlowNode("step", { x: 100, y: 160 });
+  const right = createFlowNode("note", { x: 420, y: 40 });
+  const graph = { ...createFlowchart(false), nodes: [left, right], edges: [] };
+  const next = alignFlowNodes(graph, [left.id, right.id], "left");
+  assert.deepEqual(next.nodes.map(node => node.position.x), [100, 100]);
+  assert.equal(next.nodes[1]?.style?.width, 260);
+});
+
+test("多选节点可按横向间距均匀分布", () => {
+  const first = createFlowNode("step", { x: 0, y: 0 });
+  const middle = createFlowNode("step", { x: 100, y: 0 });
+  const last = createFlowNode("step", { x: 600, y: 0 });
+  const graph = { ...createFlowchart(false), nodes: [first, middle, last], edges: [] };
+  const next = distributeFlowNodes(graph, [first.id, middle.id, last.id], "horizontal");
+  assert.deepEqual(next.nodes.map(node => node.position.x), [0, 300, 600]);
+});
+
+test("自动布局可按横向流程顺序重新排布当前节点", () => {
+  const first = createFlowNode("step", { x: 480, y: 260 });
+  const second = createFlowNode("step", { x: 40, y: 20 });
+  const graph = { ...createFlowchart(false), nodes: [first, second], edges: [] };
+  const next = layoutFlowNodes(graph, [first.id, second.id], "horizontal");
+  assert.deepEqual(next.nodes.map(node => node.position), [{ x: 100, y: 160 }, { x: 360, y: 160 }]);
+});
+
+test("复制粘贴选区会保留内部连线而不带出外部连线", () => {
+  const first = createFlowNode("step", { x: 100, y: 100 });
+  const second = createFlowNode("step", { x: 350, y: 100 });
+  const outside = createFlowNode("step", { x: 600, y: 100 });
+  const graph = { ...createFlowchart(false), nodes: [first, second, outside], edges: [createFlowEdge({ source: first.id, target: second.id }), createFlowEdge({ source: second.id, target: outside.id })] };
+  const pasted = pasteFlowSelection(graph, copyFlowSelection(graph, [first.id, second.id]));
+  assert.equal(pasted.graph.nodes.length, 5);
+  assert.equal(pasted.graph.edges.length, 3);
+  assert.deepEqual(pasted.graph.nodes.slice(-2).map(node => node.position), [{ x: 132, y: 132 }, { x: 382, y: 132 }]);
+});
+
+test("选中的节点可组成可折叠流程区域，折叠状态可切换", () => {
+  const first = createFlowNode("step", { x: 100, y: 100 });
+  const second = createFlowNode("step", { x: 350, y: 100 });
+  const graph = { ...createFlowchart(false), nodes: [first, second], edges: [] };
+  const grouped = createFlowGroup(graph, [first.id, second.id]);
+  const group = grouped.nodes[0]!;
+  assert.equal(group.data.kind, "region");
+  assert.deepEqual(grouped.nodes.slice(1).map(node => node.data.groupId), [group.id, group.id]);
+  assert.equal(toggleFlowGroup(grouped, group.id).nodes[0]?.data.collapsed, true);
 });

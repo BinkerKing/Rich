@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, ty
 import { clampNodeStyleToolbarPosition, parseNodeStyleToolbarPosition, type NodeStyleToolbarPosition } from "../../../components/mindmap/nodeStyleToolbarPosition.js";
 
 export const SELECTION_TOOLBAR_POSITION_STORAGE_KEY = "rich.flowchart.selection-toolbar.position.v1";
-export type FlowchartToolbarIconName = "drag" | "text" | "bold" | "icon" | "kind" | "color" | "fill" | "border" | "preset" | "label" | "route" | "stroke" | "arrow" | "motion" | "delete";
+export type FlowchartToolbarIconName = "drag" | "text" | "bold" | "icon" | "kind" | "color" | "fill" | "border" | "preset" | "label" | "route" | "stroke" | "arrow" | "motion" | "delete" | "align" | "distribute" | "layout" | "group" | "collapse";
 
 export function FlowchartToolbarIcon({ name }: { name: FlowchartToolbarIconName }) {
   const paths: Record<FlowchartToolbarIconName, ReactNode> = {
@@ -21,6 +21,11 @@ export function FlowchartToolbarIcon({ name }: { name: FlowchartToolbarIconName 
     arrow: <><path d="M4 12h14"/><path d="m13 7 5 5-5 5"/></>,
     motion: <><path d="M4 8c3-4 6 4 10 0s5-4 6-2"/><path d="M4 16c3-4 6 4 10 0s5-4 6-2"/></>,
     delete: <><path d="M5 7h14M10 11v6M14 11v6M8 7l1 13h6l1-13M9 7l1-3h4l1 3"/></>,
+    align: <><path d="M5 5v14M9 8h10M9 12h7M9 16h10"/></>,
+    distribute: <><path d="M4 5v14M20 5v14M8 8v8M12 6v12M16 9v6"/></>,
+    layout: <><rect x="4" y="5" width="6" height="5" rx="1"/><rect x="14" y="5" width="6" height="5" rx="1"/><rect x="9" y="15" width="6" height="5" rx="1"/><path d="M10 7.5h4M12 10v5"/></>,
+    group: <><rect x="4" y="5" width="16" height="14" rx="2"/><rect x="7" y="9" width="4" height="4" rx=".7"/><rect x="13" y="11" width="4" height="4" rx=".7"/></>,
+    collapse: <><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 12h8"/></>,
   };
   return <svg aria-hidden="true" width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
 }

@@ -2,6 +2,8 @@ import type { Connection, Edge, Node, XYPosition } from "@xyflow/react";
 import type { NodeStyle } from "../../../components/mindmap/nodeStyleControls.js";
 
 export type FlowNodeKind = "step" | "decision" | "table" | "boundary" | "region" | "note";
+export type FlowNodeAlignment = "left" | "center" | "right" | "top" | "middle" | "bottom";
+export type FlowNodeDistribution = "horizontal" | "vertical";
 export type FlowEdge = Edge<{ lineStyle?: "solid" | "dashed" | "dotted"; lineColor?: string; lineWidth?: number; markerEnd?: "arrow" | "none"; animated?: boolean }>;
 export type FlowNode = Node<{
   label: string;
@@ -13,6 +15,8 @@ export type FlowNode = Node<{
   source: string;
   verified: boolean;
   scope: string;
+  groupId?: string;
+  collapsed?: boolean;
   editing?: boolean;
   onLabelChange?: (label: string) => void;
   onNoteTextChange?: (text: string) => void;
@@ -66,10 +70,84 @@ export function removeFlowNodes(graph: FlowchartData, ids: string[]): FlowchartD
   let previous = -1;
   while (previous !== removed.size) {
     previous = removed.size;
-    graph.nodes.forEach(node => { if (removed.has(node.data.scope)) removed.add(node.id); });
+    graph.nodes.forEach(node => { if (removed.has(node.data.scope) || (node.data.groupId && removed.has(node.data.groupId))) removed.add(node.id); });
   }
   return { ...graph, nodes: graph.nodes.filter(node => !removed.has(node.id)),
     edges: graph.edges.filter(edge => !removed.has(edge.source) && !removed.has(edge.target)) };
+}
+function nodeSize(node: FlowNode) {
+  const fallback = nodeSizes[node.data.kind];
+  return {
+    width: typeof node.style?.width === "number" ? node.style.width : fallback.width,
+    height: typeof node.style?.height === "number" ? node.style.height : fallback.height,
+  };
+}
+function selectedNodes(graph: FlowchartData, ids: string[]) { const selected = new Set(ids); return graph.nodes.filter(node => selected.has(node.id)); }
+export function alignFlowNodes(graph: FlowchartData, ids: string[], alignment: FlowNodeAlignment): FlowchartData {
+  const nodes = selectedNodes(graph, ids);
+  if (nodes.length < 2) return graph;
+  const horizontal = alignment === "left" || alignment === "center" || alignment === "right";
+  const starts = nodes.map(node => horizontal ? node.position.x : node.position.y);
+  const ends = nodes.map(node => (horizontal ? node.position.x : node.position.y) + (horizontal ? nodeSize(node).width : nodeSize(node).height));
+  const start = Math.min(...starts), end = Math.max(...ends), center = (start + end) / 2;
+  const selected = new Set(ids);
+  return { ...graph, nodes: graph.nodes.map(node => {
+    if (!selected.has(node.id)) return node;
+    const size = horizontal ? nodeSize(node).width : nodeSize(node).height;
+    const coordinate = alignment === "left" || alignment === "top" ? start : alignment === "right" || alignment === "bottom" ? end - size : center - size / 2;
+    return { ...node, position: horizontal ? { ...node.position, x: coordinate } : { ...node.position, y: coordinate } };
+  }) };
+}
+export function distributeFlowNodes(graph: FlowchartData, ids: string[], direction: FlowNodeDistribution): FlowchartData {
+  const nodes = selectedNodes(graph, ids).sort((a, b) => direction === "horizontal" ? a.position.x - b.position.x : a.position.y - b.position.y);
+  if (nodes.length < 3) return graph;
+  const first = direction === "horizontal" ? nodes[0]!.position.x : nodes[0]!.position.y;
+  const last = direction === "horizontal" ? nodes.at(-1)!.position.x : nodes.at(-1)!.position.y;
+  const spacing = (last - first) / (nodes.length - 1);
+  const coordinates = new Map(nodes.map((node, index) => [node.id, first + spacing * index]));
+  return { ...graph, nodes: graph.nodes.map(node => {
+    const coordinate = coordinates.get(node.id);
+    return coordinate === undefined ? node : { ...node, position: direction === "horizontal" ? { ...node.position, x: coordinate } : { ...node.position, y: coordinate } };
+  }) };
+}
+export function layoutFlowNodes(graph: FlowchartData, ids: string[], direction: FlowNodeDistribution): FlowchartData {
+  const selected = new Set(ids);
+  let index = 0;
+  return { ...graph, nodes: graph.nodes.map(node => {
+    if (!selected.has(node.id)) return node;
+    const position = direction === "horizontal" ? { x: 100 + index * 260, y: 160 } : { x: 220, y: 100 + index * 150 };
+    index += 1;
+    return { ...node, position };
+  }) };
+}
+export interface FlowSelection { nodes: FlowNode[]; edges: FlowEdge[]; }
+export function copyFlowSelection(graph: FlowchartData, ids: string[]): FlowSelection {
+  const selected = new Set(ids);
+  return { nodes: graph.nodes.filter(node => selected.has(node.id)).map(node => ({ ...node, data: { ...node.data }, style: { ...node.style } })),
+    edges: graph.edges.filter(edge => selected.has(edge.source) && selected.has(edge.target)).map(edge => ({ ...edge, data: { ...edge.data } })) };
+}
+export function pasteFlowSelection(graph: FlowchartData, selection: FlowSelection, offset = 32): { graph: FlowchartData; nodeIds: string[] } {
+  if (!selection.nodes.length) return { graph, nodeIds: [] };
+  const ids = new Map(selection.nodes.map(node => [node.id, crypto.randomUUID()]));
+  const nodes = selection.nodes.map(node => ({ ...node, id: ids.get(node.id)!, position: { x: node.position.x + offset, y: node.position.y + offset }, data: { ...node.data, groupId: undefined, collapsed: false } }));
+  const edges = selection.edges.map(edge => ({ ...edge, id: crypto.randomUUID(), source: ids.get(edge.source)!, target: ids.get(edge.target)!, data: { ...edge.data } }));
+  return { graph: { ...graph, nodes: [...graph.nodes, ...nodes], edges: [...graph.edges, ...edges] }, nodeIds: nodes.map(node => node.id) };
+}
+export function createFlowGroup(graph: FlowchartData, ids: string[]): FlowchartData {
+  const members = selectedNodes(graph, ids).filter(node => node.data.kind !== "region");
+  if (members.length < 2 || members.some(node => node.data.scope !== members[0]!.data.scope || node.data.groupId)) return graph;
+  const bounds = members.reduce((current, node) => {
+    const size = nodeSize(node);
+    return { left: Math.min(current.left, node.position.x), top: Math.min(current.top, node.position.y), right: Math.max(current.right, node.position.x + size.width), bottom: Math.max(current.bottom, node.position.y + size.height) };
+  }, { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity });
+  const group = createFlowNode("region", { x: bounds.left - 36, y: bounds.top - 54 }, members[0]!.data.scope);
+  group.data = { ...group.data, label: "流程组", caption: "" };
+  group.style = { width: bounds.right - bounds.left + 72, height: bounds.bottom - bounds.top + 90, zIndex: 0 };
+  const memberIds = new Set(members.map(node => node.id));
+  return { ...graph, nodes: [group, ...graph.nodes.map(node => memberIds.has(node.id) ? { ...node, style: { ...node.style, zIndex: 1 }, data: { ...node.data, groupId: group.id } } : node)] };
+}
+export function toggleFlowGroup(graph: FlowchartData, groupId: string): FlowchartData {
+  return { ...graph, nodes: graph.nodes.map(node => node.id === groupId ? { ...node, data: { ...node.data, collapsed: !node.data.collapsed } } : node) };
 }
 export function searchFlowNodes(nodes: FlowNode[], query: string): FlowNode[] {
   const keyword = query.trim().toLocaleLowerCase();

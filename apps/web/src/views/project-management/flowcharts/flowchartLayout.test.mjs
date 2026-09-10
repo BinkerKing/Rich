@@ -203,3 +203,19 @@ test('selection toolbar uses larger SVG line icons instead of small text glyphs'
   assert.match(rule('.pfc-node-style-toolbar > button'), /width:48px/);
   assert.match(rule('.pfc-node-style-toolbar > button'), /height:46px/);
 });
+
+test('phase two adds canvas arrangement, copy paste and collapsible flow groups', () => {
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  const toolbar = readFileSync(new URL('./FlowchartNodeStyleToolbar.tsx', import.meta.url), 'utf8');
+  const model = readFileSync(new URL('./flowchartModel.ts', import.meta.url), 'utf8');
+  assert.match(source, /copyFlowSelection\(graph, selectedIds\)/);
+  assert.match(source, /pasteFlowSelection\(graph, clipboard\.current\)/);
+  assert.match(source, /visibleNodes/);
+  assert.match(source, /collapsedGroups/);
+  assert.match(toolbar, /aria-label="对齐"/);
+  assert.match(toolbar, /aria-label="均匀分布"/);
+  assert.match(toolbar, /aria-label="自动布局"/);
+  assert.match(toolbar, /aria-label="创建流程组"/);
+  assert.match(model, /export function createFlowGroup/);
+  assert.match(model, /export function toggleFlowGroup/);
+});
