@@ -8,7 +8,7 @@ import { FlowchartFloatingToolbar, FlowchartToolbarIcon } from "./FlowchartFloat
 const PRESETS_STORAGE_KEY = "rich.flowchart.node-style-presets.v1";
 type OpenMenu = "fontSize" | "color" | "fillColor" | "border" | "presets" | "icon" | "kind" | "align" | "distribute" | "layout" | null;
 const nodeIcons = ["📌", "⭐", "💡", "⚙️", "🎯", "✅", "⚠️", "📚", "🔗", "🚀", "💬", "🔍"];
-const nodeKinds: { value: FlowNodeKind; label: string }[] = [{ value: "step", label: "步骤" }, { value: "decision", label: "判断" }, { value: "table", label: "数据表" }, { value: "boundary", label: "开始/结束" }, { value: "region", label: "区域" }, { value: "note", label: "备注" }];
+const nodeKinds: { value: FlowNodeKind; label: string }[] = [{ value: "step", label: "图标节点" }, { value: "region", label: "区域" }, { value: "note", label: "备注" }];
 
 export function FlowchartNodeStyleToolbar({ nodes, onChange, onKindChange, onAlign, onDistribute, onLayout, onGroup, onToggleGroup }: { nodes: FlowNode[]; onChange: (patch: Partial<FlowNode["data"]>) => void; onKindChange: (kind: FlowNodeKind) => void; onAlign: (alignment: FlowNodeAlignment) => void; onDistribute: (direction: FlowNodeDistribution) => void; onLayout: (direction: FlowNodeDistribution) => void; onGroup: () => void; onToggleGroup: () => void }) {
   const node = nodes[0]!;

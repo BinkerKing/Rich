@@ -28,7 +28,7 @@ function NoteNode({ data, selected }: NodeProps<FlowNode>) {
   </div>;
 }
 function AnalysisNode({ data, selected }: NodeProps<FlowNode>) {
-  return <div className={`pfc-node is-${data.kind}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
+  return <div className={`pfc-node${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
     <NodeResizer isVisible={selected} minWidth={140} minHeight={60} color="#82d7ef" />
     <Handle type="target" position={Position.Left} />
     <span className="pfc-node-symbol" aria-hidden="true">{data.icon || (data.kind === "table" ? "▤" : data.kind === "decision" ? "◇" : data.kind === "boundary" ? "◉" : "→")}</span>
@@ -421,7 +421,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
               }}>
                   <Background gap={28} size={1} color="#44444d" /><Controls />
                 </ReactFlow>
-                {quickCreate && <div className="pfc-quick-create" style={{ left: quickCreate.screen.x, top: quickCreate.screen.y }} role="dialog" aria-label="快速新建节点菜单"><strong>{quickCreate.source ? "新建并连接" : "新增节点"}</strong>{(["step", "decision", "note", "table"] as FlowNodeKind[]).map(kind => <button key={kind} type="button" onClick={() => addNode(kind, quickCreate.position, quickCreate.source)}>{({ step: "处理步骤", decision: "判断", note: "备注", table: "数据表" } as Record<string, string>)[kind]}</button>)}<button type="button" onClick={() => setQuickCreate(undefined)}>取消</button></div>}
+                {quickCreate && <div className="pfc-quick-create" style={{ left: quickCreate.screen.x, top: quickCreate.screen.y }} role="dialog" aria-label="快速新建节点菜单"><strong>{quickCreate.source ? "新建并连接" : "新增节点"}</strong>{(["step", "note", "region"] as FlowNodeKind[]).map(kind => <button key={kind} type="button" onClick={() => addNode(kind, quickCreate.position, quickCreate.source)}>{({ step: "图标节点", note: "备注", region: "区域" } as Record<string, string>)[kind]}</button>)}<button type="button" onClick={() => setQuickCreate(undefined)}>取消</button></div>}
               </div>
               <div className="pfc-legend" aria-label="流程图图例"><span>● 处理</span><span>● 数据表</span><span>◇ 判断</span><span>— 主线</span><span>┄ 规则 / 数据关联</span></div>
               {selectedNodes.length > 0 && <FlowchartNodeStyleToolbar nodes={selectedNodes} onChange={editNode} onKindChange={kind => editNode({ kind })} onAlign={alignment => graph && update(alignFlowNodes(graph, selectedIds, alignment))} onDistribute={direction => graph && update(distributeFlowNodes(graph, selectedIds, direction))} onLayout={direction => graph && update(layoutFlowNodes(graph, selectedIds, direction))} onGroup={groupSelectedNodes} onToggleGroup={() => graph && selected && update(toggleFlowGroup(graph, selected))} />}

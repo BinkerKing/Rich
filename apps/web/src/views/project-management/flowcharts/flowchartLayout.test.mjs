@@ -161,6 +161,8 @@ test('right clicking an empty canvas opens an add-node menu at that canvas posit
   assert.match(source, /onPaneContextMenu=\{event => \{/);
   assert.match(source, /flow\.screenToFlowPosition/);
   assert.match(source, /aria-label="快速新建节点菜单"/);
+  assert.match(source, /\["step", "note", "region"\]/);
+  assert.match(source, /step: "图标节点", note: "备注", region: "区域"/);
 });
 
 test('new note nodes enter their in-place editor with a writable body paragraph', () => {
