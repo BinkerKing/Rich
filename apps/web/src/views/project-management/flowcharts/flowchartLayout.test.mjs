@@ -189,7 +189,7 @@ test('resized node borders fill the same bounds as the resize controls', () => {
 
 test('phase one makes drawing and arranging productive from the canvas', () => {
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
-  assert.match(source, /MiniMap/);
+  assert.doesNotMatch(source, /<MiniMap/);
   assert.match(source, /onConnectEnd=/);
   assert.match(source, /快速新建节点/);
   assert.match(source, /undoGraph/);

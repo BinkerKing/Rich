@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
-import { ReactFlow, Background, Controls, Handle, Position, MarkerType, PanOnScrollMode, MiniMap, NodeResizer, reconnectEdge, applyNodeChanges, applyEdgeChanges,
+import { ReactFlow, Background, Controls, Handle, Position, MarkerType, PanOnScrollMode, NodeResizer, reconnectEdge, applyNodeChanges, applyEdgeChanges,
   type Connection, type NodeProps, type ReactFlowInstance } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { api, type ProjectModuleItem } from "../../../api/client.js";
@@ -419,7 +419,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
                 const rect = canvasRef.current.getBoundingClientRect();
                 setQuickCreate({ position: flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }), screen: { x: event.clientX - rect.left, y: event.clientY - rect.top } });
               }}>
-                  <Background gap={28} size={1} color="#44444d" /><MiniMap pannable zoomable nodeColor="#275368" maskColor="#101113cc" /><Controls />
+                  <Background gap={28} size={1} color="#44444d" /><Controls />
                 </ReactFlow>
                 {quickCreate && <div className="pfc-quick-create" style={{ left: quickCreate.screen.x, top: quickCreate.screen.y }} role="dialog" aria-label="快速新建节点菜单"><strong>{quickCreate.source ? "新建并连接" : "新增节点"}</strong>{(["step", "decision", "note", "table"] as FlowNodeKind[]).map(kind => <button key={kind} type="button" onClick={() => addNode(kind, quickCreate.position, quickCreate.source)}>{({ step: "处理步骤", decision: "判断", note: "备注", table: "数据表" } as Record<string, string>)[kind]}</button>)}<button type="button" onClick={() => setQuickCreate(undefined)}>取消</button></div>}
               </div>
