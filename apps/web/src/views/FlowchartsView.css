@@ -14,8 +14,8 @@
 .pfc--standalone .pfc-title-row { min-height: 132px; padding: 18px 22px; }
 .pfc--standalone .pfc-task-title { align-self:stretch; flex-direction:column; align-items:flex-start!important; justify-content:center; gap:10px!important; color:#fff; font-size:16px; font-weight:650; }
 .pfc--standalone .pfc-task-title span { width:7px; height:7px; border-radius:50%; background:#5e6ad2; color:transparent; font-size:0; }.pfc--standalone .pfc-task-title small { color:#71717a; font-size:13px; font-weight:400; }
-.pfc--standalone .pfc-task.is-expanded { position:fixed; z-index:40; inset:0; display:grid; grid-template-rows:58px minmax(0,1fr); border:0; border-radius:0; background:#071013; }
-.pfc--standalone .pfc-task.is-expanded .pfc-title-row { min-height:58px; height:58px; padding:0 16px 0 96px; border-bottom:1px solid rgba(255,255,255,.1); -webkit-app-region:drag; user-select:none; }
+.pfc--standalone .pfc-task.is-expanded { position:fixed; z-index:40; inset:0; display:grid; grid-template-rows:58px minmax(0,1fr); border:0; border-radius:0; background:#0b0b0c; }
+.pfc--standalone .pfc-task.is-expanded .pfc-title-row { min-height:58px; height:58px; padding:0 16px 0 96px; border-bottom:1px solid #29292d; background:#121214; -webkit-app-region:drag; user-select:none; }
 .pfc--standalone .pfc-task.is-expanded .pfc-title-row button { -webkit-app-region:no-drag; }
 .pfc--standalone .pfc-task.is-expanded .pfc-task-title { position:static; min-width:0; align-self:auto; flex:1 1 auto; flex-direction:row; font-size:16px; }
 .pfc--standalone .pfc-task.is-expanded .pfc-task-title strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
