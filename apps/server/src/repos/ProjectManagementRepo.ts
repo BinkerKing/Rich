@@ -18,6 +18,7 @@ export type ProjectManagementModuleKey =
   | "todos"
   | "healthChecks"
   | "testing"
+  | "issues"
   | "folder";
 
 export const TEST_CASE_STATUSES = ["draft", "ready", "testing", "passed", "failed", "blocked", "retest"] as const;
@@ -124,6 +125,7 @@ export interface TestCenterIssue {
   description: string;
   owner?: string;
   externalRef?: string;
+  customFields: Record<string, string>;
   status: "open" | "fixed" | "retest" | "closed";
   createdAt: string;
   updatedAt: string;
@@ -808,6 +810,7 @@ export const PROJECT_MANAGEMENT_MODULES: Array<{ key: ProjectManagementModuleKey
   { key: "todos", label: "项目代办" },
   { key: "healthChecks", label: "项目健康检查" },
   { key: "testing", label: "测试中心" },
+  { key: "issues", label: "问题清单" },
   { key: "folder", label: "文件夹" },
 ];
 

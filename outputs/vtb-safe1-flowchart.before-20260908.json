@@ -1,0 +1,83 @@
+{
+  "id": "pm-item-6f453a21-684f-42bf-88ed-9d7e9fbe5e75",
+  "projectId": "vtb-二代safe",
+  "moduleKey": "flowcharts",
+  "title": "VTB-一代SAFE代码解析",
+  "sortOrder": 0,
+  "content": {
+    "graph": {
+      "edges": [
+        {
+          "id": "cd70009d-f9ee-4e3d-8623-40cf8195d885",
+          "type": "smoothstep",
+          "label": "",
+          "source": "747273ad-aa25-4e45-8476-94809383df71",
+          "target": "304bed33-ff1d-42d7-b4da-fef7218f732d"
+        },
+        {
+          "id": "93466909-0ef1-47b7-b5d4-9bf2cc610a14",
+          "type": "smoothstep",
+          "label": "",
+          "source": "304bed33-ff1d-42d7-b4da-fef7218f732d",
+          "target": "7475156a-9230-4bdd-9a69-acf20293e4c5"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "747273ad-aa25-4e45-8476-94809383df71",
+          "data": {
+            "kind": "boundary",
+            "label": "入口方法",
+            "scope": "root",
+            "source": "",
+            "verified": false,
+            "description": ""
+          },
+          "type": "analysis",
+          "position": {
+            "x": 100,
+            "y": 160
+          }
+        },
+        {
+          "id": "304bed33-ff1d-42d7-b4da-fef7218f732d",
+          "data": {
+            "kind": "step",
+            "label": "处理逻辑（待分析）",
+            "scope": "root",
+            "source": "",
+            "verified": false,
+            "description": ""
+          },
+          "type": "analysis",
+          "position": {
+            "x": 400,
+            "y": 160
+          }
+        },
+        {
+          "id": "7475156a-9230-4bdd-9a69-acf20293e4c5",
+          "data": {
+            "kind": "boundary",
+            "label": "返回结果",
+            "scope": "root",
+            "source": "",
+            "verified": false,
+            "description": ""
+          },
+          "type": "analysis",
+          "dragging": false,
+          "position": {
+            "x": 819.8853163398666,
+            "y": 148.2720886189261
+          }
+        }
+      ],
+      "status": "draft",
+      "version": 1,
+      "objective": ""
+    }
+  },
+  "createdAt": "2026-09-08T08:31:21.343Z",
+  "updatedAt": "2026-09-08T08:32:10.406Z"
+}

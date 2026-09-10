@@ -10,6 +10,7 @@ const deliverableModel = readFileSync(new URL("./DeliverablesModel.ts", import.m
 const codexWorkbench = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
 const modules = readFileSync(new URL("../ProjectManagementModules.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../../ProjectsView.css", import.meta.url), "utf8");
+const standaloneStyles = readFileSync(new URL("../../DeliverablesView.css", import.meta.url), "utf8");
 
 test("交付物是项目计划同级的顶层菜单", () => {
   const planIndex = navigation.indexOf('id: "deliveryPlan"');
@@ -52,6 +53,36 @@ test("展开交付物后只渲染当前表头与工作台，再次点击表头�
   assert.match(deliverables, /const visibleItems = openId \? items\.filter\(\(?item\)? => item\.id === openId\) : items/);
   assert.match(deliverables, /visibleItems\.map\(\(?item\)? =>/);
   assert.match(deliverables, /setOpenId\(opening \? item\.id : undefined\)/);
+});
+
+test("独立交付物详情覆盖整个视口，不继承列表卡片的固定高度", () => {
+  assert.match(standaloneStyles, /article\.is-open\s*\{[^}]*height:100vh/);
+});
+
+test("独立交付物详情点击标题栏收起，不显示返回按钮", () => {
+  assert.match(deliverables, /className="deliverables-workspace__row deliverables-workspace__detail-title"[\s\S]*?aria-label="收起交付物详情"[\s\S]*?onClick=\{\(\) => \{ setOpenId\(undefined\); setEditing\(false\); \}\}/);
+  assert.doesNotMatch(deliverables, /deliverables-workspace__back|返回交付物列表|data-window-drag-region="true"/);
+  assert.match(standaloneStyles, /deliverables-workspace__detail-title\s*\{\s*cursor:pointer/);
+  assert.match(standaloneStyles, /deliverables-workspace__detail-title::before\s*\{\s*display:none/);
+});
+
+test("绑定已有交付物使用带说明和选择卡片的选择器", () => {
+  assert.match(deliverables, /<span>交付物库<\/span>[\s\S]*?<strong>绑定已有交付物<\/strong>[\s\S]*?点击绑定到当前项目/);
+  assert.match(deliverables, /aria-label="关闭绑定交付物"/);
+  assert.match(standaloneStyles, /deliverables-workspace__binding-list\s*>\s*button\s*\{[^}]*grid-template-columns:34px minmax\(0,1fr\) auto/s);
+  assert.match(standaloneStyles, /deliverables-workspace__binding::before\s*\{[^}]*background:linear-gradient/s);
+});
+
+test("独立交付物记录编辑区不会因左右边距裁掉发布按钮", () => {
+  assert.match(standaloneStyles, /deliverables-workspace__record-composer\s*\{[^}]*width:calc\(100% - 36px\)!important[^}]*box-sizing:border-box/s);
+});
+
+test("新建交付物采用带字段标签的创建卡，而非一排裸输入框", () => {
+  assert.match(deliverables, /deliverables-workspace__create-intro/);
+  assert.match(deliverables, /<span>交付物名称<\/span>/);
+  assert.match(deliverables, /<span>存放目录<\/span>/);
+  assert.match(standaloneStyles, /deliverables-workspace__create-fields\s*\{[^}]*grid-template-columns/s);
+  assert.match(standaloneStyles, /deliverables-workspace__create > button\s*\{[^}]*background:linear-gradient/s);
 });
 
 test("打开工作台时清理已失去任务交付物来源的历史关联记录", () => {
@@ -217,10 +248,17 @@ test("交付物记录提供 Codex 操作记录和 AI 可选的决策、问题、
 
 test("每条交付物记录显示记录时间，并支持编辑和删除", () => {
   assert.match(deliverables, /fileDate\(record\.aiTaskResult\?\.completedAt \|\| record\.createdAt\)/);
-  assert.match(deliverables, /onDoubleClick=\{\(\) => record\.kind === "ai_task_result" \? undefined : startRecordEdit\(record\)\}/);
+  assert.match(deliverables, /onDoubleClick=\{\(\) => record\.kind === "ai_task_result" \? undefined : startRecordEdit\(item, record\)\}/);
   assert.match(deliverables, /aria-label="删除记录"/);
   assert.match(deliverables, /const saveRecordEdit/);
   assert.match(deliverables, /const deleteRecord/);
+});
+
+test("切换交付物时不显示或保存其他交付物的记录编辑草稿", () => {
+  assert.match(deliverables, /editingRecordDeliverableId/);
+  assert.match(deliverables, /const isEditingCurrentRecord = editingRecordDeliverableId === openId && Boolean\(editingRecordId\)/);
+  assert.match(deliverables, /startRecordEdit\(item, record\)/);
+  assert.match(deliverables, /if \(!editingRecordDeliverableId \|\| editingRecordDeliverableId === openId\) return;/);
 });
 
 test("交付物记录编辑器的操作栏位于正文下方，编辑记录在原位置展开", () => {
@@ -228,6 +266,14 @@ test("交付物记录编辑器的操作栏位于正文下方，编辑记录在�
   assert.match(deliverables, /deliverables-workspace__record-rich-editor[\s\S]*?<footer[\s\S]*?aria-label="记录类型"[\s\S]*?添加附件[\s\S]*?发布记录/);
   assert.match(styles, /\.deliverables-workspace__records > \.deliverables-workspace__record-composer > footer \{ display:flex; align-items:center; justify-content:flex-start; gap:12px;/);
   assert.match(styles, /\.deliverables-workspace__records > \.deliverables-workspace__record-composer\.is-editing \{ order:1;/);
+});
+
+test("嵌入式交付物详情用边框而非深蓝底色区分记录和材料区域", () => {
+  assert.match(styles, /Embedded deliverable detail: neutral panels separated by explicit semantic borders/);
+  assert.match(styles, /deliverables-workspace__records \{ border-color:#3e9dab!important; background:#282828!important;/);
+  assert.match(styles, /deliverables-workspace__versions \{ border-color:#927841!important; background:#292724!important;/);
+  assert.match(styles, /record-composer \.prj-pm-rich-editor \{[^}]*border:1px solid #3e98a5!important/s);
+  assert.match(styles, /deliverables-workspace__file-head \{ border-bottom:1px solid #806b3e;/);
 });
 
 test("交付物记录可选择 AI 任务并显式选择 Hermes 或 Multica", () => {

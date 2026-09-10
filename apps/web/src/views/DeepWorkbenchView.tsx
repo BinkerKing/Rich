@@ -11,7 +11,7 @@ import { workbenchTitleFromRootText } from "./deep-workbench/workbenchTitle.js";
 import { nodeDetails, updateNodeDetails } from "./deep-workbench/nodeDetails.js";
 import { clampNodeDetailPanelWidth, loadNodeDetailPanelWidth, nodeDetailPanelMaxWidth, NODE_DETAIL_PANEL_WIDTH_KEY } from "./deep-workbench/nodeDetailPanel.js";
 import { titleFromNodeHtml } from "../components/mindmap/richTextNode.js";
-import { ProjectRichTextEditor } from "./project-management/ProjectManagementModules.js";
+import { ProjectRichTextEditor as ProjectRichTextEditorInput } from "./project-management/ProjectManagementModules.js";
 import { api } from "../api/client.js";
 import { useStore } from "../state/store.js";
 import "./DeepWorkbenchView.css";
@@ -45,6 +45,12 @@ function countOutline(root: DeepWorkbenchMap["root"]): { topics: number; words: 
     const next = countOutline(child);
     return { topics: total.topics + next.topics, words: total.words + next.words };
   }, { topics: 1, words: root.data.text.trim().length });
+}
+
+function ProjectRichTextEditor({ projectId, value, onChange }: { projectId: string; value: string; onChange: (value: string) => void }) {
+  const [nodeDetailEditing, setNodeDetailEditing] = useState(false);
+  useEffect(() => setNodeDetailEditing(false), [projectId]);
+  return <section className="deep-node-detail__description"><header><h3>说明</h3><button type="button" className="deep-node-detail__edit" aria-label={nodeDetailEditing ? "完成编辑说明" : "编辑说明"} title={nodeDetailEditing ? "完成" : "编辑"} onClick={() => setNodeDetailEditing(editing => !editing)}>{nodeDetailEditing ? "完成" : "✎"}</button></header>{nodeDetailEditing ? <ProjectRichTextEditorInput projectId={projectId} value={value} onChange={onChange} /> : <article className="deep-node-detail__preview workflow-rich-content" dangerouslySetInnerHTML={{ __html: value || "<p>暂无说明。</p>" }} />}</section>;
 }
 
 export function DeepWorkbenchView() {

@@ -655,7 +655,10 @@ export const POSTGRES_PROJECT_MANAGEMENT_SCHEMA = `
     id TEXT PRIMARY KEY, project_id TEXT NOT NULL, run_id TEXT NOT NULL REFERENCES pm_test_runs(id) ON DELETE CASCADE, run_step_id TEXT REFERENCES pm_test_run_steps(id) ON DELETE SET NULL, title TEXT NOT NULL, kind TEXT NOT NULL, location TEXT NOT NULL, created_at TEXT NOT NULL
   );
   CREATE TABLE IF NOT EXISTS pm_test_issues (
-    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, case_id TEXT NOT NULL REFERENCES pm_test_cases(id) ON DELETE CASCADE, run_id TEXT REFERENCES pm_test_runs(id) ON DELETE SET NULL, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', owner TEXT, external_ref TEXT, status TEXT NOT NULL DEFAULT 'open', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, case_id TEXT NOT NULL REFERENCES pm_test_cases(id) ON DELETE CASCADE, run_id TEXT REFERENCES pm_test_runs(id) ON DELETE SET NULL, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', owner TEXT, external_ref TEXT, custom_fields TEXT NOT NULL DEFAULT '{}', status TEXT NOT NULL DEFAULT 'open', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pm_test_grid_settings (
+    project_id TEXT NOT NULL, grid_key TEXT NOT NULL, columns_json TEXT NOT NULL DEFAULT '[]', updated_at TEXT NOT NULL, PRIMARY KEY (project_id, grid_key)
   );
   CREATE TABLE IF NOT EXISTS pm_test_issue_discussions (
     id TEXT PRIMARY KEY, project_id TEXT NOT NULL, issue_id TEXT NOT NULL REFERENCES pm_test_issues(id) ON DELETE CASCADE, content TEXT NOT NULL, created_at TEXT NOT NULL
@@ -1213,10 +1216,13 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_pm_search_project_module ON pm_search_index(project_id, module_key);
 
   CREATE TABLE IF NOT EXISTS pm_test_tasks (
-    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, title TEXT NOT NULL, objective TEXT NOT NULL DEFAULT '', test_data TEXT NOT NULL DEFAULT '', test_links TEXT NOT NULL DEFAULT '', app_version TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'draft', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, title TEXT NOT NULL, objective TEXT NOT NULL DEFAULT '', test_data TEXT NOT NULL DEFAULT '', test_links TEXT NOT NULL DEFAULT '', app_version TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'draft', sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pm_test_groups (
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, task_id TEXT NOT NULL REFERENCES pm_test_tasks(id) ON DELETE CASCADE, parent_group_id TEXT REFERENCES pm_test_groups(id) ON DELETE SET NULL, title TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
   );
   CREATE TABLE IF NOT EXISTS pm_test_cases (
-    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, task_id TEXT REFERENCES pm_test_tasks(id) ON DELETE SET NULL, scenario TEXT NOT NULL DEFAULT '', code TEXT NOT NULL, title TEXT NOT NULL, objective TEXT NOT NULL DEFAULT '', type TEXT NOT NULL, priority TEXT NOT NULL DEFAULT 'medium', status TEXT NOT NULL DEFAULT 'draft', created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, task_id TEXT REFERENCES pm_test_tasks(id) ON DELETE SET NULL, group_id TEXT REFERENCES pm_test_groups(id) ON DELETE SET NULL, scenario TEXT NOT NULL DEFAULT '', code TEXT NOT NULL, title TEXT NOT NULL, objective TEXT NOT NULL DEFAULT '', type TEXT NOT NULL, priority TEXT NOT NULL DEFAULT 'medium', status TEXT NOT NULL DEFAULT 'draft', sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
     UNIQUE(project_id, code)
   );
   CREATE INDEX IF NOT EXISTS idx_pm_test_cases_project ON pm_test_cases(project_id, status, updated_at DESC);
@@ -1235,7 +1241,10 @@ export const SQLITE_PROJECT_MANAGEMENT_SCHEMA = `
     id TEXT PRIMARY KEY, project_id TEXT NOT NULL, run_id TEXT NOT NULL REFERENCES pm_test_runs(id) ON DELETE CASCADE, run_step_id TEXT REFERENCES pm_test_run_steps(id) ON DELETE SET NULL, title TEXT NOT NULL, kind TEXT NOT NULL, location TEXT NOT NULL, created_at TEXT NOT NULL
   );
   CREATE TABLE IF NOT EXISTS pm_test_issues (
-    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, case_id TEXT NOT NULL REFERENCES pm_test_cases(id) ON DELETE CASCADE, run_id TEXT REFERENCES pm_test_runs(id) ON DELETE SET NULL, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', owner TEXT, external_ref TEXT, status TEXT NOT NULL DEFAULT 'open', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    id TEXT PRIMARY KEY, project_id TEXT NOT NULL, case_id TEXT NOT NULL REFERENCES pm_test_cases(id) ON DELETE CASCADE, run_id TEXT REFERENCES pm_test_runs(id) ON DELETE SET NULL, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', owner TEXT, external_ref TEXT, custom_fields TEXT NOT NULL DEFAULT '{}', status TEXT NOT NULL DEFAULT 'open', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS pm_test_grid_settings (
+    project_id TEXT NOT NULL, grid_key TEXT NOT NULL, columns_json TEXT NOT NULL DEFAULT '[]', updated_at TEXT NOT NULL, PRIMARY KEY (project_id, grid_key)
   );
   CREATE TABLE IF NOT EXISTS pm_test_issue_discussions (
     id TEXT PRIMARY KEY, project_id TEXT NOT NULL, issue_id TEXT NOT NULL REFERENCES pm_test_issues(id) ON DELETE CASCADE, content TEXT NOT NULL, created_at TEXT NOT NULL

@@ -26,6 +26,7 @@ export const PROJECT_MANAGEMENT_SECTIONS: Array<{
   { id: "codeVersions", label: "版本控制", icon: "⌘" },
   { id: "todos", label: "项目代办", icon: "✓" },
   { id: "testing", label: "测试中心", icon: "✓" },
+  { id: "issues", label: "问题清单", icon: "▤" },
   { id: "folder", label: "文件夹", icon: "▣" },
 ];
 

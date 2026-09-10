@@ -67,6 +67,12 @@ test("自动化工作台使用左右双栏并在右侧提供检查、参数和�
   assert.match(styles, /\.automation-run-pane[^}]*overflow:\s*auto/s);
 });
 
+test("执行记录以中性灰卡片呈现，状态色不再作为整块背景", () => {
+  assert.match(styles, /\.automation-run-panel\s*\{[^}]*border:\s*1px solid #424242[^}]*background:\s*#252525/s);
+  assert.match(styles, /\.automation-run-items article\s*\{[^}]*background:\s*#252525/s);
+  assert.match(styles, /\.automation-step-track span\s*\{[^}]*background:\s*#303030/s);
+});
+
 test("自动化检查结果和运行参数会按项目与方案缓存，方案变更时清除缓存", () => {
   assert.match(source, /rich-project-automation-preflight:/);
   assert.match(source, /loadAutomationPreflightMemory\(projectId, selectedPlanId\)/);

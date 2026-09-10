@@ -26,6 +26,7 @@ import {
   ScenariosSection,
   TodosSection,
   TestCenterWorkspace,
+  IssuesWorkspace,
   WorkflowSection,
   type ProjectManagementSection,
   type ProjectManagementSearchTarget,
@@ -305,6 +306,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
           {section === "codeVersions" && <CodeVersionsSection project={project} summary={summary} />}
           {section === "todos" && <TodosSection project={project} summary={summary} />}
           {section === "testing" && <TestCenterWorkspace projectId={project.id} />}
+          {section === "issues" && <IssuesWorkspace projectId={project.id} />}
           {section === "folder" && <FolderSection project={project} searchTarget={searchTarget?.section === "folder" ? searchTarget : null} />}
         </div>
       </div>

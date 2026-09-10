@@ -1,0 +1,4042 @@
+{
+  "version": 1,
+  "status": "active",
+  "objective": "第一版任务—数据依赖全景：区域是任务分组，输入→任务→输出；同名表在不同任务区域为同一表的引用，不是新表。实线为读写，紫色虚线为调用/执行顺序，青色虚线为跨任务数据来源。内部算法保存在详情。本图核验静态源码，不代表跑批成功。贷款、ACC、JSH和真实proc主要依赖已展开；CFA AN/AS、FAL深层依赖和三个RCPMIS子过程仍待完整追踪，不能据此声称全系统表清单已完备。",
+  "nodes": [
+    {
+      "id": "legend",
+      "type": "note",
+      "position": {
+        "x": 30,
+        "y": -240
+      },
+      "connectable": false,
+      "data": {
+        "label": "阅读方式 / 第一版",
+        "caption": "左：输入 → 中：任务 → 右：输出\n同名表为跨区域引用，不是新表\n紫虚线：调用；青虚线：数据来源",
+        "kind": "note",
+        "scope": "root",
+        "tone": "amber",
+        "source": "",
+        "verified": false,
+        "description": "左：输入 → 中：任务 → 右：输出\n同名表为跨区域引用，不是新表\n紫虚线：调用；青虚线：数据来源"
+      }
+    },
+    {
+      "id": "boundary",
+      "type": "note",
+      "position": {
+        "x": 440,
+        "y": -240
+      },
+      "connectable": false,
+      "data": {
+        "label": "核验边界",
+        "caption": "已核验：静态源码，不等于跑批通过\n待核验区域不会虚构结果表\n原代码解析图保留不动",
+        "kind": "note",
+        "scope": "root",
+        "tone": "amber",
+        "source": "",
+        "verified": false,
+        "description": "已核验：静态源码，不等于跑批通过\n待核验区域不会虚构结果表\n原代码解析图保留不动"
+      }
+    },
+    {
+      "id": "risk",
+      "type": "note",
+      "position": {
+        "x": 860,
+        "y": -240
+      },
+      "connectable": false,
+      "data": {
+        "label": "迁移先后顺序要单独设计",
+        "caption": "Customer / Account 等已有正式数据\n在导入加工阶段就会被读取\n不能假设本次文件已生成正式数据",
+        "kind": "note",
+        "scope": "root",
+        "tone": "amber",
+        "source": "",
+        "verified": false,
+        "description": "Customer / Account 等已有正式数据\n在导入加工阶段就会被读取\n不能假设本次文件已生成正式数据"
+      }
+    },
+    {
+      "id": "region-files",
+      "type": "region",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "style": {
+        "width": 1320,
+        "height": 720
+      },
+      "zIndex": -10,
+      "draggable": false,
+      "connectable": false,
+      "data": {
+        "label": "01 / 文件入库 · parseTxtFile",
+        "caption": "五文件检查后逐文件分派；REPORT 无业务落表；TRN 转 BOP 发生在保存 TransactionTab 之前",
+        "kind": "region",
+        "scope": "root",
+        "tone": "cyan",
+        "source": "",
+        "verified": true,
+        "description": "五文件检查后逐文件分派；REPORT 无业务落表；TRN 转 BOP 发生在保存 TransactionTab 之前"
+      }
+    },
+    {
+      "id": "file-CIF2",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 120
+      },
+      "data": {
+        "label": "CIF2",
+        "kind": "boundary",
+        "scope": "root",
+        "description": "源文件前缀；完整匹配规则见 system.properties。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2500",
+        "verified": true
+      }
+    },
+    {
+      "id": "parse-CIF2",
+      "type": "analysis",
+      "position": {
+        "x": 540,
+        "y": 120
+      },
+      "data": {
+        "label": "解析 CIF2",
+        "kind": "step",
+        "scope": "root",
+        "description": "按 | 拆字段并构造客户中间记录；truncate CifTab 后 saveAll 全量替换。此处不是直接写 Customer 正式客户表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2508",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2500",
+        "verified": true
+      }
+    },
+    {
+      "id": "table-CifTab",
+      "type": "analysis",
+      "position": {
+        "x": 1060,
+        "y": 120
+      },
+      "data": {
+        "label": "CifTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "按 | 拆字段并构造客户中间记录；truncate CifTab 后 saveAll 全量替换。此处不是直接写 Customer 正式客户表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2508",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2500",
+        "verified": true
+      }
+    },
+    {
+      "id": "file-AIF2",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 250
+      },
+      "data": {
+        "label": "AIF2",
+        "kind": "boundary",
+        "scope": "root",
+        "description": "源文件前缀；完整匹配规则见 system.properties。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2500",
+        "verified": true
+      }
+    },
+    {
+      "id": "parse-AIF2",
+      "type": "analysis",
+      "position": {
+        "x": 540,
+        "y": 250
+      },
+      "data": {
+        "label": "解析 AIF2",
+        "kind": "step",
+        "scope": "root",
+        "description": "构造账户记录，经过 isAccountIdFlag() 条件筛选；truncate AifTab 后 saveAll。账户判定辅助方法内部留待继续展开。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2549",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2500",
+        "verified": true
+      }
+    },
+    {
+      "id": "table-AifTab",
+      "type": "analysis",
+      "position": {
+        "x": 1060,
+        "y": 250
+      },
+      "data": {
+        "label": "AifTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "构造账户记录，经过 isAccountIdFlag() 条件筛选；truncate AifTab 后 saveAll。账户判定辅助方法内部留待继续展开。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2549",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2500",
+        "verified": true
+      }
+    },
+    {
+      "id": "file-BLN2",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 380
+      },
+      "data": {
+        "label": "BLN2",
+        "kind": "boundary",
+        "scope": "root",
+        "description": "源文件前缀；完整匹配规则见 system.properties。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2500",
+        "verified": true
+      }
+    },
+    {
+      "id": "parse-BLN2",
+      "type": "analysis",
+      "position": {
+        "x": 540,
+        "y": 380
+      },
+      "data": {
+        "label": "解析 BLN2",
+        "kind": "step",
+        "scope": "root",
+        "description": "币种 RUR → RUB 明确发生在 BLN 解析 Java 分支；busDate 取日期字段 split(\"-\")[0]。按首条记录业务日期删除旧余额，再保存列表。该转换不能据此归给 proc_processData。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2580",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2500",
+        "verified": true
+      }
+    },
+    {
+      "id": "table-BlnTab",
+      "type": "analysis",
+      "position": {
+        "x": 1060,
+        "y": 380
+      },
+      "data": {
+        "label": "BlnTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "币种 RUR → RUB 明确发生在 BLN 解析 Java 分支；busDate 取日期字段 split(\"-\")[0]。按首条记录业务日期删除旧余额，再保存列表。该转换不能据此归给 proc_processData。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2580",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2500",
+        "verified": true
+      }
+    },
+    {
+      "id": "file-TRN2",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 510
+      },
+      "data": {
+        "label": "TRN2",
+        "kind": "boundary",
+        "scope": "root",
+        "description": "源文件前缀；完整匹配规则见 system.properties。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2500",
+        "verified": true
+      }
+    },
+    {
+      "id": "parse-TRN2",
+      "type": "analysis",
+      "position": {
+        "x": 540,
+        "y": 510
+      },
+      "data": {
+        "label": "解析 TRN2",
+        "kind": "step",
+        "scope": "root",
+        "description": "BOP 转换完成后才删除／保存交易中间表。TransactionTab 删除范围由列表首条 transactionDate 决定，不是逐个日期删除。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2696",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2500",
+        "verified": true
+      }
+    },
+    {
+      "id": "table-TransactionTab",
+      "type": "analysis",
+      "position": {
+        "x": 1060,
+        "y": 510
+      },
+      "data": {
+        "label": "TransactionTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "BOP 转换完成后才删除／保存交易中间表。TransactionTab 删除范围由列表首条 transactionDate 决定，不是逐个日期删除。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2696",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2500",
+        "verified": true
+      }
+    },
+    {
+      "id": "file-REPORT",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 640
+      },
+      "data": {
+        "label": "REPORT",
+        "kind": "boundary",
+        "scope": "root",
+        "description": "匹配文件数包含 REPORT。parseTxtFile 会打开并读取首行，但没有 REPORT 分支，未见内容状态成功／失败校验。不是“状态文件校验通过才导入”。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2506",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2506",
+        "verified": true
+      }
+    },
+    {
+      "id": "report-count",
+      "type": "analysis",
+      "position": {
+        "x": 540,
+        "y": 640
+      },
+      "data": {
+        "label": "文件数量检查 · 共 5 个",
+        "kind": "step",
+        "scope": "root",
+        "description": "代码只判断 txtFiles 非空且 length == 5，不逐项验证五个唯一文件名。配置列出 AIF2、CIF2、BLN2、REPORT、TRN2；正则本身也不是严格五文件集合校验。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:1838",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:1838",
+        "verified": true
+      }
+    },
+    {
+      "id": "region-bop",
+      "type": "region",
+      "position": {
+        "x": 1460,
+        "y": 0
+      },
+      "style": {
+        "width": 1320,
+        "height": 720
+      },
+      "zIndex": -10,
+      "draggable": false,
+      "connectable": false,
+      "data": {
+        "label": "02 / TRN → BOP 转换",
+        "caption": "使用刚解析的 TRN 内存列表；Customer 是已有正式客户数据",
+        "kind": "region",
+        "scope": "root",
+        "tone": "cyan",
+        "source": "",
+        "verified": true,
+        "description": "使用刚解析的 TRN 内存列表；Customer 是已有正式客户数据"
+      }
+    },
+    {
+      "id": "bop",
+      "type": "analysis",
+      "position": {
+        "x": 2000,
+        "y": 290
+      },
+      "data": {
+        "label": "converVtbBopTransaction",
+        "kind": "step",
+        "scope": "root",
+        "description": "先读取 Customer 客户映射；逐笔交易执行两个相互独立的 if。每笔可能产生 0、1 或 2 条 BopTransaction。不是 BOPA–F 正式分类报表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2709\nisAccountIdFlag() 为真则构造一条；CNUM=customerCode，ACOD=accountId，opName=oppositerName。paymentFlag==01 → C，否则 D。金额直接取 tradeAmount，不取绝对值。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2717\n独立调用 isOppositersAccountIDFlag()。命中时 ACOD=oppositersAccountID；opName 从本方 customerCode 对应 Customer 名称获取。paymentFlag==02 → C，否则 D。本分支回填 CNUM 的代码被注释，实际未赋值。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2750\nbopList 非空：按传入 importDate 删除旧数据并 saveAll；为空：不删除原有该日 BOP。日期参数来自 TRN 列表首条交易日期。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2791",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2709",
+        "verified": true
+      }
+    },
+    {
+      "id": "bop-in-0",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 105
+      },
+      "data": {
+        "label": "TRN2 · 解析后的内存记录",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：TRN2 · 解析后的内存记录。同名表与其他区域为同一实体。\n先读取 Customer 客户映射；逐笔交易执行两个相互独立的 if。每笔可能产生 0、1 或 2 条 BopTransaction。不是 BOPA–F 正式分类报表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2709\nisAccountIdFlag() 为真则构造一条；CNUM=customerCode，ACOD=accountId，opName=oppositerName。paymentFlag==01 → C，否则 D。金额直接取 tradeAmount，不取绝对值。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2717\n独立调用 isOppositersAccountIDFlag()。命中时 ACOD=oppositersAccountID；opName 从本方 customerCode 对应 Customer 名称获取。paymentFlag==02 → C，否则 D。本分支回填 CNUM 的代码被注释，实际未赋值。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2750\nbopList 非空：按传入 importDate 删除旧数据并 saveAll；为空：不删除原有该日 BOP。日期参数来自 TRN 列表首条交易日期。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2791",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2709",
+        "verified": true
+      }
+    },
+    {
+      "id": "bop-in-1",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 197
+      },
+      "data": {
+        "label": "Customer",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：Customer。同名表与其他区域为同一实体。\n先读取 Customer 客户映射；逐笔交易执行两个相互独立的 if。每笔可能产生 0、1 或 2 条 BopTransaction。不是 BOPA–F 正式分类报表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2709\nisAccountIdFlag() 为真则构造一条；CNUM=customerCode，ACOD=accountId，opName=oppositerName。paymentFlag==01 → C，否则 D。金额直接取 tradeAmount，不取绝对值。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2717\n独立调用 isOppositersAccountIDFlag()。命中时 ACOD=oppositersAccountID；opName 从本方 customerCode 对应 Customer 名称获取。paymentFlag==02 → C，否则 D。本分支回填 CNUM 的代码被注释，实际未赋值。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2750\nbopList 非空：按传入 importDate 删除旧数据并 saveAll；为空：不删除原有该日 BOP。日期参数来自 TRN 列表首条交易日期。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2791",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2709",
+        "verified": true
+      }
+    },
+    {
+      "id": "bop-out-0",
+      "type": "analysis",
+      "position": {
+        "x": 2520,
+        "y": 140
+      },
+      "data": {
+        "label": "BopTransaction",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：BopTransaction。\n先读取 Customer 客户映射；逐笔交易执行两个相互独立的 if。每笔可能产生 0、1 或 2 条 BopTransaction。不是 BOPA–F 正式分类报表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2709\nisAccountIdFlag() 为真则构造一条；CNUM=customerCode，ACOD=accountId，opName=oppositerName。paymentFlag==01 → C，否则 D。金额直接取 tradeAmount，不取绝对值。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2717\n独立调用 isOppositersAccountIDFlag()。命中时 ACOD=oppositersAccountID；opName 从本方 customerCode 对应 Customer 名称获取。paymentFlag==02 → C，否则 D。本分支回填 CNUM 的代码被注释，实际未赋值。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2750\nbopList 非空：按传入 importDate 删除旧数据并 saveAll；为空：不删除原有该日 BOP。日期参数来自 TRN 列表首条交易日期。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2791",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2709",
+        "verified": true
+      }
+    },
+    {
+      "id": "region-cfa",
+      "type": "region",
+      "position": {
+        "x": 0,
+        "y": 840
+      },
+      "style": {
+        "width": 1320,
+        "height": 720
+      },
+      "zIndex": -10,
+      "draggable": false,
+      "connectable": false,
+      "data": {
+        "label": "03 / CFA 贷款中间层 · importCFATab",
+        "caption": "读取交易、客户与已有正式贷款记录，产生四张贷款中间表；不是四张客户表",
+        "kind": "region",
+        "scope": "root",
+        "tone": "cyan",
+        "source": "",
+        "verified": true,
+        "description": "读取交易、客户与已有正式贷款记录，产生四张贷款中间表；不是四张客户表"
+      }
+    },
+    {
+      "id": "cfa",
+      "type": "analysis",
+      "position": {
+        "x": 540,
+        "y": 1130
+      },
+      "data": {
+        "label": "importCFATab",
+        "kind": "step",
+        "scope": "root",
+        "description": "按 importDate 的 yyyyMMdd 查询 TransactionTab；加载 cfaCnumFilter.properties 中 DA 的 | 分隔客户名单。不是从四张客户表读取当天客户信息。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97\nusage startsWith LOAN ISSUE 且 currencyCode != CNY。生成 CFACATab：债权人=当前机构；债务人代码／名称来自 Customer（不存在则空串）；合同金额=abs(tradeAmount)，起息日=交易日。同步生成 CFACBTab 提款：期初0、提款与期末=abs(金额)。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:120\nPRINCIPAL REPAYMENT + 非 CNY + !isOppositersAccountIDFlag()。必须查到正式 CFACA，否则 continue 跳过本笔剩余处理。查 CFACB 历史方法：期初=历史期末或0；还本=abs(金额)；期末=历史期末−还本，历史缺失时竟取还本金额（如实呈现，业务合理性待验证）。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:151\nPRINCIPAL REPAYMENT + !isOppositersAccountIDFlag()；无 DA 排除名单和非 CNY 限制。正式 CFADA 不存在则 continue。DB 还本=abs(金额)；本金余额=历史本金余额−还本，无历史则 null。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:228\n全部交易处理后，按 DA → DB → CA → CB 顺序保存。各列表只有非空才删除该导入日期旧数据并 saveAll。四张是贷款业务中间表，不是客户分类表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:272",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97",
+        "verified": true
+      }
+    },
+    {
+      "id": "cfa-in-0",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 945
+      },
+      "data": {
+        "label": "TransactionTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：TransactionTab。同名表与其他区域为同一实体。\n按 importDate 的 yyyyMMdd 查询 TransactionTab；加载 cfaCnumFilter.properties 中 DA 的 | 分隔客户名单。不是从四张客户表读取当天客户信息。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97\nusage startsWith LOAN ISSUE 且 currencyCode != CNY。生成 CFACATab：债权人=当前机构；债务人代码／名称来自 Customer（不存在则空串）；合同金额=abs(tradeAmount)，起息日=交易日。同步生成 CFACBTab 提款：期初0、提款与期末=abs(金额)。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:120\nPRINCIPAL REPAYMENT + 非 CNY + !isOppositersAccountIDFlag()。必须查到正式 CFACA，否则 continue 跳过本笔剩余处理。查 CFACB 历史方法：期初=历史期末或0；还本=abs(金额)；期末=历史期末−还本，历史缺失时竟取还本金额（如实呈现，业务合理性待验证）。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:151\nPRINCIPAL REPAYMENT + !isOppositersAccountIDFlag()；无 DA 排除名单和非 CNY 限制。正式 CFADA 不存在则 continue。DB 还本=abs(金额)；本金余额=历史本金余额−还本，无历史则 null。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:228\n全部交易处理后，按 DA → DB → CA → CB 顺序保存。各列表只有非空才删除该导入日期旧数据并 saveAll。四张是贷款业务中间表，不是客户分类表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:272",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97",
+        "verified": true
+      }
+    },
+    {
+      "id": "cfa-in-1",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 1037
+      },
+      "data": {
+        "label": "Customer",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：Customer。同名表与其他区域为同一实体。\n按 importDate 的 yyyyMMdd 查询 TransactionTab；加载 cfaCnumFilter.properties 中 DA 的 | 分隔客户名单。不是从四张客户表读取当天客户信息。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97\nusage startsWith LOAN ISSUE 且 currencyCode != CNY。生成 CFACATab：债权人=当前机构；债务人代码／名称来自 Customer（不存在则空串）；合同金额=abs(tradeAmount)，起息日=交易日。同步生成 CFACBTab 提款：期初0、提款与期末=abs(金额)。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:120\nPRINCIPAL REPAYMENT + 非 CNY + !isOppositersAccountIDFlag()。必须查到正式 CFACA，否则 continue 跳过本笔剩余处理。查 CFACB 历史方法：期初=历史期末或0；还本=abs(金额)；期末=历史期末−还本，历史缺失时竟取还本金额（如实呈现，业务合理性待验证）。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:151\nPRINCIPAL REPAYMENT + !isOppositersAccountIDFlag()；无 DA 排除名单和非 CNY 限制。正式 CFADA 不存在则 continue。DB 还本=abs(金额)；本金余额=历史本金余额−还本，无历史则 null。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:228\n全部交易处理后，按 DA → DB → CA → CB 顺序保存。各列表只有非空才删除该导入日期旧数据并 saveAll。四张是贷款业务中间表，不是客户分类表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:272",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97",
+        "verified": true
+      }
+    },
+    {
+      "id": "cfa-in-2",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 1129
+      },
+      "data": {
+        "label": "CFACA",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：CFACA。同名表与其他区域为同一实体。\n按 importDate 的 yyyyMMdd 查询 TransactionTab；加载 cfaCnumFilter.properties 中 DA 的 | 分隔客户名单。不是从四张客户表读取当天客户信息。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97\nusage startsWith LOAN ISSUE 且 currencyCode != CNY。生成 CFACATab：债权人=当前机构；债务人代码／名称来自 Customer（不存在则空串）；合同金额=abs(tradeAmount)，起息日=交易日。同步生成 CFACBTab 提款：期初0、提款与期末=abs(金额)。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:120\nPRINCIPAL REPAYMENT + 非 CNY + !isOppositersAccountIDFlag()。必须查到正式 CFACA，否则 continue 跳过本笔剩余处理。查 CFACB 历史方法：期初=历史期末或0；还本=abs(金额)；期末=历史期末−还本，历史缺失时竟取还本金额（如实呈现，业务合理性待验证）。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:151\nPRINCIPAL REPAYMENT + !isOppositersAccountIDFlag()；无 DA 排除名单和非 CNY 限制。正式 CFADA 不存在则 continue。DB 还本=abs(金额)；本金余额=历史本金余额−还本，无历史则 null。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:228\n全部交易处理后，按 DA → DB → CA → CB 顺序保存。各列表只有非空才删除该导入日期旧数据并 saveAll。四张是贷款业务中间表，不是客户分类表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:272",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97",
+        "verified": true
+      }
+    },
+    {
+      "id": "cfa-in-3",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 1221
+      },
+      "data": {
+        "label": "CFACB",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：CFACB。同名表与其他区域为同一实体。\n按 importDate 的 yyyyMMdd 查询 TransactionTab；加载 cfaCnumFilter.properties 中 DA 的 | 分隔客户名单。不是从四张客户表读取当天客户信息。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97\nusage startsWith LOAN ISSUE 且 currencyCode != CNY。生成 CFACATab：债权人=当前机构；债务人代码／名称来自 Customer（不存在则空串）；合同金额=abs(tradeAmount)，起息日=交易日。同步生成 CFACBTab 提款：期初0、提款与期末=abs(金额)。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:120\nPRINCIPAL REPAYMENT + 非 CNY + !isOppositersAccountIDFlag()。必须查到正式 CFACA，否则 continue 跳过本笔剩余处理。查 CFACB 历史方法：期初=历史期末或0；还本=abs(金额)；期末=历史期末−还本，历史缺失时竟取还本金额（如实呈现，业务合理性待验证）。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:151\nPRINCIPAL REPAYMENT + !isOppositersAccountIDFlag()；无 DA 排除名单和非 CNY 限制。正式 CFADA 不存在则 continue。DB 还本=abs(金额)；本金余额=历史本金余额−还本，无历史则 null。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:228\n全部交易处理后，按 DA → DB → CA → CB 顺序保存。各列表只有非空才删除该导入日期旧数据并 saveAll。四张是贷款业务中间表，不是客户分类表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:272",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97",
+        "verified": true
+      }
+    },
+    {
+      "id": "cfa-in-4",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 1313
+      },
+      "data": {
+        "label": "CFADA",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：CFADA。同名表与其他区域为同一实体。\n按 importDate 的 yyyyMMdd 查询 TransactionTab；加载 cfaCnumFilter.properties 中 DA 的 | 分隔客户名单。不是从四张客户表读取当天客户信息。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97\nusage startsWith LOAN ISSUE 且 currencyCode != CNY。生成 CFACATab：债权人=当前机构；债务人代码／名称来自 Customer（不存在则空串）；合同金额=abs(tradeAmount)，起息日=交易日。同步生成 CFACBTab 提款：期初0、提款与期末=abs(金额)。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:120\nPRINCIPAL REPAYMENT + 非 CNY + !isOppositersAccountIDFlag()。必须查到正式 CFACA，否则 continue 跳过本笔剩余处理。查 CFACB 历史方法：期初=历史期末或0；还本=abs(金额)；期末=历史期末−还本，历史缺失时竟取还本金额（如实呈现，业务合理性待验证）。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:151\nPRINCIPAL REPAYMENT + !isOppositersAccountIDFlag()；无 DA 排除名单和非 CNY 限制。正式 CFADA 不存在则 continue。DB 还本=abs(金额)；本金余额=历史本金余额−还本，无历史则 null。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:228\n全部交易处理后，按 DA → DB → CA → CB 顺序保存。各列表只有非空才删除该导入日期旧数据并 saveAll。四张是贷款业务中间表，不是客户分类表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:272",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97",
+        "verified": true
+      }
+    },
+    {
+      "id": "cfa-in-5",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 1405
+      },
+      "data": {
+        "label": "CFADB",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：CFADB。同名表与其他区域为同一实体。\n按 importDate 的 yyyyMMdd 查询 TransactionTab；加载 cfaCnumFilter.properties 中 DA 的 | 分隔客户名单。不是从四张客户表读取当天客户信息。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97\nusage startsWith LOAN ISSUE 且 currencyCode != CNY。生成 CFACATab：债权人=当前机构；债务人代码／名称来自 Customer（不存在则空串）；合同金额=abs(tradeAmount)，起息日=交易日。同步生成 CFACBTab 提款：期初0、提款与期末=abs(金额)。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:120\nPRINCIPAL REPAYMENT + 非 CNY + !isOppositersAccountIDFlag()。必须查到正式 CFACA，否则 continue 跳过本笔剩余处理。查 CFACB 历史方法：期初=历史期末或0；还本=abs(金额)；期末=历史期末−还本，历史缺失时竟取还本金额（如实呈现，业务合理性待验证）。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:151\nPRINCIPAL REPAYMENT + !isOppositersAccountIDFlag()；无 DA 排除名单和非 CNY 限制。正式 CFADA 不存在则 continue。DB 还本=abs(金额)；本金余额=历史本金余额−还本，无历史则 null。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:228\n全部交易处理后，按 DA → DB → CA → CB 顺序保存。各列表只有非空才删除该导入日期旧数据并 saveAll。四张是贷款业务中间表，不是客户分类表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:272",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97",
+        "verified": true
+      }
+    },
+    {
+      "id": "cfa-out-0",
+      "type": "analysis",
+      "position": {
+        "x": 1060,
+        "y": 980
+      },
+      "data": {
+        "label": "CFACATab",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：CFACATab。\n按 importDate 的 yyyyMMdd 查询 TransactionTab；加载 cfaCnumFilter.properties 中 DA 的 | 分隔客户名单。不是从四张客户表读取当天客户信息。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97\nusage startsWith LOAN ISSUE 且 currencyCode != CNY。生成 CFACATab：债权人=当前机构；债务人代码／名称来自 Customer（不存在则空串）；合同金额=abs(tradeAmount)，起息日=交易日。同步生成 CFACBTab 提款：期初0、提款与期末=abs(金额)。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:120\nPRINCIPAL REPAYMENT + 非 CNY + !isOppositersAccountIDFlag()。必须查到正式 CFACA，否则 continue 跳过本笔剩余处理。查 CFACB 历史方法：期初=历史期末或0；还本=abs(金额)；期末=历史期末−还本，历史缺失时竟取还本金额（如实呈现，业务合理性待验证）。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:151\nPRINCIPAL REPAYMENT + !isOppositersAccountIDFlag()；无 DA 排除名单和非 CNY 限制。正式 CFADA 不存在则 continue。DB 还本=abs(金额)；本金余额=历史本金余额−还本，无历史则 null。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:228\n全部交易处理后，按 DA → DB → CA → CB 顺序保存。各列表只有非空才删除该导入日期旧数据并 saveAll。四张是贷款业务中间表，不是客户分类表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:272",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97",
+        "verified": true
+      }
+    },
+    {
+      "id": "cfa-out-1",
+      "type": "analysis",
+      "position": {
+        "x": 1060,
+        "y": 1085
+      },
+      "data": {
+        "label": "CFACBTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：CFACBTab。\n按 importDate 的 yyyyMMdd 查询 TransactionTab；加载 cfaCnumFilter.properties 中 DA 的 | 分隔客户名单。不是从四张客户表读取当天客户信息。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97\nusage startsWith LOAN ISSUE 且 currencyCode != CNY。生成 CFACATab：债权人=当前机构；债务人代码／名称来自 Customer（不存在则空串）；合同金额=abs(tradeAmount)，起息日=交易日。同步生成 CFACBTab 提款：期初0、提款与期末=abs(金额)。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:120\nPRINCIPAL REPAYMENT + 非 CNY + !isOppositersAccountIDFlag()。必须查到正式 CFACA，否则 continue 跳过本笔剩余处理。查 CFACB 历史方法：期初=历史期末或0；还本=abs(金额)；期末=历史期末−还本，历史缺失时竟取还本金额（如实呈现，业务合理性待验证）。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:151\nPRINCIPAL REPAYMENT + !isOppositersAccountIDFlag()；无 DA 排除名单和非 CNY 限制。正式 CFADA 不存在则 continue。DB 还本=abs(金额)；本金余额=历史本金余额−还本，无历史则 null。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:228\n全部交易处理后，按 DA → DB → CA → CB 顺序保存。各列表只有非空才删除该导入日期旧数据并 saveAll。四张是贷款业务中间表，不是客户分类表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:272",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97",
+        "verified": true
+      }
+    },
+    {
+      "id": "cfa-out-2",
+      "type": "analysis",
+      "position": {
+        "x": 1060,
+        "y": 1190
+      },
+      "data": {
+        "label": "CFADATab",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：CFADATab。\n按 importDate 的 yyyyMMdd 查询 TransactionTab；加载 cfaCnumFilter.properties 中 DA 的 | 分隔客户名单。不是从四张客户表读取当天客户信息。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97\nusage startsWith LOAN ISSUE 且 currencyCode != CNY。生成 CFACATab：债权人=当前机构；债务人代码／名称来自 Customer（不存在则空串）；合同金额=abs(tradeAmount)，起息日=交易日。同步生成 CFACBTab 提款：期初0、提款与期末=abs(金额)。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:120\nPRINCIPAL REPAYMENT + 非 CNY + !isOppositersAccountIDFlag()。必须查到正式 CFACA，否则 continue 跳过本笔剩余处理。查 CFACB 历史方法：期初=历史期末或0；还本=abs(金额)；期末=历史期末−还本，历史缺失时竟取还本金额（如实呈现，业务合理性待验证）。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:151\nPRINCIPAL REPAYMENT + !isOppositersAccountIDFlag()；无 DA 排除名单和非 CNY 限制。正式 CFADA 不存在则 continue。DB 还本=abs(金额)；本金余额=历史本金余额−还本，无历史则 null。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:228\n全部交易处理后，按 DA → DB → CA → CB 顺序保存。各列表只有非空才删除该导入日期旧数据并 saveAll。四张是贷款业务中间表，不是客户分类表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:272",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97",
+        "verified": true
+      }
+    },
+    {
+      "id": "cfa-out-3",
+      "type": "analysis",
+      "position": {
+        "x": 1060,
+        "y": 1295
+      },
+      "data": {
+        "label": "CFADBTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：CFADBTab。\n按 importDate 的 yyyyMMdd 查询 TransactionTab；加载 cfaCnumFilter.properties 中 DA 的 | 分隔客户名单。不是从四张客户表读取当天客户信息。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97\nusage startsWith LOAN ISSUE 且 currencyCode != CNY。生成 CFACATab：债权人=当前机构；债务人代码／名称来自 Customer（不存在则空串）；合同金额=abs(tradeAmount)，起息日=交易日。同步生成 CFACBTab 提款：期初0、提款与期末=abs(金额)。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:120\nPRINCIPAL REPAYMENT + 非 CNY + !isOppositersAccountIDFlag()。必须查到正式 CFACA，否则 continue 跳过本笔剩余处理。查 CFACB 历史方法：期初=历史期末或0；还本=abs(金额)；期末=历史期末−还本，历史缺失时竟取还本金额（如实呈现，业务合理性待验证）。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:151\nPRINCIPAL REPAYMENT + !isOppositersAccountIDFlag()；无 DA 排除名单和非 CNY 限制。正式 CFADA 不存在则 continue。DB 还本=abs(金额)；本金余额=历史本金余额−还本，无历史则 null。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:228\n全部交易处理后，按 DA → DB → CA → CB 顺序保存。各列表只有非空才删除该导入日期旧数据并 saveAll。四张是贷款业务中间表，不是客户分类表。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:272",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaVTBImportServiceImpl.java:97",
+        "verified": true
+      }
+    },
+    {
+      "id": "cfa-config",
+      "type": "note",
+      "position": {
+        "x": 540,
+        "y": 1390
+      },
+      "connectable": false,
+      "data": {
+        "label": "配置依赖",
+        "caption": "cfaCnumFilter.properties：DA 排除名单\n配置文件，不是数据库表",
+        "kind": "note",
+        "scope": "root",
+        "tone": "amber",
+        "source": "",
+        "verified": false,
+        "description": "cfaCnumFilter.properties：DA 排除名单\n配置文件，不是数据库表"
+      }
+    },
+    {
+      "id": "region-proc",
+      "type": "region",
+      "position": {
+        "x": 1460,
+        "y": 840
+      },
+      "style": {
+        "width": 1320,
+        "height": 720
+      },
+      "zIndex": -10,
+      "draggable": false,
+      "connectable": false,
+      "data": {
+        "label": "04 / 真实一代 proc_processData",
+        "caption": "仅展示读写表；回填、币种规则放在详情；RCPMIS 子过程单独显示调用边界",
+        "kind": "region",
+        "scope": "root",
+        "tone": "cyan",
+        "source": "",
+        "verified": true,
+        "description": "仅展示读写表；回填、币种规则放在详情；RCPMIS 子过程单独显示调用边界"
+      }
+    },
+    {
+      "id": "proc",
+      "type": "analysis",
+      "position": {
+        "x": 2000,
+        "y": 1130
+      },
+      "data": {
+        "label": "proc_processData",
+        "kind": "step",
+        "scope": "root",
+        "description": "读取当日 CNUM 为空的 BopTransaction，关联按账号选最新的 Account 与 ENABLED=1 的 Customer，更新 BopTransaction.CNUM。更新当日 BlnTab 的 RUR→RUB；更新 VTB_RCPMIS_ACCT 的 RUR→RUB（无日期限制）。依次调用三个 RCPMIS 子过程。这里不将子过程未知表假装成已核验依赖。",
+        "source": "/Users/binkerking/Downloads/proc_processData.sql:14",
+        "verified": true
+      }
+    },
+    {
+      "id": "proc-in-0",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 945
+      },
+      "data": {
+        "label": "BopTransaction",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：BopTransaction。同名表与其他区域为同一实体。\n读取当日 CNUM 为空的 BopTransaction，关联按账号选最新的 Account 与 ENABLED=1 的 Customer，更新 BopTransaction.CNUM。更新当日 BlnTab 的 RUR→RUB；更新 VTB_RCPMIS_ACCT 的 RUR→RUB（无日期限制）。依次调用三个 RCPMIS 子过程。这里不将子过程未知表假装成已核验依赖。",
+        "source": "/Users/binkerking/Downloads/proc_processData.sql:14",
+        "verified": true
+      }
+    },
+    {
+      "id": "proc-in-1",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 1037
+      },
+      "data": {
+        "label": "Account",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：Account。同名表与其他区域为同一实体。\n读取当日 CNUM 为空的 BopTransaction，关联按账号选最新的 Account 与 ENABLED=1 的 Customer，更新 BopTransaction.CNUM。更新当日 BlnTab 的 RUR→RUB；更新 VTB_RCPMIS_ACCT 的 RUR→RUB（无日期限制）。依次调用三个 RCPMIS 子过程。这里不将子过程未知表假装成已核验依赖。",
+        "source": "/Users/binkerking/Downloads/proc_processData.sql:14",
+        "verified": true
+      }
+    },
+    {
+      "id": "proc-in-2",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 1129
+      },
+      "data": {
+        "label": "Customer",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：Customer。同名表与其他区域为同一实体。\n读取当日 CNUM 为空的 BopTransaction，关联按账号选最新的 Account 与 ENABLED=1 的 Customer，更新 BopTransaction.CNUM。更新当日 BlnTab 的 RUR→RUB；更新 VTB_RCPMIS_ACCT 的 RUR→RUB（无日期限制）。依次调用三个 RCPMIS 子过程。这里不将子过程未知表假装成已核验依赖。",
+        "source": "/Users/binkerking/Downloads/proc_processData.sql:14",
+        "verified": true
+      }
+    },
+    {
+      "id": "proc-in-3",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 1221
+      },
+      "data": {
+        "label": "BlnTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：BlnTab。同名表与其他区域为同一实体。\n读取当日 CNUM 为空的 BopTransaction，关联按账号选最新的 Account 与 ENABLED=1 的 Customer，更新 BopTransaction.CNUM。更新当日 BlnTab 的 RUR→RUB；更新 VTB_RCPMIS_ACCT 的 RUR→RUB（无日期限制）。依次调用三个 RCPMIS 子过程。这里不将子过程未知表假装成已核验依赖。",
+        "source": "/Users/binkerking/Downloads/proc_processData.sql:14",
+        "verified": true
+      }
+    },
+    {
+      "id": "proc-in-4",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 1313
+      },
+      "data": {
+        "label": "VTB_RCPMIS_ACCT",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：VTB_RCPMIS_ACCT。同名表与其他区域为同一实体。\n读取当日 CNUM 为空的 BopTransaction，关联按账号选最新的 Account 与 ENABLED=1 的 Customer，更新 BopTransaction.CNUM。更新当日 BlnTab 的 RUR→RUB；更新 VTB_RCPMIS_ACCT 的 RUR→RUB（无日期限制）。依次调用三个 RCPMIS 子过程。这里不将子过程未知表假装成已核验依赖。",
+        "source": "/Users/binkerking/Downloads/proc_processData.sql:14",
+        "verified": true
+      }
+    },
+    {
+      "id": "proc-out-0",
+      "type": "analysis",
+      "position": {
+        "x": 2520,
+        "y": 980
+      },
+      "data": {
+        "label": "BopTransaction",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：BopTransaction。\n读取当日 CNUM 为空的 BopTransaction，关联按账号选最新的 Account 与 ENABLED=1 的 Customer，更新 BopTransaction.CNUM。更新当日 BlnTab 的 RUR→RUB；更新 VTB_RCPMIS_ACCT 的 RUR→RUB（无日期限制）。依次调用三个 RCPMIS 子过程。这里不将子过程未知表假装成已核验依赖。",
+        "source": "/Users/binkerking/Downloads/proc_processData.sql:14",
+        "verified": true
+      }
+    },
+    {
+      "id": "proc-out-1",
+      "type": "analysis",
+      "position": {
+        "x": 2520,
+        "y": 1085
+      },
+      "data": {
+        "label": "BlnTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：BlnTab。\n读取当日 CNUM 为空的 BopTransaction，关联按账号选最新的 Account 与 ENABLED=1 的 Customer，更新 BopTransaction.CNUM。更新当日 BlnTab 的 RUR→RUB；更新 VTB_RCPMIS_ACCT 的 RUR→RUB（无日期限制）。依次调用三个 RCPMIS 子过程。这里不将子过程未知表假装成已核验依赖。",
+        "source": "/Users/binkerking/Downloads/proc_processData.sql:14",
+        "verified": true
+      }
+    },
+    {
+      "id": "proc-out-2",
+      "type": "analysis",
+      "position": {
+        "x": 2520,
+        "y": 1190
+      },
+      "data": {
+        "label": "VTB_RCPMIS_ACCT",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：VTB_RCPMIS_ACCT。\n读取当日 CNUM 为空的 BopTransaction，关联按账号选最新的 Account 与 ENABLED=1 的 Customer，更新 BopTransaction.CNUM。更新当日 BlnTab 的 RUR→RUB；更新 VTB_RCPMIS_ACCT 的 RUR→RUB（无日期限制）。依次调用三个 RCPMIS 子过程。这里不将子过程未知表假装成已核验依赖。",
+        "source": "/Users/binkerking/Downloads/proc_processData.sql:14",
+        "verified": true
+      }
+    },
+    {
+      "id": "region-rcp",
+      "type": "region",
+      "position": {
+        "x": 1460,
+        "y": 1680
+      },
+      "style": {
+        "width": 1320,
+        "height": 720
+      },
+      "zIndex": -10,
+      "draggable": false,
+      "connectable": false,
+      "data": {
+        "label": "05 / 后处理子过程 · 待取得过程体",
+        "caption": "只核验到真实调用；不能从过程名称猜测输入表或结果表",
+        "kind": "region",
+        "scope": "root",
+        "tone": "cyan",
+        "source": "",
+        "verified": true,
+        "description": "只核验到真实调用；不能从过程名称猜测输入表或结果表"
+      }
+    },
+    {
+      "id": "rcp-0",
+      "type": "analysis",
+      "position": {
+        "x": 1940,
+        "y": 1800
+      },
+      "data": {
+        "label": "proc_extract_rcpmis_2121",
+        "kind": "step",
+        "scope": "root",
+        "description": "proc_processData 内真实调用，参数 @dadt。子过程体尚未核验，输入输出表未确认。",
+        "source": "/Users/binkerking/Downloads/proc_processData.sql:39",
+        "verified": false
+      }
+    },
+    {
+      "id": "rcp-1",
+      "type": "analysis",
+      "position": {
+        "x": 1940,
+        "y": 1960
+      },
+      "data": {
+        "label": "proc_extract_rcpmis_2105y",
+        "kind": "step",
+        "scope": "root",
+        "description": "proc_processData 内真实调用，参数 @dadt。子过程体尚未核验，输入输出表未确认。",
+        "source": "/Users/binkerking/Downloads/proc_processData.sql:39",
+        "verified": false
+      }
+    },
+    {
+      "id": "rcp-2",
+      "type": "analysis",
+      "position": {
+        "x": 1940,
+        "y": 2120
+      },
+      "data": {
+        "label": "proc_extract_rcpmis_2105n",
+        "kind": "step",
+        "scope": "root",
+        "description": "proc_processData 内真实调用，参数 @dadt。子过程体尚未核验，输入输出表未确认。",
+        "source": "/Users/binkerking/Downloads/proc_processData.sql:39",
+        "verified": false
+      }
+    },
+    {
+      "id": "rcp-pending",
+      "type": "note",
+      "position": {
+        "x": 1530,
+        "y": 1850
+      },
+      "connectable": false,
+      "data": {
+        "label": "缺失证据 / 不猜表名",
+        "caption": "三个子过程的表依赖待补齐\nVTB_RCPMIS_ACCT 是父过程更新目标\n不能直接当作三个子过程共同输入",
+        "kind": "note",
+        "scope": "root",
+        "tone": "amber",
+        "source": "",
+        "verified": false,
+        "description": "三个子过程的表依赖待补齐\nVTB_RCPMIS_ACCT 是父过程更新目标\n不能直接当作三个子过程共同输入"
+      }
+    },
+    {
+      "id": "region-customer",
+      "type": "region",
+      "position": {
+        "x": 0,
+        "y": 1680
+      },
+      "style": {
+        "width": 1320,
+        "height": 720
+      },
+      "zIndex": -10,
+      "draggable": false,
+      "connectable": false,
+      "data": {
+        "label": "06 / ACC 客户提取",
+        "caption": "extractVTBData 匹配 ACC 后先执行客户提取；不是 parseTxtFile 的直接输出",
+        "kind": "region",
+        "scope": "root",
+        "tone": "cyan",
+        "source": "",
+        "verified": true,
+        "description": "extractVTBData 匹配 ACC 后先执行客户提取；不是 parseTxtFile 的直接输出"
+      }
+    },
+    {
+      "id": "customer",
+      "type": "analysis",
+      "position": {
+        "x": 540,
+        "y": 1970
+      },
+      "data": {
+        "label": "importVTBCustomerData",
+        "kind": "step",
+        "scope": "root",
+        "description": "读取 CifTab、已有 Customer 和 AccountMainType。依据已有客户与主体类型处理后 saveAll；注释中的 BI_Customer SQL 不属于当前执行链。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CustomerImportServiceImpl.java:352",
+        "verified": true
+      }
+    },
+    {
+      "id": "customer-in-0",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 1785
+      },
+      "data": {
+        "label": "CifTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：CifTab。同名表与其他区域为同一实体。\n读取 CifTab、已有 Customer 和 AccountMainType。依据已有客户与主体类型处理后 saveAll；注释中的 BI_Customer SQL 不属于当前执行链。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CustomerImportServiceImpl.java:352",
+        "verified": true
+      }
+    },
+    {
+      "id": "customer-in-1",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 1877
+      },
+      "data": {
+        "label": "Customer",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：Customer。同名表与其他区域为同一实体。\n读取 CifTab、已有 Customer 和 AccountMainType。依据已有客户与主体类型处理后 saveAll；注释中的 BI_Customer SQL 不属于当前执行链。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CustomerImportServiceImpl.java:352",
+        "verified": true
+      }
+    },
+    {
+      "id": "customer-in-2",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 1969
+      },
+      "data": {
+        "label": "AccountMainType",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：AccountMainType。同名表与其他区域为同一实体。\n读取 CifTab、已有 Customer 和 AccountMainType。依据已有客户与主体类型处理后 saveAll；注释中的 BI_Customer SQL 不属于当前执行链。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CustomerImportServiceImpl.java:352",
+        "verified": true
+      }
+    },
+    {
+      "id": "customer-out-0",
+      "type": "analysis",
+      "position": {
+        "x": 1060,
+        "y": 1820
+      },
+      "data": {
+        "label": "Customer",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：Customer。\n读取 CifTab、已有 Customer 和 AccountMainType。依据已有客户与主体类型处理后 saveAll；注释中的 BI_Customer SQL 不属于当前执行链。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CustomerImportServiceImpl.java:352",
+        "verified": true
+      }
+    },
+    {
+      "id": "region-account",
+      "type": "region",
+      "position": {
+        "x": 0,
+        "y": 2520
+      },
+      "style": {
+        "width": 1320,
+        "height": 870
+      },
+      "zIndex": -10,
+      "draggable": false,
+      "connectable": false,
+      "data": {
+        "label": "07 / ACC 账户提取",
+        "caption": "客户 → 账户 → 余额是 ACC 分支的调用顺序；账户还依赖多张码表",
+        "kind": "region",
+        "scope": "root",
+        "tone": "cyan",
+        "source": "",
+        "verified": true,
+        "description": "客户 → 账户 → 余额是 ACC 分支的调用顺序；账户还依赖多张码表"
+      }
+    },
+    {
+      "id": "account",
+      "type": "analysis",
+      "position": {
+        "x": 540,
+        "y": 2810
+      },
+      "data": {
+        "label": "importVTBAccountData",
+        "kind": "step",
+        "scope": "root",
+        "description": "读取 AifTab、Customer、有效 Account、AccountStatus、AccountType、AccountCategory、Currency；使用 aboqfoacc.properties 配置。完整字段规则保留在后续详情核验，不把码表当作本任务输出。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/AccountImportServiceImpl.java:591",
+        "verified": true
+      }
+    },
+    {
+      "id": "account-in-0",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 2625
+      },
+      "data": {
+        "label": "AifTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：AifTab。同名表与其他区域为同一实体。\n读取 AifTab、Customer、有效 Account、AccountStatus、AccountType、AccountCategory、Currency；使用 aboqfoacc.properties 配置。完整字段规则保留在后续详情核验，不把码表当作本任务输出。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/AccountImportServiceImpl.java:591",
+        "verified": true
+      }
+    },
+    {
+      "id": "account-in-1",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 2717
+      },
+      "data": {
+        "label": "Customer",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：Customer。同名表与其他区域为同一实体。\n读取 AifTab、Customer、有效 Account、AccountStatus、AccountType、AccountCategory、Currency；使用 aboqfoacc.properties 配置。完整字段规则保留在后续详情核验，不把码表当作本任务输出。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/AccountImportServiceImpl.java:591",
+        "verified": true
+      }
+    },
+    {
+      "id": "account-in-2",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 2809
+      },
+      "data": {
+        "label": "Account",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：Account。同名表与其他区域为同一实体。\n读取 AifTab、Customer、有效 Account、AccountStatus、AccountType、AccountCategory、Currency；使用 aboqfoacc.properties 配置。完整字段规则保留在后续详情核验，不把码表当作本任务输出。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/AccountImportServiceImpl.java:591",
+        "verified": true
+      }
+    },
+    {
+      "id": "account-in-3",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 2901
+      },
+      "data": {
+        "label": "AccountStatus",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：AccountStatus。同名表与其他区域为同一实体。\n读取 AifTab、Customer、有效 Account、AccountStatus、AccountType、AccountCategory、Currency；使用 aboqfoacc.properties 配置。完整字段规则保留在后续详情核验，不把码表当作本任务输出。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/AccountImportServiceImpl.java:591",
+        "verified": true
+      }
+    },
+    {
+      "id": "account-in-4",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 2993
+      },
+      "data": {
+        "label": "AccountType",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：AccountType。同名表与其他区域为同一实体。\n读取 AifTab、Customer、有效 Account、AccountStatus、AccountType、AccountCategory、Currency；使用 aboqfoacc.properties 配置。完整字段规则保留在后续详情核验，不把码表当作本任务输出。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/AccountImportServiceImpl.java:591",
+        "verified": true
+      }
+    },
+    {
+      "id": "account-in-5",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 3085
+      },
+      "data": {
+        "label": "AccountCategory",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：AccountCategory。同名表与其他区域为同一实体。\n读取 AifTab、Customer、有效 Account、AccountStatus、AccountType、AccountCategory、Currency；使用 aboqfoacc.properties 配置。完整字段规则保留在后续详情核验，不把码表当作本任务输出。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/AccountImportServiceImpl.java:591",
+        "verified": true
+      }
+    },
+    {
+      "id": "account-in-6",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 3177
+      },
+      "data": {
+        "label": "Currency",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：Currency。同名表与其他区域为同一实体。\n读取 AifTab、Customer、有效 Account、AccountStatus、AccountType、AccountCategory、Currency；使用 aboqfoacc.properties 配置。完整字段规则保留在后续详情核验，不把码表当作本任务输出。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/AccountImportServiceImpl.java:591",
+        "verified": true
+      }
+    },
+    {
+      "id": "account-out-0",
+      "type": "analysis",
+      "position": {
+        "x": 1060,
+        "y": 2660
+      },
+      "data": {
+        "label": "Account",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：Account。\n读取 AifTab、Customer、有效 Account、AccountStatus、AccountType、AccountCategory、Currency；使用 aboqfoacc.properties 配置。完整字段规则保留在后续详情核验，不把码表当作本任务输出。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/AccountImportServiceImpl.java:591",
+        "verified": true
+      }
+    },
+    {
+      "id": "region-balance",
+      "type": "region",
+      "position": {
+        "x": 1460,
+        "y": 2520
+      },
+      "style": {
+        "width": 1320,
+        "height": 870
+      },
+      "zIndex": -10,
+      "draggable": false,
+      "connectable": false,
+      "data": {
+        "label": "08 / ACC 余额提取",
+        "caption": "交易 + 余额中间表 + 正式账户 → 正式余额；Balancetemp 在这里是内存计算列表",
+        "kind": "region",
+        "scope": "root",
+        "tone": "cyan",
+        "source": "",
+        "verified": true,
+        "description": "交易 + 余额中间表 + 正式账户 → 正式余额；Balancetemp 在这里是内存计算列表"
+      }
+    },
+    {
+      "id": "balance",
+      "type": "analysis",
+      "position": {
+        "x": 2000,
+        "y": 2810
+      },
+      "data": {
+        "label": "importVTBBalanceData",
+        "kind": "step",
+        "scope": "root",
+        "description": "读取当天 TransactionTab，经 filter 生成内存 Balancetemp 列表；读取有效 Account、当日 Balance、BlnTab，再处理正式 Balance。Balancetemp 不在本链中标成必然落库表。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/BalanceImportServiceImpl.java:597",
+        "verified": true
+      }
+    },
+    {
+      "id": "balance-in-0",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 2625
+      },
+      "data": {
+        "label": "TransactionTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：TransactionTab。同名表与其他区域为同一实体。\n读取当天 TransactionTab，经 filter 生成内存 Balancetemp 列表；读取有效 Account、当日 Balance、BlnTab，再处理正式 Balance。Balancetemp 不在本链中标成必然落库表。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/BalanceImportServiceImpl.java:597",
+        "verified": true
+      }
+    },
+    {
+      "id": "balance-in-1",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 2717
+      },
+      "data": {
+        "label": "BlnTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：BlnTab。同名表与其他区域为同一实体。\n读取当天 TransactionTab，经 filter 生成内存 Balancetemp 列表；读取有效 Account、当日 Balance、BlnTab，再处理正式 Balance。Balancetemp 不在本链中标成必然落库表。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/BalanceImportServiceImpl.java:597",
+        "verified": true
+      }
+    },
+    {
+      "id": "balance-in-2",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 2809
+      },
+      "data": {
+        "label": "Account",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：Account。同名表与其他区域为同一实体。\n读取当天 TransactionTab，经 filter 生成内存 Balancetemp 列表；读取有效 Account、当日 Balance、BlnTab，再处理正式 Balance。Balancetemp 不在本链中标成必然落库表。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/BalanceImportServiceImpl.java:597",
+        "verified": true
+      }
+    },
+    {
+      "id": "balance-in-3",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 2901
+      },
+      "data": {
+        "label": "Balance",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：Balance。同名表与其他区域为同一实体。\n读取当天 TransactionTab，经 filter 生成内存 Balancetemp 列表；读取有效 Account、当日 Balance、BlnTab，再处理正式 Balance。Balancetemp 不在本链中标成必然落库表。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/BalanceImportServiceImpl.java:597",
+        "verified": true
+      }
+    },
+    {
+      "id": "balance-out-0",
+      "type": "analysis",
+      "position": {
+        "x": 2520,
+        "y": 2660
+      },
+      "data": {
+        "label": "Balance",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：Balance。\n读取当天 TransactionTab，经 filter 生成内存 Balancetemp 列表；读取有效 Account、当日 Balance、BlnTab，再处理正式 Balance。Balancetemp 不在本链中标成必然落库表。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/BalanceImportServiceImpl.java:597",
+        "verified": true
+      }
+    },
+    {
+      "id": "region-formal",
+      "type": "region",
+      "position": {
+        "x": 0,
+        "y": 3500
+      },
+      "style": {
+        "width": 1320,
+        "height": 840
+      },
+      "zIndex": -10,
+      "draggable": false,
+      "connectable": false,
+      "data": {
+        "label": "09 / CFA 正式提取 · CA / CB / DA / DB",
+        "caption": "按所选报表执行；变动表还依赖对应正式签约表，不是中间表简单复制",
+        "kind": "region",
+        "scope": "root",
+        "tone": "cyan",
+        "source": "",
+        "verified": true,
+        "description": "按所选报表执行；变动表还依赖对应正式签约表，不是中间表简单复制"
+      }
+    },
+    {
+      "id": "formal-CA-in",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 3630
+      },
+      "data": {
+        "label": "CFACATab",
+        "kind": "table",
+        "scope": "root",
+        "description": "贷款中间表输入",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfacaMetroExtractServiceImpl.java:43",
+        "verified": true
+      }
+    },
+    {
+      "id": "formal-CA",
+      "type": "analysis",
+      "position": {
+        "x": 540,
+        "y": 3630
+      },
+      "data": {
+        "label": "提取 CFACA",
+        "kind": "step",
+        "scope": "root",
+        "description": "getCFACATabList(extractDate)，逐条处理并收集 dealNo。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfacaMetroExtractServiceImpl.java:47",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfacaMetroExtractServiceImpl.java:43",
+        "verified": true
+      }
+    },
+    {
+      "id": "formal-CA-out",
+      "type": "analysis",
+      "position": {
+        "x": 1060,
+        "y": 3630
+      },
+      "data": {
+        "label": "CFACA",
+        "kind": "table",
+        "scope": "root",
+        "description": "正式表：查询现有记录并按规则新增、更新或清理。非一律覆盖。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfacaMetroExtractServiceImpl.java:43",
+        "verified": true
+      }
+    },
+    {
+      "id": "formal-CB-in",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 3790
+      },
+      "data": {
+        "label": "CFACBTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "贷款中间表输入",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfacbMetroExtractServiceImpl.java:43",
+        "verified": true
+      }
+    },
+    {
+      "id": "formal-CB",
+      "type": "analysis",
+      "position": {
+        "x": 540,
+        "y": 3790
+      },
+      "data": {
+        "label": "提取 CFACB",
+        "kind": "step",
+        "scope": "root",
+        "description": "分派至 cfacbMetroExtractService.extractData(extractDate)。本节点只确认调用入口；实际选数、余额字段及覆盖策略待读取该服务后展开。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaMetroExtractServiceImpl.java:156",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfacbMetroExtractServiceImpl.java:43",
+        "verified": true
+      }
+    },
+    {
+      "id": "formal-CB-out",
+      "type": "analysis",
+      "position": {
+        "x": 1060,
+        "y": 3790
+      },
+      "data": {
+        "label": "CFACB",
+        "kind": "table",
+        "scope": "root",
+        "description": "正式表：查询现有记录并按规则新增、更新或清理。非一律覆盖。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfacbMetroExtractServiceImpl.java:43",
+        "verified": true
+      }
+    },
+    {
+      "id": "formal-DA-in",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 3950
+      },
+      "data": {
+        "label": "CFADATab",
+        "kind": "table",
+        "scope": "root",
+        "description": "贷款中间表输入",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfadaMetroExtractServiceImpl.java:43",
+        "verified": true
+      }
+    },
+    {
+      "id": "formal-DA",
+      "type": "analysis",
+      "position": {
+        "x": 540,
+        "y": 3950
+      },
+      "data": {
+        "label": "提取 CFADA",
+        "kind": "step",
+        "scope": "root",
+        "description": "分派至 cfadaMetroExtractService.extractData(extractDate)。本节点只确认调用入口；内部新增／更新条件不应直接套用 CFACA。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaMetroExtractServiceImpl.java:159",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfadaMetroExtractServiceImpl.java:43",
+        "verified": true
+      }
+    },
+    {
+      "id": "formal-DA-out",
+      "type": "analysis",
+      "position": {
+        "x": 1060,
+        "y": 3950
+      },
+      "data": {
+        "label": "CFADA",
+        "kind": "table",
+        "scope": "root",
+        "description": "正式表：查询现有记录并按规则新增、更新或清理。非一律覆盖。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfadaMetroExtractServiceImpl.java:43",
+        "verified": true
+      }
+    },
+    {
+      "id": "formal-DB-in",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 4110
+      },
+      "data": {
+        "label": "CFADBTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "贷款中间表输入",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfadbMetroExtractServiceImpl.java:43",
+        "verified": true
+      }
+    },
+    {
+      "id": "formal-DB",
+      "type": "analysis",
+      "position": {
+        "x": 540,
+        "y": 4110
+      },
+      "data": {
+        "label": "提取 CFADB",
+        "kind": "step",
+        "scope": "root",
+        "description": "分派至 cfadbMetroExtractService.extractData(extractDate)。本节点只确认调用入口；内部规则待展开。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaMetroExtractServiceImpl.java:162",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfadbMetroExtractServiceImpl.java:43",
+        "verified": true
+      }
+    },
+    {
+      "id": "formal-DB-out",
+      "type": "analysis",
+      "position": {
+        "x": 1060,
+        "y": 4110
+      },
+      "data": {
+        "label": "CFADB",
+        "kind": "table",
+        "scope": "root",
+        "description": "正式表：查询现有记录并按规则新增、更新或清理。非一律覆盖。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfadbMetroExtractServiceImpl.java:43",
+        "verified": true
+      }
+    },
+    {
+      "id": "fogu",
+      "type": "analysis",
+      "position": {
+        "x": 790,
+        "y": 4160
+      },
+      "data": {
+        "label": "FoguCodeInfos",
+        "kind": "table",
+        "scope": "root",
+        "description": "Cfada 提取清理/重建担保人信息子记录；关联 CFADA。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfadaMetroExtractServiceImpl.java:156",
+        "verified": true
+      }
+    },
+    {
+      "id": "fogu-input",
+      "type": "analysis",
+      "position": {
+        "x": 290,
+        "y": 4160
+      },
+      "data": {
+        "label": "FoguCodeInfosTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "CFADA 提取按 cfadaTabId 读取担保人中间子表。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfadaMetroExtractServiceImpl.java:155",
+        "verified": true
+      }
+    },
+    {
+      "id": "region-jsh",
+      "type": "region",
+      "position": {
+        "x": 1460,
+        "y": 3500
+      },
+      "style": {
+        "width": 1320,
+        "height": 840
+      },
+      "zIndex": -10,
+      "draggable": false,
+      "connectable": false,
+      "data": {
+        "label": "10 / JSH 结售汇提取",
+        "caption": "读取当日及历史交易，结合客户、用途码和交易码；处理细节保留在详情",
+        "kind": "region",
+        "scope": "root",
+        "tone": "cyan",
+        "source": "",
+        "verified": true,
+        "description": "读取当日及历史交易，结合客户、用途码和交易码；处理细节保留在详情"
+      }
+    },
+    {
+      "id": "jsh",
+      "type": "analysis",
+      "position": {
+        "x": 2000,
+        "y": 3790
+      },
+      "data": {
+        "label": "importFAEBaseInfoData",
+        "kind": "step",
+        "scope": "root",
+        "description": "当日及历史交易配对。查询已有 FAEBaseInfo；setFAEBaseInfos 读取 Customer、UseType、TxCode，建立 FAEManage 关联。通过基础信息持久化关联记录；更深层 DAO 选数和级联映射仍需继续核验。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/aboq/service/impl/FaeBaseInfoServiceImpl.java:488",
+        "verified": true
+      }
+    },
+    {
+      "id": "jsh-in-0",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 3605
+      },
+      "data": {
+        "label": "TransactionTab · 当日 / 历史",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：TransactionTab · 当日 / 历史。同名表与其他区域为同一实体。\n当日及历史交易配对。查询已有 FAEBaseInfo；setFAEBaseInfos 读取 Customer、UseType、TxCode，建立 FAEManage 关联。通过基础信息持久化关联记录；更深层 DAO 选数和级联映射仍需继续核验。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/aboq/service/impl/FaeBaseInfoServiceImpl.java:488",
+        "verified": true
+      }
+    },
+    {
+      "id": "jsh-in-1",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 3697
+      },
+      "data": {
+        "label": "Customer",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：Customer。同名表与其他区域为同一实体。\n当日及历史交易配对。查询已有 FAEBaseInfo；setFAEBaseInfos 读取 Customer、UseType、TxCode，建立 FAEManage 关联。通过基础信息持久化关联记录；更深层 DAO 选数和级联映射仍需继续核验。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/aboq/service/impl/FaeBaseInfoServiceImpl.java:488",
+        "verified": true
+      }
+    },
+    {
+      "id": "jsh-in-2",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 3789
+      },
+      "data": {
+        "label": "FAEBaseInfo",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：FAEBaseInfo。同名表与其他区域为同一实体。\n当日及历史交易配对。查询已有 FAEBaseInfo；setFAEBaseInfos 读取 Customer、UseType、TxCode，建立 FAEManage 关联。通过基础信息持久化关联记录；更深层 DAO 选数和级联映射仍需继续核验。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/aboq/service/impl/FaeBaseInfoServiceImpl.java:488",
+        "verified": true
+      }
+    },
+    {
+      "id": "jsh-in-3",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 3881
+      },
+      "data": {
+        "label": "UseType",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：UseType。同名表与其他区域为同一实体。\n当日及历史交易配对。查询已有 FAEBaseInfo；setFAEBaseInfos 读取 Customer、UseType、TxCode，建立 FAEManage 关联。通过基础信息持久化关联记录；更深层 DAO 选数和级联映射仍需继续核验。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/aboq/service/impl/FaeBaseInfoServiceImpl.java:488",
+        "verified": true
+      }
+    },
+    {
+      "id": "jsh-in-4",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 3973
+      },
+      "data": {
+        "label": "TxCode",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：TxCode。同名表与其他区域为同一实体。\n当日及历史交易配对。查询已有 FAEBaseInfo；setFAEBaseInfos 读取 Customer、UseType、TxCode，建立 FAEManage 关联。通过基础信息持久化关联记录；更深层 DAO 选数和级联映射仍需继续核验。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/aboq/service/impl/FaeBaseInfoServiceImpl.java:488",
+        "verified": true
+      }
+    },
+    {
+      "id": "jsh-out-0",
+      "type": "analysis",
+      "position": {
+        "x": 2520,
+        "y": 3640
+      },
+      "data": {
+        "label": "FAEBaseInfo",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：FAEBaseInfo。\n当日及历史交易配对。查询已有 FAEBaseInfo；setFAEBaseInfos 读取 Customer、UseType、TxCode，建立 FAEManage 关联。通过基础信息持久化关联记录；更深层 DAO 选数和级联映射仍需继续核验。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/aboq/service/impl/FaeBaseInfoServiceImpl.java:488",
+        "verified": true
+      }
+    },
+    {
+      "id": "jsh-out-1",
+      "type": "analysis",
+      "position": {
+        "x": 2520,
+        "y": 3745
+      },
+      "data": {
+        "label": "FAEManage",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：FAEManage。\n当日及历史交易配对。查询已有 FAEBaseInfo；setFAEBaseInfos 读取 Customer、UseType、TxCode，建立 FAEManage 关联。通过基础信息持久化关联记录；更深层 DAO 选数和级联映射仍需继续核验。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/aboq/service/impl/FaeBaseInfoServiceImpl.java:488",
+        "verified": true
+      }
+    },
+    {
+      "id": "region-extra",
+      "type": "region",
+      "position": {
+        "x": 0,
+        "y": 4480
+      },
+      "style": {
+        "width": 1320,
+        "height": 720
+      },
+      "zIndex": -10,
+      "draggable": false,
+      "connectable": false,
+      "data": {
+        "label": "11 / CFA AN / AS · 待进一步追踪",
+        "caption": "先展示已确认的直接表链；其上游来源和动态合同表依赖尚不完整",
+        "kind": "region",
+        "scope": "root",
+        "tone": "cyan",
+        "source": "",
+        "verified": true,
+        "description": "先展示已确认的直接表链；其上游来源和动态合同表依赖尚不完整"
+      }
+    },
+    {
+      "id": "extra-in-0",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 4630
+      },
+      "data": {
+        "label": "CFAATab",
+        "kind": "table",
+        "scope": "root",
+        "description": "已确认提取器读取；本图尚未完成该中间表的上游来源追踪。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaanMetroExtractServiceImpl.java",
+        "verified": false
+      }
+    },
+    {
+      "id": "extra-task-0",
+      "type": "analysis",
+      "position": {
+        "x": 540,
+        "y": 4630
+      },
+      "data": {
+        "label": "提取 CFAAN",
+        "kind": "step",
+        "scope": "root",
+        "description": "直接输入输出已确认；历史正式记录、合同实体及深层 DAO 依赖待补全。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaanMetroExtractServiceImpl.java",
+        "verified": false
+      }
+    },
+    {
+      "id": "extra-out-0",
+      "type": "analysis",
+      "position": {
+        "x": 1060,
+        "y": 4630
+      },
+      "data": {
+        "label": "CFAAN",
+        "kind": "table",
+        "scope": "root",
+        "description": "正式输出表；尚非完整依赖清单。",
+        "source": "",
+        "verified": false
+      }
+    },
+    {
+      "id": "extra-in-1",
+      "type": "analysis",
+      "position": {
+        "x": 65,
+        "y": 4830
+      },
+      "data": {
+        "label": "CFAASTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "已确认提取器读取；本图尚未完成该中间表的上游来源追踪。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaasMetroExtractServiceImpl.java",
+        "verified": false
+      }
+    },
+    {
+      "id": "extra-task-1",
+      "type": "analysis",
+      "position": {
+        "x": 540,
+        "y": 4830
+      },
+      "data": {
+        "label": "提取 CFAAS",
+        "kind": "step",
+        "scope": "root",
+        "description": "直接输入输出已确认；历史正式记录、合同实体及深层 DAO 依赖待补全。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/CfaasMetroExtractServiceImpl.java",
+        "verified": false
+      }
+    },
+    {
+      "id": "extra-out-1",
+      "type": "analysis",
+      "position": {
+        "x": 1060,
+        "y": 4830
+      },
+      "data": {
+        "label": "CFAAS",
+        "kind": "table",
+        "scope": "root",
+        "description": "正式输出表；尚非完整依赖清单。",
+        "source": "",
+        "verified": false
+      }
+    },
+    {
+      "id": "extra-note",
+      "type": "note",
+      "position": {
+        "x": 540,
+        "y": 5010
+      },
+      "connectable": false,
+      "data": {
+        "label": "待核验依赖",
+        "caption": "CFAAS 按 dataType 查询合同实体\n不能只画 CFAASTab → CFAAS\n完整来源和合同表后续补齐",
+        "kind": "note",
+        "scope": "root",
+        "tone": "amber",
+        "source": "",
+        "verified": false,
+        "description": "CFAAS 按 dataType 查询合同实体\n不能只画 CFAASTab → CFAAS\n完整来源和合同表后续补齐"
+      }
+    },
+    {
+      "id": "region-fal",
+      "type": "region",
+      "position": {
+        "x": 1460,
+        "y": 4480
+      },
+      "style": {
+        "width": 1320,
+        "height": 920
+      },
+      "zIndex": -10,
+      "draggable": false,
+      "connectable": false,
+      "data": {
+        "label": "12 / FAL 提取 · 初步表清单",
+        "caption": "直接调用链已定位；CFA 聚合数据来源、初始化与动态清理表依赖仍待补全",
+        "kind": "region",
+        "scope": "root",
+        "tone": "cyan",
+        "source": "",
+        "verified": true,
+        "description": "直接调用链已定位；CFA 聚合数据来源、初始化与动态清理表依赖仍待补全"
+      }
+    },
+    {
+      "id": "fal",
+      "type": "analysis",
+      "position": {
+        "x": 2000,
+        "y": 4770
+      },
+      "data": {
+        "label": "extractFalData",
+        "kind": "step",
+        "scope": "root",
+        "description": "活动分支 FALZB→Z02、FALDB→D02、FALFA→F01、FALDE→D0501、FALDK→D09。初始化还读取其他历史表，D0501 依赖 cfaDataMap，深层来源未完整追踪。本区域明确是初步清单，不表示完整或全部表由四个 TXT 产生。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataExtractVtbFalServiceImpl.java:106",
+        "verified": false
+      }
+    },
+    {
+      "id": "fal-in-0",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 4585
+      },
+      "data": {
+        "label": "FalWarehouse",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：FalWarehouse。同名表与其他区域为同一实体。\n活动分支 FALZB→Z02、FALDB→D02、FALFA→F01、FALDE→D0501、FALDK→D09。初始化还读取其他历史表，D0501 依赖 cfaDataMap，深层来源未完整追踪。本区域明确是初步清单，不表示完整或全部表由四个 TXT 产生。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataExtractVtbFalServiceImpl.java:106",
+        "verified": false
+      }
+    },
+    {
+      "id": "fal-in-1",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 4677
+      },
+      "data": {
+        "label": "Z01",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：Z01。同名表与其他区域为同一实体。\n活动分支 FALZB→Z02、FALDB→D02、FALFA→F01、FALDE→D0501、FALDK→D09。初始化还读取其他历史表，D0501 依赖 cfaDataMap，深层来源未完整追踪。本区域明确是初步清单，不表示完整或全部表由四个 TXT 产生。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataExtractVtbFalServiceImpl.java:106",
+        "verified": false
+      }
+    },
+    {
+      "id": "fal-in-2",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 4769
+      },
+      "data": {
+        "label": "Z02 · 历史",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：Z02 · 历史。同名表与其他区域为同一实体。\n活动分支 FALZB→Z02、FALDB→D02、FALFA→F01、FALDE→D0501、FALDK→D09。初始化还读取其他历史表，D0501 依赖 cfaDataMap，深层来源未完整追踪。本区域明确是初步清单，不表示完整或全部表由四个 TXT 产生。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataExtractVtbFalServiceImpl.java:106",
+        "verified": false
+      }
+    },
+    {
+      "id": "fal-in-3",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 4861
+      },
+      "data": {
+        "label": "TransactionTab",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：TransactionTab。同名表与其他区域为同一实体。\n活动分支 FALZB→Z02、FALDB→D02、FALFA→F01、FALDE→D0501、FALDK→D09。初始化还读取其他历史表，D0501 依赖 cfaDataMap，深层来源未完整追踪。本区域明确是初步清单，不表示完整或全部表由四个 TXT 产生。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataExtractVtbFalServiceImpl.java:106",
+        "verified": false
+      }
+    },
+    {
+      "id": "fal-in-4",
+      "type": "analysis",
+      "position": {
+        "x": 1525,
+        "y": 4953
+      },
+      "data": {
+        "label": "D0501 · 历史",
+        "kind": "table",
+        "scope": "root",
+        "description": "输入引用：D0501 · 历史。同名表与其他区域为同一实体。\n活动分支 FALZB→Z02、FALDB→D02、FALFA→F01、FALDE→D0501、FALDK→D09。初始化还读取其他历史表，D0501 依赖 cfaDataMap，深层来源未完整追踪。本区域明确是初步清单，不表示完整或全部表由四个 TXT 产生。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataExtractVtbFalServiceImpl.java:106",
+        "verified": false
+      }
+    },
+    {
+      "id": "fal-out-0",
+      "type": "analysis",
+      "position": {
+        "x": 2520,
+        "y": 4620
+      },
+      "data": {
+        "label": "Z02",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：Z02。\n活动分支 FALZB→Z02、FALDB→D02、FALFA→F01、FALDE→D0501、FALDK→D09。初始化还读取其他历史表，D0501 依赖 cfaDataMap，深层来源未完整追踪。本区域明确是初步清单，不表示完整或全部表由四个 TXT 产生。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataExtractVtbFalServiceImpl.java:106",
+        "verified": false
+      }
+    },
+    {
+      "id": "fal-out-1",
+      "type": "analysis",
+      "position": {
+        "x": 2520,
+        "y": 4725
+      },
+      "data": {
+        "label": "D02",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：D02。\n活动分支 FALZB→Z02、FALDB→D02、FALFA→F01、FALDE→D0501、FALDK→D09。初始化还读取其他历史表，D0501 依赖 cfaDataMap，深层来源未完整追踪。本区域明确是初步清单，不表示完整或全部表由四个 TXT 产生。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataExtractVtbFalServiceImpl.java:106",
+        "verified": false
+      }
+    },
+    {
+      "id": "fal-out-2",
+      "type": "analysis",
+      "position": {
+        "x": 2520,
+        "y": 4830
+      },
+      "data": {
+        "label": "F01",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：F01。\n活动分支 FALZB→Z02、FALDB→D02、FALFA→F01、FALDE→D0501、FALDK→D09。初始化还读取其他历史表，D0501 依赖 cfaDataMap，深层来源未完整追踪。本区域明确是初步清单，不表示完整或全部表由四个 TXT 产生。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataExtractVtbFalServiceImpl.java:106",
+        "verified": false
+      }
+    },
+    {
+      "id": "fal-out-3",
+      "type": "analysis",
+      "position": {
+        "x": 2520,
+        "y": 4935
+      },
+      "data": {
+        "label": "D0501",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：D0501。\n活动分支 FALZB→Z02、FALDB→D02、FALFA→F01、FALDE→D0501、FALDK→D09。初始化还读取其他历史表，D0501 依赖 cfaDataMap，深层来源未完整追踪。本区域明确是初步清单，不表示完整或全部表由四个 TXT 产生。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataExtractVtbFalServiceImpl.java:106",
+        "verified": false
+      }
+    },
+    {
+      "id": "fal-out-4",
+      "type": "analysis",
+      "position": {
+        "x": 2520,
+        "y": 5040
+      },
+      "data": {
+        "label": "D09",
+        "kind": "table",
+        "scope": "root",
+        "description": "输出/更新目标：D09。\n活动分支 FALZB→Z02、FALDB→D02、FALFA→F01、FALDE→D0501、FALDK→D09。初始化还读取其他历史表，D0501 依赖 cfaDataMap，深层来源未完整追踪。本区域明确是初步清单，不表示完整或全部表由四个 TXT 产生。",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataExtractVtbFalServiceImpl.java:106",
+        "verified": false
+      }
+    },
+    {
+      "id": "fal-note",
+      "type": "note",
+      "position": {
+        "x": 1950,
+        "y": 5260
+      },
+      "connectable": false,
+      "data": {
+        "label": "尚未完整 / 不能直接配置迁移",
+        "caption": "FAL 的 CFA 聚合源、历史初始化\n动态清理依赖和外部入仓链待补齐",
+        "kind": "note",
+        "scope": "root",
+        "tone": "amber",
+        "source": "",
+        "verified": false,
+        "description": "FAL 的 CFA 聚合源、历史初始化\n动态清理依赖和外部入仓链待补齐"
+      }
+    },
+    {
+      "id": "archive",
+      "type": "analysis",
+      "position": {
+        "x": 2470,
+        "y": -190
+      },
+      "data": {
+        "label": "源文件归档",
+        "kind": "step",
+        "scope": "root",
+        "description": "调用 moveFolderSrc(srcImportDir,importHisDir + systemDate)，不是仅归档成功解析的四个 TXT。过程调用报错时不会继续执行该行。移动函数的内部及事务一致性待进一步核验。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:1854",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:1854",
+        "verified": true
+      }
+    },
+    {
+      "id": "dispatch",
+      "type": "analysis",
+      "position": {
+        "x": 1810,
+        "y": -190
+      },
+      "data": {
+        "label": "另行发起报表提取",
+        "kind": "boundary",
+        "scope": "root",
+        "description": "DataImportAction.extractData 的 VTB 分支调用 extractVTBData(fileTypes,extractDate,isDelete,fileType)。图中虚线是用户操作衔接，不是自动方法调用。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/action/DataImportAction.java:843\n以下为独立正则匹配，源码顺序 ACC → JSH → CFA → FAL；并非互斥选择，也不是自动全量执行。图中分叉用于展示报表家族。\n\n源码：/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2796",
+        "source": "/Users/binkerking/Documents/Riking-Project/8-VBT/06-版本管理/SVN源码/SVN/FBDS/代码/fbds_vtb/src/net/riking/business/service/impl/DataImportServiceImpl.java:2796",
+        "verified": true
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "relation-1",
+      "source": "file-CIF2",
+      "target": "parse-CIF2",
+      "type": "smoothstep",
+      "label": "读取文件",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-2",
+      "source": "parse-CIF2",
+      "target": "table-CifTab",
+      "type": "smoothstep",
+      "label": "入库",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-3",
+      "source": "file-AIF2",
+      "target": "parse-AIF2",
+      "type": "smoothstep",
+      "label": "读取文件",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-4",
+      "source": "parse-AIF2",
+      "target": "table-AifTab",
+      "type": "smoothstep",
+      "label": "入库",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-5",
+      "source": "file-BLN2",
+      "target": "parse-BLN2",
+      "type": "smoothstep",
+      "label": "读取文件",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-6",
+      "source": "parse-BLN2",
+      "target": "table-BlnTab",
+      "type": "smoothstep",
+      "label": "入库",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-7",
+      "source": "file-TRN2",
+      "target": "parse-TRN2",
+      "type": "smoothstep",
+      "label": "读取文件",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-8",
+      "source": "parse-TRN2",
+      "target": "table-TransactionTab",
+      "type": "smoothstep",
+      "label": "入库",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-9",
+      "source": "file-REPORT",
+      "target": "report-count",
+      "type": "smoothstep",
+      "label": "计数 / 不落表",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-10",
+      "source": "bop-in-0",
+      "target": "bop",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-11",
+      "source": "bop-in-1",
+      "target": "bop",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-12",
+      "source": "bop",
+      "target": "bop-out-0",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-13",
+      "source": "parse-TRN2",
+      "target": "bop-in-0",
+      "type": "smoothstep",
+      "label": "TRN 内存数据",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-14",
+      "source": "cfa-in-0",
+      "target": "cfa",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-15",
+      "source": "cfa-in-1",
+      "target": "cfa",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-16",
+      "source": "cfa-in-2",
+      "target": "cfa",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-17",
+      "source": "cfa-in-3",
+      "target": "cfa",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-18",
+      "source": "cfa-in-4",
+      "target": "cfa",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-19",
+      "source": "cfa-in-5",
+      "target": "cfa",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-20",
+      "source": "cfa",
+      "target": "cfa-out-0",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-21",
+      "source": "cfa",
+      "target": "cfa-out-1",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-22",
+      "source": "cfa",
+      "target": "cfa-out-2",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-23",
+      "source": "cfa",
+      "target": "cfa-out-3",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-24",
+      "source": "table-TransactionTab",
+      "target": "cfa-in-0",
+      "type": "smoothstep",
+      "label": "交易入库结果",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-25",
+      "source": "proc-in-0",
+      "target": "proc",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-26",
+      "source": "proc-in-1",
+      "target": "proc",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-27",
+      "source": "proc-in-2",
+      "target": "proc",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-28",
+      "source": "proc-in-3",
+      "target": "proc",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-29",
+      "source": "proc-in-4",
+      "target": "proc",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-30",
+      "source": "proc",
+      "target": "proc-out-0",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-31",
+      "source": "proc",
+      "target": "proc-out-1",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-32",
+      "source": "proc",
+      "target": "proc-out-2",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-33",
+      "source": "bop-out-0",
+      "target": "proc-in-0",
+      "type": "smoothstep",
+      "label": "BOP 转换结果",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-34",
+      "source": "table-BlnTab",
+      "target": "proc-in-3",
+      "type": "smoothstep",
+      "label": "余额入库结果",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-35",
+      "source": "cfa",
+      "target": "proc",
+      "type": "smoothstep",
+      "label": "随后调用",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#b7a0ee"
+      },
+      "style": {
+        "stroke": "#b7a0ee",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-36",
+      "source": "proc",
+      "target": "rcp-0",
+      "type": "smoothstep",
+      "label": "调用 · 1",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#b7a0ee"
+      },
+      "style": {
+        "stroke": "#b7a0ee",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-37",
+      "source": "proc",
+      "target": "rcp-1",
+      "type": "smoothstep",
+      "label": "调用 · 2",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#b7a0ee"
+      },
+      "style": {
+        "stroke": "#b7a0ee",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-38",
+      "source": "proc",
+      "target": "rcp-2",
+      "type": "smoothstep",
+      "label": "调用 · 3",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#b7a0ee"
+      },
+      "style": {
+        "stroke": "#b7a0ee",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-39",
+      "source": "customer-in-0",
+      "target": "customer",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-40",
+      "source": "customer-in-1",
+      "target": "customer",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-41",
+      "source": "customer-in-2",
+      "target": "customer",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-42",
+      "source": "customer",
+      "target": "customer-out-0",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-43",
+      "source": "table-CifTab",
+      "target": "customer-in-0",
+      "type": "smoothstep",
+      "label": "客户中间表",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-44",
+      "source": "account-in-0",
+      "target": "account",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-45",
+      "source": "account-in-1",
+      "target": "account",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-46",
+      "source": "account-in-2",
+      "target": "account",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-47",
+      "source": "account-in-3",
+      "target": "account",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-48",
+      "source": "account-in-4",
+      "target": "account",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-49",
+      "source": "account-in-5",
+      "target": "account",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-50",
+      "source": "account-in-6",
+      "target": "account",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-51",
+      "source": "account",
+      "target": "account-out-0",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-52",
+      "source": "table-AifTab",
+      "target": "account-in-0",
+      "type": "smoothstep",
+      "label": "账户中间表",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-53",
+      "source": "customer-out-0",
+      "target": "account-in-1",
+      "type": "smoothstep",
+      "label": "客户提取结果",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-54",
+      "source": "customer",
+      "target": "account",
+      "type": "smoothstep",
+      "label": "ACC 顺序 1→2",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#b7a0ee"
+      },
+      "style": {
+        "stroke": "#b7a0ee",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-55",
+      "source": "balance-in-0",
+      "target": "balance",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-56",
+      "source": "balance-in-1",
+      "target": "balance",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-57",
+      "source": "balance-in-2",
+      "target": "balance",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-58",
+      "source": "balance-in-3",
+      "target": "balance",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-59",
+      "source": "balance",
+      "target": "balance-out-0",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-60",
+      "source": "account-out-0",
+      "target": "balance-in-2",
+      "type": "smoothstep",
+      "label": "账户提取结果",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-61",
+      "source": "account",
+      "target": "balance",
+      "type": "smoothstep",
+      "label": "ACC 顺序 2→3",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#b7a0ee"
+      },
+      "style": {
+        "stroke": "#b7a0ee",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-62",
+      "source": "table-BlnTab",
+      "target": "balance-in-1",
+      "type": "smoothstep",
+      "label": "余额中间表",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-63",
+      "source": "formal-CA-in",
+      "target": "formal-CA",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-64",
+      "source": "formal-CA-out",
+      "target": "formal-CA",
+      "type": "smoothstep",
+      "label": "读取现有",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-65",
+      "source": "formal-CA",
+      "target": "formal-CA-out",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-66",
+      "source": "cfa-out-0",
+      "target": "formal-CA-in",
+      "type": "smoothstep",
+      "label": "中间层结果",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-67",
+      "source": "formal-CB-in",
+      "target": "formal-CB",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-68",
+      "source": "formal-CB-out",
+      "target": "formal-CB",
+      "type": "smoothstep",
+      "label": "读取现有",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-69",
+      "source": "formal-CB",
+      "target": "formal-CB-out",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-70",
+      "source": "cfa-out-1",
+      "target": "formal-CB-in",
+      "type": "smoothstep",
+      "label": "中间层结果",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-71",
+      "source": "formal-DA-in",
+      "target": "formal-DA",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-72",
+      "source": "formal-DA-out",
+      "target": "formal-DA",
+      "type": "smoothstep",
+      "label": "读取现有",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-73",
+      "source": "formal-DA",
+      "target": "formal-DA-out",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-74",
+      "source": "cfa-out-2",
+      "target": "formal-DA-in",
+      "type": "smoothstep",
+      "label": "中间层结果",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-75",
+      "source": "formal-DB-in",
+      "target": "formal-DB",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-76",
+      "source": "formal-DB-out",
+      "target": "formal-DB",
+      "type": "smoothstep",
+      "label": "读取现有",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-77",
+      "source": "formal-DB",
+      "target": "formal-DB-out",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-78",
+      "source": "cfa-out-3",
+      "target": "formal-DB-in",
+      "type": "smoothstep",
+      "label": "中间层结果",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-79",
+      "source": "formal-CA-out",
+      "target": "formal-CB",
+      "type": "smoothstep",
+      "label": "读取正式签约",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-80",
+      "source": "formal-DA-out",
+      "target": "formal-DB",
+      "type": "smoothstep",
+      "label": "读取正式签约",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-81",
+      "source": "formal-DA",
+      "target": "fogu",
+      "type": "smoothstep",
+      "label": "维护子表",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-82",
+      "source": "fogu-input",
+      "target": "formal-DA",
+      "type": "smoothstep",
+      "label": "读取担保人",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-83",
+      "source": "jsh-in-0",
+      "target": "jsh",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-84",
+      "source": "jsh-in-1",
+      "target": "jsh",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-85",
+      "source": "jsh-in-2",
+      "target": "jsh",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-86",
+      "source": "jsh-in-3",
+      "target": "jsh",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-87",
+      "source": "jsh-in-4",
+      "target": "jsh",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-88",
+      "source": "jsh",
+      "target": "jsh-out-0",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-89",
+      "source": "jsh",
+      "target": "jsh-out-1",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-90",
+      "source": "table-TransactionTab",
+      "target": "jsh-in-0",
+      "type": "smoothstep",
+      "label": "交易中间表",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-91",
+      "source": "extra-in-0",
+      "target": "extra-task-0",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-92",
+      "source": "extra-task-0",
+      "target": "extra-out-0",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-93",
+      "source": "extra-in-1",
+      "target": "extra-task-1",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-94",
+      "source": "extra-task-1",
+      "target": "extra-out-1",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-95",
+      "source": "fal-in-0",
+      "target": "fal",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-96",
+      "source": "fal-in-1",
+      "target": "fal",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-97",
+      "source": "fal-in-2",
+      "target": "fal",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-98",
+      "source": "fal-in-3",
+      "target": "fal",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-99",
+      "source": "fal-in-4",
+      "target": "fal",
+      "type": "smoothstep",
+      "label": "读取",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-100",
+      "source": "fal",
+      "target": "fal-out-0",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-101",
+      "source": "fal",
+      "target": "fal-out-1",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-102",
+      "source": "fal",
+      "target": "fal-out-2",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-103",
+      "source": "fal",
+      "target": "fal-out-3",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-104",
+      "source": "fal",
+      "target": "fal-out-4",
+      "type": "smoothstep",
+      "label": "写入 / 更新",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#8bd5d0"
+      },
+      "style": {
+        "stroke": "#8bd5d0",
+        "strokeWidth": 1.2
+      }
+    },
+    {
+      "id": "relation-105",
+      "source": "proc",
+      "target": "archive",
+      "type": "smoothstep",
+      "label": "全部子过程正常返回后",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#b7a0ee"
+      },
+      "style": {
+        "stroke": "#b7a0ee",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-106",
+      "source": "dispatch",
+      "target": "customer",
+      "type": "smoothstep",
+      "label": "所选报表匹配",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#b7a0ee"
+      },
+      "style": {
+        "stroke": "#b7a0ee",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-107",
+      "source": "dispatch",
+      "target": "formal-CA",
+      "type": "smoothstep",
+      "label": "所选报表匹配",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#b7a0ee"
+      },
+      "style": {
+        "stroke": "#b7a0ee",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-108",
+      "source": "dispatch",
+      "target": "formal-CB",
+      "type": "smoothstep",
+      "label": "所选报表匹配",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#b7a0ee"
+      },
+      "style": {
+        "stroke": "#b7a0ee",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-109",
+      "source": "dispatch",
+      "target": "formal-DA",
+      "type": "smoothstep",
+      "label": "所选报表匹配",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#b7a0ee"
+      },
+      "style": {
+        "stroke": "#b7a0ee",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-110",
+      "source": "dispatch",
+      "target": "formal-DB",
+      "type": "smoothstep",
+      "label": "所选报表匹配",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#b7a0ee"
+      },
+      "style": {
+        "stroke": "#b7a0ee",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-111",
+      "source": "dispatch",
+      "target": "jsh",
+      "type": "smoothstep",
+      "label": "所选报表匹配",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#b7a0ee"
+      },
+      "style": {
+        "stroke": "#b7a0ee",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-112",
+      "source": "dispatch",
+      "target": "extra-task-0",
+      "type": "smoothstep",
+      "label": "所选报表匹配",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#b7a0ee"
+      },
+      "style": {
+        "stroke": "#b7a0ee",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-113",
+      "source": "dispatch",
+      "target": "extra-task-1",
+      "type": "smoothstep",
+      "label": "所选报表匹配",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#b7a0ee"
+      },
+      "style": {
+        "stroke": "#b7a0ee",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    },
+    {
+      "id": "relation-114",
+      "source": "dispatch",
+      "target": "fal",
+      "type": "smoothstep",
+      "label": "所选报表匹配",
+      "markerEnd": {
+        "type": "arrowclosed",
+        "width": 14,
+        "height": 14,
+        "color": "#b7a0ee"
+      },
+      "style": {
+        "stroke": "#b7a0ee",
+        "strokeWidth": 1.2,
+        "strokeDasharray": "6 5"
+      }
+    }
+  ]
+}

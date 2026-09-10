@@ -14,6 +14,7 @@ export { DeliveryPlanWorkspace, ProjectDashboard } from "./delivery/DeliveryWork
 export { DeliverablesWorkspace } from "./deliverables/DeliverablesWorkspace.js";
 export { ReportsWorkspace } from "./reports/ReportsWorkspace.js";
 export { TestCenterWorkspace } from "./testing/TestCenterWorkspace.js";
+export { IssuesWorkspace } from "./issues/IssuesWorkspace.js";
 export {
   PROJECT_MANAGEMENT_SECTIONS,
   ProjectManagementSearchBar,

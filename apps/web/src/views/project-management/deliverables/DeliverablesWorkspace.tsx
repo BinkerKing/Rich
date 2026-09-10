@@ -27,6 +27,7 @@ import {
 type Item = ProjectModuleItem & {
   content: ReturnType<typeof normalizeDeliverableContent>;
   standalone?: boolean;
+  legacyProjectItemId?: string;
 };
 type DeliverableFile = {
   fileName: string;
@@ -76,6 +77,7 @@ export function DeliverablesWorkspace({
   const [aiExecutor, setAiExecutor] = useState<"hermes" | "multica">("hermes");
   const [recordFiles, setRecordFiles] = useState<File[]>([]);
   const [editingRecordId, setEditingRecordId] = useState<string>();
+  const [editingRecordDeliverableId, setEditingRecordDeliverableId] = useState<string>();
   const [editingRecordText, setEditingRecordText] = useState("");
   const [editingRecordKind, setEditingRecordKind] =
     useState<DeliverableRecordKind>("requirement");
@@ -97,6 +99,18 @@ export function DeliverablesWorkspace({
   const itemRefs = useRef<Record<string, HTMLElement | null>>({});
   const materialInputRef = useRef<HTMLInputElement>(null);
   const editingMaterialInputRef = useRef<HTMLInputElement>(null);
+  const clearRecordEdit = () => {
+    setEditingRecordId(undefined);
+    setEditingRecordDeliverableId(undefined);
+    setEditingRecordText("");
+    setEditingRecordKind("requirement");
+    setEditingRecordFiles([]);
+  };
+
+  useEffect(() => {
+    if (!editingRecordDeliverableId || editingRecordDeliverableId === openId) return;
+    clearRecordEdit();
+  }, [editingRecordDeliverableId, openId]);
 
   useEffect(() => {
     const item = items.find((candidate) => candidate.id === openId);
@@ -125,10 +139,11 @@ export function DeliverablesWorkspace({
   };
   const refreshItems = async () => {
     if (standalone || deliverableIds !== undefined) {
-      const global = (await api.listDeliverables()).filter(item => standalone || (deliverableIds ?? []).includes(item.id)).map(item => ({ ...item, moduleKey: "deliverables", parentId: null, subtitle: null, sortOrder: 0, content: normalizeDeliverableContent(item.content), standalone: true } as unknown as Item));
+      const global = (await api.listDeliverables()).filter(item => standalone || (deliverableIds ?? []).includes(item.id)).map(item => ({ ...item, moduleKey: "deliverables", parentId: null, subtitle: null, sortOrder: 0, content: normalizeDeliverableContent(item.content), standalone: true, legacyProjectItemId: typeof item.content.legacyProjectItemId === "string" ? item.content.legacyProjectItemId : undefined } as unknown as Item));
       if (standalone) { setItems(global); return; }
       const legacy = await api.listProjectManagementModuleItems(projectId, "deliverables", undefined, true);
-      setItems([...global, ...legacy.map(item => ({ ...item, content: normalizeDeliverableContent(item.content) }))]);
+      const migratedLegacyIds = new Set(global.map(item => item.legacyProjectItemId).filter((id): id is string => typeof id === "string"));
+      setItems([...global, ...legacy.filter(item => !migratedLegacyIds.has(item.id)).map(item => ({ ...item, content: normalizeDeliverableContent(item.content) }))]);
       return;
     }
     if (!projectId) return;
@@ -493,8 +508,9 @@ export function DeliverablesWorkspace({
     });
     setText("");
   };
-  const startRecordEdit = (record: DeliverableRecord) => {
+  const startRecordEdit = (item: Item, record: DeliverableRecord) => {
     setEditingRecordId(record.id);
+    setEditingRecordDeliverableId(item.id);
     setEditingRecordText(record.text);
     setEditingRecordKind(record.kind);
     setEditingRecordFiles([]);
@@ -526,8 +542,7 @@ export function DeliverablesWorkspace({
           : current,
       ),
     });
-    setEditingRecordId(undefined);
-    setEditingRecordFiles([]);
+    clearRecordEdit();
     if (editingMaterialInputRef.current) editingMaterialInputRef.current.value = "";
     await refreshFiles(item);
   };
@@ -579,24 +594,50 @@ export function DeliverablesWorkspace({
   const visibleItems = openId
     ? items.filter((item) => item.id === openId)
     : items;
+  const isEditingCurrentRecord = editingRecordDeliverableId === openId && Boolean(editingRecordId);
 
   return (
     <section className={`deliverables-workspace${standalone ? " deliverables-workspace--standalone" : ""}`}>
       <header>
         <div>
-          <p className="deliverables-workspace__eyebrow">PROJECT OUTPUTS</p>
-          <h1>交付物</h1>
-          <p>{standalone ? "统一管理目录绑定的可复用交付物。" : "由项目任务自动关联的可追溯交付记录。"}</p>
+          <p className="deliverables-workspace__eyebrow">{standalone ? "交付物" : "PROJECT OUTPUTS"}</p>
+          <h1>{standalone ? "把每一项成果，沉淀成可复用的交付。" : "交付物"}</h1>
+          {!standalone && <p>由项目任务自动关联的可追溯交付记录。</p>}
         </div>
         {standalone && <button className="deliverables-workspace__primary" type="button" onClick={() => setCreating(value => !value)}>{creating ? "取消" : "新建交付物"}</button>}
         {!standalone && onDeliverableIdsChange && <button type="button" onClick={() => void openBinding()}>绑定已有交付物</button>}
       </header>
       {standalone && creating && <form className="deliverables-workspace__create" onSubmit={event => { event.preventDefault(); void createStandalone(); }}>
-        <input aria-label="交付物名称" placeholder="交付物名称" value={newTitle} onChange={event => setNewTitle(event.target.value)} />
-        <input aria-label="交付物目录" placeholder="绝对目录，例如 /Users/me/Deliverables/UAT" value={newFolderPath} onChange={event => setNewFolderPath(event.target.value)} />
-        <button disabled={!newTitle.trim() || !newFolderPath.trim()}>创建并绑定目录</button>
+        <div className="deliverables-workspace__create-intro"><b>新建交付物</b><span>创建后将绑定到指定目录，后续文件和记录会统一沉淀在这里。</span></div>
+        <div className="deliverables-workspace__create-fields">
+          <label><span>交付物名称</span><input aria-label="交付物名称" placeholder="例如：UAT 测试报告" value={newTitle} onChange={event => setNewTitle(event.target.value)} /></label>
+          <label><span>存放目录</span><input aria-label="交付物目录" placeholder="例如：/Users/me/Deliverables/UAT" value={newFolderPath} onChange={event => setNewFolderPath(event.target.value)} /></label>
+        </div>
+        <button disabled={!newTitle.trim() || !newFolderPath.trim()}><span>创建并绑定</span><i>→</i></button>
       </form>}
-      {binding && <div className="deliverables-workspace__binding" role="dialog" aria-label="绑定已有交付物"><header><strong>绑定已有交付物</strong><button onClick={() => setBinding(false)}>×</button></header>{availableDeliverables.length ? availableDeliverables.map(item => <button key={item.id} onClick={() => void bind(item.id)}>{item.title}</button>) : <p>没有可绑定的交付物。</p>}</div>}
+      {binding && (
+        <div className="deliverables-workspace__binding" role="dialog" aria-label="绑定已有交付物">
+          <header>
+            <div>
+              <span>交付物库</span>
+              <strong>绑定已有交付物</strong>
+              <p>选择一个已有交付物，将它纳入当前项目持续追踪。</p>
+            </div>
+            <button type="button" aria-label="关闭绑定交付物" onClick={() => setBinding(false)}>×</button>
+          </header>
+          {availableDeliverables.length ? (
+            <div className="deliverables-workspace__binding-list">
+              {availableDeliverables.map((item, index) => (
+                <button key={item.id} type="button" onClick={() => void bind(item.id)}>
+                  <span className="deliverables-workspace__binding-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                  <span className="deliverables-workspace__binding-copy"><strong>{item.title}</strong><small>点击绑定到当前项目</small></span>
+                  <span className="deliverables-workspace__binding-arrow" aria-hidden="true">↗</span>
+                </button>
+              ))}
+            </div>
+          ) : <p className="deliverables-workspace__binding-empty">目前没有可绑定的交付物。</p>}
+        </div>
+      )}
       <div className="deliverables-workspace__list">
         {visibleItems.map((item) => (
           <article
@@ -606,22 +647,39 @@ export function DeliverablesWorkspace({
             key={item.id}
             className={openId === item.id ? "is-open" : ""}
           >
-            <button
-              className="deliverables-workspace__row"
-              onClick={() => {
-                const opening = openId !== item.id;
-                setOpenId(opening ? item.id : undefined);
-                if (opening) void refreshFiles(item);
-                setEditing(false);
-              }}
-            >
-              <b>{String(items.indexOf(item) + 1).padStart(2, "0")}</b>
-              <strong>{item.title}</strong>
-              <i>{({ draft: "草稿", preparing: "准备中", ready: "待交付", accepted: "已完成" } as const)[item.content.status]}</i>
-              <time>
-                {new Date(item.updatedAt).toLocaleDateString("zh-CN")}
-              </time>
-            </button>
+            {openId === item.id ? (
+              <header
+                className="deliverables-workspace__row deliverables-workspace__detail-title"
+                role="button"
+                tabIndex={0}
+                aria-label="收起交付物详情"
+                onClick={() => { setOpenId(undefined); setEditing(false); }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  setOpenId(undefined);
+                  setEditing(false);
+                }}
+              >
+                <strong>{item.title}</strong>
+              </header>
+            ) : (
+              <button
+                className="deliverables-workspace__row"
+                onClick={() => {
+                  setOpenId(item.id);
+                  void refreshFiles(item);
+                  setEditing(false);
+                }}
+              >
+                <b>{String(items.indexOf(item) + 1).padStart(2, "0")}</b>
+                <strong>{item.title}</strong>
+                <i>{({ draft: "草稿", preparing: "准备中", ready: "待交付", accepted: "已完成" } as const)[item.content.status]}</i>
+                <time>
+                  {new Date(item.updatedAt).toLocaleDateString("zh-CN")}
+                </time>
+              </button>
+            )}
             {openId === item.id && (
               <div className="deliverables-workspace__body">
                 <div className="deliverables-workspace__toolbar">
@@ -714,17 +772,17 @@ export function DeliverablesWorkspace({
                   <div className="deliverables-workspace__right">
                     <section className="deliverables-workspace__records">
                       <h2>记录</h2>
-                      <div className={`deliverables-workspace__record-composer${editingRecordId ? " is-editing-existing" : ""}`} style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
+                      <div className={`deliverables-workspace__record-composer${isEditingCurrentRecord ? " is-editing-existing" : ""}`} style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
                         <div className="deliverables-workspace__record-rich-editor" style={{ width: "100%" }}>
                           <ProjectRichTextEditor
-                            projectId={`${projectId}-${item.id}-record-${editingRecordId || "new"}`}
-                            value={editingRecordId ? editingRecordText : text}
-                            onChange={editingRecordId ? setEditingRecordText : setText}
+                            projectId={`${projectId}-${item.id}-record-${isEditingCurrentRecord ? editingRecordId : "new"}`}
+                            value={isEditingCurrentRecord ? editingRecordText : text}
+                            onChange={isEditingCurrentRecord ? setEditingRecordText : setText}
                           />
                         </div>
                         <footer style={{ display: "flex", alignItems: "center", gap: 12, width: "100%" }}>
                           <label aria-label="记录类型">
-                            <select className={`deliverables-workspace__record-kind-select is-${editingRecordId ? editingRecordKind : kind}`} value={editingRecordId ? editingRecordKind : kind} aria-label="记录类型" onChange={(event) => editingRecordId ? setEditingRecordKind(event.target.value as DeliverableRecordKind) : setKind(event.target.value as DeliverableRecordKind)}>
+                            <select className={`deliverables-workspace__record-kind-select is-${isEditingCurrentRecord ? editingRecordKind : kind}`} value={isEditingCurrentRecord ? editingRecordKind : kind} aria-label="记录类型" onChange={(event) => isEditingCurrentRecord ? setEditingRecordKind(event.target.value as DeliverableRecordKind) : setKind(event.target.value as DeliverableRecordKind)}>
                               <option value="requirement">要求</option>
                               <option value="status">进展</option>
                               <option value="decision">决策</option>
@@ -737,7 +795,7 @@ export function DeliverablesWorkspace({
                               <option value="ai_task">AI 任务</option>
                             </select>
                           </label>
-                          {!editingRecordId && kind === "ai_task" && (
+                          {!isEditingCurrentRecord && kind === "ai_task" && (
                             <label aria-label="AI 任务执行器">
                               <select value={aiExecutor} onChange={event => setAiExecutor(event.target.value as "hermes" | "multica")}>
                                 <option value="hermes">Hermes</option>
@@ -749,14 +807,14 @@ export function DeliverablesWorkspace({
                             <label>
                               添加附件
                               <input
-                                ref={editingRecordId ? editingMaterialInputRef : materialInputRef}
+                                ref={isEditingCurrentRecord ? editingMaterialInputRef : materialInputRef}
                                 type="file"
                                 multiple
-                                onChange={(event) => editingRecordId ? setEditingRecordFiles(Array.from(event.target.files || [])) : setRecordFiles(Array.from(event.target.files || []))}
+                                onChange={(event) => isEditingCurrentRecord ? setEditingRecordFiles(Array.from(event.target.files || [])) : setRecordFiles(Array.from(event.target.files || []))}
                               />
                             </label>
-                            <small title={(editingRecordId ? editingRecordFiles : recordFiles).map((file) => file.name).join("、")}>
-                              {editingRecordId
+                            <small title={(isEditingCurrentRecord ? editingRecordFiles : recordFiles).map((file) => file.name).join("、")}>
+                              {isEditingCurrentRecord
                                 ? editingRecordFiles.length
                                   ? editingRecordFiles.map((file) => file.name).join("、")
                                   : item.content.records.find((record) => record.id === editingRecordId)?.attachments.map((file) => file.fileName).join("、") || ""
@@ -764,14 +822,14 @@ export function DeliverablesWorkspace({
                             </small>
                           </aside>
                           <button style={{ marginLeft: "auto" }} onClick={() => {
-                            const record = item.content.records.find((current) => current.id === editingRecordId);
+                            const record = isEditingCurrentRecord ? item.content.records.find((current) => current.id === editingRecordId) : undefined;
                             if (record) void saveRecordEdit(item, record);
                             else if (kind === "ai_task") void publishDeliverableAiTask(item);
                             else void addRecord(item);
                           }}>
-                            {editingRecordId ? "保存" : kind === "ai_task" ? "发布 AI 任务" : "发布记录"}
+                            {isEditingCurrentRecord ? "保存" : kind === "ai_task" ? "发布 AI 任务" : "发布记录"}
                           </button>
-                          {editingRecordId && <button className="deliverables-workspace__record-edit-cancel" onClick={() => setEditingRecordId(undefined)}>取消</button>}
+                          {isEditingCurrentRecord && <button className="deliverables-workspace__record-edit-cancel" onClick={clearRecordEdit}>取消</button>}
                         </footer>
                       </div>
                       <div className="deliverables-workspace__record-list">
@@ -780,10 +838,10 @@ export function DeliverablesWorkspace({
                         return (
                           <article
                             key={record.id}
-                            className={`deliverables-workspace__record is-${record.kind}${editingRecordId === record.id ? " is-editing-existing" : ""}`}
+                            className={`deliverables-workspace__record is-${record.kind}${isEditingCurrentRecord && editingRecordId === record.id ? " is-editing-existing" : ""}`}
                             >
                             <b>{recordKindLabel(record.kind)}</b>
-                            <div className="deliverables-workspace__record-content workflow-rich-content" onDoubleClick={() => record.kind === "ai_task_result" ? undefined : startRecordEdit(record)} title={record.kind === "ai_task_result" ? undefined : "双击编辑"} dangerouslySetInnerHTML={{ __html: record.text }} />
+                            <div className="deliverables-workspace__record-content workflow-rich-content" onDoubleClick={() => record.kind === "ai_task_result" ? undefined : startRecordEdit(item, record)} title={record.kind === "ai_task_result" ? undefined : "双击编辑"} dangerouslySetInnerHTML={{ __html: record.text }} />
                             <aside className="deliverables-workspace__record-actions">
                               <time>{fileDate(record.aiTaskResult?.completedAt || record.createdAt)}</time>
                               {record.aiTask && <small className="deliverables-workspace__record-ai-task">AI 任务 · {record.aiTask.executor === "hermes" ? "Hermes" : "Multica"} · {record.aiTask.status}</small>}

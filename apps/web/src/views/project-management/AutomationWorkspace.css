@@ -1,5 +1,5 @@
-.automation-workspace { display: grid; grid-template-columns: 220px minmax(0, 1fr); height: 100%; min-height: 0; color: #dce7f7; background: #0b111b; }
-.automation-plans { padding: 18px 12px; border-right: 1px solid rgba(148,163,184,.14); background: #0d1522; overflow: auto; }
+.automation-workspace { display: grid; grid-template-columns: 220px minmax(0, 1fr); height: 100%; min-height: 0; color: #e1e1e1; background: #1f1f1f; }
+.automation-plans { padding: 18px 12px; border-right: 1px solid #424242; background: #252525; overflow: auto; }
 .automation-plans header, .automation-group > header, .automation-run-panel > header, .automation-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .automation-plans header { padding: 0 6px 14px; }
 .automation-plans button { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; margin-bottom: 6px; padding: 10px 12px; border: 1px solid transparent; border-radius: 8px; color: #b9c7db; background: transparent; cursor: pointer; }
@@ -12,14 +12,14 @@
 .automation-toolbar p { margin: 5px 0 0; color: #71839d; font-size: 12px; }
 .automation-toolbar__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .automation-console-grid { display: grid; flex: 1; grid-template-columns: minmax(0, 1.25fr) minmax(360px, .85fr); gap: 14px; min-height: 0; }
-.automation-config-pane { min-width: 0; min-height: 0; overflow: auto; border: 1px solid rgba(148,163,184,.16); border-radius: 11px; background: #0c1420; scrollbar-width: thin; }
+.automation-config-pane { min-width: 0; min-height: 0; overflow: auto; border: 1px solid #424242; border-radius: 11px; background: #252525; scrollbar-width: thin; }
 .automation-run-pane { min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 14px; padding-right: 2px; scrollbar-width: thin; }
 .automation-pane-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(148,163,184,.12); }
 .automation-pane-heading > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .automation-pane-heading strong { color: #f8fafc; }
 .automation-pane-heading span { color: #71839d; font-size: 11px; }
 .automation-config-pane > .automation-groups { padding: 14px; }
-.automation-preflight, .automation-records { flex: 0 0 auto; border: 1px solid rgba(148,163,184,.16); border-radius: 11px; background: #0e1724; overflow: hidden; }
+.automation-preflight, .automation-records { flex: 0 0 auto; border: 1px solid #424242; border-radius: 11px; background: #252525; overflow: hidden; }
 .automation-check-placeholder { padding: 24px 16px; color: #71839d; text-align: center; font-size: 12px; }
 .automation-check-result { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 14px 14px 0; padding: 10px 12px; border-radius: 7px; font-size: 12px; }
 .automation-check-result.is-ready { color: #86efac; background: rgba(34,197,94,.11); }
@@ -39,7 +39,7 @@
 .automation-run-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 14px; border-top: 1px solid rgba(148,163,184,.12); }
 .automation-skip-errors { margin-right: auto; display: inline-flex; align-items: center; gap: 7px; color: #cbd5e1; font-size: 12px; cursor: pointer; }
 .automation-skip-errors input { width: 15px; height: 15px; accent-color: #fbbf24; }
-.automation-main button { border: 1px solid rgba(148,163,184,.24); border-radius: 7px; color: #cbd5e1; background: #111c2b; padding: 7px 10px; }
+.automation-main button { border: 1px solid #515151; border-radius: 7px; color: #dedede; background: #303030; padding: 7px 10px; }
 .automation-main button { cursor: pointer; }
 .automation-main button:disabled { opacity: .4; cursor: default; }
 .automation-main button.is-primary { color: #03131c; border-color: #38bdf8; background: #38bdf8; font-weight: 700; }
@@ -49,7 +49,7 @@
 .automation-welcome { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 60px 20px; color: #71839d; border: 1px dashed rgba(148,163,184,.2); border-radius: 12px; }
 .automation-welcome strong { color: #dbeafe; }
 .automation-groups { display: grid; gap: 14px; }
-.automation-group { border: 1px solid rgba(148,163,184,.16); border-radius: 11px; background: #0e1724; overflow: hidden; }
+.automation-group { border: 1px solid #424242; border-radius: 11px; background: #252525; overflow: hidden; }
 .automation-group > header { padding: 12px 14px; border-bottom: 1px solid rgba(148,163,184,.12); }
 .automation-group > header > div { display: flex; align-items: center; gap: 8px; }
 .automation-group > header small { color: #71839d; }
@@ -104,23 +104,23 @@
 .automation-status.is-error { color: #fca5a5; background: rgba(239,68,68,.14); }
 .automation-row-actions { display: flex; gap: 5px; }
 .automation-empty { margin: 12px; color: #63758e; font-size: 12px; }
-.automation-run-panel { border-top: 1px solid rgba(148,163,184,.08); background: #0e1724; overflow: hidden; }
-.automation-run-panel > header { padding: 13px 15px; border-bottom: 1px solid rgba(148,163,184,.12); }
+.automation-run-panel { border: 1px solid #424242; border-radius: 10px; background: #252525; overflow: hidden; }
+.automation-run-panel > header { padding: 13px 15px; border-bottom: 1px solid #424242; background: #2a2a2a; }
 .automation-run-panel > header > div { display: flex; align-items: baseline; gap: 10px; }
 .automation-run-panel > header span { color: #70839e; font-size: 11px; }
 .automation-run-panel.is-paused > header > strong { color: #fbbf24; }
 .automation-run-panel.is-success > header > strong { color: #4ade80; }
-.automation-run-items article { padding: 12px 15px; border-bottom: 1px solid rgba(148,163,184,.08); }
-.automation-run-items article.is-error { background: rgba(127,29,29,.15); }
+.automation-run-items article { padding: 12px 15px; border-bottom: 1px solid #383838; background: #252525; }
+.automation-run-items article.is-error { border-left: 2px solid #a84f58; background: rgba(151,55,67,.12); }
 .automation-run-item__title { display: flex; align-items: center; gap: 10px; }
-.automation-run-item__title span { color: #7dd3fc; font-size: 11px; }
+.automation-run-item__title span { color: #a8a8a8; font-size: 11px; }
 .automation-run-item__title em { margin-left: auto; color: #86efac; font-style: normal; font-size: 12px; }
 .automation-step-track { display: grid; grid-template-columns: repeat(4,minmax(80px,1fr)); gap: 6px; margin-top: 10px; }
-.automation-step-track span { padding: 5px 8px; text-align: center; color: #64748b; border-radius: 5px; background: rgba(148,163,184,.07); font-size: 11px; }
-.automation-step-track span.is-running { color: #7dd3fc; background: rgba(14,165,233,.14); }
-.automation-step-track span.is-success { color: #86efac; background: rgba(34,197,94,.11); }
-.automation-step-track span.is-error { color: #fca5a5; background: rgba(239,68,68,.14); }
-.automation-error-link { width: 100%; display: flex; justify-content: space-between; margin-top: 10px; color: #fecaca !important; border-color: rgba(248,113,113,.3) !important; background: rgba(127,29,29,.2) !important; text-align: left; }
+.automation-step-track span { padding: 5px 8px; text-align: center; color: #8d8d8d; border: 1px solid #3c3c3c; border-radius: 5px; background: #303030; font-size: 11px; }
+.automation-step-track span.is-running { color: #b9e8f6; border-color: #426579; background: #263940; }
+.automation-step-track span.is-success { color: #8be0ad; border-color: #385c47; background: #24372b; }
+.automation-step-track span.is-error { color: #f0a2aa; border-color: #754149; background: #3b272b; }
+.automation-error-link { width: 100%; display: flex; justify-content: space-between; margin-top: 10px; color: #f0b8be !important; border-color: #754149 !important; background: #3b272b !important; text-align: left; }
 .automation-name-dialog { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: rgba(2,6,23,.72); backdrop-filter: blur(3px); }
 .automation-name-dialog form { width: min(420px,100%); padding: 22px; border: 1px solid rgba(148,163,184,.24); border-radius: 12px; background: #111c2b; box-shadow: 0 24px 70px rgba(0,0,0,.45); }
 .automation-name-dialog h3 { margin: 0 0 18px; color: #f8fafc; }

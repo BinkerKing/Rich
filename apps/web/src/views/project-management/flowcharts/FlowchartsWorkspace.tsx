@@ -27,14 +27,28 @@ function NoteNode({ data, selected }: NodeProps<FlowNode>) {
     <small>NOTE / 备注</small>{data.editing ? <NoteContent data={data} /> : <><NodeLabel data={data} />{data.caption && <p>{data.caption}</p>}</>}
   </div>;
 }
-function AnalysisNode({ data, selected }: NodeProps<FlowNode>) {
-  return <div className={`pfc-node${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
-    <NodeResizer isVisible={selected} minWidth={140} minHeight={60} color="#82d7ef" />
+function AnalysisNode({ id, data, selected }: NodeProps<FlowNode>) {
+  const accent = nodeAccent(id, data);
+  return <div className={`pfc-node is-${data.kind}${selected ? " is-selected" : ""}`} style={{ "--node-accent": accent, ...nodeStyle(data) } as CSSProperties}>
+    <NodeResizer isVisible={selected} minWidth={140} minHeight={60} color={accent} />
     <Handle type="target" position={Position.Left} />
     <span className="pfc-node-symbol" aria-hidden="true">{data.icon || (data.kind === "table" ? "▤" : data.kind === "decision" ? "◇" : data.kind === "boundary" ? "◉" : "→")}</span>
     <NodeLabel data={data} />
     <Handle type="source" position={Position.Right} />
   </div>;
+}
+function nodeAccent(id: string, data: FlowNode["data"]): string {
+  if (data.borderColor) return data.borderColor;
+  if (data.kind === "table") return "#70e6ba";
+  if (data.kind === "decision") return "#f2c66f";
+  if (data.kind === "step") return "#65caff";
+  const palette = ["#63ddeb", "#a98aff", "#f1b968", "#6de2ae"];
+  let hash = 2166136261;
+  for (const character of `${id}:${data.label}`) {
+    hash ^= character.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  return palette[hash % palette.length]!;
 }
 function NodeLabel({ data }: { data: FlowNode["data"] }) {
   if (!data.editing) return <strong>{data.label}</strong>;

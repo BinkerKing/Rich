@@ -927,6 +927,9 @@ export const api = {
   async listDeliverables(): Promise<Deliverable[]> {
     const r = await fetch("/api/deliverables"); if (!r.ok) throw new Error(`listDeliverables ${r.status}`); return r.json();
   },
+  async migrateProjectDeliverables(): Promise<void> {
+    const r = await fetch("/api/deliverables/migrate-project-items", { method: "POST" }); if (!r.ok) throw new Error(`migrateProjectDeliverables ${r.status}`);
+  },
   async createDeliverable(input: Pick<Deliverable, "title" | "content">): Promise<Deliverable> {
     const r = await fetch("/api/deliverables", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) }); if (!r.ok) throw new Error(`createDeliverable ${r.status}`); return r.json();
   },
@@ -1134,14 +1137,29 @@ export const api = {
     if (!r.ok) throw new Error(`listTestCenterIssues ${r.status}`);
     return r.json();
   },
-  async createTestCenterIssue(projectId: string, input: Pick<TestCenterIssue, "caseId" | "title" | "description"> & { runId?: string; owner?: string; externalRef?: string }): Promise<TestCenterIssue> {
+  async createTestCenterIssue(projectId: string, input: Pick<TestCenterIssue, "caseId" | "title" | "description"> & { runId?: string; owner?: string; externalRef?: string; customFields?: Record<string, string> }): Promise<TestCenterIssue> {
     const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/issues`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
     if (!r.ok) throw new Error(`createTestCenterIssue ${r.status}`);
     return r.json();
   },
-  async updateTestCenterIssue(projectId: string, issueId: string, input: { status?: "open" | "fixed" | "retest" | "closed"; owner?: string | null; externalRef?: string | null }): Promise<TestCenterIssue> {
+  async updateTestCenterIssue(projectId: string, issueId: string, input: { title?: string; description?: string; status?: "open" | "fixed" | "retest" | "closed"; owner?: string | null; externalRef?: string | null; customFields?: Record<string, string> }): Promise<TestCenterIssue> {
     const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
     if (!r.ok) throw new Error(`updateTestCenterIssue ${r.status}`);
+    return r.json();
+  },
+  async getTestCenterGridSettings(projectId: string, gridKey: string): Promise<{ columns: TestCenterGridColumn[] }> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/grid-settings/${encodeURIComponent(gridKey)}`);
+    if (!r.ok) throw new Error(`getTestCenterGridSettings ${r.status}`);
+    return r.json();
+  },
+  async listTestCenterGridSettings(projectId: string, prefix: string): Promise<Array<{ key: string; columns: TestCenterGridColumn[] }>> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/grid-settings?prefix=${encodeURIComponent(prefix)}`);
+    if (!r.ok) throw new Error(`listTestCenterGridSettings ${r.status}`);
+    return r.json();
+  },
+  async saveTestCenterGridSettings(projectId: string, gridKey: string, columns: TestCenterGridColumn[]): Promise<{ columns: TestCenterGridColumn[] }> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/grid-settings/${encodeURIComponent(gridKey)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ columns }) });
+    if (!r.ok) throw new Error(`saveTestCenterGridSettings ${r.status}`);
     return r.json();
   },
   async startTestCenterRetest(projectId: string, issueId: string): Promise<TestCenterRun> {
@@ -1767,6 +1785,7 @@ export type ProjectManagementModuleKey =
   | "todos"
   | "healthChecks"
   | "testing"
+  | "issues"
   | "folder";
 
 export interface ConversationSaveInput {
@@ -1895,8 +1914,9 @@ export type TestCenterRun = {
 export type TestCenterRunStep = { id: string; runId: string; stepOrder: number; instruction: string; expectedResult: string; status: "pending" | "passed" | "failed" | "blocked"; actualResult: string };
 export type TestCenterEvidence = { id: string; runId: string; title: string; kind: string; location: string; createdAt: string };
 export type TestCenterIssue = {
-  id: string; caseId: string; runId?: string; title: string; description: string; owner?: string; externalRef?: string; status: string; updatedAt: string;
+  id: string; caseId: string; runId?: string; title: string; description: string; owner?: string; externalRef?: string; customFields: Record<string, string>; status: string; updatedAt: string;
 };
+export type TestCenterGridColumn = { key: string; name: string; width?: number; frozen?: boolean; editable?: boolean; options?: Array<{ label: string; value: string }> };
 export type TestCenterIssueDiscussion = { id: string; issueId: string; content: string; createdAt: string };
 export type TestCenterCaseComment = { id: string; caseId: string; content: string; createdAt: string; updatedAt: string };
 export type TestCenterReport = {

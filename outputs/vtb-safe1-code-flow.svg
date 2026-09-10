@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1480" viewBox="0 0 1440 1480" role="img" aria-labelledby="title desc">
+  <title id="title">VTB 一代代码流程 · v1</title>
+  <desc id="desc">已核验 Java 源码的文件导入和 CFA 数据提取流程。节点编号用于增量细化。proc_processData 原始正文待核验。</desc>
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#64748b" stroke-width="1.5"/></marker>
+    <style>
+      text{font-family:PingFang SC,Microsoft YaHei,sans-serif;fill:#172b4d}
+      .title{font-size:30px;font-weight:700}.sub{font-size:16px;fill:#64748b}
+      .heading{font-size:21px;font-weight:650}.label{font-size:18px;font-weight:600}
+      .body{font-size:16px}.small{font-size:14px;fill:#64748b}
+      .panel{fill:#fff;stroke:#dce4ef;stroke-width:1.5}
+      .node{fill:#f1f6ff;stroke:#9bb8e3;stroke-width:1.5}
+      .table{fill:#edf9f5;stroke:#8bc7b2;stroke-width:1.5}
+      .unknown{fill:#fff8e8;stroke:#d69c35;stroke-width:1.5;stroke-dasharray:7 5}
+      .edge{fill:none;stroke:#64748b;stroke-width:1.8;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1440" height="1480" fill="#f4f7fb"/>
+  <text x="48" y="57" class="title">VTB 一代代码流程</text>
+  <text x="48" y="88" class="sub">v1 · 2026-09-08 · 当前展开：文件导入 → CFA 中间表 → CFA 正式表</text>
+  <text x="48" y="116" class="small">蓝色：Java 处理　绿色：数据表　橙色虚线：待核验　｜　按节点编号提问，后续在本图增量展开</text>
+
+  <rect x="32" y="142" width="674" height="1160" rx="20" class="panel"/>
+  <rect x="734" y="142" width="674" height="1160" rx="20" class="panel"/>
+  <text x="58" y="181" class="heading">① 文件导入</text>
+  <text x="760" y="181" class="heading">② 数据提取 · 单独触发</text>
+
+  <g id="I1"><rect x="78" y="205" width="580" height="84" rx="12" class="node"/>
+    <text x="98" y="237" class="label">I1　提交导入日期 → importData()</text>
+    <text x="98" y="267" class="body">当前用户机构代码 = 310000167001 → VTB 分支</text></g>
+  <path d="M368 289 V319" class="edge"/>
+  <g id="I2"><rect x="78" y="321" width="580" height="104" rx="12" class="node"/>
+    <text x="98" y="353" class="label">I2　importVTBData：筛选源目录文件</text>
+    <text x="98" y="382" class="body">配置包含 CIF2 / AIF2 / BLN2 / TRN2 / REPORT</text>
+    <text x="98" y="407" class="small">匹配数量必须恰好为 5；否则抛出异常，停止导入</text></g>
+  <path d="M368 425 V455" class="edge"/>
+  <g id="I3"><rect x="78" y="457" width="580" height="143" rx="12" class="node"/>
+    <text x="98" y="489" class="label">I3　parseTxtFile：逐文件解析</text>
+    <text x="98" y="520" class="body">CIF → CifTab　　AIF → AifTab　　BLN → BlnTab</text>
+    <text x="98" y="549" class="body">TRN → TransactionTab，同时派生 BopTransaction</text>
+    <text x="98" y="579" class="small">REPORT：打开并读首行，无专门解析或状态校验分支</text></g>
+  <path d="M368 600 V630" class="edge"/>
+  <g id="I4"><rect x="78" y="632" width="580" height="106" rx="12" class="node"/>
+    <text x="98" y="664" class="label">I4　importCFATab：加工贷款中间数据</text>
+    <text x="98" y="694" class="body">按日期取 TransactionTab，结合 Customer、过滤配置</text>
+    <text x="98" y="719" class="small">部分变动分支还依赖已有正式合同、历史变动记录</text></g>
+  <path d="M368 738 V768" class="edge"/>
+  <g id="I5"><rect x="78" y="770" width="580" height="130" rx="12" class="table"/>
+    <text x="98" y="801" class="label">I5　写入四张贷款业务中间表（不是客户表）</text>
+    <text x="98" y="832" class="body">CFACATab / CFACBTab：国内外汇贷款 · 签约 / 变动</text>
+    <text x="98" y="861" class="body">CFADATab / CFADBTab：外保内贷 · 签约 / 变动</text>
+    <text x="98" y="885" class="small">各表本次有输出才删除同日旧数据并重写；零输出不清理</text></g>
+  <path d="M368 900 V930" class="edge"/>
+  <g id="I6"><rect x="78" y="932" width="580" height="114" rx="12" class="unknown"/>
+    <text x="98" y="964" class="label">I6　调用 proc_processData(导入日期)</text>
+    <text x="98" y="994" class="body">Java 调用已确认；一代原始过程正文尚未核验</text>
+    <text x="98" y="1023" class="small">当前测试库为按用户要求新建的空过程；不据此推定原逻辑</text></g>
+  <path d="M368 1046 V1076" class="edge"/>
+  <g id="I7"><rect x="78" y="1078" width="580" height="90" rx="12" class="node"/>
+    <text x="98" y="1110" class="label">I7　过程正常返回 → 文件归档 → 导入结束</text>
+    <text x="98" y="1140" class="body">过程抛出异常则不会执行后续归档语句</text></g>
+  <text x="78" y="1210" class="small">注意：“导入成功”消息在过程调用前就加入消息对象。</text>
+  <text x="78" y="1236" class="small">失败后的数据库回滚范围，仍需核验事务配置。</text>
+  <text x="78" y="1262" class="small">当前展示手工入口；自动调度调用链尚未展开。</text>
+
+  <g id="E1"><rect x="780" y="205" width="580" height="84" rx="12" class="node"/>
+    <text x="800" y="237" class="label">E1　提交提取日期、报表类型 → extractData()</text>
+    <text x="800" y="267" class="body">当前用户机构代码 = 310000167001 → extractVTBData</text></g>
+  <path d="M1070 289 V319" class="edge"/>
+  <g id="E2"><rect x="780" y="321" width="580" height="104" rx="12" class="node"/>
+    <text x="800" y="353" class="label">E2　按报表类型分发；本图展开 CFA</text>
+    <text x="800" y="382" class="body">CFA → CfaMetroExtractServiceImpl.extractCfaData</text>
+    <text x="800" y="407" class="small">ACC / JSH / FAL 有其他分支，后续按问题展开</text></g>
+  <path d="M1070 425 V455" class="edge"/>
+  <g id="E3"><rect x="780" y="457" width="580" height="163" rx="12" class="table"/>
+    <text x="800" y="489" class="label">E3　按勾选类型调用对应提取方法</text>
+    <text x="800" y="520" class="body">CFACATab → CFACA　　CFACBTab → CFACB</text>
+    <text x="800" y="550" class="body">CFADATab → CFADA　　CFADBTab → CFADB</text>
+    <text x="800" y="581" class="small">四类均勾选时：CA → CB → DA → DB；签约先于变动</text>
+    <text x="800" y="605" class="small">此处为调用关系；实际新增、更新、跳过取决于各方法条件</text></g>
+  <path d="M1070 620 V650" class="edge"/>
+  <g id="E4"><rect x="780" y="652" width="580" height="100" rx="12" class="node"/>
+    <text x="800" y="684" class="label">E4　先展开 CFACA：读取同日 CFACATab</text>
+    <text x="800" y="714" class="body">逐条按 DealNo 查正式 CFACA 是否已有记录</text>
+    <text x="800" y="738" class="small">该已有记录查询未限定提取日期，会匹配历史合同</text></g>
+  <path d="M1070 752 V777 H921 V815" class="edge"/>
+  <path d="M1070 777 H1220 V815" class="edge"/>
+  <text x="892" y="804" class="small">不存在</text><text x="1200" y="804" class="small">已存在</text>
+  <g id="E5"><rect x="780" y="818" width="282" height="168" rx="12" class="node"/>
+    <text x="797" y="852" class="label">E5　新增正式 CFACA</text>
+    <text x="797" y="886" class="body">复制中间表业务字段</text>
+    <text x="797" y="916" class="body">设置操作类型 A、初始状态</text>
+    <text x="797" y="946" class="body">补充机构、操作人、日期</text>
+    <text x="797" y="974" class="body">保存正式记录</text></g>
+  <g id="E6"><rect x="1080" y="818" width="280" height="168" rx="12" class="node"/>
+    <text x="1097" y="852" class="label">E6　已有记录分支</text>
+    <text x="1097" y="886" class="body">检查状态及字段变化</text>
+    <text x="1097" y="916" class="body">具体更新与跳过条件</text>
+    <text x="1097" y="946" class="body">待下一层展开</text></g>
+  <text x="800" y="1030" class="small">E4–E6 为 CFACA 主分支概览；未穷举末尾清理和异常处理。</text>
+  <g id="E7"><rect x="780" y="1078" width="580" height="90" rx="12" class="table"/>
+    <text x="800" y="1110" class="label">E7　正式表落数 ≠ 已完成申报</text>
+    <text x="800" y="1140" class="body">校验、补录、审核、报文生成及发送链路尚未展开</text></g>
+  <text x="780" y="1210" class="small">本次试跑：CFACA 新增 3 条、CFADA 新增 3 条。</text>
+  <text x="780" y="1236" class="small">试跑使用空过程及调整后的字段长度，不代表原环境全链路通过。</text>
+
+  <text x="48" y="1340" class="heading">源码定位 · 以一代 Java 为依据</text>
+  <text x="48" y="1372" class="small">I1：DataImportAction.java:596 / 668　｜　I2–I7：DataImportServiceImpl.java:1829 / 2500；CfaVTBImportServiceImpl.java:87</text>
+  <text x="48" y="1400" class="small">E1–E2：DataImportAction.java:803 / 843；DataImportServiceImpl.java:2796　｜　E3：CfaMetroExtractServiceImpl.java:110</text>
+  <text x="48" y="1428" class="small">E4–E6：CfacaMetroExtractServiceImpl.java:43；CFACATabDao.java:15　｜　二代迁移材料不作为一代原过程正文证据</text>
+  <text x="48" y="1458" class="small">增量维护文件：outputs/vtb-safe1-code-flow.svg　　提问示例：“展开 I4 的筛选条件”或“展开 E6 的重复提取处理”</text>
+</svg>

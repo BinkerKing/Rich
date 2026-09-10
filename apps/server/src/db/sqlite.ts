@@ -656,6 +656,13 @@ function applySchema(db: Database.Database) {
   ensureColumn(db, "pm_test_cases", "group_id", "TEXT");
   ensureColumn(db, "pm_test_cases", "sort_order", "INTEGER NOT NULL DEFAULT 0");
   db.exec(`
+    CREATE TABLE IF NOT EXISTS pm_test_grid_settings (
+      project_id TEXT NOT NULL,
+      grid_key TEXT NOT NULL,
+      columns_json TEXT NOT NULL DEFAULT '[]',
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (project_id, grid_key)
+    );
     CREATE TABLE IF NOT EXISTS pm_test_groups (
       id TEXT PRIMARY KEY, project_id TEXT NOT NULL, task_id TEXT NOT NULL REFERENCES pm_test_tasks(id) ON DELETE CASCADE, parent_group_id TEXT REFERENCES pm_test_groups(id) ON DELETE SET NULL, title TEXT NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
     );
@@ -663,6 +670,7 @@ function applySchema(db: Database.Database) {
     UPDATE pm_test_tasks SET sort_order=rowid WHERE sort_order=0;
     UPDATE pm_test_cases SET sort_order=rowid WHERE sort_order=0;
   `);
+  ensureColumn(db, "pm_test_issues", "custom_fields", "TEXT NOT NULL DEFAULT '{}'");
 }
 
 function ensureColumn(db: Database.Database, table: string, column: string, type: string) {

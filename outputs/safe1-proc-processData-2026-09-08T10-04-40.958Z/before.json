@@ -1,0 +1,29 @@
+{
+  "identity": {
+    "database_name": "fbdsALL",
+    "server_name": "mssql2022"
+  },
+  "before": null,
+  "dependencies": [
+    {
+      "schema_name": "dbo",
+      "name": "Account",
+      "type_desc": "USER_TABLE"
+    },
+    {
+      "schema_name": "dbo",
+      "name": "BlnTab",
+      "type_desc": "USER_TABLE"
+    },
+    {
+      "schema_name": "dbo",
+      "name": "BopTransaction",
+      "type_desc": "USER_TABLE"
+    },
+    {
+      "schema_name": "dbo",
+      "name": "Customer",
+      "type_desc": "USER_TABLE"
+    }
+  ]
+}

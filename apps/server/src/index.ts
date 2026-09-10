@@ -560,7 +560,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   }));
   app.route("/api/project-management", projectManagementRoutes(projectManagement, { elements, greatMe }));
   app.route("/api/flowcharts", flowchartsRoutes(flowcharts));
-  app.route("/api/deliverables", deliverablesRoutes(deliverables));
+  app.route("/api/deliverables", deliverablesRoutes(deliverables, { elements, projectManagement }));
   if (testCenter) app.route("/api/project-management/testing", testCenterRoutes(testCenter));
   app.route("/api/project-management", projectAutomationRoutes(projectManagement, projectAutomation));
   app.route("/api/project-management", multicaProjectWorkbenchRoutes({

@@ -375,7 +375,12 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
   const onToggleMaximize = (event: Electron.IpcMainEvent) => {
     if (event.sender === win.webContents) toggleWindowMaximize(win);
   };
+  const onSetWindowControlsVisible = (event: Electron.IpcMainEvent, visible: unknown) => {
+    if (event.sender !== win.webContents || process.platform !== "darwin") return;
+    win.setWindowButtonVisibility(visible === true);
+  };
   ipcMain.on("rich-window:toggle-maximize", onToggleMaximize);
+  ipcMain.on("rich-window:set-controls-visible", onSetWindowControlsVisible);
   const exportDeliveryPlan = async (event: Electron.IpcMainInvokeEvent, payload: unknown) => {
     if (event.sender !== win.webContents || !payload || typeof payload !== "object") return false;
     const value = payload as { gantt?: unknown; tableRows?: unknown; filename?: unknown };
@@ -535,6 +540,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
   ipcMain.handle("rich-delivery-plan:export", exportDeliveryPlan);
   win.on("closed", () => {
     ipcMain.removeListener("rich-window:toggle-maximize", onToggleMaximize);
+    ipcMain.removeListener("rich-window:set-controls-visible", onSetWindowControlsVisible);
     ipcMain.removeHandler("rich-delivery-plan:export");
     if (mainWindow === win) mainWindow = null;
   });

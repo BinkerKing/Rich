@@ -3,19 +3,41 @@ import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { basename, isAbsolute, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import type { DeliverablesRepo } from "../repos/DeliverablesRepo.js";
+import type { ElementsRepo } from "../repos/ElementsRepo.js";
+import type { ProjectManagementRepo } from "../repos/ProjectManagementRepo.js";
 
 const content = (value: unknown) => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 const directory = (value: Record<string, unknown>) => typeof value.folderPath === "string" && isAbsolute(value.folderPath) && !value.folderPath.includes("\0") ? resolve(value.folderPath) : null;
 const inside = (root: string, target: string) => target.startsWith(`${root}/`);
-
 const openPath = (path: string, reveal = false) => {
   const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer" : "xdg-open";
   const child = spawn(command, process.platform === "darwin" && reveal ? ["-R", path] : [path], { detached: true, stdio: "ignore" });
   child.unref();
 };
-export function deliverablesRoutes(repo: DeliverablesRepo): Hono {
+
+export function deliverablesRoutes(repo: DeliverablesRepo, dependencies?: { elements: ElementsRepo; projectManagement: ProjectManagementRepo }): Hono {
   const route = new Hono();
   route.get("/", async c => c.json(await repo.list()));
+  route.post("/migrate-project-items", async c => {
+    if (!dependencies) return c.json({ migrated: 0 });
+    const existing = await repo.list();
+    const legacyIds = new Map(existing.flatMap(item => typeof item.content.legacyProjectItemId === "string" ? [[item.content.legacyProjectItemId, item.id] as const] : []));
+    let migrated = 0;
+    for (const project of (await dependencies.elements.list()).filter(item => item.type === "project")) {
+      const legacy = await dependencies.projectManagement.listAllModuleItems(project.id, "deliverables");
+      const ids = [...((project.content as { deliverableIds?: unknown } | null)?.deliverableIds instanceof Array ? (project.content as { deliverableIds: unknown[] }).deliverableIds.filter((id): id is string => typeof id === "string") : [])];
+      for (const item of legacy) {
+        let id = legacyIds.get(item.id);
+        if (!id) {
+          const created = await repo.create({ title: item.title, content: { ...item.content, legacyProjectItemId: item.id } });
+          id = created.id; legacyIds.set(item.id, id); migrated++;
+        }
+        if (!ids.includes(id)) ids.push(id);
+      }
+      if (ids.length) await dependencies.elements.put({ ...project, content: { ...(project.content as Record<string, unknown>), deliverableIds: ids } });
+    }
+    return c.json({ migrated });
+  });
   route.get("/:id", async c => { const item = await repo.get(c.req.param("id")); return item ? c.json(item) : c.json({ error: "deliverable not found" }, 404); });
   route.post("/", async c => {
     const body = await c.req.json().catch(() => ({})) as { title?: unknown; content?: unknown };
