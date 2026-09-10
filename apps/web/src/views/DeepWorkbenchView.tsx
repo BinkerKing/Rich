@@ -167,20 +167,20 @@ export function DeepWorkbenchView() {
   if (!active) {
     return <main className="deep-list">
       <header className="deep-list__header">
-        <div><p>深度工作台</p><h1>从一个问题开始，逐层构建你的架构。</h1></div>
+        <div><h1>从一个问题开始，逐层构建你的架构。</h1></div>
         <button className="deep-list__create" type="button" title="新建工作台" aria-label="新建工作台" onClick={() => setCreating(true)}><EditorIcon name="add" /></button>
       </header>
       <section className="deep-list__section" aria-label="工作台清单">
-        <div className="deep-list__label"><span>内容清单</span><small>{standaloneItems.length} 个工作台</small></div>
+        <div className="deep-list__label">工作台</div>
         {standaloneItems.length === 0 ? <div className="deep-empty"><strong>还没有工作台</strong><p>创建一个主题，先从主节点开始思考。</p><button className="deep-primary" type="button" onClick={() => setCreating(true)}>新建工作台</button></div> :
           <div className="deep-list__grid">{standaloneItems.map(item => <button className="deep-item" type="button" key={item.id} onClick={() => setActiveId(item.id)}>
-            <span className="deep-item__dot" aria-hidden="true" /><strong>{item.title}</strong><small>{new Date(item.updatedAt).toLocaleString("zh-CN")}</small>
+            <span className="deep-item__icon" aria-hidden="true"><EditorIcon name="map" /></span><strong>{item.title}</strong>
           </button>)}</div>}
       </section>
       <section className="deep-list__section" aria-label="知识树任务">
-        <div className="deep-list__label"><span>知识树任务</span><small>{knowledgeRoots.length} 个主题</small></div>
+        <div className="deep-list__label">知识树</div>
         {knowledgeRoots.length === 0 ? <p className="deep-list__note">知识树加载后会显示可在工作台中编辑的主题。</p> : <div className="deep-list__grid">{knowledgeRoots.map(root => <button className="deep-item deep-item--knowledge" type="button" key={root.id} onClick={() => openKnowledgeTree(root.id)}>
-          <span className="deep-item__dot" aria-hidden="true" /><strong>{root.title}</strong><small>知识树 · 在脑图中查看和编辑</small>
+          <span className="deep-item__icon" aria-hidden="true"><EditorIcon name="map" /></span><strong>{root.title}</strong>
         </button>)}</div>}
       </section>
       {creating && <div className="deep-dialog-backdrop" role="presentation" onMouseDown={() => setCreating(false)}><form className="deep-dialog" onSubmit={event => { event.preventDefault(); create(); }} onMouseDown={event => event.stopPropagation()}>

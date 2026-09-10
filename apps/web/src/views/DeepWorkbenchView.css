@@ -11,4 +11,6 @@
 .deep-node-detail__preview p{margin:0 0 12px}
 
 .deep-list__create{display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid #303034;border-radius:6px;background:#151517;color:#d4d4d8;cursor:pointer}.deep-list__create:hover,.deep-list__create:focus-visible{border-color:#5a5a60;background:#1b1b1e;color:#fff;outline:none}.deep-list__create svg{width:17px;height:17px}
+
+.deep-list__create{width:40px;height:40px;border:0;border-radius:0;background:transparent;color:#e4e4e7}.deep-list__create:hover,.deep-list__create:focus-visible{border:0;background:transparent;color:#fff;transform:scale(1.08)}.deep-list__create svg{width:27px;height:27px;stroke-width:2.2}.deep-item{grid-template-columns:32px minmax(0,1fr);align-items:center;gap:16px;min-height:86px}.deep-item__icon{display:grid;place-items:center;color:#c7c7cc}.deep-item__icon svg{width:28px;height:28px;stroke-width:2.2}.deep-item strong{font-size:16px;line-height:1.4}.deep-item small,.deep-item__dot{display:none}.deep-list__label small{display:none}
 .deep-node-detail__description .prj-pm-rich-editor{border:0;border-radius:0;background:transparent}
