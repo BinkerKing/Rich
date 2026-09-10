@@ -137,7 +137,7 @@ test('left double click opens details while right double click enters a child fl
 
 test('clicking the canvas exits inline node editing', () => {
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
-  assert.match(source, /onPaneClick=\{\(\) => setEditingNode\(""\)\}/);
+  assert.match(source, /onPaneClick=\{\(\) => \{ setEditingNode\(""\);/);
 });
 
 test('canvas supports lasso and Command multi-selection for shared node styles', () => {
@@ -145,7 +145,7 @@ test('canvas supports lasso and Command multi-selection for shared node styles',
   assert.match(source, /const \[selectedIds, setSelectedIds\] = useState<string\[\]>\(\[\]\)/);
   assert.match(source, /selectionOnDrag/);
   assert.match(source, /multiSelectionKeyCode="Meta"/);
-  assert.match(source, /onPaneClick=\{\(\) => setEditingNode\(""\)\}/);
+  assert.match(source, /onPaneClick=\{\(\) => \{ setEditingNode\(""\);/);
   assert.match(source, /<FlowchartNodeStyleToolbar nodes=\{selectedNodes\}/);
 });
 
@@ -153,7 +153,20 @@ test('trackpad two-finger scrolling pans while left drag remains reserved for la
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
   assert.match(source, /selectionOnDrag panOnDrag=\{false\} panOnScroll panOnScrollMode=\{PanOnScrollMode\.Free\}/);
   assert.match(source, /zoomOnScroll=\{false\}/);
-  assert.match(source, /onPaneContextMenu=\{event => event\.preventDefault\(\)\}/);
+  assert.match(source, /onPaneContextMenu=\{event => \{\s*event\.preventDefault\(\);/);
+});
+
+test('right clicking an empty canvas opens an add-node menu at that canvas position', () => {
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(source, /onPaneContextMenu=\{event => \{/);
+  assert.match(source, /flow\.screenToFlowPosition/);
+  assert.match(source, /aria-label="快速新建节点菜单"/);
+});
+
+test('new note nodes enter their in-place editor with a writable body paragraph', () => {
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(source, /setEditingNode\(kind === "note" \? node\.id : ""\)/);
+  assert.match(source, /<p>\{data\.caption \|\| <br \/>\}<\/p>/);
 });
 
 test('phase one exposes node type, resize, edge styling and reconnecting controls', () => {

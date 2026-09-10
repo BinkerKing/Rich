@@ -47,14 +47,14 @@ function NodeLabel({ data }: { data: FlowNode["data"] }) {
     }} onBlur={event => data.onLabelChange?.(event.currentTarget.innerText.trim() || data.label)}>{data.label}</strong>;
 }
 function NoteContent({ data }: { data: FlowNode["data"] }) {
-  const text = [data.label, data.caption].filter(Boolean).join("\n");
+  const text = [data.label, data.caption ?? ""].join("\n");
   return <div className="pfc-node-label-editor pfc-note-content-editor nodrag nopan" aria-label="编辑节点文字" contentEditable suppressContentEditableWarning autoFocus
     onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()} onKeyDown={event => {
       event.stopPropagation();
       if (event.key === "Enter" && event.metaKey) { event.preventDefault(); document.execCommand("insertLineBreak"); return; }
       if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); }
       if (event.key === "Escape") { event.currentTarget.innerText = text; event.currentTarget.blur(); }
-    }} onBlur={event => data.onNoteTextChange?.(event.currentTarget.innerText)}><strong>{data.label}</strong>{data.caption && <p>{data.caption}</p>}</div>;
+    }} onBlur={event => data.onNoteTextChange?.(event.currentTarget.innerText)}><strong>{data.label}</strong><p>{data.caption || <br />}</p></div>;
 }
 function nodeStyle(data: FlowNode["data"]): CSSProperties {
   return {
@@ -105,7 +105,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   });
   const [nodeDetailFullscreen, setNodeDetailFullscreen] = useState(false);
   const [connectingFrom, setConnectingFrom] = useState("");
-  const [quickCreate, setQuickCreate] = useState<{ source: string; position: { x: number; y: number }; screen: { x: number; y: number } }>();
+  const [quickCreate, setQuickCreate] = useState<{ source?: string; position: { x: number; y: number }; screen: { x: number; y: number } }>();
   const canvasRef = useRef<HTMLDivElement>(null);
   const rightClickNode = useRef<{ id: string; time: number } | null>(null);
   const undoStack = useRef<FlowchartData[]>([]);
@@ -263,7 +263,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     if (!graph) return;
     const node = createFlowNode(kind, position, scope);
     update({ ...graph, nodes: [...graph.nodes, node], edges: source ? [...graph.edges, createFlowEdge({ source, target: node.id })] : graph.edges });
-    setSelected(node.id); setSelectedIds([node.id]); setSelectedEdge(""); setQuickCreate(undefined);
+    setSelected(node.id); setSelectedIds([node.id]); setSelectedEdge(""); setEditingNode(kind === "note" ? node.id : ""); setQuickCreate(undefined);
   };
   const duplicateSelectedNodes = () => {
     if (!graph || selectedIds.length === 0) return;
@@ -413,10 +413,15 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
                   enter(row.id); rightClickNode.current = null;
                 } else rightClickNode.current = { id: row.id, time: now };
               }}
-              onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); setSelectedIds([]); setEditingNode(""); setDetailNode(""); }} onPaneClick={() => setEditingNode("")} onPaneContextMenu={event => event.preventDefault()}>
+              onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); setSelectedIds([]); setEditingNode(""); setDetailNode(""); }} onPaneClick={() => { setEditingNode(""); setQuickCreate(undefined); }} onPaneContextMenu={event => {
+                event.preventDefault();
+                if (!flow || !canvasRef.current) return;
+                const rect = canvasRef.current.getBoundingClientRect();
+                setQuickCreate({ position: flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }), screen: { x: event.clientX - rect.left, y: event.clientY - rect.top } });
+              }}>
                   <Background gap={28} size={1} color="#44444d" /><MiniMap pannable zoomable nodeColor="#275368" maskColor="#101113cc" /><Controls />
                 </ReactFlow>
-                {quickCreate && <div className="pfc-quick-create" style={{ left: quickCreate.screen.x, top: quickCreate.screen.y }} role="dialog" aria-label="快速新建节点"><strong>新建并连接</strong>{(["step", "decision", "note", "table"] as FlowNodeKind[]).map(kind => <button key={kind} type="button" onClick={() => addNode(kind, quickCreate.position, quickCreate.source)}>{({ step: "处理步骤", decision: "判断", note: "备注", table: "数据表" } as Record<string, string>)[kind]}</button>)}<button type="button" onClick={() => setQuickCreate(undefined)}>取消</button></div>}
+                {quickCreate && <div className="pfc-quick-create" style={{ left: quickCreate.screen.x, top: quickCreate.screen.y }} role="dialog" aria-label="快速新建节点菜单"><strong>{quickCreate.source ? "新建并连接" : "新增节点"}</strong>{(["step", "decision", "note", "table"] as FlowNodeKind[]).map(kind => <button key={kind} type="button" onClick={() => addNode(kind, quickCreate.position, quickCreate.source)}>{({ step: "处理步骤", decision: "判断", note: "备注", table: "数据表" } as Record<string, string>)[kind]}</button>)}<button type="button" onClick={() => setQuickCreate(undefined)}>取消</button></div>}
               </div>
               <div className="pfc-legend" aria-label="流程图图例"><span>● 处理</span><span>● 数据表</span><span>◇ 判断</span><span>— 主线</span><span>┄ 规则 / 数据关联</span></div>
               {selectedNodes.length > 0 && <FlowchartNodeStyleToolbar nodes={selectedNodes} onChange={editNode} onKindChange={kind => editNode({ kind })} onAlign={alignment => graph && update(alignFlowNodes(graph, selectedIds, alignment))} onDistribute={direction => graph && update(distributeFlowNodes(graph, selectedIds, direction))} onLayout={direction => graph && update(layoutFlowNodes(graph, selectedIds, direction))} onGroup={groupSelectedNodes} onToggleGroup={() => graph && selected && update(toggleFlowGroup(graph, selected))} />}
