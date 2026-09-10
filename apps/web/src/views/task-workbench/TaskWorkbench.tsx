@@ -181,7 +181,7 @@ export function TaskWorkbench(): ReactNode {
 
   return <div className="tw">
     <header className="tw-top">
-      <div>{task && <button className="tw-breadcrumb" onClick={() => setSelectedId(null)}>任务工作台 /</button>}<h1>{task ? task.title : "任务工作台"}</h1><p>{task ? task.outputTarget || "围绕当前需求，按计划推进" : "在 Codex 中提出需求，在这里跟踪计划与成果。"}</p></div>
+      <div>{task && <button className="tw-breadcrumb" onClick={() => setSelectedId(null)}>任务 /</button>}<h1>{task ? task.title : "任务"}</h1><p>{task ? task.outputTarget || "围绕当前需求，按计划推进" : "在 Codex 中提出需求，在这里跟踪计划与成果。"}</p></div>
       <div className="tw-actions">
         {task ? <button className="tw-primary tw-play" aria-label={executing ? "任务执行中" : "播放任务"} title={executing ? "任务执行中，焦点跟随当前步骤" : "按计划逐步执行，遇到确认项停止"} disabled={operating || !task.requirementConfirmed || !task.planConfirmed || task.status === "archived" || task.status === "completed"} onClick={() => { setSideTab("records"); void command("play"); }}>{executing ? "◌" : "▶"}</button> : <><button className="tw-primary" disabled={busy} onClick={() => void newTask()}>＋ 在 Codex 中发起任务</button></>}
       </div>

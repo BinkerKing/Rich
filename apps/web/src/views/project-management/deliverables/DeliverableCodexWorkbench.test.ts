@@ -202,7 +202,7 @@ describe("DeliverableCodexWorkbench", () => {
     expect(source).toContain('type TaskModeSession = TaskMode & { location: CodexLocationContextInput; startedAt: string }');
     expect(source).toContain('page: currentPageLocation(appView)');
     expect(source).toContain('任务模式：{activeTaskMode.label}');
-    expect(source).toContain('activeTaskMode.id === "general-task" ? "任务工作台：" : "交付物："');
+    expect(source).toContain('activeTaskMode.id === "general-task" ? "任务：" : "交付物："');
     expect(source).toContain('requestDeliverableItemFocus(location.project.id, location.business.id)');
     expect(source).toContain('window.requestAnimationFrame(() => requestDeliverableItemFocus');
     expect(source).toContain('requestShortcutOpen({ kind: "project", id: location.project.id })');

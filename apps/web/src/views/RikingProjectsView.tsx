@@ -357,7 +357,7 @@ export function RikingProjectsView() {
     <div className="riking-projects-view">
       <header className="rkp-header">
         <div>
-          <h1>项目启动</h1>
+          <h1>启动</h1>
           <p>本地与服务器项目、常用工具启动，重点看状态、入口、日志和连接信息。</p>
         </div>
       </header>
