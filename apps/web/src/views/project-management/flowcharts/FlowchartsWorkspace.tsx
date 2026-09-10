@@ -17,7 +17,7 @@ const detailPanelWidth = (value: number, maxWidth = Math.floor(window.innerWidth
 function RegionNode({ data, selected }: NodeProps<FlowNode>) {
   return <div className={`pfc-region tone-${data.tone || "cyan"}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
     <NodeResizer isVisible={selected} minWidth={220} minHeight={120} color="#72c7ef" />
-    <header><NodeLabel data={data} />{data.caption && <span>{data.caption}</span>}</header>
+    <header>{data.editing ? <RegionContent data={data} /> : <><NodeLabel data={data} />{data.caption && <span>{data.caption}</span>}</>}</header>
   </div>;
 }
 function NoteNode({ data, selected }: NodeProps<FlowNode>) {
@@ -55,6 +55,16 @@ function NoteContent({ data }: { data: FlowNode["data"] }) {
       if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); }
       if (event.key === "Escape") { event.currentTarget.innerText = text; event.currentTarget.blur(); }
     }} onBlur={event => data.onNoteTextChange?.(event.currentTarget.innerText)}><strong>{data.label}</strong><p>{data.caption || <br />}</p></div>;
+}
+function RegionContent({ data }: { data: FlowNode["data"] }) {
+  const text = [data.label, data.caption ?? ""].join("\n");
+  return <div className="pfc-node-label-editor pfc-region-content-editor nodrag nopan" aria-label="编辑区域文字" contentEditable suppressContentEditableWarning autoFocus
+    onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()} onKeyDown={event => {
+      event.stopPropagation();
+      if (event.key === "Enter" && event.metaKey) { event.preventDefault(); document.execCommand("insertLineBreak"); return; }
+      if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); }
+      if (event.key === "Escape") { event.currentTarget.innerText = text; event.currentTarget.blur(); }
+    }} onBlur={event => data.onRegionTextChange?.(event.currentTarget.innerText)}><strong>{data.label}</strong><span>{data.caption || <br />}</span></div>;
 }
 function nodeStyle(data: FlowNode["data"]): CSSProperties {
   return {
@@ -263,7 +273,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     if (!graph) return;
     const node = createFlowNode(kind, position, scope);
     update({ ...graph, nodes: [...graph.nodes, node], edges: source ? [...graph.edges, createFlowEdge({ source, target: node.id })] : graph.edges });
-    setSelected(node.id); setSelectedIds([node.id]); setSelectedEdge(""); setEditingNode(kind === "note" ? node.id : ""); setQuickCreate(undefined);
+    setSelected(node.id); setSelectedIds([node.id]); setSelectedEdge(""); setEditingNode(kind === "note" || kind === "region" ? node.id : ""); setQuickCreate(undefined);
   };
   const duplicateSelectedNodes = () => {
     if (!graph || selectedIds.length === 0) return;
@@ -377,7 +387,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
           }}>{row.data.label} <small>{row.id.slice(0, 8)}</small></button>)}</div>}
         </div>}
               <div className="pfc-canvas" ref={canvasRef}>
-                <ReactFlow<FlowNode> proOptions={{ hideAttribution: true }} nodes={visibleNodes.map(row => ({ ...row, selected: selectedIds.includes(row.id), data: { ...row.data, editing: row.id === editingNode, onLabelChange: label => { update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label } } : node) }); setEditingNode(""); }, onNoteTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); } } }))}
+                <ReactFlow<FlowNode> proOptions={{ hideAttribution: true }} nodes={visibleNodes.map(row => ({ ...row, selected: selectedIds.includes(row.id), data: { ...row.data, editing: row.id === editingNode, onLabelChange: label => { update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label } } : node) }); setEditingNode(""); }, onNoteTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); }, onRegionTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); } } }))}
                   edges={graph.edges.filter(row => visibleNodeIds.has(row.source) && visibleNodeIds.has(row.target)).map(row => ({ ...row, style: edgeStyle(row), animated: row.data?.animated, markerEnd: row.data?.markerEnd === "none" ? undefined : { type: MarkerType.ArrowClosed } }))}
                   nodeTypes={nodeTypes} onInit={setFlow} fitView minZoom={0.1} maxZoom={2} deleteKeyCode={null} selectionOnDrag panOnDrag={false} panOnScroll panOnScrollMode={PanOnScrollMode.Free} zoomOnScroll={false} multiSelectionKeyCode="Meta"
                   defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed } }}

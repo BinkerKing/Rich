@@ -115,6 +115,13 @@ test('inline note editing includes both its title and visible note content', () 
   assert.match(source, /onNoteTextChange: text =>/);
 });
 
+test('inline region editing includes its title and small explanatory text', () => {
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(source, /function RegionContent/);
+  assert.match(source, /data\.editing \? <RegionContent data=\{data\} \/>/);
+  assert.match(source, /onRegionTextChange/);
+});
+
 test('Command Enter inserts a line break while Enter saves node editing', () => {
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
   assert.match(source, /event\.key === "Enter" && event\.metaKey/);
@@ -167,7 +174,7 @@ test('right clicking an empty canvas opens an add-node menu at that canvas posit
 
 test('new note nodes enter their in-place editor with a writable body paragraph', () => {
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
-  assert.match(source, /setEditingNode\(kind === "note" \? node\.id : ""\)/);
+  assert.match(source, /setEditingNode\(kind === "note" \|\| kind === "region" \? node\.id : ""\)/);
   assert.match(source, /<p>\{data\.caption \|\| <br \/>\}<\/p>/);
 });
 

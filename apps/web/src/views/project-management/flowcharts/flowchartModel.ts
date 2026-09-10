@@ -20,6 +20,7 @@ export type FlowNode = Node<{
   editing?: boolean;
   onLabelChange?: (label: string) => void;
   onNoteTextChange?: (text: string) => void;
+  onRegionTextChange?: (text: string) => void;
 } & Partial<NodeStyle>>;
 export interface FlowchartData {
   version: 1;
