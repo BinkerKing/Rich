@@ -106,7 +106,7 @@
   display: grid;
   place-items: center;
   border-radius: 6px;
-  color: #c7c7cc;
+  color: #c7c7cc !important;
   background: #19191c;
   border: 1px solid #303034;
 }
