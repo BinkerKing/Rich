@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createFlowchart, removeFlowNodes, scopePath, searchFlowNodes, readFlowchart } from "./flowchartModel.js";
+import { createFlowchart, createFlowEdge, createFlowNode, removeFlowNodes, scopePath, searchFlowNodes, readFlowchart } from "./flowchartModel.js";
 
 test("删除父节点同时清理深层子流程和相关连线，保留其他分支", () => {
   const graph = createFlowchart(true);
@@ -28,4 +28,19 @@ test("任务图数据 JSON 往返保留节点编号、连线和状态；拒绝�
   const graph = createFlowchart(false);
   assert.deepEqual(readFlowchart(JSON.parse(JSON.stringify({ graph }))), graph);
   assert.throws(() => readFlowchart({ graph: { ...graph, version: 2 } }));
+});
+
+test("创建节点保留语义类型、画布位置与默认文字", () => {
+  const node = createFlowNode("decision", { x: 240, y: 180 });
+  assert.equal(node.data.kind, "decision");
+  assert.equal(node.data.label, "判断条件");
+  assert.deepEqual(node.position, { x: 240, y: 180 });
+  assert.equal(node.data.scope, "root");
+});
+
+test("创建连线带有可编辑的默认外观", () => {
+  const edge = createFlowEdge({ source: "source", target: "target" });
+  assert.equal(edge.type, "smoothstep");
+  assert.equal(edge.label, "");
+  assert.deepEqual(edge.data, { lineStyle: "solid", lineWidth: 1.5, markerEnd: "arrow" });
 });

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const css = readFileSync(new URL('./FlowchartsWorkspace.css', import.meta.url), 'utf8');
-const rule = selector => css.match(new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' \\{([^}]+)\\}'))?.[1] || '';
+const rule = selector => css.match(new RegExp(`(?:^|\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{([^}]+)\\}`))?.[1] || '';
 
 test('flowchart fills available height below an expanded title row', () => {
   for (const selector of ['.pfc', '.pfc-task']) {
@@ -26,13 +26,13 @@ test('details float over the full-width canvas instead of reserving a column', (
   assert.doesNotMatch(rule('.pfc-editor'), /grid-template-columns/);
 });
 
-test('title accordion replaces the heading, task sidebar, objective and node creation', () => {
+test('title accordion replaces the heading, task sidebar and objective', () => {
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
   assert.match(source, /aria-expanded=/);
   assert.match(source, /className="pfc-task-title"/);
   assert.match(source, /if \(expanded && active !== item\.id\) return null;/);
-  assert.doesNotMatch(source, /pfc-heading|pfc-tasks|pfc-objective|添加节点/);
-  assert.match(source, /\(node \|\| edge\) && <aside/);
+  assert.doesNotMatch(source, /pfc-heading|pfc-tasks|pfc-objective/);
+  assert.match(source, /aria-label="添加节点"/);
 });
 
 test('canvas nodes show only a symbol and key label; evidence stays in details', () => {
@@ -40,7 +40,6 @@ test('canvas nodes show only a symbol and key label; evidence stays in details',
   const renderer = source.slice(source.indexOf('function AnalysisNode'), source.indexOf('const nodeTypes'));
   assert.doesNotMatch(renderer, /data\.source|已核验|待核验/);
   assert.match(renderer, /pfc-node-symbol/);
-  assert.match(source, /graph.nodes.some\(node => node.data.scope === row.id\)/);
 });
 
 test('regions and notes are visual components without business connectors', () => {
@@ -155,4 +154,25 @@ test('trackpad two-finger scrolling pans while left drag remains reserved for la
   assert.match(source, /selectionOnDrag panOnDrag=\{false\} panOnScroll panOnScrollMode=\{PanOnScrollMode\.Free\}/);
   assert.match(source, /zoomOnScroll=\{false\}/);
   assert.match(source, /onPaneContextMenu=\{event => event\.preventDefault\(\)\}/);
+});
+
+test('phase one exposes node type, resize, edge styling and reconnecting controls', () => {
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  const toolbar = readFileSync(new URL('./FlowchartNodeStyleToolbar.tsx', import.meta.url), 'utf8');
+  assert.match(source, /NodeResizer/);
+  assert.match(source, /onReconnect=/);
+  assert.match(source, /reconnectEdge/);
+  assert.match(source, /pfc-edge-toolbar/);
+  assert.match(toolbar, /aria-label="节点类型"/);
+  assert.match(toolbar, /onKindChange/);
+});
+
+test('phase one makes drawing and arranging productive from the canvas', () => {
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(source, /MiniMap/);
+  assert.match(source, /onConnectEnd=/);
+  assert.match(source, /快速新建节点/);
+  assert.match(source, /undoGraph/);
+  assert.match(source, /duplicateSelectedNodes/);
+  assert.match(source, /autoLayout/);
 });

@@ -1,9 +1,11 @@
-import type { Edge, Node } from "@xyflow/react";
+import type { Connection, Edge, Node, XYPosition } from "@xyflow/react";
 import type { NodeStyle } from "../../../components/mindmap/nodeStyleControls.js";
 
+export type FlowNodeKind = "step" | "decision" | "table" | "boundary" | "region" | "note";
+export type FlowEdge = Edge<{ lineStyle?: "solid" | "dashed" | "dotted"; lineColor?: string; lineWidth?: number; markerEnd?: "arrow" | "none"; animated?: boolean }>;
 export type FlowNode = Node<{
   label: string;
-  kind: "step" | "decision" | "table" | "boundary" | "region" | "note";
+  kind: FlowNodeKind;
   icon?: string;
   caption?: string;
   tone?: "cyan" | "mint" | "amber";
@@ -20,18 +22,24 @@ export interface FlowchartData {
   objective: string;
   status: "draft" | "active" | "completed";
   nodes: FlowNode[];
-  edges: Edge[];
+  edges: FlowEdge[];
 }
 export const ROOT_SCOPE = "root";
+const nodeLabels: Record<FlowNodeKind, string> = { step: "处理步骤", decision: "判断条件", table: "数据表", boundary: "开始 / 结束", region: "流程区域", note: "备注" };
+export function flowNodeType(kind: FlowNodeKind): FlowNode["type"] { return kind === "region" ? "region" : kind === "note" ? "note" : "analysis"; }
+export function createFlowNode(kind: FlowNodeKind, position: XYPosition, scope = ROOT_SCOPE): FlowNode {
+  return { id: crypto.randomUUID(), type: flowNodeType(kind), position, data: { label: nodeLabels[kind], kind, description: "", source: "", verified: false, scope } };
+}
+export function createFlowEdge(connection: Pick<Connection, "source" | "target"> & Partial<Pick<Connection, "sourceHandle" | "targetHandle">>): FlowEdge {
+  return { ...connection, id: crypto.randomUUID(), type: "smoothstep", label: "", data: { lineStyle: "solid", lineWidth: 1.5, markerEnd: "arrow" } };
+}
 export function createFlowchart(codeAnalysis: boolean): FlowchartData {
   const labels = codeAnalysis ? ["入口方法", "处理逻辑（待分析）", "返回结果"] : ["开始", "处理步骤", "结束"];
-  const nodes: FlowNode[] = labels.map((label, i) => ({
-    id: crypto.randomUUID(), type: "analysis", position: { x: 100 + i * 300, y: 160 },
-    data: { label, kind: i === 1 ? "step" : "boundary", description: "", source: "", verified: false, scope: ROOT_SCOPE },
-  }));
-  return { version: 1, objective: "", status: "draft", nodes, edges: nodes.slice(1).map((node, i) => ({
-    id: crypto.randomUUID(), source: nodes[i].id, target: node.id, label: "", type: "smoothstep",
-  })) };
+  const nodes: FlowNode[] = labels.map((label, i) => {
+    const node = createFlowNode(i === 1 ? "step" : "boundary", { x: 100 + i * 300, y: 160 });
+    return { ...node, data: { ...node.data, label } };
+  });
+  return { version: 1, objective: "", status: "draft", nodes, edges: nodes.slice(1).map((node, i) => createFlowEdge({ source: nodes[i].id, target: node.id })) };
 }
 export function readFlowchart(content: Record<string, unknown>): FlowchartData {
   const graph = content.graph as FlowchartData | undefined;

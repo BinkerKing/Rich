@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
-import { ReactFlow, Background, Controls, Handle, Position, MarkerType, PanOnScrollMode, applyNodeChanges, applyEdgeChanges,
-  type NodeProps, type ReactFlowInstance } from "@xyflow/react";
+import { ReactFlow, Background, Controls, Handle, Position, MarkerType, PanOnScrollMode, MiniMap, NodeResizer, reconnectEdge, applyNodeChanges, applyEdgeChanges,
+  type Connection, type NodeProps, type ReactFlowInstance } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { api, type ProjectModuleItem } from "../../../api/client.js";
-import { createFlowchart, readFlowchart, ROOT_SCOPE, scopePath, searchFlowNodes,
-  type FlowchartData, type FlowNode } from "./flowchartModel.js";
+import { createFlowchart, createFlowEdge, createFlowNode, flowNodeType, readFlowchart, removeFlowNodes, ROOT_SCOPE, scopePath, searchFlowNodes,
+  type FlowchartData, type FlowEdge, type FlowNode, type FlowNodeKind } from "./flowchartModel.js";
 import { exportFlowchartPng } from "./flowchartExport.js";
 import { FlowchartNodeStyleToolbar } from "./FlowchartNodeStyleToolbar.js";
 import { ProjectRichTextEditor } from "../ProjectManagementModules.js";
@@ -15,17 +15,20 @@ const DETAIL_PANEL_WIDTH_KEY = "rich.flowchart.node-detail-panel-width";
 const detailPanelWidth = (value: number, maxWidth = Math.floor(window.innerWidth * 2 / 3)) => Math.min(maxWidth, Math.max(320, Math.round(value)));
 function RegionNode({ data, selected }: NodeProps<FlowNode>) {
   return <div className={`pfc-region tone-${data.tone || "cyan"}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
+    <NodeResizer isVisible={selected} minWidth={220} minHeight={120} color="#72c7ef" />
     <header><NodeLabel data={data} />{data.caption && <span>{data.caption}</span>}</header>
   </div>;
 }
 function NoteNode({ data, selected }: NodeProps<FlowNode>) {
   return <div className={`pfc-note tone-${data.tone || "amber"}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
+    <NodeResizer isVisible={selected} minWidth={180} minHeight={100} color="#ecc680" />
     <span className="pfc-note-pin" aria-hidden="true" />
     <small>NOTE / 备注</small>{data.editing ? <NoteContent data={data} /> : <><NodeLabel data={data} />{data.caption && <p>{data.caption}</p>}</>}
   </div>;
 }
 function AnalysisNode({ data, selected }: NodeProps<FlowNode>) {
   return <div className={`pfc-node is-${data.kind}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
+    <NodeResizer isVisible={selected} minWidth={140} minHeight={60} color="#82d7ef" />
     <Handle type="target" position={Position.Left} />
     <span className="pfc-node-symbol" aria-hidden="true">{data.icon || (data.kind === "table" ? "▤" : data.kind === "decision" ? "◇" : data.kind === "boundary" ? "◉" : "→")}</span>
     <NodeLabel data={data} />
@@ -65,6 +68,11 @@ function nodeStyle(data: FlowNode["data"]): CSSProperties {
   } as CSSProperties;
 }
 const nodeTypes = { analysis: AnalysisNode, region: RegionNode, note: NoteNode };
+const edgeStyle = (edge: FlowEdge) => ({
+  ...(edge.data?.lineColor ? { stroke: edge.data.lineColor } : {}),
+  ...(edge.data?.lineWidth ? { strokeWidth: edge.data.lineWidth } : {}),
+  ...(edge.data?.lineStyle === "dashed" ? { strokeDasharray: "7 4" } : edge.data?.lineStyle === "dotted" ? { strokeDasharray: "2 4" } : {}),
+});
 
 export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowchartIdsChange, standalone = false, embedded = false }: { projectId?: string; focusId?: string; flowchartIds?: string[]; onFlowchartIdsChange?: (ids: string[]) => Promise<void>; standalone?: boolean; embedded?: boolean }) {
   const [items, setItems] = useState<ProjectModuleItem[]>([]);
@@ -95,8 +103,12 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     try { return detailPanelWidth(Number(localStorage.getItem(DETAIL_PANEL_WIDTH_KEY)) || 440); } catch { return 440; }
   });
   const [nodeDetailFullscreen, setNodeDetailFullscreen] = useState(false);
+  const [connectingFrom, setConnectingFrom] = useState("");
+  const [quickCreate, setQuickCreate] = useState<{ source: string; position: { x: number; y: number }; screen: { x: number; y: number } }>();
   const canvasRef = useRef<HTMLDivElement>(null);
   const rightClickNode = useRef<{ id: string; time: number } | null>(null);
+  const undoStack = useRef<FlowchartData[]>([]);
+  const redoStack = useRef<FlowchartData[]>([]);
   const draftKey = `rich-flowchart-draft:${projectId ?? "standalone"}`;
   const isFullscreen = standalone;
 
@@ -139,13 +151,16 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && detailNode) { event.preventDefault(); event.stopPropagation(); setDetailNode(""); return; }
-      if (!selected || editingNode || !isNodeEditShortcut(event)) return;
       if (event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable=true]")) return;
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") { event.preventDefault(); event.shiftKey ? redoGraph() : undoGraph(); return; }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") { event.preventDefault(); duplicateSelectedNodes(); return; }
+      if (event.key === "Backspace" || event.key === "Delete") { event.preventDefault(); deleteSelectedNodes(); return; }
+      if (!selected || editingNode || !isNodeEditShortcut(event)) return;
       event.preventDefault(); event.stopPropagation(); setEditingNode(selected);
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [selected, editingNode, detailNode]);
+  }, [selected, editingNode, detailNode, graph, selectedIds]);
   useEffect(() => {
     if (!flow) return;
     const timer = window.setTimeout(() => {
@@ -168,7 +183,20 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     const item = items.find(row => row.id === focusId);
     if (item) open(item);
   }, [focusId, items]);
-  const update = (next: FlowchartData) => { setGraph(next); setDirty(true); };
+  const update = (next: FlowchartData) => {
+    if (graph && graph !== next) { undoStack.current = [...undoStack.current.slice(-49), graph]; redoStack.current = []; }
+    setGraph(next); setDirty(true);
+  };
+  const undoGraph = () => setGraph(current => {
+    const previous = undoStack.current.pop();
+    if (!current || !previous) return current;
+    redoStack.current.push(current); setDirty(true); return previous;
+  });
+  const redoGraph = () => setGraph(current => {
+    const next = redoStack.current.pop();
+    if (!current || !next) return current;
+    undoStack.current.push(current); setDirty(true); return next;
+  });
   const create = async () => {
     if (!newTitle.trim() || busy || (dirty && !window.confirm("当前流程图有未保存修改，放弃修改并创建？"))) return;
     setBusy(true); setError("");
@@ -215,9 +243,37 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     } catch (e) { setError(`删除失败：${String(e)}`); } finally { setBusy(false); }
   };
   const selectedNodes = graph?.nodes.filter(row => selectedIds.includes(row.id)) ?? [];
+  const selectedFlowEdge = graph?.edges.find(row => row.id === selectedEdge);
   const detail = graph?.nodes.find(row => row.id === detailNode);
   const editNode = (patch: Partial<FlowNode["data"]>) => {
-    if (graph) update({ ...graph, nodes: graph.nodes.map(row => selectedIds.includes(row.id) ? { ...row, data: { ...row.data, ...patch } } : row) });
+    if (graph) update({ ...graph, nodes: graph.nodes.map(row => selectedIds.includes(row.id) ? { ...row, ...(patch.kind ? { type: flowNodeType(patch.kind) } : {}), data: { ...row.data, ...patch } } : row) });
+  };
+  const addNode = (kind: FlowNodeKind, position = { x: 220, y: 160 }, source?: string) => {
+    if (!graph) return;
+    const node = createFlowNode(kind, position, scope);
+    update({ ...graph, nodes: [...graph.nodes, node], edges: source ? [...graph.edges, createFlowEdge({ source, target: node.id })] : graph.edges });
+    setSelected(node.id); setSelectedIds([node.id]); setSelectedEdge(""); setQuickCreate(undefined);
+  };
+  const duplicateSelectedNodes = () => {
+    if (!graph || selectedIds.length === 0) return;
+    const copies = graph.nodes.filter(node => selectedIds.includes(node.id)).map(node => ({ ...node, id: crypto.randomUUID(), position: { x: node.position.x + 32, y: node.position.y + 32 }, selected: true }));
+    update({ ...graph, nodes: [...graph.nodes.map(node => ({ ...node, selected: false })), ...copies] });
+    setSelected(copies[0]?.id || ""); setSelectedIds(copies.map(node => node.id));
+  };
+  const deleteSelectedNodes = () => {
+    if (!graph || selectedIds.length === 0) return;
+    update(removeFlowNodes(graph, selectedIds)); setSelected(""); setSelectedIds([]); setEditingNode("");
+  };
+  const autoLayout = () => {
+    if (!graph) return;
+    const visible = graph.nodes.filter(node => node.data.scope === scope);
+    update({ ...graph, nodes: graph.nodes.map(node => {
+      const index = visible.findIndex(item => item.id === node.id);
+      return index < 0 ? node : { ...node, position: { x: 100 + (index % 3) * 300, y: 100 + Math.floor(index / 3) * 180 } };
+    }) });
+  };
+  const editEdge = (patch: Partial<FlowEdge>) => {
+    if (graph && selectedEdge) update({ ...graph, edges: graph.edges.map(edge => edge.id === selectedEdge ? { ...edge, ...patch, data: { ...edge.data, ...patch.data } } : edge) });
   };
   const resizeNodeDetail = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -267,10 +323,14 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
           if (active === item.id) { setExpanded(value => !value); setSettingsOpen(false); }
           else open(item);
         }}><span aria-hidden="true">{active === item.id && expanded ? "▾" : "▸"}</span><strong>{active === item.id ? title : item.title}</strong>{standalone && !(active === item.id && expanded) && <small>{new Date(item.updatedAt).toLocaleString("zh-CN")}</small>}</button>
-        {active === item.id && expanded && <>
-          {isFullscreen && <span className="pfc-save-state">{busy ? "保存中…" : dirty ? "未保存" : "已保存"}</span>}
-          {dirty && <button disabled={busy} onClick={() => void save()}>{busy ? "保存中…" : "保存修改"}</button>}
-          <button aria-label="导出 PNG" title="导出当前流程图为 PNG" disabled={exporting} onClick={() => void exportPng()}>{exporting ? "导出中…" : "导出 PNG"}</button>
+            {active === item.id && expanded && <>
+              {isFullscreen && <span className="pfc-save-state">{busy ? "保存中…" : dirty ? "未保存" : "已保存"}</span>}
+              {dirty && <button disabled={busy} onClick={() => void save()}>{busy ? "保存中…" : "保存修改"}</button>}
+              <button aria-label="撤销" title="撤销（⌘Z）" disabled={undoStack.current.length === 0} onClick={undoGraph}>↶</button>
+              <button aria-label="重做" title="重做（⌘⇧Z）" disabled={redoStack.current.length === 0} onClick={redoGraph}>↷</button>
+              <button aria-label="添加节点" title="添加处理节点" onClick={() => addNode("step")}>＋ 节点</button>
+              <button aria-label="自动排版" title="自动排版当前层级" onClick={autoLayout}>整理</button>
+              <button aria-label="导出 PNG" title="导出当前流程图为 PNG" disabled={exporting} onClick={() => void exportPng()}>{exporting ? "导出中…" : "导出 PNG"}</button>
           <button aria-label="搜索节点" title="搜索节点" aria-expanded={searchOpen} onClick={() => setSearchOpen(value => !value)}>⌕</button>
           <button aria-label="任务设置" title="任务设置" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(value => !value)}>⋯</button>
           {isFullscreen && <button className="pfc-back-to-list" aria-label="返回流程图清单" title="返回流程图清单" onClick={() => { setExpanded(false); setSettingsOpen(false); }}>←</button>}
@@ -302,11 +362,11 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
             if (row.data.scope === scope) void flow?.fitView({ nodes: [{ id: row.id }], padding: 0.35, maxZoom: 1.2, duration: 250 });
           }}>{row.data.label} <small>{row.id.slice(0, 8)}</small></button>)}</div>}
         </div>}
-          <div className="pfc-canvas" ref={canvasRef}>
-            <ReactFlow<FlowNode> nodes={graph.nodes.filter(row => row.data.scope === scope).map(row => ({ ...row, selected: selectedIds.includes(row.id), data: { ...row.data, editing: row.id === editingNode, onLabelChange: label => { update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label } } : node) }); setEditingNode(""); }, onNoteTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); } } }))}
-              edges={graph.edges.filter(row => graph.nodes.some(n => n.id === row.source && n.data.scope === scope))}
-              nodeTypes={nodeTypes} onInit={setFlow} fitView minZoom={0.1} maxZoom={2} deleteKeyCode={null} selectionOnDrag panOnDrag={false} panOnScroll panOnScrollMode={PanOnScrollMode.Free} zoomOnScroll={false} multiSelectionKeyCode="Meta"
-              defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed } }}
+              <div className="pfc-canvas" ref={canvasRef}>
+                <ReactFlow<FlowNode> nodes={graph.nodes.filter(row => row.data.scope === scope).map(row => ({ ...row, selected: selectedIds.includes(row.id), data: { ...row.data, editing: row.id === editingNode, onLabelChange: label => { update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label } } : node) }); setEditingNode(""); }, onNoteTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); } } }))}
+                  edges={graph.edges.filter(row => graph.nodes.some(n => n.id === row.source && n.data.scope === scope)).map(row => ({ ...row, style: edgeStyle(row), animated: row.data?.animated, markerEnd: row.data?.markerEnd === "none" ? undefined : { type: MarkerType.ArrowClosed } }))}
+                  nodeTypes={nodeTypes} onInit={setFlow} fitView minZoom={0.1} maxZoom={2} deleteKeyCode={null} selectionOnDrag panOnDrag={false} panOnScroll panOnScrollMode={PanOnScrollMode.Free} zoomOnScroll={false} multiSelectionKeyCode="Meta"
+                  defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed } }}
               onNodesChange={changes => {
                 const selections = changes.filter(change => change.type === "select");
                 if (selections.length) setSelectedIds(current => {
@@ -314,11 +374,21 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
                   selections.forEach(change => change.type === "select" && (change.selected ? next.add(change.id) : next.delete(change.id)));
                   const ids = [...next]; setSelected(ids[0] ?? ""); return ids;
                 });
-                const edits = changes.filter(change => change.type === "position");
-                if (edits.length) update({ ...graph, nodes: applyNodeChanges(edits, graph.nodes) });
-              }}
-              onEdgesChange={changes => setGraph(current => current ? { ...current, edges: applyEdgeChanges(changes, current.edges) } : current)}
-              onConnect={connection => update({ ...graph, edges: [...graph.edges, { ...connection, id: crypto.randomUUID(), type: "smoothstep", label: "" }] })}
+                    const edits = changes.filter(change => change.type !== "select");
+                    if (edits.length) update({ ...graph, nodes: applyNodeChanges(edits, graph.nodes) });
+                  }}
+                  onEdgesChange={changes => { const edits = changes.filter(change => change.type !== "select"); if (edits.length) update({ ...graph, edges: applyEdgeChanges(edits, graph.edges) }); }}
+                  onConnect={connection => update({ ...graph, edges: [...graph.edges, createFlowEdge(connection)] })}
+                  onConnectStart={(_, params) => setConnectingFrom(params.nodeId || "")}
+                  onConnectEnd={(event, connectionState) => {
+                    if (connectionState.isValid || !connectingFrom || !flow || !canvasRef.current) { setConnectingFrom(""); return; }
+                    if (event.target instanceof Element && event.target.closest(".react-flow__node, .react-flow__handle")) { setConnectingFrom(""); return; }
+                    const point = "changedTouches" in event && event.changedTouches.length ? event.changedTouches[0] : event as MouseEvent;
+                    const rect = canvasRef.current.getBoundingClientRect();
+                    setQuickCreate({ source: connectingFrom, position: flow.screenToFlowPosition({ x: point.clientX, y: point.clientY }), screen: { x: point.clientX - rect.left, y: point.clientY - rect.top } });
+                    setConnectingFrom("");
+                  }}
+                  onReconnect={(oldEdge, connection: Connection) => update({ ...graph, edges: reconnectEdge(oldEdge, connection, graph.edges) as FlowEdge[] })}
               onNodeClick={(event, row) => { setSelectedIds(current => {
                 const ids = event.metaKey ? current.includes(row.id) ? current.filter(id => id !== row.id) : [...current, row.id] : [row.id];
                 setSelected(ids[0] ?? ""); return ids;
@@ -330,11 +400,22 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
                 } else rightClickNode.current = { id: row.id, time: now };
               }}
               onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); setSelectedIds([]); setEditingNode(""); setDetailNode(""); }} onPaneClick={() => setEditingNode("")} onPaneContextMenu={event => event.preventDefault()}>
-              <Background gap={28} size={1} color="#44444d" /><Controls />
-            </ReactFlow>
-          </div>
-          <div className="pfc-legend" aria-label="流程图图例"><span>● 处理</span><span>● 数据表</span><span>◇ 判断</span><span>— 主线</span><span>┄ 规则 / 数据关联</span></div>
-          {selectedNodes.length > 0 && <FlowchartNodeStyleToolbar nodes={selectedNodes} onChange={editNode} />}
+                  <Background gap={28} size={1} color="#44444d" /><MiniMap pannable zoomable nodeColor="#275368" maskColor="#101113cc" /><Controls />
+                </ReactFlow>
+                {quickCreate && <div className="pfc-quick-create" style={{ left: quickCreate.screen.x, top: quickCreate.screen.y }} role="dialog" aria-label="快速新建节点"><strong>新建并连接</strong>{(["step", "decision", "note", "table"] as FlowNodeKind[]).map(kind => <button key={kind} type="button" onClick={() => addNode(kind, quickCreate.position, quickCreate.source)}>{({ step: "处理步骤", decision: "判断", note: "备注", table: "数据表" } as Record<string, string>)[kind]}</button>)}<button type="button" onClick={() => setQuickCreate(undefined)}>取消</button></div>}
+              </div>
+              <div className="pfc-legend" aria-label="流程图图例"><span>● 处理</span><span>● 数据表</span><span>◇ 判断</span><span>— 主线</span><span>┄ 规则 / 数据关联</span></div>
+              {selectedNodes.length > 0 && <FlowchartNodeStyleToolbar nodes={selectedNodes} onChange={editNode} onKindChange={kind => editNode({ kind })} />}
+              {selectedFlowEdge && <aside className="pfc-edge-toolbar" aria-label="连线编辑器">
+                <input aria-label="连线文字" placeholder="连线文字" value={String(selectedFlowEdge.label || "")} onChange={event => editEdge({ label: event.target.value })} />
+                <select aria-label="连线路径" value={selectedFlowEdge.type || "smoothstep"} onChange={event => editEdge({ type: event.target.value })}><option value="smoothstep">平滑折线</option><option value="straight">直线</option><option value="step">直角线</option><option value="bezier">贝塞尔曲线</option></select>
+                <select aria-label="连线样式" value={selectedFlowEdge.data?.lineStyle || "solid"} onChange={event => editEdge({ data: { lineStyle: event.target.value as NonNullable<FlowEdge["data"]>["lineStyle"] } })}><option value="solid">实线</option><option value="dashed">虚线</option><option value="dotted">点线</option></select>
+                <select aria-label="连线粗细" value={selectedFlowEdge.data?.lineWidth || 1.5} onChange={event => editEdge({ data: { lineWidth: Number(event.target.value) } })}><option value={1.5}>细</option><option value={3}>中</option><option value={5}>粗</option></select>
+                <label title="连线颜色">色<input aria-label="连线颜色" type="color" value={selectedFlowEdge.data?.lineColor || "#9ca5ce"} onChange={event => editEdge({ data: { lineColor: event.target.value } })} /></label>
+                <button type="button" className={selectedFlowEdge.data?.markerEnd === "none" ? "is-active" : ""} title="切换终点箭头" onClick={() => editEdge({ data: { markerEnd: selectedFlowEdge.data?.markerEnd === "none" ? "arrow" : "none" } })}>→</button>
+                <button type="button" className={selectedFlowEdge.data?.animated ? "is-active" : ""} title="切换流动动画" onClick={() => editEdge({ data: { animated: !selectedFlowEdge.data?.animated } })}>≈</button>
+                <button type="button" title="删除连线" onClick={() => { if (graph) update({ ...graph, edges: graph.edges.filter(edge => edge.id !== selectedFlowEdge.id) }); setSelectedEdge(""); }}>×</button>
+              </aside>}
           {detailNode && <aside className={`pfc-details pfc-node-detail${nodeDetailFullscreen ? " is-fullscreen" : ""}`} aria-label="节点详情" style={nodeDetailFullscreen ? undefined : { width: nodeDetailWidth }}>
             <div className="pfc-node-detail__resize-handle" role="separator" aria-label="调整节点详情宽度" aria-orientation="vertical" onPointerDown={resizeNodeDetail} />
             <header><h2>{detail?.data.label}</h2><div className="pfc-node-detail__header-actions"><button type="button" aria-label={nodeDetailFullscreen ? "还原节点详情" : "全屏显示节点详情"} title={nodeDetailFullscreen ? "还原" : "全屏"} onClick={() => setNodeDetailFullscreen(fullscreen => !fullscreen)}>{nodeDetailFullscreen ? "↙" : "⛶"}</button><button type="button" aria-label="关闭节点详情" onClick={() => setDetailNode("")}>×</button></div></header>
