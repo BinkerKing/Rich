@@ -68,8 +68,6 @@ export function AppLauncherView() {
 
   return (
     <main className="app-launcher" aria-label="Rich 应用中心">
-      <div className="app-launcher__glow app-launcher__glow--left" />
-      <div className="app-launcher__glow app-launcher__glow--right" />
       <header className="app-launcher__header">
         <div>
           <p>Rich Apps</p>

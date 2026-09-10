@@ -2,47 +2,10 @@
   min-height: 100vh;
   padding: 72px 72px 64px;
   position: relative;
-  overflow: hidden;
-  color: #edf7ff;
-  background:
-    linear-gradient(180deg, rgba(3, 7, 13, .94), rgba(0, 0, 0, .98)),
-    radial-gradient(circle at 24% 18%, rgba(84, 215, 255, .12), transparent 36%),
-    radial-gradient(circle at 78% 72%, rgba(255, 208, 111, .10), transparent 34%),
-    #020408;
-}
-.app-launcher::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, .035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, .035) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .85), transparent 82%);
-  pointer-events: none;
-}
-.app-launcher__glow {
-  position: absolute;
-  width: 520px;
-  height: 520px;
-  border-radius: 999px;
-  filter: blur(30px);
-  opacity: .32;
-  pointer-events: none;
-}
-.app-launcher__glow--left {
-  left: -210px;
-  top: 140px;
-  background: radial-gradient(circle, rgba(57, 246, 232, .28), transparent 64%);
-}
-.app-launcher__glow--right {
-  right: -220px;
-  bottom: -120px;
-  background: radial-gradient(circle, rgba(255, 209, 102, .20), transparent 68%);
+  color: #e4e4e7;
+  background: #0b0b0c;
 }
 .app-launcher__header {
-  position: relative;
-  z-index: 1;
   max-width: 1320px;
   margin: 0 auto 34px;
   display: flex;
@@ -52,8 +15,8 @@
 }
 .app-launcher__header p {
   margin: 0 0 8px;
-  color: #8ffef7;
-  font-size: 13px;
+  color: #8c8c91;
+  font-size: 12px;
   letter-spacing: .18em;
   text-transform: uppercase;
 }
@@ -66,7 +29,7 @@
 .app-launcher__header span {
   display: block;
   margin-top: 12px;
-  color: rgba(237, 247, 255, .62);
+  color: #909096;
   font-size: 15px;
 }
 .app-launcher__actions {
@@ -88,20 +51,18 @@
 .app-launcher__actions button {
   min-height: 38px;
   padding: 0 16px;
-  border-radius: 8px;
-  border: 1px solid rgba(143, 254, 247, .22);
-  background: rgba(4, 12, 20, .74);
-  color: #bffefa;
+  border-radius: 6px;
+  border: 1px solid #303034;
+  background: #151517;
+  color: #c8c8cc;
   font: inherit;
   cursor: pointer;
 }
 .app-launcher__actions button:hover {
-  border-color: rgba(143, 254, 247, .5);
-  background: rgba(12, 30, 44, .9);
+  border-color: #55555a;
+  background: #1b1b1e;
 }
 .app-launcher__grid {
-  position: relative;
-  z-index: 1;
   max-width: 1320px;
   margin: 0 auto;
   display: grid;
@@ -109,7 +70,6 @@
   gap: 18px;
 }
 .app-launcher-card {
-  --app-accent: #8ffef7;
   min-height: 184px;
   padding: 24px;
   display: flex;
@@ -117,29 +77,19 @@
   justify-content: space-between;
   gap: 22px;
   text-align: left;
-  border: 1px solid color-mix(in srgb, var(--app-accent) 34%, rgba(255, 255, 255, .08));
-  border-radius: 8px;
-  background:
-    linear-gradient(145deg,
-      color-mix(in srgb, var(--app-accent) 9%, transparent),
-      rgba(7, 12, 20, .80) 50%,
-      rgba(0, 0, 0, .86));
-  box-shadow:
-    0 18px 42px rgba(0, 0, 0, .32),
-    inset 0 0 0 1px rgba(255, 255, 255, .035);
+  border: 1px solid #29292d;
+  border-radius: 6px;
+  background: #121214;
   cursor: pointer;
-  color: #edf7ff;
+  color: #e4e4e7;
   font: inherit;
-  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
 }
 .app-launcher-card:hover,
 .app-launcher-card:focus-visible {
-  transform: translateY(-4px);
-  border-color: color-mix(in srgb, var(--app-accent) 70%, rgba(255, 255, 255, .14));
-  box-shadow:
-    0 22px 54px rgba(0, 0, 0, .42),
-    0 0 28px color-mix(in srgb, var(--app-accent) 17%, transparent),
-    inset 0 0 0 1px rgba(255, 255, 255, .055);
+  transform: translateY(-1px);
+  border-color: #5a5a60;
+  background: #18181b;
   outline: none;
 }
 .app-launcher-card.is-dragging {
@@ -155,10 +105,10 @@
   height: 68px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
-  color: var(--app-accent);
-  background: color-mix(in srgb, var(--app-accent) 12%, rgba(255, 255, 255, .03));
-  border: 1px solid color-mix(in srgb, var(--app-accent) 34%, rgba(255, 255, 255, .08));
+  border-radius: 6px;
+  color: #c7c7cc;
+  background: #19191c;
+  border: 1px solid #303034;
 }
 .app-launcher-card__icon .ke-icon {
   width: 36px;
@@ -176,33 +126,11 @@
   letter-spacing: 0;
 }
 .app-launcher-card__body em {
-  color: rgba(237, 247, 255, .62);
+  color: #96969c;
   font-size: 14px;
   line-height: 1.5;
   font-style: normal;
 }
-.app-launcher-card__launch {
-  align-self: flex-start;
-  min-height: 30px;
-  padding: 0 12px;
-  display: inline-flex;
-  align-items: center;
-  border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--app-accent) 46%, transparent);
-  background: color-mix(in srgb, var(--app-accent) 14%, rgba(0, 0, 0, .54));
-  color: var(--app-accent);
-  font-size: 13px;
-  font-weight: 700;
-}
-.app-launcher-card--cyan { --app-accent: #73f7ec; }
-.app-launcher-card--green { --app-accent: #7af791; }
-.app-launcher-card--gold { --app-accent: #ffd166; }
-.app-launcher-card--blue { --app-accent: #7aa7ff; }
-.app-launcher-card--rose { --app-accent: #ff8fb3; }
-.app-launcher-card--violet { --app-accent: #bda7ff; }
-.app-launcher-card--orange { --app-accent: #ffb86b; }
-.app-launcher-card--slate { --app-accent: #c7d2fe; }
-
 @media (max-width: 1180px) {
   .app-launcher {
     padding: 64px 44px 56px;
