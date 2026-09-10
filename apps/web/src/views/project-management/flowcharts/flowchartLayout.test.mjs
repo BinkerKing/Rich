@@ -193,3 +193,13 @@ test('edge and node editing share one movable toolbar position', () => {
   assert.match(source, /className="pfc-edge-toolbar"/);
   assert.doesNotMatch(source, /className="pfc-edge-toolbar"[^>]*style=\{[^}]*right/);
 });
+
+test('selection toolbar uses larger SVG line icons instead of small text glyphs', () => {
+  const floatingToolbar = readFileSync(new URL('./FlowchartFloatingToolbar.tsx', import.meta.url), 'utf8');
+  const nodeToolbar = readFileSync(new URL('./FlowchartNodeStyleToolbar.tsx', import.meta.url), 'utf8');
+  assert.match(floatingToolbar, /function FlowchartToolbarIcon/);
+  assert.match(floatingToolbar, /width=\{24\} height=\{24\}/);
+  assert.match(nodeToolbar, /<FlowchartToolbarIcon name="bold"/);
+  assert.match(rule('.pfc-node-style-toolbar > button'), /width:48px/);
+  assert.match(rule('.pfc-node-style-toolbar > button'), /height:46px/);
+});

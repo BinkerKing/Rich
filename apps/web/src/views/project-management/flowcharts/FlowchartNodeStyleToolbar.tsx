@@ -3,7 +3,7 @@ import { nodeStyleFromData, type NodeStyle } from "../../../components/mindmap/n
 import { nodeColorPresets, styleMenuOptions, type NodeColorStyle } from "../../../components/mindmap/nodeStyleToolbarMenu.js";
 import { parseNodeStylePresets, saveNodeStylePreset, type NodeStylePreset } from "../../../components/mindmap/nodeStylePresets.js";
 import type { FlowNode, FlowNodeKind } from "./flowchartModel.js";
-import { FlowchartFloatingToolbar } from "./FlowchartFloatingToolbar.js";
+import { FlowchartFloatingToolbar, FlowchartToolbarIcon } from "./FlowchartFloatingToolbar.js";
 
 const PRESETS_STORAGE_KEY = "rich.flowchart.node-style-presets.v1";
 type OpenMenu = "fontSize" | "color" | "fillColor" | "border" | "presets" | "icon" | "kind" | null;
@@ -39,13 +39,13 @@ export function FlowchartNodeStyleToolbar({ nodes, onChange, onKindChange }: { n
       {openMenu === "kind" && <div className="pfc-node-style-toolbar__menu"><span>节点类型</span><div className="pfc-node-style-toolbar__kind-list">{nodeKinds.map(kind => <button key={kind.value} className={node.data.kind === kind.value ? "is-active" : ""} type="button" onClick={() => { onKindChange(kind.value); setOpenMenu(null); }}>{kind.label}</button>)}</div></div>}
       {openMenu === "presets" && <div className="pfc-node-style-toolbar__menu pfc-node-style-toolbar__menu--presets"><span>节点样式</span><div className="pfc-node-style-toolbar__preset-list">{presets.length ? presets.map(preset => <button key={preset.id} type="button" onClick={() => { setStyle(preset.style); onChange(preset.style); setOpenMenu(null); }}>{preset.name}</button>) : <small>保存当前样式后，可在这里复用</small>}</div><div className="pfc-node-style-toolbar__preset-save"><input aria-label="节点样式名称" value={presetName} placeholder="例如：重点节点" maxLength={24} onChange={event => setPresetName(event.target.value)} onKeyDown={event => { if (event.key === "Enter") savePreset(); }} /><button type="button" disabled={!presetName.trim()} onClick={savePreset}>保存</button></div></div>}
     </div>}
-    <button type="button" title="字号" aria-label="字号" aria-expanded={openMenu === "fontSize"} onClick={() => toggle("fontSize")}>T</button>
-    <button className={style.fontWeight === "bold" ? "is-active" : ""} type="button" title="加粗" aria-label="加粗" aria-pressed={style.fontWeight === "bold"} onClick={() => apply({ fontWeight: style.fontWeight === "bold" ? "normal" : "bold" })}>B</button>
-    <button className={icon ? "is-active" : ""} type="button" title="节点图标" aria-label="节点图标" aria-expanded={openMenu === "icon"} onClick={() => toggle("icon")}>☺</button>
-    <button type="button" title="节点类型" aria-label="节点类型" aria-expanded={openMenu === "kind"} onClick={() => toggle("kind")}>◇</button>
-    <button type="button" title="文字颜色" aria-label="文字颜色" aria-expanded={openMenu === "color"} onClick={() => toggle("color")}>A</button>
-    <button type="button" title="背景颜色" aria-label="背景颜色" aria-expanded={openMenu === "fillColor"} onClick={() => toggle("fillColor")}>▰</button>
-    <button type="button" title="边框样式" aria-label="边框样式" aria-expanded={openMenu === "border"} onClick={() => toggle("border")}>□</button>
-    <button type="button" title="节点样式" aria-label="节点样式" aria-expanded={openMenu === "presets"} onClick={() => toggle("presets")}>◆</button>
+    <button type="button" title="字号" aria-label="字号" aria-expanded={openMenu === "fontSize"} onClick={() => toggle("fontSize")}><FlowchartToolbarIcon name="text" /></button>
+    <button className={style.fontWeight === "bold" ? "is-active" : ""} type="button" title="加粗" aria-label="加粗" aria-pressed={style.fontWeight === "bold"} onClick={() => apply({ fontWeight: style.fontWeight === "bold" ? "normal" : "bold" })}><FlowchartToolbarIcon name="bold" /></button>
+    <button className={icon ? "is-active" : ""} type="button" title="节点图标" aria-label="节点图标" aria-expanded={openMenu === "icon"} onClick={() => toggle("icon")}><FlowchartToolbarIcon name="icon" /></button>
+    <button type="button" title="节点类型" aria-label="节点类型" aria-expanded={openMenu === "kind"} onClick={() => toggle("kind")}><FlowchartToolbarIcon name="kind" /></button>
+    <button type="button" title="文字颜色" aria-label="文字颜色" aria-expanded={openMenu === "color"} onClick={() => toggle("color")}><FlowchartToolbarIcon name="color" /></button>
+    <button type="button" title="背景颜色" aria-label="背景颜色" aria-expanded={openMenu === "fillColor"} onClick={() => toggle("fillColor")}><FlowchartToolbarIcon name="fill" /></button>
+    <button type="button" title="边框样式" aria-label="边框样式" aria-expanded={openMenu === "border"} onClick={() => toggle("border")}><FlowchartToolbarIcon name="border" /></button>
+    <button type="button" title="节点样式" aria-label="节点样式" aria-expanded={openMenu === "presets"} onClick={() => toggle("presets")}><FlowchartToolbarIcon name="preset" /></button>
   </FlowchartFloatingToolbar>;
 }
