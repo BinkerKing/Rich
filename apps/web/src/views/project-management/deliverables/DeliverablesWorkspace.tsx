@@ -53,6 +53,11 @@ const recordKindLabel = (kind: DeliverableRecordKind) =>
   kind === "requirement" ? "要求" : kind === "status" ? "进展" : kind === "decision" ? "决策" : kind === "issue" ? "问题" : kind === "risk" ? "风险" : kind === "change" ? "变更" : kind === "information" ? "信息" : kind === "material" ? "材料" : kind === "codex" ? "Codex" : kind === "ai_task_result" ? "AI 回复" : "AI 任务";
 const richTextHasContent = (value: string) => value.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0;
 const absoluteFolderPath = (projectRoot: string | undefined, folderPath: string) => projectRoot ? `${projectRoot.replace(/\/+$/, "")}/${folderPath.replace(/^\/+/, "")}` : folderPath;
+function DeliverableListIcon({ name }: { name: "add" | "file" }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    {name === "add" ? <path d="M12 5v14M5 12h14" /> : <><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v5h5M9 13h6M9 17h6" /></>}
+  </svg>;
+}
 
 export function DeliverablesWorkspace({
   projectId = "",
@@ -600,11 +605,11 @@ export function DeliverablesWorkspace({
     <section className={`deliverables-workspace${standalone ? " deliverables-workspace--standalone" : ""}`}>
       <header>
         <div>
-          <p className="deliverables-workspace__eyebrow">{standalone ? "交付物" : "PROJECT OUTPUTS"}</p>
+          {!standalone && <p className="deliverables-workspace__eyebrow">PROJECT OUTPUTS</p>}
           <h1>{standalone ? "把每一项成果，沉淀成可复用的交付。" : "交付物"}</h1>
           {!standalone && <p>由项目任务自动关联的可追溯交付记录。</p>}
         </div>
-        {standalone && <button className="deliverables-workspace__primary" type="button" onClick={() => setCreating(value => !value)}>{creating ? "取消" : "新建交付物"}</button>}
+        {standalone && <button className="deliverables-workspace__primary" type="button" title={creating ? "取消新建交付物" : "新建交付物"} aria-label={creating ? "取消新建交付物" : "新建交付物"} onClick={() => setCreating(value => !value)}>{creating ? "×" : <DeliverableListIcon name="add" />}</button>}
         {!standalone && onDeliverableIdsChange && <button type="button" onClick={() => void openBinding()}>绑定已有交付物</button>}
       </header>
       {standalone && creating && <form className="deliverables-workspace__create" onSubmit={event => { event.preventDefault(); void createStandalone(); }}>
@@ -672,12 +677,8 @@ export function DeliverablesWorkspace({
                   setEditing(false);
                 }}
               >
-                <b>{String(items.indexOf(item) + 1).padStart(2, "0")}</b>
+                <span className="deliverables-workspace__list-icon" aria-hidden="true"><DeliverableListIcon name="file" /></span>
                 <strong>{item.title}</strong>
-                <i>{({ draft: "草稿", preparing: "准备中", ready: "待交付", accepted: "已完成" } as const)[item.content.status]}</i>
-                <time>
-                  {new Date(item.updatedAt).toLocaleDateString("zh-CN")}
-                </time>
               </button>
             )}
             {openId === item.id && (

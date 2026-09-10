@@ -14,6 +14,11 @@ import "./FlowchartsWorkspace.css";
 
 const DETAIL_PANEL_WIDTH_KEY = "rich.flowchart.node-detail-panel-width";
 const detailPanelWidth = (value: number, maxWidth = Math.floor(window.innerWidth * 2 / 3)) => Math.min(maxWidth, Math.max(320, Math.round(value)));
+function FlowchartListIcon({ name }: { name: "add" | "flow" }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    {name === "add" ? <path d="M12 5v14M5 12h14" /> : <><circle cx="5" cy="6" r="2" /><circle cx="19" cy="5" r="2" /><circle cx="19" cy="19" r="2" /><path d="M7 6h5a3 3 0 0 1 3 3v8M17 5h-2a3 3 0 0 0-3 3v1" /></>}
+  </svg>;
+}
 function RegionNode({ data, selected }: NodeProps<FlowNode>) {
   return <div className={`pfc-region tone-${data.tone || "cyan"}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
     <NodeResizer isVisible={selected} minWidth={220} minHeight={120} color="#72c7ef" />
@@ -349,10 +354,10 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
         </form>
     </div>}
     {standalone && !expanded && <header className="pfc-list-header">
-      <div className="pfc-list-intro"><p>流程图</p><h1>用一张图，把复杂逻辑讲清楚。</h1></div>
-      <button className="pfc-list-create" type="button" disabled={busy || !loaded} onClick={() => setCreating(true)}>新建流程图</button>
+      <div className="pfc-list-intro"><h1>用一张图，把复杂逻辑讲清楚。</h1></div>
+      <button className="pfc-list-create" type="button" title="新建流程图" aria-label="新建流程图" disabled={busy || !loaded} onClick={() => setCreating(true)}><FlowchartListIcon name="add" /></button>
     </header>}
-    {standalone && !expanded && <div className="pfc-list-label"><span>内容清单</span><small>{items.length} 张流程图</small></div>}
+    {standalone && !expanded && <div className="pfc-list-label">流程图</div>}
     {!loaded ? <p>加载中…</p> : items.length === 0 ? <div className="pfc-empty"><strong>还没有流程图</strong><p>创建一张图，从梳理第一个流程开始。</p><button className="pfc-list-create" type="button" onClick={() => setCreating(true)}>新建流程图</button></div> : <div className={standalone ? "pfc-list-grid" : "pfc-task-list"}>{items.map(item => {
       if (expanded && active !== item.id) return null;
       return <article key={item.id} className={`pfc-task${active === item.id && expanded ? " is-expanded" : ""}`}>
@@ -360,7 +365,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
         <button className="pfc-task-title" aria-expanded={active === item.id && expanded} aria-controls={`pfc-chart-${item.id}`} disabled={busy} onClick={() => {
           if (active === item.id) { setExpanded(value => !value); setSettingsOpen(false); }
           else open(item);
-        }}><span aria-hidden="true">{active === item.id && expanded ? "▾" : "▸"}</span><strong>{active === item.id ? title : item.title}</strong>{standalone && !(active === item.id && expanded) && <small>{new Date(item.updatedAt).toLocaleString("zh-CN")}</small>}</button>
+        }}><span className="pfc-list-icon" aria-hidden="true"><FlowchartListIcon name="flow" /></span><strong>{active === item.id ? title : item.title}</strong></button>
             {active === item.id && expanded && <>
               {isFullscreen && <span className="pfc-save-state">{busy ? "保存中…" : dirty ? "未保存" : "已保存"}</span>}
               {dirty && <button disabled={busy} onClick={() => void save()}>{busy ? "保存中…" : "保存修改"}</button>}
