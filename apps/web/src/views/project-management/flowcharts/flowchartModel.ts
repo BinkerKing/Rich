@@ -103,9 +103,16 @@ export function distributeFlowNodes(graph: FlowchartData, ids: string[], directi
   const nodes = selectedNodes(graph, ids).sort((a, b) => direction === "horizontal" ? a.position.x - b.position.x : a.position.y - b.position.y);
   if (nodes.length < 3) return graph;
   const first = direction === "horizontal" ? nodes[0]!.position.x : nodes[0]!.position.y;
-  const last = direction === "horizontal" ? nodes.at(-1)!.position.x : nodes.at(-1)!.position.y;
-  const spacing = (last - first) / (nodes.length - 1);
-  const coordinates = new Map(nodes.map((node, index) => [node.id, first + spacing * index]));
+  const last = nodes.at(-1)!;
+  const lastEnd = (direction === "horizontal" ? last.position.x : last.position.y) + (direction === "horizontal" ? nodeSize(last).width : nodeSize(last).height);
+  const totalSize = nodes.reduce((sum, node) => sum + (direction === "horizontal" ? nodeSize(node).width : nodeSize(node).height), 0);
+  const gap = Math.max(0, (lastEnd - first - totalSize) / (nodes.length - 1));
+  let coordinate = first;
+  const coordinates = new Map(nodes.map(node => {
+    const current = [node.id, coordinate] as const;
+    coordinate += (direction === "horizontal" ? nodeSize(node).width : nodeSize(node).height) + gap;
+    return current;
+  }));
   return { ...graph, nodes: graph.nodes.map(node => {
     const coordinate = coordinates.get(node.id);
     return coordinate === undefined ? node : { ...node, position: direction === "horizontal" ? { ...node.position, x: coordinate } : { ...node.position, y: coordinate } };
@@ -113,11 +120,11 @@ export function distributeFlowNodes(graph: FlowchartData, ids: string[], directi
 }
 export function layoutFlowNodes(graph: FlowchartData, ids: string[], direction: FlowNodeDistribution): FlowchartData {
   const selected = new Set(ids);
-  let index = 0;
+  let coordinate = direction === "horizontal" ? 100 : 100;
   return { ...graph, nodes: graph.nodes.map(node => {
     if (!selected.has(node.id)) return node;
-    const position = direction === "horizontal" ? { x: 100 + index * 260, y: 160 } : { x: 220, y: 100 + index * 150 };
-    index += 1;
+    const position = direction === "horizontal" ? { x: coordinate, y: 160 } : { x: 220, y: coordinate };
+    coordinate += (direction === "horizontal" ? nodeSize(node).width : nodeSize(node).height) + 80;
     return { ...node, position };
   }) };
 }

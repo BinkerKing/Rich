@@ -71,6 +71,15 @@ test("多选节点可按横向间距均匀分布", () => {
   assert.deepEqual(next.nodes.map(node => node.position.x), [0, 300, 600]);
 });
 
+test("均匀分布按节点边界留出一致空隙，不让区域与备注重叠", () => {
+  const first = createFlowNode("region", { x: 0, y: 0 });
+  const middle = createFlowNode("note", { x: 100, y: 0 });
+  const last = createFlowNode("region", { x: 1200, y: 0 });
+  const graph = { ...createFlowchart(false), nodes: [first, middle, last], edges: [] };
+  const next = distributeFlowNodes(graph, [first.id, middle.id, last.id], "horizontal");
+  assert.deepEqual(next.nodes.map(node => node.position.x), [0, 700, 1200]);
+});
+
 test("自动布局可按横向流程顺序重新排布当前节点", () => {
   const first = createFlowNode("step", { x: 480, y: 260 });
   const second = createFlowNode("step", { x: 40, y: 20 });
