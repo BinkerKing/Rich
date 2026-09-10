@@ -183,3 +183,13 @@ test('phase one makes drawing and arranging productive from the canvas', () => {
   assert.match(source, /duplicateSelectedNodes/);
   assert.match(source, /autoLayout/);
 });
+
+
+test('edge and node editing share one movable toolbar position', () => {
+  const floatingToolbar = readFileSync(new URL('./FlowchartFloatingToolbar.tsx', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(floatingToolbar, /SELECTION_TOOLBAR_POSITION_STORAGE_KEY/);
+  assert.match(source, /FlowchartFloatingToolbar/);
+  assert.match(source, /className="pfc-edge-toolbar"/);
+  assert.doesNotMatch(source, /className="pfc-edge-toolbar"[^>]*style=\{[^}]*right/);
+});

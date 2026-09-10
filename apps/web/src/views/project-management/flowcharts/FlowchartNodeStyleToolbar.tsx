@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { nodeStyleFromData, type NodeStyle } from "../../../components/mindmap/nodeStyleControls.js";
 import { nodeColorPresets, styleMenuOptions, type NodeColorStyle } from "../../../components/mindmap/nodeStyleToolbarMenu.js";
-import { clampNodeStyleToolbarPosition, parseNodeStyleToolbarPosition, type NodeStyleToolbarPosition } from "../../../components/mindmap/nodeStyleToolbarPosition.js";
 import { parseNodeStylePresets, saveNodeStylePreset, type NodeStylePreset } from "../../../components/mindmap/nodeStylePresets.js";
 import type { FlowNode, FlowNodeKind } from "./flowchartModel.js";
+import { FlowchartFloatingToolbar } from "./FlowchartFloatingToolbar.js";
 
-const POSITION_STORAGE_KEY = "rich.flowchart.node-style-toolbar.position.v1";
 const PRESETS_STORAGE_KEY = "rich.flowchart.node-style-presets.v1";
 type OpenMenu = "fontSize" | "color" | "fillColor" | "border" | "presets" | "icon" | "kind" | null;
 const nodeIcons = ["📌", "⭐", "💡", "⚙️", "🎯", "✅", "⚠️", "📚", "🔗", "🚀", "💬", "🔍"];
@@ -18,52 +17,11 @@ export function FlowchartNodeStyleToolbar({ nodes, onChange, onKindChange }: { n
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const [presets, setPresets] = useState<NodeStylePreset[]>(() => parseNodeStylePresets(localStorage.getItem(PRESETS_STORAGE_KEY)));
   const [presetName, setPresetName] = useState("");
-  const [position, setPosition] = useState<NodeStyleToolbarPosition | null>(() => parseNodeStyleToolbarPosition(localStorage.getItem(POSITION_STORAGE_KEY)));
-  const toolbarRef = useRef<HTMLElement>(null);
-  const dragRef = useRef<{ offsetX: number; offsetY: number } | null>(null);
 
   useEffect(() => { setStyle(nodeStyleFromData(node.data)); setIcon(node.data.icon); setOpenMenu(null); }, [node]);
-  useEffect(() => {
-    const move = (event: PointerEvent) => {
-      const toolbar = toolbarRef.current;
-      const canvas = toolbar?.parentElement;
-      const drag = dragRef.current;
-      if (!toolbar || !canvas || !drag) return;
-      const canvasRect = canvas.getBoundingClientRect();
-      setPosition(clampNodeStyleToolbarPosition({ x: event.clientX - canvasRect.left - drag.offsetX, y: event.clientY - canvasRect.top - drag.offsetY }, canvasRect, toolbar.getBoundingClientRect()));
-    };
-    const stop = () => {
-      if (!dragRef.current) return;
-      dragRef.current = null;
-      setPosition(current => { if (current) localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(current)); return current; });
-    };
-    window.addEventListener("pointermove", move); window.addEventListener("pointerup", stop);
-    return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", stop); };
-  }, []);
-  useEffect(() => {
-    const toolbar = toolbarRef.current;
-    const canvas = toolbar?.parentElement;
-    if (!toolbar || !canvas || !position) return;
-    const keepVisible = () => {
-      const next = clampNodeStyleToolbarPosition(position, canvas.getBoundingClientRect(), toolbar.getBoundingClientRect());
-      if (next.x !== position.x || next.y !== position.y) { localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(next)); setPosition(next); }
-    };
-    keepVisible(); const observer = new ResizeObserver(keepVisible); observer.observe(canvas);
-    return () => observer.disconnect();
-  }, [position]);
-
   const apply = (patch: Partial<NodeStyle>) => { setStyle(current => ({ ...current, ...patch })); onChange(patch); };
   const toggle = (menu: OpenMenu) => setOpenMenu(current => current === menu ? null : menu);
   const colorSwatches = (key: NodeColorStyle, label: string) => <div className="pfc-node-style-toolbar__swatches">{nodeColorPresets(key).map(color => <button key={color} className={style[key] === color ? "is-active" : ""} type="button" title={color} aria-label={`${label}：${color}`} style={{ backgroundColor: color }} onClick={() => apply({ [key]: color })} />)}<label className="pfc-node-style-toolbar__custom-color" aria-label={`自定义${label}`}><span>◉</span><input aria-label={`自定义${label}`} type="color" value={style[key]} onChange={event => apply({ [key]: event.target.value })} /></label></div>;
-  const startDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
-    const toolbar = toolbarRef.current;
-    const canvas = toolbar?.parentElement;
-    if (!toolbar || !canvas) return;
-    const rect = toolbar.getBoundingClientRect();
-    dragRef.current = { offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setPosition({ x: rect.left - canvas.getBoundingClientRect().left, y: rect.top - canvas.getBoundingClientRect().top });
-  };
   const savePreset = () => {
     const name = presetName.trim();
     if (!name) return;
@@ -71,8 +29,7 @@ export function FlowchartNodeStyleToolbar({ nodes, onChange, onKindChange }: { n
     setPresetName("");
   };
 
-  return <aside ref={toolbarRef} className="pfc-node-style-toolbar" aria-label={`节点样式编辑器${nodes.length > 1 ? `，已选 ${nodes.length} 个节点` : ""}`} style={position ? { left: position.x, top: position.y, bottom: "auto", transform: "none" } : undefined}>
-    <button className="pfc-node-style-toolbar__drag" type="button" title="拖动编辑器" aria-label="拖动编辑器" onPointerDown={startDrag}>⠿</button>
+  return <FlowchartFloatingToolbar ariaLabel={`节点样式编辑器${nodes.length > 1 ? `，已选 ${nodes.length} 个节点` : ""}`}>
     {openMenu && <div className="pfc-node-style-toolbar__menu-wrap">
       {openMenu === "fontSize" && <div className="pfc-node-style-toolbar__menu"><span>字号</span><div>{styleMenuOptions("fontSize").map(size => <button key={size} className={style.fontSize === size ? "is-active" : ""} type="button" onClick={() => { apply({ fontSize: size }); setOpenMenu(null); }}>{size}</button>)}</div></div>}
       {openMenu === "color" && <div className="pfc-node-style-toolbar__menu"><span>文字颜色</span>{colorSwatches("color", "文字颜色")}</div>}
@@ -90,5 +47,5 @@ export function FlowchartNodeStyleToolbar({ nodes, onChange, onKindChange }: { n
     <button type="button" title="背景颜色" aria-label="背景颜色" aria-expanded={openMenu === "fillColor"} onClick={() => toggle("fillColor")}>▰</button>
     <button type="button" title="边框样式" aria-label="边框样式" aria-expanded={openMenu === "border"} onClick={() => toggle("border")}>□</button>
     <button type="button" title="节点样式" aria-label="节点样式" aria-expanded={openMenu === "presets"} onClick={() => toggle("presets")}>◆</button>
-  </aside>;
+  </FlowchartFloatingToolbar>;
 }

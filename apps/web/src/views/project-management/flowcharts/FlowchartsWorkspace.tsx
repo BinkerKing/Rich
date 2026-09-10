@@ -7,6 +7,7 @@ import { createFlowchart, createFlowEdge, createFlowNode, flowNodeType, readFlow
   type FlowchartData, type FlowEdge, type FlowNode, type FlowNodeKind } from "./flowchartModel.js";
 import { exportFlowchartPng } from "./flowchartExport.js";
 import { FlowchartNodeStyleToolbar } from "./FlowchartNodeStyleToolbar.js";
+import { FlowchartFloatingToolbar } from "./FlowchartFloatingToolbar.js";
 import { ProjectRichTextEditor } from "../ProjectManagementModules.js";
 import { isNodeEditShortcut } from "../../../components/mindmap/nodeEditShortcut.js";
 import "./FlowchartsWorkspace.css";
@@ -406,7 +407,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
               </div>
               <div className="pfc-legend" aria-label="流程图图例"><span>● 处理</span><span>● 数据表</span><span>◇ 判断</span><span>— 主线</span><span>┄ 规则 / 数据关联</span></div>
               {selectedNodes.length > 0 && <FlowchartNodeStyleToolbar nodes={selectedNodes} onChange={editNode} onKindChange={kind => editNode({ kind })} />}
-              {selectedFlowEdge && <aside className="pfc-edge-toolbar" aria-label="连线编辑器">
+              {selectedFlowEdge && <FlowchartFloatingToolbar className="pfc-edge-toolbar" ariaLabel="连线编辑器">
                 <input aria-label="连线文字" placeholder="连线文字" value={String(selectedFlowEdge.label || "")} onChange={event => editEdge({ label: event.target.value })} />
                 <select aria-label="连线路径" value={selectedFlowEdge.type || "smoothstep"} onChange={event => editEdge({ type: event.target.value })}><option value="smoothstep">平滑折线</option><option value="straight">直线</option><option value="step">直角线</option><option value="bezier">贝塞尔曲线</option></select>
                 <select aria-label="连线样式" value={selectedFlowEdge.data?.lineStyle || "solid"} onChange={event => editEdge({ data: { lineStyle: event.target.value as NonNullable<FlowEdge["data"]>["lineStyle"] } })}><option value="solid">实线</option><option value="dashed">虚线</option><option value="dotted">点线</option></select>
@@ -415,7 +416,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
                 <button type="button" className={selectedFlowEdge.data?.markerEnd === "none" ? "is-active" : ""} title="切换终点箭头" onClick={() => editEdge({ data: { markerEnd: selectedFlowEdge.data?.markerEnd === "none" ? "arrow" : "none" } })}>→</button>
                 <button type="button" className={selectedFlowEdge.data?.animated ? "is-active" : ""} title="切换流动动画" onClick={() => editEdge({ data: { animated: !selectedFlowEdge.data?.animated } })}>≈</button>
                 <button type="button" title="删除连线" onClick={() => { if (graph) update({ ...graph, edges: graph.edges.filter(edge => edge.id !== selectedFlowEdge.id) }); setSelectedEdge(""); }}>×</button>
-              </aside>}
+              </FlowchartFloatingToolbar>}
           {detailNode && <aside className={`pfc-details pfc-node-detail${nodeDetailFullscreen ? " is-fullscreen" : ""}`} aria-label="节点详情" style={nodeDetailFullscreen ? undefined : { width: nodeDetailWidth }}>
             <div className="pfc-node-detail__resize-handle" role="separator" aria-label="调整节点详情宽度" aria-orientation="vertical" onPointerDown={resizeNodeDetail} />
             <header><h2>{detail?.data.label}</h2><div className="pfc-node-detail__header-actions"><button type="button" aria-label={nodeDetailFullscreen ? "还原节点详情" : "全屏显示节点详情"} title={nodeDetailFullscreen ? "还原" : "全屏"} onClick={() => setNodeDetailFullscreen(fullscreen => !fullscreen)}>{nodeDetailFullscreen ? "↙" : "⛶"}</button><button type="button" aria-label="关闭节点详情" onClick={() => setDetailNode("")}>×</button></div></header>
