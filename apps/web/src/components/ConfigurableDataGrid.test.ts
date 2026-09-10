@@ -36,3 +36,8 @@ test("共享表格默认采用高密度数据表外观，并提供勾选和序�
   assert.match(styles, /\.configurable-data-grid__row-number/);
   assert.match(styles, /border-radius: 4px/);
 });
+
+test("已有序号列配置时复用该列，避免重复显示系统序号", () => {
+  assert.match(source, /const hasConfiguredRowNumber = columns\.some\(column => column\.name\.trim\(\) === "序号"\);/);
+  assert.match(source, /\.\.\.\(hasConfiguredRowNumber \? \[\] : \[rowNumberColumn\]\)/);
+});

@@ -33,9 +33,9 @@ export function ConfigurableDataGrid<Row extends ConfigurableGridRow>({ ariaLabe
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
   const [selectedRows, setSelectedRows] = useState<ReadonlySet<Key>>(() => new Set());
-  const gridColumns = useMemo(() => [
-    SelectColumn as Column<Row>,
-    {
+  const gridColumns = useMemo(() => {
+    const hasConfiguredRowNumber = columns.some(column => column.name.trim() === "序号");
+    const rowNumberColumn = {
       key: "__rowNumber",
       name: "序号",
       width: 60,
@@ -44,19 +44,27 @@ export function ConfigurableDataGrid<Row extends ConfigurableGridRow>({ ariaLabe
       sortable: false,
       draggable: false,
       renderCell: ({ rowIdx }: { rowIdx: number }) => <span className="configurable-data-grid__row-number">{String(rowIdx + 1).padStart(2, "0")}</span>,
-    } as Column<Row>,
-    ...columns.map((column): Column<Row> => ({
-    key: column.key,
-    name: column.name,
-    width: column.width,
-    frozen: column.frozen,
-    editable: column.editable !== false,
-    resizable: true,
-    sortable: true,
-    draggable: true,
-    renderEditCell: column.options ? ({ row, onRowChange }) => <select className="configurable-data-grid__select" autoFocus value={String(row[column.key] ?? "")} onChange={event => onRowChange({ ...row, [column.key]: event.target.value })}>{column.options?.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : undefined,
-    })),
-  ], [columns]);
+    } as Column<Row>;
+    return [
+      SelectColumn as Column<Row>,
+      ...(hasConfiguredRowNumber ? [] : [rowNumberColumn]),
+      ...columns.map((column): Column<Row> => {
+        const isRowNumberColumn = column.name.trim() === "序号";
+        return {
+          key: column.key,
+          name: column.name,
+          width: column.width,
+          frozen: column.frozen,
+          editable: !isRowNumberColumn && column.editable !== false,
+          resizable: true,
+          sortable: !isRowNumberColumn,
+          draggable: true,
+          renderCell: isRowNumberColumn ? ({ rowIdx }: { rowIdx: number }) => <span className="configurable-data-grid__row-number">{String(rowIdx + 1).padStart(2, "0")}</span> : undefined,
+          renderEditCell: column.options ? ({ row, onRowChange }) => <select className="configurable-data-grid__select" autoFocus value={String(row[column.key] ?? "")} onChange={event => onRowChange({ ...row, [column.key]: event.target.value })}>{column.options?.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : undefined,
+        };
+      }),
+    ];
+  }, [columns]);
 
   const addColumn = () => {
     const name = newColumnName.trim();
