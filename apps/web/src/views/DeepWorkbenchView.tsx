@@ -31,8 +31,9 @@ function persist(items: DeepWorkbenchItem[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
 }
 
-function EditorIcon({ name }: { name: "back" | "map" | "collapse" }) {
+function EditorIcon({ name }: { name: "add" | "back" | "map" | "collapse" }) {
   const paths = {
+    add: <path d="M12 5v14M5 12h14" />,
     back: <path d="m14 5-7 7 7 7M7 12h11" />,
     map: <><circle cx="5" cy="6" r="2" /><circle cx="19" cy="5" r="2" /><circle cx="19" cy="19" r="2" /><path d="M7 6h5a3 3 0 0 1 3 3v8M17 5h-2a3 3 0 0 0-3 3v1" /></>,
     collapse: <><path d="M5 8h14M5 16h14" /><path d="m9 5-3 3 3 3m6-6 3 3-3 3" /></>,
@@ -167,7 +168,7 @@ export function DeepWorkbenchView() {
     return <main className="deep-list">
       <header className="deep-list__header">
         <div><p>深度工作台</p><h1>从一个问题开始，逐层构建你的架构。</h1></div>
-        <button className="deep-primary" type="button" onClick={() => setCreating(true)}>新建工作台</button>
+        <button className="deep-list__create" type="button" title="新建工作台" aria-label="新建工作台" onClick={() => setCreating(true)}><EditorIcon name="add" /></button>
       </header>
       <section className="deep-list__section" aria-label="工作台清单">
         <div className="deep-list__label"><span>内容清单</span><small>{standaloneItems.length} 个工作台</small></div>
