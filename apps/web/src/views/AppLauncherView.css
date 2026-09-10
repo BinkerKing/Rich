@@ -114,6 +114,7 @@ html[data-theme] .app-launcher .app-launcher-card__icon {
   width: 36px;
   height: 36px;
   stroke-width: 1.75;
+  stroke: #c7c7cc !important;
 }
 .app-launcher-card__body {
   display: flex;
