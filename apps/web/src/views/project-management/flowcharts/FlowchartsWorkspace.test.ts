@@ -5,7 +5,8 @@ test("项目管理内的流程图清单有紧凑标题头和交付物式列表�
   assert.match(source, /embedded && !expanded && <header className="pfc-project-header">/);
   assert.match(source, /<h1>项目流程图<\/h1>/);
   assert.match(styles, /\.pfc-project-header\s*\{[^}]*min-height:42px/s);
-  assert.match(styles, /\.pfc--embedded:not\(:has\(\.pfc-task\.is-expanded\)\) \.pfc-task\s*\{[^}]*min-height:72px[^}]*background:#252525/s);
+  assert.match(styles, /\.pfc--embedded:not\(:has\(\.pfc-task\.is-expanded\)\) \.pfc-task\s*\{[^}]*min-height:52px[^}]*background:#252525/s);
+  assert.match(styles, /\.pfc--embedded:not\(:has\(\.pfc-task\.is-expanded\)\) \.pfc-task:hover\s*\{[^}]*border-color:#424242[^}]*background:#303030[^}]*box-shadow:none/s);
   assert.doesNotMatch(source, /!standalone && <button aria-label="创建流程图任务"/);
 });
 
