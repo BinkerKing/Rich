@@ -334,6 +334,7 @@ type MainWindowState = {
   dockedCollapsed?: boolean;
   layoutMode?: WindowLayoutMode;
   desktopBounds?: Electron.Rectangle;
+  padBounds?: Electron.Rectangle;
 };
 const MAIN_WINDOW_WIDTH = 1480;
 const MAIN_WINDOW_HEIGHT = 920;
@@ -384,6 +385,9 @@ function restoreMainWindowState(): MainWindowState | null {
       ...(saved.desktopBounds && [saved.desktopBounds.x, saved.desktopBounds.y, saved.desktopBounds.width, saved.desktopBounds.height].every(Number.isFinite)
         ? { desktopBounds: saved.desktopBounds }
         : {}),
+      ...(saved.padBounds && [saved.padBounds.x, saved.padBounds.y, saved.padBounds.width, saved.padBounds.height].every(Number.isFinite)
+        ? { padBounds: saved.padBounds }
+        : {}),
       ...(dockedSide ? { dockedSide, dockedCollapsed: saved.dockedCollapsed === true } : {}),
     };
   } catch {
@@ -396,11 +400,13 @@ function saveMainWindowState(win: BrowserWindow): void {
   try {
     mkdirSync(userDataDir(), { recursive: true });
     const bounds = edgeDockState && !win.isVisible() ? edgeDockState.bounds : win.getNormalBounds();
+    if (richWindowLayoutMode === "pad") richPadBounds = bounds;
     const state: MainWindowState = {
       bounds,
       maximized: win.isMaximized(),
       layoutMode: richWindowLayoutMode,
       ...(richDesktopBounds ? { desktopBounds: richDesktopBounds } : {}),
+      ...(richPadBounds ? { padBounds: richPadBounds } : {}),
       ...(!win.isMaximized() && edgeDockState
         ? { dockedSide: edgeDockState.side, dockedCollapsed: edgeDockIsCollapsed }
         : {}),
@@ -434,6 +440,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
   const savedState = restoreMainWindowState();
   richWindowLayoutMode = savedState?.layoutMode ?? "desktop";
   richDesktopBounds = savedState?.desktopBounds ?? null;
+  richPadBounds = savedState?.padBounds ?? (savedState?.layoutMode === "pad" ? savedState.bounds : null);
   const minimums = windowMinimums(richWindowLayoutMode);
   const win = new BrowserWindow({
     width: savedState?.bounds.width ?? MAIN_WINDOW_WIDTH,
@@ -1008,6 +1015,7 @@ let edgeDockIsAnimating = false;
 let edgeDockAnimationTimer: NodeJS.Timeout | null = null;
 let richWindowLayoutMode: WindowLayoutMode = "desktop";
 let richDesktopBounds: Electron.Rectangle | null = null;
+let richPadBounds: Electron.Rectangle | null = null;
 
 function setRichWindowLayoutMode(win: BrowserWindow, mode: WindowLayoutMode): void {
   if (win.isDestroyed() || richWindowLayoutMode === mode) return;
@@ -1020,17 +1028,18 @@ function setRichWindowLayoutMode(win: BrowserWindow, mode: WindowLayoutMode): vo
     hideEdgeDockGlow();
     richWindowLayoutMode = mode;
     win.setMinimumSize(PAD_WINDOW_MIN_WIDTH, PAD_WINDOW_MIN_HEIGHT);
-    const current = win.getBounds();
+    const current = richPadBounds ?? win.getBounds();
     const workArea = screen.getDisplayNearestPoint({ x: current.x, y: current.y }).workArea;
-    const width = Math.min(PAD_WINDOW_WIDTH, workArea.width);
-    const height = Math.min(PAD_WINDOW_HEIGHT, workArea.height);
+    const width = Math.min(Math.max(PAD_WINDOW_MIN_WIDTH, richPadBounds?.width ?? PAD_WINDOW_WIDTH), workArea.width);
+    const height = Math.min(Math.max(PAD_WINDOW_MIN_HEIGHT, richPadBounds?.height ?? PAD_WINDOW_HEIGHT), workArea.height);
     win.setBounds({
-      x: Math.round(workArea.x + (workArea.width - width) / 2),
-      y: Math.round(workArea.y + (workArea.height - height) / 2),
+      x: richPadBounds ? Math.min(Math.max(richPadBounds.x, workArea.x), workArea.x + workArea.width - width) : Math.round(workArea.x + (workArea.width - width) / 2),
+      y: richPadBounds ? Math.min(Math.max(richPadBounds.y, workArea.y), workArea.y + workArea.height - height) : Math.round(workArea.y + (workArea.height - height) / 2),
       width,
       height,
     });
   } else {
+    richPadBounds = win.getNormalBounds();
     richWindowLayoutMode = mode;
     win.setMinimumSize(MAIN_WINDOW_MIN_WIDTH, MAIN_WINDOW_MIN_HEIGHT);
     if (richDesktopBounds) win.setBounds(richDesktopBounds);
