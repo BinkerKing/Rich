@@ -45,10 +45,10 @@ test("打开问题表时标题头行采用项目流程图的工作台样式", ()
   assert.match(styles, /\.issues-workspace__table-title\s*\{[^}]*min-height:42px[^}]*border-bottom:1px solid #29292d[^}]*background:#252525/s);
 });
 
-test("打开问题表时使用 Univer 编辑器而非旧的配置表格", () => {
-  assert.match(source, /lazy\(\(\) => import\("\.\.\/\.\.\/\.\.\/components\/UniverIssueSheet\.js"\)\)/);
-  assert.match(source, /<Suspense fallback=/);
-  assert.match(source, /<UniverIssueSheet/);
+test("打开问题表时使用 AG Grid 高级数据表格而非 Excel 编辑器", () => {
+  assert.match(source, /import IssueDataGrid from "\.\.\/\.\.\/\.\.\/components\/IssueDataGrid\.js"/);
+  assert.match(source, /<IssueDataGrid issues=\{issues\} onIssueChange=\{saveIssueChange\} \/>/);
+  assert.doesNotMatch(source, /UniverIssueSheet|Suspense|lazy\(/);
   assert.doesNotMatch(source, /<ConfigurableDataGrid ariaLabel=\{`\$\{active\.title\} 表格`\}/);
 });
 

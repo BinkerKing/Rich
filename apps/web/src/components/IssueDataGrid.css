@@ -1,0 +1,25 @@
+.issue-data-grid { display:grid; height:100%; min-height:0; grid-template-rows:auto minmax(0,1fr); overflow:hidden; background:#202124; color:#e8edf1; }
+.issue-data-grid__toolbar { display:flex; align-items:center; gap:10px; min-height:48px; padding:8px 10px; border-bottom:1px solid #303338; background:#252629; }
+.issue-data-grid__search { display:flex; flex:1; align-items:center; gap:7px; max-width:430px; border:1px solid #474b51; border-radius:6px; padding:0 9px; color:#9ca7b0; background:#1d1e20; }
+.issue-data-grid__search:focus-within { border-color:#71cbd1; box-shadow:0 0 0 2px rgba(103,202,211,.13); }
+.issue-data-grid__search span { font-size:18px; line-height:1; }
+.issue-data-grid__search input { width:100%; height:29px; border:0; outline:0; color:#edf2f5; background:transparent; font:12px/1.2 inherit; }
+.issue-data-grid__search input::placeholder { color:#78838b; }
+.issue-data-grid__filter { display:flex; align-items:center; gap:7px; color:#aab4ba; font-size:12px; white-space:nowrap; }
+.issue-data-grid__filter select { height:30px; border:1px solid #474b51; border-radius:6px; padding:0 24px 0 8px; color:#e2e8ec; background:#1d1e20; font:inherit; outline:0; }
+.issue-data-grid__filter select:focus { border-color:#71cbd1; }
+.issue-data-grid__table { min-height:0; }
+.issue-data-grid .ag-root-wrapper { height:100%; border:0; border-radius:0; }
+.issue-data-grid .ag-header { border-bottom:1px solid #3a3d42; }
+.issue-data-grid .ag-header-cell { color:#aab4ba; font-size:12px; font-weight:700; }
+.issue-data-grid .ag-cell { display:flex; align-items:center; color:#e5ebef; font-size:13px; border-right-color:#303338; }
+.issue-data-grid .ag-row { border-color:#2d3034; }
+.issue-data-grid .ag-row-hover::before { background-color:rgba(115,199,207,.07); }
+.issue-data-grid .ag-cell-focus,.issue-data-grid .ag-cell:focus-within { border-color:#67c9d0 !important; }
+.issue-data-grid .ag-cell-inline-editing { border-radius:3px; background:#292d31; }
+.issue-data-grid .ag-select-list { color:#e7eef0; background:#282b2e; }
+.issue-data-grid__status { display:inline-flex; align-items:center; min-width:54px; min-height:22px; justify-content:center; border:1px solid; border-radius:4px; padding:0 6px; font-size:11px; font-weight:700; }
+.issue-data-grid__status--open { border-color:#4c91a2; color:#7ed9ef; background:rgba(60,128,147,.16); }
+.issue-data-grid__status--fixed { border-color:#5b9c74; color:#8be4a8; background:rgba(65,129,86,.16); }
+.issue-data-grid__status--retest { border-color:#b68949; color:#ffcf7d; background:rgba(143,104,50,.16); }
+.issue-data-grid__status--closed { border-color:#707881; color:#afb8c0; background:rgba(90,98,106,.16); }
