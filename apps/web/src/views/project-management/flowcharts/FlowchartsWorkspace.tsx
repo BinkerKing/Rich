@@ -378,7 +378,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     </header>}
     {embedded && !expanded && <header className="pfc-project-header">
       <div><h1>项目流程图</h1><span>集中梳理项目流程、系统关系与处理路径。</span></div>
-      <button className="project-create-action" type="button" disabled={busy || !loaded} onClick={() => setCreating(true)}>＋ 新建流程图</button>
+      <button type="button" disabled={busy || !loaded} onClick={() => setCreating(true)}>＋ 新建流程图</button>
     </header>}
     {standalone && !expanded && <div className="pfc-list-label">流程图</div>}
     {!loaded ? <p>加载中…</p> : items.length === 0 ? <div className="pfc-empty"><strong>还没有流程图</strong><p>创建一张图，从梳理第一个流程开始。</p><button className="pfc-list-create" type="button" onClick={() => setCreating(true)}>新建流程图</button></div> : <div className={standalone ? "pfc-list-grid" : "pfc-task-list"}>{items.map(item => {
