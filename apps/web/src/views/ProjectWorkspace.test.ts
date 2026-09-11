@@ -50,8 +50,9 @@ test("项目菜单使用统一的无底色线条图标", () => {
   assert.match(workspace, /<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"/);
   assert.match(workspace, /<ProjectMenuIcon section=\{s\.id\}\/>/);
   assert.match(styles, /\.prj-ws__nav-icon svg \{[^}]*stroke:\s*currentColor[^}]*stroke-width:\s*1\.8/s);
-  assert.match(styles, /\.prj-ws__nav-btn\.is-active \{[^}]*border-color:\s*transparent[^}]*background:\s*transparent[^}]*box-shadow:\s*none/s);
-  assert.match(styles, /\.prj-ws__nav-btn\.is-active \.prj-ws__nav-icon\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--nav-tone\) 18%, transparent\)[^}]*box-shadow:[^}]*0 0 12px var\(--nav-glow\)/s);
+  assert.match(styles, /\.prj-ws__nav-btn:hover,[\s\S]*?\.prj-ws__nav-btn\.is-active \{[^}]*border-color:\s*#454545[^}]*background:\s*#303030[^}]*box-shadow:\s*none/s);
+  assert.match(styles, /\.prj-ws__nav-btn\.is-active \.prj-ws__nav-icon\s*\{[^}]*color:\s*#fff/s);
+  assert.doesNotMatch(styles, /\.prj-ws__nav-btn\.is-active \.prj-ws__nav-icon\s*\{[^}]*background:color-mix|\.prj-ws__nav-btn\.is-active \.prj-ws__nav-icon\s*\{[^}]*box-shadow:/s);
 });
 
 test("项目菜单整行支持连续横向拖动与滚轮滚动", () => {
