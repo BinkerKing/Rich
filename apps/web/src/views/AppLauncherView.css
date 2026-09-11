@@ -170,6 +170,8 @@ html[data-theme] .app-launcher .app-launcher-folder-icon__glyph .ke-icon {
 .app-launcher-context fieldset button:hover,
 .app-launcher-context fieldset button.is-selected { border-color: #dedee2; color: #fff; background: #303034; }
 .app-launcher-context fieldset .ke-icon { width: 19px; height: 19px; stroke: currentColor !important; }
+html[data-theme] .app-launcher-context fieldset .ke-icon { stroke: #bfc0c5 !important; }
+.app-launcher-context fieldset button.is-selected .ke-icon { stroke: #fff !important; }
 .app-launcher-context footer { display: flex; justify-content: flex-end; gap: 8px; }
 .app-launcher-context footer button {
   padding: 7px 12px;
