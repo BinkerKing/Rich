@@ -540,6 +540,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
   win.on("maximize", () => setTopDragRegionMode(win, "no-drag"));
   win.on("unmaximize", () => setTopDragRegionMode(win, "drag"));
   mainWindow = win;
+  setupEdgeDock(win);
 
   // Open external links in the default browser, not new Electron windows.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -857,6 +858,140 @@ let mainWindow: BrowserWindow | null = null;
  *  dock activate handler has to recreate the window after window-all-closed. */
 let serverPort: number | null = null;
 
+// ----- Edge dock ---------------------------------------------------------
+// A docked Rich window is still a regular window while it has focus. When the
+// user moves to another app, we hide it and leave a small, non-focusable glow
+// at the screen edge. Polling the cursor here is deliberate: the glow must not
+// intercept a click from the app beneath it.
+type EdgeDockSide = "left" | "right";
+type EdgeDockState = { side: EdgeDockSide; bounds: Electron.Rectangle };
+const EDGE_DOCK_SNAP_DISTANCE = 24;
+const EDGE_DOCK_GLOW_WIDTH = 6;
+const EDGE_DOCK_CURSOR_INTERVAL = 90;
+let edgeDockState: EdgeDockState | null = null;
+let edgeDockGlowWindow: BrowserWindow | null = null;
+let edgeDockCursorPoller: NodeJS.Timeout | null = null;
+let edgeDockIsCollapsing = false;
+
+function pointIsInsideBounds(point: Electron.Point, bounds: Electron.Rectangle): boolean {
+  return point.x >= bounds.x && point.x < bounds.x + bounds.width
+    && point.y >= bounds.y && point.y < bounds.y + bounds.height;
+}
+
+function edgeDockGlowBounds(state: EdgeDockState): Electron.Rectangle {
+  const display = screen.getDisplayNearestPoint({ x: state.bounds.x, y: state.bounds.y });
+  const workArea = display.workArea;
+  return {
+    x: state.side === "left" ? workArea.x : workArea.x + workArea.width - EDGE_DOCK_GLOW_WIDTH,
+    y: state.bounds.y,
+    width: EDGE_DOCK_GLOW_WIDTH,
+    height: state.bounds.height,
+  };
+}
+
+function createEdgeDockGlowWindow(): BrowserWindow {
+  const glow = new BrowserWindow({
+    width: EDGE_DOCK_GLOW_WIDTH,
+    height: 320,
+    frame: false,
+    transparent: true,
+    backgroundColor: "#00000000",
+    hasShadow: false,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    focusable: false,
+    show: false,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+  });
+  glow.setIgnoreMouseEvents(true);
+  glow.setAlwaysOnTop(true, "floating");
+  glow.loadURL(`data:text/html,${encodeURIComponent(`<!doctype html><style>html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}body{background:linear-gradient(90deg,transparent 0%,rgba(215,224,238,.35) 36%,rgba(245,248,255,.96) 50%,rgba(215,224,238,.35) 64%,transparent 100%);box-shadow:0 0 7px rgba(214,225,255,.95),0 0 20px rgba(171,193,255,.55)}</style>`)}`).catch(() => {});
+  return glow;
+}
+
+function hideEdgeDockGlow() {
+  if (edgeDockGlowWindow && !edgeDockGlowWindow.isDestroyed()) edgeDockGlowWindow.hide();
+}
+
+function showEdgeDockGlow() {
+  if (!edgeDockState) return;
+  if (!edgeDockGlowWindow || edgeDockGlowWindow.isDestroyed()) edgeDockGlowWindow = createEdgeDockGlowWindow();
+  edgeDockGlowWindow.setBounds(edgeDockGlowBounds(edgeDockState));
+  edgeDockGlowWindow.showInactive();
+}
+
+function collapseEdgeDockWindow(win: BrowserWindow) {
+  if (!edgeDockState || win.isDestroyed() || !win.isVisible() || win.isFocused()) return;
+  edgeDockState.bounds = win.getBounds();
+  edgeDockIsCollapsing = true;
+  win.hide();
+  edgeDockIsCollapsing = false;
+  showEdgeDockGlow();
+}
+
+function expandEdgeDockWindow(win: BrowserWindow) {
+  if (!edgeDockState || win.isDestroyed() || win.isVisible()) return;
+  hideEdgeDockGlow();
+  win.setBounds(edgeDockState.bounds);
+  // Do not take focus from the app the user is using. A click inside Rich is
+  // the explicit signal that it should stay expanded.
+  win.showInactive();
+}
+
+function snapMainWindowToEdge(win: BrowserWindow) {
+  if (win.isDestroyed() || win.isMaximized() || !win.isVisible()) return;
+  const bounds = win.getBounds();
+  const display = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y });
+  const workArea = display.workArea;
+  const leftDistance = Math.abs(bounds.x - workArea.x);
+  const rightDistance = Math.abs(bounds.x + bounds.width - (workArea.x + workArea.width));
+  const side: EdgeDockSide | null = leftDistance <= EDGE_DOCK_SNAP_DISTANCE
+    ? "left"
+    : rightDistance <= EDGE_DOCK_SNAP_DISTANCE ? "right" : null;
+
+  if (!side) {
+    edgeDockState = null;
+    hideEdgeDockGlow();
+    return;
+  }
+
+  const snapped = {
+    ...bounds,
+    x: side === "left" ? workArea.x : workArea.x + workArea.width - bounds.width,
+    y: Math.min(Math.max(bounds.y, workArea.y), workArea.y + workArea.height - bounds.height),
+  };
+  edgeDockState = { side, bounds: snapped };
+  if (bounds.x !== snapped.x || bounds.y !== snapped.y) win.setBounds(snapped);
+}
+
+function setupEdgeDock(mainWin: BrowserWindow) {
+  mainWin.on("move", () => snapMainWindowToEdge(mainWin));
+  mainWin.on("resize", () => snapMainWindowToEdge(mainWin));
+  mainWin.on("focus", hideEdgeDockGlow);
+  mainWin.on("blur", () => setTimeout(() => collapseEdgeDockWindow(mainWin), 80));
+  mainWin.on("hide", () => {
+    if (!edgeDockIsCollapsing) hideEdgeDockGlow();
+  });
+  edgeDockCursorPoller ??= setInterval(() => {
+    if (!edgeDockState || mainWin.isDestroyed()) return;
+    const cursor = screen.getCursorScreenPoint();
+    if (!mainWin.isVisible()) {
+      if (pointIsInsideBounds(cursor, edgeDockGlowBounds(edgeDockState))) expandEdgeDockWindow(mainWin);
+      return;
+    }
+    if (!mainWin.isFocused() && !pointIsInsideBounds(cursor, mainWin.getBounds())) collapseEdgeDockWindow(mainWin);
+  }, EDGE_DOCK_CURSOR_INTERVAL);
+  app.on("will-quit", () => {
+    if (edgeDockCursorPoller) clearInterval(edgeDockCursorPoller);
+    edgeDockCursorPoller = null;
+    if (edgeDockGlowWindow && !edgeDockGlowWindow.isDestroyed()) edgeDockGlowWindow.destroy();
+  });
+}
+
 let overlayWindows: BrowserWindow[] = [];
 let breakReminderWindows: BrowserWindow[] = [];
 let breakReminderUntil = 0;
@@ -965,6 +1100,7 @@ function toggleOverlay() {
 function showRichMainWindow(mainWin: BrowserWindow) {
   if (mainWin.isDestroyed()) return;
   ensureDockApplication("show main window");
+  hideEdgeDockGlow();
   if (process.platform === "darwin") app.show();
   if (mainWin.isMinimized()) mainWin.restore();
   if (!mainWin.isVisible()) mainWin.show();
