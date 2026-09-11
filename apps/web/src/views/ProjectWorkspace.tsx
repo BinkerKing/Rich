@@ -102,7 +102,6 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
     const nav = event.currentTarget;
     if (event.button !== 0 || nav.scrollWidth <= nav.clientWidth) return;
     menuNavDragRef.current = { pointerId: event.pointerId, startX: event.clientX, startScrollLeft: nav.scrollLeft, dragging: false };
-    nav.setPointerCapture(event.pointerId);
   };
   const moveMenuNavDrag = (event: ReactPointerEvent<HTMLElement>) => {
     const drag = menuNavDragRef.current;
@@ -112,6 +111,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
     if (!drag.dragging) {
       drag.dragging = true;
       menuNavSkipClickRef.current = true;
+      event.currentTarget.setPointerCapture(event.pointerId);
       event.currentTarget.classList.add("is-dragging");
     }
     event.currentTarget.scrollLeft = drag.startScrollLeft - distance;
