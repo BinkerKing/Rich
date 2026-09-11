@@ -57,10 +57,11 @@ test("项目菜单首次展示时完整显示最左侧菜单项", () => {
   assert.match(workspace, /<nav ref=\{menuNavRef\}/);
 });
 
-test("作业流程使用明亮的青蓝边框和高对比信息层级", () => {
-  assert.match(styles, /\.workflow-step\s*\{[^}]*border:\s*1px solid #287486[^}]*box-shadow:\s*inset 3px 0 #32d2df/s);
-  assert.match(styles, /\.workflow-order\s*\{[^}]*border:\s*1px solid #45dce9/s);
-  assert.match(styles, /\.workflow-actions button\s*\{[^}]*border:\s*1px solid #286878/s);
+test("作业流程以黑白外框和内嵌彩色细线呈现", () => {
+  assert.match(styles, /\.workflow\.prj-pm-legacy-skin \.panel\s*\{[^}]*border-color:\s*#505050[^}]*background:\s*#252525/s);
+  assert.match(styles, /\.workflow-step\s*\{[^}]*border:\s*1px solid #505050[^}]*background:\s*#252525[^}]*box-shadow:\s*inset 3px 0 #52c7cc/s);
+  assert.match(styles, /\.workflow-order\s*\{[^}]*border:\s*1px solid #9a9a9a[^}]*background:\s*#202020[^}]*inset 0 0 0 1px rgba\(82, 199, 204, \.55\)/s);
+  assert.match(styles, /\.workflow-actions button\s*\{[^}]*border:\s*1px solid #4f4f4f[^}]*background:\s*#202020/s);
 });
 
 test("环境配置用亮色边框区分模块、服务器和连接关系表", () => {
