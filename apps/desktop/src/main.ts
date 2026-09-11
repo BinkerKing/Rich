@@ -326,7 +326,12 @@ async function bootServer(port: number) {
 }
 
 // ----- Step 4: Window ----------------------------------------------------
-type MainWindowState = { bounds: Electron.Rectangle; maximized: boolean };
+type MainWindowState = {
+  bounds: Electron.Rectangle;
+  maximized: boolean;
+  dockedSide?: EdgeDockSide;
+  dockedCollapsed?: boolean;
+};
 const MAIN_WINDOW_WIDTH = 1480;
 const MAIN_WINDOW_HEIGHT = 920;
 const MAIN_WINDOW_MIN_WIDTH = 1100;
@@ -345,14 +350,22 @@ function restoreMainWindowState(): MainWindowState | null {
     const workArea = display.workArea;
     const width = Math.min(Math.max(MAIN_WINDOW_MIN_WIDTH, bounds.width), workArea.width);
     const height = Math.min(Math.max(MAIN_WINDOW_MIN_HEIGHT, bounds.height), workArea.height);
+    const dockedSide: EdgeDockSide | undefined = saved.dockedSide === "left" || saved.dockedSide === "right"
+      ? saved.dockedSide
+      : undefined;
     return {
       bounds: {
-        x: Math.min(Math.max(bounds.x, workArea.x), workArea.x + workArea.width - width),
+        x: dockedSide === "left"
+          ? workArea.x
+          : dockedSide === "right"
+            ? workArea.x + workArea.width - width
+            : Math.min(Math.max(bounds.x, workArea.x), workArea.x + workArea.width - width),
         y: Math.min(Math.max(bounds.y, workArea.y), workArea.y + workArea.height - height),
         width,
         height,
       },
       maximized: saved.maximized === true,
+      ...(dockedSide ? { dockedSide, dockedCollapsed: saved.dockedCollapsed === true } : {}),
     };
   } catch {
     return null;
@@ -364,7 +377,13 @@ function saveMainWindowState(win: BrowserWindow): void {
   try {
     mkdirSync(userDataDir(), { recursive: true });
     const bounds = edgeDockState && !win.isVisible() ? edgeDockState.bounds : win.getNormalBounds();
-    const state: MainWindowState = { bounds, maximized: win.isMaximized() };
+    const state: MainWindowState = {
+      bounds,
+      maximized: win.isMaximized(),
+      ...(!win.isMaximized() && edgeDockState
+        ? { dockedSide: edgeDockState.side, dockedCollapsed: edgeDockIsCollapsed }
+        : {}),
+    };
     writeFileSync(mainWindowStatePath(), JSON.stringify(state));
   } catch (error) {
     flog(`window state save failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -419,7 +438,12 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
     ensureDockApplication("main ready-to-show");
     if (process.platform === "darwin") app.show();
     if (savedState?.maximized) win.maximize();
-    win.show();
+    if (savedState?.dockedCollapsed && edgeDockState) {
+      edgeDockIsCollapsed = true;
+      showEdgeDockGlow();
+    } else {
+      win.show();
+    }
     setTimeout(() => ensureDockApplication("main shown"), 500);
   });
 
@@ -606,6 +630,10 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
   win.on("maximize", () => setTopDragRegionMode(win, "no-drag"));
   win.on("unmaximize", () => setTopDragRegionMode(win, "drag"));
   mainWindow = win;
+  if (savedState?.dockedSide && !savedState.maximized) {
+    edgeDockState = { side: savedState.dockedSide, bounds: savedState.bounds };
+    edgeDockIsCollapsed = savedState.dockedCollapsed === true;
+  }
   setupMainWindowStatePersistence(win);
   setupEdgeDock(win);
 
