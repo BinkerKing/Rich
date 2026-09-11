@@ -91,7 +91,7 @@ function MainApp() {
 
   useEffect(() => {
     document.documentElement.dataset.richLayout = layoutMode;
-    window.localStorage.setItem("rich-layout-mode", layoutMode);
+    if (layoutMode !== "fullscreen") window.localStorage.setItem("rich-layout-mode", layoutMode);
   }, [layoutMode]);
 
   useEffect(() => {

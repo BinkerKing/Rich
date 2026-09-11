@@ -326,7 +326,8 @@ async function bootServer(port: number) {
 }
 
 // ----- Step 4: Window ----------------------------------------------------
-type WindowLayoutMode = "desktop" | "pad";
+type WindowLayoutMode = "desktop" | "pad" | "fullscreen";
+type RememberedWindowLayoutMode = Exclude<WindowLayoutMode, "fullscreen">;
 type MainWindowState = {
   bounds: Electron.Rectangle;
   maximized: boolean;
@@ -360,7 +361,7 @@ function restoreMainWindowState(): MainWindowState | null {
     const saved = JSON.parse(readFileSync(mainWindowStatePath(), "utf8")) as Partial<MainWindowState>;
     const bounds = saved.bounds;
     if (!bounds || ![bounds.x, bounds.y, bounds.width, bounds.height].every(Number.isFinite)) return null;
-    const layoutMode: WindowLayoutMode = saved.layoutMode === "pad" ? "pad" : "desktop";
+    const layoutMode: RememberedWindowLayoutMode = saved.layoutMode === "pad" ? "pad" : "desktop";
     const minimums = windowMinimums(layoutMode);
     const display = screen.getDisplayMatching(bounds);
     const workArea = display.workArea;
@@ -404,7 +405,7 @@ function saveMainWindowState(win: BrowserWindow): void {
     const state: MainWindowState = {
       bounds,
       maximized: win.isMaximized(),
-      layoutMode: richWindowLayoutMode,
+      layoutMode: richLastWindowedLayoutMode,
       ...(richDesktopBounds ? { desktopBounds: richDesktopBounds } : {}),
       ...(richPadBounds ? { padBounds: richPadBounds } : {}),
       ...(!win.isMaximized() && edgeDockState
@@ -438,7 +439,9 @@ function setupMainWindowStatePersistence(win: BrowserWindow): void {
 async function openMainWindow(port: number): Promise<BrowserWindow> {
   const icon = appIconPath();
   const savedState = restoreMainWindowState();
-  richWindowLayoutMode = savedState?.layoutMode ?? "desktop";
+  const savedLayoutMode: RememberedWindowLayoutMode = savedState?.layoutMode === "pad" ? "pad" : "desktop";
+  richWindowLayoutMode = savedLayoutMode;
+  richLastWindowedLayoutMode = savedLayoutMode;
   richDesktopBounds = savedState?.desktopBounds ?? null;
   richPadBounds = savedState?.padBounds ?? (savedState?.layoutMode === "pad" ? savedState.bounds : null);
   const minimums = windowMinimums(richWindowLayoutMode);
@@ -1014,18 +1017,30 @@ let edgeDockIsCollapsed = false;
 let edgeDockIsAnimating = false;
 let edgeDockAnimationTimer: NodeJS.Timeout | null = null;
 let richWindowLayoutMode: WindowLayoutMode = "desktop";
+let richLastWindowedLayoutMode: RememberedWindowLayoutMode = "desktop";
 let richDesktopBounds: Electron.Rectangle | null = null;
 let richPadBounds: Electron.Rectangle | null = null;
 
 function setRichWindowLayoutMode(win: BrowserWindow, mode: WindowLayoutMode): void {
   if (win.isDestroyed() || richWindowLayoutMode === mode) return;
 
+  if (richWindowLayoutMode === "pad") richPadBounds = win.getNormalBounds();
+  if (richWindowLayoutMode === "desktop") richDesktopBounds = win.getNormalBounds();
+  if (win.isFullScreen()) win.setFullScreen(false);
+  edgeDockState = null;
+  edgeDockIsCollapsed = false;
+  hideEdgeDockGlow();
+
+  if (mode === "fullscreen") {
+    richWindowLayoutMode = mode;
+    win.setMinimumSize(MAIN_WINDOW_MIN_WIDTH, MAIN_WINDOW_MIN_HEIGHT);
+    win.setFullScreen(true);
+    saveMainWindowState(win);
+    return;
+  }
+
+  richLastWindowedLayoutMode = mode;
   if (mode === "pad") {
-    richDesktopBounds = win.getNormalBounds();
-    if (win.isMaximized()) win.unmaximize();
-    edgeDockState = null;
-    edgeDockIsCollapsed = false;
-    hideEdgeDockGlow();
     richWindowLayoutMode = mode;
     win.setMinimumSize(PAD_WINDOW_MIN_WIDTH, PAD_WINDOW_MIN_HEIGHT);
     const current = richPadBounds ?? win.getBounds();
@@ -1039,7 +1054,6 @@ function setRichWindowLayoutMode(win: BrowserWindow, mode: WindowLayoutMode): vo
       height,
     });
   } else {
-    richPadBounds = win.getNormalBounds();
     richWindowLayoutMode = mode;
     win.setMinimumSize(MAIN_WINDOW_MIN_WIDTH, MAIN_WINDOW_MIN_HEIGHT);
     if (richDesktopBounds) win.setBounds(richDesktopBounds);

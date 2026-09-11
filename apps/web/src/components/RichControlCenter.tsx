@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import "./RichControlCenter.css";
 
-export type RichLayoutMode = "desktop" | "pad";
+export type RichLayoutMode = "desktop" | "pad" | "fullscreen";
 
 type RichControlCenterProps = {
   mode: RichLayoutMode;
@@ -9,12 +9,14 @@ type RichControlCenterProps = {
   onModeChange: (mode: RichLayoutMode) => void;
 };
 
-const modes: Array<{ id: RichLayoutMode; title: string; detail: string; icon: "desktop" | "pad" }> = [
+const modes: Array<{ id: RichLayoutMode; title: string; detail: string; icon: "desktop" | "pad" | "fullscreen" }> = [
+  { id: "fullscreen", title: "全屏", detail: "沉浸展示", icon: "fullscreen" },
   { id: "desktop", title: "桌面模式", detail: "完整工作台", icon: "desktop" },
   { id: "pad", title: "PAD 模式", detail: "紧凑小窗口", icon: "pad" },
 ];
 
-function ModeIcon({ type }: { type: "desktop" | "pad" }) {
+function ModeIcon({ type }: { type: "desktop" | "pad" | "fullscreen" }) {
+  if (type === "fullscreen") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5" /></svg>;
   return type === "desktop" ? (
     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></svg>
   ) : (

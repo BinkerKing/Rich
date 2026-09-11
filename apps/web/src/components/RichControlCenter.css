@@ -12,7 +12,7 @@
 }
 
 .rich-control-center__panel {
-  width: min(568px, 100%);
+  width: min(760px, 100%);
   padding: 12px;
   border: 1px solid rgba(255, 255, 255, .3);
   border-radius: 28px;
@@ -21,7 +21,7 @@
   animation: rich-control-center-pop .2s cubic-bezier(.2, .8, .2, 1);
 }
 
-.rich-control-center__modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rich-control-center__modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .rich-control-center__mode {
   position: relative;
   min-height: 148px;
@@ -57,4 +57,4 @@
 .rich-control-center__close:hover { background: rgba(255, 255, 255, .1); color: #fff; }
 @keyframes rich-control-center-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes rich-control-center-pop { from { transform: translateY(-12px) scale(.97); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
-@media (max-width: 560px) { .rich-control-center { padding: 72px 16px 0; } .rich-control-center__mode { min-height: 128px; padding: 16px; } }
+@media (max-width: 560px) { .rich-control-center { padding: 72px 16px 0; } .rich-control-center__modes { grid-template-columns: 1fr; } .rich-control-center__mode { min-height: 128px; padding: 16px; } }
