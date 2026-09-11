@@ -67,6 +67,11 @@ test("自动化工作台使用左右双栏并在右侧提供检查、参数和�
   assert.match(styles, /\.automation-run-pane[^}]*overflow:\s*auto/s);
 });
 
+test("数据自动化标题操作区使用紧凑行距", () => {
+  assert.match(styles, /\.automation-main\s*\{[^}]*padding:\s*8px 12px 12px/s);
+  assert.match(styles, /\.automation-toolbar\s*\{[^}]*min-height:\s*42px[^}]*margin-bottom:\s*8px/s);
+});
+
 test("运行参数输入框融入石墨灰面板，并在聚焦时使用青色边框提示", () => {
   assert.match(styles, /\.automation-params input\s*\{[^}]*border:\s*1px solid #4a4a4a[^}]*background:\s*#1d1d1d/s);
   assert.match(styles, /\.automation-params input:focus\s*\{[^}]*border-color:\s*#52c7cc[^}]*background:\s*#202323/s);

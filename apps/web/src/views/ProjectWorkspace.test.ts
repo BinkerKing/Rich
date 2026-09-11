@@ -32,6 +32,13 @@ test("项目工作区标题与导航贴近顶部左边线并使用同一对齐�
   assert.match(workspace, /await api\.patchElement\(project\.id, \{ title: nextTitle \}\)/);
 });
 
+test("项目管理各模块的标题操作区采用驾驶舱式紧凑行距", () => {
+  assert.match(styles, /\.prj-ws \.delivery\s*\{[^}]*padding:8px 12px 14px/s);
+  assert.match(styles, /\.prj-ws \.delivery__header\s*\{[^}]*min-height:42px[^}]*margin-bottom:8px/s);
+  assert.match(styles, /\.prj-ws \.prj-pm-description__head\s*\{[^}]*min-height:42px[^}]*padding:4px 0 8px/s);
+  assert.match(styles, /\.prj-ws :is\(\.prj-pm-dict__hero,[^}]*min-height:58px[^}]*padding:10px 12px/s);
+});
+
 test("项目菜单使用统一的无底色线条图标", () => {
   assert.match(workspace, /function ProjectMenuIcon\(/);
   assert.match(workspace, /<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"/);

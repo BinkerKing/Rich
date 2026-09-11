@@ -11392,3 +11392,31 @@
 .delivery-dashboard-composer > div:not(.delivery-activity-kind) { border:1px solid rgba(148,163,184,.38); background:#292d32; }
 .delivery-dashboard-composer > div:not(.delivery-activity-kind):focus-within { border-color:rgba(148,163,184,.72); }
 .delivery-dashboard-composer input::placeholder { color:#9ca3af; }
+
+/* Project workspaces share the dashboard's compact top rhythm. */
+.prj-ws .delivery { padding:8px 12px 14px; }
+.prj-ws .delivery__header { gap:12px; min-height:42px; margin-bottom:8px; }
+.prj-ws .delivery__header h1 { font-size:18px; letter-spacing:.01em; }
+.prj-ws .delivery__header p { margin-top:3px; font-size:11px; }
+.prj-ws .delivery button { padding:6px 9px; font-size:11px; }
+.prj-ws .project-plan__nav { padding:5px 12px 0; }
+.prj-ws .project-plan__nav button { padding:6px 8px; font-size:11px; }
+.prj-ws .prj-pm-description { gap:8px; padding:4px 0 0; }
+.prj-ws .prj-pm-description__head { align-items:center; gap:12px; min-height:42px; padding:4px 0 8px; }
+.prj-ws .prj-pm-description__head h2 { font-size:18px; }
+.prj-ws .prj-pm-description__head p { margin-top:3px; font-size:11px; }
+.prj-ws .prj-pm-description__actions { gap:7px; min-height:28px; }
+.prj-ws :is(.prj-pm-dict__hero,.prj-pm-workflow__head,.prj-pm-scenarios__head,.prj-pm-env__head,.prj-pm-deploy__head,.prj-pm-monitor__head,.prj-pm-code__head,.prj-pm-todos__head) { gap:12px; min-height:58px; padding:10px 12px; }
+.prj-ws :is(.prj-pm-dict__hero,.prj-pm-workflow__head,.prj-pm-scenarios__head,.prj-pm-env__head,.prj-pm-deploy__head,.prj-pm-monitor__head,.prj-pm-code__head,.prj-pm-todos__head) h3 { font-size:18px; }
+.prj-ws :is(.prj-pm-dict__hero,.prj-pm-workflow__head,.prj-pm-scenarios__head,.prj-pm-env__head,.prj-pm-deploy__head,.prj-pm-monitor__head,.prj-pm-code__head,.prj-pm-todos__head) p { margin-top:3px; font-size:11px; }
+.prj-ws :is(.prj-pm-dict__hero,.prj-pm-workflow__head,.prj-pm-scenarios__head,.prj-pm-env__head,.prj-pm-deploy__head,.prj-pm-monitor__head,.prj-pm-code__head,.prj-pm-todos__head) button { min-height:28px; padding:5px 8px; font-size:11px; }
+.prj-ws .prj-pm-workflow__count { min-width:82px; padding:6px 10px; }
+.prj-ws .prj-pm-workflow__count b { font-size:20px; }
+.prj-ws .prj-pm-workflow__count span { margin-top:2px; font-size:10px; }
+.prj-ws :is(.prj-pm-dict__stats,.prj-pm-scenarios__stats,.prj-pm-env__stats,.prj-pm-deploy__stats,.prj-pm-monitor__stats,.prj-pm-code__stats,.prj-pm-todos__stats) { gap:6px; }
+.prj-ws .prj-pm-dict__stats { grid-template-columns:repeat(3,76px); }
+.prj-ws .prj-pm-scenarios__stats { grid-template-columns:repeat(2,76px); }
+.prj-ws :is(.prj-pm-env__stats,.prj-pm-deploy__stats) { grid-template-columns:repeat(3,72px); }
+.prj-ws :is(.prj-pm-monitor__stats,.prj-pm-code__stats,.prj-pm-todos__stats) { grid-template-columns:repeat(2,72px); }
+.prj-ws :is(.prj-pm-dict__stats,.prj-pm-scenarios__stats,.prj-pm-env__stats,.prj-pm-deploy__stats,.prj-pm-monitor__stats,.prj-pm-code__stats,.prj-pm-todos__stats) span { padding:6px 8px; font-size:10px; }
+.prj-ws :is(.prj-pm-dict__stats,.prj-pm-scenarios__stats,.prj-pm-env__stats,.prj-pm-deploy__stats,.prj-pm-monitor__stats,.prj-pm-code__stats,.prj-pm-todos__stats) b { margin-bottom:2px; font-size:18px; }

@@ -6,10 +6,11 @@
 .automation-plans header button { width: 30px; align-items: center; padding: 5px; font-size: 18px; }
 .automation-plans button:hover, .automation-plans button.is-active { color: #fff; border-color: rgba(56,189,248,.35); background: rgba(14,165,233,.11); }
 .automation-plans small, .automation-table-name small { color: #70839e; }
-.automation-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 18px 20px; overflow: hidden; }
-.automation-toolbar { align-items: flex-start; margin-bottom: 18px; }
+.automation-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 8px 12px 12px; overflow: hidden; }
+.automation-toolbar { align-items: center; min-height: 42px; margin-bottom: 8px; }
 .automation-toolbar h2, .automation-run-panel h3 { margin: 0; color: #f8fafc; }
-.automation-toolbar p { margin: 5px 0 0; color: #71839d; font-size: 12px; }
+.automation-toolbar h2 { font-size: 18px; }
+.automation-toolbar p { margin: 3px 0 0; color: #71839d; font-size: 11px; }
 .automation-toolbar__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .automation-console-grid { display: grid; flex: 1; grid-template-columns: minmax(0, 1.25fr) minmax(360px, .85fr); gap: 14px; min-height: 0; }
 .automation-config-pane { min-width: 0; min-height: 0; overflow: auto; border: 1px solid #424242; border-radius: 11px; background: #252525; scrollbar-width: thin; }
