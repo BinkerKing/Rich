@@ -86,12 +86,13 @@ test("当天开始但待开始的粗竖线为黄色", () => {
   assert.match(styles, /has-today-start\.is-todo \{ border-color:#fbbf24/);
 });
 
-test("驾驶舱纳入进行中及计划今天结束的任务，并按状态显示任务编号颜色和计划截止", () => {
+test("驾驶舱纳入进行中及计划今天结束的任务，并按状态显示彩色粗线任务编号和计划截止", () => {
   assert.match(source, /row\.status === "doing" \|\| plannedDueDate\(row\) === isoToday\(\)/);
   assert.match(source, /plannedDueDate\(task\)/);
   assert.match(source, /delivery-dashboard-task is-\$\{task\.status\}/);
-  assert.match(styles, /delivery-dashboard-task\.is-todo .*#ffb22d/);
-  assert.match(styles, /delivery-dashboard-task\.is-doing .*#45d49b/);
+  assert.match(styles, /\.delivery-dashboard-task__head > b \{[^}]*border:3px solid currentColor[^}]*background:transparent/s);
+  assert.match(styles, /delivery-dashboard-task\.is-todo \.delivery-dashboard-task__head > b \{ color:#ffb22d;/);
+  assert.match(styles, /delivery-dashboard-task\.is-doing \.delivery-dashboard-task__head > b \{ color:#45d49b;/);
 });
 
 test("驾驶舱压缩顶部栏并扩大贴边工作区", () => {
@@ -176,11 +177,11 @@ test("当天关闭的风险仍显示在风险提醒中并带删除线", () => {
   assert.match(styles, /\.delivery-dashboard-summary__risk\.is-done span \{ text-decoration:line-through;/);
 });
 
-test("驾驶舱将逾期任务用醒目的炫彩加粗标签提示", () => {
+test("驾驶舱用彩色加粗线条提示临期和逾期任务，不使用高亮底色", () => {
   assert.match(source, /days !== undefined && days < 0 \? "is-overdue"/);
   assert.match(styles, /\.delivery-dashboard-task__head time\.is-overdue \{[^}]*font-weight:800/);
-  assert.match(styles, /\.delivery-dashboard-task__head time\.is-overdue \{[^}]*background:linear-gradient\(135deg,#ff4d6d,#ff8a00\)/);
-  assert.match(styles, /@keyframes delivery-overdue-pulse/);
+  assert.match(styles, /\.delivery-dashboard-task__head time\.is-overdue \{[^}]*border-bottom:3px solid currentColor[^}]*background:transparent/);
+  assert.doesNotMatch(styles, /delivery-overdue-pulse|background:linear-gradient\(135deg,#ff4d6d,#ff8a00\)/);
 });
 
 test("发布结束动态后，任务当天显示已结束、次日从驾驶舱隐藏", () => {
