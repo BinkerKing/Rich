@@ -53,8 +53,14 @@ function normalizeLayout(value: unknown): LauncherEntry[] {
 
 function loadLayout(): LauncherEntry[] {
   if (typeof window === "undefined") return APP_MENU_ITEMS.map(item => ({ type: "app", id: item.id }));
-  try { return normalizeLayout(JSON.parse(window.localStorage.getItem(LAYOUT_KEY) ?? "null")); }
-  catch { return legacyLayout(); }
+  const saved = window.localStorage.getItem(LAYOUT_KEY);
+  if (saved) {
+    try { return normalizeLayout(JSON.parse(saved)); }
+    catch { /* fall through to a clean migration */ }
+  }
+  const migrated = legacyLayout();
+  saveLayout(migrated);
+  return migrated;
 }
 
 function saveLayout(entries: LauncherEntry[]) {
