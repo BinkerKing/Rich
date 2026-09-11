@@ -496,7 +496,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
     if (event.sender === win.webContents) toggleWindowMaximize(win);
   };
   const onSetLayoutMode = (event: Electron.IpcMainEvent, mode: unknown) => {
-    if (event.sender !== win.webContents || (mode !== "desktop" && mode !== "pad")) return;
+    if (event.sender !== win.webContents || (mode !== "desktop" && mode !== "pad" && mode !== "fullscreen")) return;
     setRichWindowLayoutMode(win, mode);
   };
   ipcMain.on("rich-window:toggle-maximize", onToggleMaximize);
