@@ -48,6 +48,12 @@ test("项目菜单整行支持连续横向拖动与滚轮滚动", () => {
   assert.match(styles, /\.prj-ws__nav\.is-dragging\s*\{[^}]*cursor:\s*grabbing/s);
 });
 
+test("项目菜单首次展示时默认向左偏移一小段", () => {
+  assert.match(workspace, /const menuNavInitialProjectRef = useRef<string \| null>\(null\)/);
+  assert.match(workspace, /node\.scrollLeft = 24/);
+  assert.match(workspace, /<nav ref=\{bindMenuNav\}/);
+});
+
 test("作业流程使用明亮的青蓝边框和高对比信息层级", () => {
   assert.match(styles, /\.workflow-step\s*\{[^}]*border:\s*1px solid #287486[^}]*box-shadow:\s*inset 3px 0 #32d2df/s);
   assert.match(styles, /\.workflow-order\s*\{[^}]*border:\s*1px solid #45dce9/s);

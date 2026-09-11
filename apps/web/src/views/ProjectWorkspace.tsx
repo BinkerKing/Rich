@@ -89,6 +89,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const [projectTitleDraft, setProjectTitleDraft] = useState("");
   const workspaceHeaderRef = useRef<HTMLElement | null>(null);
   const menuNavRef = useRef<HTMLElement | null>(null);
+  const menuNavInitialProjectRef = useRef<string | null>(null);
   const menuNavDragRef = useRef<{ pointerId: number; startX: number; startScrollLeft: number } | null>(null);
   const menuNavSkipClickRef = useRef(false);
   const searchButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -97,6 +98,14 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const selectSection = useCallback((next: ProjectManagementSection) => {
     setSection(next);
     saveProjectManagementWorkspaceSection(projectId, next);
+  }, [projectId]);
+  const bindMenuNav = useCallback((node: HTMLElement | null) => {
+    menuNavRef.current = node;
+    if (!node || menuNavInitialProjectRef.current === projectId) return;
+    menuNavInitialProjectRef.current = projectId;
+    window.requestAnimationFrame(() => {
+      if (menuNavRef.current === node) node.scrollLeft = 24;
+    });
   }, [projectId]);
   const startMenuNavDrag = (event: ReactPointerEvent<HTMLElement>) => {
     const nav = event.currentTarget;
@@ -342,7 +351,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
             ☷
           </button>
         </div>
-        <nav ref={menuNavRef} className="prj-ws__nav" role="tablist" aria-label="项目管理菜单" onPointerDown={startMenuNavDrag} onPointerMove={moveMenuNavDrag} onPointerUp={endMenuNavDrag} onPointerCancel={endMenuNavDrag} onWheel={scrollMenuNav}>
+        <nav ref={bindMenuNav} className="prj-ws__nav" role="tablist" aria-label="项目管理菜单" onPointerDown={startMenuNavDrag} onPointerMove={moveMenuNavDrag} onPointerUp={endMenuNavDrag} onPointerCancel={endMenuNavDrag} onWheel={scrollMenuNav}>
           {visibleSections.map(s => (
             <button key={s.id} type="button" role="tab"
               aria-label={s.label}
