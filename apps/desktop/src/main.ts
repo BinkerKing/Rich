@@ -335,14 +335,9 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
     minHeight: 700,
     title: "Rich",
     backgroundColor: "#09090a",
-    // Claude / VS Code-style chromeless top: macOS hides the title bar
-    // strip entirely; the red/yellow/green traffic lights stay as floating
-    // buttons over the content. The renderer reserves left padding for
-    // them via the CSS injected on did-finish-load.
+    // Keep the title bar chromeless. Native window buttons are hidden below
+    // so every Rich screen uses the same clean top-left corner.
     titleBarStyle: "hiddenInset",
-    trafficLightPosition: { x: 14, y: 16 },
-    // Keep the native zoom action available for the green traffic-light
-    // control and every custom drag region in the renderer.
     maximizable: true,
     webPreferences: {
       contextIsolation: true,
@@ -353,6 +348,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
     ...(icon ? { icon } : {}),
     show: false,
   });
+  if (process.platform === "darwin") win.setWindowButtonVisibility(false);
   win.setSkipTaskbar(false);
   win.once("ready-to-show", () => {
     ensureDockApplication("main ready-to-show");
@@ -375,12 +371,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
   const onToggleMaximize = (event: Electron.IpcMainEvent) => {
     if (event.sender === win.webContents) toggleWindowMaximize(win);
   };
-  const onSetWindowControlsVisible = (event: Electron.IpcMainEvent, visible: unknown) => {
-    if (event.sender !== win.webContents || process.platform !== "darwin") return;
-    win.setWindowButtonVisibility(visible === true);
-  };
   ipcMain.on("rich-window:toggle-maximize", onToggleMaximize);
-  ipcMain.on("rich-window:set-controls-visible", onSetWindowControlsVisible);
   const exportDeliveryPlan = async (event: Electron.IpcMainInvokeEvent, payload: unknown) => {
     if (event.sender !== win.webContents || !payload || typeof payload !== "object") return false;
     const value = payload as { gantt?: unknown; tableRows?: unknown; filename?: unknown };
@@ -540,7 +531,6 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
   ipcMain.handle("rich-delivery-plan:export", exportDeliveryPlan);
   win.on("closed", () => {
     ipcMain.removeListener("rich-window:toggle-maximize", onToggleMaximize);
-    ipcMain.removeListener("rich-window:set-controls-visible", onSetWindowControlsVisible);
     ipcMain.removeHandler("rich-delivery-plan:export");
     if (mainWindow === win) mainWindow = null;
   });
