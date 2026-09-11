@@ -33,7 +33,14 @@ test("问题表列表与交付物一致，并可从标题行返回列表", () =>
   assert.match(source, /aria-label="返回问题清单"[\s\S]*?setActiveId\(""\)/);
   assert.doesNotMatch(source, /<i>打开 →<\/i>/);
   assert.match(styles, /\.issues-workspace__list-copy strong\s*\{[^}]*color:#eef2f3[^}]*font-size:14px/s);
-  assert.match(styles, /\.issues-workspace__table-title > button::before\s*\{[^}]*content:"←"/s);
+  assert.match(styles, /\.issues-workspace__table-title > button::before\s*\{[^}]*content:none/s);
+});
+
+test("打开问题表时标题头行采用项目流程图的工作台样式", () => {
+  assert.match(source, /className="issues-workspace__editor-shell"[\s\S]*?className="issues-workspace__table-title"/);
+  assert.doesNotMatch(source, /可使用完整工具栏调整格式、边框、颜色与行列布局/);
+  assert.match(styles, /\.issues-workspace__editor-shell\s*\{[^}]*grid-template-rows:42px minmax\(0,1fr\)[^}]*border:1px solid #4c5965[^}]*border-radius:8px/s);
+  assert.match(styles, /\.issues-workspace__table-title\s*\{[^}]*min-height:42px[^}]*border-bottom:1px solid #29292d[^}]*background:#252525/s);
 });
 
 test("打开问题表时使用 Univer 编辑器而非旧的配置表格", () => {
