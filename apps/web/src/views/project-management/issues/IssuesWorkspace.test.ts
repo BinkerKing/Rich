@@ -24,8 +24,8 @@ test("新建问题表通过页面内创建卡收集名称，而不依赖桌面�
 
 test("问题清单操作按钮采用工作台统一的紧凑描边样式", () => {
   assert.match(source, /className="issues-workspace__create-button"/);
-  assert.match(source, /<IssueListIcon\s*\/>\s*<span>新建问题表<\/span>/);
-  assert.match(styles, /\.issues-workspace__create-button\s*\{[^}]*min-height:28px[^}]*padding:6px 9px[^}]*border-radius:6px[^}]*font-size:11px/s);
+  assert.match(source, /className="issues-workspace__create-button"[\s\S]*?>＋ 新建问题表<\/button>/);
+  assert.match(styles, /\.issues-workspace__create-button\s*\{[^}]*min-height:28px[^}]*padding:6px 9px[^}]*border:1px solid #515151[^}]*border-radius:6px[^}]*background:#303030[^}]*font-size:11px/s);
 });
 
 test("问题表列表与交付物一致，并可从标题行返回列表", () => {

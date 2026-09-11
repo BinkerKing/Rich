@@ -11394,9 +11394,8 @@
 .prj-ws .deliverables-workspace > header p { margin:2px 0 0; font-size:11px; }
 .prj-ws .deliverables-workspace > header > button { padding:6px 9px; font-size:11px; }
 .prj-ws .deliverables-workspace__list { margin-top:8px; }
-.prj-ws .deliverables-workspace > header > .deliverables-workspace__bind { display:flex; align-items:center; min-height:28px; gap:6px; padding:6px 9px; border:1px solid #515151; border-radius:6px; color:#e5e7eb; background:#303030; box-shadow:none; font-size:11px; font-weight:600; }
-.prj-ws .deliverables-workspace > header > .deliverables-workspace__bind svg { width:13px; height:13px; stroke-width:2; }
-.prj-ws .deliverables-workspace > header > .deliverables-workspace__bind:hover { border-color:#777; color:#fff; background:#3a3a3a; }
+.prj-ws .deliverables-workspace > header > .deliverables-workspace__bind { min-height:28px; padding:6px 9px; border:1px solid #515151; border-radius:6px; color:#e8e8e8; background:#303030; font:inherit; font-size:11px; cursor:pointer; }
+.prj-ws .deliverables-workspace > header > .deliverables-workspace__bind:hover { border-color:#5a5a60; color:#fff; background:#1b1b1e; }
 .prj-ws .deliverables-workspace__list-index { display:grid; flex:0 0 30px; width:30px; height:30px; box-sizing:border-box; place-items:center; border:1px solid #666; border-radius:6px; color:#b6b6b6; background:transparent; font-size:12px; font-weight:750; line-height:1; transition:border-color .16s ease,color .16s ease; }
 .prj-ws .deliverables-workspace__row:hover .deliverables-workspace__list-index { border-color:#f1f1f1; color:#fff; }
 .prj-ws .deliverables-workspace__row:hover > strong { color:#fff; }

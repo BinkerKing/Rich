@@ -28,7 +28,8 @@
 .issues-workspace__table-title > button::before { content:none; }
 .issues-workspace__table-title > div { flex:0 0 auto; }
 .issues-workspace__add-row { min-height:28px; padding:6px 9px; font-size:11px; }
-.issues-workspace__create-button { min-height:28px; padding:6px 9px; border-radius:6px; font-size:11px; }
+.issues-workspace__create-button { min-height:28px; padding:6px 9px; border:1px solid #515151; border-radius:6px; color:#e8e8e8; background:#303030; font:inherit; font-size:11px; cursor:pointer; }
+.issues-workspace__create-button:hover { border-color:#5a5a60; color:#fff; background:#1b1b1e; }
 .issues-workspace__add-row svg { width:14px; height:14px; }
 .issues-workspace__grid { min-height:0; }
 .issues-workspace__grid .configurable-data-grid { border:0; border-radius:0; }
