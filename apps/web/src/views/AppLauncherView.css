@@ -111,6 +111,77 @@ html[data-theme] .app-launcher .app-launcher-folder-icon__glyph .ke-icon {
   stroke-width: 1.9;
 }
 
+.app-launcher-folder-icon__glyph > .ke-icon {
+  width: 44px;
+  height: 44px;
+}
+
+.app-launcher-context-backdrop {
+  position: fixed;
+  z-index: 110;
+  inset: 0;
+}
+
+.app-launcher-context {
+  position: fixed;
+  width: 278px;
+  padding: 16px;
+  border: 1px solid #3c3c42;
+  border-radius: 16px;
+  color: #ededf0;
+  background: #1a1a1d;
+  box-shadow: 0 18px 50px rgba(0,0,0,.52);
+}
+
+.app-launcher-context label,
+.app-launcher-context legend {
+  color: #a5a5ab;
+  font-size: 12px;
+}
+
+.app-launcher-context label { display: grid; gap: 7px; }
+.app-launcher-context input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  border: 1px solid #404046;
+  border-radius: 8px;
+  outline: none;
+  color: #f0f0f2;
+  background: #101012;
+  font: inherit;
+}
+
+.app-launcher-context input:focus { border-color: #bdbdc4; }
+.app-launcher-context fieldset { margin: 16px 0; padding: 0; border: 0; }
+.app-launcher-context fieldset > div { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 8px; }
+.app-launcher-context fieldset button {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #bfc0c5;
+  background: #242427;
+  cursor: pointer;
+}
+.app-launcher-context fieldset button:hover,
+.app-launcher-context fieldset button.is-selected { border-color: #dedee2; color: #fff; background: #303034; }
+.app-launcher-context fieldset .ke-icon { width: 19px; height: 19px; stroke: currentColor !important; }
+.app-launcher-context footer { display: flex; justify-content: flex-end; gap: 8px; }
+.app-launcher-context footer button {
+  padding: 7px 12px;
+  border: 1px solid #44444a;
+  border-radius: 8px;
+  color: #c8c8ce;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.app-launcher-context footer button[type="submit"] { color: #111113; border-color: #e4e4e8; background: #e4e4e8; }
+
 .app-launcher-folder-backdrop {
   position: fixed;
   z-index: 90;

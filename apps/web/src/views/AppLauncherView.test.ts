@@ -24,3 +24,12 @@ test("应用中心以无表头的大图标桌面呈现", () => {
   assert.match(css, /\.app-launcher-icon/);
   assert.match(css, /\.app-launcher-folder/);
 });
+
+test("右键应用或分组可修改名称并选择图标", () => {
+  assert.match(source, /onContextMenu/);
+  assert.match(source, /function LauncherContextMenu/);
+  assert.match(source, /const APPEARANCE_KEY/);
+  assert.match(source, /ICON_NAMES\.map/);
+  assert.doesNotMatch(source, /<small>\{item\.desc\}<\/small>/);
+  assert.match(css, /\.app-launcher-context/);
+});
