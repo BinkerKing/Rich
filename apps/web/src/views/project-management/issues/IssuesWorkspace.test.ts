@@ -51,3 +51,8 @@ test("打开问题表时使用 Univer 编辑器而非旧的配置表格", () => 
   assert.match(source, /<UniverIssueSheet/);
   assert.doesNotMatch(source, /<ConfigurableDataGrid ariaLabel=\{`\$\{active\.title\} 表格`\}/);
 });
+
+test("问题表编辑页只保留标题和可编辑表格，并撑满工作区", () => {
+  assert.doesNotMatch(source, /新增记录|issues-workspace__add-row|listTestCenterCases/);
+  assert.match(styles, /\.issues-workspace--editor\s*\{[^}]*height:100%[^}]*box-sizing:border-box/s);
+});

@@ -11,4 +11,5 @@ test("问题表编辑器使用 Univer 的核心预设和工作簿", () => {
   assert.match(source, /UniverSheetsCorePreset/);
   assert.match(source, /createUniver/);
   assert.match(source, /createWorkbook/);
+  assert.match(source, /header: false, toolbar: false, formulaBar: false/);
 });

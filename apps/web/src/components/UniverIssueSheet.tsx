@@ -69,7 +69,7 @@ export function UniverIssueSheet({ tableId, tableName, issues, onIssueChange }: 
       locale: LocaleType.ZH_CN,
       locales: { [LocaleType.ZH_CN]: mergeLocales(UniverSheetsCoreZhCN) },
       darkMode: true,
-      presets: [UniverSheetsCorePreset({ container, ribbonType: "classic", formulaBar: true })],
+      presets: [UniverSheetsCorePreset({ container, header: false, toolbar: false, formulaBar: false })],
     });
     const workbook = univerAPI.createWorkbook({
       id: `issue-table-${tableId}`,
