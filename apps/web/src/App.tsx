@@ -25,6 +25,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import { CommandPalette } from "./components/CommandPalette.js";
 import { MascotDock } from "./components/MascotDock.js";
 import { FloatingTaskDock } from "./components/FloatingTaskDock.js";
+import { RichControlCenter, type RichLayoutMode } from "./components/RichControlCenter.js";
 import { closeDeliverableCodex, DeliverableCodexLauncher } from "./views/project-management/deliverables/DeliverableCodexLauncher.js";
 import { connectServerEvents } from "./lib/serverEvents.js";
 import { RICH_NAV_EVENT, RICH_NAV_STORAGE_KEY, type RichNavigationPayload } from "./lib/richNavigation.js";
@@ -59,6 +60,10 @@ export function App() {
 }
 
 function MainApp() {
+  const [controlCenterOpen, setControlCenterOpen] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<RichLayoutMode>(() =>
+    window.localStorage.getItem("rich-layout-mode") === "pad" ? "pad" : "desktop",
+  );
   const appView = useStore(s => s.appView);
   const rootId = useStore(s => s.rootId);
   const hydrate = useStore(s => s.hydrate);
@@ -83,6 +88,23 @@ function MainApp() {
   // Subscribe to backend SSE so Hermes-driven (or any server-side) writes
   // re-hydrate the UI within ~500ms. Closed on unmount.
   useEffect(() => connectServerEvents(), []);
+
+  useEffect(() => {
+    document.documentElement.dataset.richLayout = layoutMode;
+    window.localStorage.setItem("rich-layout-mode", layoutMode);
+  }, [layoutMode]);
+
+  useEffect(() => {
+    const toggleControlCenter = () => setControlCenterOpen(open => !open);
+    window.addEventListener("rich:toggle-control-center", toggleControlCenter);
+    return () => window.removeEventListener("rich:toggle-control-center", toggleControlCenter);
+  }, []);
+
+  const changeLayoutMode = (mode: RichLayoutMode) => {
+    setLayoutMode(mode);
+    (window as Window & { richWindow?: { setLayoutMode?: (nextMode: RichLayoutMode) => void } })
+      .richWindow?.setLayoutMode?.(mode);
+  };
 
   useEffect(() => {
       const validViews = new Set(["home", "apps", "tree", "admin", "news", "mindmap", "deepWorkbench", "flowcharts", "deliverables", "greatme", "toolbox", "practice", "taskWorkbench", "health", "projects", "rikingProjects"]);
@@ -239,6 +261,7 @@ function MainApp() {
       <Lightbox />
       <CommandPalette />
       <DeliverableCodexLauncher />
+      {controlCenterOpen && <RichControlCenter mode={layoutMode} onClose={() => setControlCenterOpen(false)} onModeChange={changeLayoutMode} />}
       {appView === "home" && (
         <>
           <MascotDock />

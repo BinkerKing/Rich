@@ -326,16 +326,29 @@ async function bootServer(port: number) {
 }
 
 // ----- Step 4: Window ----------------------------------------------------
+type WindowLayoutMode = "desktop" | "pad";
 type MainWindowState = {
   bounds: Electron.Rectangle;
   maximized: boolean;
   dockedSide?: EdgeDockSide;
   dockedCollapsed?: boolean;
+  layoutMode?: WindowLayoutMode;
+  desktopBounds?: Electron.Rectangle;
 };
 const MAIN_WINDOW_WIDTH = 1480;
 const MAIN_WINDOW_HEIGHT = 920;
 const MAIN_WINDOW_MIN_WIDTH = 1100;
 const MAIN_WINDOW_MIN_HEIGHT = 700;
+const PAD_WINDOW_WIDTH = 860;
+const PAD_WINDOW_HEIGHT = 660;
+const PAD_WINDOW_MIN_WIDTH = 720;
+const PAD_WINDOW_MIN_HEIGHT = 540;
+
+function windowMinimums(mode: WindowLayoutMode) {
+  return mode === "pad"
+    ? { width: PAD_WINDOW_MIN_WIDTH, height: PAD_WINDOW_MIN_HEIGHT }
+    : { width: MAIN_WINDOW_MIN_WIDTH, height: MAIN_WINDOW_MIN_HEIGHT };
+}
 
 function mainWindowStatePath(): string {
   return join(userDataDir(), "window-state.json");
@@ -346,10 +359,12 @@ function restoreMainWindowState(): MainWindowState | null {
     const saved = JSON.parse(readFileSync(mainWindowStatePath(), "utf8")) as Partial<MainWindowState>;
     const bounds = saved.bounds;
     if (!bounds || ![bounds.x, bounds.y, bounds.width, bounds.height].every(Number.isFinite)) return null;
+    const layoutMode: WindowLayoutMode = saved.layoutMode === "pad" ? "pad" : "desktop";
+    const minimums = windowMinimums(layoutMode);
     const display = screen.getDisplayMatching(bounds);
     const workArea = display.workArea;
-    const width = Math.min(Math.max(MAIN_WINDOW_MIN_WIDTH, bounds.width), workArea.width);
-    const height = Math.min(Math.max(MAIN_WINDOW_MIN_HEIGHT, bounds.height), workArea.height);
+    const width = Math.min(Math.max(minimums.width, bounds.width), workArea.width);
+    const height = Math.min(Math.max(minimums.height, bounds.height), workArea.height);
     const dockedSide: EdgeDockSide | undefined = saved.dockedSide === "left" || saved.dockedSide === "right"
       ? saved.dockedSide
       : undefined;
@@ -365,6 +380,10 @@ function restoreMainWindowState(): MainWindowState | null {
         height,
       },
       maximized: saved.maximized === true,
+      layoutMode,
+      ...(saved.desktopBounds && [saved.desktopBounds.x, saved.desktopBounds.y, saved.desktopBounds.width, saved.desktopBounds.height].every(Number.isFinite)
+        ? { desktopBounds: saved.desktopBounds }
+        : {}),
       ...(dockedSide ? { dockedSide, dockedCollapsed: saved.dockedCollapsed === true } : {}),
     };
   } catch {
@@ -380,6 +399,8 @@ function saveMainWindowState(win: BrowserWindow): void {
     const state: MainWindowState = {
       bounds,
       maximized: win.isMaximized(),
+      layoutMode: richWindowLayoutMode,
+      ...(richDesktopBounds ? { desktopBounds: richDesktopBounds } : {}),
       ...(!win.isMaximized() && edgeDockState
         ? { dockedSide: edgeDockState.side, dockedCollapsed: edgeDockIsCollapsed }
         : {}),
@@ -411,11 +432,14 @@ function setupMainWindowStatePersistence(win: BrowserWindow): void {
 async function openMainWindow(port: number): Promise<BrowserWindow> {
   const icon = appIconPath();
   const savedState = restoreMainWindowState();
+  richWindowLayoutMode = savedState?.layoutMode ?? "desktop";
+  richDesktopBounds = savedState?.desktopBounds ?? null;
+  const minimums = windowMinimums(richWindowLayoutMode);
   const win = new BrowserWindow({
     width: savedState?.bounds.width ?? MAIN_WINDOW_WIDTH,
     height: savedState?.bounds.height ?? MAIN_WINDOW_HEIGHT,
-    minWidth: MAIN_WINDOW_MIN_WIDTH,
-    minHeight: MAIN_WINDOW_MIN_HEIGHT,
+    minWidth: minimums.width,
+    minHeight: minimums.height,
     ...(savedState ? { x: savedState.bounds.x, y: savedState.bounds.y } : {}),
     title: "Rich",
     backgroundColor: "#09090a",
@@ -461,7 +485,12 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
   const onToggleMaximize = (event: Electron.IpcMainEvent) => {
     if (event.sender === win.webContents) toggleWindowMaximize(win);
   };
+  const onSetLayoutMode = (event: Electron.IpcMainEvent, mode: unknown) => {
+    if (event.sender !== win.webContents || (mode !== "desktop" && mode !== "pad")) return;
+    setRichWindowLayoutMode(win, mode);
+  };
   ipcMain.on("rich-window:toggle-maximize", onToggleMaximize);
+  ipcMain.on("rich-window:set-layout-mode", onSetLayoutMode);
   const exportDeliveryPlan = async (event: Electron.IpcMainInvokeEvent, payload: unknown) => {
     if (event.sender !== win.webContents || !payload || typeof payload !== "object") return false;
     const value = payload as { gantt?: unknown; tableRows?: unknown; filename?: unknown };
@@ -621,6 +650,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
   ipcMain.handle("rich-delivery-plan:export", exportDeliveryPlan);
   win.on("closed", () => {
     ipcMain.removeListener("rich-window:toggle-maximize", onToggleMaximize);
+    ipcMain.removeListener("rich-window:set-layout-mode", onSetLayoutMode);
     ipcMain.removeHandler("rich-delivery-plan:export");
     if (mainWindow === win) mainWindow = null;
   });
@@ -880,6 +910,12 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
       event.preventDefault();
       return;
     }
+    if (input.shift && (input.meta || input.control) && (input.code === "KeyP" || input.key.toLowerCase() === "p")) {
+      win.webContents.executeJavaScript("window.dispatchEvent(new Event('rich:toggle-control-center'))")
+        .catch(() => { /* renderer can be navigating */ });
+      event.preventDefault();
+      return;
+    }
     if (!input.shift && (input.meta || input.control) && (input.code === "Space" || input.key === " ")) {
       openDeliverableCodex(win);
       event.preventDefault();
@@ -970,6 +1006,37 @@ let edgeDockCursorPoller: NodeJS.Timeout | null = null;
 let edgeDockIsCollapsed = false;
 let edgeDockIsAnimating = false;
 let edgeDockAnimationTimer: NodeJS.Timeout | null = null;
+let richWindowLayoutMode: WindowLayoutMode = "desktop";
+let richDesktopBounds: Electron.Rectangle | null = null;
+
+function setRichWindowLayoutMode(win: BrowserWindow, mode: WindowLayoutMode): void {
+  if (win.isDestroyed() || richWindowLayoutMode === mode) return;
+
+  if (mode === "pad") {
+    richDesktopBounds = win.getNormalBounds();
+    if (win.isMaximized()) win.unmaximize();
+    edgeDockState = null;
+    edgeDockIsCollapsed = false;
+    hideEdgeDockGlow();
+    richWindowLayoutMode = mode;
+    win.setMinimumSize(PAD_WINDOW_MIN_WIDTH, PAD_WINDOW_MIN_HEIGHT);
+    const current = win.getBounds();
+    const workArea = screen.getDisplayNearestPoint({ x: current.x, y: current.y }).workArea;
+    const width = Math.min(PAD_WINDOW_WIDTH, workArea.width);
+    const height = Math.min(PAD_WINDOW_HEIGHT, workArea.height);
+    win.setBounds({
+      x: Math.round(workArea.x + (workArea.width - width) / 2),
+      y: Math.round(workArea.y + (workArea.height - height) / 2),
+      width,
+      height,
+    });
+  } else {
+    richWindowLayoutMode = mode;
+    win.setMinimumSize(MAIN_WINDOW_MIN_WIDTH, MAIN_WINDOW_MIN_HEIGHT);
+    if (richDesktopBounds) win.setBounds(richDesktopBounds);
+  }
+  saveMainWindowState(win);
+}
 
 function pointIsInsideBounds(point: Electron.Point, bounds: Electron.Rectangle): boolean {
   return point.x >= bounds.x && point.x < bounds.x + bounds.width
