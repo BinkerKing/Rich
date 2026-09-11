@@ -11396,7 +11396,7 @@
 .prj-ws .deliverables-workspace__list { margin-top:8px; }
 .prj-ws .deliverables-workspace > header > .deliverables-workspace__bind { min-height:28px; padding:6px 9px; border:1px solid #515151; border-radius:6px; color:#e8e8e8; background:#303030; font:inherit; font-size:11px; cursor:pointer; }
 .prj-ws .deliverables-workspace > header > .deliverables-workspace__bind:hover { border-color:#5a5a60; color:#fff; background:#1b1b1e; }
-.prj-ws .deliverables-workspace > header > .project-create-action,.prj-ws .issues-workspace > header > .project-create-action { box-sizing:border-box; display:inline-block; min-height:28px; padding:8px 10px; border:1px solid #515151; border-radius:6px; color:#e8e8e8; background:#303030; font:inherit; font-size:11px; line-height:normal; cursor:pointer; }
+.prj-ws .deliverables-workspace > header > .project-create-action,.prj-ws .issues-workspace > header > .project-create-action { box-sizing:border-box; display:inline-block; min-height:28px; padding:8px 10px; border:1px solid #515151; border-radius:6px; color:#e8e8e8; background:#303030; font:inherit; font-size:14px; line-height:normal; cursor:pointer; }
 .prj-ws .project-create-action:hover:not(:disabled) { border-color:#5a5a60; color:#fff; background:#1b1b1e; }
 .prj-ws .deliverables-workspace__list-index { display:grid; flex:0 0 30px; width:30px; height:30px; box-sizing:border-box; place-items:center; border:1px solid #666; border-radius:6px; color:#b6b6b6; background:transparent; font-size:12px; font-weight:750; line-height:1; transition:border-color .16s ease,color .16s ease; }
 .prj-ws .deliverables-workspace__row:hover .deliverables-workspace__list-index { border-color:#f1f1f1; color:#fff; }
