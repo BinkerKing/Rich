@@ -6,6 +6,7 @@ test("项目管理内的流程图清单有紧凑标题头和交付物式列表�
   assert.match(source, /<h1>项目流程图<\/h1>/);
   assert.match(styles, /\.pfc-project-header\s*\{[^}]*min-height:42px/s);
   assert.match(styles, /\.pfc--embedded:not\(:has\(\.pfc-task\.is-expanded\)\) \.pfc-task\s*\{[^}]*min-height:72px[^}]*background:#252525/s);
+  assert.doesNotMatch(source, /!standalone && <button aria-label="创建流程图任务"/);
 });
 
 const source = readFileSync(new URL("./FlowchartsWorkspace.tsx", import.meta.url), "utf8");

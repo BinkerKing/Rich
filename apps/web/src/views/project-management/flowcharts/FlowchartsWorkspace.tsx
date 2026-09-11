@@ -382,7 +382,6 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
           <button aria-label="任务设置" title="任务设置" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(value => !value)}>⋯</button>
           {isFullscreen && <button className="pfc-back-to-list" aria-label="返回流程图清单" title="返回流程图清单" onClick={() => { setExpanded(false); setSettingsOpen(false); }}>←</button>}
         </>}
-        {!standalone && <button aria-label="创建流程图任务" title="创建流程图任务" disabled={busy} onClick={() => setCreating(true)}>＋</button>}
       </header>
       {active === item.id && expanded && graph && <div className="pfc-editor" id={`pfc-chart-${item.id}`} style={busy ? { pointerEvents: "none", opacity: 0.7 } : undefined}>
         {settingsOpen && <fieldset disabled={busy} className="pfc-settings">
