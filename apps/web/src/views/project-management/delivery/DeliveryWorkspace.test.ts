@@ -101,6 +101,19 @@ test("驾驶舱压缩顶部栏并扩大贴边工作区", () => {
   assert.match(styles, /\.delivery-dashboard-grid \{[^}]*padding:8px/s);
 });
 
+test("动态类型选择器使用无箭头的自适应抽屉，并为每种类型保留语义色", () => {
+  assert.match(source, /function ActivityKindDrawer\(/);
+  assert.match(source, /createPortal\(/);
+  assert.match(source, /spaceBelow >= drawerHeight \|\| spaceBelow >= spaceAbove \? "down" : "up"/);
+  assert.match(source, /className=\{`delivery-activity-kind__drawer opens-\$\{direction\}`\}/);
+  const dashboardTask = source.slice(source.indexOf("function DashboardTask"), source.indexOf("function EditableActivityText"));
+  assert.match(dashboardTask, /<ActivityKindDrawer value=\{activityKind\} onChange=\{onKindChange\}\/>/);
+  assert.doesNotMatch(dashboardTask, /<select/);
+  assert.match(styles, /\.delivery-activity-kind__trigger \{/);
+  assert.match(styles, /\.delivery-activity-kind__drawer\.opens-up \{[^}]*transform-origin:bottom/);
+  assert.match(styles, /\.delivery-activity-kind__drawer button\.is-risk \{[^}]*--kind-color:#fb7185/);
+});
+
 test("进行中的任务不会被未完成的旧结束动态归档", () => {
   assert.match(source, /const endedOn = status === "done" \? activities\.filter\(activity => activity\.kind === "end"\)/);
 });
