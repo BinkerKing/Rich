@@ -180,11 +180,13 @@ test("当天关闭的风险仍显示在风险提醒中并带删除线", () => {
   assert.match(styles, /\.delivery-dashboard-summary__risk\.is-done span \{ text-decoration:line-through;/);
 });
 
-test("驾驶舱用彩色加粗线条提示临期和逾期任务，不使用高亮底色", () => {
+test("驾驶舱仅将逾期作为彩色边框通知，其他截止状态只显示加粗文字", () => {
   assert.match(source, /days !== undefined && days < 0 \? "is-overdue"/);
+  assert.match(styles, /\.delivery-dashboard-task__head time \{[^}]*border:0/s);
+  assert.match(styles, /\.delivery-dashboard-task__head time\.is-critical \{[^}]*border:0[^}]*font-weight:800/s);
   assert.match(styles, /\.delivery-dashboard-task__head time\.is-overdue \{[^}]*font-weight:800/);
-  assert.match(styles, /\.delivery-dashboard-task__head time\.is-overdue \{[^}]*border-bottom:3px solid currentColor[^}]*background:transparent/);
-  assert.doesNotMatch(styles, /delivery-overdue-pulse|background:linear-gradient\(135deg,#ff4d6d,#ff8a00\)/);
+  assert.match(styles, /\.delivery-dashboard-task__head time\.is-overdue \{[^}]*border:2px solid currentColor[^}]*background:transparent/);
+  assert.doesNotMatch(styles, /border-bottom:3px solid currentColor|delivery-overdue-pulse|background:linear-gradient\(135deg,#ff4d6d,#ff8a00\)/);
 });
 
 test("发布结束动态后，任务当天显示已结束、次日从驾驶舱隐藏", () => {
