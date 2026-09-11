@@ -19,8 +19,10 @@ test("项目管理内容区使用统一石墨灰底色，并通过边框分隔�
   assert.match(styles, /\.prj-ws__body\s*\{\s*background:\s*var\(--pm-page\)/);
 });
 
-test("项目名称固定在工作区左上角，并可双击编辑", () => {
-  assert.match(styles, /\.prj-ws__project-title\s*\{[^}]*top:\s*7px[^}]*left:\s*12px[^}]*transform:\s*none/s);
+test("项目名称与导航按钮使用统一的顶部左侧对齐线，并可双击编辑", () => {
+  assert.match(styles, /\.prj-ws__head\s*\{[^}]*padding:\s*40px 28px 6px 40px/s);
+  assert.match(styles, /\.prj-ws__project-title\s*\{[^}]*top:\s*12px[^}]*left:\s*40px[^}]*transform:\s*none/s);
+  assert.match(styles, /\.prj-ws__menu-settings\s*\{[^}]*top:\s*8px[^}]*right:\s*20px/s);
   assert.match(workspace, /startEditingProjectTitle\(\)/);
   assert.match(workspace, /await api\.patchElement\(project\.id, \{ title: nextTitle \}\)/);
 });

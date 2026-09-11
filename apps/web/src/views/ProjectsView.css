@@ -267,7 +267,7 @@
   grid-template-columns: minmax(0, 1fr);
   align-items: end;
   min-height: 92px;
-  padding: 32px 12px 6px;
+  padding: 40px 28px 6px 40px;
   border-bottom: 1px solid rgba(255, 255, 255, .16);
   margin-bottom: 12px;
   -webkit-app-region: drag;
@@ -291,8 +291,8 @@
 }
 .prj-ws__project-title {
   position: absolute;
-  top: 7px;
-  left: 12px;
+  top: 12px;
+  left: 40px;
   transform: none;
   display: flex;
   align-items: center;
@@ -384,8 +384,8 @@
 .prj-ws__menu-settings {
   -webkit-app-region: no-drag;
   position: absolute;
-  top: 0;
-  right: 6px;
+  top: 8px;
+  right: 20px;
   width: 44px;
   height: 44px;
   border: 1px solid transparent;
@@ -400,8 +400,8 @@
 .prj-ws__menu-panel {
   -webkit-app-region: no-drag;
   position: absolute;
-  top: 43px;
-  right: 12px;
+  top: 60px;
+  right: 20px;
   z-index: 260;
   width: 236px;
   padding: 10px;
