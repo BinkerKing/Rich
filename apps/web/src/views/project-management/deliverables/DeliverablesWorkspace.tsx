@@ -609,7 +609,6 @@ export function DeliverablesWorkspace({
     <section className={`deliverables-workspace${standalone ? " deliverables-workspace--standalone" : ""}${openId && !standalone ? " is-open" : ""}`}>
       {(!openId || standalone) && <header>
         <div>
-          {!standalone && <p className="deliverables-workspace__eyebrow">PROJECT OUTPUTS</p>}
           <h1>{standalone ? "把每一项成果，沉淀成可复用的交付。" : "交付物"}</h1>
           {!standalone && <p>由项目任务自动关联的可追溯交付记录。</p>}
         </div>
