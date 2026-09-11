@@ -59,7 +59,9 @@ test("项目内打开交付物后隐藏列表标题，并使用全尺寸工作�
   assert.match(deliverables, /deliverables-workspace\$\{standalone \? " deliverables-workspace--standalone" : ""\}\$\{openId && !standalone \? " is-open" : ""\}/);
   assert.match(deliverables, /\{\(!openId \|\| standalone\) && <header>/);
   assert.match(styles, /\.prj-ws \.deliverables-workspace:not\(\.deliverables-workspace--standalone\)\.is-open \{ padding:0; overflow:hidden; \}/);
-  assert.match(styles, /\.deliverables-workspace__detail-title::before \{ content:"←"/);
+  assert.match(deliverables, /deliverables-workspace__detail-title[\s\S]*?<DeliverableListIcon name="link"\s*\/>\s*<span>绑定已有交付物<\/span>/);
+  assert.match(deliverables, /event\.stopPropagation\(\); void openBinding\(\)/);
+  assert.doesNotMatch(styles, /deliverables-workspace__detail-title::before \{ content:"←"/);
 });
 
 test("独立交付物详情覆盖整个视口，不继承列表卡片的固定高度", () => {

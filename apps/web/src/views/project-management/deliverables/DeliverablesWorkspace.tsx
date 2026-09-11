@@ -667,6 +667,7 @@ export function DeliverablesWorkspace({
                 }}
               >
                 <strong>{item.title}</strong>
+                {!standalone && onDeliverableIdsChange && <button className="deliverables-workspace__bind" type="button" onClick={(event) => { event.stopPropagation(); void openBinding(); }}><DeliverableListIcon name="link" /><span>绑定已有交付物</span></button>}
               </header>
             ) : (
               <button
