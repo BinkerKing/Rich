@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
+test("问题清单标题头行采用紧凑高度", () => {
+  assert.match(styles, /\.issues-workspace\s*\{[^}]*gap:8px[^}]*padding:8px 12px 12px/s);
+  assert.match(styles, /\.issues-workspace > header\s*\{[^}]*min-height:42px/s);
+});
+
 const source = readFileSync(new URL("./IssuesWorkspace.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("./IssuesWorkspace.css", import.meta.url), "utf8");
 

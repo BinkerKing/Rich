@@ -11393,6 +11393,24 @@
 .delivery-dashboard-composer > div:not(.delivery-activity-kind):focus-within { border-color:rgba(148,163,184,.72); }
 .delivery-dashboard-composer input::placeholder { color:#9ca3af; }
 
+/* Compact the vertical title rows in the standalone project workspaces. */
+.prj-ws .deliverables-workspace { padding:8px 12px 12px; }
+.prj-ws .deliverables-workspace > header { min-height:42px; gap:10px; }
+.prj-ws .deliverables-workspace > header h1 { font-size:18px; }
+.prj-ws .deliverables-workspace > header p { margin:2px 0 0; font-size:11px; }
+.prj-ws .deliverables-workspace > header > button { padding:6px 9px; font-size:11px; }
+.prj-ws .deliverables-workspace__list { margin-top:8px; }
+.prj-ws .reports-workspace { padding:8px 12px 12px; }
+.prj-ws .reports-workspace__header { min-height:42px; gap:10px; }
+.prj-ws .reports-workspace__header p { margin:0 0 2px; font-size:10px; }
+.prj-ws .reports-workspace__header h1 { font-size:18px; }
+.prj-ws .reports-workspace__header small { font-size:11px; }
+.prj-ws .reports-workspace__header > button { padding:6px 9px; font-size:11px; }
+.prj-ws .reports-workspace__layout { min-height:calc(100% - 58px); margin-top:8px; gap:12px; }
+.prj-ws .reports-workspace__date-head { gap:9px; padding:4px 0 8px; }
+.prj-ws .reports-workspace__date-head h2 { font-size:22px; }
+.prj-ws .reports-workspace__date-head span { font-size:11px; }
+
 /* Project workspaces share the dashboard's compact top rhythm. */
 .prj-ws .delivery { padding:8px 12px 14px; }
 .prj-ws .delivery__header { gap:12px; min-height:42px; margin-bottom:8px; }

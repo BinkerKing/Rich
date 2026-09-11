@@ -39,6 +39,12 @@ test("项目管理各模块的标题操作区采用驾驶舱式紧凑行距", ()
   assert.match(styles, /\.prj-ws :is\(\.prj-pm-dict__hero,[^}]*min-height:58px[^}]*padding:10px 12px/s);
 });
 
+test("交付物与报告的标题头行压缩纵向高度", () => {
+  assert.match(styles, /\.prj-ws \.deliverables-workspace > header\s*\{[^}]*min-height:42px/s);
+  assert.match(styles, /\.prj-ws \.reports-workspace__header\s*\{[^}]*min-height:42px/s);
+  assert.match(styles, /\.prj-ws \.reports-workspace__layout\s*\{[^}]*margin-top:8px/s);
+});
+
 test("项目菜单使用统一的无底色线条图标", () => {
   assert.match(workspace, /function ProjectMenuIcon\(/);
   assert.match(workspace, /<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"/);
