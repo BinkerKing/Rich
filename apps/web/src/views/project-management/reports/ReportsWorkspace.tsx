@@ -26,6 +26,10 @@ const listText = (items: string[]) => items.join("\n");
 const listValue = (value: unknown) => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 const activityLabel = (kind: DeliveryActivityKind) => ({ record: "记录", todo: "待办", deliverable: "交付物", risk: "风险", reminder: "催办", end: "结束" } as const)[kind];
 
+function ReportActionIcon() {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v5h5M9 13h6M9 17h6" /></svg>;
+}
+
 function todayWorkItems(items: ProjectModuleItem[], date: string): TodayWorkItem[] {
   return items.flatMap(item => {
     if (item.content.kind !== "task" || !Array.isArray(item.content.activities)) return [];
@@ -138,7 +142,7 @@ export function ReportsWorkspace({ projectId }: { projectId: string }) {
   return <section className="reports-workspace">
     <header className="reports-workspace__header">
       <div><p>PROJECT REPORTS</p><h1>报告中心</h1><small>日报、周报、月报与会议纪要，统一沉淀为可阅读、可追溯的项目记录。</small></div>
-      <button type="button" onClick={() => void createReport()} disabled={busy}>+ 新建报告</button>
+      <button className="reports-workspace__create" type="button" onClick={() => void createReport()} disabled={busy}><ReportActionIcon /><span>新建报告</span></button>
     </header>
     {error && <p className="reports-workspace__error">{error}</p>}
     <div className="reports-workspace__layout">
