@@ -8,8 +8,9 @@ test("问题清单标题头行采用紧凑高度", () => {
 });
 
 test("问题清单的列表行采用交付物式紧凑中性卡片", () => {
-  assert.match(styles, /\.issues-workspace__list > button\s*\{[^}]*min-height:72px[^}]*border-color:#424242[^}]*background:#252525/s);
-  assert.match(styles, /\.issues-workspace__list > button:hover\s*\{[^}]*box-shadow:inset 3px 0 #65d1d8/s);
+  assert.match(styles, /\.issues-workspace__list > button\s*\{[^}]*min-height:62px[^}]*padding:15px[^}]*border-color:#424242[^}]*background:#252525[^}]*box-shadow:inset 0 1px rgba\(255,255,255,.025\)/s);
+  assert.match(styles, /\.issues-workspace__list-index\s*\{[^}]*width:30px[^}]*height:30px[^}]*border:1px solid #666[^}]*font-size:12px/s);
+  assert.match(styles, /\.issues-workspace__list > button:hover\s*\{[^}]*border-color:#424242[^}]*background:#303030[^}]*box-shadow:none/s);
 });
 
 const source = readFileSync(new URL("./IssuesWorkspace.tsx", import.meta.url), "utf8");
@@ -29,10 +30,11 @@ test("问题清单操作按钮采用工作台统一的紧凑描边样式", () =>
 });
 
 test("问题表列表与交付物一致，并可从标题行返回列表", () => {
-  assert.match(source, /issues-workspace__list-icon[\s\S]*?<IssueListIcon\s*\/>/);
+  assert.match(source, /tables\.map\(\(table, index\)[\s\S]*?issues-workspace__list-index[\s\S]*?String\(index \+ 1\)\.padStart\(2, "0"\)[\s\S]*?<strong>\{table\.title\}<\/strong>/);
+  assert.doesNotMatch(source, /issues-workspace__list-copy|问题表 · \{issues\.length\} 条记录/);
   assert.match(source, /aria-label="返回问题清单"[\s\S]*?setActiveId\(""\)/);
   assert.doesNotMatch(source, /<i>打开 →<\/i>/);
-  assert.match(styles, /\.issues-workspace__list-copy strong\s*\{[^}]*color:#eef2f3[^}]*font-size:14px/s);
+  assert.match(styles, /\.issues-workspace__list > button > strong\s*\{[^}]*color:#eef6ff[^}]*font-size:14px/s);
   assert.match(styles, /\.issues-workspace__table-title > button::before\s*\{[^}]*content:none/s);
 });
 
