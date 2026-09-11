@@ -4,7 +4,7 @@ import test from "node:test";
 test("项目管理内的流程图清单有紧凑标题头和交付物式列表行", () => {
   assert.match(source, /embedded && !expanded && <header className="pfc-project-header">/);
   assert.match(source, /<h1>项目流程图<\/h1>/);
-  assert.match(source, /<button className="project-create-action" type="button" disabled=\{busy \|\| !loaded\}/);
+  assert.match(source, /<button type="button" disabled=\{busy \|\| !loaded\} onClick=\{\(\) => setCreating\(true\)\}>＋ 新建流程图<\/button>/);
   assert.match(styles, /\.pfc-project-header\s*\{[^}]*min-height:42px/s);
   assert.match(styles, /\.pfc--embedded:not\(:has\(\.pfc-task\.is-expanded\)\) \.pfc-task\s*\{[^}]*min-height:52px[^}]*background:#252525/s);
   assert.match(styles, /\.pfc--embedded:not\(:has\(\.pfc-task\.is-expanded\)\) \.pfc-task:hover\s*\{[^}]*border-color:#424242[^}]*background:#303030[^}]*box-shadow:none/s);

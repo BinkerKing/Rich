@@ -96,7 +96,7 @@ test("交付物详情将操作收进标题行图标栏，绑定按钮仅在列�
   assert.doesNotMatch(deliverables, />Codex 对话<|>只保留最新<|>版本控制<|>打开文件夹<|>解除项目绑定</);
   assert.match(styles, /\.deliverables-workspace__title-action[^}]*width:28px[^}]*height:28px[^}]*border:1px solid #515151/s);
   assert.match(styles, /\.deliverables-workspace > header > \.deliverables-workspace__bind\s*\{[^}]*min-height:28px[^}]*padding:6px 9px[^}]*border:1px solid #515151[^}]*background:#303030[^}]*font-size:11px/s);
-  assert.match(styles, /\.project-create-action\s*\{[^}]*box-sizing:border-box[^}]*height:30px[^}]*min-height:30px[^}]*padding:0 9px[^}]*line-height:1/s);
+  assert.match(styles, /\.project-create-action\s*\{[^}]*min-height:28px[^}]*padding:6px 9px[^}]*border:1px solid #515151[^}]*border-radius:6px[^}]*background:#303030[^}]*font-size:11px/s);
 });
 
 test("独立交付物记录编辑区不会因左右边距裁掉发布按钮", () => {
