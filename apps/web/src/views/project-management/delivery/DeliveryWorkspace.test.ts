@@ -111,7 +111,10 @@ test("动态类型选择器使用无箭头的自适应抽屉，并为每种类�
   assert.match(dashboardTask, /<ActivityKindDrawer value=\{activityKind\} onChange=\{onKindChange\}\/>/);
   assert.doesNotMatch(dashboardTask, /<select/);
   assert.match(styles, /\.delivery-activity-kind__trigger \{/);
+  assert.match(styles, /\.delivery-activity-kind__trigger \{[^}]*justify-content:center[^}]*border:2px solid var\(--kind-color\)[^}]*background:transparent[^}]*font:800/s);
   assert.match(styles, /\.delivery-activity-kind__drawer\.opens-up \{[^}]*transform-origin:bottom/);
+  assert.match(styles, /\.delivery-activity-kind__drawer button \{[^}]*justify-content:center[^}]*border:2px solid var\(--kind-color\)[^}]*font:800[^}]*text-align:center/s);
+  assert.match(styles, /\.delivery-activity-kind__drawer button i \{[^}]*position:absolute/);
   assert.match(styles, /\.delivery-activity-kind__drawer button\.is-risk \{[^}]*--kind-color:#fb7185/);
 });
 
