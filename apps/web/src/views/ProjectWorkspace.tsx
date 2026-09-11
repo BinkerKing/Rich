@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type WheelEvent as ReactWheelEvent } from "react";
 import type { DeploymentStepContent, Element, ProjectContent } from "@ke/domain";
 import { useStore } from "../state/store.js";
 import {
@@ -88,6 +88,9 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const [isEditingProjectTitle, setIsEditingProjectTitle] = useState(false);
   const [projectTitleDraft, setProjectTitleDraft] = useState("");
   const workspaceHeaderRef = useRef<HTMLElement | null>(null);
+  const menuNavRef = useRef<HTMLElement | null>(null);
+  const menuNavDragRef = useRef<{ pointerId: number; startX: number; startScrollLeft: number } | null>(null);
+  const menuNavSkipClickRef = useRef(false);
   const searchButtonRef = useRef<HTMLButtonElement | null>(null);
   const menuSettingsButtonRef = useRef<HTMLButtonElement | null>(null);
   const menuSettingsPanelRef = useRef<HTMLElement | null>(null);
@@ -95,6 +98,40 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
     setSection(next);
     saveProjectManagementWorkspaceSection(projectId, next);
   }, [projectId]);
+  const startMenuNavDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    const nav = event.currentTarget;
+    if (event.button !== 0 || nav.scrollWidth <= nav.clientWidth) return;
+    menuNavDragRef.current = { pointerId: event.pointerId, startX: event.clientX, startScrollLeft: nav.scrollLeft };
+    nav.setPointerCapture(event.pointerId);
+    nav.classList.add("is-dragging");
+  };
+  const moveMenuNavDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    const drag = menuNavDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const distance = event.clientX - drag.startX;
+    if (Math.abs(distance) > 3) menuNavSkipClickRef.current = true;
+    event.currentTarget.scrollLeft = drag.startScrollLeft - distance;
+  };
+  const endMenuNavDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    const drag = menuNavDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    event.currentTarget.classList.remove("is-dragging");
+    menuNavDragRef.current = null;
+  };
+  const scrollMenuNav = (event: ReactWheelEvent<HTMLElement>) => {
+    const nav = event.currentTarget;
+    if (nav.scrollWidth <= nav.clientWidth) return;
+    const distance = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    if (!distance) return;
+    event.preventDefault();
+    nav.scrollLeft += distance;
+  };
+  const skipMenuNavClick = () => {
+    if (!menuNavSkipClickRef.current) return false;
+    menuNavSkipClickRef.current = false;
+    return true;
+  };
 
   useEffect(() => {
     setSection(loadProjectManagementWorkspaceSection(projectId));
@@ -305,7 +342,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
             ☷
           </button>
         </div>
-        <nav className="prj-ws__nav" role="tablist" aria-label="项目管理菜单">
+        <nav ref={menuNavRef} className="prj-ws__nav" role="tablist" aria-label="项目管理菜单" onPointerDown={startMenuNavDrag} onPointerMove={moveMenuNavDrag} onPointerUp={endMenuNavDrag} onPointerCancel={endMenuNavDrag} onWheel={scrollMenuNav}>
           {visibleSections.map(s => (
             <button key={s.id} type="button" role="tab"
               aria-label={s.label}
@@ -313,7 +350,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
               data-section={s.id}
               aria-selected={section === s.id}
               className={`prj-ws__nav-btn${section === s.id ? " is-active" : ""}${isUnconfigured(s.id) ? " is-unconfigured" : ""}`}
-              onClick={() => selectSection(s.id)}>
+              onClick={() => { if (!skipMenuNavClick()) selectSection(s.id); }}>
               <span className="prj-ws__nav-icon"><ProjectMenuIcon section={s.id}/></span>
               <span className="prj-ws__nav-label">{s.label}</span>
             </button>
@@ -325,7 +362,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
             data-section="globalSearch"
             aria-label="全局搜索"
             title="全局搜索"
-            onClick={toggleSearch}>
+            onClick={() => { if (!skipMenuNavClick()) toggleSearch(); }}>
             <span className="prj-ws__nav-icon"><ProjectMenuIcon section="globalSearch"/></span>
             <span className="prj-ws__nav-label">全局搜索</span>
           </button>}

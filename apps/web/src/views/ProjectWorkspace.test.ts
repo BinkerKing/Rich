@@ -40,6 +40,14 @@ test("项目菜单使用统一的无底色线条图标", () => {
   assert.match(styles, /\.prj-ws__nav-btn\.is-active \{[^}]*border-color:\s*transparent[^}]*background:\s*transparent[^}]*box-shadow:\s*none/s);
 });
 
+test("项目菜单整行支持连续横向拖动与滚轮滚动", () => {
+  assert.match(workspace, /const menuNavRef = useRef<HTMLElement \| null>\(null\)/);
+  assert.match(workspace, /onPointerDown=\{startMenuNavDrag\}[\s\S]*onPointerMove=\{moveMenuNavDrag\}[\s\S]*onWheel=\{scrollMenuNav\}/);
+  assert.match(workspace, /menuNavSkipClickRef\.current/);
+  assert.match(styles, /\.prj-ws__nav\s*\{[^}]*-webkit-app-region:\s*no-drag[^}]*touch-action:\s*pan-y/s);
+  assert.match(styles, /\.prj-ws__nav\.is-dragging\s*\{[^}]*cursor:\s*grabbing/s);
+});
+
 test("作业流程使用明亮的青蓝边框和高对比信息层级", () => {
   assert.match(styles, /\.workflow-step\s*\{[^}]*border:\s*1px solid #287486[^}]*box-shadow:\s*inset 3px 0 #32d2df/s);
   assert.match(styles, /\.workflow-order\s*\{[^}]*border:\s*1px solid #45dce9/s);
