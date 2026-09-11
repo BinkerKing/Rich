@@ -1303,6 +1303,38 @@ function setupRichSummonShortcut(mainWin: BrowserWindow) {
   });
 }
 
+function setupEdgeDockNavigationShortcuts(mainWin: BrowserWindow) {
+  const shortcuts = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
+  let registered = false;
+  const dispatchViewShortcut = (key: string) => {
+    const code = key === "0" ? "Digit0" : `Digit${key}`;
+    const modifier = process.platform === "darwin" ? "metaKey" : "ctrlKey";
+    mainWin.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent("keydown", { key: ${JSON.stringify(key)}, code: ${JSON.stringify(code)}, ${modifier}: true, bubbles: true }))`)
+      .catch(() => { /* renderer may be navigating */ });
+  };
+  const refresh = () => {
+    const shouldRegister = Boolean(edgeDockState && mainWin.isVisible() && !mainWin.isFocused());
+    if (shouldRegister && !registered) {
+      registered = true;
+      for (const key of shortcuts) {
+        const accelerator = `CommandOrControl+${key}`;
+        const ok = globalShortcut.register(accelerator, () => dispatchViewShortcut(key));
+        if (!ok) console.warn(`[ke-desktop] edge dock shortcut ${accelerator} is unavailable`);
+      }
+    } else if (!shouldRegister && registered) {
+      for (const key of shortcuts) globalShortcut.unregister(`CommandOrControl+${key}`);
+      registered = false;
+    }
+  };
+  mainWin.on("show", refresh);
+  mainWin.on("focus", refresh);
+  mainWin.on("blur", () => setTimeout(refresh, 0));
+  mainWin.on("hide", refresh);
+  app.on("will-quit", () => {
+    for (const key of shortcuts) globalShortcut.unregister(`CommandOrControl+${key}`);
+  });
+}
+
 function setupOverlayControls(port: number) {
   overlayPort = port;
   rebuildOverlayWindows();
@@ -1695,6 +1727,7 @@ app.whenReady().then(async () => {
     setupOverlayControls(port);
         setupBreakReminder(port);
         setupRichSummonShortcut(mainWin);
+        setupEdgeDockNavigationShortcuts(mainWin);
         setupChatOverlay(port, mainWin);
     setupTray(mainWin);
     setTimeout(() => ensureDockApplication("startup settled"), 1000);
