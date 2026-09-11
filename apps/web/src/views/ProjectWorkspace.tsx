@@ -90,7 +90,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const workspaceHeaderRef = useRef<HTMLElement | null>(null);
   const menuNavRef = useRef<HTMLElement | null>(null);
   const menuNavInitialProjectRef = useRef<string | null>(null);
-  const menuNavDragRef = useRef<{ pointerId: number; startX: number; startScrollLeft: number } | null>(null);
+  const menuNavDragRef = useRef<{ pointerId: number; startX: number; startScrollLeft: number; dragging: boolean } | null>(null);
   const menuNavSkipClickRef = useRef(false);
   const searchButtonRef = useRef<HTMLButtonElement | null>(null);
   const menuSettingsButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -110,22 +110,26 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const startMenuNavDrag = (event: ReactPointerEvent<HTMLElement>) => {
     const nav = event.currentTarget;
     if (event.button !== 0 || nav.scrollWidth <= nav.clientWidth) return;
-    menuNavDragRef.current = { pointerId: event.pointerId, startX: event.clientX, startScrollLeft: nav.scrollLeft };
+    menuNavDragRef.current = { pointerId: event.pointerId, startX: event.clientX, startScrollLeft: nav.scrollLeft, dragging: false };
     nav.setPointerCapture(event.pointerId);
-    nav.classList.add("is-dragging");
   };
   const moveMenuNavDrag = (event: ReactPointerEvent<HTMLElement>) => {
     const drag = menuNavDragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const distance = event.clientX - drag.startX;
-    if (Math.abs(distance) > 3) menuNavSkipClickRef.current = true;
+    if (!drag.dragging && Math.abs(distance) < 12) return;
+    if (!drag.dragging) {
+      drag.dragging = true;
+      menuNavSkipClickRef.current = true;
+      event.currentTarget.classList.add("is-dragging");
+    }
     event.currentTarget.scrollLeft = drag.startScrollLeft - distance;
   };
   const endMenuNavDrag = (event: ReactPointerEvent<HTMLElement>) => {
     const drag = menuNavDragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    event.currentTarget.classList.remove("is-dragging");
+    if (drag.dragging) event.currentTarget.classList.remove("is-dragging");
     menuNavDragRef.current = null;
   };
   const scrollMenuNav = (event: ReactWheelEvent<HTMLElement>) => {

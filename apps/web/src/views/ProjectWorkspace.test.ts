@@ -44,6 +44,8 @@ test("项目菜单整行支持连续横向拖动与滚轮滚动", () => {
   assert.match(workspace, /const menuNavRef = useRef<HTMLElement \| null>\(null\)/);
   assert.match(workspace, /onPointerDown=\{startMenuNavDrag\}[\s\S]*onPointerMove=\{moveMenuNavDrag\}[\s\S]*onWheel=\{scrollMenuNav\}/);
   assert.match(workspace, /menuNavSkipClickRef\.current/);
+  assert.match(workspace, /dragging: boolean/);
+  assert.match(workspace, /Math\.abs\(distance\) < 12/);
   assert.match(styles, /\.prj-ws__nav\s*\{[^}]*-webkit-app-region:\s*no-drag[^}]*touch-action:\s*pan-y/s);
   assert.match(styles, /\.prj-ws__nav\.is-dragging\s*\{[^}]*cursor:\s*grabbing/s);
 });
