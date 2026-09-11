@@ -125,6 +125,11 @@ test("已选类型按钮与抽屉选项复用同一彩色描边样式", () => {
   assert.match(styles, /\.delivery-activity-kind__option\.is-todo \{ --kind-color:#fbbf24; \}/);
 });
 
+test("动态输入框使用与深灰工作区一致的中性表面色", () => {
+  assert.match(styles, /\.delivery-dashboard-composer > div:not\(\.delivery-activity-kind\) \{[^}]*border:1px solid rgba\(148,163,184,.38\)[^}]*background:#292d32/s);
+  assert.match(styles, /\.delivery-dashboard-composer > div:not\(\.delivery-activity-kind\):focus-within \{[^}]*border-color:rgba\(148,163,184,.72\)/);
+});
+
 test("动态类型从选择器到已创建列表使用同一套彩色边框标签", () => {
   assert.match(source, /className=\{`delivery-activity-kind-chip is-\$\{activity\.kind\}`\}/);
   assert.match(styles, /\.delivery-activity-kind-chip \{[^}]*border:2px solid var\(--kind-color\)[^}]*background:transparent[^}]*font-weight:800/s);
