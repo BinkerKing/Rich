@@ -610,7 +610,7 @@ export function DeliverablesWorkspace({
           {!standalone && <p>由项目任务自动关联的可追溯交付记录。</p>}
         </div>
         {standalone && <button className="deliverables-workspace__primary" type="button" title={creating ? "取消新建交付物" : "新建交付物"} aria-label={creating ? "取消新建交付物" : "新建交付物"} onClick={() => setCreating(value => !value)}>{creating ? "×" : <DeliverableListIcon name="add" />}</button>}
-        {!standalone && onDeliverableIdsChange && <button type="button" onClick={() => void openBinding()}>绑定已有交付物</button>}
+        {!standalone && onDeliverableIdsChange && <button className="deliverables-workspace__bind" type="button" onClick={() => void openBinding()}>绑定已有交付物</button>}
       </header>
       {standalone && creating && <form className="deliverables-workspace__create" onSubmit={event => { event.preventDefault(); void createStandalone(); }}>
         <div className="deliverables-workspace__create-intro"><b>新建交付物</b><span>创建后将绑定到指定目录，后续文件和记录会统一沉淀在这里。</span></div>

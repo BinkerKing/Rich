@@ -67,10 +67,15 @@ test("独立交付物详情点击标题栏收起，不显示返回按钮", () =>
 });
 
 test("绑定已有交付物使用带说明和选择卡片的选择器", () => {
+  assert.match(deliverables, /className="deliverables-workspace__bind"/);
   assert.match(deliverables, /<span>交付物库<\/span>[\s\S]*?<strong>绑定已有交付物<\/strong>[\s\S]*?点击绑定到当前项目/);
   assert.match(deliverables, /aria-label="关闭绑定交付物"/);
   assert.match(standaloneStyles, /deliverables-workspace__binding-list\s*>\s*button\s*\{[^}]*grid-template-columns:34px minmax\(0,1fr\) auto/s);
   assert.match(standaloneStyles, /deliverables-workspace__binding::before\s*\{[^}]*background:linear-gradient/s);
+});
+
+test("绑定已有交付物使用与项目管理环境一致的中性描边按钮", () => {
+  assert.match(styles, /\.deliverables-workspace__bind\s*\{[^}]*border:1px solid #5a5a5a[^}]*color:#e5e7eb[^}]*background:#303030/s);
 });
 
 test("独立交付物记录编辑区不会因左右边距裁掉发布按钮", () => {

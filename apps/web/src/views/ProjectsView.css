@@ -11399,6 +11399,8 @@
 .prj-ws .deliverables-workspace > header h1 { font-size:18px; }
 .prj-ws .deliverables-workspace > header p { margin:2px 0 0; font-size:11px; }
 .prj-ws .deliverables-workspace > header > button { padding:6px 9px; font-size:11px; }
+.prj-ws .deliverables-workspace > header > .deliverables-workspace__bind { border:1px solid #5a5a5a; border-radius:7px; color:#e5e7eb; background:#303030; box-shadow:none; font-weight:600; }
+.prj-ws .deliverables-workspace > header > .deliverables-workspace__bind:hover { border-color:#777; color:#fff; background:#3a3a3a; }
 .prj-ws .deliverables-workspace__list { margin-top:8px; }
 .prj-ws .reports-workspace { padding:8px 12px 12px; }
 .prj-ws .reports-workspace__header { min-height:42px; gap:10px; }
