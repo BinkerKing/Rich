@@ -31,8 +31,10 @@
 .automation-params label > span { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .automation-params label strong { color: #dbeafe; font: 700 12px/1.3 "SF Mono", ui-monospace, monospace; }
 .automation-params label small { color: #71839d; font-size: 10px; }
-.automation-params input { box-sizing: border-box; width: 100%; padding: 9px 10px; color: #edf6ff; border: 1px solid rgba(148,163,184,.25); border-radius: 6px; outline: none; background: #0a111b; }
-.automation-params input:focus { border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56,189,248,.1); }
+.automation-params input { box-sizing: border-box; width: 100%; padding: 9px 10px; color: #f1f5f9; border: 1px solid #4a4a4a; border-radius: 6px; outline: none; background: #1d1d1d; transition: border-color 120ms, background 120ms, box-shadow 120ms; }
+.automation-params input::placeholder { color: #7a8491; }
+.automation-params input:hover { border-color: #606060; background: #202020; }
+.automation-params input:focus { border-color: #52c7cc; background: #202323; box-shadow: 0 0 0 3px rgba(82,199,204,.12); }
 .automation-check-errors { display: grid; gap: 7px; padding: 0 14px 14px; }
 .automation-main .automation-check-errors button { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; color: #fecaca; border-color: rgba(248,113,113,.25); background: rgba(127,29,29,.15); text-align: left; }
 .automation-check-errors span { color: #fca5a5; font-size: 11px; }
