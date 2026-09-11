@@ -53,9 +53,9 @@ const recordKindLabel = (kind: DeliverableRecordKind) =>
   kind === "requirement" ? "要求" : kind === "status" ? "进展" : kind === "decision" ? "决策" : kind === "issue" ? "问题" : kind === "risk" ? "风险" : kind === "change" ? "变更" : kind === "information" ? "信息" : kind === "material" ? "材料" : kind === "codex" ? "Codex" : kind === "ai_task_result" ? "AI 回复" : "AI 任务";
 const richTextHasContent = (value: string) => value.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0;
 const absoluteFolderPath = (projectRoot: string | undefined, folderPath: string) => projectRoot ? `${projectRoot.replace(/\/+$/, "")}/${folderPath.replace(/^\/+/, "")}` : folderPath;
-function DeliverableListIcon({ name }: { name: "add" | "file" }) {
+function DeliverableListIcon({ name }: { name: "add" | "file" | "link" }) {
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    {name === "add" ? <path d="M12 5v14M5 12h14" /> : <><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v5h5M9 13h6M9 17h6" /></>}
+    {name === "add" ? <path d="M12 5v14M5 12h14" /> : name === "link" ? <><path d="m9.5 14.5 5-5" /><path d="m7.2 16.8-1.1 1.1a3 3 0 0 1-4.2-4.2l3.2-3.2a3 3 0 0 1 4.2 0" /><path d="m16.8 7.2 1.1-1.1a3 3 0 0 1 4.2 4.2l-3.2 3.2a3 3 0 0 1-4.2 0" /></> : <><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v5h5M9 13h6M9 17h6" /></>}
   </svg>;
 }
 
@@ -610,7 +610,7 @@ export function DeliverablesWorkspace({
           {!standalone && <p>由项目任务自动关联的可追溯交付记录。</p>}
         </div>
         {standalone && <button className="deliverables-workspace__primary" type="button" title={creating ? "取消新建交付物" : "新建交付物"} aria-label={creating ? "取消新建交付物" : "新建交付物"} onClick={() => setCreating(value => !value)}>{creating ? "×" : <DeliverableListIcon name="add" />}</button>}
-        {!standalone && onDeliverableIdsChange && <button className="deliverables-workspace__bind" type="button" onClick={() => void openBinding()}>绑定已有交付物</button>}
+        {!standalone && onDeliverableIdsChange && <button className="deliverables-workspace__bind" type="button" onClick={() => void openBinding()}><DeliverableListIcon name="link" /><span>绑定已有交付物</span></button>}
       </header>}
       {standalone && creating && <form className="deliverables-workspace__create" onSubmit={event => { event.preventDefault(); void createStandalone(); }}>
         <div className="deliverables-workspace__create-intro"><b>新建交付物</b><span>创建后将绑定到指定目录，后续文件和记录会统一沉淀在这里。</span></div>

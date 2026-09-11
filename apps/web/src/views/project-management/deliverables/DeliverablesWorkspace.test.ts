@@ -82,7 +82,8 @@ test("绑定已有交付物使用带说明和选择卡片的选择器", () => {
 });
 
 test("绑定已有交付物使用与项目管理环境一致的中性描边按钮", () => {
-  assert.match(styles, /\.deliverables-workspace__bind\s*\{[^}]*border:1px solid #5a5a5a[^}]*color:#e5e7eb[^}]*background:#303030/s);
+  assert.match(deliverables, /<DeliverableListIcon name="link"\s*\/>\s*<span>绑定已有交付物<\/span>/);
+  assert.match(styles, /\.deliverables-workspace__bind\s*\{[^}]*min-height:28px[^}]*padding:6px 9px[^}]*border:1px solid #515151[^}]*background:#303030/s);
 });
 
 test("独立交付物记录编辑区不会因左右边距裁掉发布按钮", () => {
