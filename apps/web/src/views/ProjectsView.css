@@ -11402,6 +11402,15 @@
 .prj-ws .deliverables-workspace > header > .deliverables-workspace__bind { border:1px solid #5a5a5a; border-radius:7px; color:#e5e7eb; background:#303030; box-shadow:none; font-weight:600; }
 .prj-ws .deliverables-workspace > header > .deliverables-workspace__bind:hover { border-color:#777; color:#fff; background:#3a3a3a; }
 .prj-ws .deliverables-workspace__list { margin-top:8px; }
+
+/* Opening a project deliverable turns the detail into the primary workbench. */
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone).is-open { padding:0; overflow:hidden; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone).is-open .deliverables-workspace__list { gap:0; margin:0; overflow:hidden; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone).is-open article.is-open { width:100%; height:100%; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone).is-open .deliverables-workspace__detail-title { flex:0 0 42px; min-height:42px; padding:0 14px; border:0!important; border-bottom:1px solid #454545!important; border-radius:0!important; color:#eef2f3; background:#252525!important; box-shadow:none!important; cursor:pointer; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone).is-open .deliverables-workspace__detail-title::before { content:"←"; color:#b8c1c5; font-size:18px; line-height:1; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone).is-open .deliverables-workspace__detail-title:hover { background:#303030!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone).is-open .deliverables-workspace__body { flex:1 1 auto; height:auto; padding:10px 12px 12px; border:0!important; border-radius:0!important; background:#1f1f1f!important; box-shadow:none!important; }
 .prj-ws .reports-workspace { padding:8px 12px 12px; }
 .prj-ws .reports-workspace__header { min-height:42px; gap:10px; }
 .prj-ws .reports-workspace__header p { margin:0 0 2px; font-size:10px; }

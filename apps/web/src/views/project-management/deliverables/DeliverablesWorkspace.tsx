@@ -602,8 +602,8 @@ export function DeliverablesWorkspace({
   const isEditingCurrentRecord = editingRecordDeliverableId === openId && Boolean(editingRecordId);
 
   return (
-    <section className={`deliverables-workspace${standalone ? " deliverables-workspace--standalone" : ""}`}>
-      <header>
+    <section className={`deliverables-workspace${standalone ? " deliverables-workspace--standalone" : ""}${openId && !standalone ? " is-open" : ""}`}>
+      {(!openId || standalone) && <header>
         <div>
           {!standalone && <p className="deliverables-workspace__eyebrow">PROJECT OUTPUTS</p>}
           <h1>{standalone ? "把每一项成果，沉淀成可复用的交付。" : "交付物"}</h1>
@@ -611,7 +611,7 @@ export function DeliverablesWorkspace({
         </div>
         {standalone && <button className="deliverables-workspace__primary" type="button" title={creating ? "取消新建交付物" : "新建交付物"} aria-label={creating ? "取消新建交付物" : "新建交付物"} onClick={() => setCreating(value => !value)}>{creating ? "×" : <DeliverableListIcon name="add" />}</button>}
         {!standalone && onDeliverableIdsChange && <button className="deliverables-workspace__bind" type="button" onClick={() => void openBinding()}>绑定已有交付物</button>}
-      </header>
+      </header>}
       {standalone && creating && <form className="deliverables-workspace__create" onSubmit={event => { event.preventDefault(); void createStandalone(); }}>
         <div className="deliverables-workspace__create-intro"><b>新建交付物</b><span>创建后将绑定到指定目录，后续文件和记录会统一沉淀在这里。</span></div>
         <div className="deliverables-workspace__create-fields">

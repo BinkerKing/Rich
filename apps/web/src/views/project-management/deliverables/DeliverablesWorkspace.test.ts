@@ -52,7 +52,14 @@ test("切换交付物后，Codex 会话上下文同步为当前定位的交付�
 test("展开交付物后只渲染当前表头与工作台，再次点击表头回到完整列表", () => {
   assert.match(deliverables, /const visibleItems = openId \? items\.filter\(\(?item\)? => item\.id === openId\) : items/);
   assert.match(deliverables, /visibleItems\.map\(\(?item\)? =>/);
-  assert.match(deliverables, /setOpenId\(opening \? item\.id : undefined\)/);
+  assert.match(deliverables, /setOpenId\(item\.id\); void refreshFiles\(item\); setEditing\(false\);/);
+});
+
+test("项目内打开交付物后隐藏列表标题，并使用全尺寸工作台", () => {
+  assert.match(deliverables, /deliverables-workspace\$\{standalone \? " deliverables-workspace--standalone" : ""\}\$\{openId && !standalone \? " is-open" : ""\}/);
+  assert.match(deliverables, /\{\(!openId \|\| standalone\) && <header>/);
+  assert.match(styles, /\.prj-ws \.deliverables-workspace:not\(\.deliverables-workspace--standalone\)\.is-open \{ padding:0; overflow:hidden; \}/);
+  assert.match(styles, /\.deliverables-workspace__detail-title::before \{ content:"←"/);
 });
 
 test("独立交付物详情覆盖整个视口，不继承列表卡片的固定高度", () => {
