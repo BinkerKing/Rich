@@ -65,8 +65,8 @@ test("项目内打开交付物后隐藏列表标题，并使用全尺寸工作�
   assert.match(deliverables, /deliverables-workspace\$\{standalone \? " deliverables-workspace--standalone" : ""\}\$\{openId && !standalone \? " is-open" : ""\}/);
   assert.match(deliverables, /\{\(!openId \|\| standalone\) && <header>/);
   assert.match(styles, /\.prj-ws \.deliverables-workspace:not\(\.deliverables-workspace--standalone\)\.is-open \{ padding:0; overflow:hidden; \}/);
-  assert.match(deliverables, /deliverables-workspace__detail-title[\s\S]*?<DeliverableListIcon name="link"\s*\/>\s*<span>绑定已有交付物<\/span>/);
-  assert.match(deliverables, /event\.stopPropagation\(\); void openBinding\(\)/);
+  assert.match(deliverables, /deliverables-workspace__detail-title[\s\S]*?className="deliverables-workspace__title-actions"/);
+  assert.doesNotMatch(deliverables, /className="deliverables-workspace__bind"/);
   assert.doesNotMatch(styles, /deliverables-workspace__detail-title::before \{ content:"←"/);
 });
 
@@ -81,17 +81,18 @@ test("独立交付物详情点击标题栏收起，不显示返回按钮", () =>
   assert.match(standaloneStyles, /deliverables-workspace__detail-title::before\s*\{\s*display:none/);
 });
 
-test("绑定已有交付物使用带说明和选择卡片的选择器", () => {
-  assert.match(deliverables, /className="deliverables-workspace__bind"/);
+test("绑定已有交付物保留带说明和选择卡片的选择器", () => {
   assert.match(deliverables, /<span>交付物库<\/span>[\s\S]*?<strong>绑定已有交付物<\/strong>[\s\S]*?点击绑定到当前项目/);
   assert.match(deliverables, /aria-label="关闭绑定交付物"/);
   assert.match(standaloneStyles, /deliverables-workspace__binding-list\s*>\s*button\s*\{[^}]*grid-template-columns:34px minmax\(0,1fr\) auto/s);
   assert.match(standaloneStyles, /deliverables-workspace__binding::before\s*\{[^}]*background:linear-gradient/s);
 });
 
-test("绑定已有交付物使用与项目管理环境一致的中性描边按钮", () => {
-  assert.match(deliverables, /<DeliverableListIcon name="link"\s*\/>\s*<span>绑定已有交付物<\/span>/);
-  assert.match(styles, /\.deliverables-workspace__bind\s*\{[^}]*min-height:28px[^}]*padding:6px 9px[^}]*border:1px solid #515151[^}]*background:#303030/s);
+test("交付物详情将操作收进标题行图标栏，不显示绑定按钮", () => {
+  assert.match(deliverables, /className="deliverables-workspace__title-actions"[\s\S]*?aria-label="Codex 对话"[\s\S]*?aria-label="版本策略"[\s\S]*?aria-label="打开文件夹"/);
+  assert.doesNotMatch(deliverables, /className="deliverables-workspace__bind"/);
+  assert.doesNotMatch(deliverables, />Codex 对话<|>只保留最新<|>版本控制<|>打开文件夹<|>解除项目绑定</);
+  assert.match(styles, /\.deliverables-workspace__title-action[^}]*width:28px[^}]*height:28px[^}]*border:1px solid #515151/s);
 });
 
 test("独立交付物记录编辑区不会因左右边距裁掉发布按钮", () => {

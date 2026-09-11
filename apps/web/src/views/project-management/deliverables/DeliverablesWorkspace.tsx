@@ -59,6 +59,10 @@ function DeliverableListIcon({ name }: { name: "add" | "file" | "link" }) {
   </svg>;
 }
 
+function DeliverableActionIcon({ name }: { name: "chat" | "latest" | "history" | "folder" | "unlink" }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{name === "chat" ? <><path d="M5 18.5 4 21l4-1.5H18a3 3 0 0 0 3-3v-9a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v7" /><path d="M8 11h8M8 15h5" /></> : name === "latest" ? <><path d="M5 19h14" /><path d="M7 15h10v4H7z" /><path d="m12 4 3 3M12 4 9 7M12 4v8" /></> : name === "history" ? <><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5M12 7v5l3 2" /></> : name === "folder" ? <><path d="M3 6h7l2 2h9v11H3z" /><path d="M3 10h18" /></> : <><path d="m9.5 14.5 5-5" /><path d="m7.2 16.8-1.1 1.1a3 3 0 0 1-4.2-4.2l3.2-3.2a3 3 0 0 1 4.2 0" /><path d="m16.8 7.2 1.1-1.1a3 3 0 0 1 4.2 4.2l-3.2 3.2a3 3 0 0 1-4.2 0" /></>}</svg>;
+}
+
 export function DeliverablesWorkspace({
   projectId = "",
   projectRoot,
@@ -610,7 +614,6 @@ export function DeliverablesWorkspace({
           {!standalone && <p>由项目任务自动关联的可追溯交付记录。</p>}
         </div>
         {standalone && <button className="deliverables-workspace__primary" type="button" title={creating ? "取消新建交付物" : "新建交付物"} aria-label={creating ? "取消新建交付物" : "新建交付物"} onClick={() => setCreating(value => !value)}>{creating ? "×" : <DeliverableListIcon name="add" />}</button>}
-        {!standalone && onDeliverableIdsChange && <button className="deliverables-workspace__bind" type="button" onClick={() => void openBinding()}><DeliverableListIcon name="link" /><span>绑定已有交付物</span></button>}
       </header>}
       {standalone && creating && <form className="deliverables-workspace__create" onSubmit={event => { event.preventDefault(); void createStandalone(); }}>
         <div className="deliverables-workspace__create-intro"><b>新建交付物</b><span>创建后将绑定到指定目录，后续文件和记录会统一沉淀在这里。</span></div>
@@ -667,7 +670,15 @@ export function DeliverablesWorkspace({
                 }}
               >
                 <strong>{item.title}</strong>
-                {!standalone && onDeliverableIdsChange && <button className="deliverables-workspace__bind" type="button" onClick={(event) => { event.stopPropagation(); void openBinding(); }}><DeliverableListIcon name="link" /><span>绑定已有交付物</span></button>}
+                {!standalone && <div className="deliverables-workspace__title-actions" role="toolbar" aria-label="交付物操作" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+                  <button className="deliverables-workspace__title-action" type="button" aria-label="Codex 对话" title="Codex 对话" onClick={() => showDeliverableCodex({ projectId, deliverableId: item.id, deliverableTitle: item.title })}><DeliverableActionIcon name="chat" /></button>
+                  <div className="deliverables-workspace__title-version" role="group" aria-label="版本策略">
+                    <button className={item.content.versionPolicy === "latest" ? "is-active" : ""} type="button" aria-label="只保留最新" title="只保留最新" onClick={() => void save(item, { ...item.content, versionPolicy: "latest" })}><DeliverableActionIcon name="latest" /></button>
+                    <button className={item.content.versionPolicy === "versioned" ? "is-active" : ""} type="button" aria-label="版本控制" title="版本控制" onClick={() => void save(item, { ...item.content, versionPolicy: "versioned" })}><DeliverableActionIcon name="history" /></button>
+                  </div>
+                  <button className="deliverables-workspace__title-action" type="button" aria-label="打开文件夹" title="打开文件夹" onClick={() => void openFolder(item)}><DeliverableActionIcon name="folder" /></button>
+                  {item.standalone && <button className="deliverables-workspace__title-action is-danger" type="button" aria-label="解除项目绑定" title="解除项目绑定" onClick={() => void unbind(item)}><DeliverableActionIcon name="unlink" /></button>}
+                </div>}
               </header>
             ) : (
               <button
@@ -688,58 +699,6 @@ export function DeliverablesWorkspace({
                   <span>
                     文件位置 <code>{absoluteFolderPath(projectRoot, item.content.folderPath)}</code>
                   </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      showDeliverableCodex({
-                        projectId,
-                        deliverableId: item.id,
-                        deliverableTitle: item.title,
-                      })
-                    }
-                  >
-                    Codex 对话
-                  </button>
-                  <div
-                    className="deliverables-workspace__switch"
-                    role="group"
-                    aria-label="版本策略"
-                  >
-                    <button
-                      className={
-                        item.content.versionPolicy === "latest"
-                          ? "is-active"
-                          : ""
-                      }
-                      onClick={() =>
-                        void save(item, {
-                          ...item.content,
-                          versionPolicy: "latest",
-                        })
-                      }
-                    >
-                      只保留最新
-                    </button>
-                    <button
-                      className={
-                        item.content.versionPolicy === "versioned"
-                          ? "is-active"
-                          : ""
-                      }
-                      onClick={() =>
-                        void save(item, {
-                          ...item.content,
-                          versionPolicy: "versioned",
-                        })
-                      }
-                    >
-                      版本控制
-                    </button>
-                  </div>
-                  <button onClick={() => void openFolder(item)}>
-                    打开文件夹
-                  </button>
-                  {!standalone && item.standalone && <button onClick={() => void unbind(item)}>解除项目绑定</button>}
                 </div>
                 <div className="deliverables-workspace__grid">
                   <section className="deliverables-workspace__description">
