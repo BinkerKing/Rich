@@ -94,6 +94,13 @@ test("驾驶舱纳入进行中及计划今天结束的任务，并按状态显�
   assert.match(styles, /delivery-dashboard-task\.is-doing .*#45d49b/);
 });
 
+test("驾驶舱压缩顶部栏并扩大贴边工作区", () => {
+  assert.match(styles, /\.delivery--dashboard \{[^}]*padding:6px 6px 8px/s);
+  assert.match(styles, /\.delivery-dashboard-header \{[^}]*min-height:44px/s);
+  assert.match(styles, /\.delivery-dashboard-kpi \{[^}]*min-height:36px/s);
+  assert.match(styles, /\.delivery-dashboard-grid \{[^}]*padding:8px/s);
+});
+
 test("进行中的任务不会被未完成的旧结束动态归档", () => {
   assert.match(source, /const endedOn = status === "done" \? activities\.filter\(activity => activity\.kind === "end"\)/);
 });
