@@ -118,6 +118,13 @@ test("动态类型选择器使用无箭头的自适应抽屉，并为每种类�
   assert.match(styles, /\.delivery-activity-kind__drawer button\.is-risk \{[^}]*--kind-color:#fb7185/);
 });
 
+test("已选类型按钮与抽屉选项复用同一彩色描边样式", () => {
+  assert.match(source, /className=\{`delivery-activity-kind__trigger delivery-activity-kind__option is-\$\{value\}`\}/);
+  assert.match(source, /className=\{`delivery-activity-kind__option is-\$\{kind\} \$\{value === kind \? "is-selected" : ""\}`\}/);
+  assert.match(styles, /\.delivery-activity-kind__option \{[^}]*border:2px solid var\(--kind-color\)[^}]*background:transparent[^}]*font:800/s);
+  assert.match(styles, /\.delivery-activity-kind__option\.is-todo \{ --kind-color:#fbbf24; \}/);
+});
+
 test("动态类型从选择器到已创建列表使用同一套彩色边框标签", () => {
   assert.match(source, /className=\{`delivery-activity-kind-chip is-\$\{activity\.kind\}`\}/);
   assert.match(styles, /\.delivery-activity-kind-chip \{[^}]*border:2px solid var\(--kind-color\)[^}]*background:transparent[^}]*font-weight:800/s);
