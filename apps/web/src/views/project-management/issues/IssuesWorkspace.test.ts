@@ -7,6 +7,11 @@ test("问题清单标题头行采用紧凑高度", () => {
   assert.match(styles, /\.issues-workspace > header\s*\{[^}]*min-height:42px/s);
 });
 
+test("问题清单的列表行采用交付物式紧凑中性卡片", () => {
+  assert.match(styles, /\.issues-workspace__list > button\s*\{[^}]*min-height:72px[^}]*border-color:#424242[^}]*background:#252525/s);
+  assert.match(styles, /\.issues-workspace__list > button:hover\s*\{[^}]*box-shadow:inset 3px 0 #65d1d8/s);
+});
+
 const source = readFileSync(new URL("./IssuesWorkspace.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("./IssuesWorkspace.css", import.meta.url), "utf8");
 

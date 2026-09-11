@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+test("项目管理内的流程图清单有紧凑标题头和交付物式列表行", () => {
+  assert.match(source, /embedded && !expanded && <header className="pfc-project-header">/);
+  assert.match(source, /<h1>项目流程图<\/h1>/);
+  assert.match(styles, /\.pfc-project-header\s*\{[^}]*min-height:42px/s);
+  assert.match(styles, /\.pfc--embedded:not\(:has\(\.pfc-task\.is-expanded\)\) \.pfc-task\s*\{[^}]*min-height:72px[^}]*background:#252525/s);
+});
 
 const source = readFileSync(new URL("./FlowchartsWorkspace.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("./FlowchartsWorkspace.css", import.meta.url), "utf8");

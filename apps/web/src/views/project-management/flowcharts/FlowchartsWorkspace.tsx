@@ -357,6 +357,10 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
       <div className="pfc-list-intro"><h1>用一张图，把复杂逻辑讲清楚。</h1></div>
       <button className="pfc-list-create" type="button" title="新建流程图" aria-label="新建流程图" disabled={busy || !loaded} onClick={() => setCreating(true)}><FlowchartListIcon name="add" /></button>
     </header>}
+    {embedded && !expanded && <header className="pfc-project-header">
+      <div><p>PROJECT FLOWCHARTS</p><h1>项目流程图</h1><span>集中梳理项目流程、系统关系与处理路径。</span></div>
+      <button type="button" disabled={busy || !loaded} onClick={() => setCreating(true)}>＋ 新建流程图</button>
+    </header>}
     {standalone && !expanded && <div className="pfc-list-label">流程图</div>}
     {!loaded ? <p>加载中…</p> : items.length === 0 ? <div className="pfc-empty"><strong>还没有流程图</strong><p>创建一张图，从梳理第一个流程开始。</p><button className="pfc-list-create" type="button" onClick={() => setCreating(true)}>新建流程图</button></div> : <div className={standalone ? "pfc-list-grid" : "pfc-task-list"}>{items.map(item => {
       if (expanded && active !== item.id) return null;
