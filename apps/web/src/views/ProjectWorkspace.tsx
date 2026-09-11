@@ -36,6 +36,7 @@ import { DELIVERABLE_FOCUS_EVENT, DELIVERABLE_ITEM_FOCUS_EVENT, storeDeliverable
 import { FlowchartsWorkspace } from "./project-management/flowcharts/FlowchartsWorkspace.js";
 
 interface Props { projectId: string }
+type ProjectMenuIconName = ProjectManagementSection | "globalSearch";
 type ProjectMenuConfig = {
   order: ProjectManagementSection[];
   hidden: ProjectManagementSection[];
@@ -45,6 +46,32 @@ type ProjectMenuConfig = {
 const EMPTY_STATE_SECTIONS = new Set<ProjectManagementSection>([
   "workflow", "scenarios", "environments", "deploymentSteps", "monitoring", "codeVersions",
 ]);
+
+function ProjectMenuIcon({ section }: { section: ProjectMenuIconName }): ReactNode {
+  let artwork: ReactNode;
+  switch (section) {
+    case "dashboard": artwork = <><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 4v16M4 10h16"/></>; break;
+    case "deliveryPlan": artwork = <><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9h16M8 3v4M16 3v4M8 13h3M8 16h7"/></>; break;
+    case "deliverables": artwork = <><path d="M4 8h16v11H4zM7 4h10l2 4H5z"/><path d="M8 13h8"/></>; break;
+    case "reports": artwork = <><path d="M5 20V5M5 20h15"/><path d="M9 16v-4M13 16V8M17 16v-7"/></>; break;
+    case "description": artwork = <><path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4M9 11h6M9 15h6"/></>; break;
+    case "dictionary": artwork = <><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M3.5 9h17M9 4v16M9 13h11"/></>; break;
+    case "automation": artwork = <><circle cx="6" cy="6" r="2"/><circle cx="18" cy="12" r="2"/><circle cx="6" cy="18" r="2"/><path d="m8 7 8 4M8 17l8-4"/></>; break;
+    case "workflow": artwork = <><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M6.5 8l4.3 8M17.5 8l-4.3 8"/></>; break;
+    case "flowcharts": artwork = <><path d="m12 3 6 6-6 6-6-6zM6 15l-3 3M18 15l3 3M3 18h5M16 18h5"/></>; break;
+    case "scenarios": artwork = <><path d="M4 5.5A3.5 3.5 0 0 1 8 5h4v14H8a3.5 3.5 0 0 0-4 1zM20 5.5A3.5 3.5 0 0 0 16 5h-4v14h4a3.5 3.5 0 0 1 4 1z"/></>; break;
+    case "environments": artwork = <><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/><path d="M7 7h.01M7 17h.01M11 7h6M11 17h6"/></>; break;
+    case "deploymentSteps": artwork = <><path d="M5 4h14v16H5z"/><path d="m8 9 1.5 1.5L12 7M8 15l1.5 1.5L12 13M14 9h2M14 15h2"/></>; break;
+    case "monitoring": artwork = <><path d="M3 12h4l2-5 4 10 2-5h6"/><path d="M4 5.5A9 9 0 0 1 20 5.5"/></>; break;
+    case "codeVersions": artwork = <><circle cx="6" cy="5" r="2"/><circle cx="18" cy="7" r="2"/><circle cx="18" cy="18" r="2"/><path d="M6 7v10c0 1.7 1.3 3 3 3h7M6 9c0 2 1.3 3 3 3h7"/></>; break;
+    case "todos": artwork = <><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M9 4.5h6M9 11l1.5 1.5L14 9M9 16l1.5 1.5L14 14"/></>; break;
+    case "testing": artwork = <><path d="M9 3h6M10 3v6l-4.5 7.4A3 3 0 0 0 8 21h8a3 3 0 0 0 2.5-4.6L14 9V3"/><path d="M8.5 16h7"/></>; break;
+    case "issues": artwork = <><path d="M12 3 21 20H3z"/><path d="M12 9v5M12 17h.01"/></>; break;
+    case "folder": artwork = <><path d="M3 7h7l2 2h9v10H3z"/><path d="M3 7V5h7l2 2"/></>; break;
+    default: artwork = <><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></>;
+  }
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{artwork}</svg>;
+}
 
 export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const project = useStore(s => s.elements.get(projectId));
@@ -287,7 +314,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
               aria-selected={section === s.id}
               className={`prj-ws__nav-btn${section === s.id ? " is-active" : ""}${isUnconfigured(s.id) ? " is-unconfigured" : ""}`}
               onClick={() => selectSection(s.id)}>
-              <span className="prj-ws__nav-icon" aria-hidden="true">{s.icon}</span>
+              <span className="prj-ws__nav-icon"><ProjectMenuIcon section={s.id}/></span>
               <span className="prj-ws__nav-label">{s.label}</span>
             </button>
           ))}
@@ -299,7 +326,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
             aria-label="全局搜索"
             title="全局搜索"
             onClick={toggleSearch}>
-            <span className="prj-ws__nav-icon" aria-hidden="true">⌕</span>
+            <span className="prj-ws__nav-icon"><ProjectMenuIcon section="globalSearch"/></span>
             <span className="prj-ws__nav-label">全局搜索</span>
           </button>}
         </nav>

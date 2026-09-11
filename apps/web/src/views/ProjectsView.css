@@ -496,15 +496,15 @@
 .prj-ws__nav-btn[data-section="globalSearch"] { --nav-tone: #f8d66d; --nav-glow: rgba(248, 214, 109, .18); }
 .prj-ws__nav-btn:hover {
   color: #fff;
-  border-color: var(--nav-tone);
-  background: var(--nav-glow);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .04), 0 8px 20px rgba(0, 0, 0, .18);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 .prj-ws__nav-btn.is-active {
   color: #fff;
-  border-color: var(--nav-tone);
-  background: linear-gradient(180deg, rgba(255, 255, 255, .12), var(--nav-glow));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .05), 0 0 0 1px rgba(255, 255, 255, .03);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 .prj-ws__nav-btn.is-unconfigured,
 .prj-ws__nav-btn.is-unconfigured:hover,
@@ -522,10 +522,21 @@
   width: 28px;
   height: 28px;
   color: var(--nav-tone);
-  font-size: 23px;
-  font-weight: 800;
+  font-size: 0;
+  font-weight: 400;
   line-height: 1;
-  text-shadow: 0 0 14px var(--nav-glow);
+  text-shadow: none;
+}
+.prj-ws__nav-icon svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  vector-effect: non-scaling-stroke;
+}
+.prj-ws__nav-btn:hover .prj-ws__nav-icon svg,
+.prj-ws__nav-btn.is-active .prj-ws__nav-icon svg {
+  stroke-width: 2.1;
 }
 .prj-ws__nav-label {
   display: block;

@@ -8,26 +8,25 @@ export type ProjectManagementSearchTarget = { section: ProjectManagementSection;
 export const PROJECT_MANAGEMENT_SECTIONS: Array<{
   id: ProjectManagementSection;
   label: string;
-  icon: string;
 }> = [
-  { id: "dashboard", label: "驾驶舱", icon: "▣" },
-  { id: "deliveryPlan", label: "交付计划", icon: "▤" },
-  { id: "deliverables", label: "交付物", icon: "▣" },
-  { id: "reports", label: "报告", icon: "▤" },
-  { id: "description", label: "项目说明", icon: "◆" },
-  { id: "dictionary", label: "数据字典", icon: "▦" },
-  { id: "automation", label: "数据自动化", icon: "▶" },
-  { id: "workflow", label: "作业流程", icon: "⇄" },
-  { id: "flowcharts", label: "项目流程图", icon: "◇" },
-  { id: "scenarios", label: "场景手册", icon: "▤" },
-  { id: "environments", label: "环境配置", icon: "◎" },
-  { id: "deploymentSteps", label: "部署步骤", icon: "☑" },
-  { id: "monitoring", label: "监控预警", icon: "⌁" },
-  { id: "codeVersions", label: "版本控制", icon: "⌘" },
-  { id: "todos", label: "项目代办", icon: "✓" },
-  { id: "testing", label: "测试中心", icon: "✓" },
-  { id: "issues", label: "问题清单", icon: "▤" },
-  { id: "folder", label: "文件夹", icon: "▣" },
+  { id: "dashboard", label: "驾驶舱" },
+  { id: "deliveryPlan", label: "交付计划" },
+  { id: "deliverables", label: "交付物" },
+  { id: "reports", label: "报告" },
+  { id: "description", label: "项目说明" },
+  { id: "dictionary", label: "数据字典" },
+  { id: "automation", label: "数据自动化" },
+  { id: "workflow", label: "作业流程" },
+  { id: "flowcharts", label: "项目流程图" },
+  { id: "scenarios", label: "场景手册" },
+  { id: "environments", label: "环境配置" },
+  { id: "deploymentSteps", label: "部署步骤" },
+  { id: "monitoring", label: "监控预警" },
+  { id: "codeVersions", label: "版本控制" },
+  { id: "todos", label: "项目代办" },
+  { id: "testing", label: "测试中心" },
+  { id: "issues", label: "问题清单" },
+  { id: "folder", label: "文件夹" },
 ];
 
 const moduleLabels = new Map(PROJECT_MANAGEMENT_SECTIONS.map(section => [section.id, section.label]));

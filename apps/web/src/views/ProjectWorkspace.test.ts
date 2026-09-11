@@ -32,6 +32,14 @@ test("项目工作区标题与导航贴近顶部左边线并使用同一对齐�
   assert.match(workspace, /await api\.patchElement\(project\.id, \{ title: nextTitle \}\)/);
 });
 
+test("项目菜单使用统一的无底色线条图标", () => {
+  assert.match(workspace, /function ProjectMenuIcon\(/);
+  assert.match(workspace, /<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"/);
+  assert.match(workspace, /<ProjectMenuIcon section=\{s\.id\}\/>/);
+  assert.match(styles, /\.prj-ws__nav-icon svg \{[^}]*stroke:\s*currentColor[^}]*stroke-width:\s*1\.8/s);
+  assert.match(styles, /\.prj-ws__nav-btn\.is-active \{[^}]*border-color:\s*transparent[^}]*background:\s*transparent[^}]*box-shadow:\s*none/s);
+});
+
 test("作业流程使用明亮的青蓝边框和高对比信息层级", () => {
   assert.match(styles, /\.workflow-step\s*\{[^}]*border:\s*1px solid #287486[^}]*box-shadow:\s*inset 3px 0 #32d2df/s);
   assert.match(styles, /\.workflow-order\s*\{[^}]*border:\s*1px solid #45dce9/s);
