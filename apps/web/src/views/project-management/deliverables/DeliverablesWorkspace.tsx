@@ -644,7 +644,7 @@ export function DeliverablesWorkspace({
         </div>
       )}
       <div className="deliverables-workspace__list">
-        {visibleItems.map((item) => (
+        {visibleItems.map((item, index) => (
           <article
             ref={(node) => {
               itemRefs.current[item.id] = node;
@@ -678,7 +678,7 @@ export function DeliverablesWorkspace({
                   setEditing(false);
                 }}
               >
-                <span className="deliverables-workspace__list-icon" aria-hidden="true"><DeliverableListIcon name="file" /></span>
+                <span className="deliverables-workspace__list-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
                 <strong>{item.title}</strong>
               </button>
             )}

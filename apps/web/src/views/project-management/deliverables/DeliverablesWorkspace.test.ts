@@ -51,8 +51,13 @@ test("切换交付物后，Codex 会话上下文同步为当前定位的交付�
 
 test("展开交付物后只渲染当前表头与工作台，再次点击表头回到完整列表", () => {
   assert.match(deliverables, /const visibleItems = openId \? items\.filter\(\(?item\)? => item\.id === openId\) : items/);
-  assert.match(deliverables, /visibleItems\.map\(\(?item\)? =>/);
+  assert.match(deliverables, /visibleItems\.map\(\(?item\)?, index\) =>/);
   assert.match(deliverables, /setOpenId\(item\.id\); void refreshFiles\(item\); setEditing\(false\);/);
+});
+
+test("交付物列表在标题前展示描边序号图标", () => {
+  assert.match(deliverables, /className="deliverables-workspace__list-index"[^>]*>\{String\(index \+ 1\)\.padStart\(2, "0"\)\}/);
+  assert.match(styles, /\.deliverables-workspace__list-index\s*\{[^}]*width:30px[^}]*border:1px solid #65d1d8[^}]*background:transparent/s);
 });
 
 test("项目内打开交付物后隐藏列表标题，并使用全尺寸工作台", () => {

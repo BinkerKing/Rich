@@ -11403,6 +11403,7 @@
 .prj-ws .deliverables-workspace > header > .deliverables-workspace__bind svg,.prj-ws .deliverables-workspace__detail-title > .deliverables-workspace__bind svg { width:13px; height:13px; stroke-width:2; }
 .prj-ws .deliverables-workspace > header > .deliverables-workspace__bind:hover,.prj-ws .deliverables-workspace__detail-title > .deliverables-workspace__bind:hover { border-color:#777; color:#fff; background:#3a3a3a; }
 .prj-ws .deliverables-workspace__list { margin-top:8px; }
+.prj-ws .deliverables-workspace__list-index { display:grid; flex:0 0 30px; width:30px; height:30px; box-sizing:border-box; place-items:center; border:1px solid #65d1d8; border-radius:6px; color:#65d1d8; background:transparent; font-size:12px; font-weight:750; line-height:1; }
 
 /* Opening a project deliverable turns the detail into the primary workbench. */
 .prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone).is-open { padding:0; overflow:hidden; }
