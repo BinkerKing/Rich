@@ -43,6 +43,7 @@ export function AppLauncherView() {
 
   function openApp(id: AppView) {
     if (id === "tree") exitToHome();
+    if (id === "taskWorkbench") localStorage.removeItem("rich.workbench.selected");
     setAppView(id);
   }
 
