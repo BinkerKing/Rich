@@ -22,9 +22,18 @@ test("新建问题表通过页面内创建卡收集名称，而不依赖桌面�
   assert.doesNotMatch(source, /window\.prompt\("问题表名称"/);
 });
 
-test("新建问题表按钮采用工作台统一的青绿色主操作样式", () => {
+test("问题清单操作按钮采用工作台统一的紧凑描边样式", () => {
   assert.match(source, /className="issues-workspace__create-button"/);
-  assert.match(styles, /\.issues-workspace__create-button\s*\{[^}]*background:linear-gradient\(135deg,#1b928c,#166d6f\)/s);
+  assert.match(source, /<IssueListIcon\s*\/>\s*<span>新建问题表<\/span>/);
+  assert.match(styles, /\.issues-workspace__create-button,.issues-workspace__add-row\s*\{[^}]*min-height:28px[^}]*border:1px solid #515151[^}]*background:#303030/s);
+});
+
+test("问题表列表与交付物一致，并可从标题行返回列表", () => {
+  assert.match(source, /issues-workspace__list-icon[\s\S]*?<IssueListIcon\s*\/>/);
+  assert.match(source, /aria-label="返回问题清单"[\s\S]*?setActiveId\(""\)/);
+  assert.doesNotMatch(source, /<i>打开 →<\/i>/);
+  assert.match(styles, /\.issues-workspace__list-copy strong\s*\{[^}]*color:#eef2f3[^}]*font-size:14px/s);
+  assert.match(styles, /\.issues-workspace__table-title > button::before\s*\{[^}]*content:"←"/s);
 });
 
 test("打开问题表时使用 Univer 编辑器而非旧的配置表格", () => {
