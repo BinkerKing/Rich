@@ -5,10 +5,10 @@ import test from "node:test";
 const styles = readFileSync(new URL("./ProjectsView.css", import.meta.url), "utf8");
 const workspace = readFileSync(new URL("./ProjectWorkspace.tsx", import.meta.url), "utf8");
 
-test("项目菜单设置按钮保留 44px 的点击热区", () => {
+test("项目菜单设置按钮与标题行保持紧凑一致", () => {
   assert.match(
     styles,
-    /\.prj-ws__menu-settings\s*\{[^}]*width:\s*44px[^}]*height:\s*44px/s,
+    /\.prj-ws__menu-settings\s*\{[^}]*width:\s*28px[^}]*height:\s*28px/s,
   );
 });
 
@@ -19,10 +19,13 @@ test("项目管理内容区使用统一石墨灰底色，并通过边框分隔�
   assert.match(styles, /\.prj-ws__body\s*\{\s*background:\s*var\(--pm-page\)/);
 });
 
-test("项目名称与导航按钮使用统一的顶部左侧对齐线，并可双击编辑", () => {
-  assert.match(styles, /\.prj-ws__head\s*\{[^}]*padding:\s*40px 28px 6px 40px/s);
-  assert.match(styles, /\.prj-ws__project-title\s*\{[^}]*top:\s*12px[^}]*left:\s*40px[^}]*transform:\s*none/s);
-  assert.match(styles, /\.prj-ws__menu-settings\s*\{[^}]*top:\s*8px[^}]*right:\s*20px/s);
+test("项目标题、状态和菜单按钮使用同一条居中标题线，导航占用独立行", () => {
+  assert.match(workspace, /<div className="prj-ws__head-row">[\s\S]*prj-ws__project-title[\s\S]*prj-ws__menu-settings/s);
+  assert.match(styles, /\.prj-ws__head\s*\{[^}]*grid-template-rows:\s*28px 54px/s);
+  assert.match(styles, /\.prj-ws__head-row\s*\{[^}]*align-items:\s*center[^}]*justify-content:\s*space-between/s);
+  assert.match(styles, /\.prj-ws__project-title\s*\{[^}]*position:\s*static[^}]*height:\s*28px/s);
+  assert.match(styles, /\.prj-ws__menu-settings\s*\{[^}]*position:\s*static[^}]*width:\s*28px[^}]*height:\s*28px/s);
+  assert.match(styles, /\.prj-ws__nav\s*\{[^}]*align-items:\s*center/s);
   assert.match(workspace, /startEditingProjectTitle\(\)/);
   assert.match(workspace, /await api\.patchElement\(project\.id, \{ title: nextTitle \}\)/);
 });

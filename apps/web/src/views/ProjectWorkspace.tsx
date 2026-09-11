@@ -236,7 +236,8 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   return (
     <div className="prj-ws">
       <header ref={workspaceHeaderRef} className="prj-ws__head" onDoubleClick={toggleWindowMaximize}>
-        <div className="prj-ws__project-title" aria-label="当前项目">
+        <div className="prj-ws__head-row">
+          <div className="prj-ws__project-title" aria-label="当前项目">
           {isEditingProjectTitle ? (
             <input
               className="prj-ws__title-input"
@@ -264,6 +265,18 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
           )}
           <span className={`prj-ws__status prj-ws__status--${c.status ?? "active"}`}>{statusLabel}</span>
           {c.owner && <span className="prj-ws__owner">· {c.owner}</span>}
+          </div>
+          <button
+            ref={menuSettingsButtonRef}
+            type="button"
+            className={`prj-ws__menu-settings${menuConfigOpen ? " is-open" : ""}`}
+            aria-expanded={menuConfigOpen}
+            aria-label="管理项目菜单"
+            title="管理项目菜单"
+            onClick={() => setMenuConfigOpen(open => !open)}
+          >
+            ☷
+          </button>
         </div>
         <nav className="prj-ws__nav" role="tablist" aria-label="项目管理菜单">
           {visibleSections.map(s => (
@@ -290,17 +303,6 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
             <span className="prj-ws__nav-label">全局搜索</span>
           </button>}
         </nav>
-        <button
-          ref={menuSettingsButtonRef}
-          type="button"
-          className={`prj-ws__menu-settings${menuConfigOpen ? " is-open" : ""}`}
-          aria-expanded={menuConfigOpen}
-          aria-label="管理项目菜单"
-          title="管理项目菜单"
-          onClick={() => setMenuConfigOpen(open => !open)}
-        >
-          ☷
-        </button>
         {menuConfigOpen && (
           <section ref={menuSettingsPanelRef} className="prj-ws__menu-panel" aria-label="项目菜单设置">
             <header><strong>项目菜单</strong><span>拖拽排序 · 勾选显示</span></header>
