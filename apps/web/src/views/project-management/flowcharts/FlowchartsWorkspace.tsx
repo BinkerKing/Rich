@@ -141,6 +141,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   const redoStack = useRef<FlowchartData[]>([]);
   const clipboard = useRef<FlowSelection>();
   const draftKey = `rich-flowchart-draft:${projectId ?? "standalone"}`;
+  const viewKey = `rich-flowchart-view:${projectId ?? flowchartIds?.join(",") ?? "standalone"}`;
   const isFullscreen = standalone;
 
   useEffect(() => {
@@ -153,18 +154,36 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     load.then(next => {
       if (!cancelled) {
         setItems(next); setLoaded(true);
+        let restoredDraft = false;
         try {
           const draft = JSON.parse(sessionStorage.getItem(draftKey) || "null");
           if (draft && next.some(item => item.id === draft.id)) {
             setGraph(readFlowchart({ graph: draft.graph })); setActive(draft.id);
             setTitle(draft.title); setDirty(true);
             setExpanded(true);
+            restoredDraft = true;
           }
         } catch { /* An unavailable or invalid local draft never blocks server data. */ }
+        if (!restoredDraft && !focusId) {
+          try {
+            const view = JSON.parse(sessionStorage.getItem(viewKey) || "null") as { id?: string; expanded?: boolean } | null;
+            const remembered = view?.id ? next.find(item => item.id === view.id) : undefined;
+            if (remembered) {
+              setGraph(readFlowchart(remembered.content)); setActive(remembered.id); setTitle(remembered.title);
+              setExpanded(view?.expanded === true);
+            }
+          } catch { /* View restoration is optional and must never block the list. */ }
+        }
       }
     }).catch(e => { if (!cancelled) { setError(String(e)); setLoaded(true); } });
     return () => { cancelled = true; };
   }, [projectId, flowchartIds]);
+  useEffect(() => {
+    if (!embedded || !loaded) return;
+    try {
+      sessionStorage.setItem(viewKey, JSON.stringify({ id: active ?? null, expanded }));
+    } catch { /* The flowchart list stays usable when session storage is unavailable. */ }
+  }, [active, embedded, expanded, loaded, viewKey]);
   useEffect(() => {
     if (!active || !graph) return;
     try {

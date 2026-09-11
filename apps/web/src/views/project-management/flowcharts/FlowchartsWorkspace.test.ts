@@ -10,6 +10,13 @@ test("项目管理内的流程图清单有紧凑标题头和交付物式列表�
   assert.doesNotMatch(source, /!standalone && <button aria-label="创建流程图任务"/);
 });
 
+test("项目流程图记住上次打开的图和列表状态", () => {
+  assert.match(source, /const viewKey = `rich-flowchart-view:\$\{projectId \?\? flowchartIds\?\.join\(","\) \?\? "standalone"\}`/);
+  assert.match(source, /const view = JSON\.parse\(sessionStorage\.getItem\(viewKey\) \|\| "null"\)/);
+  assert.match(source, /setExpanded\(view\?\.expanded === true\)/);
+  assert.match(source, /sessionStorage\.setItem\(viewKey, JSON\.stringify\(\{ id: active \?\? null, expanded \}\)\)/);
+});
+
 const source = readFileSync(new URL("./FlowchartsWorkspace.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("./FlowchartsWorkspace.css", import.meta.url), "utf8");
 
