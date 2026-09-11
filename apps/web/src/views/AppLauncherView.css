@@ -63,6 +63,11 @@ html[data-theme] .app-launcher-icon__glyph,
   stroke: currentColor !important;
 }
 
+html[data-theme] .app-launcher .app-launcher-icon__glyph .ke-icon,
+html[data-theme] .app-launcher .app-launcher-folder-icon__glyph .ke-icon {
+  stroke: #dedee2 !important;
+}
+
 .app-launcher-icon strong {
   max-width: 154px;
   overflow: hidden;
