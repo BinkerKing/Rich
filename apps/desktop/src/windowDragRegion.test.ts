@@ -29,3 +29,10 @@ test("悬停边线只展开 Rich，不会抢走当前应用的焦点", () => {
   assert.match(main, /if \(pointIsInsideBounds\(cursor, edgeDockGlowBounds\(edgeDockState\)\)\) expandEdgeDockWindow\(mainWin\)/);
   assert.match(main, /win\.showInactive\(\);/);
 });
+
+test("边缘停靠以平滑滑动而非突然隐藏或出现", () => {
+  assert.match(main, /const EDGE_DOCK_ANIMATION_DURATION = 180/);
+  assert.match(main, /function animateEdgeDockBounds\(/);
+  assert.match(main, /animateEdgeDockBounds\(win, state\.bounds, edgeDockHiddenBounds\(state\)/);
+  assert.match(main, /animateEdgeDockBounds\(win, hiddenBounds, state\.bounds/);
+});

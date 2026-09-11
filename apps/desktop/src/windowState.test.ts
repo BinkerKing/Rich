@@ -6,7 +6,8 @@ const main = readFileSync(new URL("./main.ts", import.meta.url), "utf8");
 
 test("主窗口将普通尺寸、位置和最大化状态保存到用户数据目录", () => {
   assert.match(main, /function mainWindowStatePath\(\): string \{\s*return join\(userDataDir\(\), "window-state\.json"\);/s);
-  assert.match(main, /const state: MainWindowState = \{ bounds: win\.getNormalBounds\(\), maximized: win\.isMaximized\(\) \}/);
+  assert.match(main, /const bounds = edgeDockState && !win\.isVisible\(\) \? edgeDockState\.bounds : win\.getNormalBounds\(\);/);
+  assert.match(main, /const state: MainWindowState = \{ bounds, maximized: win\.isMaximized\(\) \}/);
   assert.match(main, /win\.on\("move", scheduleSave\);/);
   assert.match(main, /win\.on\("resize", scheduleSave\);/);
 });

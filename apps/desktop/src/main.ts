@@ -363,7 +363,8 @@ function saveMainWindowState(win: BrowserWindow): void {
   if (win.isDestroyed()) return;
   try {
     mkdirSync(userDataDir(), { recursive: true });
-    const state: MainWindowState = { bounds: win.getNormalBounds(), maximized: win.isMaximized() };
+    const bounds = edgeDockState && !win.isVisible() ? edgeDockState.bounds : win.getNormalBounds();
+    const state: MainWindowState = { bounds, maximized: win.isMaximized() };
     writeFileSync(mainWindowStatePath(), JSON.stringify(state));
   } catch (error) {
     flog(`window state save failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -373,6 +374,7 @@ function saveMainWindowState(win: BrowserWindow): void {
 function setupMainWindowStatePersistence(win: BrowserWindow): void {
   let saveTimer: NodeJS.Timeout | null = null;
   const scheduleSave = () => {
+    if (edgeDockIsAnimating || edgeDockIsCollapsing) return;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       saveTimer = null;
@@ -933,10 +935,13 @@ type EdgeDockState = { side: EdgeDockSide; bounds: Electron.Rectangle };
 const EDGE_DOCK_SNAP_DISTANCE = 24;
 const EDGE_DOCK_GLOW_WIDTH = 6;
 const EDGE_DOCK_CURSOR_INTERVAL = 90;
+const EDGE_DOCK_ANIMATION_DURATION = 180;
 let edgeDockState: EdgeDockState | null = null;
 let edgeDockGlowWindow: BrowserWindow | null = null;
 let edgeDockCursorPoller: NodeJS.Timeout | null = null;
 let edgeDockIsCollapsing = false;
+let edgeDockIsAnimating = false;
+let edgeDockAnimationTimer: NodeJS.Timeout | null = null;
 
 function pointIsInsideBounds(point: Electron.Point, bounds: Electron.Rectangle): boolean {
   return point.x >= bounds.x && point.x < bounds.x + bounds.width
@@ -989,26 +994,79 @@ function showEdgeDockGlow() {
   edgeDockGlowWindow.showInactive();
 }
 
+function edgeDockHiddenBounds(state: EdgeDockState): Electron.Rectangle {
+  const display = screen.getDisplayNearestPoint({ x: state.bounds.x, y: state.bounds.y });
+  const workArea = display.workArea;
+  return {
+    ...state.bounds,
+    x: state.side === "left"
+      ? workArea.x - state.bounds.width + EDGE_DOCK_GLOW_WIDTH
+      : workArea.x + workArea.width - EDGE_DOCK_GLOW_WIDTH,
+  };
+}
+
+function animateEdgeDockBounds(
+  win: BrowserWindow,
+  from: Electron.Rectangle,
+  to: Electron.Rectangle,
+  onComplete: () => void,
+) {
+  if (edgeDockAnimationTimer) clearTimeout(edgeDockAnimationTimer);
+  edgeDockIsAnimating = true;
+  const startedAt = Date.now();
+  const tick = () => {
+    if (win.isDestroyed()) {
+      edgeDockIsAnimating = false;
+      return;
+    }
+    const progress = Math.min(1, (Date.now() - startedAt) / EDGE_DOCK_ANIMATION_DURATION);
+    const eased = 1 - (1 - progress) ** 3;
+    win.setBounds({
+      ...from,
+      x: Math.round(from.x + (to.x - from.x) * eased),
+      y: Math.round(from.y + (to.y - from.y) * eased),
+    });
+    if (progress < 1) {
+      edgeDockAnimationTimer = setTimeout(tick, 16);
+      return;
+    }
+    edgeDockAnimationTimer = null;
+    edgeDockIsAnimating = false;
+    onComplete();
+  };
+  tick();
+}
+
 function collapseEdgeDockWindow(win: BrowserWindow) {
-  if (!edgeDockState || win.isDestroyed() || !win.isVisible() || win.isFocused()) return;
+  if (!edgeDockState || edgeDockIsAnimating || win.isDestroyed() || !win.isVisible() || win.isFocused()) return;
   edgeDockState.bounds = win.getBounds();
-  edgeDockIsCollapsing = true;
-  win.hide();
-  edgeDockIsCollapsing = false;
-  showEdgeDockGlow();
+  const state = edgeDockState;
+  animateEdgeDockBounds(win, state.bounds, edgeDockHiddenBounds(state), () => {
+    if (win.isFocused()) {
+      win.setBounds(state.bounds);
+      return;
+    }
+    edgeDockIsCollapsing = true;
+    win.hide();
+    edgeDockIsCollapsing = false;
+    showEdgeDockGlow();
+  });
 }
 
 function expandEdgeDockWindow(win: BrowserWindow) {
-  if (!edgeDockState || win.isDestroyed() || win.isVisible()) return;
+  if (!edgeDockState || edgeDockIsAnimating || win.isDestroyed() || win.isVisible()) return;
+  const state = edgeDockState;
   hideEdgeDockGlow();
-  win.setBounds(edgeDockState.bounds);
+  const hiddenBounds = edgeDockHiddenBounds(state);
+  win.setBounds(hiddenBounds);
   // Do not take focus from the app the user is using. A click inside Rich is
   // the explicit signal that it should stay expanded.
   win.showInactive();
+  animateEdgeDockBounds(win, hiddenBounds, state.bounds, () => {});
 }
 
 function snapMainWindowToEdge(win: BrowserWindow) {
-  if (win.isDestroyed() || win.isMaximized() || !win.isVisible()) return;
+  if (edgeDockIsAnimating || win.isDestroyed() || win.isMaximized() || !win.isVisible()) return;
   const bounds = win.getBounds();
   const display = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y });
   const workArea = display.workArea;
@@ -1042,7 +1100,7 @@ function setupEdgeDock(mainWin: BrowserWindow) {
     if (!edgeDockIsCollapsing) hideEdgeDockGlow();
   });
   edgeDockCursorPoller ??= setInterval(() => {
-    if (!edgeDockState || mainWin.isDestroyed()) return;
+    if (!edgeDockState || edgeDockIsAnimating || mainWin.isDestroyed()) return;
     const cursor = screen.getCursorScreenPoint();
     if (!mainWin.isVisible()) {
       if (pointIsInsideBounds(cursor, edgeDockGlowBounds(edgeDockState))) expandEdgeDockWindow(mainWin);
@@ -1053,6 +1111,8 @@ function setupEdgeDock(mainWin: BrowserWindow) {
   app.on("will-quit", () => {
     if (edgeDockCursorPoller) clearInterval(edgeDockCursorPoller);
     edgeDockCursorPoller = null;
+    if (edgeDockAnimationTimer) clearTimeout(edgeDockAnimationTimer);
+    edgeDockAnimationTimer = null;
     if (edgeDockGlowWindow && !edgeDockGlowWindow.isDestroyed()) edgeDockGlowWindow.destroy();
   });
 }
@@ -1168,6 +1228,7 @@ function showRichMainWindow(mainWin: BrowserWindow) {
   hideEdgeDockGlow();
   if (process.platform === "darwin") app.show();
   if (mainWin.isMinimized()) mainWin.restore();
+  if (!mainWin.isVisible() && edgeDockState) mainWin.setBounds(edgeDockState.bounds);
   if (!mainWin.isVisible()) mainWin.show();
   mainWin.moveTop();
   mainWin.focus();
