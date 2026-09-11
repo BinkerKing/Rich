@@ -57,7 +57,8 @@ test("展开交付物后只渲染当前表头与工作台，再次点击表头�
 
 test("交付物列表在标题前展示描边序号图标", () => {
   assert.match(deliverables, /className="deliverables-workspace__list-index"[^>]*>\{String\(index \+ 1\)\.padStart\(2, "0"\)\}/);
-  assert.match(styles, /\.deliverables-workspace__list-index\s*\{[^}]*width:30px[^}]*border:1px solid #65d1d8[^}]*background:transparent/s);
+  assert.match(styles, /\.deliverables-workspace__list-index\s*\{[^}]*width:30px[^}]*border:1px solid #666[^}]*color:#b6b6b6[^}]*background:transparent/s);
+  assert.match(styles, /\.deliverables-workspace__row:hover \.deliverables-workspace__list-index\s*\{[^}]*border-color:#f1f1f1[^}]*color:#fff/s);
 });
 
 test("项目内打开交付物后隐藏列表标题，并使用全尺寸工作台", () => {
