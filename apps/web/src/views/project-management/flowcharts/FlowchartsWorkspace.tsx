@@ -381,14 +381,14 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
       <button type="button" disabled={busy || !loaded} onClick={() => setCreating(true)}>＋ 新建流程图</button>
     </header>}
     {standalone && !expanded && <div className="pfc-list-label">流程图</div>}
-    {!loaded ? <p>加载中…</p> : items.length === 0 ? <div className="pfc-empty"><strong>还没有流程图</strong><p>创建一张图，从梳理第一个流程开始。</p><button className="pfc-list-create" type="button" onClick={() => setCreating(true)}>新建流程图</button></div> : <div className={standalone ? "pfc-list-grid" : "pfc-task-list"}>{items.map(item => {
+    {!loaded ? <p>加载中…</p> : items.length === 0 ? <div className="pfc-empty"><strong>还没有流程图</strong><p>创建一张图，从梳理第一个流程开始。</p><button className="pfc-list-create" type="button" onClick={() => setCreating(true)}>新建流程图</button></div> : <div className={standalone ? "pfc-list-grid" : "pfc-task-list"}>{items.map((item, index) => {
       if (expanded && active !== item.id) return null;
       return <article key={item.id} className={`pfc-task${active === item.id && expanded ? " is-expanded" : ""}`}>
       <header className="pfc-title-row">
         <button className="pfc-task-title" aria-expanded={active === item.id && expanded} aria-controls={`pfc-chart-${item.id}`} disabled={busy} onClick={() => {
           if (active === item.id) { setExpanded(value => !value); setSettingsOpen(false); }
           else open(item);
-        }}><span className="pfc-list-icon" aria-hidden="true"><FlowchartListIcon name="flow" /></span><strong>{active === item.id ? title : item.title}</strong></button>
+        }}>{embedded && !expanded ? <span className="pfc-task-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span> : <span className="pfc-list-icon" aria-hidden="true"><FlowchartListIcon name="flow" /></span>}<strong>{active === item.id ? title : item.title}</strong></button>
             {active === item.id && expanded && <>
               {isFullscreen && <span className="pfc-save-state">{busy ? "保存中…" : dirty ? "未保存" : "已保存"}</span>}
               {dirty && <button disabled={busy} onClick={() => void save()}>{busy ? "保存中…" : "保存修改"}</button>}

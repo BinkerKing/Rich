@@ -6,7 +6,9 @@ test("项目管理内的流程图清单有紧凑标题头和交付物式列表�
   assert.match(source, /<h1>项目流程图<\/h1>/);
   assert.match(source, /<button type="button" disabled=\{busy \|\| !loaded\} onClick=\{\(\) => setCreating\(true\)\}>＋ 新建流程图<\/button>/);
   assert.match(styles, /\.pfc-project-header\s*\{[^}]*min-height:42px/s);
-  assert.match(styles, /\.pfc--embedded:not\(:has\(\.pfc-task\.is-expanded\)\) \.pfc-task\s*\{[^}]*min-height:52px[^}]*background:#252525/s);
+  assert.match(source, /items\.map\(\(item, index\)[\s\S]*?pfc-task-index[\s\S]*?String\(index \+ 1\)\.padStart\(2, "0"\)/);
+  assert.match(styles, /\.pfc--embedded:not\(:has\(\.pfc-task\.is-expanded\)\) \.pfc-task\s*\{[^}]*min-height:62px[^}]*background:#252525[^}]*box-shadow:inset 0 1px rgba\(255,255,255,.025\)/s);
+  assert.match(styles, /\.pfc--embedded:not\(:has\(\.pfc-task\.is-expanded\)\) \.pfc-task-index\s*\{[^}]*width:30px[^}]*height:30px[^}]*font-size:12px/s);
   assert.match(styles, /\.pfc--embedded:not\(:has\(\.pfc-task\.is-expanded\)\) \.pfc-task:hover\s*\{[^}]*border-color:#424242[^}]*background:#303030[^}]*box-shadow:none/s);
   assert.doesNotMatch(source, /!standalone && <button aria-label="创建流程图任务"/);
 });
