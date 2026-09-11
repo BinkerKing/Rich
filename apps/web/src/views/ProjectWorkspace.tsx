@@ -58,6 +58,8 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const [menuConfig, setMenuConfig] = useState<ProjectMenuConfig>(() => loadProjectMenuConfig(projectId));
   const [menuConfigOpen, setMenuConfigOpen] = useState(false);
   const [draggedMenuId, setDraggedMenuId] = useState<ProjectManagementSection | null>(null);
+  const [isEditingProjectTitle, setIsEditingProjectTitle] = useState(false);
+  const [projectTitleDraft, setProjectTitleDraft] = useState("");
   const workspaceHeaderRef = useRef<HTMLElement | null>(null);
   const searchButtonRef = useRef<HTMLButtonElement | null>(null);
   const menuSettingsButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -72,6 +74,11 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
     setMenuConfig(loadProjectMenuConfig(projectId));
     setMenuConfigOpen(false);
   }, [projectId]);
+
+  useEffect(() => {
+    setProjectTitleDraft(project?.title ?? "");
+    setIsEditingProjectTitle(false);
+  }, [project?.id, project?.title]);
 
   useEffect(() => {
     const openDeliverable = (event: Event) => {
@@ -142,6 +149,30 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   };
   const statusLabel = ({ active: "进行中", paused: "已暂停", archived: "已归档" } as const)[c.status ?? "active"];
 
+  const startEditingProjectTitle = () => {
+    setProjectTitleDraft(project.title);
+    setIsEditingProjectTitle(true);
+  };
+  const cancelEditingProjectTitle = () => {
+    setProjectTitleDraft(project.title);
+    setIsEditingProjectTitle(false);
+  };
+  const saveProjectTitle = async () => {
+    const nextTitle = projectTitleDraft.trim();
+    if (!nextTitle || nextTitle === project.title) {
+      cancelEditingProjectTitle();
+      return;
+    }
+    try {
+      await api.patchElement(project.id, { title: nextTitle });
+      await hydrate();
+      setIsEditingProjectTitle(false);
+    } catch (error) {
+      window.alert(`项目名称保存失败: ${error instanceof Error ? error.message : String(error)}`);
+      cancelEditingProjectTitle();
+    }
+  };
+
   const toggleWindowMaximize = (event: MouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement | null;
     if (target?.closest?.("button, a, input, textarea, select, [role='button'], [role='tab'], [contenteditable='true']")) return;
@@ -206,7 +237,31 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
     <div className="prj-ws">
       <header ref={workspaceHeaderRef} className="prj-ws__head" onDoubleClick={toggleWindowMaximize}>
         <div className="prj-ws__project-title" aria-label="当前项目">
-          <span className="prj-ws__title">{project.title}</span>
+          {isEditingProjectTitle ? (
+            <input
+              className="prj-ws__title-input"
+              aria-label="项目名称"
+              autoFocus
+              value={projectTitleDraft}
+              onChange={event => setProjectTitleDraft(event.target.value)}
+              onBlur={() => void saveProjectTitle()}
+              onKeyDown={event => {
+                if (event.key === "Enter") event.currentTarget.blur();
+                if (event.key === "Escape") cancelEditingProjectTitle();
+              }}
+            />
+          ) : (
+            <span
+              className="prj-ws__title"
+              title="双击修改项目名称"
+              onDoubleClick={event => {
+                event.stopPropagation();
+                startEditingProjectTitle();
+              }}
+            >
+              {project.title}
+            </span>
+          )}
           <span className={`prj-ws__status prj-ws__status--${c.status ?? "active"}`}>{statusLabel}</span>
           {c.owner && <span className="prj-ws__owner">· {c.owner}</span>}
         </div>

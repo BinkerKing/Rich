@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const styles = readFileSync(new URL("./ProjectsView.css", import.meta.url), "utf8");
+const workspace = readFileSync(new URL("./ProjectWorkspace.tsx", import.meta.url), "utf8");
 
 test("项目菜单设置按钮保留 44px 的点击热区", () => {
   assert.match(
@@ -16,6 +17,12 @@ test("项目管理内容区使用统一石墨灰底色，并通过边框分隔�
   assert.match(styles, /--pm-surface:\s*#252525/);
   assert.match(styles, /--pm-border:\s*#424242/);
   assert.match(styles, /\.prj-ws__body\s*\{\s*background:\s*var\(--pm-page\)/);
+});
+
+test("项目名称固定在工作区左上角，并可双击编辑", () => {
+  assert.match(styles, /\.prj-ws__project-title\s*\{[^}]*top:\s*7px[^}]*left:\s*12px[^}]*transform:\s*none/s);
+  assert.match(workspace, /startEditingProjectTitle\(\)/);
+  assert.match(workspace, /await api\.patchElement\(project\.id, \{ title: nextTitle \}\)/);
 });
 
 test("作业流程使用明亮的青蓝边框和高对比信息层级", () => {

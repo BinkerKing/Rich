@@ -292,24 +292,38 @@
 .prj-ws__project-title {
   position: absolute;
   top: 7px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 12px;
+  transform: none;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 10px;
-  min-width: 320px;
-  max-width: 52vw;
+  min-width: 0;
+  max-width: calc(100% - 68px);
   height: 30px;
   white-space: nowrap;
   overflow: hidden;
 }
 .prj-ws__project-title .prj-ws__title {
+  -webkit-app-region: no-drag;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 19px;
   line-height: 1.15;
+  cursor: text;
+}
+.prj-ws__title-input {
+  -webkit-app-region: no-drag;
+  width: min(420px, 48vw);
+  min-width: 120px;
+  padding: 2px 6px;
+  border: 1px solid rgba(143, 254, 247, .52);
+  border-radius: 4px;
+  outline: none;
+  color: #fff;
+  background: #252525;
+  font: 600 19px/1.15 inherit;
 }
 .prj-ws__status {
   font-size: 11px;
