@@ -36,3 +36,8 @@ test("边缘停靠以平滑滑动而非突然隐藏或出现", () => {
   assert.match(main, /animateEdgeDockBounds\(win, state\.bounds, edgeDockHiddenBounds\(state\)/);
   assert.match(main, /animateEdgeDockBounds\(win, hiddenBounds, state\.bounds/);
 });
+
+test("每次停靠收起都保留发光边线，不被异步 hide 事件误关", () => {
+  assert.match(main, /edgeDockIsCollapsed = true;\s*win\.hide\(\);\s*showEdgeDockGlow\(\);/s);
+  assert.match(main, /mainWin\.on\("hide", \(\) => \{\s*if \(!edgeDockIsCollapsed\) hideEdgeDockGlow\(\);/s);
+});

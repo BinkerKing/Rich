@@ -374,7 +374,7 @@ function saveMainWindowState(win: BrowserWindow): void {
 function setupMainWindowStatePersistence(win: BrowserWindow): void {
   let saveTimer: NodeJS.Timeout | null = null;
   const scheduleSave = () => {
-    if (edgeDockIsAnimating || edgeDockIsCollapsing) return;
+    if (edgeDockIsAnimating) return;
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       saveTimer = null;
@@ -939,7 +939,7 @@ const EDGE_DOCK_ANIMATION_DURATION = 180;
 let edgeDockState: EdgeDockState | null = null;
 let edgeDockGlowWindow: BrowserWindow | null = null;
 let edgeDockCursorPoller: NodeJS.Timeout | null = null;
-let edgeDockIsCollapsing = false;
+let edgeDockIsCollapsed = false;
 let edgeDockIsAnimating = false;
 let edgeDockAnimationTimer: NodeJS.Timeout | null = null;
 
@@ -1046,9 +1046,8 @@ function collapseEdgeDockWindow(win: BrowserWindow) {
       win.setBounds(state.bounds);
       return;
     }
-    edgeDockIsCollapsing = true;
+    edgeDockIsCollapsed = true;
     win.hide();
-    edgeDockIsCollapsing = false;
     showEdgeDockGlow();
   });
 }
@@ -1056,6 +1055,7 @@ function collapseEdgeDockWindow(win: BrowserWindow) {
 function expandEdgeDockWindow(win: BrowserWindow) {
   if (!edgeDockState || edgeDockIsAnimating || win.isDestroyed() || win.isVisible()) return;
   const state = edgeDockState;
+  edgeDockIsCollapsed = false;
   hideEdgeDockGlow();
   const hiddenBounds = edgeDockHiddenBounds(state);
   win.setBounds(hiddenBounds);
@@ -1078,6 +1078,7 @@ function snapMainWindowToEdge(win: BrowserWindow) {
 
   if (!side) {
     edgeDockState = null;
+    edgeDockIsCollapsed = false;
     hideEdgeDockGlow();
     return;
   }
@@ -1094,10 +1095,13 @@ function snapMainWindowToEdge(win: BrowserWindow) {
 function setupEdgeDock(mainWin: BrowserWindow) {
   mainWin.on("move", () => snapMainWindowToEdge(mainWin));
   mainWin.on("resize", () => snapMainWindowToEdge(mainWin));
-  mainWin.on("focus", hideEdgeDockGlow);
+  mainWin.on("focus", () => {
+    edgeDockIsCollapsed = false;
+    hideEdgeDockGlow();
+  });
   mainWin.on("blur", () => setTimeout(() => collapseEdgeDockWindow(mainWin), 80));
   mainWin.on("hide", () => {
-    if (!edgeDockIsCollapsing) hideEdgeDockGlow();
+    if (!edgeDockIsCollapsed) hideEdgeDockGlow();
   });
   edgeDockCursorPoller ??= setInterval(() => {
     if (!edgeDockState || edgeDockIsAnimating || mainWin.isDestroyed()) return;
@@ -1225,6 +1229,7 @@ function toggleOverlay() {
 function showRichMainWindow(mainWin: BrowserWindow) {
   if (mainWin.isDestroyed()) return;
   ensureDockApplication("show main window");
+  edgeDockIsCollapsed = false;
   hideEdgeDockGlow();
   if (process.platform === "darwin") app.show();
   if (mainWin.isMinimized()) mainWin.restore();
