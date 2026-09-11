@@ -9,8 +9,8 @@
 .issues-workspace__list { gap:8px; }.issues-workspace__list > button { min-height:72px; border-color:#424242; border-radius:8px; padding:14px; background:#252525; }.issues-workspace__list > button:hover { border-color:#606060; background:#303030; box-shadow:inset 3px 0 #65d1d8; }.issues-workspace__list b { color:#c7c7cc; }.issues-workspace__list strong { color:#eef2f3; font-size:14px; }.issues-workspace__list span { color:#a7b0b7; font-size:11px; }.issues-workspace__list i { color:#65d1d8; font-size:12px; }
 
 /* Issue tables follow the same compact action and row vocabulary as deliverables. */
-.issues-workspace__create-button,.issues-workspace__add-row { display:flex; align-items:center; min-height:28px; gap:6px; padding:6px 9px; border:1px solid #515151; border-radius:6px; color:#e5e7eb; background:#303030; box-shadow:none; font:600 11px/1.2 inherit; cursor:pointer; }
-.issues-workspace__create-button svg,.issues-workspace__add-row svg { width:13px; height:13px; stroke-width:2; }
+.issues-workspace__create-button,.issues-workspace__add-row { display:flex; align-items:center; min-height:38px; gap:8px; padding:8px 14px; border:1px solid #515151; border-radius:7px; color:#e5e7eb; background:#303030; box-shadow:none; font:600 14px/1.2 inherit; cursor:pointer; }
+.issues-workspace__create-button svg,.issues-workspace__add-row svg { width:16px; height:16px; stroke-width:2; }
 .issues-workspace__create-button:hover,.issues-workspace__add-row:hover { border-color:#777; color:#fff; background:#3a3a3a; }
 .issues-workspace__list > button { display:flex; align-items:center; gap:12px; }
 .issues-workspace__list-icon { display:grid; flex:0 0 30px; width:30px; height:30px; place-items:center; color:#c7c7cc; }
