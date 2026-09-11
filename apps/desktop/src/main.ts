@@ -1,5 +1,5 @@
 import { app, BrowserWindow, shell, dialog, Menu, Tray, nativeImage, globalShortcut, screen, ipcMain } from "electron";
-import { existsSync, mkdirSync, statSync, readdirSync, copyFileSync, appendFileSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, statSync, readdirSync, copyFileSync, appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import http from "node:http";
@@ -326,13 +326,76 @@ async function bootServer(port: number) {
 }
 
 // ----- Step 4: Window ----------------------------------------------------
+type MainWindowState = { bounds: Electron.Rectangle; maximized: boolean };
+const MAIN_WINDOW_WIDTH = 1480;
+const MAIN_WINDOW_HEIGHT = 920;
+const MAIN_WINDOW_MIN_WIDTH = 1100;
+const MAIN_WINDOW_MIN_HEIGHT = 700;
+
+function mainWindowStatePath(): string {
+  return join(userDataDir(), "window-state.json");
+}
+
+function restoreMainWindowState(): MainWindowState | null {
+  try {
+    const saved = JSON.parse(readFileSync(mainWindowStatePath(), "utf8")) as Partial<MainWindowState>;
+    const bounds = saved.bounds;
+    if (!bounds || ![bounds.x, bounds.y, bounds.width, bounds.height].every(Number.isFinite)) return null;
+    const display = screen.getDisplayMatching(bounds);
+    const workArea = display.workArea;
+    const width = Math.min(Math.max(MAIN_WINDOW_MIN_WIDTH, bounds.width), workArea.width);
+    const height = Math.min(Math.max(MAIN_WINDOW_MIN_HEIGHT, bounds.height), workArea.height);
+    return {
+      bounds: {
+        x: Math.min(Math.max(bounds.x, workArea.x), workArea.x + workArea.width - width),
+        y: Math.min(Math.max(bounds.y, workArea.y), workArea.y + workArea.height - height),
+        width,
+        height,
+      },
+      maximized: saved.maximized === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveMainWindowState(win: BrowserWindow): void {
+  if (win.isDestroyed()) return;
+  try {
+    mkdirSync(userDataDir(), { recursive: true });
+    const state: MainWindowState = { bounds: win.getNormalBounds(), maximized: win.isMaximized() };
+    writeFileSync(mainWindowStatePath(), JSON.stringify(state));
+  } catch (error) {
+    flog(`window state save failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function setupMainWindowStatePersistence(win: BrowserWindow): void {
+  let saveTimer: NodeJS.Timeout | null = null;
+  const scheduleSave = () => {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      saveTimer = null;
+      saveMainWindowState(win);
+    }, 180);
+  };
+  win.on("move", scheduleSave);
+  win.on("resize", scheduleSave);
+  win.on("maximize", scheduleSave);
+  win.on("unmaximize", scheduleSave);
+  win.on("close", () => saveMainWindowState(win));
+  win.on("closed", () => { if (saveTimer) clearTimeout(saveTimer); });
+}
+
 async function openMainWindow(port: number): Promise<BrowserWindow> {
   const icon = appIconPath();
+  const savedState = restoreMainWindowState();
   const win = new BrowserWindow({
-    width: 1480,
-    height: 920,
-    minWidth: 1100,
-    minHeight: 700,
+    width: savedState?.bounds.width ?? MAIN_WINDOW_WIDTH,
+    height: savedState?.bounds.height ?? MAIN_WINDOW_HEIGHT,
+    minWidth: MAIN_WINDOW_MIN_WIDTH,
+    minHeight: MAIN_WINDOW_MIN_HEIGHT,
+    ...(savedState ? { x: savedState.bounds.x, y: savedState.bounds.y } : {}),
     title: "Rich",
     backgroundColor: "#09090a",
     // Keep the title bar chromeless. Native window buttons are hidden below
@@ -353,6 +416,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
   win.once("ready-to-show", () => {
     ensureDockApplication("main ready-to-show");
     if (process.platform === "darwin") app.show();
+    if (savedState?.maximized) win.maximize();
     win.show();
     setTimeout(() => ensureDockApplication("main shown"), 500);
   });
@@ -540,6 +604,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
   win.on("maximize", () => setTopDragRegionMode(win, "no-drag"));
   win.on("unmaximize", () => setTopDragRegionMode(win, "drag"));
   mainWindow = win;
+  setupMainWindowStatePersistence(win);
   setupEdgeDock(win);
 
   // Open external links in the default browser, not new Electron windows.
