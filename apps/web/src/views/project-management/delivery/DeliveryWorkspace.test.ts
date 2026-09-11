@@ -118,6 +118,13 @@ test("动态类型选择器使用无箭头的自适应抽屉，并为每种类�
   assert.match(styles, /\.delivery-activity-kind__drawer button\.is-risk \{[^}]*--kind-color:#fb7185/);
 });
 
+test("动态类型从选择器到已创建列表使用同一套彩色边框标签", () => {
+  assert.match(source, /className=\{`delivery-activity-kind-chip is-\$\{activity\.kind\}`\}/);
+  assert.match(styles, /\.delivery-activity-kind-chip \{[^}]*border:2px solid var\(--kind-color\)[^}]*background:transparent[^}]*font-weight:800/s);
+  assert.match(styles, /\.delivery-activity-kind-chip\.is-todo \{ --kind-color:#fbbf24; \}/);
+  assert.match(styles, /\.delivery-activity-kind-chip\.is-risk \{ --kind-color:#fb7185; \}/);
+});
+
 test("进行中的任务不会被未完成的旧结束动态归档", () => {
   assert.match(source, /const endedOn = status === "done" \? activities\.filter\(activity => activity\.kind === "end"\)/);
 });

@@ -11343,3 +11343,12 @@
 .prj-ws .env-connection-row:hover { background:rgba(85,177,184,.12); }
 .prj-ws .env-connection-row strong { color:#91e8ec!important; }
 .prj-ws .env-connection-row code { color:#8dbfff!important; }
+
+/* Dynamic type markers share the drawer's outlined vocabulary from selection through publication. */
+.delivery-activity-kind-chip { --kind-color:#60a5fa; display:inline-flex; min-height:26px; box-sizing:border-box; align-items:center; justify-content:center; margin-right:8px; padding:3px 8px; border:2px solid var(--kind-color); border-radius:5px; color:var(--kind-color); background:transparent; font-size:12px; font-style:normal; font-weight:800; line-height:1; white-space:nowrap; }
+.delivery-activity-kind-chip.is-todo { --kind-color:#fbbf24; }
+.delivery-activity-kind-chip.is-deliverable { --kind-color:#38bdf8; }
+.delivery-activity-kind-chip.is-risk { --kind-color:#fb7185; }
+.delivery-activity-kind-chip.is-reminder { --kind-color:#a78bfa; }
+.delivery-activity-kind-chip.is-end { --kind-color:#34d399; }
+.delivery-dashboard-activity .delivery-activity-kind-chip,.delivery-dashboard-feed-row .delivery-activity-kind-chip { border-color:var(--kind-color)!important; color:var(--kind-color)!important; background:transparent!important; }
