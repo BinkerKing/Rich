@@ -9,7 +9,7 @@ test("问题清单标题头行采用紧凑高度", () => {
 
 test("问题清单的列表行采用交付物式紧凑中性卡片", () => {
   assert.match(styles, /\.issues-workspace__list > button\s*\{[^}]*min-height:62px[^}]*padding:15px[^}]*border-color:#424242[^}]*background:#252525[^}]*box-shadow:inset 0 1px rgba\(255,255,255,.025\)/s);
-  assert.match(styles, /\.issues-workspace__list-index\s*\{[^}]*width:30px[^}]*height:30px[^}]*border:1px solid #666[^}]*font-size:12px/s);
+  assert.match(styles, /\.issues-workspace__list \.issues-workspace__list-index\s*\{[^}]*width:30px[^}]*height:30px[^}]*border:1px solid #666[^}]*font-size:12px/s);
   assert.match(styles, /\.issues-workspace__list > button:hover\s*\{[^}]*border-color:#424242[^}]*background:#303030[^}]*box-shadow:none/s);
 });
 
