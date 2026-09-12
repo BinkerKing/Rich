@@ -58,6 +58,7 @@ test("序号列是问题记录唯一的拖拽排序入口", () => {
 test("单元格支持快捷键复制粘贴，并为复制源显示虚线框", () => {
   assert.match(source, /suppressKeyboardEvent:/);
   assert.doesNotMatch(source, /onCellKeyDown=/);
+  assert.match(source, /enableCellTextSelection suppressClipboardPaste suppressCutToClipboard/);
   assert.match(source, /!keyEvent\.metaKey && !keyEvent\.ctrlKey/);
   assert.match(source, /const key = keyEvent\.key\.toLowerCase\(\);/);
   assert.match(source, /key !== "c" && key !== "v"/);
