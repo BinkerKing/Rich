@@ -38,6 +38,17 @@ const formatTime = (value: string) => value.replace("T", " ").slice(0, 16);
 const fieldKeyFromName = (name: string) => `custom_${name.trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "_").replace(/^_+|_+$/g, "") || "field"}`;
 const needsOptions = (type?: TestCenterGridColumn["fieldType"]) => type === "select" || type === "multiSelect";
 const isTextField = (column: TestCenterGridColumn) => !column.fieldType || column.fieldType === "text";
+const getIssueRowHeight = (row: IssueGridRow | undefined, columns: TestCenterGridColumn[], baseHeight: number) => {
+  if (!row) return baseHeight;
+  const height = columns.filter(column => column.visible !== false && isTextField(column) && (column.contentMode !== undefined && column.contentMode !== "plain" || column.cellStyle?.whiteSpace === "normal")).reduce((tallest, column) => {
+    const value = String(row[column.key] ?? "");
+    if (!value) return tallest;
+    const charactersPerLine = Math.max(8, Math.floor(((column.width ?? 160) - 24) / 7));
+    const lines = value.split(/\r?\n/).reduce((count, line) => count + Math.max(1, Math.ceil(line.length / charactersPerLine)), 0);
+    return Math.max(tallest, lines * 20 + 16);
+  }, baseHeight);
+  return Math.min(height, 240);
+};
 const dropdownStyles = [{ value: "standard", label: "标准" }, { value: "soft", label: "轻柔色块" }, { value: "pill", label: "圆角标签" }, { value: "signal", label: "强调色块" }] as const;
 const contentModes = [{ value: "plain", label: "单行", icon: "T" }, { value: "wrap", label: "换行", icon: "↵" }, { value: "numbered", label: "序号任务", icon: "1." }, { value: "bulleted", label: "点点任务", icon: "•" }, { value: "checklist", label: "复选任务", icon: "☑" }] as const;
 
@@ -141,6 +152,9 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     if (!keyword) return rows;
     return rows.filter(row => columns.filter(column => column.searchable).some(column => String(row[column.key] ?? "").toLowerCase().includes(keyword)));
   }, [columns, query, rows]);
+  const baseRowHeight = tableStyle.density === "compact" ? 36 : 44;
+  const getRowHeight = useCallback((params: { data?: IssueGridRow }) => getIssueRowHeight(params.data, columns, baseRowHeight), [baseRowHeight, columns]);
+  useEffect(() => { gridApi.current?.resetRowHeights(); }, [columns, baseRowHeight]);
   const saveCellValue = useCallback((row: IssueGridRow, field: string, value: string) => {
     if (!field || systemFields.has(field) && field !== "title" && field !== "description" && field !== "owner" && field !== "status" && field !== "externalRef") return;
     if (systemFields.has(field)) onIssueChange(row.id, { [field]: value });
@@ -194,7 +208,6 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     cellEditorPopup: column.fieldType === "select",
     cellEditorPopupPosition: column.fieldType === "select" ? "under" : undefined,
     cellRenderer: column.fieldType === "select" ? (params: { value: string | number }) => <SelectBadge value={params.value} options={column.options} dropdownStyle={column.dropdownStyle} /> : column.fieldType === "checkbox" ? (params: { value: string | number; setValue: (value: string) => void }) => <CheckboxCell {...params} /> : column.fieldType === "multiSelect" ? (params: { value: string | number }) => <MultiSelectCell {...params} options={column.options} dropdownStyle={column.dropdownStyle} /> : isTextField(column) && (column.contentMode ?? "plain") !== "plain" ? (params: { value: string | number; setValue: (value: string) => void }) => <StructuredTextCell {...params} mode={column.contentMode} /> : undefined,
-    autoHeight: isTextField(column) && (column.contentMode === "wrap" || column.contentMode === "numbered" || column.contentMode === "bulleted" || column.contentMode === "checklist" || column.cellStyle?.whiteSpace === "normal"),
     wrapText: isTextField(column) && (column.contentMode === "wrap" || column.cellStyle?.whiteSpace === "normal"),
     suppressKeyboardEvent: params => handleClipboardShortcut(params.event, params.data, column.key, params.editing),
     cellClass: [column.key === "serial" ? "issue-data-grid__serial" : "", column.fieldType === "select" ? "issue-data-grid__select-cell" : "", column.cellStyle?.whiteSpace === "normal" ? "issue-data-grid__cell-auto-wrap" : "", `issue-data-grid__cell-align-${column.cellStyle?.textAlign ?? "left"}`].filter(Boolean).join(" "),
@@ -303,11 +316,11 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
       <section className="issue-data-grid__style"><b>表格样式</b><label>密度<select value={settingsStyle.density} onChange={event => updateStyle({ density: event.target.value as TestCenterGridStyle["density"] })}><option value="compact">紧凑</option><option value="comfortable">舒适</option></select></label><label>表头色调<select value={settingsStyle.headerTone} onChange={event => updateStyle({ headerTone: event.target.value as TestCenterGridStyle["headerTone"] })}><option value="neutral">中性</option><option value="slate">石板</option><option value="cyan">青色</option></select></label><label><input type="checkbox" checked={settingsStyle.stripedRows} onChange={event => updateStyle({ stripedRows: event.target.checked })} /> 斑马纹行</label><button className={`issue-data-grid__apply-settings${settingsDirty ? " is-ready" : ""}`} type="button" disabled={!settingsDirty} onClick={applySettings}>{settingsDirty ? "应用更改" : "已应用"}</button></section>
     </aside>}
     <div className="issue-data-grid__table" onKeyDownCapture={handleGridKeyDownCapture} onContextMenu={event => { if (event.target === event.currentTarget) { event.preventDefault(); setRecordMenu({ x: event.clientX, y: event.clientY }); } }}><AgGridReact<IssueGridRow>
-      theme={issueGridTheme} rowData={visibleRows} columnDefs={columnDefs} defaultColDef={{ sortable: true }} getRowId={params => params.data.id} onGridReady={event => { gridApi.current = event.api; }} rowDragManaged={!query} suppressMoveWhenRowDragging animateRows enableCellTextSelection suppressClipboardPaste suppressCutToClipboard rowHeight={tableStyle.density === "compact" ? 36 : 44} headerHeight={40} singleClickEdit={false} stopEditingWhenCellsLoseFocus
+      theme={issueGridTheme} rowData={visibleRows} columnDefs={columnDefs} defaultColDef={{ sortable: true }} getRowId={params => params.data.id} onGridReady={event => { gridApi.current = event.api; }} getRowHeight={getRowHeight} rowDragManaged={!query} suppressMoveWhenRowDragging animateRows enableCellTextSelection suppressClipboardPaste suppressCutToClipboard rowHeight={baseRowHeight} headerHeight={40} singleClickEdit={false} stopEditingWhenCellsLoseFocus
       onCellClicked={event => { const column = columns.find(item => item.key === event.colDef.field); if (event.rowIndex !== null && needsOptions(column?.fieldType)) event.api.startEditingCell({ rowIndex: event.rowIndex, colKey: event.column.getColId() }); }}
       onCellContextMenu={event => { const mouseEvent = event.event as MouseEvent | undefined; if (!mouseEvent || !event.data) return; mouseEvent.preventDefault(); setRecordMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY, issueId: event.data.id }); }}
       onRowDragEnd={event => { const issueIds: string[] = []; event.api.forEachNode(node => { if (node.data) issueIds.push(node.data.id); }); onIssueReorder(issueIds); }}
-      onColumnResized={event => { if (event.finished) saveColumnWidths(event.api); }}
+      onColumnResized={event => { if (event.finished) { event.api.resetRowHeights(); saveColumnWidths(event.api); } }}
       onColumnMoved={event => { if (event.finished) saveColumnOrder(event.api); }}
       onCellValueChanged={event => {
         const field = event.colDef.field;
