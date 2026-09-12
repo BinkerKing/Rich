@@ -48,3 +48,10 @@ test("字段设置以表格行展示，并提供日期、勾选和多选类型",
   assert.match(source, /<option value="checkbox">勾选<\/option>/);
   assert.match(source, /<option value="multiSelect">多选下拉<\/option>/);
 });
+
+test("字段定义表不显示冗余标题行，并可删除自定义字段", () => {
+  assert.doesNotMatch(source, /字段顺序、宽度和显示内容会自动保存/);
+  assert.match(source, /<th>操作<\/th>/);
+  assert.match(source, /删除字段/);
+  assert.match(source, /removeColumn/);
+});

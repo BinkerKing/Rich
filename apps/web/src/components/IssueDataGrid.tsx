@@ -110,6 +110,10 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
     void api.saveTestCenterGridSettings(projectId, gridSettingsKey, nextColumns, nextStyle);
   };
   const updateColumn = (key: string, patch: Partial<TestCenterGridColumn>) => saveSettings(columns.map(column => column.key === key ? { ...column, ...patch } : column));
+  const removeColumn = (key: string) => {
+    if (defaultColumns.some(column => column.key === key)) updateColumn(key, { visible: false });
+    else saveSettings(columns.filter(column => column.key !== key));
+  };
   const addField = () => {
     const name = newFieldName.trim();
     if (!name) return;
@@ -138,15 +142,15 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
       <button className="issue-data-grid__settings-trigger" type="button" onClick={() => setSettingsOpen(open => !open)} aria-expanded={settingsOpen}>表格设置</button>
     </div>
     {settingsOpen && <aside className="issue-data-grid__settings" aria-label="表格设置">
-      <header><div><b>字段配置</b><span>字段顺序、宽度和显示内容会自动保存。</span></div><button type="button" aria-label="关闭表格设置" onClick={() => setSettingsOpen(false)}>×</button></header>
       <div className="issue-data-grid__add-field"><input value={newFieldName} onChange={event => setNewFieldName(event.target.value)} onKeyDown={event => { if (event.key === "Enter") addField(); }} placeholder="新字段名称，例如：优先级" /><button type="button" onClick={addField}>添加字段</button></div>
-      <div className="issue-data-grid__field-table-wrap"><table className="issue-data-grid__field-table"><thead><tr><th>字段名称</th><th>字段类型</th><th>下拉选项</th><th>可编辑</th><th>参与搜索</th><th>显示</th></tr></thead><tbody>{columns.map(column => <tr key={column.key}>
+      <div className="issue-data-grid__field-table-wrap"><table className="issue-data-grid__field-table"><thead><tr><th>字段名称</th><th>字段类型</th><th>下拉选项</th><th>可编辑</th><th>参与搜索</th><th>显示</th><th>操作</th></tr></thead><tbody>{columns.map(column => <tr key={column.key}>
         <td><input aria-label={`${column.name}列名`} value={column.name} onChange={event => updateColumn(column.key, { name: event.target.value })} /></td>
         <td><select value={column.fieldType ?? "text"} disabled={column.key === "serial" || column.key === "updatedAt"} onChange={event => { const fieldType = event.target.value as TestCenterGridColumn["fieldType"]; updateColumn(column.key, { fieldType, options: needsOptions(fieldType) ? column.options ?? [] : undefined }); }}><option value="text">编辑框</option><option value="date">日期</option><option value="checkbox">勾选</option><option value="select">下拉选项</option><option value="multiSelect">多选下拉</option></select></td>
         <td>{needsOptions(column.fieldType) ? <textarea value={optionText(column.options)} onChange={event => updateColumn(column.key, { options: parseOptions(event.target.value) })} placeholder="每行一个选项" /> : <span className="issue-data-grid__not-applicable">—</span>}</td>
         <td><input type="checkbox" checked={column.editable !== false && column.key !== "serial" && column.key !== "updatedAt"} disabled={column.key === "serial" || column.key === "updatedAt"} onChange={event => updateColumn(column.key, { editable: event.target.checked })} /></td>
         <td><input type="checkbox" checked={column.searchable === true} onChange={event => updateColumn(column.key, { searchable: event.target.checked })} /></td>
         <td><input type="checkbox" checked={column.visible !== false} onChange={event => updateColumn(column.key, { visible: event.target.checked })} /></td>
+        <td><button className="issue-data-grid__delete-column" type="button" onClick={() => removeColumn(column.key)}>{defaultColumns.some(defaultColumn => defaultColumn.key === column.key) ? "隐藏" : "删除字段"}</button></td>
       </tr>)}</tbody></table></div>
       <section className="issue-data-grid__style"><b>表格样式</b><label>密度<select value={tableStyle.density} onChange={event => updateStyle({ density: event.target.value as TestCenterGridStyle["density"] })}><option value="compact">紧凑</option><option value="comfortable">舒适</option></select></label><label>表头色调<select value={tableStyle.headerTone} onChange={event => updateStyle({ headerTone: event.target.value as TestCenterGridStyle["headerTone"] })}><option value="neutral">中性</option><option value="slate">石板</option><option value="cyan">青色</option></select></label><label><input type="checkbox" checked={tableStyle.stripedRows} onChange={event => updateStyle({ stripedRows: event.target.checked })} /> 斑马纹行</label></section>
     </aside>}
