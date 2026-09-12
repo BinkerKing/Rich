@@ -10,6 +10,7 @@ type IssueStatus = "open" | "fixed" | "retest" | "closed";
 type EditableIssueField = "title" | "description" | "owner" | "status" | "externalRef";
 type IssueChange = Partial<Pick<TestCenterIssue, EditableIssueField | "customFields">>;
 type IssueGridRow = { id: string; serial: number; title: string; description: string; owner: string; status: IssueStatus; externalRef: string; updatedAt: string; customFields: Record<string, string>; [key: string]: string | number | Record<string, string> };
+type CopiedCell = { issueId: string; field: string; value: string };
 
 type IssueDataGridProps = { projectId: string; tableId: string; title?: string; onBack?: () => void; issues: TestCenterIssue[]; onIssueChange: (issueId: string, patch: IssueChange) => void; onIssueReorder: (issueIds: string[]) => void; onAddIssue: () => void; onDeleteIssue: (issueId: string) => void };
 type StyleSelection = { key: string; target: "header" | "cell" | "dropdown"; optionValue?: string };
@@ -103,6 +104,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
   const [newFieldName, setNewFieldName] = useState("");
   const [styleSelection, setStyleSelection] = useState<StyleSelection | null>(null);
   const [recordMenu, setRecordMenu] = useState<{ x: number; y: number; issueId?: string } | null>(null);
+  const [copiedCell, setCopiedCell] = useState<CopiedCell | null>(null);
   const resizeTimer = useRef<ReturnType<typeof setTimeout>>();
   const gridSettingsKey = `issues:${tableId}:columns`;
 
@@ -132,6 +134,11 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     if (!keyword) return rows;
     return rows.filter(row => columns.filter(column => column.searchable).some(column => String(row[column.key] ?? "").toLowerCase().includes(keyword)));
   }, [columns, query, rows]);
+  const saveCellValue = (row: IssueGridRow, field: string, value: string) => {
+    if (!field || systemFields.has(field) && field !== "title" && field !== "description" && field !== "owner" && field !== "status" && field !== "externalRef") return;
+    if (systemFields.has(field)) onIssueChange(row.id, { [field]: value });
+    else onIssueChange(row.id, { customFields: { ...row.customFields, [field]: value } });
+  };
   const columnDefs = useMemo<ColDef<IssueGridRow>[]>(() => columns.filter(column => column.visible !== false).map(column => ({
     field: column.key,
     headerName: column.name,
@@ -151,8 +158,8 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     cellRenderer: column.fieldType === "select" ? (params: { value: string | number }) => <SelectBadge value={params.value} options={column.options} dropdownStyle={column.dropdownStyle} /> : column.fieldType === "checkbox" ? (params: { value: string | number; setValue: (value: string) => void }) => <CheckboxCell {...params} /> : column.fieldType === "multiSelect" ? (params: { value: string | number }) => <MultiSelectCell {...params} options={column.options} dropdownStyle={column.dropdownStyle} /> : column.fieldType === "text" && (column.contentMode ?? "plain") !== "plain" ? (params: { value: string | number; setValue: (value: string) => void }) => <StructuredTextCell {...params} mode={column.contentMode} /> : undefined,
     autoHeight: column.fieldType === "text" && (column.contentMode === "wrap" || column.contentMode === "numbered" || column.contentMode === "bulleted" || column.contentMode === "checklist"),
     wrapText: column.fieldType === "text" && column.contentMode === "wrap",
-    cellClass: [column.key === "serial" ? "issue-data-grid__serial" : "", column.fieldType === "select" ? "issue-data-grid__select-cell" : "", `issue-data-grid__cell-align-${column.cellStyle?.textAlign ?? "left"}`].filter(Boolean).join(" "),
-  })), [columns, query]);
+    cellClass: params => [column.key === "serial" ? "issue-data-grid__serial" : "", column.fieldType === "select" ? "issue-data-grid__select-cell" : "", copiedCell?.issueId === params.data?.id && copiedCell?.field === column.key ? "issue-data-grid__cell-copied" : "", `issue-data-grid__cell-align-${column.cellStyle?.textAlign ?? "left"}`].filter(Boolean).join(" "),
+  })), [columns, copiedCell, query]);
 
   const persistSettings = (nextColumns: TestCenterGridColumn[], nextStyle = tableStyle, nextDeletedColumns = deletedColumns) => {
     setColumns(nextColumns);
@@ -264,16 +271,28 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     <div className="issue-data-grid__table" onContextMenu={event => { if (event.target === event.currentTarget) { event.preventDefault(); setRecordMenu({ x: event.clientX, y: event.clientY }); } }}><AgGridReact<IssueGridRow>
       theme={issueGridTheme} rowData={visibleRows} columnDefs={columnDefs} defaultColDef={{ sortable: true }} getRowId={params => params.data.id} rowDragManaged={!query} suppressMoveWhenRowDragging animateRows rowHeight={tableStyle.density === "compact" ? 36 : 44} headerHeight={40} singleClickEdit={false} stopEditingWhenCellsLoseFocus
       onCellClicked={event => { const column = columns.find(item => item.key === event.colDef.field); if (event.rowIndex !== null && needsOptions(column?.fieldType)) event.api.startEditingCell({ rowIndex: event.rowIndex, colKey: event.column.getColId() }); }}
+      onCellKeyDown={event => {
+        const keyEvent = event.event as KeyboardEvent | undefined;
+        if (!("column" in event)) return;
+        const field = event.column.getColId();
+        if (!keyEvent || !field || !event.data || (!keyEvent.metaKey && !keyEvent.ctrlKey) || event.api.getEditingCells().length) return;
+        if (keyEvent.key.toLowerCase() === "c") {
+          const value = String(event.data[field] ?? "");
+          keyEvent.preventDefault(); setCopiedCell({ issueId: event.data.id, field, value });
+          void navigator.clipboard?.writeText(value).catch(() => undefined);
+        }
+        if (keyEvent.key.toLowerCase() === "v" && copiedCell && field !== "serial" && field !== "updatedAt" && columns.find(column => column.key === field)?.editable !== false) {
+          keyEvent.preventDefault(); saveCellValue(event.data, field, copiedCell.value);
+        }
+      }}
       onCellContextMenu={event => { const mouseEvent = event.event as MouseEvent | undefined; if (!mouseEvent || !event.data) return; mouseEvent.preventDefault(); setRecordMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY, issueId: event.data.id }); }}
       onRowDragEnd={event => { const issueIds: string[] = []; event.api.forEachNode(node => { if (node.data) issueIds.push(node.data.id); }); onIssueReorder(issueIds); }}
       onColumnResized={event => { if (event.finished) saveColumnWidths(event.api); }}
       onColumnMoved={event => { if (event.finished) saveColumnOrder(event.api); }}
       onCellValueChanged={event => {
         const field = event.colDef.field;
-        if (!field || systemFields.has(field) && field !== "title" && field !== "description" && field !== "owner" && field !== "status" && field !== "externalRef" || event.oldValue === event.newValue) return;
-        const value = String(event.newValue ?? "");
-        if (systemFields.has(field)) onIssueChange(event.data.id, { [field]: value });
-        else onIssueChange(event.data.id, { customFields: { ...event.data.customFields, [field]: value } });
+        if (!field || event.oldValue === event.newValue) return;
+        saveCellValue(event.data, field, String(event.newValue ?? ""));
       }}
     />{recordMenu && <div className="issue-data-grid__record-menu" style={{ left: recordMenu.x, top: recordMenu.y }} onMouseDown={event => event.stopPropagation()}><button type="button" onClick={() => { onAddIssue(); setRecordMenu(null); }}>＋ 新增记录</button>{recordMenu.issueId && <button className="is-danger" type="button" onClick={() => { onDeleteIssue(recordMenu.issueId!); setRecordMenu(null); }}>删除记录</button>}</div>}</div>
   </div>;
