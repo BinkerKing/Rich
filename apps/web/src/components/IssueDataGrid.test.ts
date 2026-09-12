@@ -36,6 +36,14 @@ test("问题表包含可编辑的项目跟进字段，并记住每张表的列�
   assert.match(source, /api\.getTestCenterGridSettings\(projectId, gridSettingsKey\)/);
   assert.match(source, /api\.saveTestCenterGridSettings\(projectId, gridSettingsKey/);
   assert.match(source, /onColumnResized=/);
+  assert.match(source, /onColumnMoved=/);
+  assert.match(source, /saveColumnOrder/);
+});
+
+test("恢复字段配置时按已保存的列顺序构建表格", () => {
+  assert.match(source, /const savedActiveColumns = settings\.columns\.filter\(column => !column\.deleted\)/);
+  assert.match(source, /savedActiveColumns\.map\(column =>/);
+  assert.match(source, /gridApi\.getColumnState\(\).*positions/s);
 });
 
 test("问题表提供字段配置器，支持列类型、搜索和样式设置", () => {

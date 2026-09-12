@@ -87,9 +87,10 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
     void api.getTestCenterGridSettings(projectId, gridSettingsKey).then(settings => {
       if (cancelled || !settings.columns.length) return;
       const saved = new Map(settings.columns.map(column => [column.key, column]));
+      const savedActiveColumns = settings.columns.filter(column => !column.deleted);
       const restored = [
-        ...defaultColumns.filter(column => !saved.get(column.key)?.deleted).map(column => ({ ...column, ...saved.get(column.key) })),
-        ...settings.columns.filter(column => !column.deleted && !systemFields.has(column.key) && !defaultColumns.some(defaultColumn => defaultColumn.key === column.key)),
+        ...savedActiveColumns.map(column => ({ ...defaultColumns.find(defaultColumn => defaultColumn.key === column.key), ...column })),
+        ...defaultColumns.filter(column => !saved.has(column.key)),
       ];
       setColumns(restored);
       setTableStyle({ ...defaultStyle, ...settings.style });
@@ -183,6 +184,13 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
       persistSettings(columns.map(column => ({ ...column, width: widths.get(column.key) ?? column.width })));
     }, 350);
   };
+  const saveColumnOrder = (gridApi: GridApi<IssueGridRow>) => {
+    clearTimeout(resizeTimer.current);
+    resizeTimer.current = setTimeout(() => {
+      const positions = new Map(gridApi.getColumnState().map((column, index) => [column.colId, index]));
+      persistSettings([...columns].sort((left, right) => (positions.get(left.key) ?? Number.MAX_SAFE_INTEGER) - (positions.get(right.key) ?? Number.MAX_SAFE_INTEGER)));
+    }, 150);
+  };
   const updateStyle = (patch: Partial<TestCenterGridStyle>) => {
     setDraftTableStyle({ ...settingsStyle, ...patch });
     setSettingsDirty(true);
@@ -226,6 +234,7 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
     <div className="issue-data-grid__table"><AgGridReact<IssueGridRow>
       theme={issueGridTheme} rowData={visibleRows} columnDefs={columnDefs} defaultColDef={{ sortable: true }} getRowId={params => params.data.id} rowHeight={tableStyle.density === "compact" ? 36 : 44} headerHeight={40} singleClickEdit stopEditingWhenCellsLoseFocus
       onColumnResized={event => { if (event.finished) saveColumnWidths(event.api); }}
+      onColumnMoved={event => { if (event.finished) saveColumnOrder(event.api); }}
       onCellValueChanged={event => {
         const field = event.colDef.field;
         if (!field || systemFields.has(field) && field !== "title" && field !== "description" && field !== "owner" && field !== "status" && field !== "externalRef" || event.oldValue === event.newValue) return;
