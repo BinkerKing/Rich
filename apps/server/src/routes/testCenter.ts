@@ -14,8 +14,9 @@ const runStepFinishInput = z.object({ status: z.enum(["passed", "failed", "block
 const evidenceInput = z.object({ title: z.string().min(1), kind: z.string().min(1), location: z.string().min(1), runStepId: z.string().optional() });
 const issueInput = z.object({ caseId: z.string().min(1), runId: z.string().min(1).optional(), title: z.string().min(1), description: z.string(), owner: z.string().min(1).optional(), externalRef: z.string().min(1).optional(), customFields: z.record(z.string(), z.string()).default({}) });
 const issuePatch = z.object({ title: z.string().min(1).optional(), description: z.string().optional(), status: z.enum(["open", "fixed", "retest", "closed"]).optional(), owner: z.string().min(1).nullable().optional(), externalRef: z.string().min(1).nullable().optional(), customFields: z.record(z.string(), z.string()).optional() });
-const gridColumn = z.object({ key: z.string().min(1).max(80), name: z.string().min(1).max(80), width: z.number().int().min(80).max(1000).optional(), frozen: z.boolean().optional(), editable: z.boolean().optional(), options: z.array(z.object({ label: z.string().min(1).max(80), value: z.string().max(80) })).max(20).optional() });
-const gridSettingsInput = z.object({ columns: z.array(gridColumn).max(40) });
+const gridColumn = z.object({ key: z.string().min(1).max(80), name: z.string().min(1).max(80), width: z.number().int().min(68).max(1000).optional(), frozen: z.boolean().optional(), editable: z.boolean().optional(), visible: z.boolean().optional(), searchable: z.boolean().optional(), fieldType: z.enum(["text", "select"]).optional(), options: z.array(z.object({ label: z.string().min(1).max(80), value: z.string().max(80) })).max(20).optional() });
+const gridStyle = z.object({ density: z.enum(["compact", "comfortable"]).optional(), headerTone: z.enum(["neutral", "slate", "cyan"]).optional(), stripedRows: z.boolean().optional() });
+const gridSettingsInput = z.object({ columns: z.array(gridColumn).max(40), style: gridStyle.optional() });
 const discussionInput = z.object({ content: z.string().min(1) });
 const caseCommentInput = z.object({ content: z.string().min(1) });
 
@@ -75,7 +76,7 @@ export function testCenterRoutes(repo: TestCenterSqliteRepo) {
   r.get("/:projectId/issues", async c => c.json(await repo.listIssues(c.req.param("projectId"))));
   r.get("/:projectId/grid-settings", async c => c.json(await repo.listGridSettings(c.req.param("projectId"), c.req.query("prefix") ?? "")));
   r.get("/:projectId/grid-settings/:gridKey", async c => c.json(await repo.getGridSettings(c.req.param("projectId"), c.req.param("gridKey"))));
-  r.put("/:projectId/grid-settings/:gridKey", async c => c.json(await repo.saveGridSettings(c.req.param("projectId"), c.req.param("gridKey"), gridSettingsInput.parse(await c.req.json()).columns)));
+  r.put("/:projectId/grid-settings/:gridKey", async c => { const input = gridSettingsInput.parse(await c.req.json()); return c.json(await repo.saveGridSettings(c.req.param("projectId"), c.req.param("gridKey"), input.columns, input.style)); });
   r.post("/:projectId/issues", async c => c.json(await repo.createIssue({ projectId: c.req.param("projectId"), ...issueInput.parse(await c.req.json()) }), 201));
   r.patch("/:projectId/issues/:issueId", async c => {
     const issue = await repo.updateIssue({ projectId: c.req.param("projectId"), issueId: c.req.param("issueId"), ...issuePatch.parse(await c.req.json()) });

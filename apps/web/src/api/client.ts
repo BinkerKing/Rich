@@ -1147,7 +1147,7 @@ export const api = {
     if (!r.ok) throw new Error(`updateTestCenterIssue ${r.status}`);
     return r.json();
   },
-  async getTestCenterGridSettings(projectId: string, gridKey: string): Promise<{ columns: TestCenterGridColumn[] }> {
+  async getTestCenterGridSettings(projectId: string, gridKey: string): Promise<{ columns: TestCenterGridColumn[]; style?: TestCenterGridStyle }> {
     const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/grid-settings/${encodeURIComponent(gridKey)}`);
     if (!r.ok) throw new Error(`getTestCenterGridSettings ${r.status}`);
     return r.json();
@@ -1157,8 +1157,8 @@ export const api = {
     if (!r.ok) throw new Error(`listTestCenterGridSettings ${r.status}`);
     return r.json();
   },
-  async saveTestCenterGridSettings(projectId: string, gridKey: string, columns: TestCenterGridColumn[]): Promise<{ columns: TestCenterGridColumn[] }> {
-    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/grid-settings/${encodeURIComponent(gridKey)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ columns }) });
+  async saveTestCenterGridSettings(projectId: string, gridKey: string, columns: TestCenterGridColumn[], style?: TestCenterGridStyle): Promise<{ columns: TestCenterGridColumn[]; style?: TestCenterGridStyle }> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/grid-settings/${encodeURIComponent(gridKey)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ columns, style }) });
     if (!r.ok) throw new Error(`saveTestCenterGridSettings ${r.status}`);
     return r.json();
   },
@@ -1916,7 +1916,8 @@ export type TestCenterEvidence = { id: string; runId: string; title: string; kin
 export type TestCenterIssue = {
   id: string; caseId: string; runId?: string; title: string; description: string; owner?: string; externalRef?: string; customFields: Record<string, string>; status: string; updatedAt: string;
 };
-export type TestCenterGridColumn = { key: string; name: string; width?: number; frozen?: boolean; editable?: boolean; options?: Array<{ label: string; value: string }> };
+export type TestCenterGridColumn = { key: string; name: string; width?: number; frozen?: boolean; editable?: boolean; visible?: boolean; searchable?: boolean; fieldType?: "text" | "select"; options?: Array<{ label: string; value: string }> };
+export type TestCenterGridStyle = { density?: "compact" | "comfortable"; headerTone?: "neutral" | "slate" | "cyan"; stripedRows?: boolean };
 export type TestCenterIssueDiscussion = { id: string; issueId: string; content: string; createdAt: string };
 export type TestCenterCaseComment = { id: string; caseId: string; content: string; createdAt: string; updatedAt: string };
 export type TestCenterReport = {

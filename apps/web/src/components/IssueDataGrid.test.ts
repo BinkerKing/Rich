@@ -7,8 +7,8 @@ const styles = readFileSync(new URL("./IssueDataGrid.css", import.meta.url), "ut
 
 test("问题表使用 AG Grid 并提供搜索、状态筛选和内联编辑", () => {
   assert.match(source, /from "ag-grid-react"/);
-  assert.match(source, /placeholder="搜索项目、问题或负责人"/);
-  assert.match(source, /cellEditor: "agSelectCellEditor"/);
+  assert.match(source, /placeholder="搜索已设为可检索的字段"/);
+  assert.match(source, /cellEditor: column\.fieldType === "select" \? "agSelectCellEditor"/);
   assert.match(source, /onCellValueChanged=/);
 });
 
@@ -18,13 +18,25 @@ test("高级问题表格撑满编辑区域并使用紧凑深色工具栏", () =>
 });
 
 test("问题表包含可编辑的项目跟进字段，并记住每张表的列宽", () => {
-  assert.match(source, /field: "serial"[\s\S]*?headerName: "序号"/);
-  assert.match(source, /field: "project"[\s\S]*?headerName: "项目"[\s\S]*?editable: true/);
-  assert.match(source, /field: "issueType"[\s\S]*?headerName: "类型"[\s\S]*?agSelectCellEditor/);
-  assert.match(source, /field: "module"[\s\S]*?headerName: "模块"[\s\S]*?editable: true/);
-  assert.match(source, /field: "eta"[\s\S]*?headerName: "ETA"[\s\S]*?editable: true/);
-  assert.match(source, /field: "progressFollowUp"[\s\S]*?headerName: "进度跟进"[\s\S]*?editable: true/);
+  assert.match(source, /key: "serial", name: "序号"/);
+  assert.match(source, /key: "project", name: "项目"[\s\S]*?editable: true/);
+  assert.match(source, /key: "issueType", name: "类型"[\s\S]*?fieldType: "select"/);
+  assert.match(source, /key: "module", name: "模块"[\s\S]*?editable: true/);
+  assert.match(source, /key: "eta", name: "ETA"[\s\S]*?editable: true/);
+  assert.match(source, /key: "progressFollowUp", name: "进度跟进"[\s\S]*?editable: true/);
   assert.match(source, /api\.getTestCenterGridSettings\(projectId, gridSettingsKey\)/);
   assert.match(source, /api\.saveTestCenterGridSettings\(projectId, gridSettingsKey/);
   assert.match(source, /onColumnResized=/);
+});
+
+test("问题表提供字段配置器，支持列类型、搜索和样式设置", () => {
+  assert.match(source, /表格设置/);
+  assert.match(source, /添加字段/);
+  assert.match(source, /字段类型/);
+  assert.match(source, /参与搜索/);
+  assert.match(source, /下拉选项/);
+  assert.match(source, /表格样式/);
+  assert.match(source, /fieldType: "select"/);
+  assert.match(source, /searchable/);
+  assert.match(source, /tableStyle/);
 });

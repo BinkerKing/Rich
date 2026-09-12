@@ -227,22 +227,22 @@ export class TestCenterSqliteRepo {
     return this.getIssue(input.projectId, input.issueId);
   }
 
-  async getGridSettings(projectId: string, gridKey: string): Promise<{ columns: unknown[] }> {
+  async getGridSettings(projectId: string, gridKey: string): Promise<{ columns: unknown[]; style?: unknown }> {
     const row = this.db.prepare(`SELECT columns_json FROM pm_test_grid_settings WHERE project_id=? AND grid_key=?`).get(projectId, gridKey) as { columns_json: string } | undefined;
-    try { return { columns: row ? JSON.parse(row.columns_json) as unknown[] : [] }; } catch { return { columns: [] }; }
+    try { const saved = row ? JSON.parse(row.columns_json) as unknown : []; return Array.isArray(saved) ? { columns: saved } : saved as { columns: unknown[]; style?: unknown }; } catch { return { columns: [] }; }
   }
 
   async listGridSettings(projectId: string, prefix: string): Promise<Array<{ key: string; columns: unknown[] }>> {
     const rows = this.db.prepare(`SELECT grid_key, columns_json FROM pm_test_grid_settings WHERE project_id=? AND grid_key LIKE ? ORDER BY grid_key ASC`).all(projectId, `${prefix}%`) as Array<{ grid_key: string; columns_json: string }>;
     return rows.map(row => {
-      try { return { key: row.grid_key, columns: JSON.parse(row.columns_json) as unknown[] }; } catch { return { key: row.grid_key, columns: [] }; }
+      try { const saved = JSON.parse(row.columns_json) as unknown; return { key: row.grid_key, columns: Array.isArray(saved) ? saved : (saved as { columns?: unknown[] }).columns ?? [] }; } catch { return { key: row.grid_key, columns: [] }; }
     });
   }
 
-  async saveGridSettings(projectId: string, gridKey: string, columns: unknown[]): Promise<{ columns: unknown[] }> {
+  async saveGridSettings(projectId: string, gridKey: string, columns: unknown[], style?: unknown): Promise<{ columns: unknown[]; style?: unknown }> {
     this.db.prepare(`INSERT INTO pm_test_grid_settings (project_id, grid_key, columns_json, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(project_id, grid_key) DO UPDATE SET columns_json=excluded.columns_json, updated_at=excluded.updated_at`)
-      .run(projectId, gridKey, JSON.stringify(columns), now());
-    return { columns };
+      .run(projectId, gridKey, JSON.stringify({ columns, style }), now());
+    return { columns, style };
   }
 
   async startRetestFromIssue(input: { projectId: string; issueId: string }): Promise<TestCenterRun> {
