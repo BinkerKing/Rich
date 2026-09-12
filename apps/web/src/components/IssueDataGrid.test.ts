@@ -87,6 +87,12 @@ test("下拉选项在最终样式输入框中直接编辑，工具栏不叠层",
   assert.match(styles, /\.issue-data-grid__settings:has\(\.issue-data-grid__dropdown-toolbar\) \.issue-data-grid__style-toolbar\s*\{[^}]*visibility:hidden/s);
 });
 
+test("下拉样式直接作用于可编辑的最终效果输入框", () => {
+  assert.match(styles, /input\.issue-data-grid__option-content--soft\s*\{[^}]*background:#23474d/s);
+  assert.match(styles, /input\.issue-data-grid__option-content--pill\s*\{[^}]*border-radius:999px/s);
+  assert.match(styles, /input\.issue-data-grid__option-content--signal\s*\{[^}]*background:#65442e/s);
+});
+
 test("字段定义表不显示冗余标题行，并使用图标删除字段", () => {
   assert.doesNotMatch(source, /字段顺序、宽度和显示内容会自动保存/);
   assert.match(source, /<th>操作<\/th>/);
