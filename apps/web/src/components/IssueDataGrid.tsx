@@ -36,10 +36,26 @@ const formatTime = (value: string) => value.replace("T", " ").slice(0, 16);
 const optionText = (options?: Array<{ label: string; value: string }>) => options?.map(option => option.label).join("\n") ?? "";
 const parseOptions = (value: string) => value.split("\n").map(item => item.trim()).filter(Boolean).map(item => ({ label: item, value: item }));
 const fieldKeyFromName = (name: string) => `custom_${name.trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "_").replace(/^_+|_+$/g, "") || "field"}`;
+const needsOptions = (type?: TestCenterGridColumn["fieldType"]) => type === "select" || type === "multiSelect";
 
 function SelectBadge({ value, options }: { value: string | number; options?: Array<{ label: string; value: string }> }): ReactNode {
   const label = options?.find(option => option.value === value)?.label ?? String(value || "选择选项");
   return <span className={`issue-data-grid__select-badge${value ? "" : " issue-data-grid__select-badge--empty"}`}>{label}</span>;
+}
+
+function CheckboxCell({ value, setValue }: { value: string | number; setValue: (value: string) => void }): ReactNode {
+  return <label className="issue-data-grid__checkbox"><input type="checkbox" checked={value === "true"} onChange={event => setValue(String(event.target.checked))} /><span>{value === "true" ? "是" : "否"}</span></label>;
+}
+
+function MultiSelectCell({ value, options }: { value: string | number; options?: Array<{ label: string; value: string }> }): ReactNode {
+  const values = String(value ?? "").split("|").filter(Boolean);
+  return <span className="issue-data-grid__multi-select">{values.length ? values.map(item => <SelectBadge key={item} value={item} options={options} />) : <SelectBadge value="" options={options} />}</span>;
+}
+
+function DateEditor({ value, onValueChange }: { value?: string; onValueChange: (value: string) => void }): ReactNode { return <input className="issue-data-grid__date-editor" autoFocus type="date" value={value ?? ""} onChange={event => onValueChange(event.target.value)} />; }
+function MultiSelectEditor({ value, onValueChange, options = [] }: { value?: string; onValueChange: (value: string) => void; options?: Array<{ label: string; value: string }> }): ReactNode {
+  const selected = String(value ?? "").split("|").filter(Boolean);
+  return <select className="issue-data-grid__multi-select-editor" autoFocus multiple value={selected} onChange={event => onValueChange(Array.from(event.target.selectedOptions, option => option.value).join("|"))}>{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
 }
 
 export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: IssueDataGridProps): ReactNode {
@@ -83,9 +99,9 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
     sortable: column.key !== "serial",
     resizable: true,
     pinned: column.frozen ? "left" : undefined,
-    cellEditor: column.fieldType === "select" ? "agSelectCellEditor" : undefined,
-    cellEditorParams: column.fieldType === "select" ? { values: column.options?.map(option => option.value) ?? [] } : undefined,
-    cellRenderer: column.fieldType === "select" ? (params: { value: string | number }) => <SelectBadge value={params.value} options={column.options} /> : undefined,
+    cellEditor: column.fieldType === "select" ? "agSelectCellEditor" : column.fieldType === "date" ? DateEditor : column.fieldType === "multiSelect" ? MultiSelectEditor : undefined,
+    cellEditorParams: needsOptions(column.fieldType) ? { values: column.options?.map(option => option.value) ?? [], options: column.options } : undefined,
+    cellRenderer: column.fieldType === "select" ? (params: { value: string | number }) => <SelectBadge value={params.value} options={column.options} /> : column.fieldType === "checkbox" ? (params: { value: string | number; setValue: (value: string) => void }) => <CheckboxCell {...params} /> : column.fieldType === "multiSelect" ? (params: { value: string | number }) => <MultiSelectCell {...params} options={column.options} /> : undefined,
     cellClass: column.key === "serial" ? "issue-data-grid__serial" : undefined,
   })), [columns]);
 
@@ -124,12 +140,14 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
     {settingsOpen && <aside className="issue-data-grid__settings" aria-label="表格设置">
       <header><div><b>字段配置</b><span>字段顺序、宽度和显示内容会自动保存。</span></div><button type="button" aria-label="关闭表格设置" onClick={() => setSettingsOpen(false)}>×</button></header>
       <div className="issue-data-grid__add-field"><input value={newFieldName} onChange={event => setNewFieldName(event.target.value)} onKeyDown={event => { if (event.key === "Enter") addField(); }} placeholder="新字段名称，例如：优先级" /><button type="button" onClick={addField}>添加字段</button></div>
-      <div className="issue-data-grid__field-list">{columns.map(column => <article key={column.key}>
-        <input aria-label={`${column.name}列名`} value={column.name} onChange={event => updateColumn(column.key, { name: event.target.value })} />
-        <label>字段类型<select value={column.fieldType ?? "text"} disabled={column.key === "serial" || column.key === "updatedAt"} onChange={event => updateColumn(column.key, { fieldType: event.target.value as "text" | "select", options: event.target.value === "select" ? column.options ?? [] : undefined })}><option value="text">编辑框</option><option value="select">下拉选项</option></select></label>
-        {column.fieldType === "select" && <label className="issue-data-grid__options">下拉选项<textarea value={optionText(column.options)} onChange={event => updateColumn(column.key, { options: parseOptions(event.target.value) })} placeholder="每行一个选项" /></label>}
-        <div className="issue-data-grid__properties"><label><input type="checkbox" checked={column.editable !== false && column.key !== "serial" && column.key !== "updatedAt"} disabled={column.key === "serial" || column.key === "updatedAt"} onChange={event => updateColumn(column.key, { editable: event.target.checked })} /> 可编辑</label><label><input type="checkbox" checked={column.searchable === true} onChange={event => updateColumn(column.key, { searchable: event.target.checked })} /> 参与搜索</label><label><input type="checkbox" checked={column.visible !== false} onChange={event => updateColumn(column.key, { visible: event.target.checked })} /> 显示</label></div>
-      </article>)}</div>
+      <div className="issue-data-grid__field-table-wrap"><table className="issue-data-grid__field-table"><thead><tr><th>字段名称</th><th>字段类型</th><th>下拉选项</th><th>可编辑</th><th>参与搜索</th><th>显示</th></tr></thead><tbody>{columns.map(column => <tr key={column.key}>
+        <td><input aria-label={`${column.name}列名`} value={column.name} onChange={event => updateColumn(column.key, { name: event.target.value })} /></td>
+        <td><select value={column.fieldType ?? "text"} disabled={column.key === "serial" || column.key === "updatedAt"} onChange={event => { const fieldType = event.target.value as TestCenterGridColumn["fieldType"]; updateColumn(column.key, { fieldType, options: needsOptions(fieldType) ? column.options ?? [] : undefined }); }}><option value="text">编辑框</option><option value="date">日期</option><option value="checkbox">勾选</option><option value="select">下拉选项</option><option value="multiSelect">多选下拉</option></select></td>
+        <td>{needsOptions(column.fieldType) ? <textarea value={optionText(column.options)} onChange={event => updateColumn(column.key, { options: parseOptions(event.target.value) })} placeholder="每行一个选项" /> : <span className="issue-data-grid__not-applicable">—</span>}</td>
+        <td><input type="checkbox" checked={column.editable !== false && column.key !== "serial" && column.key !== "updatedAt"} disabled={column.key === "serial" || column.key === "updatedAt"} onChange={event => updateColumn(column.key, { editable: event.target.checked })} /></td>
+        <td><input type="checkbox" checked={column.searchable === true} onChange={event => updateColumn(column.key, { searchable: event.target.checked })} /></td>
+        <td><input type="checkbox" checked={column.visible !== false} onChange={event => updateColumn(column.key, { visible: event.target.checked })} /></td>
+      </tr>)}</tbody></table></div>
       <section className="issue-data-grid__style"><b>表格样式</b><label>密度<select value={tableStyle.density} onChange={event => updateStyle({ density: event.target.value as TestCenterGridStyle["density"] })}><option value="compact">紧凑</option><option value="comfortable">舒适</option></select></label><label>表头色调<select value={tableStyle.headerTone} onChange={event => updateStyle({ headerTone: event.target.value as TestCenterGridStyle["headerTone"] })}><option value="neutral">中性</option><option value="slate">石板</option><option value="cyan">青色</option></select></label><label><input type="checkbox" checked={tableStyle.stripedRows} onChange={event => updateStyle({ stripedRows: event.target.checked })} /> 斑马纹行</label></section>
     </aside>}
     <div className="issue-data-grid__table"><AgGridReact<IssueGridRow>

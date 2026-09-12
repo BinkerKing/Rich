@@ -40,3 +40,11 @@ test("问题表提供字段配置器，支持列类型、搜索和样式设置",
   assert.match(source, /searchable/);
   assert.match(source, /tableStyle/);
 });
+
+test("字段设置以表格行展示，并提供日期、勾选和多选类型", () => {
+  assert.match(source, /issue-data-grid__field-table/);
+  assert.match(source, /<th>字段名称<\/th>/);
+  assert.match(source, /<option value="date">日期<\/option>/);
+  assert.match(source, /<option value="checkbox">勾选<\/option>/);
+  assert.match(source, /<option value="multiSelect">多选下拉<\/option>/);
+});
