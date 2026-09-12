@@ -49,6 +49,18 @@ test("字段设置以表格行展示，并提供日期、勾选和多选类型",
   assert.match(source, /<option value="multiSelect">多选下拉<\/option>/);
 });
 
+test("下拉选项以所见即所得的可编辑下拉管理", () => {
+  assert.match(source, /issue-data-grid__option-editor/);
+  assert.match(source, /新增选项/);
+  assert.match(source, /删除选项/);
+  assert.match(source, /上移选项/);
+  assert.match(source, /下移选项/);
+  assert.match(source, /dropdownStyle/);
+  assert.match(source, /圆角标签/);
+  assert.match(source, /强调色块/);
+  assert.doesNotMatch(source, /placeholder="每行一个选项"/);
+});
+
 test("字段定义表不显示冗余标题行，并使用图标删除字段", () => {
   assert.doesNotMatch(source, /字段顺序、宽度和显示内容会自动保存/);
   assert.match(source, /<th>操作<\/th>/);
