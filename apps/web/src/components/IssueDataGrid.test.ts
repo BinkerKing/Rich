@@ -32,6 +32,7 @@ test("问题表具有产品级的清单身份区与记录状态", () => {
   assert.match(source, /issue-data-grid__record-count/);
   assert.match(styles, /\.issue-data-grid__identity\s*\{[^}]*min-height:70px/s);
   assert.match(styles, /\.issue-data-grid .ag-root-wrapper\s*\{[^}]*border-radius:10px/s);
+  assert.match(styles, /\.issue-data-grid__identity h2\s*\{[^}]*font-size:23px[^}]*font-weight:800/s);
 });
 
 test("问题表包含可编辑的项目跟进字段，并记住每张表的列宽", () => {
