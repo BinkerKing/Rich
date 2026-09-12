@@ -61,6 +61,9 @@ test("单元格支持快捷键复制粘贴，并为复制源显示虚线框", ()
   assert.match(source, /keyEvent\.key\.toLowerCase\(\) === "c"/);
   assert.match(source, /keyEvent\.key\.toLowerCase\(\) === "v"/);
   assert.match(source, /navigator\.clipboard\?\.writeText/);
+  assert.match(source, /copiedCell\.current = \{ issueId: event\.data\.id, field, value \}; event\.api\.refreshCells\(\{ force: true \}\)/);
+  assert.match(source, /\}\)\), \[columns, query\]\);/);
+  assert.doesNotMatch(source, /\}\)\), \[columns, copiedCell, query\]\);/);
   assert.match(source, /issue-data-grid__cell-copied/);
   assert.match(styles, /\.issue-data-grid \.ag-cell\.issue-data-grid__cell-copied\s*\{[^}]*outline:1px dashed/s);
 });

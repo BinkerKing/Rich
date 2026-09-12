@@ -104,7 +104,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
   const [newFieldName, setNewFieldName] = useState("");
   const [styleSelection, setStyleSelection] = useState<StyleSelection | null>(null);
   const [recordMenu, setRecordMenu] = useState<{ x: number; y: number; issueId?: string } | null>(null);
-  const [copiedCell, setCopiedCell] = useState<CopiedCell | null>(null);
+  const copiedCell = useRef<CopiedCell | null>(null);
   const resizeTimer = useRef<ReturnType<typeof setTimeout>>();
   const gridSettingsKey = `issues:${tableId}:columns`;
 
@@ -164,8 +164,8 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     cellRenderer: column.fieldType === "select" ? (params: { value: string | number }) => <SelectBadge value={params.value} options={column.options} dropdownStyle={column.dropdownStyle} /> : column.fieldType === "checkbox" ? (params: { value: string | number; setValue: (value: string) => void }) => <CheckboxCell {...params} /> : column.fieldType === "multiSelect" ? (params: { value: string | number }) => <MultiSelectCell {...params} options={column.options} dropdownStyle={column.dropdownStyle} /> : column.fieldType === "text" && (column.contentMode ?? "plain") !== "plain" ? (params: { value: string | number; setValue: (value: string) => void }) => <StructuredTextCell {...params} mode={column.contentMode} /> : undefined,
     autoHeight: column.fieldType === "text" && (column.contentMode === "wrap" || column.contentMode === "numbered" || column.contentMode === "bulleted" || column.contentMode === "checklist"),
     wrapText: column.fieldType === "text" && column.contentMode === "wrap",
-    cellClass: params => [column.key === "serial" ? "issue-data-grid__serial" : "", column.fieldType === "select" ? "issue-data-grid__select-cell" : "", copiedCell?.issueId === params.data?.id && copiedCell?.field === column.key ? "issue-data-grid__cell-copied" : "", `issue-data-grid__cell-align-${column.cellStyle?.textAlign ?? "left"}`].filter(Boolean).join(" "),
-  })), [columns, copiedCell, query]);
+    cellClass: params => [column.key === "serial" ? "issue-data-grid__serial" : "", column.fieldType === "select" ? "issue-data-grid__select-cell" : "", copiedCell.current?.issueId === params.data?.id && copiedCell.current?.field === column.key ? "issue-data-grid__cell-copied" : "", `issue-data-grid__cell-align-${column.cellStyle?.textAlign ?? "left"}`].filter(Boolean).join(" "),
+  })), [columns, query]);
 
   const persistSettings = (nextColumns: TestCenterGridColumn[], nextStyle = tableStyle, nextDeletedColumns = deletedColumns) => {
     setColumns(nextColumns);
@@ -284,11 +284,11 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
         if (!keyEvent || !field || !event.data || (!keyEvent.metaKey && !keyEvent.ctrlKey) || event.api.getEditingCells().length) return;
         if (keyEvent.key.toLowerCase() === "c") {
           const value = String(event.data[field] ?? "");
-          keyEvent.preventDefault(); setCopiedCell({ issueId: event.data.id, field, value });
+          keyEvent.preventDefault(); copiedCell.current = { issueId: event.data.id, field, value }; event.api.refreshCells({ force: true });
           void navigator.clipboard?.writeText(value).catch(() => undefined);
         }
-        if (keyEvent.key.toLowerCase() === "v" && copiedCell && field !== "serial" && field !== "updatedAt" && columns.find(column => column.key === field)?.editable !== false) {
-          keyEvent.preventDefault(); saveCellValue(event.data, field, copiedCell.value);
+        if (keyEvent.key.toLowerCase() === "v" && copiedCell.current && field !== "serial" && field !== "updatedAt" && columns.find(column => column.key === field)?.editable !== false) {
+          keyEvent.preventDefault(); saveCellValue(event.data, field, copiedCell.current.value);
         }
       }}
       onCellContextMenu={event => { const mouseEvent = event.event as MouseEvent | undefined; if (!mouseEvent || !event.data) return; mouseEvent.preventDefault(); setRecordMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY, issueId: event.data.id }); }}
