@@ -28,6 +28,11 @@ test("下拉选中的值以完整单元格效果呈现", () => {
   assert.match(styles, /\.issue-data-grid \.issue-data-grid__select-cell \.issue-data-grid__select-badge\s*\{[^}]*width:100%[^}]*height:100%/s);
 });
 
+test("普通单元格的长内容不会穿透到相邻列", () => {
+  assert.match(styles, /\.issue-data-grid \.ag-cell \{ display:flex; align-items:center; overflow:hidden;/);
+  assert.match(styles, /\.ag-cell:not\(\.ag-cell-inline-editing\) \.ag-cell-value \{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;/);
+});
+
 test("编辑时输入区域贴合完整单元格，而非悬浮小输入框", () => {
   assert.match(styles, /\.issue-data-grid \.ag-cell\.ag-cell-inline-editing\s*\{[^}]*padding:0 !important[^}]*border-radius:0/s);
   assert.match(styles, /\.issue-data-grid \.ag-cell-inline-editing \.ag-cell-editor input,[^{]*\{[^}]*width:100%[^}]*height:100%[^}]*border:0 !important/s);

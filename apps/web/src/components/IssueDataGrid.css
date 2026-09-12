@@ -35,7 +35,8 @@
 .issue-data-grid--header-slate .ag-header { background:#27323a; }.issue-data-grid--header-cyan .ag-header { background:#17363b; }
 .issue-data-grid--compact .ag-cell { font-size:12px; }.issue-data-grid--striped .ag-row-even { background:#252a2e; }
 .issue-data-grid .ag-header-cell { color:#aab4ba; font-size:12px; font-weight:700; }
-.issue-data-grid .ag-cell { display:flex; align-items:center; color:#e5ebef; font-size:13px; border-right-color:#303338; }
+.issue-data-grid .ag-cell { display:flex; align-items:center; overflow:hidden; color:#e5ebef; font-size:13px; border-right-color:#303338; }
+.issue-data-grid .ag-cell:not(.ag-cell-inline-editing) .ag-cell-value { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .issue-data-grid .ag-row { border-color:#2d3034; }
 .issue-data-grid .ag-row-hover::before { background-color:rgba(115,199,207,.07); }
 .issue-data-grid .ag-cell-focus,.issue-data-grid .ag-cell:focus-within { border-color:#67c9d0 !important; }
