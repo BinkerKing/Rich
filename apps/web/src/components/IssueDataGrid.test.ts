@@ -17,7 +17,8 @@ test("表格内下拉以向下抽屉展示带最终样式的选项", () => {
   assert.match(source, /issue-data-grid__select-drawer/);
   assert.match(source, /<SelectBadge value=\{option\.value\}/);
   assert.match(source, /onValueChange\(nextValue\); stopEditing\(\)/);
-  assert.match(source, /singleClickEdit stopEditingWhenCellsLoseFocus/);
+  assert.match(source, /singleClickEdit=\{false\} stopEditingWhenCellsLoseFocus/);
+  assert.match(source, /onCellClicked=.*needsOptions\(column\?\.fieldType\).*startEditingCell/s);
   assert.match(styles, /\.issue-data-grid__select-drawer\s*\{[^}]*border-radius:0 0 8px 8px/s);
 });
 
