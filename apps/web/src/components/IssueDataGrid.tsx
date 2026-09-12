@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AgGridReact, type CustomCellEditorProps } from "ag-grid-react";
 import { AllCommunityModule, colorSchemeDark, ModuleRegistry, themeQuartz, type ColDef, type GridApi } from "ag-grid-community";
 import { api, type TestCenterGridColumn, type TestCenterGridStyle, type TestCenterIssue } from "../api/client.js";
@@ -139,11 +139,30 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     if (!keyword) return rows;
     return rows.filter(row => columns.filter(column => column.searchable).some(column => String(row[column.key] ?? "").toLowerCase().includes(keyword)));
   }, [columns, query, rows]);
-  const saveCellValue = (row: IssueGridRow, field: string, value: string) => {
+  const saveCellValue = useCallback((row: IssueGridRow, field: string, value: string) => {
     if (!field || systemFields.has(field) && field !== "title" && field !== "description" && field !== "owner" && field !== "status" && field !== "externalRef") return;
     if (systemFields.has(field)) onIssueChange(row.id, { [field]: value });
     else onIssueChange(row.id, { customFields: { ...row.customFields, [field]: value } });
-  };
+  }, [onIssueChange]);
+  const handleClipboardShortcut = useCallback((keyEvent: KeyboardEvent, row: IssueGridRow | undefined, field: string, editing: boolean) => {
+    if ((!keyEvent.metaKey && !keyEvent.ctrlKey) || editing || !row) return false;
+    const key = keyEvent.key.toLowerCase();
+    if (key !== "c" && key !== "v") return false;
+    keyEvent.preventDefault();
+    keyEvent.stopPropagation();
+    if (key === "c") {
+      const value = String(row[field] ?? "");
+      copiedCell.current = { issueId: row.id, field, value };
+      copiedCellElement.current?.classList.remove("issue-data-grid__cell-copied");
+      const cellElement = keyEvent.target instanceof Element ? keyEvent.target.closest<HTMLElement>(".ag-cell") : null;
+      cellElement?.classList.add("issue-data-grid__cell-copied");
+      copiedCellElement.current = cellElement;
+      void navigator.clipboard?.writeText(value).catch(() => undefined);
+    } else if (copiedCell.current && field !== "serial" && field !== "updatedAt" && columns.find(column => column.key === field)?.editable !== false) {
+      saveCellValue(row, field, copiedCell.current.value);
+    }
+    return true;
+  }, [columns, saveCellValue]);
   const columnDefs = useMemo<ColDef<IssueGridRow>[]>(() => columns.filter(column => column.visible !== false).map(column => ({
     field: column.key,
     headerName: column.name,
@@ -163,8 +182,9 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     cellRenderer: column.fieldType === "select" ? (params: { value: string | number }) => <SelectBadge value={params.value} options={column.options} dropdownStyle={column.dropdownStyle} /> : column.fieldType === "checkbox" ? (params: { value: string | number; setValue: (value: string) => void }) => <CheckboxCell {...params} /> : column.fieldType === "multiSelect" ? (params: { value: string | number }) => <MultiSelectCell {...params} options={column.options} dropdownStyle={column.dropdownStyle} /> : column.fieldType === "text" && (column.contentMode ?? "plain") !== "plain" ? (params: { value: string | number; setValue: (value: string) => void }) => <StructuredTextCell {...params} mode={column.contentMode} /> : undefined,
     autoHeight: column.fieldType === "text" && (column.contentMode === "wrap" || column.contentMode === "numbered" || column.contentMode === "bulleted" || column.contentMode === "checklist"),
     wrapText: column.fieldType === "text" && column.contentMode === "wrap",
+    suppressKeyboardEvent: params => handleClipboardShortcut(params.event, params.data, column.key, params.editing),
     cellClass: [column.key === "serial" ? "issue-data-grid__serial" : "", column.fieldType === "select" ? "issue-data-grid__select-cell" : "", `issue-data-grid__cell-align-${column.cellStyle?.textAlign ?? "left"}`].filter(Boolean).join(" "),
-  })), [columns, query]);
+  })), [columns, handleClipboardShortcut, query]);
 
   const persistSettings = (nextColumns: TestCenterGridColumn[], nextStyle = tableStyle, nextDeletedColumns = deletedColumns) => {
     setColumns(nextColumns);
@@ -270,24 +290,6 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     <div className="issue-data-grid__table" onContextMenu={event => { if (event.target === event.currentTarget) { event.preventDefault(); setRecordMenu({ x: event.clientX, y: event.clientY }); } }}><AgGridReact<IssueGridRow>
       theme={issueGridTheme} rowData={visibleRows} columnDefs={columnDefs} defaultColDef={{ sortable: true }} getRowId={params => params.data.id} rowDragManaged={!query} suppressMoveWhenRowDragging animateRows rowHeight={tableStyle.density === "compact" ? 36 : 44} headerHeight={40} singleClickEdit={false} stopEditingWhenCellsLoseFocus
       onCellClicked={event => { const column = columns.find(item => item.key === event.colDef.field); if (event.rowIndex !== null && needsOptions(column?.fieldType)) event.api.startEditingCell({ rowIndex: event.rowIndex, colKey: event.column.getColId() }); }}
-      onCellKeyDown={event => {
-        const keyEvent = event.event as KeyboardEvent | undefined;
-        if (!("column" in event)) return;
-        const field = event.column.getColId();
-        if (!keyEvent || !field || !event.data || (!keyEvent.metaKey && !keyEvent.ctrlKey) || event.api.getEditingCells().length) return;
-        if (keyEvent.key.toLowerCase() === "c") {
-          const value = String(event.data[field] ?? "");
-          keyEvent.preventDefault(); copiedCell.current = { issueId: event.data.id, field, value };
-          copiedCellElement.current?.classList.remove("issue-data-grid__cell-copied");
-          const cellElement = keyEvent.target instanceof Element ? keyEvent.target.closest<HTMLElement>(".ag-cell") : null;
-          cellElement?.classList.add("issue-data-grid__cell-copied");
-          copiedCellElement.current = cellElement;
-          void navigator.clipboard?.writeText(value).catch(() => undefined);
-        }
-        if (keyEvent.key.toLowerCase() === "v" && copiedCell.current && field !== "serial" && field !== "updatedAt" && columns.find(column => column.key === field)?.editable !== false) {
-          keyEvent.preventDefault(); saveCellValue(event.data, field, copiedCell.current.value);
-        }
-      }}
       onCellContextMenu={event => { const mouseEvent = event.event as MouseEvent | undefined; if (!mouseEvent || !event.data) return; mouseEvent.preventDefault(); setRecordMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY, issueId: event.data.id }); }}
       onRowDragEnd={event => { const issueIds: string[] = []; event.api.forEachNode(node => { if (node.data) issueIds.push(node.data.id); }); onIssueReorder(issueIds); }}
       onColumnResized={event => { if (event.finished) saveColumnWidths(event.api); }}

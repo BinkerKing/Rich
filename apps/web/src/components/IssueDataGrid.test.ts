@@ -56,16 +56,18 @@ test("序号列是问题记录唯一的拖拽排序入口", () => {
 });
 
 test("单元格支持快捷键复制粘贴，并为复制源显示虚线框", () => {
-  assert.match(source, /onCellKeyDown=/);
+  assert.match(source, /suppressKeyboardEvent:/);
+  assert.doesNotMatch(source, /onCellKeyDown=/);
   assert.match(source, /!keyEvent\.metaKey && !keyEvent\.ctrlKey/);
-  assert.match(source, /keyEvent\.key\.toLowerCase\(\) === "c"/);
-  assert.match(source, /keyEvent\.key\.toLowerCase\(\) === "v"/);
+  assert.match(source, /const key = keyEvent\.key\.toLowerCase\(\);/);
+  assert.match(source, /key !== "c" && key !== "v"/);
+  assert.match(source, /keyEvent\.stopPropagation\(\)/);
   assert.match(source, /navigator\.clipboard\?\.writeText/);
-  assert.match(source, /copiedCell\.current = \{ issueId: event\.data\.id, field, value \};/);
+  assert.match(source, /copiedCell\.current = \{ issueId: row\.id, field, value \};/);
   assert.match(source, /copiedCellElement\.current\?\.classList\.remove\("issue-data-grid__cell-copied"\)/);
   assert.match(source, /cellElement\?\.classList\.add\("issue-data-grid__cell-copied"\)/);
   assert.doesNotMatch(source, /refreshCells\(\{ force: true \}\)/);
-  assert.match(source, /\}\)\), \[columns, query\]\);/);
+  assert.match(source, /\}\)\), \[columns, handleClipboardShortcut, query\]\);/);
   assert.doesNotMatch(source, /\}\)\), \[columns, copiedCell, query\]\);/);
   assert.match(source, /issue-data-grid__cell-copied/);
   assert.match(styles, /\.issue-data-grid \.ag-cell\.issue-data-grid__cell-copied\s*\{[^}]*outline:1px dashed/s);
