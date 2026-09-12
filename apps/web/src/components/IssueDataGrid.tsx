@@ -1,5 +1,5 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from "react";
-import { AgGridReact } from "ag-grid-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { AgGridReact, type CustomCellEditorProps } from "ag-grid-react";
 import { AllCommunityModule, colorSchemeDark, ModuleRegistry, themeQuartz, type ColDef, type GridApi } from "ag-grid-community";
 import { api, type TestCenterGridColumn, type TestCenterGridStyle, type TestCenterIssue } from "../api/client.js";
 import "./IssueDataGrid.css";
@@ -45,13 +45,12 @@ function SelectBadge({ value, options, dropdownStyle = "soft" }: { value: string
   return <span className={`issue-data-grid__select-badge issue-data-grid__select-badge--${style}${value ? "" : " issue-data-grid__select-badge--empty"}`}>{label}</span>;
 }
 
-type SelectDrawerEditorProps = { value?: string; options?: TestCenterGridColumn["options"]; dropdownStyle?: TestCenterGridColumn["dropdownStyle"]; stopEditing?: () => void };
-const SelectDrawerEditor = forwardRef<{ getValue: () => string }, SelectDrawerEditorProps>(function SelectDrawerEditor({ value, options = [], dropdownStyle, stopEditing }, ref) {
-  const selectedValue = useRef(String(value ?? ""));
-  useImperativeHandle(ref, () => ({ getValue: () => selectedValue.current }));
-  const choose = (nextValue: string) => { selectedValue.current = nextValue; stopEditing?.(); };
-  return <div className="issue-data-grid__select-drawer" role="listbox" aria-label="选择选项">{options.map(option => <button key={option.value} className={`issue-data-grid__select-drawer-option${option.value === selectedValue.current ? " is-selected" : ""}`} type="button" role="option" aria-selected={option.value === selectedValue.current} onClick={() => choose(option.value)}><SelectBadge value={option.value} options={[option]} dropdownStyle={option.style ?? dropdownStyle} /></button>)}</div>;
-});
+type SelectDrawerEditorProps = CustomCellEditorProps<IssueGridRow, string> & { options?: TestCenterGridColumn["options"]; dropdownStyle?: TestCenterGridColumn["dropdownStyle"] };
+function SelectDrawerEditor({ value, options = [], dropdownStyle, onValueChange, stopEditing }: SelectDrawerEditorProps): ReactNode {
+  const selectedValue = String(value ?? "");
+  const choose = (nextValue: string) => { onValueChange(nextValue); stopEditing(); };
+  return <div className="issue-data-grid__select-drawer" role="listbox" aria-label="选择选项">{options.map(option => <button key={option.value} className={`issue-data-grid__select-drawer-option${option.value === selectedValue ? " is-selected" : ""}`} type="button" role="option" aria-selected={option.value === selectedValue} onClick={() => choose(option.value)}><SelectBadge value={option.value} options={[option]} dropdownStyle={option.style ?? dropdownStyle} /></button>)}</div>;
+}
 
 function CheckboxCell({ value, setValue }: { value: string | number; setValue: (value: string) => void }): ReactNode {
   return <label className="issue-data-grid__checkbox"><input type="checkbox" checked={value === "true"} onChange={event => setValue(String(event.target.checked))} /><span>{value === "true" ? "是" : "否"}</span></label>;
@@ -225,7 +224,7 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
       <section className="issue-data-grid__style"><b>表格样式</b><label>密度<select value={settingsStyle.density} onChange={event => updateStyle({ density: event.target.value as TestCenterGridStyle["density"] })}><option value="compact">紧凑</option><option value="comfortable">舒适</option></select></label><label>表头色调<select value={settingsStyle.headerTone} onChange={event => updateStyle({ headerTone: event.target.value as TestCenterGridStyle["headerTone"] })}><option value="neutral">中性</option><option value="slate">石板</option><option value="cyan">青色</option></select></label><label><input type="checkbox" checked={settingsStyle.stripedRows} onChange={event => updateStyle({ stripedRows: event.target.checked })} /> 斑马纹行</label><button className={`issue-data-grid__apply-settings${settingsDirty ? " is-ready" : ""}`} type="button" disabled={!settingsDirty} onClick={applySettings}>{settingsDirty ? "应用更改" : "已应用"}</button></section>
     </aside>}
     <div className="issue-data-grid__table"><AgGridReact<IssueGridRow>
-      theme={issueGridTheme} rowData={visibleRows} columnDefs={columnDefs} defaultColDef={{ sortable: true }} getRowId={params => params.data.id} rowHeight={tableStyle.density === "compact" ? 36 : 44} headerHeight={40} stopEditingWhenCellsLoseFocus
+      theme={issueGridTheme} rowData={visibleRows} columnDefs={columnDefs} defaultColDef={{ sortable: true }} getRowId={params => params.data.id} rowHeight={tableStyle.density === "compact" ? 36 : 44} headerHeight={40} singleClickEdit stopEditingWhenCellsLoseFocus
       onColumnResized={event => { if (event.finished) saveColumnWidths(event.api); }}
       onCellValueChanged={event => {
         const field = event.colDef.field;
