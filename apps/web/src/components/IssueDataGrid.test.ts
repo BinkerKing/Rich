@@ -49,13 +49,22 @@ test("字段设置以表格行展示，并提供日期、勾选和多选类型",
   assert.match(source, /<option value="multiSelect">多选下拉<\/option>/);
 });
 
-test("字段定义表不显示冗余标题行，并可删除自定义字段", () => {
+test("字段定义表不显示冗余标题行，并使用图标删除字段", () => {
   assert.doesNotMatch(source, /字段顺序、宽度和显示内容会自动保存/);
   assert.match(source, /<th>操作<\/th>/);
-  assert.match(source, /删除字段/);
+  assert.match(source, /aria-label="删除字段"/);
+  assert.match(source, /issue-data-grid__delete-icon/);
+  assert.doesNotMatch(source, />删除字段<\/button>/);
   assert.match(source, /removeColumn/);
   assert.doesNotMatch(source, /\? "隐藏" : "删除字段"/);
   assert.match(source, /deleted: true/);
+});
+
+test("字段定义表表头固定，字段样式以真实预览展示", () => {
+  assert.match(styles, /\.issue-data-grid__field-table th\s*\{[^}]*position:sticky[^}]*top:0/s);
+  assert.match(source, /issue-data-grid__field-style-preview/);
+  assert.match(source, /column\.name/);
+  assert.match(source, /示例值/);
 });
 
 test("字段属性可配置表头与单元格样式", () => {
