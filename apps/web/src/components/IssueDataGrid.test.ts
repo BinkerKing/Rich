@@ -93,6 +93,12 @@ test("下拉样式直接作用于可编辑的最终效果输入框", () => {
   assert.match(styles, /input\.issue-data-grid__option-content--signal\s*\{[^}]*background:#65442e/s);
 });
 
+test("下拉样式工具栏以真实样本展示每种效果", () => {
+  assert.match(source, /<span>\{style\.label\}<\/span><\/button>/);
+  assert.match(styles, /toolbar-dropdown-style--pill > span\s*\{[^}]*border-radius:999px/s);
+  assert.match(styles, /toolbar-dropdown-style--signal > span\s*\{[^}]*background:#65442e/s);
+});
+
 test("字段定义表不显示冗余标题行，并使用图标删除字段", () => {
   assert.doesNotMatch(source, /字段顺序、宽度和显示内容会自动保存/);
   assert.match(source, /<th>操作<\/th>/);
