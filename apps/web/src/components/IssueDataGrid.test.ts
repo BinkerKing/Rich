@@ -86,6 +86,12 @@ test("字段设置表采用紧凑的数据工作台层级", () => {
   assert.match(styles, /\.issue-data-grid__field-style-preview\s*\{[^}]*box-shadow:inset 0 1px 0/s);
 });
 
+test("打开字段设置时配置表占满剩余工作区", () => {
+  assert.match(styles, /\.issue-data-grid:has\(\.issue-data-grid__settings\)\s*\{[^}]*grid-template-rows:auto minmax\(0,1fr\)/s);
+  assert.match(styles, /\.issue-data-grid:has\(\.issue-data-grid__settings\) \.issue-data-grid__table\s*\{[^}]*display:none/s);
+  assert.match(styles, /\.issue-data-grid:has\(\.issue-data-grid__settings\) \.issue-data-grid__settings\s*\{[^}]*max-height:none[^}]*grid-template-rows:auto minmax\(0,1fr\) auto/s);
+});
+
 test("字段属性可配置表头与单元格样式", () => {
   assert.match(source, /表头字号/);
   assert.match(source, /表头文字/);
