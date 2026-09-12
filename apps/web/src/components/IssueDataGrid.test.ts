@@ -81,7 +81,7 @@ test("字段定义表不显示冗余标题行，并使用图标删除字段", ()
 
 test("字段定义表表头固定，字段样式以真实预览展示", () => {
   assert.match(styles, /\.issue-data-grid__field-table th\s*\{[^}]*position:sticky[^}]*top:0/s);
-  assert.match(source, /issue-data-grid__field-style-preview/);
+  assert.match(source, /issue-data-grid__style-preview-button/);
   assert.match(source, /column\.name/);
   assert.match(source, /示例值/);
 });
@@ -90,7 +90,7 @@ test("字段设置表采用紧凑的数据工作台层级", () => {
   assert.match(styles, /\.issue-data-grid__field-table-wrap\s*\{[^}]*border-radius:10px[^}]*box-shadow:0 12px 28px/s);
   assert.match(styles, /\.issue-data-grid__field-table th\s*\{[^}]*letter-spacing:\.03em/s);
   assert.match(styles, /\.issue-data-grid__field-table td\s*\{[^}]*height:52px/s);
-  assert.match(styles, /\.issue-data-grid__field-style-preview\s*\{[^}]*box-shadow:inset 0 1px 0/s);
+  assert.match(styles, /\.issue-data-grid__style-preview-button\s*\{[^}]*border-radius:6px/s);
 });
 
 test("打开字段设置时配置表占满剩余工作区", () => {
@@ -100,15 +100,23 @@ test("打开字段设置时配置表占满剩余工作区", () => {
 });
 
 test("字段属性可配置表头与单元格样式", () => {
-  assert.match(source, /表头字号/);
-  assert.match(source, /表头文字/);
-  assert.match(source, /表头底色/);
-  assert.match(source, /单元格文字/);
-  assert.match(source, /单元格底色/);
-  assert.match(source, /单元格字号/);
-  assert.match(source, /单元格字重/);
+  assert.match(source, /字号/);
+  assert.match(source, /文字颜色/);
+  assert.match(source, /背景颜色/);
   assert.match(source, /headerStyle/);
   assert.match(source, /cellStyle/);
+  assert.match(source, /textAlign/);
+});
+
+test("字段样式拆分为标题与内容，并由工具栏即时调整", () => {
+  assert.match(source, /<th>标题样式<\/th>/);
+  assert.match(source, /<th>内容样式<\/th>/);
+  assert.match(source, /styleSelection/);
+  assert.match(source, /样式工具栏/);
+  assert.match(source, /左对齐/);
+  assert.match(source, /居中/);
+  assert.match(source, /右对齐/);
+  assert.match(source, /issue-data-grid__style-preview-button/);
 });
 
 test("字段样式预览与属性面板保持同列宽度", () => {
