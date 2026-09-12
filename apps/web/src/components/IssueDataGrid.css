@@ -107,3 +107,13 @@
 .issue-data-grid .issue-data-grid__select-cell .issue-data-grid__select-badge--signal { border-left-color:#c47b43; background:#493429; }
 .issue-data-grid .issue-data-grid__select-cell .issue-data-grid__select-badge--empty { border-left-color:#59616a; background:transparent; }
 .issue-data-grid__select-drawer-option .issue-data-grid__select-badge { display:flex; width:100%; box-sizing:border-box; }
+
+/* AG Grid headers use an inner flex label, so alignment needs an explicit layout rule. */
+.issue-data-grid .ag-header-cell.issue-data-grid__header-align-left .ag-header-cell-label { justify-content:flex-start; text-align:left; }
+.issue-data-grid .ag-header-cell.issue-data-grid__header-align-center .ag-header-cell-label { justify-content:center; text-align:center; }
+.issue-data-grid .ag-header-cell.issue-data-grid__header-align-right .ag-header-cell-label { justify-content:flex-end; text-align:right; }
+.issue-data-grid .ag-cell.issue-data-grid__cell-align-left { justify-content:flex-start; text-align:left; }
+.issue-data-grid .ag-cell.issue-data-grid__cell-align-center { justify-content:center; text-align:center; }
+.issue-data-grid .ag-cell.issue-data-grid__cell-align-right { justify-content:flex-end; text-align:right; }
+.issue-data-grid .ag-cell.issue-data-grid__cell-align-center .issue-data-grid__select-badge { justify-content:center; text-align:center; }
+.issue-data-grid .ag-cell.issue-data-grid__cell-align-right .issue-data-grid__select-badge { justify-content:flex-end; text-align:right; }

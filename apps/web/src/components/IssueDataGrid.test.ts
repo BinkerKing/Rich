@@ -50,6 +50,13 @@ test("应用后的表格样式与表格设置中的色调、密度和斑马纹�
   assert.match(styles, /\.issue-data-grid--striped \.ag-row-even\s*\{[^}]*background:#222c31/s);
 });
 
+test("标题与内容的对齐设定会映射到 AG Grid 的实际布局", () => {
+  assert.match(source, /headerClass: `issue-data-grid__header-align-\$\{column\.headerStyle\?\.textAlign \?\? "left"\}`/);
+  assert.match(source, /issue-data-grid__cell-align-\$\{column\.cellStyle\?\.textAlign \?\? "left"\}/);
+  assert.match(styles, /\.issue-data-grid \.ag-header-cell\.issue-data-grid__header-align-center \.ag-header-cell-label\s*\{[^}]*justify-content:center/s);
+  assert.match(styles, /\.issue-data-grid \.ag-header-cell\.issue-data-grid__header-align-right \.ag-header-cell-label\s*\{[^}]*justify-content:flex-end/s);
+});
+
 test("问题表包含可编辑的项目跟进字段，并记住每张表的列宽", () => {
   assert.match(source, /key: "serial", name: "序号"/);
   assert.match(source, /key: "project", name: "项目"[\s\S]*?editable: true/);
