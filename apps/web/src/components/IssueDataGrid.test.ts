@@ -62,10 +62,17 @@ test("下拉选项以所见即所得的可编辑下拉管理", () => {
 });
 
 test("下拉选项支持继承统一样式或单独覆盖样式", () => {
-  assert.match(source, /统一下拉样式/);
-  assert.match(source, /继承统一样式/);
+  assert.match(source, /统一所有选项/);
   assert.match(source, /option\?\.style \?\? dropdownStyle/);
   assert.match(source, /option-preview/);
+});
+
+test("下拉统一样式和单项样式由同一工具栏编辑", () => {
+  assert.match(source, /target: "dropdown"/);
+  assert.match(source, /统一所有选项/);
+  assert.match(source, /styleSelection\.optionValue/);
+  assert.match(source, /下拉样式 ·/);
+  assert.doesNotMatch(source, /issue-data-grid__option-style-picker/);
 });
 
 test("字段定义表不显示冗余标题行，并使用图标删除字段", () => {
