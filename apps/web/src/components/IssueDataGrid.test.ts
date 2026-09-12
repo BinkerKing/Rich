@@ -32,6 +32,12 @@ test("高级问题表格撑满编辑区域并使用紧凑深色工具栏", () =>
   assert.match(styles, /\.issue-data-grid__toolbar\s*\{[^}]*min-height:48px[^}]*background:#252629/s);
 });
 
+test("问题表以克制的数据工作台层级呈现，避免厚重装饰", () => {
+  assert.match(styles, /min-height:76px; padding:0 28px; border-bottom-color:#34393d; background:#1b1d1f; box-shadow:none/);
+  assert.match(styles, /border-color:#373d41; border-radius:6px; background:#191c1e; box-shadow:none/);
+  assert.match(styles, /min-height:40px; border-bottom-color:#3b4145; box-shadow:none/);
+});
+
 test("问题表具有产品级的清单身份区与记录状态", () => {
   assert.match(source, /TEST CENTER · ISSUE LOG/);
   assert.match(source, /title = "产品问题测试清单"/);
