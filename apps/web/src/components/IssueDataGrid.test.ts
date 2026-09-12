@@ -54,6 +54,8 @@ test("字段定义表不显示冗余标题行，并可删除自定义字段", ()
   assert.match(source, /<th>操作<\/th>/);
   assert.match(source, /删除字段/);
   assert.match(source, /removeColumn/);
+  assert.doesNotMatch(source, /\? "隐藏" : "删除字段"/);
+  assert.match(source, /deleted: true/);
 });
 
 test("字段属性可配置表头与单元格样式", () => {

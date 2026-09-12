@@ -73,8 +73,8 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
       if (cancelled || !settings.columns.length) return;
       const saved = new Map(settings.columns.map(column => [column.key, column]));
       const restored = [
-        ...defaultColumns.map(column => ({ ...column, ...saved.get(column.key) })),
-        ...settings.columns.filter(column => !systemFields.has(column.key) && !defaultColumns.some(defaultColumn => defaultColumn.key === column.key)),
+        ...defaultColumns.filter(column => !saved.get(column.key)?.deleted).map(column => ({ ...column, ...saved.get(column.key) })),
+        ...settings.columns.filter(column => !column.deleted && !systemFields.has(column.key) && !defaultColumns.some(defaultColumn => defaultColumn.key === column.key)),
       ];
       setColumns(restored);
       setTableStyle({ ...defaultStyle, ...settings.style });
@@ -121,7 +121,10 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
     updateColumn(key, { cellStyle: { ...column?.cellStyle, ...patch } });
   };
   const removeColumn = (key: string) => {
-    if (defaultColumns.some(column => column.key === key)) updateColumn(key, { visible: false });
+    if (defaultColumns.some(column => column.key === key)) {
+      const column = columns.find(item => item.key === key);
+      if (column) saveSettings([...columns.filter(item => item.key !== key), { ...column, deleted: true }]);
+    }
     else saveSettings(columns.filter(column => column.key !== key));
   };
   const addField = () => {
@@ -161,7 +164,7 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
         <td><input type="checkbox" checked={column.editable !== false && column.key !== "serial" && column.key !== "updatedAt"} disabled={column.key === "serial" || column.key === "updatedAt"} onChange={event => updateColumn(column.key, { editable: event.target.checked })} /></td>
         <td><input type="checkbox" checked={column.searchable === true} onChange={event => updateColumn(column.key, { searchable: event.target.checked })} /></td>
         <td><input type="checkbox" checked={column.visible !== false} onChange={event => updateColumn(column.key, { visible: event.target.checked })} /></td>
-        <td><button className="issue-data-grid__delete-column" type="button" onClick={() => removeColumn(column.key)}>{defaultColumns.some(defaultColumn => defaultColumn.key === column.key) ? "隐藏" : "删除字段"}</button></td>
+        <td><button className="issue-data-grid__delete-column" type="button" onClick={() => removeColumn(column.key)}>删除字段</button></td>
       </tr>)}</tbody></table></div>
       <section className="issue-data-grid__style"><b>表格样式</b><label>密度<select value={tableStyle.density} onChange={event => updateStyle({ density: event.target.value as TestCenterGridStyle["density"] })}><option value="compact">紧凑</option><option value="comfortable">舒适</option></select></label><label>表头色调<select value={tableStyle.headerTone} onChange={event => updateStyle({ headerTone: event.target.value as TestCenterGridStyle["headerTone"] })}><option value="neutral">中性</option><option value="slate">石板</option><option value="cyan">青色</option></select></label><label><input type="checkbox" checked={tableStyle.stripedRows} onChange={event => updateStyle({ stripedRows: event.target.checked })} /> 斑马纹行</label></section>
     </aside>}
