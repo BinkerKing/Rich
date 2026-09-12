@@ -80,6 +80,14 @@ test("字段属性可配置表头与单元格样式", () => {
   assert.match(source, /表头底色/);
   assert.match(source, /单元格文字/);
   assert.match(source, /单元格底色/);
+  assert.match(source, /单元格字号/);
+  assert.match(source, /单元格字重/);
   assert.match(source, /headerStyle/);
   assert.match(source, /cellStyle/);
+});
+
+test("字段样式预览与属性面板保持同列宽度", () => {
+  assert.match(styles, /\.issue-data-grid__field-table th:nth-child\(4\),\.issue-data-grid__field-table td:nth-child\(4\)\s*\{[^}]*width:190px/s);
+  assert.match(styles, /\.issue-data-grid__field-style-preview\s*\{[^}]*width:100%/s);
+  assert.match(styles, /\.issue-data-grid__field-style > div\s*\{[^}]*width:190px[^}]*min-width:0/s);
 });
