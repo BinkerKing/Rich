@@ -33,6 +33,13 @@ test("普通单元格的长内容不会穿透到相邻列", () => {
   assert.match(styles, /\.ag-cell:not\(\.ag-cell-inline-editing\) \.ag-cell-value \{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;/);
 });
 
+test("内容样式工具栏可启用自动换行并让单元格随内容增高", () => {
+  assert.match(source, /title="自动换行" aria-label="自动换行"/);
+  assert.match(source, /whiteSpace: activeCellStyle\?\.whiteSpace === "normal" \? "nowrap" : "normal"/);
+  assert.match(source, /column\.cellStyle\?\.whiteSpace === "normal"/);
+  assert.match(styles, /\.issue-data-grid__cell-auto-wrap \.ag-cell-value \{ overflow:visible; text-overflow:clip; white-space:pre-wrap;/);
+});
+
 test("编辑时输入区域贴合完整单元格，而非悬浮小输入框", () => {
   assert.match(styles, /\.issue-data-grid \.ag-cell\.ag-cell-inline-editing\s*\{[^}]*padding:0 !important[^}]*border-radius:0/s);
   assert.match(styles, /\.issue-data-grid \.ag-cell-inline-editing \.ag-cell-editor input,[^{]*\{[^}]*width:100%[^}]*height:100%[^}]*border:0 !important/s);
