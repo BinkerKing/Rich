@@ -55,3 +55,13 @@ test("字段定义表不显示冗余标题行，并可删除自定义字段", ()
   assert.match(source, /删除字段/);
   assert.match(source, /removeColumn/);
 });
+
+test("字段属性可配置表头与单元格样式", () => {
+  assert.match(source, /表头字号/);
+  assert.match(source, /表头文字/);
+  assert.match(source, /表头底色/);
+  assert.match(source, /单元格文字/);
+  assert.match(source, /单元格底色/);
+  assert.match(source, /headerStyle/);
+  assert.match(source, /cellStyle/);
+});

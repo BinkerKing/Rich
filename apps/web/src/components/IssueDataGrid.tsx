@@ -99,6 +99,8 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
     sortable: column.key !== "serial",
     resizable: true,
     pinned: column.frozen ? "left" : undefined,
+    headerStyle: column.headerStyle,
+    cellStyle: column.cellStyle,
     cellEditor: column.fieldType === "select" ? "agSelectCellEditor" : column.fieldType === "date" ? DateEditor : column.fieldType === "multiSelect" ? MultiSelectEditor : undefined,
     cellEditorParams: needsOptions(column.fieldType) ? { values: column.options?.map(option => option.value) ?? [], options: column.options } : undefined,
     cellRenderer: column.fieldType === "select" ? (params: { value: string | number }) => <SelectBadge value={params.value} options={column.options} /> : column.fieldType === "checkbox" ? (params: { value: string | number; setValue: (value: string) => void }) => <CheckboxCell {...params} /> : column.fieldType === "multiSelect" ? (params: { value: string | number }) => <MultiSelectCell {...params} options={column.options} /> : undefined,
@@ -110,6 +112,14 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
     void api.saveTestCenterGridSettings(projectId, gridSettingsKey, nextColumns, nextStyle);
   };
   const updateColumn = (key: string, patch: Partial<TestCenterGridColumn>) => saveSettings(columns.map(column => column.key === key ? { ...column, ...patch } : column));
+  const updateHeaderStyle = (key: string, patch: NonNullable<TestCenterGridColumn["headerStyle"]>) => {
+    const column = columns.find(item => item.key === key);
+    updateColumn(key, { headerStyle: { ...column?.headerStyle, ...patch } });
+  };
+  const updateCellStyle = (key: string, patch: NonNullable<TestCenterGridColumn["cellStyle"]>) => {
+    const column = columns.find(item => item.key === key);
+    updateColumn(key, { cellStyle: { ...column?.cellStyle, ...patch } });
+  };
   const removeColumn = (key: string) => {
     if (defaultColumns.some(column => column.key === key)) updateColumn(key, { visible: false });
     else saveSettings(columns.filter(column => column.key !== key));
@@ -143,10 +153,11 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
     </div>
     {settingsOpen && <aside className="issue-data-grid__settings" aria-label="表格设置">
       <div className="issue-data-grid__add-field"><input value={newFieldName} onChange={event => setNewFieldName(event.target.value)} onKeyDown={event => { if (event.key === "Enter") addField(); }} placeholder="新字段名称，例如：优先级" /><button type="button" onClick={addField}>添加字段</button></div>
-      <div className="issue-data-grid__field-table-wrap"><table className="issue-data-grid__field-table"><thead><tr><th>字段名称</th><th>字段类型</th><th>下拉选项</th><th>可编辑</th><th>参与搜索</th><th>显示</th><th>操作</th></tr></thead><tbody>{columns.map(column => <tr key={column.key}>
+      <div className="issue-data-grid__field-table-wrap"><table className="issue-data-grid__field-table"><thead><tr><th>字段名称</th><th>字段类型</th><th>下拉选项</th><th>字段样式</th><th>可编辑</th><th>参与搜索</th><th>显示</th><th>操作</th></tr></thead><tbody>{columns.map(column => <tr key={column.key}>
         <td><input aria-label={`${column.name}列名`} value={column.name} onChange={event => updateColumn(column.key, { name: event.target.value })} /></td>
         <td><select value={column.fieldType ?? "text"} disabled={column.key === "serial" || column.key === "updatedAt"} onChange={event => { const fieldType = event.target.value as TestCenterGridColumn["fieldType"]; updateColumn(column.key, { fieldType, options: needsOptions(fieldType) ? column.options ?? [] : undefined }); }}><option value="text">编辑框</option><option value="date">日期</option><option value="checkbox">勾选</option><option value="select">下拉选项</option><option value="multiSelect">多选下拉</option></select></td>
         <td>{needsOptions(column.fieldType) ? <textarea value={optionText(column.options)} onChange={event => updateColumn(column.key, { options: parseOptions(event.target.value) })} placeholder="每行一个选项" /> : <span className="issue-data-grid__not-applicable">—</span>}</td>
+        <td><details className="issue-data-grid__field-style"><summary>样式</summary><div><label>表头字号<select value={column.headerStyle?.fontSize ?? "13px"} onChange={event => updateHeaderStyle(column.key, { fontSize: event.target.value as NonNullable<TestCenterGridColumn["headerStyle"]>["fontSize"] })}><option value="12px">12 px</option><option value="13px">13 px</option><option value="14px">14 px</option><option value="16px">16 px</option></select></label><label>表头文字<input type="color" value={column.headerStyle?.color ?? "#aab4ba"} onChange={event => updateHeaderStyle(column.key, { color: event.target.value })} /></label><label>表头底色<input type="color" value={column.headerStyle?.backgroundColor ?? "#292f34"} onChange={event => updateHeaderStyle(column.key, { backgroundColor: event.target.value })} /></label><label>字重<select value={column.headerStyle?.fontWeight ?? "600"} onChange={event => updateHeaderStyle(column.key, { fontWeight: event.target.value as NonNullable<TestCenterGridColumn["headerStyle"]>["fontWeight"] })}><option value="400">常规</option><option value="600">中等</option><option value="700">粗体</option></select></label><label><input type="checkbox" checked={column.headerStyle?.fontStyle === "italic"} onChange={event => updateHeaderStyle(column.key, { fontStyle: event.target.checked ? "italic" : "normal" })} /> 斜体</label><label>单元格文字<input type="color" value={column.cellStyle?.color ?? "#d7e0e3"} onChange={event => updateCellStyle(column.key, { color: event.target.value })} /></label><label>单元格底色<input type="color" value={column.cellStyle?.backgroundColor ?? "#202529"} onChange={event => updateCellStyle(column.key, { backgroundColor: event.target.value })} /></label></div></details></td>
         <td><input type="checkbox" checked={column.editable !== false && column.key !== "serial" && column.key !== "updatedAt"} disabled={column.key === "serial" || column.key === "updatedAt"} onChange={event => updateColumn(column.key, { editable: event.target.checked })} /></td>
         <td><input type="checkbox" checked={column.searchable === true} onChange={event => updateColumn(column.key, { searchable: event.target.checked })} /></td>
         <td><input type="checkbox" checked={column.visible !== false} onChange={event => updateColumn(column.key, { visible: event.target.checked })} /></td>
