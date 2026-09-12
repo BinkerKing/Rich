@@ -213,6 +213,18 @@ test("字段样式拆分为标题与内容，并由工具栏即时调整", () =>
   assert.match(source, /issue-data-grid__style-preview-button/);
 });
 
+test("编辑框字段可选换行、序号、点点和复选任务显示", () => {
+  assert.match(source, /value: "wrap", label: "换行"/);
+  assert.match(source, /label: "序号任务"/);
+  assert.match(source, /label: "点点任务"/);
+  assert.match(source, /label: "复选任务"/);
+  assert.match(source, /<ContentModeToolbar/);
+  assert.match(source, /StructuredTextCell/);
+  assert.match(source, /StructuredTextEditor/);
+  assert.match(styles, /\.issue-data-grid__task-list\s*\{[^}]*display:grid/s);
+  assert.match(styles, /\.issue-data-grid__task-check\s*\{[^}]*border-radius:4px/s);
+});
+
 test("字段样式预览与属性面板保持同列宽度", () => {
   assert.match(styles, /\.issue-data-grid__field-table th:nth-child\(4\),\.issue-data-grid__field-table td:nth-child\(4\)\s*\{[^}]*width:190px/s);
   assert.match(styles, /\.issue-data-grid__field-style-preview\s*\{[^}]*width:100%/s);
