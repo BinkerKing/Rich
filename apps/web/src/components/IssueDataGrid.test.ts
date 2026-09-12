@@ -67,6 +67,13 @@ test("字段定义表表头固定，字段样式以真实预览展示", () => {
   assert.match(source, /示例值/);
 });
 
+test("字段设置表采用紧凑的数据工作台层级", () => {
+  assert.match(styles, /\.issue-data-grid__field-table-wrap\s*\{[^}]*border-radius:10px[^}]*box-shadow:0 12px 28px/s);
+  assert.match(styles, /\.issue-data-grid__field-table th\s*\{[^}]*letter-spacing:\.03em/s);
+  assert.match(styles, /\.issue-data-grid__field-table td\s*\{[^}]*height:52px/s);
+  assert.match(styles, /\.issue-data-grid__field-style-preview\s*\{[^}]*box-shadow:inset 0 1px 0/s);
+});
+
 test("字段属性可配置表头与单元格样式", () => {
   assert.match(source, /表头字号/);
   assert.match(source, /表头文字/);
