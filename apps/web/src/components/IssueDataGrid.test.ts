@@ -50,6 +50,13 @@ test("自动换行以统一的整行高度呈现，不会将同一记录拆成�
   assert.doesNotMatch(source, /autoHeight:/);
 });
 
+test("任务文本编辑时 Command 或 Ctrl 加回车插入换行，普通回车提交", () => {
+  assert.match(source, /event\.key === "Enter" && \(event\.metaKey \|\| event\.ctrlKey\)/);
+  assert.match(source, /onValueChange\(nextValue\)/);
+  assert.match(source, /stopEditing\(\)/);
+  assert.match(source, /placeholder="输入内容，⌘\/Ctrl \+ Enter 换行"/);
+});
+
 test("编辑时输入区域贴合完整单元格，而非悬浮小输入框", () => {
   assert.match(styles, /\.issue-data-grid \.ag-cell\.ag-cell-inline-editing\s*\{[^}]*padding:0 !important[^}]*border-radius:0/s);
   assert.match(styles, /\.issue-data-grid \.ag-cell-inline-editing \.ag-cell-editor input,[^{]*\{[^}]*width:100%[^}]*height:100%[^}]*border:0 !important/s);

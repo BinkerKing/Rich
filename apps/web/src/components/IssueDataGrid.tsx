@@ -88,8 +88,18 @@ function StructuredTextCell({ value, mode = "plain", setValue }: { value: string
   })}</div>;
 }
 
-function StructuredTextEditor({ value, onValueChange }: { value?: string; onValueChange: (value: string) => void }): ReactNode {
-  return <textarea className="issue-data-grid__structured-editor" autoFocus defaultValue={value ?? ""} onKeyDown={event => event.stopPropagation()} onChange={event => onValueChange(event.target.value)} placeholder="每行输入一项任务" />;
+function StructuredTextEditor({ value, onValueChange, stopEditing }: CustomCellEditorProps<IssueGridRow, string>): ReactNode {
+  return <textarea className="issue-data-grid__structured-editor" autoFocus defaultValue={value ?? ""} onKeyDown={event => {
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault(); event.stopPropagation();
+      const editor = event.currentTarget;
+      editor.setRangeText("\n", editor.selectionStart, editor.selectionEnd, "end");
+      onValueChange(editor.value);
+      return;
+    }
+    if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); stopEditing(); return; }
+    event.stopPropagation();
+  }} onChange={event => onValueChange(event.target.value)} placeholder="输入内容，⌘/Ctrl + Enter 换行" />;
 }
 
 function ContentModeToolbar({ column, onChange }: { column: TestCenterGridColumn; onChange: (mode: NonNullable<TestCenterGridColumn["contentMode"]>) => void }): ReactNode {
@@ -203,7 +213,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     headerStyle: column.headerStyle,
     headerClass: `issue-data-grid__header-align-${column.headerStyle?.textAlign ?? "left"}`,
     cellStyle: column.cellStyle,
-    cellEditor: column.fieldType === "select" ? SelectDrawerEditor : column.fieldType === "date" ? DateEditor : column.fieldType === "multiSelect" ? MultiSelectEditor : isTextField(column) && (column.contentMode ?? "plain") !== "plain" ? StructuredTextEditor : undefined,
+    cellEditor: column.fieldType === "select" ? SelectDrawerEditor : column.fieldType === "date" ? DateEditor : column.fieldType === "multiSelect" ? MultiSelectEditor : isTextField(column) && ((column.contentMode ?? "plain") !== "plain" || column.cellStyle?.whiteSpace === "normal") ? StructuredTextEditor : undefined,
     cellEditorParams: needsOptions(column.fieldType) ? { values: column.options?.map(option => option.value) ?? [], options: column.options, dropdownStyle: column.dropdownStyle } : undefined,
     cellEditorPopup: column.fieldType === "select",
     cellEditorPopupPosition: column.fieldType === "select" ? "under" : undefined,
