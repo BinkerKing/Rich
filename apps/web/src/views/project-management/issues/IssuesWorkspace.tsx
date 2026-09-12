@@ -3,7 +3,7 @@ import { api, type ProjectModuleItem, type TestCenterIssue } from "../../../api/
 import IssueDataGrid from "../../../components/IssueDataGrid.js";
 import "./IssuesWorkspace.css";
 
-type IssueStatus = "open" | "fixed" | "retest" | "closed";
+type IssueStatus = "" | "open" | "fixed" | "retest" | "closed";
 
 export function IssuesWorkspace({ projectId }: { projectId: string }): ReactNode {
   const [tables, setTables] = useState<ProjectModuleItem[]>([]);
@@ -32,9 +32,9 @@ export function IssuesWorkspace({ projectId }: { projectId: string }): ReactNode
     }
   };
   const saveIssueChange = (issueId: string, patch: { title?: string; description?: string; owner?: string; status?: string; externalRef?: string; customFields?: Record<string, string> }) => {
-    const status: IssueStatus = ["open", "fixed", "retest", "closed"].includes(String(patch.status)) ? patch.status as IssueStatus : "open";
+    const status: IssueStatus = ["", "open", "fixed", "retest", "closed"].includes(String(patch.status)) ? patch.status as IssueStatus : "";
     void api.updateTestCenterIssue(projectId, issueId, {
-      title: patch.title?.trim() || undefined,
+      title: patch.title === undefined ? undefined : patch.title.trim(),
       description: patch.description,
       owner: patch.owner === undefined ? undefined : patch.owner.trim() || null,
       externalRef: patch.externalRef === undefined ? undefined : patch.externalRef.trim() || null,
@@ -45,8 +45,8 @@ export function IssuesWorkspace({ projectId }: { projectId: string }): ReactNode
   const addIssue = () => { void (async () => {
     try {
       const caseId = issues[0]?.caseId ?? (await api.createTestCenterCase(projectId, { code: `MANUAL-${Date.now()}`, title: "问题清单补录", objective: "用于手工补录问题记录", type: "functional", priority: "medium" })).id;
-      const issue = await api.createTestCenterIssue(projectId, { caseId, title: "待补录问题", description: "" });
-      setIssues(current => [issue, ...current]);
+      const issue = await api.createTestCenterIssue(projectId, { caseId, title: "", description: "" });
+      setIssues(current => [...current, issue]);
     } catch { setError("新增问题记录失败。"); }
   })(); };
   const deleteIssue = (issueId: string) => { void api.deleteTestCenterIssue(projectId, issueId).then(() => setIssues(current => current.filter(issue => issue.id !== issueId))).catch(() => setError("删除问题记录失败。")); };

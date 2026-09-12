@@ -6,7 +6,7 @@ import "./IssueDataGrid.css";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-type IssueStatus = "open" | "fixed" | "retest" | "closed";
+type IssueStatus = "" | "open" | "fixed" | "retest" | "closed";
 type EditableIssueField = "title" | "description" | "owner" | "status" | "externalRef";
 type IssueChange = Partial<Pick<TestCenterIssue, EditableIssueField | "customFields">>;
 type IssueGridRow = { id: string; serial: number; title: string; description: string; owner: string; status: IssueStatus; externalRef: string; updatedAt: string; customFields: Record<string, string>; [key: string]: string | number | Record<string, string> };
@@ -16,7 +16,7 @@ type IssueDataGridProps = { projectId: string; tableId: string; title?: string; 
 type StyleSelection = { key: string; target: "header" | "cell" | "dropdown"; optionValue?: string };
 
 const systemFields = new Set(["serial", "title", "description", "owner", "status", "externalRef", "updatedAt"]);
-const statusLabels: Record<IssueStatus, string> = { open: "待处理", fixed: "已修复", retest: "待复测", closed: "已关闭" };
+const statusLabels: Record<Exclude<IssueStatus, "">, string> = { open: "待处理", fixed: "已修复", retest: "待复测", closed: "已关闭" };
 const issueTypeOptions = [{ label: "BA-需求", value: "ba-requirement" }, { label: "BA-BUG", value: "ba-bug" }, { label: "产品-BUG", value: "product-bug" }, { label: "产品-需求", value: "product-requirement" }];
 const defaultColumns: TestCenterGridColumn[] = [
   { key: "serial", name: "序号", width: 76, editable: false, visible: true },
@@ -42,7 +42,7 @@ const contentModes = [{ value: "plain", label: "单行", icon: "T" }, { value: "
 
 function SelectBadge({ value, options, dropdownStyle = "soft" }: { value: string | number; options?: TestCenterGridColumn["options"]; dropdownStyle?: TestCenterGridColumn["dropdownStyle"] }): ReactNode {
   const option = options?.find(item => item.value === value);
-  const label = option?.label ?? String(value || "选择选项");
+  const label = option?.label ?? String(value || "");
   const style = option?.style ?? dropdownStyle;
   return <span className={`issue-data-grid__select-badge issue-data-grid__select-badge--${style}${value ? "" : " issue-data-grid__select-badge--empty"}`}>{label}</span>;
 }

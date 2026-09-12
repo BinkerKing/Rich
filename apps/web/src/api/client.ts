@@ -1146,7 +1146,7 @@ export const api = {
     const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/issues/order`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ issueIds }) });
     if (!r.ok) throw new Error(`reorderTestCenterIssues ${r.status}`);
   },
-  async updateTestCenterIssue(projectId: string, issueId: string, input: { title?: string; description?: string; status?: "open" | "fixed" | "retest" | "closed"; owner?: string | null; externalRef?: string | null; customFields?: Record<string, string> }): Promise<TestCenterIssue> {
+  async updateTestCenterIssue(projectId: string, issueId: string, input: { title?: string; description?: string; status?: "" | "open" | "fixed" | "retest" | "closed"; owner?: string | null; externalRef?: string | null; customFields?: Record<string, string> }): Promise<TestCenterIssue> {
     const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
     if (!r.ok) throw new Error(`updateTestCenterIssue ${r.status}`);
     return r.json();

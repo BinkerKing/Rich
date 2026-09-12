@@ -59,6 +59,11 @@ test("单元格支持快捷键复制粘贴，并为复制源显示虚线框", ()
   assert.match(styles, /\.issue-data-grid \.ag-cell\.issue-data-grid__cell-copied\s*\{[^}]*outline:1px dashed/s);
 });
 
+test("新增问题记录不预填单元格内容", () => {
+  assert.match(source, /String\(value \|\| ""\)/);
+  assert.doesNotMatch(source, /String\(value \|\| "选择选项"\)/);
+});
+
 test("高级问题表格撑满编辑区域并使用紧凑深色工具栏", () => {
   assert.match(styles, /\.issue-data-grid\s*\{[^}]*height:100%[^}]*grid-template-rows:auto minmax\(0,1fr\)/s);
   assert.match(styles, /\.issue-data-grid__toolbar\s*\{[^}]*min-height:48px[^}]*background:#252629/s);

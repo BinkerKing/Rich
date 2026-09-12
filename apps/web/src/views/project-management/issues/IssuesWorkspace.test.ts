@@ -59,3 +59,8 @@ test("问题表编辑页只保留标题和可编辑表格，并撑满工作区",
   assert.doesNotMatch(source, /issues-workspace__add-row|listTestCenterCases/);
   assert.match(styles, /\.issues-workspace--editor\s*\{[^}]*height:100%[^}]*box-sizing:border-box/s);
 });
+
+test("新增问题记录以空单元格开始填写", () => {
+  assert.match(source, /createTestCenterIssue\(projectId, \{ caseId, title: "", description: "" \}\)/);
+  assert.doesNotMatch(source, /待补录问题/);
+});

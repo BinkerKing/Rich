@@ -210,8 +210,8 @@ export class TestCenterSqliteRepo {
     const customFields = input.customFields ?? {};
     const sortOrder = this.nextOrder("pm_test_issues", "project_id=?", [input.projectId]);
     this.db.prepare(`INSERT INTO pm_test_issues (id, project_id, case_id, run_id, title, description, owner, external_ref, custom_fields, status, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)`).run(id, input.projectId, input.caseId, input.runId ?? null, input.title, input.description, input.owner ?? null, input.externalRef ?? null, JSON.stringify(customFields), sortOrder, createdAt, createdAt);
-    return { id, projectId: input.projectId, caseId: input.caseId, runId: input.runId, title: input.title, description: input.description, owner: input.owner, externalRef: input.externalRef, customFields, status: "open", sortOrder, createdAt, updatedAt: createdAt };
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?)`).run(id, input.projectId, input.caseId, input.runId ?? null, input.title, input.description, input.owner ?? null, input.externalRef ?? null, JSON.stringify(customFields), sortOrder, createdAt, createdAt);
+    return { id, projectId: input.projectId, caseId: input.caseId, runId: input.runId, title: input.title, description: input.description, owner: input.owner, externalRef: input.externalRef, customFields, status: "", sortOrder, createdAt, updatedAt: createdAt };
   }
 
   async listIssues(projectId: string): Promise<TestCenterIssue[]> {
