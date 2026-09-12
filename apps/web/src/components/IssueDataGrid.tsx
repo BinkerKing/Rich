@@ -73,6 +73,11 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [columns, setColumns] = useState(defaultColumns);
   const [tableStyle, setTableStyle] = useState(defaultStyle);
+  const [draftColumns, setDraftColumns] = useState<TestCenterGridColumn[] | null>(null);
+  const [draftTableStyle, setDraftTableStyle] = useState<TestCenterGridStyle | null>(null);
+  const [deletedColumns, setDeletedColumns] = useState<TestCenterGridColumn[]>([]);
+  const [draftDeletedColumns, setDraftDeletedColumns] = useState<TestCenterGridColumn[]>([]);
+  const [settingsDirty, setSettingsDirty] = useState(false);
   const [newFieldName, setNewFieldName] = useState("");
   const [styleSelection, setStyleSelection] = useState<StyleSelection | null>(null);
   const resizeTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -89,6 +94,7 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
       ];
       setColumns(restored);
       setTableStyle({ ...defaultStyle, ...settings.style });
+      setDeletedColumns(settings.columns.filter(column => column.deleted));
     });
     return () => { cancelled = true; };
   }, [gridSettingsKey, projectId]);
@@ -120,27 +126,31 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
     cellClass: column.key === "serial" ? "issue-data-grid__serial" : undefined,
   })), [columns]);
 
-  const saveSettings = (nextColumns: TestCenterGridColumn[], nextStyle = tableStyle) => {
+  const persistSettings = (nextColumns: TestCenterGridColumn[], nextStyle = tableStyle, nextDeletedColumns = deletedColumns) => {
     setColumns(nextColumns);
-    void api.saveTestCenterGridSettings(projectId, gridSettingsKey, nextColumns, nextStyle);
+    setTableStyle(nextStyle);
+    void api.saveTestCenterGridSettings(projectId, gridSettingsKey, [...nextColumns, ...nextDeletedColumns], nextStyle);
   };
-  const updateColumn = (key: string, patch: Partial<TestCenterGridColumn>) => saveSettings(columns.map(column => column.key === key ? { ...column, ...patch } : column));
+  const settingsColumns = draftColumns ?? columns;
+  const settingsStyle = draftTableStyle ?? tableStyle;
+  const updateDraft = (nextColumns: TestCenterGridColumn[]) => { setDraftColumns(nextColumns); setSettingsDirty(true); };
+  const updateColumn = (key: string, patch: Partial<TestCenterGridColumn>) => updateDraft(settingsColumns.map(column => column.key === key ? { ...column, ...patch } : column));
   const updateHeaderStyle = (key: string, patch: NonNullable<TestCenterGridColumn["headerStyle"]>) => {
-    const column = columns.find(item => item.key === key);
+    const column = settingsColumns.find(item => item.key === key);
     updateColumn(key, { headerStyle: { ...column?.headerStyle, ...patch } });
   };
   const updateCellStyle = (key: string, patch: NonNullable<TestCenterGridColumn["cellStyle"]>) => {
-    const column = columns.find(item => item.key === key);
+    const column = settingsColumns.find(item => item.key === key);
     updateColumn(key, { cellStyle: { ...column?.cellStyle, ...patch } });
   };
   const updateOptions = (key: string, options: Array<{ label: string; value: string }>) => updateColumn(key, { options });
   const addOption = (key: string) => {
-    const options = columns.find(column => column.key === key)?.options ?? [];
+    const options = settingsColumns.find(column => column.key === key)?.options ?? [];
     const label = `选项 ${options.length + 1}`;
     updateOptions(key, [...options, { label, value: `option-${Date.now()}` }]);
   };
   const moveOption = (key: string, from: number, direction: -1 | 1) => {
-    const options = [...(columns.find(column => column.key === key)?.options ?? [])];
+    const options = [...(settingsColumns.find(column => column.key === key)?.options ?? [])];
     const to = from + direction;
     if (to < 0 || to >= options.length) return;
     [options[from], options[to]] = [options[to], options[from]];
@@ -148,51 +158,60 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
   };
   const updateDropdownStyle = (key: string, optionValue: string | undefined, style: NonNullable<TestCenterGridColumn["dropdownStyle"]>) => {
     if (!optionValue) updateColumn(key, { dropdownStyle: style });
-    else updateOptions(key, (columns.find(column => column.key === key)?.options ?? []).map(option => option.value === optionValue ? { ...option, style } : option));
+    else updateOptions(key, (settingsColumns.find(column => column.key === key)?.options ?? []).map(option => option.value === optionValue ? { ...option, style } : option));
   };
   const removeColumn = (key: string) => {
+    const column = settingsColumns.find(item => item.key === key);
+    if (!column) return;
     if (defaultColumns.some(column => column.key === key)) {
-      const column = columns.find(item => item.key === key);
-      if (column) saveSettings([...columns.filter(item => item.key !== key), { ...column, deleted: true }]);
+      setDraftDeletedColumns(current => [...current.filter(item => item.key !== key), { ...column, deleted: true }]);
     }
-    else saveSettings(columns.filter(column => column.key !== key));
+    updateDraft(settingsColumns.filter(item => item.key !== key));
   };
   const addField = () => {
     const name = newFieldName.trim();
     if (!name) return;
     const baseKey = fieldKeyFromName(name);
     let key = baseKey; let index = 2;
-    while (columns.some(column => column.key === key)) key = `${baseKey}_${index++}`;
-    saveSettings([...columns, { key, name, width: 160, editable: true, searchable: true, visible: true, fieldType: "text" }]);
+    while (settingsColumns.some(column => column.key === key)) key = `${baseKey}_${index++}`;
+    updateDraft([...settingsColumns, { key, name, width: 160, editable: true, searchable: true, visible: true, fieldType: "text" }]);
     setNewFieldName("");
   };
   const saveColumnWidths = (gridApi: GridApi<IssueGridRow>) => {
     clearTimeout(resizeTimer.current);
     resizeTimer.current = setTimeout(() => {
       const widths = new Map(gridApi.getColumnState().map(column => [column.colId, column.width ?? undefined]));
-      saveSettings(columns.map(column => ({ ...column, width: widths.get(column.key) ?? column.width })));
+      persistSettings(columns.map(column => ({ ...column, width: widths.get(column.key) ?? column.width })));
     }, 350);
   };
   const updateStyle = (patch: Partial<TestCenterGridStyle>) => {
-    const nextStyle = { ...tableStyle, ...patch };
-    setTableStyle(nextStyle);
-    void api.saveTestCenterGridSettings(projectId, gridSettingsKey, columns, nextStyle);
+    setDraftTableStyle({ ...settingsStyle, ...patch });
+    setSettingsDirty(true);
   };
-  const activeStyleColumn = styleSelection && styleSelection.target !== "dropdown" ? columns.find(column => column.key === styleSelection.key) : undefined;
+  const applySettings = () => {
+    persistSettings(settingsColumns, settingsStyle, draftDeletedColumns);
+    setDeletedColumns(draftDeletedColumns);
+    setSettingsDirty(false);
+  };
+  const toggleSettings = () => {
+    if (settingsOpen) { setSettingsOpen(false); setDraftColumns(null); setDraftTableStyle(null); setStyleSelection(null); return; }
+    setDraftColumns(columns); setDraftTableStyle(tableStyle); setDraftDeletedColumns(deletedColumns); setSettingsDirty(false); setSettingsOpen(true);
+  };
+  const activeStyleColumn = styleSelection && styleSelection.target !== "dropdown" ? settingsColumns.find(column => column.key === styleSelection.key) : undefined;
   const activeStyle = styleSelection?.target === "header" ? activeStyleColumn?.headerStyle : styleSelection?.target === "cell" ? activeStyleColumn?.cellStyle : undefined;
   const activeHeaderStyle = styleSelection?.target === "header" ? activeStyleColumn?.headerStyle : undefined;
-  const activeDropdownColumn = styleSelection?.target === "dropdown" ? columns.find(column => column.key === styleSelection.key) : undefined;
+  const activeDropdownColumn = styleSelection?.target === "dropdown" ? settingsColumns.find(column => column.key === styleSelection.key) : undefined;
   const activeDropdownOption = activeDropdownColumn?.options?.find(option => option.value === styleSelection?.optionValue);
 
   return <div className={`issue-data-grid issue-data-grid--${tableStyle.density} issue-data-grid--header-${tableStyle.headerTone}${tableStyle.stripedRows ? " issue-data-grid--striped" : ""}`} aria-label="高级问题表格">
     <div className="issue-data-grid__toolbar">
       <label className="issue-data-grid__search"><span aria-hidden="true">⌕</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索已设为可检索的字段" /></label>
-      <button className="issue-data-grid__settings-trigger" type="button" onClick={() => setSettingsOpen(open => !open)} aria-expanded={settingsOpen}>表格设置</button>
+      <button className="issue-data-grid__settings-trigger" type="button" onClick={toggleSettings} aria-expanded={settingsOpen}>表格设置</button>
     </div>
     {settingsOpen && <aside className="issue-data-grid__settings" aria-label="表格设置">
       {activeDropdownColumn && styleSelection && <div className="issue-data-grid__dropdown-toolbar"><span>下拉样式 · {activeDropdownColumn.name} · {activeDropdownOption?.label ?? "统一所有选项"}</span>{dropdownStyles.map(style => <button key={style.value} className={`issue-data-grid__toolbar-dropdown-style issue-data-grid__toolbar-dropdown-style--${style.value}${(activeDropdownOption?.style ?? activeDropdownColumn.dropdownStyle ?? "soft") === style.value ? " is-active" : ""}`} type="button" onClick={() => updateDropdownStyle(activeDropdownColumn.key, styleSelection.optionValue, style.value)}><span>{style.label}</span></button>)}</div>}
       <div className="issue-data-grid__settings-actions"><div className="issue-data-grid__add-field"><input value={newFieldName} onChange={event => setNewFieldName(event.target.value)} onKeyDown={event => { if (event.key === "Enter") addField(); }} placeholder="新字段名称" /><button type="button" onClick={addField}>添加字段</button></div><div className="issue-data-grid__style-toolbar">{activeStyleColumn && styleSelection ? <><span className="issue-data-grid__style-toolbar-title">样式工具栏 · {activeStyleColumn.name} · {styleSelection.target === "header" ? "标题" : "内容"}</span><label>字号<select value={activeStyle?.fontSize ?? "13px"} onChange={event => styleSelection.target === "header" ? updateHeaderStyle(activeStyleColumn.key, { fontSize: event.target.value as NonNullable<TestCenterGridColumn["headerStyle"]>["fontSize"] }) : updateCellStyle(activeStyleColumn.key, { fontSize: event.target.value as NonNullable<TestCenterGridColumn["cellStyle"]>["fontSize"] })}><option value="12px">12</option><option value="13px">13</option><option value="14px">14</option><option value="16px">16</option></select></label><button className={activeStyle?.fontWeight === "700" ? "is-active" : ""} type="button" title="加粗" onClick={() => styleSelection.target === "header" ? updateHeaderStyle(activeStyleColumn.key, { fontWeight: activeStyle?.fontWeight === "700" ? "400" : "700" }) : updateCellStyle(activeStyleColumn.key, { fontWeight: activeStyle?.fontWeight === "700" ? "400" : "700" })}><b>B</b></button>{styleSelection.target === "header" && <button className={activeHeaderStyle?.fontStyle === "italic" ? "is-active" : ""} type="button" title="斜体" onClick={() => updateHeaderStyle(activeStyleColumn.key, { fontStyle: activeHeaderStyle?.fontStyle === "italic" ? "normal" : "italic" })}><i>I</i></button>}<label title="文字颜色"><input type="color" value={activeStyle?.color ?? (styleSelection.target === "header" ? "#aab4ba" : "#d7e0e3")} onChange={event => styleSelection.target === "header" ? updateHeaderStyle(activeStyleColumn.key, { color: event.target.value }) : updateCellStyle(activeStyleColumn.key, { color: event.target.value })} /></label><label title="背景颜色"><input type="color" value={activeStyle?.backgroundColor ?? (styleSelection.target === "header" ? "#292f34" : "#202529")} onChange={event => styleSelection.target === "header" ? updateHeaderStyle(activeStyleColumn.key, { backgroundColor: event.target.value }) : updateCellStyle(activeStyleColumn.key, { backgroundColor: event.target.value })} /></label><span className="issue-data-grid__style-toolbar-divider" /><button className={activeStyle?.textAlign === "left" || !activeStyle?.textAlign ? "is-active" : ""} type="button" title="左对齐" onClick={() => styleSelection.target === "header" ? updateHeaderStyle(activeStyleColumn.key, { textAlign: "left" }) : updateCellStyle(activeStyleColumn.key, { textAlign: "left" })}>≡</button><button className={activeStyle?.textAlign === "center" ? "is-active" : ""} type="button" title="居中" onClick={() => styleSelection.target === "header" ? updateHeaderStyle(activeStyleColumn.key, { textAlign: "center" }) : updateCellStyle(activeStyleColumn.key, { textAlign: "center" })}>≡</button><button className={activeStyle?.textAlign === "right" ? "is-active" : ""} type="button" title="右对齐" onClick={() => styleSelection.target === "header" ? updateHeaderStyle(activeStyleColumn.key, { textAlign: "right" }) : updateCellStyle(activeStyleColumn.key, { textAlign: "right" })}>≡</button></> : <span className="issue-data-grid__style-toolbar-hint">选择下面的标题或内容预览，开始调整样式</span>}</div></div>
-      <div className="issue-data-grid__field-table-wrap"><table className="issue-data-grid__field-table"><thead><tr><th>字段名称</th><th>字段类型</th><th>选项与样式</th><th>标题样式</th><th>内容样式</th><th>可编辑</th><th>参与搜索</th><th>显示</th><th>操作</th></tr></thead><tbody>{columns.map(column => <tr key={column.key}>
+      <div className="issue-data-grid__field-table-wrap"><table className="issue-data-grid__field-table"><thead><tr><th>字段名称</th><th>字段类型</th><th>选项与样式</th><th>标题样式</th><th>内容样式</th><th>可编辑</th><th>参与搜索</th><th>显示</th><th>操作</th></tr></thead><tbody>{settingsColumns.map(column => <tr key={column.key}>
         <td><input aria-label={`${column.name}列名`} value={column.name} onChange={event => updateColumn(column.key, { name: event.target.value })} /></td>
         <td><select value={column.fieldType ?? "text"} disabled={column.key === "serial" || column.key === "updatedAt"} onChange={event => { const fieldType = event.target.value as TestCenterGridColumn["fieldType"]; updateColumn(column.key, { fieldType, options: needsOptions(fieldType) ? column.options ?? [] : undefined }); }}><option value="text">编辑框</option><option value="date">日期</option><option value="checkbox">勾选</option><option value="select">下拉选项</option><option value="multiSelect">多选下拉</option></select></td>
         <td>{needsOptions(column.fieldType) ? <details className={`issue-data-grid__option-editor issue-data-grid__option-editor--${column.dropdownStyle ?? "soft"}`}><summary aria-label={`${column.name}下拉选项`} onClick={() => setStyleSelection({ key: column.key, target: "dropdown" })}><span>{column.options?.[0]?.label ?? "添加选项"}</span><span aria-hidden="true">⌄</span></summary><div className="issue-data-grid__option-editor-menu"><div className="issue-data-grid__option-list">{(column.options ?? []).map((option, index) => <div className="issue-data-grid__option-row" key={option.value}><input className={`issue-data-grid__option-content issue-data-grid__option-content--${option.style ?? column.dropdownStyle ?? "soft"}${styleSelection?.key === column.key && styleSelection.optionValue === option.value ? " is-selected" : ""}`} aria-label={`${option.label}选项`} value={option.label} onFocus={() => setStyleSelection({ key: column.key, target: "dropdown", optionValue: option.value })} onChange={event => updateOptions(column.key, (column.options ?? []).map(item => item.value === option.value ? { ...item, label: event.target.value } : item))} /><div><button type="button" aria-label="上移选项" title="上移选项" disabled={index === 0} onClick={() => moveOption(column.key, index, -1)}>↑</button><button type="button" aria-label="下移选项" title="下移选项" disabled={index === (column.options?.length ?? 0) - 1} onClick={() => moveOption(column.key, index, 1)}>↓</button><button type="button" aria-label="删除选项" title="删除选项" onClick={() => updateOptions(column.key, (column.options ?? []).filter(item => item.value !== option.value))}>×</button></div></div>)}</div><button className="issue-data-grid__add-option" type="button" onClick={() => addOption(column.key)}>＋ 新增选项</button></div></details> : <span className="issue-data-grid__not-applicable">—</span>}</td>
@@ -203,7 +222,7 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
         <td><input type="checkbox" checked={column.visible !== false} onChange={event => updateColumn(column.key, { visible: event.target.checked })} /></td>
         <td><button className="issue-data-grid__delete-column" type="button" aria-label="删除字段" title="删除字段" onClick={() => removeColumn(column.key)}><svg className="issue-data-grid__delete-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" /></svg></button></td>
       </tr>)}</tbody></table></div>
-      <section className="issue-data-grid__style"><b>表格样式</b><label>密度<select value={tableStyle.density} onChange={event => updateStyle({ density: event.target.value as TestCenterGridStyle["density"] })}><option value="compact">紧凑</option><option value="comfortable">舒适</option></select></label><label>表头色调<select value={tableStyle.headerTone} onChange={event => updateStyle({ headerTone: event.target.value as TestCenterGridStyle["headerTone"] })}><option value="neutral">中性</option><option value="slate">石板</option><option value="cyan">青色</option></select></label><label><input type="checkbox" checked={tableStyle.stripedRows} onChange={event => updateStyle({ stripedRows: event.target.checked })} /> 斑马纹行</label></section>
+      <section className="issue-data-grid__style"><b>表格样式</b><label>密度<select value={settingsStyle.density} onChange={event => updateStyle({ density: event.target.value as TestCenterGridStyle["density"] })}><option value="compact">紧凑</option><option value="comfortable">舒适</option></select></label><label>表头色调<select value={settingsStyle.headerTone} onChange={event => updateStyle({ headerTone: event.target.value as TestCenterGridStyle["headerTone"] })}><option value="neutral">中性</option><option value="slate">石板</option><option value="cyan">青色</option></select></label><label><input type="checkbox" checked={settingsStyle.stripedRows} onChange={event => updateStyle({ stripedRows: event.target.checked })} /> 斑马纹行</label><button className={`issue-data-grid__apply-settings${settingsDirty ? " is-ready" : ""}`} type="button" disabled={!settingsDirty} onClick={applySettings}>{settingsDirty ? "应用更改" : "已应用"}</button></section>
     </aside>}
     <div className="issue-data-grid__table"><AgGridReact<IssueGridRow>
       theme={issueGridTheme} rowData={visibleRows} columnDefs={columnDefs} defaultColDef={{ sortable: true }} getRowId={params => params.data.id} rowHeight={tableStyle.density === "compact" ? 36 : 44} headerHeight={40} stopEditingWhenCellsLoseFocus

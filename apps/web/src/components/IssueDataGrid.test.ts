@@ -118,6 +118,15 @@ test("字段定义表不显示冗余标题行，并使用图标删除字段", ()
   assert.match(source, /deleted: true/);
 });
 
+test("字段设置使用草稿并通过右下角应用按钮生效", () => {
+  assert.match(source, /const \[draftColumns, setDraftColumns\]/);
+  assert.match(source, /updateDraft\(settingsColumns\.filter/);
+  assert.match(source, /settingsDirty \? "应用更改" : "已应用"/);
+  assert.match(source, /disabled=\{!settingsDirty\}/);
+  assert.match(source, /persistSettings\(settingsColumns, settingsStyle, draftDeletedColumns\)/);
+  assert.match(styles, /\.issue-data-grid__apply-settings\s*\{[^}]*margin-left:auto/s);
+});
+
 test("字段定义表表头固定，字段样式以真实预览展示", () => {
   assert.match(styles, /\.issue-data-grid__field-table th\s*\{[^}]*position:sticky[^}]*top:0/s);
   assert.match(source, /issue-data-grid__style-preview-button/);
