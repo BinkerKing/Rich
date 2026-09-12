@@ -11,7 +11,7 @@ type EditableIssueField = "title" | "description" | "owner" | "status" | "extern
 type IssueChange = Partial<Pick<TestCenterIssue, EditableIssueField | "customFields">>;
 type IssueGridRow = { id: string; serial: number; title: string; description: string; owner: string; status: IssueStatus; externalRef: string; updatedAt: string; customFields: Record<string, string>; [key: string]: string | number | Record<string, string> };
 
-type IssueDataGridProps = { projectId: string; tableId: string; title?: string; onBack?: () => void; issues: TestCenterIssue[]; onIssueChange: (issueId: string, patch: IssueChange) => void; onAddIssue: () => void; onDeleteIssue: (issueId: string) => void };
+type IssueDataGridProps = { projectId: string; tableId: string; title?: string; onBack?: () => void; issues: TestCenterIssue[]; onIssueChange: (issueId: string, patch: IssueChange) => void; onIssueReorder: (issueIds: string[]) => void; onAddIssue: () => void; onDeleteIssue: (issueId: string) => void };
 type StyleSelection = { key: string; target: "header" | "cell" | "dropdown"; optionValue?: string };
 
 const systemFields = new Set(["serial", "title", "description", "owner", "status", "externalRef", "updatedAt"]);
@@ -90,7 +90,7 @@ function MultiSelectEditor({ value, onValueChange, options = [] }: { value?: str
   return <select className="issue-data-grid__multi-select-editor" autoFocus multiple value={selected} onChange={event => onValueChange(Array.from(event.target.selectedOptions, option => option.value).join("|"))}>{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
 }
 
-export function IssueDataGrid({ projectId, tableId, title = "产品问题测试清单", onBack, issues, onIssueChange, onAddIssue, onDeleteIssue }: IssueDataGridProps): ReactNode {
+export function IssueDataGrid({ projectId, tableId, title = "产品问题测试清单", onBack, issues, onIssueChange, onIssueReorder, onAddIssue, onDeleteIssue }: IssueDataGridProps): ReactNode {
   const [query, setQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [columns, setColumns] = useState(defaultColumns);
@@ -136,6 +136,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     field: column.key,
     headerName: column.name,
     width: column.width ?? 160,
+    rowDrag: column.key === "serial" && !query,
     editable: column.key !== "serial" && column.key !== "updatedAt" && column.editable !== false,
     sortable: column.key !== "serial",
     resizable: true,
@@ -151,7 +152,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     autoHeight: column.fieldType === "text" && (column.contentMode === "wrap" || column.contentMode === "numbered" || column.contentMode === "bulleted" || column.contentMode === "checklist"),
     wrapText: column.fieldType === "text" && column.contentMode === "wrap",
     cellClass: [column.key === "serial" ? "issue-data-grid__serial" : "", column.fieldType === "select" ? "issue-data-grid__select-cell" : "", `issue-data-grid__cell-align-${column.cellStyle?.textAlign ?? "left"}`].filter(Boolean).join(" "),
-  })), [columns]);
+  })), [columns, query]);
 
   const persistSettings = (nextColumns: TestCenterGridColumn[], nextStyle = tableStyle, nextDeletedColumns = deletedColumns) => {
     setColumns(nextColumns);
@@ -261,9 +262,10 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
       <section className="issue-data-grid__style"><b>表格样式</b><label>密度<select value={settingsStyle.density} onChange={event => updateStyle({ density: event.target.value as TestCenterGridStyle["density"] })}><option value="compact">紧凑</option><option value="comfortable">舒适</option></select></label><label>表头色调<select value={settingsStyle.headerTone} onChange={event => updateStyle({ headerTone: event.target.value as TestCenterGridStyle["headerTone"] })}><option value="neutral">中性</option><option value="slate">石板</option><option value="cyan">青色</option></select></label><label><input type="checkbox" checked={settingsStyle.stripedRows} onChange={event => updateStyle({ stripedRows: event.target.checked })} /> 斑马纹行</label><button className={`issue-data-grid__apply-settings${settingsDirty ? " is-ready" : ""}`} type="button" disabled={!settingsDirty} onClick={applySettings}>{settingsDirty ? "应用更改" : "已应用"}</button></section>
     </aside>}
     <div className="issue-data-grid__table" onContextMenu={event => { if (event.target === event.currentTarget) { event.preventDefault(); setRecordMenu({ x: event.clientX, y: event.clientY }); } }}><AgGridReact<IssueGridRow>
-      theme={issueGridTheme} rowData={visibleRows} columnDefs={columnDefs} defaultColDef={{ sortable: true }} getRowId={params => params.data.id} rowHeight={tableStyle.density === "compact" ? 36 : 44} headerHeight={40} singleClickEdit={false} stopEditingWhenCellsLoseFocus
+      theme={issueGridTheme} rowData={visibleRows} columnDefs={columnDefs} defaultColDef={{ sortable: true }} getRowId={params => params.data.id} rowDragManaged={!query} suppressMoveWhenRowDragging animateRows rowHeight={tableStyle.density === "compact" ? 36 : 44} headerHeight={40} singleClickEdit={false} stopEditingWhenCellsLoseFocus
       onCellClicked={event => { const column = columns.find(item => item.key === event.colDef.field); if (event.rowIndex !== null && needsOptions(column?.fieldType)) event.api.startEditingCell({ rowIndex: event.rowIndex, colKey: event.column.getColId() }); }}
       onCellContextMenu={event => { const mouseEvent = event.event as MouseEvent | undefined; if (!mouseEvent || !event.data) return; mouseEvent.preventDefault(); setRecordMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY, issueId: event.data.id }); }}
+      onRowDragEnd={event => { const issueIds: string[] = []; event.api.forEachNode(node => { if (node.data) issueIds.push(node.data.id); }); onIssueReorder(issueIds); }}
       onColumnResized={event => { if (event.finished) saveColumnWidths(event.api); }}
       onColumnMoved={event => { if (event.finished) saveColumnOrder(event.api); }}
       onCellValueChanged={event => {

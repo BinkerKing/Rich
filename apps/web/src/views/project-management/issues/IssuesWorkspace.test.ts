@@ -46,9 +46,11 @@ test("打开问题表时由表格身份区承担唯一标题头行", () => {
 
 test("打开问题表时使用 AG Grid 高级数据表格而非 Excel 编辑器", () => {
   assert.match(source, /import IssueDataGrid from "\.\.\/\.\.\/\.\.\/components\/IssueDataGrid\.js"/);
-  assert.match(source, /<IssueDataGrid projectId=\{projectId\} tableId=\{active\.id\} title=\{active\.title\} onBack=\{\(\) => setActiveId\(""\)\} issues=\{issues\} onIssueChange=\{saveIssueChange\} onAddIssue=\{addIssue\} onDeleteIssue=\{deleteIssue\} \/>/);
+  assert.match(source, /<IssueDataGrid projectId=\{projectId\} tableId=\{active\.id\} title=\{active\.title\} onBack=\{\(\) => setActiveId\(""\)\} issues=\{issues\} onIssueChange=\{saveIssueChange\} onIssueReorder=\{reorderIssues\} onAddIssue=\{addIssue\} onDeleteIssue=\{deleteIssue\} \/>/);
   assert.match(source, /createTestCenterIssue/);
   assert.match(source, /deleteTestCenterIssue/);
+  assert.match(source, /reorderTestCenterIssues/);
+  assert.match(source, /onIssueReorder=\{reorderIssues\}/);
   assert.doesNotMatch(source, /UniverIssueSheet|Suspense|lazy\(/);
   assert.doesNotMatch(source, /<ConfigurableDataGrid ariaLabel=\{`\$\{active\.title\} 表格`\}/);
 });

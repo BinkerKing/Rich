@@ -42,6 +42,13 @@ test("问题记录可通过右键菜单新增或删除", () => {
   assert.match(styles, /\.issue-data-grid__record-menu button\.is-danger/);
 });
 
+test("序号列是问题记录唯一的拖拽排序入口", () => {
+  assert.match(source, /rowDrag: column\.key === "serial" && !query/);
+  assert.match(source, /rowDragManaged=\{!query\} suppressMoveWhenRowDragging animateRows/);
+  assert.match(source, /onRowDragEnd=.*forEachNode.*onIssueReorder\(issueIds\)/s);
+  assert.match(styles, /\.issue-data-grid__serial \.ag-row-drag\s*\{[^}]*cursor:grab/s);
+});
+
 test("高级问题表格撑满编辑区域并使用紧凑深色工具栏", () => {
   assert.match(styles, /\.issue-data-grid\s*\{[^}]*height:100%[^}]*grid-template-rows:auto minmax\(0,1fr\)/s);
   assert.match(styles, /\.issue-data-grid__toolbar\s*\{[^}]*min-height:48px[^}]*background:#252629/s);

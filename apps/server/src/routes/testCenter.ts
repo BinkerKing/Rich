@@ -79,6 +79,7 @@ export function testCenterRoutes(repo: TestCenterSqliteRepo) {
   r.get("/:projectId/grid-settings/:gridKey", async c => c.json(await repo.getGridSettings(c.req.param("projectId"), c.req.param("gridKey"))));
   r.put("/:projectId/grid-settings/:gridKey", async c => { const input = gridSettingsInput.parse(await c.req.json()); return c.json(await repo.saveGridSettings(c.req.param("projectId"), c.req.param("gridKey"), input.columns, input.style)); });
   r.post("/:projectId/issues", async c => c.json(await repo.createIssue({ projectId: c.req.param("projectId"), ...issueInput.parse(await c.req.json()) }), 201));
+  r.put("/:projectId/issues/order", async c => await repo.reorderIssues(c.req.param("projectId"), z.object({ issueIds: z.array(z.string().min(1)) }).parse(await c.req.json()).issueIds) ? c.body(null, 204) : c.json({ error: "issue order is invalid" }, 400));
   r.patch("/:projectId/issues/:issueId", async c => {
     const issue = await repo.updateIssue({ projectId: c.req.param("projectId"), issueId: c.req.param("issueId"), ...issuePatch.parse(await c.req.json()) });
     return issue ? c.json(issue) : c.json({ error: "issue not found" }, 404);

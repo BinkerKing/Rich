@@ -208,13 +208,14 @@ export class TestCenterSqliteRepo {
     const id = `pm-test-issue-${randomUUID()}`;
     const createdAt = now();
     const customFields = input.customFields ?? {};
-    this.db.prepare(`INSERT INTO pm_test_issues (id, project_id, case_id, run_id, title, description, owner, external_ref, custom_fields, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)`).run(id, input.projectId, input.caseId, input.runId ?? null, input.title, input.description, input.owner ?? null, input.externalRef ?? null, JSON.stringify(customFields), createdAt, createdAt);
-    return { id, projectId: input.projectId, caseId: input.caseId, runId: input.runId, title: input.title, description: input.description, owner: input.owner, externalRef: input.externalRef, customFields, status: "open", createdAt, updatedAt: createdAt };
+    const sortOrder = this.nextOrder("pm_test_issues", "project_id=?", [input.projectId]);
+    this.db.prepare(`INSERT INTO pm_test_issues (id, project_id, case_id, run_id, title, description, owner, external_ref, custom_fields, status, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)`).run(id, input.projectId, input.caseId, input.runId ?? null, input.title, input.description, input.owner ?? null, input.externalRef ?? null, JSON.stringify(customFields), sortOrder, createdAt, createdAt);
+    return { id, projectId: input.projectId, caseId: input.caseId, runId: input.runId, title: input.title, description: input.description, owner: input.owner, externalRef: input.externalRef, customFields, status: "open", sortOrder, createdAt, updatedAt: createdAt };
   }
 
   async listIssues(projectId: string): Promise<TestCenterIssue[]> {
-    return (this.db.prepare(`SELECT id, project_id, case_id, run_id, title, description, owner, external_ref, custom_fields, status, created_at, updated_at FROM pm_test_issues WHERE project_id=? ORDER BY updated_at DESC, rowid DESC`).all(projectId) as IssueRow[]).map(issueFromRow);
+    return (this.db.prepare(`SELECT id, project_id, case_id, run_id, title, description, owner, external_ref, custom_fields, status, sort_order, created_at, updated_at FROM pm_test_issues WHERE project_id=? ORDER BY sort_order ASC, rowid ASC`).all(projectId) as IssueRow[]).map(issueFromRow);
   }
 
   async updateIssue(input: { projectId: string; issueId: string; title?: string; description?: string; status?: TestCenterIssue["status"]; owner?: string | null; externalRef?: string | null; customFields?: Record<string, string> }): Promise<TestCenterIssue | null> {
@@ -229,6 +230,16 @@ export class TestCenterSqliteRepo {
 
   async deleteIssue(projectId: string, issueId: string): Promise<boolean> {
     return this.db.prepare(`DELETE FROM pm_test_issues WHERE project_id=? AND id=?`).run(projectId, issueId).changes > 0;
+  }
+
+  async reorderIssues(projectId: string, issueIds: string[]): Promise<boolean> {
+    const currentIds = (this.db.prepare(`SELECT id FROM pm_test_issues WHERE project_id=? ORDER BY sort_order ASC, rowid ASC`).all(projectId) as Array<{ id: string }>).map(row => row.id);
+    if (currentIds.length !== issueIds.length || currentIds.some(id => !issueIds.includes(id))) return false;
+    this.db.transaction(() => {
+      const update = this.db.prepare(`UPDATE pm_test_issues SET sort_order=? WHERE project_id=? AND id=?`);
+      issueIds.forEach((id, index) => update.run(index + 1, projectId, id));
+    })();
+    return true;
   }
 
   async getGridSettings(projectId: string, gridKey: string): Promise<{ columns: unknown[]; style?: unknown }> {
@@ -347,7 +358,7 @@ export class TestCenterSqliteRepo {
     if (!group || (taskId && group.taskId !== taskId)) throw new Error("test group not found");
   }
 
-  private nextOrder(table: "pm_test_tasks" | "pm_test_groups" | "pm_test_cases", where: string, values: unknown[]): number {
+  private nextOrder(table: "pm_test_tasks" | "pm_test_groups" | "pm_test_cases" | "pm_test_issues", where: string, values: unknown[]): number {
     const row = this.db.prepare(`SELECT COALESCE(MAX(sort_order), 0) AS value FROM ${table} WHERE ${where}`).get(...values) as { value: number };
     return Number(row.value) + 1;
   }
@@ -393,7 +404,7 @@ export class TestCenterSqliteRepo {
   }
 
   private getIssue(projectId: string, issueId: string): TestCenterIssue | null {
-    const row = this.db.prepare(`SELECT id, project_id, case_id, run_id, title, description, owner, external_ref, custom_fields, status, created_at, updated_at FROM pm_test_issues WHERE project_id=? AND id=?`).get(projectId, issueId) as IssueRow | undefined;
+    const row = this.db.prepare(`SELECT id, project_id, case_id, run_id, title, description, owner, external_ref, custom_fields, status, sort_order, created_at, updated_at FROM pm_test_issues WHERE project_id=? AND id=?`).get(projectId, issueId) as IssueRow | undefined;
     return row ? issueFromRow(row) : null;
   }
 
@@ -418,8 +429,8 @@ type RunStepRow = { id: string; project_id: string; run_id: string; case_step_id
 function runStepFromRow(row: RunStepRow): TestCenterRunStep { return { id: row.id, projectId: row.project_id, runId: row.run_id, caseStepId: row.case_step_id ?? undefined, stepOrder: row.step_order, instruction: row.instruction, expectedResult: row.expected_result, status: row.status, actualResult: row.actual_result, createdAt: row.created_at, updatedAt: row.updated_at }; }
 type EvidenceRow = { id: string; project_id: string; run_id: string; run_step_id: string | null; title: string; kind: string; location: string; created_at: string };
 function evidenceFromRow(row: EvidenceRow): TestCenterEvidence { return { id: row.id, projectId: row.project_id, runId: row.run_id, runStepId: row.run_step_id ?? undefined, title: row.title, kind: row.kind, location: row.location, createdAt: row.created_at }; }
-type IssueRow = { id: string; project_id: string; case_id: string; run_id: string | null; title: string; description: string; owner: string | null; external_ref: string | null; custom_fields: string; status: TestCenterIssue["status"]; created_at: string; updated_at: string };
-function issueFromRow(row: IssueRow): TestCenterIssue { let customFields: Record<string, string> = {}; try { customFields = JSON.parse(row.custom_fields || "{}") as Record<string, string>; } catch {} return { id: row.id, projectId: row.project_id, caseId: row.case_id, runId: row.run_id ?? undefined, title: row.title, description: row.description, owner: row.owner ?? undefined, externalRef: row.external_ref ?? undefined, customFields, status: row.status, createdAt: row.created_at, updatedAt: row.updated_at }; }
+type IssueRow = { id: string; project_id: string; case_id: string; run_id: string | null; title: string; description: string; owner: string | null; external_ref: string | null; custom_fields: string; status: TestCenterIssue["status"]; sort_order: number; created_at: string; updated_at: string };
+function issueFromRow(row: IssueRow): TestCenterIssue { let customFields: Record<string, string> = {}; try { customFields = JSON.parse(row.custom_fields || "{}") as Record<string, string>; } catch {} return { id: row.id, projectId: row.project_id, caseId: row.case_id, runId: row.run_id ?? undefined, title: row.title, description: row.description, owner: row.owner ?? undefined, externalRef: row.external_ref ?? undefined, customFields, status: row.status, sortOrder: row.sort_order, createdAt: row.created_at, updatedAt: row.updated_at }; }
 type DiscussionRow = { id: string; project_id: string; issue_id: string; content: string; created_at: string };
 function discussionFromRow(row: DiscussionRow): TestCenterIssueDiscussion { return { id: row.id, projectId: row.project_id, issueId: row.issue_id, content: row.content, createdAt: row.created_at }; }
 type CaseCommentRow = { id: string; project_id: string; case_id: string; content: string; created_at: string; updated_at: string };

@@ -671,6 +671,8 @@ function applySchema(db: Database.Database) {
     UPDATE pm_test_cases SET sort_order=rowid WHERE sort_order=0;
   `);
   ensureColumn(db, "pm_test_issues", "custom_fields", "TEXT NOT NULL DEFAULT '{}'");
+  ensureColumn(db, "pm_test_issues", "sort_order", "INTEGER NOT NULL DEFAULT 0");
+  db.exec(`UPDATE pm_test_issues SET sort_order=rowid WHERE sort_order=0;`);
 }
 
 function ensureColumn(db: Database.Database, table: string, column: string, type: string) {

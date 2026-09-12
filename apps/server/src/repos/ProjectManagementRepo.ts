@@ -127,6 +127,7 @@ export interface TestCenterIssue {
   externalRef?: string;
   customFields: Record<string, string>;
   status: "open" | "fixed" | "retest" | "closed";
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }

@@ -1142,6 +1142,10 @@ export const api = {
     if (!r.ok) throw new Error(`createTestCenterIssue ${r.status}`);
     return r.json();
   },
+  async reorderTestCenterIssues(projectId: string, issueIds: string[]): Promise<void> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/issues/order`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ issueIds }) });
+    if (!r.ok) throw new Error(`reorderTestCenterIssues ${r.status}`);
+  },
   async updateTestCenterIssue(projectId: string, issueId: string, input: { title?: string; description?: string; status?: "open" | "fixed" | "retest" | "closed"; owner?: string | null; externalRef?: string | null; customFields?: Record<string, string> }): Promise<TestCenterIssue> {
     const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
     if (!r.ok) throw new Error(`updateTestCenterIssue ${r.status}`);
@@ -1918,7 +1922,7 @@ export type TestCenterRun = {
 export type TestCenterRunStep = { id: string; runId: string; stepOrder: number; instruction: string; expectedResult: string; status: "pending" | "passed" | "failed" | "blocked"; actualResult: string };
 export type TestCenterEvidence = { id: string; runId: string; title: string; kind: string; location: string; createdAt: string };
 export type TestCenterIssue = {
-  id: string; caseId: string; runId?: string; title: string; description: string; owner?: string; externalRef?: string; customFields: Record<string, string>; status: string; updatedAt: string;
+  id: string; caseId: string; runId?: string; title: string; description: string; owner?: string; externalRef?: string; customFields: Record<string, string>; status: string; sortOrder: number; updatedAt: string;
 };
 export type TestCenterGridColumn = { key: string; name: string; width?: number; frozen?: boolean; editable?: boolean; visible?: boolean; searchable?: boolean; deleted?: boolean; fieldType?: "text" | "date" | "checkbox" | "select" | "multiSelect"; contentMode?: "plain" | "wrap" | "numbered" | "bulleted" | "checklist"; options?: Array<{ label: string; value: string; style?: "standard" | "soft" | "pill" | "signal" }>; dropdownStyle?: "standard" | "soft" | "pill" | "signal"; headerStyle?: { fontSize?: "12px" | "13px" | "14px" | "16px"; color?: string; backgroundColor?: string; fontWeight?: "400" | "600" | "700"; fontStyle?: "normal" | "italic"; textAlign?: "left" | "center" | "right" }; cellStyle?: { fontSize?: "12px" | "13px" | "14px" | "16px"; color?: string; backgroundColor?: string; fontWeight?: "400" | "600" | "700"; textAlign?: "left" | "center" | "right" } };
 export type TestCenterGridStyle = { density?: "compact" | "comfortable"; headerTone?: "neutral" | "slate" | "cyan"; stripedRows?: boolean };
