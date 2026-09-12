@@ -17,9 +17,19 @@
 .issue-data-grid .ag-row-hover::before { background-color:rgba(115,199,207,.07); }
 .issue-data-grid .ag-cell-focus,.issue-data-grid .ag-cell:focus-within { border-color:#67c9d0 !important; }
 .issue-data-grid .ag-cell-inline-editing { border-radius:3px; background:#292d31; }
-.issue-data-grid .ag-select-list { color:#e7eef0; background:#282b2e; }
+.issue-data-grid .ag-select-list { border:1px solid #59616a; border-radius:7px; color:#e7eef0; background:#282b2e; box-shadow:0 12px 30px rgba(0,0,0,.34); }
+.issue-data-grid .ag-select-list-item { min-height:30px; padding:0 10px; }
+.issue-data-grid .ag-select-list-item:hover { background:#394146; }
+.issue-data-grid .ag-cell select { border:1px solid #5c6670; border-radius:5px; color:#edf5f6; background:#252a2e; font:inherit; }
+.issue-data-grid__serial { justify-content:center; color:#89959d !important; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px !important; }
 .issue-data-grid__status { display:inline-flex; align-items:center; min-width:54px; min-height:22px; justify-content:center; border:1px solid; border-radius:4px; padding:0 6px; font-size:11px; font-weight:700; }
 .issue-data-grid__status--open { border-color:#4c91a2; color:#7ed9ef; background:rgba(60,128,147,.16); }
 .issue-data-grid__status--fixed { border-color:#5b9c74; color:#8be4a8; background:rgba(65,129,86,.16); }
 .issue-data-grid__status--retest { border-color:#b68949; color:#ffcf7d; background:rgba(143,104,50,.16); }
 .issue-data-grid__status--closed { border-color:#707881; color:#afb8c0; background:rgba(90,98,106,.16); }
+.issue-data-grid__type { display:inline-flex; align-items:center; min-height:23px; border:1px solid; border-radius:999px; padding:0 8px; font-size:11px; font-weight:750; letter-spacing:.01em; white-space:nowrap; }
+.issue-data-grid__type--ba-requirement { border-color:#4a8da8; color:#8cd9f3; background:rgba(51,122,151,.15); }
+.issue-data-grid__type--ba-bug { border-color:#bf8058; color:#ffc190; background:rgba(164,88,51,.16); }
+.issue-data-grid__type--product-bug { border-color:#ba5b63; color:#ff9ea8; background:rgba(151,55,64,.17); }
+.issue-data-grid__type--product-requirement { border-color:#7e9d69; color:#b7e69b; background:rgba(89,126,68,.18); }
+.issue-data-grid__type--empty { border-style:dashed; border-color:#59616a; color:#87939a; background:transparent; font-weight:600; }

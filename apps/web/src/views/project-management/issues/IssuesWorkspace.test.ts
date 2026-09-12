@@ -47,7 +47,7 @@ test("打开问题表时标题头行采用项目流程图的工作台样式", ()
 
 test("打开问题表时使用 AG Grid 高级数据表格而非 Excel 编辑器", () => {
   assert.match(source, /import IssueDataGrid from "\.\.\/\.\.\/\.\.\/components\/IssueDataGrid\.js"/);
-  assert.match(source, /<IssueDataGrid issues=\{issues\} onIssueChange=\{saveIssueChange\} \/>/);
+  assert.match(source, /<IssueDataGrid projectId=\{projectId\} tableId=\{active\.id\} issues=\{issues\} onIssueChange=\{saveIssueChange\} \/>/);
   assert.doesNotMatch(source, /UniverIssueSheet|Suspense|lazy\(/);
   assert.doesNotMatch(source, /<ConfigurableDataGrid ariaLabel=\{`\$\{active\.title\} 表格`\}/);
 });
