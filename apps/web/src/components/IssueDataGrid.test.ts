@@ -75,6 +75,12 @@ test("下拉统一样式和单项样式由同一工具栏编辑", () => {
   assert.doesNotMatch(source, /issue-data-grid__option-style-picker/);
 });
 
+test("下拉样式工具以真实样本展示，并完整预览选项", () => {
+  assert.match(styles, /\.issue-data-grid__option-editor-menu\s*\{[^}]*width:420px/s);
+  assert.match(styles, /\.issue-data-grid__option-row\s*\{[^}]*grid-template-columns:120px/s);
+  assert.match(styles, /\.issue-data-grid__toolbar-dropdown-style--soft\s*\{[^}]*background:/s);
+});
+
 test("字段定义表不显示冗余标题行，并使用图标删除字段", () => {
   assert.doesNotMatch(source, /字段顺序、宽度和显示内容会自动保存/);
   assert.match(source, /<th>操作<\/th>/);
