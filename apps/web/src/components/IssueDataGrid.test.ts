@@ -64,7 +64,7 @@ test("下拉选项以所见即所得的可编辑下拉管理", () => {
 test("下拉选项支持继承统一样式或单独覆盖样式", () => {
   assert.match(source, /统一所有选项/);
   assert.match(source, /option\?\.style \?\? dropdownStyle/);
-  assert.match(source, /option-preview/);
+  assert.match(source, /option-content/);
 });
 
 test("下拉统一样式和单项样式由同一工具栏编辑", () => {
@@ -75,10 +75,16 @@ test("下拉统一样式和单项样式由同一工具栏编辑", () => {
   assert.doesNotMatch(source, /issue-data-grid__option-style-picker/);
 });
 
-test("下拉样式工具以真实样本展示，并完整预览选项", () => {
+test("下拉样式工具保留清晰的最终效果预览", () => {
   assert.match(styles, /\.issue-data-grid__option-editor-menu\s*\{[^}]*width:420px/s);
-  assert.match(styles, /\.issue-data-grid__option-row\s*\{[^}]*grid-template-columns:120px/s);
+  assert.match(styles, /\.issue-data-grid__option-row\s*\{[^}]*grid-template-columns:minmax\(0,1fr\) auto/s);
   assert.match(styles, /\.issue-data-grid__toolbar-dropdown-style--soft\s*\{[^}]*background:/s);
+});
+
+test("下拉选项在最终样式输入框中直接编辑，工具栏不叠层", () => {
+  assert.match(source, /issue-data-grid__option-content/);
+  assert.doesNotMatch(source, /issue-data-grid__option-preview/);
+  assert.match(styles, /\.issue-data-grid__settings:has\(\.issue-data-grid__dropdown-toolbar\) \.issue-data-grid__style-toolbar\s*\{[^}]*visibility:hidden/s);
 });
 
 test("字段定义表不显示冗余标题行，并使用图标删除字段", () => {
