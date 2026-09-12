@@ -105,7 +105,6 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
   const [styleSelection, setStyleSelection] = useState<StyleSelection | null>(null);
   const [recordMenu, setRecordMenu] = useState<{ x: number; y: number; issueId?: string } | null>(null);
   const copiedCell = useRef<CopiedCell | null>(null);
-  const resizeTimer = useRef<ReturnType<typeof setTimeout>>();
   const gridSettingsKey = `issues:${tableId}:columns`;
 
   useEffect(() => {
@@ -124,7 +123,6 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     });
     return () => { cancelled = true; };
   }, [gridSettingsKey, projectId]);
-  useEffect(() => () => clearTimeout(resizeTimer.current), []);
   useEffect(() => {
     if (!recordMenu) return;
     const closeMenu = () => setRecordMenu(null);
@@ -219,18 +217,12 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     setNewFieldName("");
   };
   const saveColumnWidths = (gridApi: GridApi<IssueGridRow>) => {
-    clearTimeout(resizeTimer.current);
-    resizeTimer.current = setTimeout(() => {
-      const widths = new Map(gridApi.getColumnState().map(column => [column.colId, column.width ?? undefined]));
-      persistSettings(columns.map(column => ({ ...column, width: widths.get(column.key) ?? column.width })));
-    }, 350);
+    const widths = new Map(gridApi.getColumnState().map(column => [column.colId, column.width ?? undefined]));
+    persistSettings(columns.map(column => ({ ...column, width: widths.get(column.key) ?? column.width })));
   };
   const saveColumnOrder = (gridApi: GridApi<IssueGridRow>) => {
-    clearTimeout(resizeTimer.current);
-    resizeTimer.current = setTimeout(() => {
-      const positions = new Map(gridApi.getColumnState().map((column, index) => [column.colId, index]));
-      persistSettings([...columns].sort((left, right) => (positions.get(left.key) ?? Number.MAX_SAFE_INTEGER) - (positions.get(right.key) ?? Number.MAX_SAFE_INTEGER)));
-    }, 150);
+    const positions = new Map(gridApi.getColumnState().map((column, index) => [column.colId, index]));
+    persistSettings([...columns].sort((left, right) => (positions.get(left.key) ?? Number.MAX_SAFE_INTEGER) - (positions.get(right.key) ?? Number.MAX_SAFE_INTEGER)));
   };
   const updateStyle = (patch: Partial<TestCenterGridStyle>) => {
     setDraftTableStyle({ ...settingsStyle, ...patch });

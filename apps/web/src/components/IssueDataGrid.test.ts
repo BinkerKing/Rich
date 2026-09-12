@@ -123,6 +123,12 @@ test("问题表包含可编辑的项目跟进字段，并记住每张表的列�
   assert.match(source, /saveColumnOrder/);
 });
 
+test("列宽调整完成后立即持久化，切换页面不会取消保存", () => {
+  assert.match(source, /const saveColumnWidths = \(gridApi: GridApi<IssueGridRow>\) => \{\s*const widths/s);
+  assert.doesNotMatch(source, /saveColumnWidths[\s\S]{0,360}setTimeout/);
+  assert.doesNotMatch(source, /resizeTimer/);
+});
+
 test("恢复字段配置时按已保存的列顺序构建表格", () => {
   assert.match(source, /const savedActiveColumns = settings\.columns\.filter\(column => !column\.deleted\)/);
   assert.match(source, /savedActiveColumns\.map\(column =>/);
