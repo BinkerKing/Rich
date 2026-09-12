@@ -61,6 +61,13 @@ test("下拉选项以所见即所得的可编辑下拉管理", () => {
   assert.doesNotMatch(source, /placeholder="每行一个选项"/);
 });
 
+test("下拉选项支持继承统一样式或单独覆盖样式", () => {
+  assert.match(source, /统一下拉样式/);
+  assert.match(source, /继承统一样式/);
+  assert.match(source, /option\?\.style \?\? dropdownStyle/);
+  assert.match(source, /option-preview/);
+});
+
 test("字段定义表不显示冗余标题行，并使用图标删除字段", () => {
   assert.doesNotMatch(source, /字段顺序、宽度和显示内容会自动保存/);
   assert.match(source, /<th>操作<\/th>/);
