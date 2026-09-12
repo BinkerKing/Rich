@@ -46,12 +46,14 @@ test("打开问题表时由表格身份区承担唯一标题头行", () => {
 
 test("打开问题表时使用 AG Grid 高级数据表格而非 Excel 编辑器", () => {
   assert.match(source, /import IssueDataGrid from "\.\.\/\.\.\/\.\.\/components\/IssueDataGrid\.js"/);
-  assert.match(source, /<IssueDataGrid projectId=\{projectId\} tableId=\{active\.id\} title=\{active\.title\} onBack=\{\(\) => setActiveId\(""\)\} issues=\{issues\} onIssueChange=\{saveIssueChange\} \/>/);
+  assert.match(source, /<IssueDataGrid projectId=\{projectId\} tableId=\{active\.id\} title=\{active\.title\} onBack=\{\(\) => setActiveId\(""\)\} issues=\{issues\} onIssueChange=\{saveIssueChange\} onAddIssue=\{addIssue\} onDeleteIssue=\{deleteIssue\} \/>/);
+  assert.match(source, /createTestCenterIssue/);
+  assert.match(source, /deleteTestCenterIssue/);
   assert.doesNotMatch(source, /UniverIssueSheet|Suspense|lazy\(/);
   assert.doesNotMatch(source, /<ConfigurableDataGrid ariaLabel=\{`\$\{active\.title\} 表格`\}/);
 });
 
 test("问题表编辑页只保留标题和可编辑表格，并撑满工作区", () => {
-  assert.doesNotMatch(source, /新增记录|issues-workspace__add-row|listTestCenterCases/);
+  assert.doesNotMatch(source, /issues-workspace__add-row|listTestCenterCases/);
   assert.match(styles, /\.issues-workspace--editor\s*\{[^}]*height:100%[^}]*box-sizing:border-box/s);
 });

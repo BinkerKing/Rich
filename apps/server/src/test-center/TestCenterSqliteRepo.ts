@@ -227,6 +227,10 @@ export class TestCenterSqliteRepo {
     return this.getIssue(input.projectId, input.issueId);
   }
 
+  async deleteIssue(projectId: string, issueId: string): Promise<boolean> {
+    return this.db.prepare(`DELETE FROM pm_test_issues WHERE project_id=? AND id=?`).run(projectId, issueId).changes > 0;
+  }
+
   async getGridSettings(projectId: string, gridKey: string): Promise<{ columns: unknown[]; style?: unknown }> {
     const row = this.db.prepare(`SELECT columns_json FROM pm_test_grid_settings WHERE project_id=? AND grid_key=?`).get(projectId, gridKey) as { columns_json: string } | undefined;
     try { const saved = row ? JSON.parse(row.columns_json) as unknown : []; return Array.isArray(saved) ? { columns: saved } : saved as { columns: unknown[]; style?: unknown }; } catch { return { columns: [] }; }

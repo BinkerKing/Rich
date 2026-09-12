@@ -83,6 +83,7 @@ export function testCenterRoutes(repo: TestCenterSqliteRepo) {
     const issue = await repo.updateIssue({ projectId: c.req.param("projectId"), issueId: c.req.param("issueId"), ...issuePatch.parse(await c.req.json()) });
     return issue ? c.json(issue) : c.json({ error: "issue not found" }, 404);
   });
+  r.delete("/:projectId/issues/:issueId", async c => await repo.deleteIssue(c.req.param("projectId"), c.req.param("issueId")) ? c.body(null, 204) : c.json({ error: "issue not found" }, 404));
   r.post("/:projectId/issues/:issueId/retest", async c => c.json(await repo.startRetestFromIssue({ projectId: c.req.param("projectId"), issueId: c.req.param("issueId") }), 201));
   r.get("/:projectId/issues/:issueId/discussions", async c => c.json(await repo.listIssueDiscussions(c.req.param("projectId"), c.req.param("issueId"))));
   r.post("/:projectId/issues/:issueId/discussions", async c => c.json(await repo.addIssueDiscussion({ projectId: c.req.param("projectId"), issueId: c.req.param("issueId"), ...discussionInput.parse(await c.req.json()) }), 201));

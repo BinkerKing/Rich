@@ -1147,6 +1147,10 @@ export const api = {
     if (!r.ok) throw new Error(`updateTestCenterIssue ${r.status}`);
     return r.json();
   },
+  async deleteTestCenterIssue(projectId: string, issueId: string): Promise<void> {
+    const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}`, { method: "DELETE" });
+    if (!r.ok) throw new Error(`deleteTestCenterIssue ${r.status}`);
+  },
   async getTestCenterGridSettings(projectId: string, gridKey: string): Promise<{ columns: TestCenterGridColumn[]; style?: TestCenterGridStyle }> {
     const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/grid-settings/${encodeURIComponent(gridKey)}`);
     if (!r.ok) throw new Error(`getTestCenterGridSettings ${r.status}`);

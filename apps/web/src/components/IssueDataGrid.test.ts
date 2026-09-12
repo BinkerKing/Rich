@@ -33,6 +33,15 @@ test("编辑时输入区域贴合完整单元格，而非悬浮小输入框", ()
   assert.match(styles, /\.issue-data-grid \.ag-cell-inline-editing \.ag-cell-editor input,[^{]*\{[^}]*width:100%[^}]*height:100%[^}]*border:0 !important/s);
 });
 
+test("问题记录可通过右键菜单新增或删除", () => {
+  assert.match(source, /onCellContextMenu=/);
+  assert.match(source, /issue-data-grid__record-menu/);
+  assert.match(source, /onAddIssue\(\)/);
+  assert.match(source, /onDeleteIssue\(recordMenu\.issueId!\)/);
+  assert.match(styles, /\.issue-data-grid__record-menu\s*\{[^}]*position:fixed/s);
+  assert.match(styles, /\.issue-data-grid__record-menu button\.is-danger/);
+});
+
 test("高级问题表格撑满编辑区域并使用紧凑深色工具栏", () => {
   assert.match(styles, /\.issue-data-grid\s*\{[^}]*height:100%[^}]*grid-template-rows:auto minmax\(0,1fr\)/s);
   assert.match(styles, /\.issue-data-grid__toolbar\s*\{[^}]*min-height:48px[^}]*background:#252629/s);
