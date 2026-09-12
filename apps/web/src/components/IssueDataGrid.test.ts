@@ -27,6 +27,11 @@ test("下拉选中的值以完整单元格效果呈现", () => {
   assert.match(styles, /\.issue-data-grid \.issue-data-grid__select-cell \.issue-data-grid__select-badge\s*\{[^}]*width:100%[^}]*height:100%/s);
 });
 
+test("编辑时输入区域贴合完整单元格，而非悬浮小输入框", () => {
+  assert.match(styles, /\.issue-data-grid \.ag-cell\.ag-cell-inline-editing\s*\{[^}]*padding:0 !important[^}]*border-radius:0/s);
+  assert.match(styles, /\.issue-data-grid \.ag-cell-inline-editing \.ag-cell-editor input,[^{]*\{[^}]*width:100%[^}]*height:100%[^}]*border:0 !important/s);
+});
+
 test("高级问题表格撑满编辑区域并使用紧凑深色工具栏", () => {
   assert.match(styles, /\.issue-data-grid\s*\{[^}]*height:100%[^}]*grid-template-rows:auto minmax\(0,1fr\)/s);
   assert.match(styles, /\.issue-data-grid__toolbar\s*\{[^}]*min-height:48px[^}]*background:#252629/s);
