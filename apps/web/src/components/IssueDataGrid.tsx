@@ -123,7 +123,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     cellEditorPopup: column.fieldType === "select",
     cellEditorPopupPosition: column.fieldType === "select" ? "under" : undefined,
     cellRenderer: column.fieldType === "select" ? (params: { value: string | number }) => <SelectBadge value={params.value} options={column.options} dropdownStyle={column.dropdownStyle} /> : column.fieldType === "checkbox" ? (params: { value: string | number; setValue: (value: string) => void }) => <CheckboxCell {...params} /> : column.fieldType === "multiSelect" ? (params: { value: string | number }) => <MultiSelectCell {...params} options={column.options} dropdownStyle={column.dropdownStyle} /> : undefined,
-    cellClass: column.key === "serial" ? "issue-data-grid__serial" : undefined,
+    cellClass: column.key === "serial" ? "issue-data-grid__serial" : column.fieldType === "select" ? "issue-data-grid__select-cell" : undefined,
   })), [columns]);
 
   const persistSettings = (nextColumns: TestCenterGridColumn[], nextStyle = tableStyle, nextDeletedColumns = deletedColumns) => {

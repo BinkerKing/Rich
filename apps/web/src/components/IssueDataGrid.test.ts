@@ -21,6 +21,12 @@ test("表格内下拉以向下抽屉展示带最终样式的选项", () => {
   assert.match(styles, /\.issue-data-grid__select-drawer\s*\{[^}]*border-radius:0 0 8px 8px/s);
 });
 
+test("下拉选中的值以完整单元格效果呈现", () => {
+  assert.match(source, /column\.fieldType === "select" \? "issue-data-grid__select-cell"/);
+  assert.match(styles, /\.issue-data-grid \.ag-cell\.issue-data-grid__select-cell\s*\{[^}]*padding:0/s);
+  assert.match(styles, /\.issue-data-grid \.issue-data-grid__select-cell \.issue-data-grid__select-badge\s*\{[^}]*width:100%[^}]*height:100%/s);
+});
+
 test("高级问题表格撑满编辑区域并使用紧凑深色工具栏", () => {
   assert.match(styles, /\.issue-data-grid\s*\{[^}]*height:100%[^}]*grid-template-rows:auto minmax\(0,1fr\)/s);
   assert.match(styles, /\.issue-data-grid__toolbar\s*\{[^}]*min-height:48px[^}]*background:#252629/s);
