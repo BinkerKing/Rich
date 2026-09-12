@@ -8,8 +8,16 @@ const styles = readFileSync(new URL("./IssueDataGrid.css", import.meta.url), "ut
 test("问题表使用 AG Grid 并提供搜索、状态筛选和内联编辑", () => {
   assert.match(source, /from "ag-grid-react"/);
   assert.match(source, /placeholder="搜索已设为可检索的字段"/);
-  assert.match(source, /cellEditor: column\.fieldType === "select" \? "agSelectCellEditor"/);
+  assert.match(source, /cellEditor: column\.fieldType === "select" \? SelectDrawerEditor/);
+  assert.match(source, /cellEditorPopupPosition: column\.fieldType === "select" \? "under"/);
   assert.match(source, /onCellValueChanged=/);
+});
+
+test("表格内下拉以向下抽屉展示带最终样式的选项", () => {
+  assert.match(source, /issue-data-grid__select-drawer/);
+  assert.match(source, /<SelectBadge value=\{option\.value\}/);
+  assert.match(source, /stopEditing\?\.\(\)/);
+  assert.match(styles, /\.issue-data-grid__select-drawer\s*\{[^}]*border-radius:0 0 8px 8px/s);
 });
 
 test("高级问题表格撑满编辑区域并使用紧凑深色工具栏", () => {

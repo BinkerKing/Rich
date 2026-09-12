@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from "react";
 import { AgGridReact } from "ag-grid-react";
 import { AllCommunityModule, colorSchemeDark, ModuleRegistry, themeQuartz, type ColDef, type GridApi } from "ag-grid-community";
 import { api, type TestCenterGridColumn, type TestCenterGridStyle, type TestCenterIssue } from "../api/client.js";
@@ -44,6 +44,14 @@ function SelectBadge({ value, options, dropdownStyle = "soft" }: { value: string
   const style = option?.style ?? dropdownStyle;
   return <span className={`issue-data-grid__select-badge issue-data-grid__select-badge--${style}${value ? "" : " issue-data-grid__select-badge--empty"}`}>{label}</span>;
 }
+
+type SelectDrawerEditorProps = { value?: string; options?: TestCenterGridColumn["options"]; dropdownStyle?: TestCenterGridColumn["dropdownStyle"]; stopEditing?: () => void };
+const SelectDrawerEditor = forwardRef<{ getValue: () => string }, SelectDrawerEditorProps>(function SelectDrawerEditor({ value, options = [], dropdownStyle, stopEditing }, ref) {
+  const selectedValue = useRef(String(value ?? ""));
+  useImperativeHandle(ref, () => ({ getValue: () => selectedValue.current }));
+  const choose = (nextValue: string) => { selectedValue.current = nextValue; stopEditing?.(); };
+  return <div className="issue-data-grid__select-drawer" role="listbox" aria-label="选择选项">{options.map(option => <button key={option.value} className={`issue-data-grid__select-drawer-option${option.value === selectedValue.current ? " is-selected" : ""}`} type="button" role="option" aria-selected={option.value === selectedValue.current} onClick={() => choose(option.value)}><SelectBadge value={option.value} options={[option]} dropdownStyle={option.style ?? dropdownStyle} /></button>)}</div>;
+});
 
 function CheckboxCell({ value, setValue }: { value: string | number; setValue: (value: string) => void }): ReactNode {
   return <label className="issue-data-grid__checkbox"><input type="checkbox" checked={value === "true"} onChange={event => setValue(String(event.target.checked))} /><span>{value === "true" ? "是" : "否"}</span></label>;
@@ -104,8 +112,10 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
     pinned: column.frozen ? "left" : undefined,
     headerStyle: column.headerStyle,
     cellStyle: column.cellStyle,
-    cellEditor: column.fieldType === "select" ? "agSelectCellEditor" : column.fieldType === "date" ? DateEditor : column.fieldType === "multiSelect" ? MultiSelectEditor : undefined,
-    cellEditorParams: needsOptions(column.fieldType) ? { values: column.options?.map(option => option.value) ?? [], options: column.options } : undefined,
+    cellEditor: column.fieldType === "select" ? SelectDrawerEditor : column.fieldType === "date" ? DateEditor : column.fieldType === "multiSelect" ? MultiSelectEditor : undefined,
+    cellEditorParams: needsOptions(column.fieldType) ? { values: column.options?.map(option => option.value) ?? [], options: column.options, dropdownStyle: column.dropdownStyle } : undefined,
+    cellEditorPopup: column.fieldType === "select",
+    cellEditorPopupPosition: column.fieldType === "select" ? "under" : undefined,
     cellRenderer: column.fieldType === "select" ? (params: { value: string | number }) => <SelectBadge value={params.value} options={column.options} dropdownStyle={column.dropdownStyle} /> : column.fieldType === "checkbox" ? (params: { value: string | number; setValue: (value: string) => void }) => <CheckboxCell {...params} /> : column.fieldType === "multiSelect" ? (params: { value: string | number }) => <MultiSelectCell {...params} options={column.options} dropdownStyle={column.dropdownStyle} /> : undefined,
     cellClass: column.key === "serial" ? "issue-data-grid__serial" : undefined,
   })), [columns]);
