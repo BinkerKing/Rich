@@ -11,7 +11,7 @@ type EditableIssueField = "title" | "description" | "owner" | "status" | "extern
 type IssueChange = Partial<Pick<TestCenterIssue, EditableIssueField | "customFields">>;
 type IssueGridRow = { id: string; serial: number; title: string; description: string; owner: string; status: IssueStatus; externalRef: string; updatedAt: string; customFields: Record<string, string>; [key: string]: string | number | Record<string, string> };
 
-type IssueDataGridProps = { projectId: string; tableId: string; issues: TestCenterIssue[]; onIssueChange: (issueId: string, patch: IssueChange) => void };
+type IssueDataGridProps = { projectId: string; tableId: string; title?: string; onBack?: () => void; issues: TestCenterIssue[]; onIssueChange: (issueId: string, patch: IssueChange) => void };
 type StyleSelection = { key: string; target: "header" | "cell" | "dropdown"; optionValue?: string };
 
 const systemFields = new Set(["serial", "title", "description", "owner", "status", "externalRef", "updatedAt"]);
@@ -67,7 +67,7 @@ function MultiSelectEditor({ value, onValueChange, options = [] }: { value?: str
   return <select className="issue-data-grid__multi-select-editor" autoFocus multiple value={selected} onChange={event => onValueChange(Array.from(event.target.selectedOptions, option => option.value).join("|"))}>{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>;
 }
 
-export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: IssueDataGridProps): ReactNode {
+export function IssueDataGrid({ projectId, tableId, title = "产品问题测试清单", onBack, issues, onIssueChange }: IssueDataGridProps): ReactNode {
   const [query, setQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [columns, setColumns] = useState(defaultColumns);
@@ -211,7 +211,7 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
   const activeDropdownOption = activeDropdownColumn?.options?.find(option => option.value === styleSelection?.optionValue);
 
   return <div className={`issue-data-grid issue-data-grid--${tableStyle.density} issue-data-grid--header-${tableStyle.headerTone}${tableStyle.stripedRows ? " issue-data-grid--striped" : ""}`} aria-label="高级问题表格">
-    <header className="issue-data-grid__identity"><div><span>TEST CENTER · ISSUE LOG</span><h2>产品问题测试清单</h2></div><span className="issue-data-grid__record-count">{visibleRows.length} 条记录</span></header>
+    <header className="issue-data-grid__identity">{onBack ? <button className="issue-data-grid__identity-title" type="button" onClick={onBack} title="返回问题清单列表" aria-label={`返回问题清单列表：${title}`}><span>TEST CENTER · ISSUE LOG</span><h2>{title}</h2></button> : <div className="issue-data-grid__identity-title"><span>TEST CENTER · ISSUE LOG</span><h2>{title}</h2></div>}<span className="issue-data-grid__record-count">{visibleRows.length} 条记录</span></header>
     <div className="issue-data-grid__toolbar">
       <label className="issue-data-grid__search"><span aria-hidden="true">⌕</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索已设为可检索的字段" /></label>
       <button className="issue-data-grid__settings-trigger" type="button" onClick={toggleSettings} aria-expanded={settingsOpen}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2m4 0h10M14 4v6M8 14v6" /></svg><span>表格设置</span></button>

@@ -79,3 +79,20 @@
 .issue-data-grid__settings:has(.issue-data-grid__dropdown-toolbar) .issue-data-grid__style-toolbar { visibility:hidden; }.issue-data-grid__option-row { grid-template-columns:minmax(0,1fr) auto; }.issue-data-grid__field-table input.issue-data-grid__option-content { width:100%; min-height:36px; box-sizing:border-box; border:1px solid #526068; border-radius:5px; padding:6px 9px; font:600 13px/1.2 inherit; outline:0; }.issue-data-grid__field-table input.issue-data-grid__option-content.is-selected { box-shadow:0 0 0 2px #80cbd0; }.issue-data-grid__field-table input.issue-data-grid__option-content--standard { border-color:#73828a; color:#eef4f5; background:#293237; }.issue-data-grid__field-table input.issue-data-grid__option-content--soft { border-color:#3e737a; color:#c9f3f4; background:#23474d; }.issue-data-grid__field-table input.issue-data-grid__option-content--pill { border-color:#4f8c92; border-radius:999px; color:#c9f3f4; background:#23474d; }.issue-data-grid__field-table input.issue-data-grid__option-content--signal { border-color:#a96d3c; color:#ffe7bd; background:#65442e; }
 .issue-data-grid__option-editor-menu { width:420px; }.issue-data-grid__toolbar-dropdown-style { min-width:64px; min-height:28px; font-weight:700; }.issue-data-grid__toolbar-dropdown-style--standard { border-color:#73828a; color:#e4ebed; background:#252d32; }.issue-data-grid__toolbar-dropdown-style--soft { border-color:transparent; color:#bde8eb; background:#26454b; }.issue-data-grid__toolbar-dropdown-style--pill { border-color:transparent; color:#bde8eb; background:#26454b; }.issue-data-grid__toolbar-dropdown-style--signal { border-color:#866241; color:#ffe1ae; background:#6b4930; }
 .issue-data-grid__toolbar-dropdown-style { min-width:0; min-height:0; border-color:transparent; padding:3px; background:transparent; }.issue-data-grid__toolbar-dropdown-style > span { display:block; min-width:66px; border:1px solid #75828a; border-radius:4px; padding:5px 8px; color:#e3eaec; background:#293237; line-height:1.2; }.issue-data-grid__toolbar-dropdown-style--soft > span { border-color:#3e737a; color:#c9f3f4; background:#23474d; }.issue-data-grid__toolbar-dropdown-style--pill > span { border-color:#4f8c92; border-radius:999px; color:#c9f3f4; background:#23474d; }.issue-data-grid__toolbar-dropdown-style--signal > span { border-color:#a96d3c; color:#ffe7bd; background:#65442e; }.issue-data-grid__toolbar-dropdown-style:hover,.issue-data-grid__toolbar-dropdown-style.is-active { border-color:#83cbd0; background:rgba(74,130,136,.17); }.issue-data-grid__toolbar-dropdown-style.is-active > span { box-shadow:0 0 0 1px #a0e5e8; }
+
+/* The identity area is the editor header; its title also returns to the table list. */
+.issue-data-grid__identity-title { display:grid; gap:6px; min-width:0; border:0; padding:0; color:inherit; background:transparent; text-align:left; }
+.issue-data-grid__identity button.issue-data-grid__identity-title { cursor:pointer; }
+.issue-data-grid__identity button.issue-data-grid__identity-title:hover h2 { color:#fff; }
+
+/* Table appearance follows the applied settings rather than a fixed visual skin. */
+.issue-data-grid--header-neutral .ag-header { background:#252f34; }
+.issue-data-grid--header-slate .ag-header { background:#2d3a43; }
+.issue-data-grid--header-cyan .ag-header { background:#183c42; }
+.issue-data-grid--header-slate .ag-root-wrapper { border-color:#526670; }
+.issue-data-grid--header-cyan .ag-root-wrapper { border-color:#3d7a80; }
+.issue-data-grid--header-slate .ag-header-cell-label { color:#d5e2e5; }
+.issue-data-grid--header-cyan .ag-header-cell-label { color:#d2f0f0; }
+.issue-data-grid--striped .ag-row-even { background:#222c31; }
+.issue-data-grid--striped .ag-row-even .ag-cell { background:transparent; }
+.issue-data-grid--compact .ag-cell { font-size:12px; }

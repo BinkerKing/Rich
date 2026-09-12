@@ -28,11 +28,20 @@ test("高级问题表格撑满编辑区域并使用紧凑深色工具栏", () =>
 
 test("问题表具有产品级的清单身份区与记录状态", () => {
   assert.match(source, /TEST CENTER · ISSUE LOG/);
-  assert.match(source, /产品问题测试清单/);
+  assert.match(source, /title = "产品问题测试清单"/);
+  assert.match(source, /issue-data-grid__identity-title/);
+  assert.match(source, /onBack/);
   assert.match(source, /issue-data-grid__record-count/);
   assert.match(styles, /\.issue-data-grid__identity\s*\{[^}]*min-height:70px/s);
   assert.match(styles, /\.issue-data-grid .ag-root-wrapper\s*\{[^}]*border-radius:10px/s);
   assert.match(styles, /\.issue-data-grid__identity h2\s*\{[^}]*font-size:23px[^}]*font-weight:800/s);
+});
+
+test("应用后的表格样式与表格设置中的色调、密度和斑马纹对应", () => {
+  assert.match(styles, /\.issue-data-grid--header-neutral \.ag-header\s*\{[^}]*background:#252f34/s);
+  assert.match(styles, /\.issue-data-grid--header-slate \.ag-header\s*\{[^}]*background:#2d3a43/s);
+  assert.match(styles, /\.issue-data-grid--header-cyan \.ag-header\s*\{[^}]*background:#183c42/s);
+  assert.match(styles, /\.issue-data-grid--striped \.ag-row-even\s*\{[^}]*background:#222c31/s);
 });
 
 test("问题表包含可编辑的项目跟进字段，并记住每张表的列宽", () => {

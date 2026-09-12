@@ -29,25 +29,24 @@ test("问题清单操作按钮采用工作台统一的紧凑描边样式", () =>
   assert.match(styles, /\.issues-workspace__create-button\s*\{[^}]*min-height:28px[^}]*padding:6px 9px[^}]*border:1px solid #515151[^}]*border-radius:6px[^}]*background:#303030[^}]*font-size:11px/s);
 });
 
-test("问题表列表与交付物一致，并可从标题行返回列表", () => {
+test("问题表列表与交付物一致，并可从表格标题返回列表", () => {
   assert.match(source, /tables\.map\(\(table, index\)[\s\S]*?issues-workspace__list-index[\s\S]*?String\(index \+ 1\)\.padStart\(2, "0"\)[\s\S]*?<strong>\{table\.title\}<\/strong>/);
   assert.doesNotMatch(source, /issues-workspace__list-copy|问题表 · \{issues\.length\} 条记录/);
-  assert.match(source, /aria-label="返回问题清单"[\s\S]*?setActiveId\(""\)/);
+  assert.match(source, /title=\{active\.title\} onBack=\{\(\) => setActiveId\(""\)\}/);
   assert.doesNotMatch(source, /<i>打开 →<\/i>/);
   assert.match(styles, /\.issues-workspace__list > button > strong\s*\{[^}]*color:#eef6ff[^}]*font-size:14px/s);
-  assert.match(styles, /\.issues-workspace__table-title > button::before\s*\{[^}]*content:none/s);
+  assert.doesNotMatch(source, /issues-workspace__table-title/);
 });
 
-test("打开问题表时标题头行采用项目流程图的工作台样式", () => {
-  assert.match(source, /className="issues-workspace__editor-shell"[\s\S]*?className="issues-workspace__table-title"/);
+test("打开问题表时由表格身份区承担唯一标题头行", () => {
+  assert.match(source, /className="issues-workspace__editor-shell"[\s\S]*?<IssueDataGrid/);
   assert.doesNotMatch(source, /可使用完整工具栏调整格式、边框、颜色与行列布局/);
-  assert.match(styles, /\.issues-workspace__editor-shell\s*\{[^}]*grid-template-rows:42px minmax\(0,1fr\)[^}]*border:1px solid #4c5965[^}]*border-radius:8px/s);
-  assert.match(styles, /\.issues-workspace__table-title\s*\{[^}]*min-height:42px[^}]*border-bottom:1px solid #29292d[^}]*background:#252525/s);
+  assert.match(styles, /\.issues-workspace__editor-shell\s*\{[^}]*display:grid[^}]*border:1px solid #4c5965[^}]*border-radius:8px/s);
 });
 
 test("打开问题表时使用 AG Grid 高级数据表格而非 Excel 编辑器", () => {
   assert.match(source, /import IssueDataGrid from "\.\.\/\.\.\/\.\.\/components\/IssueDataGrid\.js"/);
-  assert.match(source, /<IssueDataGrid projectId=\{projectId\} tableId=\{active\.id\} issues=\{issues\} onIssueChange=\{saveIssueChange\} \/>/);
+  assert.match(source, /<IssueDataGrid projectId=\{projectId\} tableId=\{active\.id\} title=\{active\.title\} onBack=\{\(\) => setActiveId\(""\)\} issues=\{issues\} onIssueChange=\{saveIssueChange\} \/>/);
   assert.doesNotMatch(source, /UniverIssueSheet|Suspense|lazy\(/);
   assert.doesNotMatch(source, /<ConfigurableDataGrid ariaLabel=\{`\$\{active\.title\} 表格`\}/);
 });
