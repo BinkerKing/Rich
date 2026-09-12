@@ -36,6 +36,9 @@ test("普通单元格的长内容不会穿透到相邻列", () => {
 test("内容样式工具栏可启用自动换行并让单元格随内容增高", () => {
   assert.match(source, /title="自动换行" aria-label="自动换行"/);
   assert.match(source, /whiteSpace: activeCellStyle\?\.whiteSpace === "normal" \? "nowrap" : "normal"/);
+  assert.match(source, /const isTextField = \(column: TestCenterGridColumn\) => !column\.fieldType \|\| column\.fieldType === "text";/);
+  assert.match(source, /autoHeight: isTextField\(column\) && \(/);
+  assert.match(source, /wrapText: isTextField\(column\) && \(/);
   assert.match(source, /column\.cellStyle\?\.whiteSpace === "normal"/);
   assert.match(styles, /\.issue-data-grid__cell-auto-wrap \.ag-cell-value \{ overflow:visible; text-overflow:clip; white-space:pre-wrap;/);
 });
