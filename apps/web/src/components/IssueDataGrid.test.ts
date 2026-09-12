@@ -59,6 +59,8 @@ test("单元格支持快捷键复制粘贴，并为复制源显示虚线框", ()
   assert.match(source, /suppressKeyboardEvent:/);
   assert.doesNotMatch(source, /onCellKeyDown=/);
   assert.match(source, /enableCellTextSelection suppressClipboardPaste suppressCutToClipboard/);
+  assert.match(source, /onKeyDownCapture=\{handleGridKeyDownCapture\}/);
+  assert.match(source, /event\.stopPropagation\(\)/);
   assert.match(source, /!keyEvent\.metaKey && !keyEvent\.ctrlKey/);
   assert.match(source, /const key = keyEvent\.key\.toLowerCase\(\);/);
   assert.match(source, /key !== "c" && key !== "v"/);

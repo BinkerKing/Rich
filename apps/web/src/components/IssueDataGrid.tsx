@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { AgGridReact, type CustomCellEditorProps } from "ag-grid-react";
 import { AllCommunityModule, colorSchemeDark, ModuleRegistry, themeQuartz, type ColDef, type GridApi } from "ag-grid-community";
 import { api, type TestCenterGridColumn, type TestCenterGridStyle, type TestCenterIssue } from "../api/client.js";
@@ -106,6 +106,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
   const [recordMenu, setRecordMenu] = useState<{ x: number; y: number; issueId?: string } | null>(null);
   const copiedCell = useRef<CopiedCell | null>(null);
   const copiedCellElement = useRef<HTMLElement | null>(null);
+  const gridApi = useRef<GridApi<IssueGridRow> | null>(null);
   const gridSettingsKey = `issues:${tableId}:columns`;
 
   useEffect(() => {
@@ -144,7 +145,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     if (systemFields.has(field)) onIssueChange(row.id, { [field]: value });
     else onIssueChange(row.id, { customFields: { ...row.customFields, [field]: value } });
   }, [onIssueChange]);
-  const handleClipboardShortcut = useCallback((keyEvent: KeyboardEvent, row: IssueGridRow | undefined, field: string, editing: boolean) => {
+  const handleClipboardShortcut = useCallback((keyEvent: KeyboardEvent, row: IssueGridRow | undefined, field: string, editing: boolean, targetCell?: HTMLElement | null) => {
     if ((!keyEvent.metaKey && !keyEvent.ctrlKey) || editing || !row) return false;
     const key = keyEvent.key.toLowerCase();
     if (key !== "c" && key !== "v") return false;
@@ -154,7 +155,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
       const value = String(row[field] ?? "");
       copiedCell.current = { issueId: row.id, field, value };
       copiedCellElement.current?.classList.remove("issue-data-grid__cell-copied");
-      const cellElement = keyEvent.target instanceof Element ? keyEvent.target.closest<HTMLElement>(".ag-cell") : null;
+      const cellElement = targetCell ?? (keyEvent.target instanceof Element ? keyEvent.target.closest<HTMLElement>(".ag-cell") : null);
       cellElement?.classList.add("issue-data-grid__cell-copied");
       copiedCellElement.current = cellElement;
       void navigator.clipboard?.writeText(value).catch(() => undefined);
@@ -163,6 +164,18 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     }
     return true;
   }, [columns, saveCellValue]);
+  const handleGridKeyDownCapture = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const api = gridApi.current;
+    const focusedCell = api?.getFocusedCell();
+    if (!api || !focusedCell) return;
+    const row = api.getDisplayedRowAtIndex(focusedCell.rowIndex)?.data;
+    const field = focusedCell.column.getColId();
+    const targetCell = document.querySelector<HTMLElement>(`.ag-center-cols-container .ag-row[row-index="${focusedCell.rowIndex}"] .ag-cell[col-id="${field}"]`);
+    if (handleClipboardShortcut(event.nativeEvent, row, field, api.getEditingCells().length > 0, targetCell)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, [handleClipboardShortcut]);
   const columnDefs = useMemo<ColDef<IssueGridRow>[]>(() => columns.filter(column => column.visible !== false).map(column => ({
     field: column.key,
     headerName: column.name,
@@ -287,8 +300,8 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
       </tr>)}</tbody></table></div>
       <section className="issue-data-grid__style"><b>表格样式</b><label>密度<select value={settingsStyle.density} onChange={event => updateStyle({ density: event.target.value as TestCenterGridStyle["density"] })}><option value="compact">紧凑</option><option value="comfortable">舒适</option></select></label><label>表头色调<select value={settingsStyle.headerTone} onChange={event => updateStyle({ headerTone: event.target.value as TestCenterGridStyle["headerTone"] })}><option value="neutral">中性</option><option value="slate">石板</option><option value="cyan">青色</option></select></label><label><input type="checkbox" checked={settingsStyle.stripedRows} onChange={event => updateStyle({ stripedRows: event.target.checked })} /> 斑马纹行</label><button className={`issue-data-grid__apply-settings${settingsDirty ? " is-ready" : ""}`} type="button" disabled={!settingsDirty} onClick={applySettings}>{settingsDirty ? "应用更改" : "已应用"}</button></section>
     </aside>}
-    <div className="issue-data-grid__table" onContextMenu={event => { if (event.target === event.currentTarget) { event.preventDefault(); setRecordMenu({ x: event.clientX, y: event.clientY }); } }}><AgGridReact<IssueGridRow>
-      theme={issueGridTheme} rowData={visibleRows} columnDefs={columnDefs} defaultColDef={{ sortable: true }} getRowId={params => params.data.id} rowDragManaged={!query} suppressMoveWhenRowDragging animateRows enableCellTextSelection suppressClipboardPaste suppressCutToClipboard rowHeight={tableStyle.density === "compact" ? 36 : 44} headerHeight={40} singleClickEdit={false} stopEditingWhenCellsLoseFocus
+    <div className="issue-data-grid__table" onKeyDownCapture={handleGridKeyDownCapture} onContextMenu={event => { if (event.target === event.currentTarget) { event.preventDefault(); setRecordMenu({ x: event.clientX, y: event.clientY }); } }}><AgGridReact<IssueGridRow>
+      theme={issueGridTheme} rowData={visibleRows} columnDefs={columnDefs} defaultColDef={{ sortable: true }} getRowId={params => params.data.id} onGridReady={event => { gridApi.current = event.api; }} rowDragManaged={!query} suppressMoveWhenRowDragging animateRows enableCellTextSelection suppressClipboardPaste suppressCutToClipboard rowHeight={tableStyle.density === "compact" ? 36 : 44} headerHeight={40} singleClickEdit={false} stopEditingWhenCellsLoseFocus
       onCellClicked={event => { const column = columns.find(item => item.key === event.colDef.field); if (event.rowIndex !== null && needsOptions(column?.fieldType)) event.api.startEditingCell({ rowIndex: event.rowIndex, colKey: event.column.getColId() }); }}
       onCellContextMenu={event => { const mouseEvent = event.event as MouseEvent | undefined; if (!mouseEvent || !event.data) return; mouseEvent.preventDefault(); setRecordMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY, issueId: event.data.id }); }}
       onRowDragEnd={event => { const issueIds: string[] = []; event.api.forEachNode(node => { if (node.data) issueIds.push(node.data.id); }); onIssueReorder(issueIds); }}
