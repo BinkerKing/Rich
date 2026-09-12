@@ -26,6 +26,14 @@ test("高级问题表格撑满编辑区域并使用紧凑深色工具栏", () =>
   assert.match(styles, /\.issue-data-grid__toolbar\s*\{[^}]*min-height:48px[^}]*background:#252629/s);
 });
 
+test("问题表具有产品级的清单身份区与记录状态", () => {
+  assert.match(source, /TEST CENTER · ISSUE LOG/);
+  assert.match(source, /产品问题测试清单/);
+  assert.match(source, /issue-data-grid__record-count/);
+  assert.match(styles, /\.issue-data-grid__identity\s*\{[^}]*min-height:70px/s);
+  assert.match(styles, /\.issue-data-grid .ag-root-wrapper\s*\{[^}]*border-radius:10px/s);
+});
+
 test("问题表包含可编辑的项目跟进字段，并记住每张表的列宽", () => {
   assert.match(source, /key: "serial", name: "序号"/);
   assert.match(source, /key: "project", name: "项目"[\s\S]*?editable: true/);
@@ -151,7 +159,7 @@ test("字段设置表采用紧凑的数据工作台层级", () => {
 });
 
 test("打开字段设置时配置表占满剩余工作区", () => {
-  assert.match(styles, /\.issue-data-grid:has\(\.issue-data-grid__settings\)\s*\{[^}]*grid-template-rows:auto minmax\(0,1fr\)/s);
+  assert.match(styles, /\.issue-data-grid:has\(\.issue-data-grid__settings\)\s*\{[^}]*grid-template-rows:auto auto minmax\(0,1fr\)/s);
   assert.match(styles, /\.issue-data-grid:has\(\.issue-data-grid__settings\) \.issue-data-grid__table\s*\{[^}]*display:none/s);
   assert.match(styles, /\.issue-data-grid:has\(\.issue-data-grid__settings\) \.issue-data-grid__settings\s*\{[^}]*max-height:none[^}]*grid-template-rows:auto minmax\(0,1fr\) auto/s);
 });

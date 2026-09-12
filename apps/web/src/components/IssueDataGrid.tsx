@@ -211,6 +211,7 @@ export function IssueDataGrid({ projectId, tableId, issues, onIssueChange }: Iss
   const activeDropdownOption = activeDropdownColumn?.options?.find(option => option.value === styleSelection?.optionValue);
 
   return <div className={`issue-data-grid issue-data-grid--${tableStyle.density} issue-data-grid--header-${tableStyle.headerTone}${tableStyle.stripedRows ? " issue-data-grid--striped" : ""}`} aria-label="高级问题表格">
+    <header className="issue-data-grid__identity"><div><span>TEST CENTER · ISSUE LOG</span><h2>产品问题测试清单</h2></div><span className="issue-data-grid__record-count">{visibleRows.length} 条记录</span></header>
     <div className="issue-data-grid__toolbar">
       <label className="issue-data-grid__search"><span aria-hidden="true">⌕</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索已设为可检索的字段" /></label>
       <button className="issue-data-grid__settings-trigger" type="button" onClick={toggleSettings} aria-expanded={settingsOpen}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2m4 0h10M14 4v6M8 14v6" /></svg><span>表格设置</span></button>
