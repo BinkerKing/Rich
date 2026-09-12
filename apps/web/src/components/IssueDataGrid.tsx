@@ -125,6 +125,12 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     return () => { cancelled = true; };
   }, [gridSettingsKey, projectId]);
   useEffect(() => () => clearTimeout(resizeTimer.current), []);
+  useEffect(() => {
+    if (!recordMenu) return;
+    const closeMenu = () => setRecordMenu(null);
+    window.addEventListener("pointerdown", closeMenu);
+    return () => window.removeEventListener("pointerdown", closeMenu);
+  }, [recordMenu]);
 
   const rows = useMemo<IssueGridRow[]>(() => issues.map((issue, index) => ({
     id: issue.id, serial: index + 1, title: issue.title, description: issue.description, owner: issue.owner ?? "", status: issue.status as IssueStatus, externalRef: issue.externalRef ?? "", updatedAt: formatTime(issue.updatedAt), customFields: issue.customFields, ...issue.customFields,
@@ -294,7 +300,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
         if (!field || event.oldValue === event.newValue) return;
         saveCellValue(event.data, field, String(event.newValue ?? ""));
       }}
-    />{recordMenu && <div className="issue-data-grid__record-menu" style={{ left: recordMenu.x, top: recordMenu.y }} onMouseDown={event => event.stopPropagation()}><button type="button" onClick={() => { onAddIssue(); setRecordMenu(null); }}>＋ 新增记录</button>{recordMenu.issueId && <button className="is-danger" type="button" onClick={() => { onDeleteIssue(recordMenu.issueId!); setRecordMenu(null); }}>删除记录</button>}</div>}</div>
+    />{recordMenu && <div className="issue-data-grid__record-menu" style={{ left: recordMenu.x, top: recordMenu.y }} onPointerDown={event => event.stopPropagation()}><button type="button" onClick={() => { onAddIssue(); setRecordMenu(null); }}>＋ 新增记录</button>{recordMenu.issueId && <button className="is-danger" type="button" onClick={() => { onDeleteIssue(recordMenu.issueId!); setRecordMenu(null); }}>删除记录</button>}</div>}</div>
   </div>;
 }
 

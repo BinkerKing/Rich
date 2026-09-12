@@ -42,6 +42,12 @@ test("问题记录可通过右键菜单新增或删除", () => {
   assert.match(styles, /\.issue-data-grid__record-menu button\.is-danger/);
 });
 
+test("右键记录菜单会在点击菜单外后自动收起", () => {
+  assert.match(source, /window\.addEventListener\("pointerdown", closeMenu\)/);
+  assert.match(source, /window\.removeEventListener\("pointerdown", closeMenu\)/);
+  assert.match(source, /onPointerDown=\{event => event\.stopPropagation\(\)\}/);
+});
+
 test("序号列是问题记录唯一的拖拽排序入口", () => {
   assert.match(source, /rowDrag: column\.key === "serial" && !query/);
   assert.match(source, /rowDragManaged=\{!query\} suppressMoveWhenRowDragging animateRows/);
