@@ -4,6 +4,8 @@ import test from "node:test";
 
 const source = readFileSync(new URL("./IssueDataGrid.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("./IssueDataGrid.css", import.meta.url), "utf8");
+const client = readFileSync(new URL("../api/client.ts", import.meta.url), "utf8");
+const route = readFileSync(new URL("../../../server/src/routes/testCenter.ts", import.meta.url), "utf8");
 
 test("问题表使用 AG Grid 并提供搜索、状态筛选和内联编辑", () => {
   assert.match(source, /from "ag-grid-react"/);
@@ -135,6 +137,17 @@ test("应用后的表格样式与表格设置中的色调、密度和斑马纹�
   assert.match(styles, /\.issue-data-grid--header-slate \.ag-header\s*\{[^}]*background:#2d3a43/s);
   assert.match(styles, /\.issue-data-grid--header-cyan \.ag-header\s*\{[^}]*background:#183c42/s);
   assert.match(styles, /\.issue-data-grid--striped \.ag-row-even\s*\{[^}]*background:#222c31/s);
+});
+
+test("表格样式可持久化控制单元格边框颜色、粗细与线型", () => {
+  assert.match(client, /borderColor\?: string; borderWidth\?: "1px" \| "2px" \| "3px"; borderStyle\?: "solid" \| "dashed" \| "dotted"/);
+  assert.match(route, /borderColor: gridColor\.optional\(\), borderWidth: z\.enum\(\["1px", "2px", "3px"\]\)\.optional\(\), borderStyle: z\.enum\(\["solid", "dashed", "dotted"\]\)\.optional\(\)/);
+  assert.match(source, /边框颜色/);
+  assert.match(source, /边框粗细/);
+  assert.match(source, /边框线型/);
+  assert.match(source, /--issue-grid-border-color/);
+  assert.match(styles, /--issue-grid-border-color/);
+  assert.match(styles, /border:var\(--issue-grid-border-width\) var\(--issue-grid-border-style\) var\(--issue-grid-border-color\)/);
 });
 
 test("标题与内容的对齐设定会映射到 AG Grid 的实际布局", () => {

@@ -159,6 +159,14 @@
 .issue-data-grid .ag-cell-inline-editing .issue-data-grid__date-editor,.issue-data-grid .ag-cell-inline-editing .issue-data-grid__multi-select-editor { border:0; border-radius:0; padding:0 10px; color:inherit; background:transparent; outline:0; }
 .issue-data-grid .ag-cell-inline-editing .issue-data-grid__structured-editor { min-height:100%; border:0; border-radius:0; padding:8px 12px; background:transparent; box-shadow:none; }
 
+/* Table-level border controls keep every grid rule visually consistent. */
+.issue-data-grid { --issue-grid-border-color:#373d41; --issue-grid-border-width:1px; --issue-grid-border-style:solid; }
+.issue-data-grid .ag-root-wrapper { border:var(--issue-grid-border-width) var(--issue-grid-border-style) var(--issue-grid-border-color); }
+.issue-data-grid .ag-header { border-bottom:var(--issue-grid-border-width) var(--issue-grid-border-style) var(--issue-grid-border-color); }
+.issue-data-grid .ag-cell { border-right:var(--issue-grid-border-width) var(--issue-grid-border-style) var(--issue-grid-border-color); }
+.issue-data-grid .ag-row { border-bottom:var(--issue-grid-border-width) var(--issue-grid-border-style) var(--issue-grid-border-color); }
+.issue-data-grid__style input[type=color] { width:24px; height:24px; padding:1px; border:0; border-radius:4px; background:transparent; cursor:pointer; }
+
 /* Native-feeling record actions, kept deliberately quiet until the user asks for them. */
 .issue-data-grid__record-menu { position:fixed; z-index:30; display:grid; min-width:148px; overflow:hidden; border:1px solid #465159; border-radius:7px; padding:5px; background:#20272b; box-shadow:0 14px 34px rgba(0,0,0,.34); }
 .issue-data-grid__record-menu button { display:flex; align-items:center; min-height:31px; border:0; border-radius:4px; padding:0 9px; color:#dbe4e7; background:transparent; font:600 12px/1 inherit; text-align:left; cursor:pointer; }
