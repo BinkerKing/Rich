@@ -239,7 +239,15 @@ export function AiTaskCapture() {
       if (!dataUrl) return;
       const blob = await (await fetch(dataUrl)).blob();
       await composer.attach(new File([blob], `Rich-${Date.now()}.png`, { type: "image/png" }));
-    } finally { setCapturing(false); }
+    } finally {
+      setCapturing(false);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const input = inputRef.current;
+        if (!input) return;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+      }));
+    }
   };
   const selectMode = (item: typeof modes[number]) => {
     setMode(item.id);
