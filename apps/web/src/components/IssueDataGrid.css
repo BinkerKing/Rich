@@ -37,8 +37,7 @@
 .issue-data-grid .ag-header-cell { color:#aab4ba; font-size:12px; font-weight:700; }
 .issue-data-grid .ag-cell { display:flex; align-items:center; overflow:hidden; color:#e5ebef; font-size:13px; border-right-color:#303338; }
 .issue-data-grid .ag-cell:not(.ag-cell-inline-editing) .ag-cell-value { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.issue-data-grid .ag-cell.issue-data-grid__cell-auto-wrap .ag-cell-value { overflow:visible; text-overflow:clip; white-space:pre-wrap; overflow-wrap:anywhere; }
-.issue-data-grid .ag-cell.issue-data-grid__cell-structured .ag-cell-value { overflow:visible; text-overflow:clip; white-space:normal; }
+.issue-data-grid .ag-cell.issue-data-grid__cell-text .ag-cell-value { overflow:visible; text-overflow:clip; white-space:pre-wrap; overflow-wrap:anywhere; }
 .issue-data-grid .ag-row { border-color:#2d3034; }
 .issue-data-grid .ag-row-hover::before { background-color:rgba(115,199,207,.07); }
 .issue-data-grid .ag-cell-focus,.issue-data-grid .ag-cell:focus-within { border-color:#67c9d0 !important; }

@@ -33,21 +33,17 @@ test("普通单元格的长内容不会穿透到相邻列", () => {
   assert.match(styles, /\.ag-cell:not\(\.ag-cell-inline-editing\) \.ag-cell-value \{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;/);
 });
 
-test("内容样式工具栏可启用自动换行并让单元格随内容增高", () => {
-  assert.match(source, /title="自动换行" aria-label="自动换行"/);
-  assert.match(source, /whiteSpace: activeCellStyle\?\.whiteSpace === "normal" \? "nowrap" : "normal"/);
+test("所有文本列统一使用 AG Grid 原生换行与自动行高", () => {
   assert.match(source, /const isTextField = \(column: TestCenterGridColumn\) => !column\.fieldType \|\| column\.fieldType === "text";/);
-  assert.match(source, /wrapText: isTextField\(column\) && \(/);
-  assert.match(source, /getIssueRowHeight\(params\.data, columns, baseRowHeight\)/);
-  assert.match(source, /column\.cellStyle\?\.whiteSpace === "normal"/);
-  assert.match(styles, /\.issue-data-grid__cell-auto-wrap \.ag-cell-value \{ overflow:visible; text-overflow:clip; white-space:pre-wrap;/);
+  assert.match(source, /wrapText: isTextField\(column\),/);
+  assert.match(source, /autoHeight: isTextField\(column\),/);
+  assert.match(styles, /\.issue-data-grid__cell-text \.ag-cell-value \{ overflow:visible; text-overflow:clip; white-space:pre-wrap; overflow-wrap:anywhere;/);
 });
 
-test("自动换行以统一的整行高度呈现，不会将同一记录拆成上下两段", () => {
-  assert.match(source, /const getIssueRowHeight = \(row: IssueGridRow \| undefined, columns: TestCenterGridColumn\[\], baseHeight: number\) =>/);
-  assert.match(source, /getRowHeight=\{getRowHeight\}/);
+test("自动行高不再依赖内容模式的手工高度估算", () => {
   assert.match(source, /event\.api\.resetRowHeights\(\)/);
-  assert.doesNotMatch(source, /autoHeight:/);
+  assert.doesNotMatch(source, /getIssueRowHeight/);
+  assert.doesNotMatch(source, /taskItemGap/);
 });
 
 test("任务文本编辑时 Command 或 Ctrl 加回车插入换行，普通回车提交", () => {
@@ -314,11 +310,8 @@ test("编辑框字段可选换行、序号、点点和复选任务显示", () =>
   assert.match(styles, /\.issue-data-grid__task-check\s*\{[^}]*border-radius:4px/s);
 });
 
-test("序号任务的行高包含每个条目的间距和换行高度", () => {
-  assert.match(source, /const taskItemGap = 4;/);
-  assert.match(source, /const taskListVerticalPadding = 14;/);
-  assert.match(source, /column\.contentMode === "numbered"/);
-  assert.match(styles, /\.issue-data-grid__cell-structured \.ag-cell-value \{ overflow:visible; text-overflow:clip; white-space:normal;/);
+test("序号任务复用文本列的原生自动高度策略", () => {
+  assert.match(source, /isTextField\(column\) \? "issue-data-grid__cell-text" : ""/);
 });
 
 test("字段样式预览与属性面板保持同列宽度", () => {
