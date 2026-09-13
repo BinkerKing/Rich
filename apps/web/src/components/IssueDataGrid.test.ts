@@ -296,6 +296,15 @@ test("字段设置使用草稿并通过右下角应用按钮生效", () => {
   assert.match(styles, /\.issue-data-grid__apply-settings\s*\{[^}]*margin-left:auto/s);
 });
 
+test("打开表格设置时默认展示内容样式的字体和单元格颜色控制", () => {
+  assert.match(source, /const defaultStyleColumn = columns\.find\(column => column\.key !== "serial"\);/);
+  assert.match(source, /target: "cell"/);
+  assert.match(source, /字体颜色/);
+  assert.match(source, /单元格底色/);
+  assert.match(source, /fontSize/);
+  assert.match(source, /backgroundColor/);
+});
+
 test("字段定义表表头固定，字段样式以真实预览展示", () => {
   assert.match(styles, /\.issue-data-grid__field-table th\s*\{[^}]*position:sticky[^}]*top:0/s);
   assert.match(source, /issue-data-grid__style-preview-button/);
@@ -318,8 +327,8 @@ test("打开字段设置时配置表占满剩余工作区", () => {
 
 test("字段属性可配置表头与单元格样式", () => {
   assert.match(source, /字号/);
-  assert.match(source, /文字颜色/);
-  assert.match(source, /背景颜色/);
+  assert.match(source, /字体颜色/);
+  assert.match(source, /单元格底色/);
   assert.match(source, /headerStyle/);
   assert.match(source, /cellStyle/);
   assert.match(source, /textAlign/);
