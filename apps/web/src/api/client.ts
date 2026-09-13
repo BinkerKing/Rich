@@ -2397,7 +2397,7 @@ export interface ProbeConnectionsResult {
 export type AiManagedTaskStatus = "ready" | "claimed" | "needs_review" | "blocked" | "resolved";
 export interface AiManagedTask {
   id: string; rootTaskId: string; parentTaskId?: string; sceneId: "bug_fix" | "requirement_analysis" | "deliverable_task" | "system_improvement";
-  title: string; status: AiManagedTaskStatus; contextSummary: string; claimedBy?: string; projectId?: string; deliverableId?: string; updatedAt: string;
+  title: string; status: AiManagedTaskStatus; contextSummary: string; input: AiManagedTaskCreateInput["input"]; payload: Record<string, unknown>; claimedBy?: string; projectId?: string; deliverableId?: string; latestFeedback?: string; updatedAt: string;
 }
 export interface AiManagedTaskCreateInput {
   sceneId: AiManagedTask["sceneId"]; title: string;

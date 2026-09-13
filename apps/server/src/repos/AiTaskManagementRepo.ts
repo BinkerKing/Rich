@@ -8,7 +8,7 @@ export interface AiManagedTask {
   id: string; rootTaskId: string; parentTaskId?: string; sceneId: AiTaskSceneId; sceneVersion: number;
   title: string; status: AiTaskStatus; input: { text: string; images: AiTaskResourceRef[]; materials: AiTaskResourceRef[] };
   payload: Record<string, unknown>; contextSummary: string; sourceConversationId?: string;
-  projectId?: string; deliverableId?: string; claimedBy?: string; claimedAt?: string; createdAt: string; updatedAt: string;
+  projectId?: string; deliverableId?: string; claimedBy?: string; claimedAt?: string; latestFeedback?: string; createdAt: string; updatedAt: string;
 }
 export interface AiTaskNode {
   id: string; taskId: string; sequence: number; kind: "result" | "blocked" | "decision";

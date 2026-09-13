@@ -23,13 +23,14 @@ type ConfigurableDataGridProps<Row extends ConfigurableGridRow> = {
   onRowClick?: (row: Row) => void;
   toolbar?: ReactNode;
   emptyRowsRenderer?: ReactNode;
+  showSettings?: boolean;
 };
 
 function columnKeyFromLabel(value: string) {
   return `custom_${value.trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "_").replace(/^_+|_+$/g, "") || "column"}`;
 }
 
-export function ConfigurableDataGrid<Row extends ConfigurableGridRow>({ ariaLabel, rows, columns, onRowsChange, onColumnsChange, onAddRow, onRowClick, toolbar, emptyRowsRenderer }: ConfigurableDataGridProps<Row>): ReactNode {
+export function ConfigurableDataGrid<Row extends ConfigurableGridRow>({ ariaLabel, rows, columns, onRowsChange, onColumnsChange, onAddRow, onRowClick, toolbar, emptyRowsRenderer, showSettings = true }: ConfigurableDataGridProps<Row>): ReactNode {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
   const [selectedRows, setSelectedRows] = useState<ReadonlySet<Key>>(() => new Set());
@@ -83,10 +84,10 @@ export function ConfigurableDataGrid<Row extends ConfigurableGridRow>({ ariaLabe
       <div>{toolbar}</div>
       <div className="configurable-data-grid__actions">
         {onAddRow && <button type="button" className="configurable-data-grid__primary" onClick={onAddRow}>＋ 新增记录</button>}
-        <button type="button" className="configurable-data-grid__settings-trigger" aria-expanded={isSettingsOpen} onClick={() => setIsSettingsOpen(open => !open)}>表格设置</button>
+        {showSettings && <button type="button" className="configurable-data-grid__settings-trigger" aria-expanded={isSettingsOpen} onClick={() => setIsSettingsOpen(open => !open)}>表格设置</button>}
       </div>
     </header>
-    {isSettingsOpen && <aside className="configurable-data-grid__settings" aria-label="表格设置">
+    {showSettings && isSettingsOpen && <aside className="configurable-data-grid__settings" aria-label="表格设置">
       <div className="configurable-data-grid__settings-heading"><div><b>列设置</b><span>拖动表头边缘可调整列宽</span></div><button type="button" aria-label="关闭表格设置" onClick={() => setIsSettingsOpen(false)}>×</button></div>
       <div className="configurable-data-grid__add-column"><input value={newColumnName} onChange={event => setNewColumnName(event.target.value)} onKeyDown={event => { if (event.key === "Enter") addColumn(); }} placeholder="例如：影响范围" /><button type="button" onClick={addColumn}>添加列</button></div>
       <div className="configurable-data-grid__column-list">{columns.map(column => <label key={column.key}><span><input aria-label={`${column.name}列名`} value={column.name} onChange={event => updateColumn(column.key, { name: event.target.value })} /><small>{column.key.startsWith("custom_") ? "自定义列" : "系统列"}</small></span><span><input type="checkbox" checked={Boolean(column.frozen)} onChange={event => updateColumn(column.key, { frozen: event.target.checked })} /> 冻结</span></label>)}</div>
