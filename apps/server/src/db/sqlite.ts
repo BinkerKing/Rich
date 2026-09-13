@@ -222,6 +222,46 @@ function applySchema(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_mcp_tasks_status ON mcp_tasks(status, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_mcp_tasks_external ON mcp_tasks(backend, external_task_id);
 
+    CREATE TABLE IF NOT EXISTS ai_tasks (
+      id TEXT PRIMARY KEY,
+      root_task_id TEXT NOT NULL,
+      parent_task_id TEXT,
+      scene_id TEXT NOT NULL,
+      scene_version INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      status TEXT NOT NULL,
+      input_json TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      context_summary TEXT NOT NULL DEFAULT '',
+      source_conversation_id TEXT,
+      project_id TEXT,
+      deliverable_id TEXT,
+      claimed_by TEXT,
+      claimed_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_ai_tasks_status ON ai_tasks(status, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_ai_tasks_scene ON ai_tasks(scene_id, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_ai_tasks_root ON ai_tasks(root_task_id, created_at ASC);
+
+    CREATE TABLE IF NOT EXISTS ai_task_nodes (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL REFERENCES ai_tasks(id) ON DELETE CASCADE,
+      sequence INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      status_after TEXT NOT NULL,
+      analysis TEXT NOT NULL,
+      result TEXT NOT NULL,
+      carry_forward TEXT NOT NULL,
+      pending TEXT,
+      resource_ids_json TEXT NOT NULL DEFAULT '[]',
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE(task_id, sequence)
+    );
+    CREATE INDEX IF NOT EXISTS idx_ai_task_nodes_task ON ai_task_nodes(task_id, sequence ASC);
+
     CREATE TABLE IF NOT EXISTS multica_project_bindings (
       rich_project_id TEXT PRIMARY KEY,
       binding_json    TEXT NOT NULL,
