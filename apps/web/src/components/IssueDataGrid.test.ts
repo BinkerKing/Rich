@@ -37,7 +37,7 @@ test("所有文本列统一使用 AG Grid 原生换行与自动行高", () => {
   assert.match(source, /const isTextField = \(column: TestCenterGridColumn\) => !column\.fieldType \|\| column\.fieldType === "text";/);
   assert.match(source, /wrapText: isTextField\(column\),/);
   assert.match(source, /autoHeight: isTextField\(column\),/);
-  assert.match(styles, /\.issue-data-grid__cell-text \.ag-cell-value \{ overflow:visible; text-overflow:clip; white-space:pre-wrap; overflow-wrap:anywhere;/);
+  assert.match(styles, /\.issue-data-grid__cell-text \.ag-cell-value \{ box-sizing:border-box; padding-block:6px; overflow:visible; text-overflow:clip; white-space:pre-wrap; overflow-wrap:anywhere;/);
 });
 
 test("自动行高不再依赖内容模式的手工高度估算", () => {
