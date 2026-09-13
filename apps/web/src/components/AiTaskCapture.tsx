@@ -48,8 +48,10 @@ const ScreenshotEditor = forwardRef<ScreenshotEditorHandle, { source: string; on
   const drawing = useRef<{ x: number; y: number } | null>(null);
   const [draft, setDraft] = useState<Box>();
   const [dragPreview, setDragPreview] = useState<AnnotationState>();
+  const [activeNote, setActiveNote] = useState<number>();
   const dragging = useRef<{ kind: "box" | "note"; index: number; start: { x: number; y: number }; origin: Box | Note }>();
   const dragState = useRef<AnnotationState>();
+  const noteInputs = useRef(new Map<number, HTMLInputElement>());
   const annotations = history[historyIndex]!;
   const displayed = dragPreview ?? annotations;
 
@@ -70,6 +72,7 @@ const ScreenshotEditor = forwardRef<ScreenshotEditorHandle, { source: string; on
     const p = point(event);
     if (tool === "text") {
       commit({ ...annotations, notes: [...annotations.notes, { ...p, text: "" }] });
+      setActiveNote(annotations.notes.length);
       return;
     }
     drawing.current = p;
@@ -130,6 +133,15 @@ const ScreenshotEditor = forwardRef<ScreenshotEditorHandle, { source: string; on
   const discardEmptyNote = (index: number) => {
     if (!annotations.notes[index]?.text.trim()) commit({ ...annotations, notes: annotations.notes.filter((_, noteIndex) => noteIndex !== index) });
   };
+  useEffect(() => {
+    if (activeNote === undefined) return;
+    requestAnimationFrame(() => {
+      const input = noteInputs.current.get(activeNote);
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    });
+  }, [activeNote, historyIndex]);
   useImperativeHandle(ref, () => ({ save }), [annotations]);
 
   const buttonStyle = (active = false): React.CSSProperties => ({ display: "grid", width: 32, height: 32, padding: 0, placeItems: "center", border: "1px solid #596267", background: active ? "#e4eaeb" : "#1c2022", color: active ? "#192022" : "#e6ebed", cursor: "pointer" });
@@ -144,7 +156,7 @@ const ScreenshotEditor = forwardRef<ScreenshotEditorHandle, { source: string; on
       {!ready && <span style={{ color: "#c6ced1", lineHeight: "44px" }}>正在载入截图…</span>}
       <img ref={image} style={{ display: "block", maxWidth: "100%", maxHeight: "58vh", cursor: tool === "box" ? "crosshair" : "text" }} src={source} alt="待标注截图" onLoad={() => setReady(true)} />
       {ready && [...displayed.boxes, ...(draft ? [draft] : [])].map((box, index) => <i key={`box-${index}`} onMouseDown={event => startMove(event, "box", index)} style={{ position: "absolute", boxSizing: "border-box", border: "3px solid #ef5350", cursor: "move", left: percent(box.x, image.current!.naturalWidth), top: percent(box.y, image.current!.naturalHeight), width: percent(box.width, image.current!.naturalWidth), height: percent(box.height, image.current!.naturalHeight) }} />)}
-      {ready && displayed.notes.map((note, index) => <input key={`note-${index}`} autoFocus={index === displayed.notes.length - 1} value={note.text} aria-label="图片文字标注" onMouseDown={event => startMove(event, "note", index)} onBlur={() => discardEmptyNote(index)} onChange={event => commit({ ...annotations, notes: annotations.notes.map((item, noteIndex) => noteIndex === index ? { ...item, text: event.target.value } : item) })} style={{ position: "absolute", width: `${Math.max(2, note.text.length + 1)}ch`, minWidth: "2ch", border: 0, padding: 0, outline: "none", background: "transparent", color: "#ef5350", font: "600 18px/1.25 sans-serif", textShadow: "0 1px 2px #000", cursor: "move", left: percent(note.x, image.current!.naturalWidth), top: percent(note.y, image.current!.naturalHeight) }} />)}
+      {ready && displayed.notes.map((note, index) => activeNote === index ? <input key={`note-${index}`} ref={element => { if (element) noteInputs.current.set(index, element); else noteInputs.current.delete(index); }} value={note.text} aria-label="图片文字标注" onMouseDown={event => event.stopPropagation()} onBlur={() => { setActiveNote(undefined); discardEmptyNote(index); }} onChange={event => commit({ ...annotations, notes: annotations.notes.map((item, noteIndex) => noteIndex === index ? { ...item, text: event.target.value } : item) })} style={{ position: "absolute", width: `${Math.max(2, note.text.length + 1)}ch`, minWidth: "2ch", border: 0, borderBottom: "1px solid #ef5350", padding: 0, outline: "none", background: "transparent", color: "#ef5350", font: "600 18px/1.25 sans-serif", textShadow: "0 1px 2px #000", left: percent(note.x, image.current!.naturalWidth), top: percent(note.y, image.current!.naturalHeight) }} /> : <span key={`note-${index}`} onMouseDown={event => startMove(event, "note", index)} onDoubleClick={() => setActiveNote(index)} style={{ position: "absolute", color: "#ef5350", font: "600 18px/1.25 sans-serif", lineHeight: 1.25, textShadow: "0 1px 2px #000", cursor: "move", userSelect: "none", left: percent(note.x, image.current!.naturalWidth), top: percent(note.y, image.current!.naturalHeight) }}>{note.text}</span>)}
     </div>
   </section>;
 });
