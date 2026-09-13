@@ -20,3 +20,9 @@ test("location context keeps a task business type fully named", () => {
     business: { kind: "任务", id: "task-008", title: "核对字段映射" },
   }), /业务定位：项目：数据治理项目（项目编号：project-001） \/ 任务：核对字段映射（任务编号：task-008）/);
 });
+
+test("location context for an independent page does not invent a project or deliverable", () => {
+  assert.equal(formatCodexLocationContext({
+    page: ["AI 任务管理", "系统改造任务清单"],
+  } as never), "页面定位：AI 任务管理 / 系统改造任务清单");
+});

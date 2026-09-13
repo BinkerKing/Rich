@@ -54,9 +54,14 @@ const viewLabels: Record<string, string> = {
   health: "健康",
   projects: "项目",
   rikingProjects: "Riking 项目",
+  aiTaskManagement: "AI 任务管理",
 };
 
 function currentPageLocation(appView: string): string[] {
+  if (appView === "aiTaskManagement") {
+    const title = document.querySelector<HTMLElement>(".ai-task-management .atm-heading h1")?.textContent?.trim();
+    return ["AI 任务管理", title || "任务清单"];
+  }
   if (appView !== "projects") return [viewLabels[appView] ?? "Rich"];
   const section = document.querySelector<HTMLElement>('.prj-ws__nav [role="tab"][aria-selected="true"]')?.getAttribute("aria-label");
   return ["项目管理", section ?? "未标注页面"];
@@ -64,6 +69,16 @@ function currentPageLocation(appView: string): string[] {
 
 function currentProjectTitle(): string {
   return document.querySelector(".prj-ws__title")?.textContent?.trim() || "未命名项目";
+}
+
+function currentLocationContext(appView: string, projectId: string, deliverableId: string, deliverableTitle: string): CodexLocationContextInput {
+  const page = currentPageLocation(appView);
+  if (appView !== "projects") return { page };
+  return {
+    page,
+    project: { id: projectId, title: currentProjectTitle() },
+    business: { kind: "交付物", id: deliverableId, title: deliverableTitle },
+  };
 }
 
 function fitWindowToViewport(state: WindowState): WindowState {
@@ -172,11 +187,8 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const active = useMemo(() => conversations.find(item => item.id === activeId), [activeId, conversations]);
   const isResponding = Boolean(active && (streamingConversationId === active.id || runningByConversation[active.id]));
   const activeTaskMode = active ? taskModes[active.id] : undefined;
-  const locationContext = locationAttached ? formatCodexLocationContext({
-    page: currentPageLocation(appView),
-    project: { id: projectId, title: currentProjectTitle() },
-    business: { kind: "交付物", id: deliverableId, title: deliverableTitle },
-  }) : "";
+  const attachedLocation = currentLocationContext(appView, projectId, deliverableId, deliverableTitle);
+  const locationContext = locationAttached ? formatCodexLocationContext(attachedLocation) : "";
   const codexSlash = useMemo(() => parseCodexSlashInput(input), [input]);
   const codexTools = useMemo(() => filterCodexSlashTools(codexSlash.query), [codexSlash.query]);
   const taskModeAvailable = true;
@@ -437,11 +449,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     setTaskModePickerOpen(false);
     window.requestAnimationFrame(() => composerTextareaRef.current?.focus());
     const startedAt = new Date().toISOString();
-    const location: CodexLocationContextInput = {
-      page: currentPageLocation(appView),
-      project: { id: active.projectId, title: mode.id === "general-task" ? "通用任务" : currentProjectTitle() },
-      business: mode.id === "general-task" ? { kind: "任务", id: active.id, title: active.title } : { kind: "交付物", id: active.deliverableId, title: deliverableTitle },
-    };
+    const location = currentLocationContext(appView, active.projectId, active.deliverableId, deliverableTitle);
     try {
       const payload = await readJson<{ instruction: string }>(`/api/deliverable-codex/conversations/${encodeURIComponent(active.id)}/events/task-mode-started`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventId: crypto.randomUUID(), mode, location, startedAt }) });
       const session = { ...mode, location, startedAt };
@@ -453,11 +461,13 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const jumpToTaskBusiness = () => {
     const location = activeTaskMode?.location;
     if (activeTaskMode?.id === "general-task") { setAppView("taskWorkbench"); window.dispatchEvent(new Event("rich:close-deliverable-codex")); return; }
-    if (!location || location.business.kind !== "交付物") return;
-    requestShortcutOpen({ kind: "project", id: location.project.id });
+    const project = location?.project;
+    const business = location?.business;
+    if (!project || business?.kind !== "交付物") return;
+    requestShortcutOpen({ kind: "project", id: project.id });
     setAppView("projects");
     window.dispatchEvent(new Event("rich:close-deliverable-codex"));
-    window.requestAnimationFrame(() => requestDeliverableItemFocus(location.project.id, location.business.id));
+    window.requestAnimationFrame(() => requestDeliverableItemFocus(project.id, business.id));
   };
   useEffect(() => {
     if (!taskModePickerOpen) return;
@@ -501,7 +511,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       <div className="deliverable-codex-workbench__content">
         <header className="deliverable-codex-workbench__tabs" onPointerDown={beginDrag} onPointerMove={drag} onPointerUp={() => { dragRef.current = undefined; }}>
           <div ref={conversationMenuRef} className="deliverable-codex-workbench__title-group">{editingTitle ? <input ref={titleInputRef} aria-label="会话标题" value={editableTitle} disabled={!active} onChange={event => setEditableTitle(event.target.value)} onBlur={() => { setEditingTitle(false); void rename(); }} onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setEditableTitle(active?.title ?? ""); setEditingTitle(false); } }}/> : <span className="deliverable-codex-workbench__title" title="双击编辑标题" onDoubleClick={() => { if (active) setEditingTitle(true); }}>{active?.title ?? "新会话"}</span>}<div className="deliverable-codex-workbench__conversation-menu"><button type="button" aria-label="更多会话操作" aria-expanded={conversationMenuOpen} disabled={!active} onClick={() => setConversationMenuOpen(current => !current)}>•••</button>{conversationMenuOpen && <div role="menu"><button type="button" role="menuitem" onClick={() => { setConversationMenuOpen(false); setEditingTitle(true); }}>重命名</button><button type="button" role="menuitem" onClick={() => { setConversationMenuOpen(false); void archive(); }}>归档</button></div>}</div></div>
-          <button type="button" title={windowState.maximized ? "还原窗口" : "全屏"} onClick={() => setWindowState(current => ({ ...current, maximized: !current.maximized }))}>{windowState.maximized ? "↙" : "⛶"}</button>{activeTaskMode && <div className="deliverable-codex-workbench__task-mode-bar"><button type="button" onClick={jumpToTaskBusiness} disabled={!activeTaskMode.location}>{activeTaskMode.id === "general-task" ? "任务：" : "交付物："}{activeTaskMode.location?.business.title ?? "定位信息缺失"}</button><b>任务模式：{activeTaskMode.label}</b></div>}
+          <button type="button" title={windowState.maximized ? "还原窗口" : "全屏"} onClick={() => setWindowState(current => ({ ...current, maximized: !current.maximized }))}>{windowState.maximized ? "↙" : "⛶"}</button>{activeTaskMode && <div className="deliverable-codex-workbench__task-mode-bar"><button type="button" onClick={jumpToTaskBusiness} disabled={!activeTaskMode.location}>{activeTaskMode.id === "general-task" ? "任务：" : "交付物："}{activeTaskMode.location?.business?.title ?? "当前页面"}</button><b>任务模式：{activeTaskMode.label}</b></div>}
         </header>
         {creating && <form className="deliverable-codex-workbench__create" onSubmit={event => { event.preventDefault(); void create(); }}><input autoFocus value={title} onChange={event => setTitle(event.target.value)} placeholder="会话标题"/><button type="submit">创建</button></form>}
         {taskModePickerOpen && <section className="deliverable-codex-workbench__task-mode-picker" role="listbox" aria-label="任务模式选择"><small>当前页面：{currentPageLocation(appView).join(" / ")}</small>{availableTaskModes.map((mode, index) => <button key={mode.id} type="button" role="option" aria-selected={index === taskModeIndex} className={index === taskModeIndex ? "is-active" : ""} onClick={() => startTaskMode(mode)}><b>{mode.label}</b><span>{mode.hint} · Enter 启动</span></button>)}</section>}
@@ -516,7 +526,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
               <div className="deliverable-codex-workbench__message-bubble">
                 {message.attachments?.length ? <div className="deliverable-codex-workbench__message-images">{message.attachments.map((attachment, imageIndex) => <img key={attachment.id ?? imageIndex} src={attachment.previewUrl ?? attachment.url ?? `/api/chat/attachments/${attachment.id}/data`} alt={message.role === "assistant" ? "Codex 生成图片" : "已发送图片"} onClick={() => setPreviewUrl(attachment.previewUrl ?? attachment.url ?? `/api/chat/attachments/${attachment.id}/data`)}/>)}</div> : null}
                 {isTaskModeStart
-                  ? <section className="deliverable-codex-workbench__event-card"><header><i aria-hidden="true">✦</i><span><small>任务模式已启动</small><b>{message.taskModeLabel ?? message.content.replace("任务模式已启动 · ", "")}</b></span><time>已就绪</time></header><div><span><small>页面定位</small><b>{message.taskModeLocation?.page.join(" / ") ?? "定位信息缺失"}</b></span><span><small>业务定位</small><b>{message.taskModeLocation ? `${message.taskModeLocation.business.kind}：${message.taskModeLocation.business.title}` : "定位信息缺失"}</b></span></div></section>
+                  ? <section className="deliverable-codex-workbench__event-card"><header><i aria-hidden="true">✦</i><span><small>任务模式已启动</small><b>{message.taskModeLabel ?? message.content.replace("任务模式已启动 · ", "")}</b></span><time>已就绪</time></header><div><span><small>页面定位</small><b>{message.taskModeLocation?.page.join(" / ") ?? "定位信息缺失"}</b></span><span><small>业务定位</small><b>{message.taskModeLocation?.business ? `${message.taskModeLocation.business.kind}：${message.taskModeLocation.business.title}` : "不适用"}</b></span></div></section>
                   : isTaskInstruction
                     ? <section className="deliverable-codex-workbench__instruction-card"><header><span>{isTaskPolicyUpdate ? "本次规则已同步给 Codex" : "任务上下文已交给 Codex"}</span><b>{isTaskPolicyUpdate ? "规则更新" : message.taskModeLabel ?? "任务模式"}</b></header><div><RichContent text={message.content}/></div></section>
                   : <div className="deliverable-codex-workbench__markdown"><RichContent text={message.content}/></div>}
@@ -527,7 +537,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
         </main>
         {error && <p className="deliverable-codex-workbench__error">{error}</p>}
         {queuedMessages.filter(message => message.conversation.id === active?.id).length > 0 && <section className="deliverable-codex-workbench__queue" aria-label="排队消息">{queuedMessages.filter(message => message.conversation.id === active?.id).map(message => <article key={message.id}>{message.attachments[0]?.previewUrl && <img src={message.attachments[0].previewUrl} alt="排队图片"/>}<p>{message.content}</p><button type="button" title="中断当前回复并调整" aria-label="中断当前回复并调整" onClick={() => void interruptAndSend(message)}>↳ 调整</button><button type="button" title="删除" aria-label="删除排队消息" onClick={() => setQueuedMessages(current => current.filter(item => item.id !== message.id))}>⌫</button><button type="button" aria-label="更多排队操作" onClick={() => setQueueMenuId(current => current === message.id ? undefined : message.id)}>•••</button>{queueMenuId === message.id && <div role="menu"><button type="button" role="menuitem" onClick={() => { setQueuedMessages(current => [message, ...current.filter(item => item.id !== message.id)]); setQueueMenuId(undefined); }}>移到队首</button></div>}</article>)}</section>}
-        <footer className="deliverable-codex-workbench__composer"><div className={`deliverable-codex-workbench__turn-status${isResponding ? " is-running" : ""}`} role="status"><i aria-hidden="true"/>{isResponding ? "Codex 正在回复…" : "Codex 已完成，可继续提问"}</div>{locationContext && <div className="deliverable-codex-workbench__location"><span><i aria-hidden="true"/><b>页面定位</b><small>{currentPageLocation(appView).join(" / ")}</small><b>业务定位</b><small>项目：{currentProjectTitle()}（项目编号：{projectId}） / 交付物：{deliverableTitle}（交付物编号：{deliverableId}）</small></span><button type="button" aria-label="移除页面和业务定位" onClick={() => setLocationAttached(false)}>×</button></div>}{composer.attachments.length > 0 && <div className="deliverable-codex-workbench__attachments">{composer.attachments.map(attachment => <figure key={attachment.clientId}><button type="button" onClick={() => setPreviewUrl(attachment.previewUrl)}><img src={attachment.previewUrl} alt="已粘贴图片"/></button><button type="button" aria-label="删除图片" onClick={() => composer.detach(attachment.clientId)}>×</button></figure>)}</div>}<input ref={composerFilePickerRef} className="deliverable-codex-workbench__file-picker" type="file" accept="image/*" onChange={event => { const file = event.currentTarget.files?.[0]; if (file) void composer.attach(file); event.currentTarget.value = ""; }}/><textarea ref={composerTextareaRef} rows={1} value={input} disabled={!active} onChange={event => setInput(event.target.value)} onPaste={event => { const image = Array.from(event.clipboardData.items).find(item => item.type.startsWith("image/"))?.getAsFile(); if (image) { event.preventDefault(); void composer.attach(image); } }} onKeyDown={event => { if (codexSlash.open && codexTools.length > 0 && (event.key === "ArrowDown" || event.key === "ArrowUp")) { event.preventDefault(); setToolIndex(current => (current + (event.key === "ArrowDown" ? 1 : -1) + codexTools.length) % codexTools.length); return; } if (codexSlash.open && event.key === "Enter" && !event.shiftKey) { event.preventDefault(); chooseCodexTool(codexTools[toolIndex] ?? codexTools[0]); return; } if (codexSlash.open && event.key === "Escape") { event.preventDefault(); setInput(""); return; } if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); queueOrSend(); } }} placeholder={active ? "随心输入，输入 / 选择工具" : "请先新建会话"}/>{codexSlash.open && <div className="deliverable-codex-workbench__composer-menu deliverable-codex-workbench__tool-menu" role="listbox" aria-label="Codex 工具列表"><b>添加</b>{codexTools.length > 0 ? codexTools.map((tool, index) => <button key={tool.id} type="button" role="option" aria-selected={index === toolIndex} className={index === toolIndex ? "is-active" : ""} onMouseDown={event => event.preventDefault()} onClick={() => chooseCodexTool(tool)}><i className={tool.id === "image" ? "is-file" : tool.id === "location" ? "is-location" : "is-screenshot"}/><span>{tool.label}<small>{tool.hint}</small></span></button>) : <p>没有匹配的工具</p>}</div>}<div ref={composerMenuRef} className="deliverable-codex-workbench__composer-actions">{composerMenuOpen && <div className="deliverable-codex-workbench__composer-menu" role="menu"><b>添加</b><button type="button" role="menuitem" onClick={() => { setComposerMenuOpen(false); composerFilePickerRef.current?.click(); }}><i className="is-file"/><span>图片</span></button><button type="button" role="menuitem" onClick={() => { setLocationAttached(true); setComposerMenuOpen(false); }}><i className="is-location"/><span>定位 <small>附加页面和业务定位</small></span></button><button type="button" role="menuitem" onClick={() => void attachCurrentViewScreenshot()}><i className="is-screenshot"/><span>定位截图 <small>将当前界面作为图片附加</small></span></button></div>}<button type="button" className="deliverable-codex-workbench__add-button" aria-label="打开附加功能" title="附加功能" disabled={!active} onClick={() => setComposerMenuOpen(current => !current)}>＋</button><button type="button" aria-label={isResponding ? "Codex 正在响应" : "发送消息"} disabled={!active || (!input.trim() && composer.attachments.length === 0) || composer.isUploading} onClick={queueOrSend}>{isResponding ? "＋" : "↑"}</button></div></footer>
+        <footer className="deliverable-codex-workbench__composer"><div className={`deliverable-codex-workbench__turn-status${isResponding ? " is-running" : ""}`} role="status"><i aria-hidden="true"/>{isResponding ? "Codex 正在回复…" : "Codex 已完成，可继续提问"}</div>{locationContext && <div className="deliverable-codex-workbench__location"><span><i aria-hidden="true"/><b>页面定位</b><small>{attachedLocation.page.join(" / ")}</small>{attachedLocation.project && attachedLocation.business && <><b>业务定位</b><small>项目：{attachedLocation.project.title}（项目编号：{attachedLocation.project.id}） / {attachedLocation.business.kind}：{attachedLocation.business.title}（{attachedLocation.business.kind}编号：{attachedLocation.business.id}）</small></>}</span><button type="button" aria-label="移除页面和业务定位" onClick={() => setLocationAttached(false)}>×</button></div>}{composer.attachments.length > 0 && <div className="deliverable-codex-workbench__attachments">{composer.attachments.map(attachment => <figure key={attachment.clientId}><button type="button" onClick={() => setPreviewUrl(attachment.previewUrl)}><img src={attachment.previewUrl} alt="已粘贴图片"/></button><button type="button" aria-label="删除图片" onClick={() => composer.detach(attachment.clientId)}>×</button></figure>)}</div>}<input ref={composerFilePickerRef} className="deliverable-codex-workbench__file-picker" type="file" accept="image/*" onChange={event => { const file = event.currentTarget.files?.[0]; if (file) void composer.attach(file); event.currentTarget.value = ""; }}/><textarea ref={composerTextareaRef} rows={1} value={input} disabled={!active} onChange={event => setInput(event.target.value)} onPaste={event => { const image = Array.from(event.clipboardData.items).find(item => item.type.startsWith("image/"))?.getAsFile(); if (image) { event.preventDefault(); void composer.attach(image); } }} onKeyDown={event => { if (codexSlash.open && codexTools.length > 0 && (event.key === "ArrowDown" || event.key === "ArrowUp")) { event.preventDefault(); setToolIndex(current => (current + (event.key === "ArrowDown" ? 1 : -1) + codexTools.length) % codexTools.length); return; } if (codexSlash.open && event.key === "Enter" && !event.shiftKey) { event.preventDefault(); chooseCodexTool(codexTools[toolIndex] ?? codexTools[0]); return; } if (codexSlash.open && event.key === "Escape") { event.preventDefault(); setInput(""); return; } if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); queueOrSend(); } }} placeholder={active ? "随心输入，输入 / 选择工具" : "请先新建会话"}/>{codexSlash.open && <div className="deliverable-codex-workbench__composer-menu deliverable-codex-workbench__tool-menu" role="listbox" aria-label="Codex 工具列表"><b>添加</b>{codexTools.length > 0 ? codexTools.map((tool, index) => <button key={tool.id} type="button" role="option" aria-selected={index === toolIndex} className={index === toolIndex ? "is-active" : ""} onMouseDown={event => event.preventDefault()} onClick={() => chooseCodexTool(tool)}><i className={tool.id === "image" ? "is-file" : tool.id === "location" ? "is-location" : "is-screenshot"}/><span>{tool.label}<small>{tool.hint}</small></span></button>) : <p>没有匹配的工具</p>}</div>}<div ref={composerMenuRef} className="deliverable-codex-workbench__composer-actions">{composerMenuOpen && <div className="deliverable-codex-workbench__composer-menu" role="menu"><b>添加</b><button type="button" role="menuitem" onClick={() => { setComposerMenuOpen(false); composerFilePickerRef.current?.click(); }}><i className="is-file"/><span>图片</span></button><button type="button" role="menuitem" onClick={() => { setLocationAttached(true); setComposerMenuOpen(false); }}><i className="is-location"/><span>定位 <small>附加当前页面定位</small></span></button><button type="button" role="menuitem" onClick={() => void attachCurrentViewScreenshot()}><i className="is-screenshot"/><span>定位截图 <small>将当前界面作为图片附加</small></span></button></div>}<button type="button" className="deliverable-codex-workbench__add-button" aria-label="打开附加功能" title="附加功能" disabled={!active} onClick={() => setComposerMenuOpen(current => !current)}>＋</button><button type="button" aria-label={isResponding ? "Codex 正在响应" : "发送消息"} disabled={!active || (!input.trim() && composer.attachments.length === 0) || composer.isUploading} onClick={queueOrSend}>{isResponding ? "＋" : "↑"}</button></div></footer>
         {isResponding && <button type="button" className="deliverable-codex-workbench__turn-stop" aria-label="停止回复" title="停止回复" onClick={() => void interruptCurrentTurn()}>■</button>}
       </div>
       {previewUrl && <div className="deliverable-codex-workbench__image-preview" role="dialog" aria-modal="true" onClick={() => setPreviewUrl(undefined)}><img src={previewUrl} alt="粘贴图片预览"/></div>}
