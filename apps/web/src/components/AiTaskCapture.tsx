@@ -166,6 +166,7 @@ export function AiTaskCapture() {
   const [text, setText] = useState("");
   const [mode, setMode] = useState<AiManagedTask["sceneId"]>("bug_fix");
   const [selectedMode, setSelectedMode] = useState<AiManagedTask["sceneId"]>();
+  const [frozenLocation, setFrozenLocation] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
@@ -178,6 +179,7 @@ export function AiTaskCapture() {
   const appView = useStore(s => s.appView);
   const setAppView = useStore(s => s.setAppView);
   const location = viewLabels[appView] ?? appView;
+  const taskLocation = frozenLocation ?? location;
 
   useEffect(() => {
     if (editing && !composer.attachments.some(item => item.clientId === editing.clientId)) setEditing(undefined);
@@ -242,6 +244,7 @@ export function AiTaskCapture() {
   const selectMode = (item: typeof modes[number]) => {
     setMode(item.id);
     setSelectedMode(item.id);
+    setFrozenLocation(item.id === "bug_fix" ? location : undefined);
     setText(value => value.replace(/^\s*(?:#(?:BUG|需求|任务|改造)：)?\s*\/\w*\s*/i, ""));
     setSuggestionsOpen(false);
     requestAnimationFrame(() => {
@@ -258,7 +261,10 @@ export function AiTaskCapture() {
     setText(value);
     const show = /^\s*\/\w*$/.test(value);
     setSuggestionsOpen(show);
-    if (show) setSelectedMode(undefined);
+    if (show) {
+      setSelectedMode(undefined);
+      setFrozenLocation(undefined);
+    }
     const hit = modes.find(item => value.trimStart().startsWith(item.token));
     if (hit) setMode(hit.id);
   };
@@ -300,8 +306,8 @@ export function AiTaskCapture() {
     if (!content || composer.isUploading) return;
     setSaving(true);
     try {
-      await api.createAiManagedTask({ sceneId: mode, title: content.slice(0, 80), input: { text: `页面定位：${location}\n\n${content}`, images: composer.getAttachmentRefs().map(item => ({ id: item.id, label: "任务截图", mime: item.mime })), materials: [] }, payload: { page: [location] }, contextSummary: content.slice(0, 2000) });
-      composer.clear(); setText(""); setSelectedMode(undefined); setOpen(false); setAppView("aiTaskManagement");
+      await api.createAiManagedTask({ sceneId: mode, title: content.slice(0, 80), input: { text: `页面定位：${taskLocation}\n\n${content}`, images: composer.getAttachmentRefs().map(item => ({ id: item.id, label: "任务截图", mime: item.mime })), materials: [] }, payload: { page: [taskLocation] }, contextSummary: content.slice(0, 2000) });
+      composer.clear(); setText(""); setSelectedMode(undefined); setFrozenLocation(undefined); setOpen(false); setAppView("aiTaskManagement");
     } finally { setSaving(false); }
   };
 
@@ -311,7 +317,7 @@ export function AiTaskCapture() {
   return <div className={`ai-task-capture${capturing ? " is-capturing" : ""}`} role="dialog" aria-modal="true" aria-label="登记 AI 任务">
     <section className="ai-task-capture__window" style={{ left: frame.x, top: frame.y, width: frame.width, height: "auto", minHeight: 0, maxHeight: "calc(100vh - 24px)" }}>
       <header className="ai-task-capture__titlebar" onPointerDown={beginMove}>
-        <span>定位 · {location}</span>
+        <button type="button" title="点击重新定位" onClick={() => setFrozenLocation(location)} style={{ border: 0, padding: 0, background: "transparent", color: "inherit", font: "inherit", cursor: "pointer" }}>定位 · {taskLocation}</button>
         {selectedMode && <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button type="button" className="ai-task-capture__action" aria-label="截取当前界面" title="截取当前界面" onClick={() => void attachScreenshot()}>
             <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M8 8h8v8H8z" stroke="currentColor" strokeWidth="2.15" strokeLinecap="round" strokeLinejoin="round" /></svg>
