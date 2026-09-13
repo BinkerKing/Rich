@@ -194,6 +194,11 @@ export function AiTaskCapture() {
     const hit = modes.find(item => value.trimStart().startsWith(item.token));
     if (hit) setMode(hit.id);
   };
+  const confirmSlashMode = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== "Enter" || text.trim().toLowerCase() !== "/bug") return;
+    event.preventDefault();
+    selectMode(modes[0]!);
+  };
   const replaceAttachment = async (file: File) => {
     if (!editing) return;
     composer.detach(editing.clientId);
@@ -234,7 +239,7 @@ export function AiTaskCapture() {
       <header className="ai-task-capture__titlebar" onPointerDown={beginMove}><span>AI 任务登记</span></header>
       <div className="ai-task-capture__input-wrap" style={bugSelected ? { display: "flex", alignItems: "stretch", gap: 10 } : undefined}>
         {bugSelected && <span aria-label="BUG 模式" style={{ display: "grid", minWidth: 70, placeItems: "center", border: "1px solid #ef6660", borderRadius: 10, color: "#ffaaa5", fontWeight: 700, letterSpacing: "0.08em" }}>BUG</span>}
-        <textarea autoFocus style={bugSelected ? { flex: 1, width: "auto" } : undefined} value={text} onChange={event => update(event.target.value)} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
+        <textarea autoFocus style={bugSelected ? { flex: 1, width: "auto" } : undefined} value={text} onChange={event => update(event.target.value)} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
         {suggestionsOpen && <div className="ai-task-capture__suggestions">{modes.filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.id} type="button" onMouseDown={event => { event.preventDefault(); selectMode(item); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
       </div>
       <div className="ai-task-capture__context"><span>定位 · {location}</span><span>{composer.attachments.length ? `${composer.attachments.length} 张截图` : "选择 BUG 后自动截图"}</span></div>
