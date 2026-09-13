@@ -21,6 +21,7 @@ type ConfigurableDataGridProps<Row extends ConfigurableGridRow> = {
   onColumnsChange: (columns: ConfigurableGridColumn[]) => void;
   onAddRow?: () => void;
   onRowClick?: (row: Row) => void;
+  activeRowId?: string;
   toolbar?: ReactNode;
   emptyRowsRenderer?: ReactNode;
   showSettings?: boolean;
@@ -31,7 +32,7 @@ function columnKeyFromLabel(value: string) {
   return `custom_${value.trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "_").replace(/^_+|_+$/g, "") || "column"}`;
 }
 
-export function ConfigurableDataGrid<Row extends ConfigurableGridRow>({ ariaLabel, rows, columns, onRowsChange, onColumnsChange, onAddRow, onRowClick, toolbar, emptyRowsRenderer, showSettings = true, fillHeight = false }: ConfigurableDataGridProps<Row>): ReactNode {
+export function ConfigurableDataGrid<Row extends ConfigurableGridRow>({ ariaLabel, rows, columns, onRowsChange, onColumnsChange, onAddRow, onRowClick, activeRowId, toolbar, emptyRowsRenderer, showSettings = true, fillHeight = false }: ConfigurableDataGridProps<Row>): ReactNode {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
   const [selectedRows, setSelectedRows] = useState<ReadonlySet<Key>>(() => new Set());
@@ -101,6 +102,7 @@ export function ConfigurableDataGrid<Row extends ConfigurableGridRow>({ ariaLabe
       rowKeyGetter={row => row.id}
       selectedRows={selectedRows}
       onSelectedRowsChange={setSelectedRows}
+      rowClass={row => row.id === activeRowId ? "configurable-data-grid__row--active" : undefined}
       onRowsChange={onRowsChange}
       onCellClick={onRowClick ? ({ row }) => onRowClick(row) : undefined}
       onColumnResize={(index, width) => { const column = columns[index - configuredColumnOffset]; if (column) updateColumn(column.key, { width }); }}
