@@ -39,32 +39,37 @@ function clampFrame(frame: CaptureFrame): CaptureFrame {
 
 function ScreenshotEditor({ source, onSave, onClose }: { source: string; onSave: (file: File) => void; onClose: () => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const image = useRef<HTMLImageElement | null>(null);
+  const baseCanvas = useRef<HTMLCanvasElement | null>(null);
   const [boxes, setBoxes] = useState<Box[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [tool, setTool] = useState<"box" | "text">("box");
   const [noteText, setNoteText] = useState("请查看这里");
+  const [ready, setReady] = useState(false);
   const drawing = useRef<{ x: number; y: number } | null>(null);
   const pendingBox = useRef<Box | null>(null);
 
   const paint = () => {
     const node = canvas.current;
-    const img = image.current;
-    if (!node || !img) return;
+    const base = baseCanvas.current;
+    if (!node || !base) return;
     const ctx = node.getContext("2d");
     if (!ctx) return;
-    node.width = img.naturalWidth;
-    node.height = img.naturalHeight;
-    ctx.drawImage(img, 0, 0);
+    if (node.width !== base.width || node.height !== base.height) {
+      node.width = base.width;
+      node.height = base.height;
+    }
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, node.width, node.height);
+    ctx.drawImage(base, 0, 0);
     ctx.strokeStyle = "#ef5350";
     ctx.fillStyle = "#ef5350";
-    ctx.lineWidth = Math.max(3, img.naturalWidth / 480);
+    ctx.lineWidth = Math.max(3, base.width / 480);
     [...boxes, ...(pendingBox.current ? [pendingBox.current] : [])].forEach(box => ctx.strokeRect(box.x, box.y, box.width, box.height));
-    ctx.font = `${Math.max(18, img.naturalWidth / 48)}px sans-serif`;
+    ctx.font = `${Math.max(18, base.width / 48)}px sans-serif`;
     notes.forEach(note => {
-      const pad = Math.max(6, img.naturalWidth / 160);
+      const pad = Math.max(6, base.width / 160);
       const width = ctx.measureText(note.text).width + pad * 2;
-      const height = Math.max(28, img.naturalWidth / 30);
+      const height = Math.max(28, base.width / 30);
       ctx.fillStyle = "#ef5350";
       ctx.fillRect(note.x, note.y - height, width, height);
       ctx.fillStyle = "#fff";
@@ -98,6 +103,19 @@ function ScreenshotEditor({ source, onSave, onClose }: { source: string; onSave:
     pendingBox.current = null;
     paint();
   };
+  const prepareImage = (img: HTMLImageElement) => {
+    const base = document.createElement("canvas");
+    base.width = img.naturalWidth;
+    base.height = img.naturalHeight;
+    const context = base.getContext("2d");
+    if (!context || !base.width || !base.height) return;
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, base.width, base.height);
+    context.drawImage(img, 0, 0);
+    baseCanvas.current = base;
+    setReady(true);
+    requestAnimationFrame(paint);
+  };
   const save = () => canvas.current?.toBlob(blob => { if (blob) onSave(new File([blob], "annotated-screenshot.png", { type: "image/png" })); }, "image/png");
 
   return <div className="ai-task-editor" role="dialog" aria-modal="true" aria-label="编辑任务截图" onClick={onClose}>
@@ -110,9 +128,9 @@ function ScreenshotEditor({ source, onSave, onClose }: { source: string; onSave:
         <button type="button" onClick={() => { setBoxes([]); setNotes([]); }}>清除标注</button>
       </div>
       <p>{tool === "box" ? "在图片上拖拽即可画框。" : "输入文字后，点击图片添加注释。"}</p>
-      <div className="ai-task-editor__canvas"><canvas ref={canvas} onMouseDown={pointerDown} onMouseMove={pointerMove} onMouseUp={pointerUp} onMouseLeave={pointerUp} /></div>
-      <img className="ai-task-editor__source" src={source} alt="待标注截图" onLoad={event => { image.current = event.currentTarget; paint(); }} />
-      <footer><button type="button" onClick={onClose}>取消</button><button type="button" className="primary" onClick={save}>保存标注</button></footer>
+      <div className="ai-task-editor__canvas" style={{ background: "#fff" }}>{!ready && <span>正在载入截图…</span>}<canvas ref={canvas} onMouseDown={pointerDown} onMouseMove={pointerMove} onMouseUp={pointerUp} onMouseLeave={pointerUp} /></div>
+      <img className="ai-task-editor__source" style={{ display: "block", position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} src={source} alt="待标注截图" onLoad={event => prepareImage(event.currentTarget)} />
+      <footer><button type="button" onClick={onClose}>取消</button><button type="button" className="primary" disabled={!ready} onClick={save}>保存标注</button></footer>
     </section>
   </div>;
 }
