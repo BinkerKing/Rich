@@ -262,6 +262,11 @@ import { SqliteWorkbenchRepo, PostgresWorkbenchRepo, type WorkbenchRepo } from "
 import { WorkbenchService } from "./task-workbench/service.js";
 import { WorkbenchCommands } from "./task-workbench/commands.js";
 import { taskWorkbenchRoutes } from "./routes/taskWorkbench.js";
+import type { AiTaskManagementRepo } from "./repos/AiTaskManagementRepo.js";
+import { SqliteAiTaskManagementRepo } from "./repos/SqliteAiTaskManagementRepo.js";
+import { PostgresAiTaskManagementRepo } from "./repos/PostgresAiTaskManagementRepo.js";
+import { AiTaskManagementService } from "./ai-task-management/service.js";
+import { aiTaskManagementRoutes } from "./routes/aiTaskManagement.js";
 
 export interface BuildAppOptions {
   adapters?: AIAdapter[];
@@ -290,6 +295,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let projectAutomation: ProjectAutomationRepo;
   let mcpOperationRepo: McpOperationRepo;
   let mcpTaskRepo: McpTaskRepo;
+  let aiTaskManagementRepo: AiTaskManagementRepo;
   let multicaBindingRepo: MulticaBindingRepo;
   /** chat_visual_blocks 仅 sqlite + postgres 后端支持；json 模式下保持 null。 */
   let chatVisualBlocks: ChatVisualBlocksRepo | null = null;
@@ -342,6 +348,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     projectAutomation = new PostgresProjectAutomationRepo(pg);
     mcpOperationRepo = new PostgresMcpOperationRepo(pg);
     mcpTaskRepo = new PostgresMcpTaskRepo(pg);
+    aiTaskManagementRepo = new PostgresAiTaskManagementRepo(pg);
     multicaBindingRepo = new PostgresMulticaBindingRepo(pg);
   } else if (storage === "sqlite") {
     const dbPath = process.env.KE_SQLITE_PATH ?? join(root, "ke.db");
@@ -373,6 +380,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     projectAutomation = new SqliteProjectAutomationRepo(db);
     mcpOperationRepo = new SqliteMcpOperationRepo(db);
     mcpTaskRepo = new SqliteMcpTaskRepo(db);
+    aiTaskManagementRepo = new SqliteAiTaskManagementRepo(db);
     multicaBindingRepo = new SqliteMulticaBindingRepo(db);
   } else {
     throw new Error(`Unsupported KE_STORAGE=${storage}. Use sqlite or postgres.`);
@@ -444,6 +452,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     [hermesTaskExecutor, multicaTaskExecutor],
     new DeliverableTaskHistoryService(multicaWorkTasks),
   );
+  const aiTaskManagement = new AiTaskManagementService(aiTaskManagementRepo);
   const promotionContext = new DeliverableTaskContextService(projectManagement, async (projectId, folderPath) => {
     const project = await elements.get(projectId);
     const localFolder = project?.type === "project" && project.content && typeof project.content === "object"
@@ -558,6 +567,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
       return task;
     },
   }));
+  app.route("/api/ai-task-management", aiTaskManagementRoutes(aiTaskManagement));
   app.route("/api/project-management", projectManagementRoutes(projectManagement, { elements, greatMe }));
   app.route("/api/flowcharts", flowchartsRoutes(flowcharts));
   app.route("/api/deliverables", deliverablesRoutes(deliverables, { elements, projectManagement }));
@@ -637,6 +647,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     delegationAdapter: multica.delegationAdapter,
     executionTeams: multica.executionTeams,
     taskService: multicaWorkTasks,
+    aiTaskManagement,
     onToolEvent: event => {
       const operationId = event.data.requestId && operationCorrelations.resolve(event.data.requestId);
       if (!operationId) return;

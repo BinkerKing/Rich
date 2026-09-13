@@ -25,6 +25,7 @@ export type EventKind =
   | "path.changed"
   | "signal.changed"
   | "improvement.changed"
+  | "ai_task.changed"
   | "corpus.changed"
   | "tool_invocation.changed"
   | "mascot.changed"
