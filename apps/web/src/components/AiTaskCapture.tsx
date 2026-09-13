@@ -47,14 +47,20 @@ const ScreenshotEditor = forwardRef<ScreenshotEditorHandle, { source: string; on
   const [ready, setReady] = useState(false);
   const drawing = useRef<{ x: number; y: number } | null>(null);
   const [draft, setDraft] = useState<Box>();
+  const [dragPreview, setDragPreview] = useState<AnnotationState>();
+  const dragging = useRef<{ kind: "box" | "note"; index: number; start: { x: number; y: number }; origin: Box | Note }>();
+  const dragState = useRef<AnnotationState>();
   const annotations = history[historyIndex]!;
+  const displayed = dragPreview ?? annotations;
 
   const commit = (next: AnnotationState) => {
+    dragState.current = undefined;
+    setDragPreview(undefined);
     setHistory(previous => [...previous.slice(0, historyIndex + 1), next]);
     setHistoryIndex(historyIndex + 1);
   };
 
-  const point = (event: React.MouseEvent<HTMLDivElement>) => {
+  const point = (event: React.MouseEvent<HTMLElement>) => {
     const img = image.current!;
     const rect = img.getBoundingClientRect();
     return { x: (event.clientX - rect.left) * (img.naturalWidth / rect.width), y: (event.clientY - rect.top) * (img.naturalHeight / rect.height) };
@@ -69,11 +75,29 @@ const ScreenshotEditor = forwardRef<ScreenshotEditorHandle, { source: string; on
     drawing.current = p;
   };
   const pointerMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (dragging.current) {
+      const current = dragging.current;
+      const p = point(event);
+      const deltaX = p.x - current.start.x;
+      const deltaY = p.y - current.start.y;
+      const next = current.kind === "box"
+        ? { ...annotations, boxes: annotations.boxes.map((box, index) => index === current.index ? { ...box, x: Math.max(0, current.origin.x + deltaX), y: Math.max(0, current.origin.y + deltaY) } : box) }
+        : { ...annotations, notes: annotations.notes.map((note, index) => index === current.index ? { ...note, x: Math.max(0, current.origin.x + deltaX), y: Math.max(0, current.origin.y + deltaY) } : note) };
+      dragState.current = next;
+      setDragPreview(next);
+      return;
+    }
     if (!drawing.current) return;
     const p = point(event);
     setDraft({ x: Math.min(drawing.current.x, p.x), y: Math.min(drawing.current.y, p.y), width: Math.abs(p.x - drawing.current.x), height: Math.abs(p.y - drawing.current.y) });
   };
   const pointerUp = () => {
+    if (dragging.current) {
+      const next = dragState.current;
+      dragging.current = undefined;
+      if (next) commit(next);
+      return;
+    }
     if (draft && draft.width > 4 && draft.height > 4) commit({ ...annotations, boxes: [...annotations.boxes, draft] });
     drawing.current = null;
     setDraft(undefined);
@@ -94,18 +118,18 @@ const ScreenshotEditor = forwardRef<ScreenshotEditorHandle, { source: string; on
     ctx.lineWidth = Math.max(3, canvas.width / 480);
     annotations.boxes.forEach(box => ctx.strokeRect(box.x, box.y, box.width, box.height));
     ctx.font = `${Math.max(18, canvas.width / 48)}px sans-serif`;
-    annotations.notes.filter(note => note.text.trim()).forEach(note => {
-      const pad = Math.max(6, canvas.width / 160);
-      const width = ctx.measureText(note.text).width + pad * 2;
-      const height = Math.max(28, canvas.width / 30);
-      ctx.fillStyle = "#ef5350";
-      ctx.fillRect(note.x, note.y - height, width, height);
-      ctx.fillStyle = "#fff";
-      ctx.fillText(note.text, note.x + pad, note.y - pad);
-    });
+    annotations.notes.filter(note => note.text.trim()).forEach(note => ctx.fillText(note.text, note.x, note.y + Math.max(18, canvas.width / 48)));
     canvas.toBlob(blob => { if (blob) onSave(new File([blob], "annotated-screenshot.png", { type: "image/png" })); }, "image/png");
   };
   const percent = (value: number, total: number) => `${(value / total) * 100}%`;
+  const startMove = (event: React.MouseEvent<HTMLElement>, kind: "box" | "note", index: number) => {
+    event.stopPropagation();
+    const origin = kind === "box" ? annotations.boxes[index]! : annotations.notes[index]!;
+    dragging.current = { kind, index, start: point(event), origin };
+  };
+  const discardEmptyNote = (index: number) => {
+    if (!annotations.notes[index]?.text.trim()) commit({ ...annotations, notes: annotations.notes.filter((_, noteIndex) => noteIndex !== index) });
+  };
   useImperativeHandle(ref, () => ({ save }), [annotations]);
 
   const buttonStyle = (active = false): React.CSSProperties => ({ display: "grid", width: 32, height: 32, padding: 0, placeItems: "center", border: "1px solid #596267", background: active ? "#e4eaeb" : "#1c2022", color: active ? "#192022" : "#e6ebed", cursor: "pointer" });
@@ -119,8 +143,8 @@ const ScreenshotEditor = forwardRef<ScreenshotEditorHandle, { source: string; on
       </div>
       {!ready && <span style={{ color: "#c6ced1", lineHeight: "44px" }}>正在载入截图…</span>}
       <img ref={image} style={{ display: "block", maxWidth: "100%", maxHeight: "58vh", cursor: tool === "box" ? "crosshair" : "text" }} src={source} alt="待标注截图" onLoad={() => setReady(true)} />
-      {ready && [...annotations.boxes, ...(draft ? [draft] : [])].map((box, index) => <i key={`box-${index}`} style={{ position: "absolute", boxSizing: "border-box", border: "3px solid #ef5350", pointerEvents: "none", left: percent(box.x, image.current!.naturalWidth), top: percent(box.y, image.current!.naturalHeight), width: percent(box.width, image.current!.naturalWidth), height: percent(box.height, image.current!.naturalHeight) }} />)}
-      {ready && annotations.notes.map((note, index) => <input key={`note-${index}`} autoFocus={index === annotations.notes.length - 1} value={note.text} aria-label="图片文字标注" placeholder="输入文字" onMouseDown={event => event.stopPropagation()} onChange={event => commit({ ...annotations, notes: annotations.notes.map((item, noteIndex) => noteIndex === index ? { ...item, text: event.target.value } : item) })} style={{ position: "absolute", minWidth: 72, border: "1px solid #ef5350", borderRadius: 3, padding: "4px 6px", outline: "none", background: "#fff", color: "#202326", font: "14px/1.2 sans-serif", left: percent(note.x, image.current!.naturalWidth), top: percent(note.y, image.current!.naturalHeight) }} />)}
+      {ready && [...displayed.boxes, ...(draft ? [draft] : [])].map((box, index) => <i key={`box-${index}`} onMouseDown={event => startMove(event, "box", index)} style={{ position: "absolute", boxSizing: "border-box", border: "3px solid #ef5350", cursor: "move", left: percent(box.x, image.current!.naturalWidth), top: percent(box.y, image.current!.naturalHeight), width: percent(box.width, image.current!.naturalWidth), height: percent(box.height, image.current!.naturalHeight) }} />)}
+      {ready && displayed.notes.map((note, index) => <input key={`note-${index}`} autoFocus={index === displayed.notes.length - 1} value={note.text} aria-label="图片文字标注" onMouseDown={event => startMove(event, "note", index)} onBlur={() => discardEmptyNote(index)} onChange={event => commit({ ...annotations, notes: annotations.notes.map((item, noteIndex) => noteIndex === index ? { ...item, text: event.target.value } : item) })} style={{ position: "absolute", width: `${Math.max(2, note.text.length + 1)}ch`, minWidth: "2ch", border: 0, padding: 0, outline: "none", background: "transparent", color: "#ef5350", font: "600 18px/1.25 sans-serif", textShadow: "0 1px 2px #000", cursor: "move", left: percent(note.x, image.current!.naturalWidth), top: percent(note.y, image.current!.naturalHeight) }} />)}
     </div>
   </section>;
 });
