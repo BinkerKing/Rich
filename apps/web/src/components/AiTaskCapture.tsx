@@ -261,8 +261,10 @@ export function AiTaskCapture() {
       input.focus();
       input.setSelectionRange(input.value.length, input.value.length);
     });
-    if (item.id === "bug_fix" && composer.attachments.length === 0 && !composer.isUploading) {
-      void attachScreenshot();
+    if (item.id === "bug_fix") {
+      composer.clear();
+      setEditing(undefined);
+      requestAnimationFrame(() => void attachScreenshot());
     }
   };
   const update = (value: string) => {
