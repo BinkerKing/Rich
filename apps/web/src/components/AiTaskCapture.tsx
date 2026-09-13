@@ -258,10 +258,12 @@ export function AiTaskCapture() {
       <header className="ai-task-capture__titlebar" onPointerDown={beginMove}>
         <span>定位 · {location}</span>
         {selectedMode && <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button type="button" aria-label="截取当前界面" title="截取当前界面" onClick={() => void attachScreenshot()} style={{ display: "grid", width: 36, height: 36, padding: 0, placeItems: "center" }}>
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M8 8h8v8H8z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <button type="button" className="ai-task-capture__action" aria-label="截取当前界面" title="截取当前界面" onClick={() => void attachScreenshot()}>
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M8 8h8v8H8z" stroke="currentColor" strokeWidth="2.15" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
-          <button type="button" className="primary" disabled={!text.replace(/^\s*#(?:BUG|需求|任务|改造)：\s*/, "").replace(/^\/\w+\s*/, "").trim() || saving || composer.isUploading} onClick={() => void submit()}>{saving ? "登记中…" : "登记"}</button>
+          <button type="button" className="ai-task-capture__action" aria-label={saving ? "正在登记" : "登记任务"} title={saving ? "正在登记" : "登记任务"} disabled={!text.replace(/^\s*#(?:BUG|需求|任务|改造)：\s*/, "").replace(/^\/\w+\s*/, "").trim() || saving || composer.isUploading} onClick={() => void submit()}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 5v6a5 5 0 0 0 5 5h9m0 0-4-4m4 4-4 4" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
         </div>
         }
       </header>
