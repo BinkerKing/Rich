@@ -55,7 +55,10 @@ export interface BuildMcpV2Deps {
 }
 
 export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
-  const registry = new RichToolRegistry({ maxTools: 40 });
+  // Rich now exposes the AI task lifecycle alongside the existing project,
+  // deliverable, and workbench tools. Keep an explicit server-wide ceiling so
+  // the full registry cannot fail during desktop startup as tools are added.
+  const registry = new RichToolRegistry({ maxTools: 50 });
   const adapter = deps.delegationAdapter ?? new UnavailableDelegationAdapter(
     "Agent delegation is not configured. Install and configure a Multica CLI adapter before delegating work.",
   );
