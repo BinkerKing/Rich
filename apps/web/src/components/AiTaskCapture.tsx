@@ -38,52 +38,22 @@ function clampFrame(frame: CaptureFrame): CaptureFrame {
 }
 
 function ScreenshotEditor({ source, onSave, onClose }: { source: string; onSave: (file: File) => void; onClose: () => void }) {
-  const canvas = useRef<HTMLCanvasElement>(null);
-  const baseCanvas = useRef<HTMLCanvasElement | null>(null);
+  const image = useRef<HTMLImageElement>(null);
   const [boxes, setBoxes] = useState<Box[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [tool, setTool] = useState<"box" | "text">("box");
   const [noteText, setNoteText] = useState("请查看这里");
   const [ready, setReady] = useState(false);
   const drawing = useRef<{ x: number; y: number } | null>(null);
-  const pendingBox = useRef<Box | null>(null);
+  const [draft, setDraft] = useState<Box>();
 
-  const paint = () => {
-    const node = canvas.current;
-    const base = baseCanvas.current;
-    if (!node || !base) return;
-    const ctx = node.getContext("2d");
-    if (!ctx) return;
-    if (node.width !== base.width || node.height !== base.height) {
-      node.width = base.width;
-      node.height = base.height;
-    }
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, node.width, node.height);
-    ctx.drawImage(base, 0, 0);
-    ctx.strokeStyle = "#ef5350";
-    ctx.fillStyle = "#ef5350";
-    ctx.lineWidth = Math.max(3, base.width / 480);
-    [...boxes, ...(pendingBox.current ? [pendingBox.current] : [])].forEach(box => ctx.strokeRect(box.x, box.y, box.width, box.height));
-    ctx.font = `${Math.max(18, base.width / 48)}px sans-serif`;
-    notes.forEach(note => {
-      const pad = Math.max(6, base.width / 160);
-      const width = ctx.measureText(note.text).width + pad * 2;
-      const height = Math.max(28, base.width / 30);
-      ctx.fillStyle = "#ef5350";
-      ctx.fillRect(note.x, note.y - height, width, height);
-      ctx.fillStyle = "#fff";
-      ctx.fillText(note.text, note.x + pad, note.y - pad);
-    });
+  const point = (event: React.MouseEvent<HTMLDivElement>) => {
+    const img = image.current!;
+    const rect = img.getBoundingClientRect();
+    return { x: (event.clientX - rect.left) * (img.naturalWidth / rect.width), y: (event.clientY - rect.top) * (img.naturalHeight / rect.height) };
   };
-
-  useEffect(() => { paint(); }, [boxes, notes]);
-  const point = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const node = canvas.current!;
-    const rect = node.getBoundingClientRect();
-    return { x: (event.clientX - rect.left) * (node.width / rect.width), y: (event.clientY - rect.top) * (node.height / rect.height) };
-  };
-  const pointerDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const pointerDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!ready) return;
     const p = point(event);
     if (tool === "text") {
       if (noteText.trim()) setNotes(prev => [...prev, { ...p, text: noteText.trim() }]);
@@ -91,32 +61,44 @@ function ScreenshotEditor({ source, onSave, onClose }: { source: string; onSave:
     }
     drawing.current = p;
   };
-  const pointerMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const pointerMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!drawing.current) return;
     const p = point(event);
-    pendingBox.current = { x: Math.min(drawing.current.x, p.x), y: Math.min(drawing.current.y, p.y), width: Math.abs(p.x - drawing.current.x), height: Math.abs(p.y - drawing.current.y) };
-    paint();
+    setDraft({ x: Math.min(drawing.current.x, p.x), y: Math.min(drawing.current.y, p.y), width: Math.abs(p.x - drawing.current.x), height: Math.abs(p.y - drawing.current.y) });
   };
   const pointerUp = () => {
-    if (pendingBox.current && pendingBox.current.width > 4 && pendingBox.current.height > 4) setBoxes(prev => [...prev, pendingBox.current!]);
+    if (draft && draft.width > 4 && draft.height > 4) setBoxes(prev => [...prev, draft]);
     drawing.current = null;
-    pendingBox.current = null;
-    paint();
+    setDraft(undefined);
   };
-  const prepareImage = (img: HTMLImageElement) => {
-    const base = document.createElement("canvas");
-    base.width = img.naturalWidth;
-    base.height = img.naturalHeight;
-    const context = base.getContext("2d");
-    if (!context || !base.width || !base.height) return;
-    context.fillStyle = "#fff";
-    context.fillRect(0, 0, base.width, base.height);
-    context.drawImage(img, 0, 0);
-    baseCanvas.current = base;
-    setReady(true);
-    requestAnimationFrame(paint);
+  const save = () => {
+    const original = image.current;
+    if (!original) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = original.naturalWidth;
+    canvas.height = original.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(original, 0, 0);
+    ctx.strokeStyle = "#ef5350";
+    ctx.fillStyle = "#ef5350";
+    ctx.lineWidth = Math.max(3, canvas.width / 480);
+    boxes.forEach(box => ctx.strokeRect(box.x, box.y, box.width, box.height));
+    ctx.font = `${Math.max(18, canvas.width / 48)}px sans-serif`;
+    notes.forEach(note => {
+      const pad = Math.max(6, canvas.width / 160);
+      const width = ctx.measureText(note.text).width + pad * 2;
+      const height = Math.max(28, canvas.width / 30);
+      ctx.fillStyle = "#ef5350";
+      ctx.fillRect(note.x, note.y - height, width, height);
+      ctx.fillStyle = "#fff";
+      ctx.fillText(note.text, note.x + pad, note.y - pad);
+    });
+    canvas.toBlob(blob => { if (blob) onSave(new File([blob], "annotated-screenshot.png", { type: "image/png" })); }, "image/png");
   };
-  const save = () => canvas.current?.toBlob(blob => { if (blob) onSave(new File([blob], "annotated-screenshot.png", { type: "image/png" })); }, "image/png");
+  const percent = (value: number, total: number) => `${(value / total) * 100}%`;
 
   return <div className="ai-task-editor" role="dialog" aria-modal="true" aria-label="编辑任务截图" onClick={onClose}>
     <section onClick={event => event.stopPropagation()}>
@@ -128,8 +110,12 @@ function ScreenshotEditor({ source, onSave, onClose }: { source: string; onSave:
         <button type="button" onClick={() => { setBoxes([]); setNotes([]); }}>清除标注</button>
       </div>
       <p>{tool === "box" ? "在图片上拖拽即可画框。" : "输入文字后，点击图片添加注释。"}</p>
-      <div className="ai-task-editor__canvas" style={{ background: "#fff" }}>{!ready && <span>正在载入截图…</span>}<canvas ref={canvas} onMouseDown={pointerDown} onMouseMove={pointerMove} onMouseUp={pointerUp} onMouseLeave={pointerUp} /></div>
-      <img className="ai-task-editor__source" style={{ display: "block", position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} src={source} alt="待标注截图" onLoad={event => prepareImage(event.currentTarget)} />
+      <div className="ai-task-editor__canvas" style={{ position: "relative", display: "inline-block", minHeight: 0, background: "#fff" }} onMouseDown={pointerDown} onMouseMove={pointerMove} onMouseUp={pointerUp} onMouseLeave={pointerUp}>
+        {!ready && <span>正在载入截图…</span>}
+        <img ref={image} style={{ display: "block", maxWidth: "100%", maxHeight: "58vh" }} src={source} alt="待标注截图" onLoad={() => setReady(true)} />
+        {ready && [...boxes, ...(draft ? [draft] : [])].map((box, index) => <i key={`box-${index}`} className="ai-task-editor__box" style={{ position: "absolute", boxSizing: "border-box", border: "3px solid #ef5350", pointerEvents: "none", left: percent(box.x, image.current!.naturalWidth), top: percent(box.y, image.current!.naturalHeight), width: percent(box.width, image.current!.naturalWidth), height: percent(box.height, image.current!.naturalHeight) }} />)}
+        {ready && notes.map((note, index) => <b key={`note-${index}`} className="ai-task-editor__note" style={{ position: "absolute", padding: "5px 8px", background: "#ef5350", color: "#fff", font: "14px/1.2 sans-serif", pointerEvents: "none", whiteSpace: "nowrap", left: percent(note.x, image.current!.naturalWidth), top: percent(note.y, image.current!.naturalHeight) }}>{note.text}</b>)}
+      </div>
       <footer><button type="button" onClick={onClose}>取消</button><button type="button" className="primary" disabled={!ready} onClick={save}>保存标注</button></footer>
     </section>
   </div>;
