@@ -265,10 +265,10 @@
   overflow: visible;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 28px 54px;
+  grid-template-rows: 36px 54px;
   align-items: center;
   row-gap: 2px;
-  min-height: 92px;
+  min-height: 100px;
   padding: 4px 16px 4px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, .16);
   margin-bottom: 12px;
@@ -296,9 +296,9 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
-  height: 28px;
+  height: 36px;
   white-space: nowrap;
   overflow: hidden;
 }
@@ -314,8 +314,10 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 19px;
-  line-height: 1.15;
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  line-height: 1.1;
   cursor: text;
 }
 .prj-ws__title-input {
@@ -328,7 +330,7 @@
   outline: none;
   color: #fff;
   background: #252525;
-  font: 600 19px/1.15 inherit;
+  font: 700 25px/1.1 inherit;
 }
 .prj-ws__status {
   font-size: 11px;

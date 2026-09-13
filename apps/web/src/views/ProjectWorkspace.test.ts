@@ -21,15 +21,20 @@ test("项目管理内容区使用统一石墨灰底色，并通过边框分隔�
 
 test("项目工作区标题与导航贴近顶部左边线并使用同一对齐基准", () => {
   assert.match(workspace, /<div className="prj-ws__head-row">[\s\S]*prj-ws__project-title[\s\S]*prj-ws__menu-settings/s);
-  assert.match(styles, /\.prj-ws__head\s*\{[^}]*grid-template-rows:\s*28px 54px/s);
-  assert.match(styles, /\.prj-ws__head\s*\{[^}]*row-gap:\s*2px[^}]*min-height:\s*92px[^}]*padding:\s*4px 16px 4px 12px/s);
+  assert.match(styles, /\.prj-ws__head\s*\{[^}]*grid-template-rows:\s*36px 54px/s);
+  assert.match(styles, /\.prj-ws__head\s*\{[^}]*row-gap:\s*2px[^}]*min-height:\s*100px[^}]*padding:\s*4px 16px 4px 12px/s);
   assert.match(styles, /\.prj-ws\s*\{[^}]*padding:\s*6px 16px 14px 12px/s);
   assert.match(styles, /\.prj-ws__head-row\s*\{[^}]*align-items:\s*center[^}]*justify-content:\s*space-between/s);
-  assert.match(styles, /\.prj-ws__project-title\s*\{[^}]*position:\s*static[^}]*height:\s*28px/s);
+  assert.match(styles, /\.prj-ws__project-title\s*\{[^}]*position:\s*static[^}]*gap:\s*12px[^}]*height:\s*36px/s);
   assert.match(styles, /\.prj-ws__menu-settings\s*\{[^}]*position:\s*static[^}]*width:\s*28px[^}]*height:\s*28px/s);
   assert.match(styles, /\.prj-ws__nav\s*\{[^}]*align-items:\s*center[^}]*justify-content:\s*flex-start/s);
   assert.match(workspace, /startEditingProjectTitle\(\)/);
   assert.match(workspace, /await api\.patchElement\(project\.id, \{ title: nextTitle \}\)/);
+});
+
+test("项目名称在顶部具有明确的视觉层级，编辑状态保持一致", () => {
+  assert.match(styles, /\.prj-ws__project-title \.prj-ws__title\s*\{[^}]*font-size:\s*25px[^}]*font-weight:\s*700/s);
+  assert.match(styles, /\.prj-ws__title-input\s*\{[^}]*font:\s*700 25px\/1\.1 inherit/s);
 });
 
 test("项目管理各模块的标题操作区采用驾驶舱式紧凑行距", () => {
