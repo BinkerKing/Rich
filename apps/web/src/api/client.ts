@@ -151,6 +151,14 @@ export const api = {
     const r = await fetch("/api/ai-task-management", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
     if (!r.ok) throw new Error(`create AI task failed: ${r.status}`); return r.json();
   },
+  async saveAiManagedTaskDraft(input: AiManagedTaskCreateInput, id?: string): Promise<AiManagedTask> {
+    const r = await fetch(id ? `/api/ai-task-management/${encodeURIComponent(id)}/draft` : "/api/ai-task-management/drafts", { method: id ? "PUT" : "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!r.ok) throw new Error(`save AI task draft failed: ${r.status}`); return r.json();
+  },
+  async publishAiManagedTaskDraft(id: string, input: AiManagedTaskCreateInput): Promise<AiManagedTask> {
+    const r = await fetch(`/api/ai-task-management/${encodeURIComponent(id)}/publish`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!r.ok) throw new Error(`publish AI task draft failed: ${r.status}`); return r.json();
+  },
   async listAiManagedTasks(): Promise<AiManagedTask[]> {
     const r = await fetch("/api/ai-task-management"); if (!r.ok) throw new Error(`list AI tasks failed: ${r.status}`); return (await r.json()).tasks;
   },
@@ -2397,7 +2405,7 @@ export interface ProbeConnectionsResult {
   }>;
 }
 
-export type AiManagedTaskStatus = "ready" | "claimed" | "needs_review" | "blocked" | "resolved";
+export type AiManagedTaskStatus = "draft" | "ready" | "claimed" | "needs_review" | "blocked" | "resolved";
 export interface AiManagedTask {
   id: string; rootTaskId: string; parentTaskId?: string; sceneId: "bug_fix" | "requirement_analysis" | "deliverable_task" | "system_improvement";
   title: string; status: AiManagedTaskStatus; contextSummary: string; input: AiManagedTaskCreateInput["input"]; payload: Record<string, unknown>; claimedBy?: string; projectId?: string; deliverableId?: string; latestFeedback?: string; updatedAt: string;

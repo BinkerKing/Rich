@@ -3,6 +3,7 @@ import { getAiTaskScene, type AiTaskScene } from "./scenes.js";
 import type { AiManagedTask, AiTaskManagementRepo, AiTaskNode, AiTaskSceneId } from "../repos/AiTaskManagementRepo.js";
 
 type TaskInput = AiManagedTask["input"];
+type TaskDraftInput = { sceneId: AiTaskSceneId; title: string; input: TaskInput; payload?: Record<string, unknown>; contextSummary?: string; sourceConversationId?: string; projectId?: string; deliverableId?: string };
 export class AiTaskManagementService {
   constructor(private readonly repo: AiTaskManagementRepo) {}
   async list() {
@@ -12,10 +13,30 @@ export class AiTaskManagementService {
       return latest ? { ...task, latestFeedback: latest.result } : task;
     }));
   }
-  async create(input: { sceneId: AiTaskSceneId; title: string; input: TaskInput; payload?: Record<string, unknown>; contextSummary?: string; sourceConversationId?: string; projectId?: string; deliverableId?: string }): Promise<AiManagedTask> {
+  async create(input: TaskDraftInput): Promise<AiManagedTask> {
     const scene = getAiTaskScene(input.sceneId); const now = new Date().toISOString(); const id = `ai-task-${randomUUID()}`;
     const task: AiManagedTask = { id, rootTaskId: id, sceneId: scene.id, sceneVersion: scene.version, title: input.title, status: "ready", input: input.input, payload: input.payload ?? {}, contextSummary: input.contextSummary ?? input.input.text.slice(0, 2000), ...(input.sourceConversationId ? { sourceConversationId: input.sourceConversationId } : {}), ...(input.projectId ? { projectId: input.projectId } : {}), ...(input.deliverableId ? { deliverableId: input.deliverableId } : {}), createdAt: now, updatedAt: now };
     await this.repo.create(task); return task;
+  }
+  async saveDraft(input: TaskDraftInput, id?: string): Promise<AiManagedTask> {
+    const now = new Date().toISOString();
+    if (!id) {
+      const scene = getAiTaskScene(input.sceneId); const draftId = `ai-task-${randomUUID()}`;
+      const task: AiManagedTask = { id: draftId, rootTaskId: draftId, sceneId: scene.id, sceneVersion: scene.version, title: input.title, status: "draft", input: input.input, payload: input.payload ?? {}, contextSummary: input.contextSummary ?? input.input.text.slice(0, 2000), createdAt: now, updatedAt: now };
+      await this.repo.create(task); return task;
+    }
+    const task = await this.requireTask(id);
+    if (task.status !== "draft") throw new Error("Only draft tasks can be updated as drafts.");
+    const scene = getAiTaskScene(input.sceneId);
+    const next: AiManagedTask = { ...task, sceneId: scene.id, sceneVersion: scene.version, title: input.title, status: "draft", input: input.input, payload: input.payload ?? {}, contextSummary: input.contextSummary ?? input.input.text.slice(0, 2000), updatedAt: now };
+    await this.repo.save(next); return next;
+  }
+  async publishDraft(id: string, input: TaskDraftInput): Promise<AiManagedTask> {
+    const task = await this.requireTask(id);
+    if (task.status !== "draft") throw new Error("Only draft tasks can be published.");
+    const scene = getAiTaskScene(input.sceneId); const now = new Date().toISOString();
+    const next: AiManagedTask = { ...task, sceneId: scene.id, sceneVersion: scene.version, title: input.title, status: "ready", input: input.input, payload: input.payload ?? {}, contextSummary: input.contextSummary ?? input.input.text.slice(0, 2000), updatedAt: now };
+    await this.repo.save(next); return next;
   }
   async claim(id: string, agentId: string) { return this.repo.claim(id, agentId); }
   async getPacket(id: string): Promise<{ task: AiManagedTask; scene: AiTaskScene; nodes: AiTaskNode[] }> { const task = await this.requireTask(id); return { task, scene: getAiTaskScene(task.sceneId), nodes: await this.repo.listNodes(id) }; }

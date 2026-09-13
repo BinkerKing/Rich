@@ -46,6 +46,8 @@ export interface UseChatComposerReturn {
   detach: (clientId: string) => void;
   /** 清空（发送成功后调用） */
   clear: () => void;
+  /** 恢复已经上传的图片引用，用于继续编辑暂存任务。 */
+  restore: (refs: Array<{ id: string; path?: string; mime?: string }>) => void;
   /** 拿到 ChatAttachmentRef[]（只取 state=ready 且 serverId 存在的） */
   getAttachmentRefs: () => Array<{ id: string; mime: string; url: string; width?: number; height?: number }>;
   /** 是否有任何上传中 —— 调用方可禁用 send */
@@ -152,6 +154,15 @@ export function useChatComposer(opts: UseChatComposerOptions = {}): UseChatCompo
       return [];
     });
   }, []);
+  const restore = useCallback((refs: Array<{ id: string; path?: string; mime?: string }>) => {
+    setAttachments(previous => {
+      previous.forEach(item => URL.revokeObjectURL(item.previewUrl));
+      return refs.slice(0, maxAttachments).map((ref, index) => {
+        const url = ref.path ?? `/api/chat/attachments/${encodeURIComponent(ref.id)}/data`;
+        return { clientId: `saved-${ref.id}-${index}`, serverId: ref.id, state: "ready" as AttachState, previewUrl: url, remoteUrl: url, mime: ref.mime ?? "image/png", sizeBytes: 0 };
+      });
+    });
+  }, [maxAttachments]);
 
   const getAttachmentRefs = useCallback(() => {
     return attachments
@@ -171,5 +182,5 @@ export function useChatComposer(opts: UseChatComposerOptions = {}): UseChatCompo
   );
   const isFull = attachments.length >= maxAttachments;
 
-  return { attachments, attach, detach, clear, getAttachmentRefs, isUploading, isFull };
+  return { attachments, attach, detach, clear, restore, getAttachmentRefs, isUploading, isFull };
 }

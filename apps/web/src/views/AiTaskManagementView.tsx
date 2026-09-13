@@ -4,7 +4,7 @@ import { api, type AiManagedTask, type AiManagedTaskPacket, type AiManagedTaskSt
 import "./AiTaskManagementView.css";
 import "./AiTaskManagementDrawer.css";
 
-const statusLabel: Record<AiManagedTaskStatus, string> = { ready: "待认领", claimed: "已认领", needs_review: "待 Review", blocked: "有阻塞", resolved: "已解决" };
+const statusLabel: Record<AiManagedTaskStatus, string> = { draft: "暂存", ready: "待认领", claimed: "已认领", needs_review: "待 Review", blocked: "有阻塞", resolved: "已解决" };
 const sceneLabel: Record<AiManagedTask["sceneId"], string> = { bug_fix: "Bug 修复", requirement_analysis: "需求分析", deliverable_task: "交付物任务", system_improvement: "系统改造" };
 const scenes: AiManagedTask["sceneId"][] = ["bug_fix", "requirement_analysis", "deliverable_task", "system_improvement"];
 type TaskRow = { id: string; title: string; status: string; project: string; deliverable: string; claimedBy: string; updatedAt: string; page: string; screenshot: string; description: string; feedback: string };

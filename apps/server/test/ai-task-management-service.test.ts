@@ -47,4 +47,17 @@ describe("AI task management service", () => {
     await expect(service.getPacket(task.id)).rejects.toThrow(`AI task ${task.id} was not found.`);
     expect(await service.list()).toEqual([]);
   });
+
+  it("saves an unfinished task as a draft and publishes that same task", async () => {
+    const service = new AiTaskManagementService(new SqliteAiTaskManagementRepo(openDb(":memory:")));
+    const input = { sceneId: "bug_fix" as const, title: "暂存的首页问题", input: { text: "页面定位：首页\n\n列表还未完成", images: [{ id: "image-1", label: "任务截图" }], materials: [] }, payload: { page: ["首页"], draft: { text: "列表还未完成", location: "首页" } } };
+    const draft = await service.saveDraft(input);
+    expect(draft).toMatchObject({ status: "draft", title: "暂存的首页问题" });
+
+    const updated = await service.saveDraft({ ...input, title: "暂存的首页问题（已补充）" }, draft.id);
+    expect(updated).toMatchObject({ id: draft.id, status: "draft", title: "暂存的首页问题（已补充）" });
+
+    const published = await service.publishDraft(draft.id, input);
+    expect(published).toMatchObject({ id: draft.id, status: "ready" });
+  });
 });

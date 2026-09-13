@@ -1,6 +1,6 @@
 export const aiTaskScenes = ["bug_fix", "requirement_analysis", "deliverable_task", "system_improvement"] as const;
 export type AiTaskSceneId = typeof aiTaskScenes[number];
-export const aiTaskStatuses = ["ready", "claimed", "needs_review", "blocked", "resolved"] as const;
+export const aiTaskStatuses = ["draft", "ready", "claimed", "needs_review", "blocked", "resolved"] as const;
 export type AiTaskStatus = typeof aiTaskStatuses[number];
 
 export interface AiTaskResourceRef { id: string; label: string; path?: string; mime?: string; }

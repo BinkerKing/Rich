@@ -12,7 +12,7 @@ const modes: Array<{ id: AiManagedTask["sceneId"]; token: string; label: string;
 ];
 const listCommand = { token: "/list", label: "清单", description: "查看当前未结束的 AI 任务" };
 const taskTypeLabel: Record<AiManagedTask["sceneId"], string> = { bug_fix: "BUG", requirement_analysis: "需求", deliverable_task: "任务", system_improvement: "改造" };
-const taskStatusLabel: Record<AiManagedTask["status"], string> = { ready: "待认领", claimed: "已认领", needs_review: "待 Review", blocked: "有阻塞", resolved: "已解决" };
+const taskStatusLabel: Record<AiManagedTask["status"], string> = { draft: "暂存", ready: "待认领", claimed: "已认领", needs_review: "待 Review", blocked: "有阻塞", resolved: "已解决" };
 
 const viewLabels: Record<string, string> = { aiTaskManagement: "AI 任务管理", projects: "项目管理", deliverables: "交付物", taskWorkbench: "任务工作台" };
 type Box = { x: number; y: number; width: number; height: number };
@@ -169,6 +169,7 @@ export function AiTaskCapture() {
   const [text, setText] = useState("");
   const [mode, setMode] = useState<AiManagedTask["sceneId"]>("bug_fix");
   const [selectedMode, setSelectedMode] = useState<AiManagedTask["sceneId"]>();
+  const [draftId, setDraftId] = useState<string>();
   const [listMode, setListMode] = useState(false);
   const [listedTasks, setListedTasks] = useState<AiManagedTask[]>([]);
   const [listLoading, setListLoading] = useState(false);
@@ -267,6 +268,7 @@ export function AiTaskCapture() {
   };
   const selectMode = (item: typeof modes[number]) => {
     setListMode(false);
+    setDraftId(undefined);
     setMode(item.id);
     setSelectedMode(item.id);
     setFrozenLocation(item.id === "bug_fix" ? location : undefined);
@@ -288,6 +290,7 @@ export function AiTaskCapture() {
     setListMode(true);
     setSelectedMode(undefined);
     setFrozenLocation(undefined);
+    setDraftId(undefined);
     composer.clear();
     setEditing(undefined);
     setText("");
@@ -350,12 +353,50 @@ export function AiTaskCapture() {
   const submit = async () => {
     const content = text.replace(/^\s*(?:#(?:BUG|需求|任务|改造)：)?\s*\/(bug|requirement|task|improve)\s*/i, "").replace(/^\s*#(?:BUG|需求|任务|改造)：\s*/i, "").trim();
     if (!content || composer.isUploading) return;
+    const taskInput = { sceneId: mode, title: content.slice(0, 80), input: { text: `页面定位：${taskLocation}\n\n${content}`, images: composer.getAttachmentRefs().map(item => ({ id: item.id, label: "任务截图", path: item.url, mime: item.mime })), materials: [] }, payload: { page: [taskLocation], draft: { text: content, location: taskLocation } }, contextSummary: content.slice(0, 2000) };
     setSaving(true);
     try {
-      await api.createAiManagedTask({ sceneId: mode, title: content.slice(0, 80), input: { text: `页面定位：${taskLocation}\n\n${content}`, images: composer.getAttachmentRefs().map(item => ({ id: item.id, label: "任务截图", mime: item.mime })), materials: [] }, payload: { page: [taskLocation] }, contextSummary: content.slice(0, 2000) });
-      composer.clear(); setText(""); setSelectedMode(undefined); setListMode(false); setFrozenLocation(undefined); setOpen(false);
+      if (draftId) await api.publishAiManagedTaskDraft(draftId, taskInput); else await api.createAiManagedTask(taskInput);
+      composer.clear(); setText(""); setDraftId(undefined); setSelectedMode(undefined); setListMode(false); setFrozenLocation(undefined); setOpen(false);
     } finally { setSaving(false); }
   };
+  const saveDraft = async () => {
+    if (!selectedMode || composer.isUploading || saving) return;
+    const content = text.trim();
+    const taskInput = { sceneId: mode, title: content.slice(0, 80) || `${modes.find(item => item.id === mode)?.label ?? "任务"} 草稿`, input: { text: `页面定位：${taskLocation}\n\n${content}`, images: composer.getAttachmentRefs().map(item => ({ id: item.id, label: "任务截图", path: item.url, mime: item.mime })), materials: [] }, payload: { page: [taskLocation], draft: { text: content, location: taskLocation } }, contextSummary: content.slice(0, 2000) };
+    setSaving(true);
+    try {
+      const draft = await api.saveAiManagedTaskDraft(taskInput, draftId);
+      setDraftId(draft.id);
+      composer.clear(); setText(""); setSelectedMode(undefined); setFrozenLocation(undefined); setListMode(true);
+    } finally { setSaving(false); }
+  };
+  const restoreDraft = (task: AiManagedTask) => {
+    if (task.status !== "draft") return;
+    const draft = task.payload.draft;
+    const saved = draft && typeof draft === "object" ? draft as { text?: unknown; location?: unknown } : undefined;
+    setMode(task.sceneId); setSelectedMode(task.sceneId); setDraftId(task.id); setListMode(false);
+    setFrozenLocation(typeof saved?.location === "string" ? saved.location : undefined);
+    setText(typeof saved?.text === "string" ? saved.text : task.contextSummary);
+    composer.restore(task.input.images);
+    setEditing(undefined);
+    requestAnimationFrame(() => {
+      const input = inputRef.current;
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    });
+  };
+  useEffect(() => {
+    if (!open || !selectedMode) return;
+    const onSave = (event: KeyboardEvent) => {
+      if (!event.metaKey || event.key.toLowerCase() !== "s") return;
+      event.preventDefault();
+      void saveDraft();
+    };
+    window.addEventListener("keydown", onSave);
+    return () => window.removeEventListener("keydown", onSave);
+  }, [open, selectedMode, saving, text, draftId, composer.isUploading]);
 
   if (!open) return null;
   const selectedModeItem = modes.find(item => item.id === selectedMode);
@@ -382,7 +423,7 @@ export function AiTaskCapture() {
         {suggestionsOpen && <div className="ai-task-capture__suggestions" style={{ position: "static", marginTop: 8 }}>{[...modes, listCommand].filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.token} type="button" onMouseDown={event => { event.preventDefault(); "id" in item ? selectMode(item as typeof modes[number]) : selectListMode(); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
       </div>
       {listMode && <div style={{ marginTop: 18, borderTop: "1px solid #30383c" }}>
-        {listLoading ? <p style={{ margin: "16px 0", color: "#99a5aa" }}>正在加载任务清单…</p> : visibleTasks.length ? visibleTasks.map(task => <article key={task.id} style={{ display: "grid", gridTemplateColumns: "72px minmax(0, 1fr) auto", gap: 12, alignItems: "center", padding: "13px 4px", borderBottom: "1px solid #293034" }}><b style={{ color: "#68d891", fontSize: 12, letterSpacing: ".06em" }}>{taskTypeLabel[task.sceneId]}</b><span style={{ overflow: "hidden", color: "#eef3f4", fontWeight: 600, textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.title}</span><small style={{ color: "#aab6ba" }}>{taskStatusLabel[task.status]}</small></article>) : <p style={{ margin: "16px 0", color: "#99a5aa" }}>没有符合条件的未结束 AI 任务。</p>}
+        {listLoading ? <p style={{ margin: "16px 0", color: "#99a5aa" }}>正在加载任务清单…</p> : visibleTasks.length ? visibleTasks.map(task => <article key={task.id} title={task.status === "draft" ? "双击继续编辑暂存任务" : undefined} onDoubleClick={() => restoreDraft(task)} style={{ display: "grid", gridTemplateColumns: "72px minmax(0, 1fr) auto", gap: 12, alignItems: "center", padding: "13px 4px", borderBottom: "1px solid #293034", cursor: task.status === "draft" ? "pointer" : "default" }}><b style={{ color: task.status === "draft" ? "#d7aa55" : "#68d891", fontSize: 12, letterSpacing: ".06em" }}>{taskTypeLabel[task.sceneId]}</b><span style={{ overflow: "hidden", color: "#eef3f4", fontWeight: 600, textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.title}</span><small style={{ color: task.status === "draft" ? "#d7aa55" : "#aab6ba" }}>{taskStatusLabel[task.status]}</small></article>) : <p style={{ margin: "16px 0", color: "#99a5aa" }}>没有符合条件的未结束 AI 任务。</p>}
       </div>}
       {composer.attachments.length > 0 && <div className="ai-task-capture__images" style={{ marginTop: 16 }}>{composer.attachments.map(item => <figure key={item.clientId}><button type="button" className="ai-task-capture__preview" onClick={() => editing?.clientId === item.clientId ? editorRef.current?.save() : setEditing({ clientId: item.clientId, source: item.previewUrl })}><img src={item.previewUrl} alt="任务截图，点击编辑并再次点击保存" /></button><button type="button" className="ai-task-capture__remove" aria-label="删除截图" title="删除截图" onClick={() => detachAttachment(item.clientId)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M9 7l1-2h4l1 2m-9 0 1 13h10l1-13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></button></figure>)}</div>}
       {editing && <ScreenshotEditor ref={editorRef} source={editing.source} onSave={file => void replaceAttachment(file)} />}
