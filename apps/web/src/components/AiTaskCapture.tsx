@@ -242,7 +242,7 @@ export function AiTaskCapture() {
   const selectMode = (item: typeof modes[number]) => {
     setMode(item.id);
     setSelectedMode(item.id);
-    setText(value => `#${item.label}：${value.replace(/^\s*(?:#(?:BUG|需求|任务|改造)：)?\s*\/\w*\s*/i, "")}`);
+    setText(value => value.replace(/^\s*(?:#(?:BUG|需求|任务|改造)：)?\s*\/\w*\s*/i, ""));
     setSuggestionsOpen(false);
     requestAnimationFrame(() => {
       const input = inputRef.current;
@@ -258,7 +258,7 @@ export function AiTaskCapture() {
     setText(value);
     const show = /^\s*\/\w*$/.test(value);
     setSuggestionsOpen(show);
-    if (!/^\s*#(?:BUG|需求|任务|改造)：/i.test(value)) setSelectedMode(undefined);
+    if (show) setSelectedMode(undefined);
     const hit = modes.find(item => value.trimStart().startsWith(item.token));
     if (hit) setMode(hit.id);
   };
@@ -306,6 +306,8 @@ export function AiTaskCapture() {
   };
 
   if (!open) return null;
+  const selectedModeItem = modes.find(item => item.id === selectedMode);
+  const modeColor = selectedMode === "bug_fix" ? "#ef5350" : "#7f8b90";
   return <div className={`ai-task-capture${capturing ? " is-capturing" : ""}`} role="dialog" aria-modal="true" aria-label="登记 AI 任务">
     <section className="ai-task-capture__window" style={{ left: frame.x, top: frame.y, width: frame.width, height: "auto", minHeight: 0, maxHeight: "calc(100vh - 24px)" }}>
       <header className="ai-task-capture__titlebar" onPointerDown={beginMove}>
@@ -320,8 +322,9 @@ export function AiTaskCapture() {
         </div>
         }
       </header>
-      <div className="ai-task-capture__input-wrap">
-        <textarea ref={inputRef} autoFocus style={{ minHeight: 0, height: 56 }} value={text} onChange={event => update(event.target.value)} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
+      <div className="ai-task-capture__input-wrap" style={{ marginBottom: selectedMode ? 14 : 0 }}>
+        <textarea ref={inputRef} autoFocus style={{ minHeight: 0, height: 56, borderColor: selectedMode ? modeColor : undefined }} value={text} onChange={event => update(event.target.value)} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
+        {selectedModeItem && <span style={{ position: "absolute", zIndex: 1, left: 14, bottom: -13, border: `1px solid ${modeColor}`, borderRadius: 4, padding: "2px 8px", background: modeColor, color: "#fff", fontSize: 12, fontWeight: 700, letterSpacing: ".06em", lineHeight: 1.35 }}>{selectedModeItem.label}</span>}
         {suggestionsOpen && <div className="ai-task-capture__suggestions" style={{ position: "static", marginTop: 8 }}>{modes.filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.id} type="button" onMouseDown={event => { event.preventDefault(); selectMode(item); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
       </div>
       {composer.attachments.length > 0 && <div className="ai-task-capture__images" style={{ marginTop: 16 }}>{composer.attachments.map(item => <figure key={item.clientId}><button type="button" className="ai-task-capture__preview" onClick={() => editing?.clientId === item.clientId ? editorRef.current?.save() : setEditing({ clientId: item.clientId, source: item.previewUrl })}><img src={item.previewUrl} alt="任务截图，点击编辑并再次点击保存" /></button><button type="button" className="ai-task-capture__remove" aria-label="删除截图" onClick={() => detachAttachment(item.clientId)}>×</button></figure>)}</div>}
