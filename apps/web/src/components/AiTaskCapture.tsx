@@ -188,6 +188,12 @@ export function AiTaskCapture() {
     setMode(item.id);
     setText(value => `#${item.label}：${value.replace(/^\s*(?:#(?:BUG|需求|任务|改造)：)?\s*\/\w*\s*/i, "")}`);
     setSuggestionsOpen(false);
+    requestAnimationFrame(() => {
+      const input = inputRef.current;
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    });
     if (item.id === "bug_fix" && composer.attachments.length === 0 && !composer.isUploading) {
       void attachScreenshot();
     }
