@@ -50,6 +50,6 @@ docs/
 | Command | Effect |
 |---|---|
 | `pnpm dev` | run web + server in parallel |
-| `pnpm deploy` | start a detached macOS deployment job. It packages Rich, replaces `/Applications/Rich.app`, relaunches it, and immediately prints the job log path. |
+| `pnpm run deploy` | start a detached macOS deployment job. It packages Rich, replaces `/Applications/Rich.app`, relaunches it, and immediately prints the job log path. |
 | `pnpm test` | run all package tests |
 | `pnpm typecheck` | typecheck all packages |

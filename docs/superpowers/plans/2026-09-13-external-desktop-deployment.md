@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let Codex start a detached local deployment job that rebuilds, replaces, and relaunches Rich without depending on the Rich process that will exit.
+**Goal:** Let Codex start a detached local deployment job with `pnpm run deploy` that rebuilds, replaces, and relaunches Rich without depending on the Rich process that will exit.
 
-**Architecture:** `pnpm deploy` starts a detached Node worker and immediately prints a job id and log path. The worker packages the Electron app, quits Rich only after a successful package, atomically promotes a staged app bundle into `/Applications/Rich.app`, and relaunches it. Conversation continuity remains the responsibility of the existing persisted Codex thread id and database.
+**Architecture:** `pnpm run deploy` starts a detached Node worker and immediately prints a job id and log path. The worker packages the Electron app, quits Rich only after a successful package, atomically promotes a staged app bundle into `/Applications/Rich.app`, and relaunches it. Conversation continuity remains the responsibility of the existing persisted Codex thread id and database.
 
 **Tech Stack:** Node.js 22, node:test, pnpm, Electron Builder, macOS `osascript`, `ditto`, and `open`.
 
