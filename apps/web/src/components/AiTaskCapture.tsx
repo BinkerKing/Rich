@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { api, type AiManagedTask } from "../api/client.js";
 import { useChatComposer } from "../lib/useChatComposer.js";
 import { useStore } from "../state/store.js";
@@ -14,6 +14,8 @@ const modes: Array<{ id: AiManagedTask["sceneId"]; token: string; label: string;
 const viewLabels: Record<string, string> = { aiTaskManagement: "AI 任务管理", projects: "项目管理", deliverables: "交付物", taskWorkbench: "任务工作台" };
 type Box = { x: number; y: number; width: number; height: number };
 type Note = { x: number; y: number; text: string };
+type AnnotationState = { boxes: Box[]; notes: Note[] };
+type ScreenshotEditorHandle = { save: () => void };
 type CaptureFrame = { x: number; y: number; width: number; height: number };
 const frameStorageKey = "rich.ai-task-capture.frame";
 
@@ -37,15 +39,20 @@ function clampFrame(frame: CaptureFrame): CaptureFrame {
   return { width, height, x: Math.min(Math.max(12, frame.x), window.innerWidth - width - 12), y: Math.min(Math.max(12, frame.y), window.innerHeight - height - 12) };
 }
 
-function ScreenshotEditor({ source, onSave, onClose }: { source: string; onSave: (file: File) => void; onClose: () => void }) {
+const ScreenshotEditor = forwardRef<ScreenshotEditorHandle, { source: string; onSave: (file: File) => void }>(function ScreenshotEditor({ source, onSave }, ref) {
   const image = useRef<HTMLImageElement>(null);
-  const [boxes, setBoxes] = useState<Box[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [history, setHistory] = useState<AnnotationState[]>([{ boxes: [], notes: [] }]);
+  const [historyIndex, setHistoryIndex] = useState(0);
   const [tool, setTool] = useState<"box" | "text">("box");
-  const [noteText, setNoteText] = useState("请查看这里");
   const [ready, setReady] = useState(false);
   const drawing = useRef<{ x: number; y: number } | null>(null);
   const [draft, setDraft] = useState<Box>();
+  const annotations = history[historyIndex]!;
+
+  const commit = (next: AnnotationState) => {
+    setHistory(previous => [...previous.slice(0, historyIndex + 1), next]);
+    setHistoryIndex(historyIndex + 1);
+  };
 
   const point = (event: React.MouseEvent<HTMLDivElement>) => {
     const img = image.current!;
@@ -56,7 +63,7 @@ function ScreenshotEditor({ source, onSave, onClose }: { source: string; onSave:
     if (!ready) return;
     const p = point(event);
     if (tool === "text") {
-      if (noteText.trim()) setNotes(prev => [...prev, { ...p, text: noteText.trim() }]);
+      commit({ ...annotations, notes: [...annotations.notes, { ...p, text: "" }] });
       return;
     }
     drawing.current = p;
@@ -67,7 +74,7 @@ function ScreenshotEditor({ source, onSave, onClose }: { source: string; onSave:
     setDraft({ x: Math.min(drawing.current.x, p.x), y: Math.min(drawing.current.y, p.y), width: Math.abs(p.x - drawing.current.x), height: Math.abs(p.y - drawing.current.y) });
   };
   const pointerUp = () => {
-    if (draft && draft.width > 4 && draft.height > 4) setBoxes(prev => [...prev, draft]);
+    if (draft && draft.width > 4 && draft.height > 4) commit({ ...annotations, boxes: [...annotations.boxes, draft] });
     drawing.current = null;
     setDraft(undefined);
   };
@@ -85,9 +92,9 @@ function ScreenshotEditor({ source, onSave, onClose }: { source: string; onSave:
     ctx.strokeStyle = "#ef5350";
     ctx.fillStyle = "#ef5350";
     ctx.lineWidth = Math.max(3, canvas.width / 480);
-    boxes.forEach(box => ctx.strokeRect(box.x, box.y, box.width, box.height));
+    annotations.boxes.forEach(box => ctx.strokeRect(box.x, box.y, box.width, box.height));
     ctx.font = `${Math.max(18, canvas.width / 48)}px sans-serif`;
-    notes.forEach(note => {
+    annotations.notes.filter(note => note.text.trim()).forEach(note => {
       const pad = Math.max(6, canvas.width / 160);
       const width = ctx.measureText(note.text).width + pad * 2;
       const height = Math.max(28, canvas.width / 30);
@@ -99,27 +106,24 @@ function ScreenshotEditor({ source, onSave, onClose }: { source: string; onSave:
     canvas.toBlob(blob => { if (blob) onSave(new File([blob], "annotated-screenshot.png", { type: "image/png" })); }, "image/png");
   };
   const percent = (value: number, total: number) => `${(value / total) * 100}%`;
+  useImperativeHandle(ref, () => ({ save }), [annotations]);
 
-  return <div className="ai-task-editor" role="dialog" aria-modal="true" aria-label="编辑任务截图" onClick={onClose}>
-    <section onClick={event => event.stopPropagation()}>
-      <header><strong>标注截图</strong><button type="button" aria-label="关闭" onClick={onClose}>×</button></header>
-      <div className="ai-task-editor__tools">
-        <button type="button" className={tool === "box" ? "is-active" : ""} onClick={() => setTool("box")}>画框</button>
-        <button type="button" className={tool === "text" ? "is-active" : ""} onClick={() => setTool("text")}>文字</button>
-        {tool === "text" && <input value={noteText} onChange={event => setNoteText(event.target.value)} aria-label="标注文字" />}
-        <button type="button" onClick={() => { setBoxes([]); setNotes([]); }}>清除标注</button>
+  const buttonStyle = (active = false): React.CSSProperties => ({ display: "grid", width: 32, height: 32, padding: 0, placeItems: "center", border: "1px solid #596267", background: active ? "#e4eaeb" : "#1c2022", color: active ? "#192022" : "#e6ebed", cursor: "pointer" });
+  return <section className="ai-task-inline-editor" aria-label="编辑任务截图" style={{ marginTop: 12, padding: 12, border: "1px solid #596267", borderRadius: 10, background: "#101214", overflow: "auto" }}>
+    <div style={{ position: "relative", display: "inline-block", minHeight: 0, border: "1px solid #647077", background: "#080a0b", lineHeight: 0 }} onMouseDown={pointerDown} onMouseMove={pointerMove} onMouseUp={pointerUp} onMouseLeave={pointerUp}>
+      <div role="toolbar" aria-label="截图标注工具" style={{ position: "absolute", zIndex: 1, top: 8, right: 8, display: "flex", boxShadow: "0 4px 16px #0008" }}>
+        <button type="button" aria-label="画框" title="画框" style={{ ...buttonStyle(tool === "box"), borderRadius: "6px 0 0 6px" }} onMouseDown={event => event.stopPropagation()} onClick={() => setTool("box")}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19 18.5 5.5l2 2L7 21H5v-2Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /><path d="m14.5 7 2.5 2.5" stroke="currentColor" strokeWidth="1.8" /></svg></button>
+        <button type="button" aria-label="添加文字" title="添加文字" style={buttonStyle(tool === "text")} onMouseDown={event => event.stopPropagation()} onClick={() => setTool("text")}><b style={{ fontSize: 15, lineHeight: 1 }}>A</b></button>
+        <button type="button" aria-label="撤销" title="撤销" disabled={historyIndex === 0} style={{ ...buttonStyle(), opacity: historyIndex === 0 ? .38 : 1 }} onMouseDown={event => event.stopPropagation()} onClick={() => setHistoryIndex(index => Math.max(0, index - 1))}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 7 4 12l5 5M5 12h9a5 5 0 0 1 5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
+        <button type="button" aria-label="重做" title="重做" disabled={historyIndex === history.length - 1} style={{ ...buttonStyle(), borderRadius: "0 6px 6px 0", opacity: historyIndex === history.length - 1 ? .38 : 1 }} onMouseDown={event => event.stopPropagation()} onClick={() => setHistoryIndex(index => Math.min(history.length - 1, index + 1))}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m15 7 5 5-5 5M19 12h-9a5 5 0 0 0-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
       </div>
-      <p>{tool === "box" ? "在图片上拖拽即可画框。" : "输入文字后，点击图片添加注释。"}</p>
-      <div className="ai-task-editor__canvas" style={{ position: "relative", display: "inline-block", minHeight: 0, background: "#fff" }} onMouseDown={pointerDown} onMouseMove={pointerMove} onMouseUp={pointerUp} onMouseLeave={pointerUp}>
-        {!ready && <span>正在载入截图…</span>}
-        <img ref={image} style={{ display: "block", maxWidth: "100%", maxHeight: "58vh" }} src={source} alt="待标注截图" onLoad={() => setReady(true)} />
-        {ready && [...boxes, ...(draft ? [draft] : [])].map((box, index) => <i key={`box-${index}`} className="ai-task-editor__box" style={{ position: "absolute", boxSizing: "border-box", border: "3px solid #ef5350", pointerEvents: "none", left: percent(box.x, image.current!.naturalWidth), top: percent(box.y, image.current!.naturalHeight), width: percent(box.width, image.current!.naturalWidth), height: percent(box.height, image.current!.naturalHeight) }} />)}
-        {ready && notes.map((note, index) => <b key={`note-${index}`} className="ai-task-editor__note" style={{ position: "absolute", padding: "5px 8px", background: "#ef5350", color: "#fff", font: "14px/1.2 sans-serif", pointerEvents: "none", whiteSpace: "nowrap", left: percent(note.x, image.current!.naturalWidth), top: percent(note.y, image.current!.naturalHeight) }}>{note.text}</b>)}
-      </div>
-      <footer><button type="button" onClick={onClose}>取消</button><button type="button" className="primary" disabled={!ready} onClick={save}>保存标注</button></footer>
-    </section>
-  </div>;
-}
+      {!ready && <span style={{ color: "#c6ced1", lineHeight: "44px" }}>正在载入截图…</span>}
+      <img ref={image} style={{ display: "block", maxWidth: "100%", maxHeight: "58vh", cursor: tool === "box" ? "crosshair" : "text" }} src={source} alt="待标注截图" onLoad={() => setReady(true)} />
+      {ready && [...annotations.boxes, ...(draft ? [draft] : [])].map((box, index) => <i key={`box-${index}`} style={{ position: "absolute", boxSizing: "border-box", border: "3px solid #ef5350", pointerEvents: "none", left: percent(box.x, image.current!.naturalWidth), top: percent(box.y, image.current!.naturalHeight), width: percent(box.width, image.current!.naturalWidth), height: percent(box.height, image.current!.naturalHeight) }} />)}
+      {ready && annotations.notes.map((note, index) => <input key={`note-${index}`} autoFocus={index === annotations.notes.length - 1} value={note.text} aria-label="图片文字标注" placeholder="输入文字" onMouseDown={event => event.stopPropagation()} onChange={event => commit({ ...annotations, notes: annotations.notes.map((item, noteIndex) => noteIndex === index ? { ...item, text: event.target.value } : item) })} style={{ position: "absolute", minWidth: 72, border: "1px solid #ef5350", borderRadius: 3, padding: "4px 6px", outline: "none", background: "#fff", color: "#202326", font: "14px/1.2 sans-serif", left: percent(note.x, image.current!.naturalWidth), top: percent(note.y, image.current!.naturalHeight) }} />)}
+    </div>
+  </section>;
+});
 
 export function AiTaskCapture() {
   const [open, setOpen] = useState(false);
@@ -132,6 +136,7 @@ export function AiTaskCapture() {
   const [editing, setEditing] = useState<{ clientId: string; source: string }>();
   const [frame, setFrame] = useState<CaptureFrame>(readFrame);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<ScreenshotEditorHandle>(null);
   const openRef = useRef(false);
   const composer = useChatComposer({ maxAttachments: 4 });
   const appView = useStore(s => s.appView);
@@ -264,8 +269,8 @@ export function AiTaskCapture() {
         <textarea ref={inputRef} autoFocus style={{ minHeight: 0, height: 56 }} value={text} onChange={event => update(event.target.value)} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
         {suggestionsOpen && <div className="ai-task-capture__suggestions" style={{ position: "static", marginTop: 8 }}>{modes.filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.id} type="button" onMouseDown={event => { event.preventDefault(); selectMode(item); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
       </div>
-      {composer.attachments.length > 0 && <div className="ai-task-capture__images">{composer.attachments.map(item => <figure key={item.clientId}><button type="button" className="ai-task-capture__preview" onClick={() => setEditing({ clientId: item.clientId, source: item.previewUrl })}><img src={item.previewUrl} alt="任务截图，点击编辑" /></button><button type="button" className="ai-task-capture__remove" aria-label="删除截图" onClick={() => composer.detach(item.clientId)}>×</button><figcaption>点击截图标注</figcaption></figure>)}</div>}
+      {composer.attachments.length > 0 && <div className="ai-task-capture__images">{composer.attachments.map(item => <figure key={item.clientId}><button type="button" className="ai-task-capture__preview" onClick={() => editing?.clientId === item.clientId ? editorRef.current?.save() : setEditing({ clientId: item.clientId, source: item.previewUrl })}><img src={item.previewUrl} alt="任务截图，点击编辑并再次点击保存" /></button><button type="button" className="ai-task-capture__remove" aria-label="删除截图" onClick={() => composer.detach(item.clientId)}>×</button><figcaption>点击标注，再次点击保存</figcaption></figure>)}</div>}
+      {editing && <ScreenshotEditor ref={editorRef} source={editing.source} onSave={file => void replaceAttachment(file)} />}
     </section>
-    {editing && <ScreenshotEditor source={editing.source} onSave={file => void replaceAttachment(file)} onClose={() => setEditing(undefined)} />}
   </div>;
 }
