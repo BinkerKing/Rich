@@ -124,6 +124,8 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
   const copiedCell = useRef<CopiedCell | null>(null);
   const copiedCellElement = useRef<HTMLElement | null>(null);
   const gridApi = useRef<GridApi<IssueGridRow> | null>(null);
+  const settingsSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const settingsSaveRevision = useRef(0);
   const gridSettingsKey = `issues:${tableId}:columns`;
 
   useEffect(() => {
@@ -238,21 +240,33 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
   const persistSettings = async (nextColumns: TestCenterGridColumn[], nextStyle = tableStyle, nextDeletedColumns = deletedColumns) => {
     setColumns(nextColumns);
     setTableStyle(nextStyle);
+    setDeletedColumns(nextDeletedColumns);
     setSettingsSaving(true);
-    setSettingsError("");
-    try {
-      await api.saveTestCenterGridSettings(projectId, gridSettingsKey, [...nextColumns, ...nextDeletedColumns], nextStyle);
-      return true;
-    } catch {
-      setSettingsError("表格样式保存失败，请重试。");
-      return false;
-    } finally {
-      setSettingsSaving(false);
-    }
+    const previousSave = settingsSaveQueue.current;
+    const save = previousSave.then(async () => {
+      setSettingsError("");
+      try {
+        await api.saveTestCenterGridSettings(projectId, gridSettingsKey, [...nextColumns, ...nextDeletedColumns], nextStyle);
+        return true;
+      } catch {
+        setSettingsError("表格样式保存失败，请重试。");
+        return false;
+      }
+    });
+    settingsSaveQueue.current = save;
+    void save.finally(() => { if (settingsSaveQueue.current === save) setSettingsSaving(false); });
+    return save;
   };
   const settingsColumns = draftColumns ?? columns;
   const settingsStyle = draftTableStyle ?? tableStyle;
-  const updateDraft = (nextColumns: TestCenterGridColumn[]) => { setDraftColumns(nextColumns); setSettingsDirty(true); };
+  const saveDraftSettings = (nextColumns: TestCenterGridColumn[], nextStyle = settingsStyle, nextDeletedColumns = draftDeletedColumns) => {
+    const revision = ++settingsSaveRevision.current;
+    setSettingsDirty(true);
+    void persistSettings(nextColumns, nextStyle, nextDeletedColumns).then(saved => {
+      if (saved && settingsSaveRevision.current === revision) setSettingsDirty(false);
+    });
+  };
+  const updateDraft = (nextColumns: TestCenterGridColumn[], nextDeletedColumns = draftDeletedColumns) => { setDraftColumns(nextColumns); saveDraftSettings(nextColumns, settingsStyle, nextDeletedColumns); };
   const updateColumn = (key: string, patch: Partial<TestCenterGridColumn>) => updateDraft(settingsColumns.map(column => column.key === key ? { ...column, ...patch } : column));
   const updateHeaderStyle = (key: string, patch: NonNullable<TestCenterGridColumn["headerStyle"]>) => {
     const column = settingsColumns.find(item => item.key === key);
@@ -282,10 +296,12 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
   const removeColumn = (key: string) => {
     const column = settingsColumns.find(item => item.key === key);
     if (!column) return;
+    let nextDeletedColumns = draftDeletedColumns;
     if (defaultColumns.some(column => column.key === key)) {
-      setDraftDeletedColumns(current => [...current.filter(item => item.key !== key), { ...column, deleted: true }]);
+      nextDeletedColumns = [...draftDeletedColumns.filter(item => item.key !== key), { ...column, deleted: true }];
+      setDraftDeletedColumns(nextDeletedColumns);
     }
-    updateDraft(settingsColumns.filter(item => item.key !== key));
+    updateDraft(settingsColumns.filter(item => item.key !== key), nextDeletedColumns);
   };
   const addField = () => {
     const name = newFieldName.trim();
@@ -305,8 +321,9 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     persistSettings([...columns].sort((left, right) => (positions.get(left.key) ?? Number.MAX_SAFE_INTEGER) - (positions.get(right.key) ?? Number.MAX_SAFE_INTEGER)));
   };
   const updateStyle = (patch: Partial<TestCenterGridStyle>) => {
-    setDraftTableStyle({ ...settingsStyle, ...patch });
-    setSettingsDirty(true);
+    const nextStyle = { ...settingsStyle, ...patch };
+    setDraftTableStyle(nextStyle);
+    saveDraftSettings(settingsColumns, nextStyle);
   };
   const applySettings = async () => {
     const saved = await persistSettings(settingsColumns, settingsStyle, draftDeletedColumns);

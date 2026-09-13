@@ -186,6 +186,14 @@ test("应用表格设置等待服务端保存成功，失败时保留草稿并�
   assert.match(source, /settingsSaving \? "正在保存…" : settingsDirty \? "应用更改" : "已应用"/);
 });
 
+test("字段和样式草稿变更会立即自动保存，不依赖手动应用", () => {
+  assert.match(source, /const saveDraftSettings = \(nextColumns: TestCenterGridColumn\[\], nextStyle = settingsStyle, nextDeletedColumns = draftDeletedColumns\) => \{/);
+  assert.match(source, /void persistSettings\(nextColumns, nextStyle, nextDeletedColumns\)\.then\(saved =>/);
+  assert.match(source, /const updateDraft = \(nextColumns: TestCenterGridColumn\[\], nextDeletedColumns = draftDeletedColumns\) => \{/);
+  assert.match(source, /saveDraftSettings\(nextColumns, settingsStyle, nextDeletedColumns\);/);
+  assert.match(source, /saveDraftSettings\(settingsColumns, nextStyle\);/);
+});
+
 test("字段设置支持将列固定在左右侧并兼容旧的左侧固定配置", () => {
   assert.match(source, /pinned: column\.frozen === "right" \? "right" : column\.frozen \? "left" : undefined/);
   assert.match(source, /固定列<select value=\{column\.frozen === "right" \? "right" : column\.frozen \? "left" : ""\}/);
