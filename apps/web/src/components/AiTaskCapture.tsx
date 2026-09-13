@@ -198,6 +198,15 @@ export function AiTaskCapture() {
   }, [open, text]);
   useEffect(() => {
     if (!open) return;
+    requestAnimationFrame(() => {
+      const input = inputRef.current;
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    });
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
