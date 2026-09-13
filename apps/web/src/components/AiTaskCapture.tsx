@@ -14,6 +14,28 @@ const modes: Array<{ id: AiManagedTask["sceneId"]; token: string; label: string;
 const viewLabels: Record<string, string> = { aiTaskManagement: "AI 任务管理", projects: "项目管理", deliverables: "交付物", taskWorkbench: "任务工作台" };
 type Box = { x: number; y: number; width: number; height: number };
 type Note = { x: number; y: number; text: string };
+type CaptureFrame = { x: number; y: number; width: number; height: number };
+const frameStorageKey = "rich.ai-task-capture.frame";
+
+function defaultFrame(): CaptureFrame {
+  const width = Math.min(860, window.innerWidth - 48);
+  const height = Math.min(560, window.innerHeight - 48);
+  return { width, height, x: Math.max(24, (window.innerWidth - width) / 2), y: Math.max(24, (window.innerHeight - height) / 2) };
+}
+
+function readFrame(): CaptureFrame {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(frameStorageKey) ?? "null");
+    if ([saved?.x, saved?.y, saved?.width, saved?.height].every(value => typeof value === "number")) return saved;
+  } catch { /* use the centered default */ }
+  return defaultFrame();
+}
+
+function clampFrame(frame: CaptureFrame): CaptureFrame {
+  const width = Math.min(Math.max(480, frame.width), window.innerWidth - 24);
+  const height = Math.min(Math.max(360, frame.height), window.innerHeight - 24);
+  return { width, height, x: Math.min(Math.max(12, frame.x), window.innerWidth - width - 12), y: Math.min(Math.max(12, frame.y), window.innerHeight - height - 12) };
+}
 
 function ScreenshotEditor({ source, onSave, onClose }: { source: string; onSave: (file: File) => void; onClose: () => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -103,6 +125,7 @@ export function AiTaskCapture() {
   const [capturing, setCapturing] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [editing, setEditing] = useState<{ clientId: string; source: string }>();
+  const [frame, setFrame] = useState<CaptureFrame>(readFrame);
   const picker = useRef<HTMLInputElement>(null);
   const autoAttachedBug = useRef(false);
   const composer = useChatComposer({ maxAttachments: 4 });
@@ -111,10 +134,20 @@ export function AiTaskCapture() {
   const location = viewLabels[appView] ?? appView;
 
   useEffect(() => {
-    const show = () => setOpen(true);
+    const show = () => {
+      window.dispatchEvent(new Event("rich:close-deliverable-codex"));
+      setFrame(clampFrame(readFrame()));
+      setOpen(true);
+    };
     window.addEventListener("rich:open-ai-task-capture", show);
     return () => window.removeEventListener("rich:open-ai-task-capture", show);
   }, []);
+  useEffect(() => {
+    const close = () => setOpen(false);
+    window.addEventListener("rich:close-ai-task-capture", close);
+    return () => window.removeEventListener("rich:close-ai-task-capture", close);
+  }, []);
+  useEffect(() => { window.localStorage.setItem(frameStorageKey, JSON.stringify(frame)); }, [frame]);
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
@@ -155,6 +188,24 @@ export function AiTaskCapture() {
     await composer.attach(file);
     setEditing(undefined);
   };
+  const beginMove = (event: React.PointerEvent<HTMLElement>, resize = false) => {
+    if (!resize && (event.target as Element).closest("button")) return;
+    event.preventDefault();
+    const start = frame;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const move = (next: PointerEvent) => {
+      const deltaX = next.clientX - startX;
+      const deltaY = next.clientY - startY;
+      setFrame(clampFrame(resize ? { ...start, width: start.width + deltaX, height: start.height + deltaY } : { ...start, x: start.x + deltaX, y: start.y + deltaY }));
+    };
+    const end = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+  };
   const submit = async () => {
     const content = text.replace(/^\/(bug|requirement|task|improve)\s*/i, "").trim();
     if (!content || composer.isUploading) return;
@@ -166,9 +217,9 @@ export function AiTaskCapture() {
   };
 
   if (!open) return null;
-  return <div className={`ai-task-capture${capturing ? " is-capturing" : ""}`} role="dialog" aria-modal="true" aria-label="登记 AI 任务" onClick={() => setOpen(false)}>
-    <section onClick={event => event.stopPropagation()}>
-      <header><span>AI 任务登记</span><button type="button" aria-label="关闭" onClick={() => setOpen(false)}>×</button></header>
+  return <div className={`ai-task-capture${capturing ? " is-capturing" : ""}`} role="dialog" aria-modal="true" aria-label="登记 AI 任务">
+    <section className="ai-task-capture__window" style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
+      <header className="ai-task-capture__titlebar" onPointerDown={beginMove}><span>AI 任务登记</span><button type="button" aria-label="关闭" onClick={() => setOpen(false)}>×</button></header>
       <div className="ai-task-capture__input-wrap">
         <textarea autoFocus value={text} onChange={event => update(event.target.value)} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
         {suggestionsOpen && <div className="ai-task-capture__suggestions">{modes.filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.id} type="button" onMouseDown={event => { event.preventDefault(); selectMode(item); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
@@ -176,6 +227,7 @@ export function AiTaskCapture() {
       <div className="ai-task-capture__context"><span>定位 · {location}</span><span>{composer.attachments.length ? `${composer.attachments.length} 张截图` : "输入 /bug 自动截图"}</span></div>
       {composer.attachments.length > 0 && <div className="ai-task-capture__images">{composer.attachments.map(item => <figure key={item.clientId}><button type="button" className="ai-task-capture__preview" onClick={() => setEditing({ clientId: item.clientId, source: item.previewUrl })}><img src={item.previewUrl} alt="任务截图，点击编辑" /></button><button type="button" className="ai-task-capture__remove" aria-label="删除截图" onClick={() => composer.detach(item.clientId)}>×</button><figcaption>点击截图标注</figcaption></figure>)}</div>}
       <footer><input ref={picker} type="file" accept="image/*" onChange={event => { const file = event.currentTarget.files?.[0]; if (file) void composer.attach(file); event.currentTarget.value = ""; }} /><button type="button" onClick={() => picker.current?.click()}>添加图片</button><button type="button" onClick={() => void attachScreenshot()}>截取当前界面</button><button type="button" className="primary" disabled={!text.replace(/^\/\w+\s*/, "").trim() || saving || composer.isUploading} onClick={() => void submit()}>{saving ? "登记中…" : "登记任务"}</button></footer>
+      <span className="ai-task-capture__resize" aria-label="调整窗口大小" onPointerDown={event => beginMove(event, true)} />
     </section>
     {editing && <ScreenshotEditor source={editing.source} onSave={file => void replaceAttachment(file)} onClose={() => setEditing(undefined)} />}
   </div>;

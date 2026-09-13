@@ -12,6 +12,7 @@ const targetStorageKey = "rich.deliverable-codex.target";
 const toggleEvent = "rich:toggle-deliverable-codex";
 const closeEvent = "rich:close-deliverable-codex";
 const openEvent = "rich:open-bound-codex";
+const closeAiTaskCaptureEvent = "rich:close-ai-task-capture";
 
 export function openBoundCodex(target?: DeliverableCodexTarget) {
   const next = target ?? { projectId: "__general__", deliverableId: "__general__", deliverableTitle: "通用任务" };
@@ -51,6 +52,7 @@ export function DeliverableCodexLauncher(): ReactNode {
   useEffect(() => {
     const open = (event: Event) => {
       setTarget((event as CustomEvent<DeliverableCodexTarget>).detail);
+      window.dispatchEvent(new Event(closeAiTaskCaptureEvent));
       setVisible(true); setOpenSequence(value => value + 1);
     };
     window.addEventListener(openEvent, open);
@@ -63,7 +65,11 @@ export function DeliverableCodexLauncher(): ReactNode {
       const next = requested?.projectId ? requested : readTarget() ?? { projectId: "__general__", deliverableId: "__general__", deliverableTitle: "通用任务" };
       if (!next) return;
       setTarget(next);
-      setVisible(current => !current);
+      setVisible(current => {
+        const visible = !current;
+        if (visible) window.dispatchEvent(new Event(closeAiTaskCaptureEvent));
+        return visible;
+      });
     };
     window.addEventListener(toggleEvent, toggle);
     return () => window.removeEventListener(toggleEvent, toggle);
