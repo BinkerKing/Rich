@@ -9,7 +9,9 @@
   "scripts": {
     "dev": "pnpm -r --parallel run dev",
     "build": "pnpm -r run build",
+    "deploy": "node scripts/rich-deploy.mjs",
     "test": "pnpm -r run test",
+    "test:deploy": "node --test scripts/rich-deploy.test.mjs",
     "corpus": "node scripts/rich-corpus.mjs",
     "rich": "node scripts/rich-cli.mjs",
     "typecheck": "pnpm -r run typecheck",
