@@ -177,7 +177,6 @@ export function AiTaskCapture() {
   const openRef = useRef(false);
   const composer = useChatComposer({ maxAttachments: 4 });
   const appView = useStore(s => s.appView);
-  const setAppView = useStore(s => s.setAppView);
   const location = viewLabels[appView] ?? appView;
   const taskLocation = frozenLocation ?? location;
 
@@ -313,7 +312,7 @@ export function AiTaskCapture() {
     setSaving(true);
     try {
       await api.createAiManagedTask({ sceneId: mode, title: content.slice(0, 80), input: { text: `页面定位：${taskLocation}\n\n${content}`, images: composer.getAttachmentRefs().map(item => ({ id: item.id, label: "任务截图", mime: item.mime })), materials: [] }, payload: { page: [taskLocation] }, contextSummary: content.slice(0, 2000) });
-      composer.clear(); setText(""); setSelectedMode(undefined); setFrozenLocation(undefined); setOpen(false); setAppView("aiTaskManagement");
+      composer.clear(); setText(""); setSelectedMode(undefined); setFrozenLocation(undefined); setOpen(false);
     } finally { setSaving(false); }
   };
 
