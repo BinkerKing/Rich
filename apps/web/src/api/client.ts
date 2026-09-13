@@ -159,6 +159,10 @@ export const api = {
     const r = await fetch(`/api/ai-task-management/${encodeURIComponent(id)}/publish`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
     if (!r.ok) throw new Error(`publish AI task draft failed: ${r.status}`); return r.json();
   },
+  async republishAiManagedTask(id: string, input: AiManagedTaskCreateInput): Promise<AiManagedTask> {
+    const r = await fetch(`/api/ai-task-management/${encodeURIComponent(id)}/republish`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!r.ok) throw new Error(`republish AI task failed: ${r.status}`); return r.json();
+  },
   async listAiManagedTasks(): Promise<AiManagedTask[]> {
     const r = await fetch("/api/ai-task-management"); if (!r.ok) throw new Error(`list AI tasks failed: ${r.status}`); return (await r.json()).tasks;
   },

@@ -26,7 +26,7 @@ export class AiTaskManagementService {
       await this.repo.create(task); return task;
     }
     const task = await this.requireTask(id);
-    if (task.status !== "draft") throw new Error("Only draft tasks can be updated as drafts.");
+    if (task.status !== "draft" && task.status !== "ready") throw new Error("Only draft or ready tasks can be saved as drafts.");
     const scene = getAiTaskScene(input.sceneId);
     const next: AiManagedTask = { ...task, sceneId: scene.id, sceneVersion: scene.version, title: input.title, status: "draft", input: input.input, payload: input.payload ?? {}, contextSummary: input.contextSummary ?? input.input.text.slice(0, 2000), updatedAt: now };
     await this.repo.save(next); return next;
@@ -34,6 +34,13 @@ export class AiTaskManagementService {
   async publishDraft(id: string, input: TaskDraftInput): Promise<AiManagedTask> {
     const task = await this.requireTask(id);
     if (task.status !== "draft") throw new Error("Only draft tasks can be published.");
+    const scene = getAiTaskScene(input.sceneId); const now = new Date().toISOString();
+    const next: AiManagedTask = { ...task, sceneId: scene.id, sceneVersion: scene.version, title: input.title, status: "ready", input: input.input, payload: input.payload ?? {}, contextSummary: input.contextSummary ?? input.input.text.slice(0, 2000), updatedAt: now };
+    await this.repo.save(next); return next;
+  }
+  async republish(id: string, input: TaskDraftInput): Promise<AiManagedTask> {
+    const task = await this.requireTask(id);
+    if (task.status !== "ready") throw new Error("Only ready tasks can be republished.");
     const scene = getAiTaskScene(input.sceneId); const now = new Date().toISOString();
     const next: AiManagedTask = { ...task, sceneId: scene.id, sceneVersion: scene.version, title: input.title, status: "ready", input: input.input, payload: input.payload ?? {}, contextSummary: input.contextSummary ?? input.input.text.slice(0, 2000), updatedAt: now };
     await this.repo.save(next); return next;
