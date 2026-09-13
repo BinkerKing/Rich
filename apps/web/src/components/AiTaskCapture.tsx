@@ -269,10 +269,6 @@ export function AiTaskCapture() {
     setText(value);
     const show = /^\s*\/\w*$/.test(value);
     setSuggestionsOpen(show);
-    if (show) {
-      setSelectedMode(undefined);
-      setFrozenLocation(undefined);
-    }
     const hit = modes.find(item => value.trimStart().startsWith(item.token));
     if (hit) setMode(hit.id);
   };
