@@ -130,7 +130,6 @@ export function AiTaskCapture() {
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [editing, setEditing] = useState<{ clientId: string; source: string }>();
   const [frame, setFrame] = useState<CaptureFrame>(readFrame);
-  const picker = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const openRef = useRef(false);
   const composer = useChatComposer({ maxAttachments: 4 });
@@ -242,14 +241,21 @@ export function AiTaskCapture() {
   if (!open) return null;
   return <div className={`ai-task-capture${capturing ? " is-capturing" : ""}`} role="dialog" aria-modal="true" aria-label="登记 AI 任务">
     <section className="ai-task-capture__window" style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
-      <header className="ai-task-capture__titlebar" onPointerDown={beginMove}><span>定位 · {location}</span></header>
+      <header className="ai-task-capture__titlebar" onPointerDown={beginMove}>
+        <span>定位 · {location}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button type="button" aria-label="截取当前界面" title="截取当前界面" onClick={() => void attachScreenshot()} style={{ display: "grid", width: 36, height: 36, padding: 0, placeItems: "center" }}>
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M8 8h8v8H8z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+          <button type="button" className="primary" disabled={!text.replace(/^\s*#(?:BUG|需求|任务|改造)：\s*/, "").replace(/^\/\w+\s*/, "").trim() || saving || composer.isUploading} onClick={() => void submit()}>{saving ? "登记中…" : "登记"}</button>
+        </div>
+      </header>
       <div className="ai-task-capture__input-wrap">
         <textarea ref={inputRef} autoFocus style={{ minHeight: 0, height: 56 }} value={text} onChange={event => update(event.target.value)} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
         {suggestionsOpen && <div className="ai-task-capture__suggestions" style={{ position: "static", marginTop: 8 }}>{modes.filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.id} type="button" onMouseDown={event => { event.preventDefault(); selectMode(item); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
       </div>
       <div className="ai-task-capture__context"><span>{composer.attachments.length ? `${composer.attachments.length} 张截图` : "选择 BUG 后自动截图"}</span></div>
       {composer.attachments.length > 0 && <div className="ai-task-capture__images">{composer.attachments.map(item => <figure key={item.clientId}><button type="button" className="ai-task-capture__preview" onClick={() => setEditing({ clientId: item.clientId, source: item.previewUrl })}><img src={item.previewUrl} alt="任务截图，点击编辑" /></button><button type="button" className="ai-task-capture__remove" aria-label="删除截图" onClick={() => composer.detach(item.clientId)}>×</button><figcaption>点击截图标注</figcaption></figure>)}</div>}
-      <footer><input ref={picker} type="file" accept="image/*" onChange={event => { const file = event.currentTarget.files?.[0]; if (file) void composer.attach(file); event.currentTarget.value = ""; }} /><button type="button" onClick={() => picker.current?.click()}>添加图片</button><button type="button" onClick={() => void attachScreenshot()}>截取当前界面</button><button type="button" className="primary" disabled={!text.replace(/^\s*#(?:BUG|需求|任务|改造)：\s*/, "").replace(/^\/\w+\s*/, "").trim() || saving || composer.isUploading} onClick={() => void submit()}>{saving ? "登记中…" : "登记任务"}</button></footer>
       <span className="ai-task-capture__resize" aria-label="调整窗口大小" onPointerDown={event => beginMove(event, true)} />
     </section>
     {editing && <ScreenshotEditor source={editing.source} onSave={file => void replaceAttachment(file)} onClose={() => setEditing(undefined)} />}
