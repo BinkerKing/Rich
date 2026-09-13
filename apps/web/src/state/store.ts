@@ -7,7 +7,7 @@ export type OpKind = "generate" | "refine" | "expand" | "extend" | "feedback" | 
 
 /** Top-level app views. Switched via the SystemPanel "视图系统" mode.
  *  "tree" auto-falls-back to the home picker (InputView) when no rootId is set. */
-export type AppView = "home" | "apps" | "tree" | "admin" | "news" | "mindmap" | "deepWorkbench" | "flowcharts" | "deliverables" | "greatme" | "toolbox" | "practice" | "taskWorkbench" | "health" | "projects" | "rikingProjects";
+export type AppView = "home" | "apps" | "tree" | "admin" | "news" | "mindmap" | "deepWorkbench" | "flowcharts" | "deliverables" | "greatme" | "toolbox" | "practice" | "taskWorkbench" | "aiTaskManagement" | "health" | "projects" | "rikingProjects";
 
 export interface InflightOp {
   kind: OpKind;

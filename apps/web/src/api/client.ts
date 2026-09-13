@@ -147,6 +147,18 @@ export interface GreatMeBrainResult {
 }
 
 export const api = {
+  async listAiManagedTasks(): Promise<AiManagedTask[]> {
+    const r = await fetch("/api/ai-task-management"); if (!r.ok) throw new Error(`list AI tasks failed: ${r.status}`); return (await r.json()).tasks;
+  },
+  async getAiManagedTask(id: string): Promise<AiManagedTaskPacket> {
+    const r = await fetch(`/api/ai-task-management/${encodeURIComponent(id)}`); if (!r.ok) throw new Error(`get AI task failed: ${r.status}`); return r.json();
+  },
+  async continueAiManagedTask(id: string): Promise<AiManagedTask> {
+    const r = await fetch(`/api/ai-task-management/${encodeURIComponent(id)}/continue`, { method: "POST" }); if (!r.ok) throw new Error(`continue AI task failed: ${r.status}`); return r.json();
+  },
+  async resolveAiManagedTask(id: string): Promise<AiManagedTask> {
+    const r = await fetch(`/api/ai-task-management/${encodeURIComponent(id)}/resolve`, { method: "POST" }); if (!r.ok) throw new Error(`resolve AI task failed: ${r.status}`); return r.json();
+  },
   async getAgentSession(conversationId: string): Promise<AgentSessionState | null> {
     const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/agent-session`);
     if (r.status === 404) return null;
@@ -2377,3 +2389,10 @@ export interface ProbeConnectionsResult {
     message?: string;
   }>;
 }
+
+export type AiManagedTaskStatus = "ready" | "claimed" | "needs_review" | "blocked" | "resolved";
+export interface AiManagedTask {
+  id: string; rootTaskId: string; parentTaskId?: string; sceneId: "bug_fix" | "requirement_analysis" | "deliverable_task" | "system_improvement";
+  title: string; status: AiManagedTaskStatus; contextSummary: string; claimedBy?: string; projectId?: string; deliverableId?: string; updatedAt: string;
+}
+export interface AiManagedTaskPacket { task: AiManagedTask; scene: { id: string; label: string; instructions: string }; nodes: Array<{ id: string; analysis: string; result: string; pending?: string; createdAt: string }>; }

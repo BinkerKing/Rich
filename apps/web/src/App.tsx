@@ -10,6 +10,7 @@ import { FlowchartsView } from "./views/FlowchartsView.js";
 import { DeliverablesView } from "./views/DeliverablesView.js";
 import { GreatMeView } from "./views/GreatMeView.js";
 import { TaskWorkbench } from "./views/task-workbench/TaskWorkbench.js";
+import { AiTaskManagementView } from "./views/AiTaskManagementView.js";
 import { PracticeView } from "./views/PracticeView.js";
 import { ProjectsView } from "./views/ProjectsView.js";
 import { OverlayTaskView } from "./views/OverlayTaskView.js";
@@ -107,7 +108,7 @@ function MainApp() {
   };
 
   useEffect(() => {
-      const validViews = new Set(["home", "apps", "tree", "admin", "news", "mindmap", "deepWorkbench", "flowcharts", "deliverables", "greatme", "toolbox", "practice", "taskWorkbench", "health", "projects", "rikingProjects"]);
+      const validViews = new Set(["home", "apps", "tree", "admin", "news", "mindmap", "deepWorkbench", "flowcharts", "deliverables", "greatme", "toolbox", "practice", "taskWorkbench", "aiTaskManagement", "health", "projects", "rikingProjects"]);
     const applyNavigation = (payload: RichNavigationPayload | null) => {
       if (!payload || Date.now() - payload.ts > 30_000) return;
       if (payload.kind === "view" && validViews.has(payload.view)) {
@@ -251,6 +252,7 @@ function MainApp() {
       {appView === "greatme" && <GreatMeView />}
       {appView === "practice" && <PracticeView />}
       {appView === "taskWorkbench" && <TaskWorkbench />}
+      {appView === "aiTaskManagement" && <AiTaskManagementView />}
       {appView === "projects" && <ErrorBoundary><ProjectsView /></ErrorBoundary>}
       {appView === "toolbox" && <ToolboxView />}
       {appView === "health" && <ErrorBoundary><HealthView /></ErrorBoundary>}
