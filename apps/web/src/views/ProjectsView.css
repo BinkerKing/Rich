@@ -3509,6 +3509,7 @@
 }
 .workflow-rail {
   display: grid;
+  flex: 1 1 auto;
   gap: 10px;
   min-height: 0;
   overflow-y: auto;
@@ -3516,6 +3517,9 @@
   padding-right: 2px;
 }
 .workflow-content {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
   min-height: 0;
   overflow: hidden;
 }

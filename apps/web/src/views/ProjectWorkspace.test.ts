@@ -79,6 +79,11 @@ test("作业流程以黑白外框和内嵌彩色细线呈现", () => {
   assert.match(styles, /\.workflow-actions button\s*\{[^}]*border:\s*1px solid #4f4f4f[^}]*background:\s*#202020/s);
 });
 
+test("作业流程内容区在可用高度内自适应，超出部分由流程轨道滚动", () => {
+  assert.match(styles, /\.workflow-content\s*\{[^}]*display:\s*flex[^}]*flex:\s*1 1 0[^}]*flex-direction:\s*column[^}]*min-height:\s*0[^}]*overflow:\s*hidden/s);
+  assert.match(styles, /\.workflow-rail\s*\{[^}]*flex:\s*1 1 auto[^}]*min-height:\s*0[^}]*overflow-y:\s*auto/s);
+});
+
 test("环境配置用亮色边框区分模块、服务器和连接关系表", () => {
   assert.match(styles, /\.env-module-card\s*\{[^}]*border-color:\s*color-mix\(in srgb, var\(--env-module-accent, var\(--accent\)\) 78%, #3a4b4e\)/s);
   assert.match(styles, /\.server\.env-server-card\s*\{[^}]*border:\s*1px solid color-mix\(in srgb, var\(--env-module-accent, var\(--accent\)\) 54%, #344044\)/s);
