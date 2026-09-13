@@ -38,16 +38,22 @@ const formatTime = (value: string) => value.replace("T", " ").slice(0, 16);
 const fieldKeyFromName = (name: string) => `custom_${name.trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "_").replace(/^_+|_+$/g, "") || "field"}`;
 const needsOptions = (type?: TestCenterGridColumn["fieldType"]) => type === "select" || type === "multiSelect";
 const isTextField = (column: TestCenterGridColumn) => !column.fieldType || column.fieldType === "text";
+const taskItemGap = 4;
+const taskListVerticalPadding = 14;
 const getIssueRowHeight = (row: IssueGridRow | undefined, columns: TestCenterGridColumn[], baseHeight: number) => {
   if (!row) return baseHeight;
   const height = columns.filter(column => column.visible !== false && isTextField(column) && (column.contentMode !== undefined && column.contentMode !== "plain" || column.cellStyle?.whiteSpace === "normal")).reduce((tallest, column) => {
     const value = String(row[column.key] ?? "");
     if (!value) return tallest;
-    const charactersPerLine = Math.max(8, Math.floor(((column.width ?? 160) - 24) / 7));
-    const lines = value.split(/\r?\n/).reduce((count, line) => count + Math.max(1, Math.ceil(line.length / charactersPerLine)), 0);
-    return Math.max(tallest, lines * 20 + 16);
+    const isTaskList = column.contentMode === "numbered" || column.contentMode === "bulleted" || column.contentMode === "checklist";
+    const charactersPerLine = Math.max(8, Math.floor(((column.width ?? 160) - 24 - (isTaskList ? 27 : 0)) / 7));
+    const lines = value.split(/\r?\n/);
+    const visualLines = lines.reduce((count, line) => count + Math.max(1, Math.ceil(line.length / charactersPerLine)), 0);
+    const contentHeight = visualLines * 20 + 16;
+    const taskListHeight = contentHeight + taskListVerticalPadding + Math.max(0, lines.filter(line => line.trim()).length - 1) * taskItemGap;
+    return Math.max(tallest, isTaskList ? taskListHeight : contentHeight);
   }, baseHeight);
-  return Math.min(height, 240);
+  return height;
 };
 const dropdownStyles = [{ value: "standard", label: "标准" }, { value: "soft", label: "轻柔色块" }, { value: "pill", label: "圆角标签" }, { value: "signal", label: "强调色块" }] as const;
 const contentModes = [{ value: "plain", label: "单行", icon: "T" }, { value: "wrap", label: "换行", icon: "↵" }, { value: "numbered", label: "序号任务", icon: "1." }, { value: "bulleted", label: "点点任务", icon: "•" }, { value: "checklist", label: "复选任务", icon: "☑" }] as const;
@@ -220,7 +226,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     cellRenderer: column.fieldType === "select" ? (params: { value: string | number }) => <SelectBadge value={params.value} options={column.options} dropdownStyle={column.dropdownStyle} /> : column.fieldType === "checkbox" ? (params: { value: string | number; setValue: (value: string) => void }) => <CheckboxCell {...params} /> : column.fieldType === "multiSelect" ? (params: { value: string | number }) => <MultiSelectCell {...params} options={column.options} dropdownStyle={column.dropdownStyle} /> : isTextField(column) && (column.contentMode ?? "plain") !== "plain" ? (params: { value: string | number; setValue: (value: string) => void }) => <StructuredTextCell {...params} mode={column.contentMode} /> : undefined,
     wrapText: isTextField(column) && (column.contentMode === "wrap" || column.cellStyle?.whiteSpace === "normal"),
     suppressKeyboardEvent: params => handleClipboardShortcut(params.event, params.data, column.key, params.editing),
-    cellClass: [column.key === "serial" ? "issue-data-grid__serial" : "", column.fieldType === "select" ? "issue-data-grid__select-cell" : "", column.cellStyle?.whiteSpace === "normal" ? "issue-data-grid__cell-auto-wrap" : "", `issue-data-grid__cell-align-${column.cellStyle?.textAlign ?? "left"}`].filter(Boolean).join(" "),
+    cellClass: [column.key === "serial" ? "issue-data-grid__serial" : "", column.fieldType === "select" ? "issue-data-grid__select-cell" : "", column.contentMode && column.contentMode !== "plain" ? "issue-data-grid__cell-structured" : "", column.cellStyle?.whiteSpace === "normal" ? "issue-data-grid__cell-auto-wrap" : "", `issue-data-grid__cell-align-${column.cellStyle?.textAlign ?? "left"}`].filter(Boolean).join(" "),
   })), [columns, handleClipboardShortcut, query]);
 
   const persistSettings = (nextColumns: TestCenterGridColumn[], nextStyle = tableStyle, nextDeletedColumns = deletedColumns) => {

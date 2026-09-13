@@ -314,6 +314,13 @@ test("编辑框字段可选换行、序号、点点和复选任务显示", () =>
   assert.match(styles, /\.issue-data-grid__task-check\s*\{[^}]*border-radius:4px/s);
 });
 
+test("序号任务的行高包含每个条目的间距和换行高度", () => {
+  assert.match(source, /const taskItemGap = 4;/);
+  assert.match(source, /const taskListVerticalPadding = 14;/);
+  assert.match(source, /column\.contentMode === "numbered"/);
+  assert.match(styles, /\.issue-data-grid__cell-structured \.ag-cell-value \{ overflow:visible; text-overflow:clip; white-space:normal;/);
+});
+
 test("字段样式预览与属性面板保持同列宽度", () => {
   assert.match(styles, /\.issue-data-grid__field-table th:nth-child\(4\),\.issue-data-grid__field-table td:nth-child\(4\)\s*\{[^}]*width:190px/s);
   assert.match(styles, /\.issue-data-grid__field-style-preview\s*\{[^}]*width:100%/s);
