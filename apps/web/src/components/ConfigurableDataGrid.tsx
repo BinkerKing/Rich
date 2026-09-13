@@ -1,5 +1,5 @@
 import { useMemo, useState, type Key, type ReactNode } from "react";
-import DataGrid, { SelectColumn, type Column, type RowsChangeData } from "react-data-grid";
+import DataGrid, { SELECT_COLUMN_KEY, SelectColumn, type Column, type RowsChangeData } from "react-data-grid";
 import "react-data-grid/lib/styles.css";
 import "./ConfigurableDataGrid.css";
 
@@ -105,7 +105,7 @@ export function ConfigurableDataGrid<Row extends ConfigurableGridRow>({ ariaLabe
       onSelectedRowsChange={nextRows => { setSelectedRows(nextRows); onSelectedRowsChange?.(nextRows); }}
       rowClass={row => row.id === activeRowId ? "configurable-data-grid__row--active" : undefined}
       onRowsChange={onRowsChange}
-      onCellClick={onRowClick ? ({ row, column }) => { if (column.key !== "select-row") onRowClick(row); } : undefined}
+      onCellClick={onRowClick ? ({ row, column }) => { if (column.key !== SELECT_COLUMN_KEY) onRowClick(row); } : undefined}
       onColumnResize={(index, width) => { const column = columns[index - configuredColumnOffset]; if (column) updateColumn(column.key, { width }); }}
       onColumnsReorder={(sourceKey, targetKey) => { const sourceIndex = columns.findIndex(column => column.key === sourceKey); const targetIndex = columns.findIndex(column => column.key === targetKey); if (sourceIndex < 0 || targetIndex < 0) return; const next = [...columns]; const [source] = next.splice(sourceIndex, 1); next.splice(targetIndex, 0, source); onColumnsChange(next); }}
     />
