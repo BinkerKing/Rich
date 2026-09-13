@@ -15,9 +15,11 @@ test("CommandOrControl+Shift+Space 全局切换 Rich 主窗口", () => {
   assert.match(main, /mainWin\.on\("blur", registerShortcut\)/);
 });
 
-test("CommandOrControl+Space 仅在 Rich 前台切换内部 Codex", () => {
+test("CommandOrControl+Space 在 Rich 前台打开 AI 任务登记，CommandOrControl+Enter 打开 Codex", () => {
+  assert.match(main, /window\.dispatchEvent\(new Event\("rich:open-ai-task-capture"\)\)/);
   assert.match(main, /window\.dispatchEvent\(new Event\("rich:toggle-deliverable-codex"\)\)/);
   assert.match(main, /!input\.shift &&\s+\(input\.meta \|\| input\.control\) &&\s+\(input\.code === "Space" \|\| input\.key === " "\)/);
+  assert.match(main, /!input\.shift &&\s+\(input\.meta \|\| input\.control\) &&\s+\(input\.code === "Enter" \|\| input\.key === "Enter"\)/);
   assert.match(main, /input\.shift &&\s+\(input\.meta \|\| input\.control\) &&\s+\(input\.code === "Space" \|\| input\.key === " "\)\s*\) \{\s+toggleRichMainWindow\(win\);/);
   assert.match(main, /toggleChatWindow\(\);/);
   assert.match(main, /if \(chatWindow\.isVisible\(\)\) \{\s+hideChatAndApp\(\);/);

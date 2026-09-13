@@ -927,6 +927,11 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
       return;
     }
     if (!input.shift && (input.meta || input.control) && (input.code === "Space" || input.key === " ")) {
+      openAiTaskCapture(win);
+      event.preventDefault();
+      return;
+    }
+    if (!input.shift && (input.meta || input.control) && (input.code === "Enter" || input.key === "Enter")) {
       openDeliverableCodex(win);
       event.preventDefault();
       return;
@@ -1361,6 +1366,12 @@ function showRichMainWindow(mainWin: BrowserWindow) {
 function openDeliverableCodex(mainWin: BrowserWindow) {
   if (mainWin.isDestroyed()) return;
   mainWin.webContents.executeJavaScript(`window.dispatchEvent(new Event("rich:toggle-deliverable-codex"));`)
+    .catch(() => { /* renderer may be navigating */ });
+}
+
+function openAiTaskCapture(mainWin: BrowserWindow) {
+  if (mainWin.isDestroyed()) return;
+  mainWin.webContents.executeJavaScript(`window.dispatchEvent(new Event("rich:open-ai-task-capture"));`)
     .catch(() => { /* renderer may be navigating */ });
 }
 
