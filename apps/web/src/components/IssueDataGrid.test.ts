@@ -331,6 +331,14 @@ test("打开表格设置时默认展示内容样式的字体和单元格颜色�
   assert.match(source, /backgroundColor/);
 });
 
+test("内容格式不会遮挡字体工具，并移除无意义的文本预览", () => {
+  assert.match(source, /issue-data-grid__style-controls/);
+  assert.match(source, /字体颜色/);
+  assert.match(source, /单元格底色/);
+  assert.doesNotMatch(source, /梳理需求\\n验证结果/);
+  assert.doesNotMatch(styles, /\.issue-data-grid__content-mode-toolbar\s*\{\s*position:absolute/);
+});
+
 test("字段定义表表头固定，字段样式以真实预览展示", () => {
   assert.match(styles, /\.issue-data-grid__field-table th\s*\{[^}]*position:sticky[^}]*top:0/s);
   assert.match(source, /issue-data-grid__style-preview-button/);
