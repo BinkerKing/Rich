@@ -180,6 +180,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const conversationMenuRef = useRef<HTMLDivElement>(null);
   const composerMenuRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<HTMLElement>(null);
+  const shouldFollowMessagesRef = useRef(true);
   const streamingRef = useRef(false);
   const launchedExecutionTaskRef = useRef<string>();
   const [windowState, setWindowState] = useState<WindowState>(() => { try { return fitWindowToViewport({ ...defaultWindow, ...JSON.parse(localStorage.getItem(windowStorageKey) ?? "{}") }); } catch { return fitWindowToViewport(defaultWindow); } });
@@ -194,6 +195,11 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const codexTools = useMemo(() => filterCodexSlashTools(codexSlash.query), [codexSlash.query]);
   const taskModeAvailable = true;
   const availableTaskModes = currentPageLocation(appView).at(-1) === "交付物" && active?.projectId !== "__general__" ? [generalTaskMode, ...deliverableTaskModes] : [generalTaskMode];
+  const isNearMessagesBottom = (element: HTMLElement) => element.scrollHeight - element.scrollTop - element.clientHeight < 24;
+  const updateMessageFollowState = () => {
+    const element = messagesRef.current;
+    if (element) shouldFollowMessagesRef.current = isNearMessagesBottom(element);
+  };
 
   const refresh = async () => {
     const payload = await readJson<{ conversations: Conversation[] }>("/api/deliverable-codex/conversations");
@@ -247,7 +253,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     element.style.height = `${Math.min(element.scrollHeight, 220)}px`;
   }, [input]);
   useEffect(() => { setToolIndex(0); }, [input]);
-  useEffect(() => { const element = messagesRef.current; if (visible && element) element.scrollTop = element.scrollHeight; }, [activeId, messages, visible]);
+  useEffect(() => { const element = messagesRef.current; if (visible && element && shouldFollowMessagesRef.current) element.scrollTop = element.scrollHeight; }, [activeId, messages, visible]);
   useEffect(() => { localStorage.setItem(windowStorageKey, JSON.stringify(windowState)); }, [windowState]);
   useEffect(() => { localStorage.setItem(themeStorageKey, theme); }, [theme]);
   useEffect(() => { localStorage.setItem(taskModeStorageKey, JSON.stringify(taskModes)); }, [taskModes]);
@@ -295,6 +301,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const sendMessage = async (target: Conversation, content: string, attachments: QueuedMessage["attachments"], clearComposer: boolean, taskMode?: TaskModeSession, force = false) => {
     if (streamingRef.current && !force) return;
     const userMessageId = crypto.randomUUID(); const clientRequestId = crypto.randomUUID(); const createdAt = new Date().toISOString(); const startedAt = Date.now();
+    if (target.id === active?.id) shouldFollowMessagesRef.current = true;
     if (target.id === active?.id) setInput(""); setElapsedMs(0); streamingRef.current = true; setStreaming(true); setStreamingConversationId(target.id); setError("");
     setMessages(current => ({ ...current, [target.id]: [...(current[target.id] ?? []), { role: "user", content, createdAt, kind: taskMode ? "task-mode-instruction" : undefined, taskModeLabel: taskMode?.label, taskModeLocation: taskMode?.location, attachments }, { role: "assistant", content: "", createdAt }] }));
     try {
@@ -511,7 +518,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     <section className={`deliverable-codex-workbench is-theme-${theme}${activeTaskMode ? " is-task-mode" : ""}${windowState.maximized ? " is-maximized" : ""}`} style={workbenchStyle}>
       <aside className="deliverable-codex-workbench__sidebar">
         <button type="button" className="deliverable-codex-workbench__new" onClick={() => { setCreating(current => !current); setTitle(""); }}>＋ 新对话</button>
-        <nav aria-label="对话列表">{conversations.map(conversation => <button key={conversation.id} draggable type="button" className={`${conversation.id === activeId ? "is-active" : ""}${lostConversationIds.has(conversation.id) ? " is-connection-lost" : ""}`} onDragStart={event => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", conversation.id); }} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const sourceId = event.dataTransfer.getData("text/plain"); if (!sourceId || sourceId === conversation.id) return; setConversations(current => { const sourceIndex = current.findIndex(item => item.id === sourceId); const targetIndex = current.findIndex(item => item.id === conversation.id); if (sourceIndex < 0 || targetIndex < 0) return current; const next = [...current]; const [moved] = next.splice(sourceIndex, 1); next.splice(sourceIndex < targetIndex ? targetIndex - 1 : targetIndex, 0, moved); saveConversationOrder(next); return next; }); }} onClick={() => setActiveId(conversation.id)}><strong>{conversation.title}</strong></button>)}</nav>
+        <nav aria-label="对话列表">{conversations.map(conversation => <button key={conversation.id} draggable type="button" className={`${conversation.id === activeId ? "is-active" : ""}${lostConversationIds.has(conversation.id) ? " is-connection-lost" : ""}`} onDragStart={event => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", conversation.id); }} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const sourceId = event.dataTransfer.getData("text/plain"); if (!sourceId || sourceId === conversation.id) return; setConversations(current => { const sourceIndex = current.findIndex(item => item.id === sourceId); const targetIndex = current.findIndex(item => item.id === conversation.id); if (sourceIndex < 0 || targetIndex < 0) return current; const next = [...current]; const [moved] = next.splice(sourceIndex, 1); next.splice(sourceIndex < targetIndex ? targetIndex - 1 : targetIndex, 0, moved); saveConversationOrder(next); return next; }); }} onClick={() => { shouldFollowMessagesRef.current = true; setActiveId(conversation.id); }}><strong>{conversation.title}</strong></button>)}</nav>
         <div className="deliverable-codex-workbench__theme">
           <button type="button" aria-label="选择主题" title="主题" aria-expanded={themeMenuOpen} onClick={() => setThemeMenuOpen(current => !current)}>◐</button>
           {themeMenuOpen && <div className="deliverable-codex-workbench__theme-menu" role="menu"><button type="button" role="menuitem" className={theme === "obsidian" ? "is-active" : ""} onClick={() => { setTheme("obsidian"); setThemeMenuOpen(false); }}><i/>曜黑</button><button type="button" role="menuitem" className={theme === "graphite" ? "is-active" : ""} onClick={() => { setTheme("graphite"); setThemeMenuOpen(false); }}><i/>石墨灰</button></div>}
@@ -525,7 +532,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
         {creating && <form className="deliverable-codex-workbench__create" onSubmit={event => { event.preventDefault(); void create(); }}><input autoFocus value={title} onChange={event => setTitle(event.target.value)} placeholder="会话标题"/><button type="submit">创建</button></form>}
         {taskModePickerOpen && <section className="deliverable-codex-workbench__task-mode-picker" role="listbox" aria-label="任务模式选择"><small>当前页面：{currentPageLocation(appView).join(" / ")}</small>{availableTaskModes.map((mode, index) => <button key={mode.id} type="button" role="option" aria-selected={index === taskModeIndex} className={index === taskModeIndex ? "is-active" : ""} onClick={() => startTaskMode(mode)}><b>{mode.label}</b><span>{mode.hint} · Enter 启动</span></button>)}</section>}
         {projectTaskPickerOpen && <section className="deliverable-codex-workbench__task-mode-picker" role="dialog" aria-label="选择项目交付物"><small>{pickerProjectId ? "选择交付物" : "选择项目"}</small>{!pickerProjectId ? Array.from(elements.values()).filter(item => item.type === "project").map(item => <button key={item.id} type="button" onClick={() => { setPickerProjectId(item.id); void api.listProjectManagementModuleItems(item.id, "deliverables", undefined, true).then(items => setPickerDeliverables(items.map(entry => ({ id: entry.id, title: entry.title })))).catch(reason => setError(String(reason))); }}><b>{item.title}</b><span>选择该项目的交付物</span></button>) : <><button type="button" onClick={() => { setPickerProjectId(undefined); setPickerDeliverables([]); }}>← 返回项目</button>{pickerDeliverables.map(item => <button key={item.id} type="button" onClick={() => { setPendingAiTask({ sceneId: "deliverable_task", label: "交付物任务", payload: { projectId: pickerProjectId, deliverableId: item.id, deliverableTitle: item.title } }); setInput(`请描述交付物「${item.title}」的任务目标和交付要求。`); setProjectTaskPickerOpen(false); }}><b>{item.title}</b><span>创建交付物任务</span></button>)}</>}<button type="button" onClick={() => setProjectTaskPickerOpen(false)}>取消</button></section>}
-        <main ref={messagesRef} className="deliverable-codex-workbench__messages">
+        <main ref={messagesRef} className="deliverable-codex-workbench__messages" onScroll={updateMessageFollowState}>
           {active ? displayedMessages.map((message, index) => {
             const isTaskModeStart = message.kind === "task-mode-started";
             const isTaskInstruction = message.kind === "task-mode-instruction" || message.kind === "task-mode-policy-updated";

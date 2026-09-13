@@ -24,6 +24,16 @@ describe("DeliverableCodexWorkbench", () => {
     expect(source).not.toContain("const durationMs = 1_000;");
   });
 
+  it("does not pull a reader back to the bottom when background message polling refreshes", () => {
+    const source = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
+    expect(source).toContain("const shouldFollowMessagesRef = useRef(true)");
+    expect(source).toContain("const isNearMessagesBottom");
+    expect(source).toContain("onScroll={updateMessageFollowState}");
+    expect(source).toContain("shouldFollowMessagesRef.current = isNearMessagesBottom(element)");
+    expect(source).toContain("if (visible && element && shouldFollowMessagesRef.current)");
+    expect(source).not.toContain("if (visible && element) element.scrollTop = element.scrollHeight;");
+  });
+
   it("creates an immutable-mode conversation and provides archive rather than a tab close action", () => {
     const source = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
     expect(source).toContain('type Mode = "free"');
