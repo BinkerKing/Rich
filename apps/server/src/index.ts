@@ -266,6 +266,7 @@ import type { AiTaskManagementRepo } from "./repos/AiTaskManagementRepo.js";
 import { SqliteAiTaskManagementRepo } from "./repos/SqliteAiTaskManagementRepo.js";
 import { PostgresAiTaskManagementRepo } from "./repos/PostgresAiTaskManagementRepo.js";
 import { AiTaskManagementService } from "./ai-task-management/service.js";
+import { migrateImprovementTasks } from "./ai-task-management/improvementMigration.js";
 import { aiTaskManagementRoutes } from "./routes/aiTaskManagement.js";
 
 export interface BuildAppOptions {
@@ -453,6 +454,10 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     new DeliverableTaskHistoryService(multicaWorkTasks),
   );
   const aiTaskManagement = new AiTaskManagementService(aiTaskManagementRepo);
+  if (improvements) {
+    void migrateImprovementTasks(improvements, aiTaskManagementRepo, aiTaskManagement)
+      .catch(error => log.warn(`Failed to migrate legacy system improvements into AI tasks: ${String(error)}`));
+  }
   const promotionContext = new DeliverableTaskContextService(projectManagement, async (projectId, folderPath) => {
     const project = await elements.get(projectId);
     const localFolder = project?.type === "project" && project.content && typeof project.content === "object"
