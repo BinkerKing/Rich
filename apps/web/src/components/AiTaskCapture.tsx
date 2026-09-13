@@ -128,13 +128,21 @@ export function AiTaskCapture() {
   const [frame, setFrame] = useState<CaptureFrame>(readFrame);
   const picker = useRef<HTMLInputElement>(null);
   const autoAttachedBug = useRef(false);
+  const openRef = useRef(false);
   const composer = useChatComposer({ maxAttachments: 4 });
   const appView = useStore(s => s.appView);
   const setAppView = useStore(s => s.setAppView);
   const location = viewLabels[appView] ?? appView;
 
   useEffect(() => {
+    openRef.current = open;
+  }, [open]);
+  useEffect(() => {
     const show = () => {
+      if (openRef.current) {
+        setOpen(false);
+        return;
+      }
       window.dispatchEvent(new Event("rich:close-deliverable-codex"));
       setFrame(clampFrame(readFrame()));
       setOpen(true);
@@ -219,7 +227,7 @@ export function AiTaskCapture() {
   if (!open) return null;
   return <div className={`ai-task-capture${capturing ? " is-capturing" : ""}`} role="dialog" aria-modal="true" aria-label="登记 AI 任务">
     <section className="ai-task-capture__window" style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
-      <header className="ai-task-capture__titlebar" onPointerDown={beginMove}><span>AI 任务登记</span><button type="button" aria-label="关闭" onClick={() => setOpen(false)}>×</button></header>
+      <header className="ai-task-capture__titlebar" onPointerDown={beginMove}><span>AI 任务登记</span></header>
       <div className="ai-task-capture__input-wrap">
         <textarea autoFocus value={text} onChange={event => update(event.target.value)} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
         {suggestionsOpen && <div className="ai-task-capture__suggestions">{modes.filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.id} type="button" onMouseDown={event => { event.preventDefault(); selectMode(item); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
