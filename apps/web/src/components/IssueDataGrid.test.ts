@@ -244,6 +244,16 @@ test("下拉选项支持继承统一样式或单独覆盖样式", () => {
   assert.match(source, /option-content/);
 });
 
+test("每个下拉选项可在样式之外独立选择颜色并持久化", () => {
+  assert.match(client, /style\?: "standard" \| "soft" \| "pill" \| "signal"; color\?: string/);
+  assert.match(route, /style: z\.enum\(\["standard", "soft", "pill", "signal"\]\)\.optional\(\), color: gridColor\.optional\(\)/);
+  assert.match(source, /选项样式/);
+  assert.match(source, /选项颜色/);
+  assert.match(source, /color: event\.target\.value/);
+  assert.match(source, /--issue-dropdown-color/);
+  assert.match(styles, /--issue-dropdown-color/);
+});
+
 test("下拉统一样式和单项样式由同一工具栏编辑", () => {
   assert.match(source, /target: "dropdown"/);
   assert.match(source, /统一所有选项/);
