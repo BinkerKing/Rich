@@ -227,6 +227,8 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     field: column.key,
     headerName: column.name,
     width: column.width ?? 160,
+    minWidth: 68,
+    maxWidth: 1000,
     rowDrag: column.key === "serial" && !query,
     editable: column.key !== "serial" && column.key !== "updatedAt" && column.editable !== false,
     sortable: column.key !== "serial",
@@ -322,7 +324,10 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     setNewFieldName("");
   };
   const saveColumnWidths = (gridApi: GridApi<IssueGridRow>) => {
-    const widths = new Map(gridApi.getColumnState().map(column => [column.colId, column.width ?? undefined]));
+    const widths = new Map(gridApi.getColumnState().map(column => {
+      const width = column.width ?? 160;
+      return [column.colId, Math.min(1000, Math.max(68, width))];
+    }));
     persistSettings(columns.map(column => ({ ...column, width: widths.get(column.key) ?? column.width })));
   };
   const saveColumnOrder = (gridApi: GridApi<IssueGridRow>) => {

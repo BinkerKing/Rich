@@ -208,6 +208,13 @@ test("列宽调整完成后立即持久化，切换页面不会取消保存", ()
   assert.doesNotMatch(source, /resizeTimer/);
 });
 
+test("拖拽列宽与服务端允许范围一致，避免保存被拒绝后回退", () => {
+  assert.match(source, /minWidth: 68,/);
+  assert.match(source, /maxWidth: 1000,/);
+  assert.match(source, /Math\.min\(1000, Math\.max\(68, width\)\)/);
+  assert.match(route, /width: z\.number\(\)\.int\(\)\.min\(68\)\.max\(1000\)/);
+});
+
 test("异步恢复后会把已存列宽和固定状态显式应用到已就绪的 Grid", () => {
   assert.match(source, /const restoreGridColumnState = \(api: GridApi<IssueGridRow>, configuredColumns: TestCenterGridColumn\[\]\) => \{/);
   assert.match(source, /api\.applyColumnState\(\{ state: configuredColumns\.map\(column =>/);
