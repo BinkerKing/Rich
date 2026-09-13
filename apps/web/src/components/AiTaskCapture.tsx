@@ -131,6 +131,7 @@ export function AiTaskCapture() {
   const [editing, setEditing] = useState<{ clientId: string; source: string }>();
   const [frame, setFrame] = useState<CaptureFrame>(readFrame);
   const picker = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const openRef = useRef(false);
   const composer = useChatComposer({ maxAttachments: 4 });
   const appView = useStore(s => s.appView);
@@ -159,6 +160,13 @@ export function AiTaskCapture() {
     return () => window.removeEventListener("rich:close-ai-task-capture", close);
   }, []);
   useEffect(() => { window.localStorage.setItem(frameStorageKey, JSON.stringify(frame)); }, [frame]);
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.style.height = "0px";
+    input.style.height = `${Math.min(input.scrollHeight, 260)}px`;
+    input.style.overflowY = input.scrollHeight > 260 ? "auto" : "hidden";
+  }, [open, text]);
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
@@ -236,8 +244,8 @@ export function AiTaskCapture() {
     <section className="ai-task-capture__window" style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
       <header className="ai-task-capture__titlebar" onPointerDown={beginMove}><span>定位 · {location}</span></header>
       <div className="ai-task-capture__input-wrap">
-        <textarea autoFocus value={text} onChange={event => update(event.target.value)} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
-        {suggestionsOpen && <div className="ai-task-capture__suggestions" style={{ top: "calc(100% + 8px)", right: 0, left: "auto", bottom: "auto", width: 340, padding: 6 }}>{modes.filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.id} type="button" style={{ gridTemplateColumns: "48px 1fr auto", gap: 8, padding: "8px 10px", fontSize: 13 }} onMouseDown={event => { event.preventDefault(); selectMode(item); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
+        <textarea ref={inputRef} autoFocus style={{ minHeight: 0, height: 56 }} value={text} onChange={event => update(event.target.value)} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
+        {suggestionsOpen && <div className="ai-task-capture__suggestions" style={{ position: "static", marginTop: 8 }}>{modes.filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.id} type="button" onMouseDown={event => { event.preventDefault(); selectMode(item); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
       </div>
       <div className="ai-task-capture__context"><span>{composer.attachments.length ? `${composer.attachments.length} 张截图` : "选择 BUG 后自动截图"}</span></div>
       {composer.attachments.length > 0 && <div className="ai-task-capture__images">{composer.attachments.map(item => <figure key={item.clientId}><button type="button" className="ai-task-capture__preview" onClick={() => setEditing({ clientId: item.clientId, source: item.previewUrl })}><img src={item.previewUrl} alt="任务截图，点击编辑" /></button><button type="button" className="ai-task-capture__remove" aria-label="删除截图" onClick={() => composer.detach(item.clientId)}>×</button><figcaption>点击截图标注</figcaption></figure>)}</div>}
