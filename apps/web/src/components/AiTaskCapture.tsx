@@ -179,7 +179,7 @@ export function AiTaskCapture() {
   };
   const selectMode = (item: typeof modes[number]) => {
     setMode(item.id);
-    setText(value => value.replace(/^\s*\/\w*\s*/i, ""));
+    setText(value => `#${item.label}：${value.replace(/^\s*(?:#(?:BUG|需求|任务|改造)：)?\s*\/\w*\s*/i, "")}`);
     setSuggestionsOpen(false);
     if (item.id === "bug_fix" && composer.attachments.length === 0 && !composer.isUploading) {
       void attachScreenshot();
@@ -222,7 +222,7 @@ export function AiTaskCapture() {
     window.addEventListener("pointerup", end);
   };
   const submit = async () => {
-    const content = text.replace(/^\/(bug|requirement|task|improve)\s*/i, "").trim();
+    const content = text.replace(/^\s*(?:#(?:BUG|需求|任务|改造)：)?\s*\/(bug|requirement|task|improve)\s*/i, "").replace(/^\s*#(?:BUG|需求|任务|改造)：\s*/i, "").trim();
     if (!content || composer.isUploading) return;
     setSaving(true);
     try {
@@ -241,7 +241,7 @@ export function AiTaskCapture() {
       </div>
       <div className="ai-task-capture__context"><span>{composer.attachments.length ? `${composer.attachments.length} 张截图` : "选择 BUG 后自动截图"}</span></div>
       {composer.attachments.length > 0 && <div className="ai-task-capture__images">{composer.attachments.map(item => <figure key={item.clientId}><button type="button" className="ai-task-capture__preview" onClick={() => setEditing({ clientId: item.clientId, source: item.previewUrl })}><img src={item.previewUrl} alt="任务截图，点击编辑" /></button><button type="button" className="ai-task-capture__remove" aria-label="删除截图" onClick={() => composer.detach(item.clientId)}>×</button><figcaption>点击截图标注</figcaption></figure>)}</div>}
-      <footer><input ref={picker} type="file" accept="image/*" onChange={event => { const file = event.currentTarget.files?.[0]; if (file) void composer.attach(file); event.currentTarget.value = ""; }} /><button type="button" onClick={() => picker.current?.click()}>添加图片</button><button type="button" onClick={() => void attachScreenshot()}>截取当前界面</button><button type="button" className="primary" disabled={!text.replace(/^\/\w+\s*/, "").trim() || saving || composer.isUploading} onClick={() => void submit()}>{saving ? "登记中…" : "登记任务"}</button></footer>
+      <footer><input ref={picker} type="file" accept="image/*" onChange={event => { const file = event.currentTarget.files?.[0]; if (file) void composer.attach(file); event.currentTarget.value = ""; }} /><button type="button" onClick={() => picker.current?.click()}>添加图片</button><button type="button" onClick={() => void attachScreenshot()}>截取当前界面</button><button type="button" className="primary" disabled={!text.replace(/^\s*#(?:BUG|需求|任务|改造)：\s*/, "").replace(/^\/\w+\s*/, "").trim() || saving || composer.isUploading} onClick={() => void submit()}>{saving ? "登记中…" : "登记任务"}</button></footer>
       <span className="ai-task-capture__resize" aria-label="调整窗口大小" onPointerDown={event => beginMove(event, true)} />
     </section>
     {editing && <ScreenshotEditor source={editing.source} onSave={file => void replaceAttachment(file)} onClose={() => setEditing(undefined)} />}
