@@ -208,6 +208,14 @@ test("列宽调整完成后立即持久化，切换页面不会取消保存", ()
   assert.doesNotMatch(source, /resizeTimer/);
 });
 
+test("异步恢复后会把已存列宽和固定状态显式应用到已就绪的 Grid", () => {
+  assert.match(source, /const restoreGridColumnState = \(api: GridApi<IssueGridRow>, configuredColumns: TestCenterGridColumn\[\]\) => \{/);
+  assert.match(source, /api\.applyColumnState\(\{ state: configuredColumns\.map\(column =>/);
+  assert.match(source, /pendingGridColumnState\.current = restored;/);
+  assert.match(source, /restoreGridColumnState\(gridApi\.current, restored\);/);
+  assert.match(source, /if \(event\.finished && !restoringGridColumnState\.current\)/);
+});
+
 test("恢复字段配置时按已保存的列顺序构建表格", () => {
   assert.match(source, /const savedActiveColumns = settings\.columns\.filter\(column => !column\.deleted\)/);
   assert.match(source, /savedActiveColumns\.map\(column =>/);

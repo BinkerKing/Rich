@@ -126,7 +126,14 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
   const gridApi = useRef<GridApi<IssueGridRow> | null>(null);
   const settingsSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
   const settingsSaveRevision = useRef(0);
+  const pendingGridColumnState = useRef<TestCenterGridColumn[] | null>(null);
+  const restoringGridColumnState = useRef(false);
   const gridSettingsKey = `issues:${tableId}:columns`;
+  const restoreGridColumnState = (api: GridApi<IssueGridRow>, configuredColumns: TestCenterGridColumn[]) => {
+    restoringGridColumnState.current = true;
+    api.applyColumnState({ state: configuredColumns.map(column => ({ colId: column.key, width: column.width, hide: column.visible === false, pinned: column.frozen === "right" ? "right" : column.frozen ? "left" : undefined })), applyOrder: true });
+    restoringGridColumnState.current = false;
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -154,6 +161,8 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
       setColumns(restored);
       setTableStyle(restoredStyle);
       setDeletedColumns(settings.columns.filter(column => column.deleted));
+      pendingGridColumnState.current = restored;
+      if (gridApi.current) restoreGridColumnState(gridApi.current, restored);
       if (restoredFromLegacy) await api.saveTestCenterGridSettings(projectId, gridSettingsKey, settings.columns, restoredStyle);
     };
     void loadSettings().catch(() => {
@@ -369,12 +378,12 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
       <section className="issue-data-grid__style"><b>表格样式</b><label>密度<select value={settingsStyle.density} onChange={event => updateStyle({ density: event.target.value as TestCenterGridStyle["density"] })}><option value="compact">紧凑</option><option value="comfortable">舒适</option></select></label><label>表头色调<select value={settingsStyle.headerTone} onChange={event => updateStyle({ headerTone: event.target.value as TestCenterGridStyle["headerTone"] })}><option value="neutral">中性</option><option value="slate">石板</option><option value="cyan">青色</option></select></label><label>边框颜色<input aria-label="边框颜色" type="color" value={settingsStyle.borderColor} onChange={event => updateStyle({ borderColor: event.target.value })} /></label><label>边框粗细<select value={settingsStyle.borderWidth} onChange={event => updateStyle({ borderWidth: event.target.value as TestCenterGridStyle["borderWidth"] })}><option value="1px">细</option><option value="2px">中</option><option value="3px">粗</option></select></label><label>边框线型<select value={settingsStyle.borderStyle} onChange={event => updateStyle({ borderStyle: event.target.value as TestCenterGridStyle["borderStyle"] })}><option value="solid">实线</option><option value="dashed">虚线</option><option value="dotted">点线</option></select></label><label><input type="checkbox" checked={settingsStyle.stripedRows} onChange={event => updateStyle({ stripedRows: event.target.checked })} /> 斑马纹行</label>{settingsError && <span className="issue-data-grid__settings-error" role="alert">{settingsError}</span>}<button className={`issue-data-grid__apply-settings${settingsDirty ? " is-ready" : ""}`} type="button" disabled={!settingsDirty || settingsSaving} onClick={() => void applySettings()}>{settingsSaving ? "正在保存…" : settingsDirty ? "应用更改" : "已应用"}</button></section>
     </aside>}
     <div className="issue-data-grid__table" onKeyDownCapture={handleGridKeyDownCapture} onContextMenu={event => { if (event.target === event.currentTarget) { event.preventDefault(); setRecordMenu({ x: event.clientX, y: event.clientY }); } }}><AgGridReact<IssueGridRow>
-      theme={issueGridTheme} rowData={visibleRows} columnDefs={columnDefs} defaultColDef={{ sortable: true }} getRowId={params => params.data.id} onGridReady={event => { gridApi.current = event.api; }} rowDragManaged={!query} suppressMoveWhenRowDragging animateRows enableCellTextSelection suppressClipboardPaste suppressCutToClipboard rowHeight={baseRowHeight} headerHeight={40} singleClickEdit={false} stopEditingWhenCellsLoseFocus
+      theme={issueGridTheme} rowData={visibleRows} columnDefs={columnDefs} defaultColDef={{ sortable: true }} getRowId={params => params.data.id} onGridReady={event => { gridApi.current = event.api; if (pendingGridColumnState.current) restoreGridColumnState(event.api, pendingGridColumnState.current); }} rowDragManaged={!query} suppressMoveWhenRowDragging animateRows enableCellTextSelection suppressClipboardPaste suppressCutToClipboard rowHeight={baseRowHeight} headerHeight={40} singleClickEdit={false} stopEditingWhenCellsLoseFocus
       onCellClicked={event => { const column = columns.find(item => item.key === event.colDef.field); if (event.rowIndex !== null && needsOptions(column?.fieldType)) event.api.startEditingCell({ rowIndex: event.rowIndex, colKey: event.column.getColId() }); }}
       onCellContextMenu={event => { const mouseEvent = event.event as MouseEvent | undefined; if (!mouseEvent || !event.data) return; mouseEvent.preventDefault(); setRecordMenu({ x: mouseEvent.clientX, y: mouseEvent.clientY, issueId: event.data.id }); }}
       onRowDragEnd={event => { const issueIds: string[] = []; event.api.forEachNode(node => { if (node.data) issueIds.push(node.data.id); }); onIssueReorder(issueIds); }}
-      onColumnResized={event => { if (event.finished) { event.api.resetRowHeights(); saveColumnWidths(event.api); } }}
-      onColumnMoved={event => { if (event.finished) saveColumnOrder(event.api); }}
+      onColumnResized={event => { if (event.finished && !restoringGridColumnState.current) { event.api.resetRowHeights(); saveColumnWidths(event.api); } }}
+      onColumnMoved={event => { if (event.finished && !restoringGridColumnState.current) saveColumnOrder(event.api); }}
       onCellValueChanged={event => {
         const field = event.colDef.field;
         if (!field || event.oldValue === event.newValue) return;
