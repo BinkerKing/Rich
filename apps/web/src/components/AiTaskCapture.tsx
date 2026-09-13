@@ -128,7 +128,6 @@ export function AiTaskCapture() {
   const [saving, setSaving] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
-  const [bugSelected, setBugSelected] = useState(false);
   const [editing, setEditing] = useState<{ clientId: string; source: string }>();
   const [frame, setFrame] = useState<CaptureFrame>(readFrame);
   const picker = useRef<HTMLInputElement>(null);
@@ -180,7 +179,6 @@ export function AiTaskCapture() {
   };
   const selectMode = (item: typeof modes[number]) => {
     setMode(item.id);
-    setBugSelected(item.id === "bug_fix");
     setText(value => value.replace(/^\s*\/\w*\s*/i, ""));
     setSuggestionsOpen(false);
     if (item.id === "bug_fix" && composer.attachments.length === 0 && !composer.isUploading) {
@@ -236,13 +234,12 @@ export function AiTaskCapture() {
   if (!open) return null;
   return <div className={`ai-task-capture${capturing ? " is-capturing" : ""}`} role="dialog" aria-modal="true" aria-label="登记 AI 任务">
     <section className="ai-task-capture__window" style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
-      <header className="ai-task-capture__titlebar" onPointerDown={beginMove}><span>AI 任务登记</span></header>
-      <div className="ai-task-capture__input-wrap" style={bugSelected ? { display: "flex", alignItems: "stretch", gap: 10 } : undefined}>
-        {bugSelected && <span aria-label="BUG 模式" style={{ display: "grid", minWidth: 70, placeItems: "center", border: "1px solid #ef6660", borderRadius: 10, color: "#ffaaa5", fontWeight: 700, letterSpacing: "0.08em" }}>BUG</span>}
-        <textarea autoFocus style={bugSelected ? { flex: 1, width: "auto" } : undefined} value={text} onChange={event => update(event.target.value)} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
+      <header className="ai-task-capture__titlebar" onPointerDown={beginMove}><span>定位 · {location}</span></header>
+      <div className="ai-task-capture__input-wrap">
+        <textarea autoFocus value={text} onChange={event => update(event.target.value)} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
         {suggestionsOpen && <div className="ai-task-capture__suggestions">{modes.filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.id} type="button" onMouseDown={event => { event.preventDefault(); selectMode(item); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
       </div>
-      <div className="ai-task-capture__context"><span>定位 · {location}</span><span>{composer.attachments.length ? `${composer.attachments.length} 张截图` : "选择 BUG 后自动截图"}</span></div>
+      <div className="ai-task-capture__context"><span>{composer.attachments.length ? `${composer.attachments.length} 张截图` : "选择 BUG 后自动截图"}</span></div>
       {composer.attachments.length > 0 && <div className="ai-task-capture__images">{composer.attachments.map(item => <figure key={item.clientId}><button type="button" className="ai-task-capture__preview" onClick={() => setEditing({ clientId: item.clientId, source: item.previewUrl })}><img src={item.previewUrl} alt="任务截图，点击编辑" /></button><button type="button" className="ai-task-capture__remove" aria-label="删除截图" onClick={() => composer.detach(item.clientId)}>×</button><figcaption>点击截图标注</figcaption></figure>)}</div>}
       <footer><input ref={picker} type="file" accept="image/*" onChange={event => { const file = event.currentTarget.files?.[0]; if (file) void composer.attach(file); event.currentTarget.value = ""; }} /><button type="button" onClick={() => picker.current?.click()}>添加图片</button><button type="button" onClick={() => void attachScreenshot()}>截取当前界面</button><button type="button" className="primary" disabled={!text.replace(/^\/\w+\s*/, "").trim() || saving || composer.isUploading} onClick={() => void submit()}>{saving ? "登记中…" : "登记任务"}</button></footer>
       <span className="ai-task-capture__resize" aria-label="调整窗口大小" onPointerDown={event => beginMove(event, true)} />
