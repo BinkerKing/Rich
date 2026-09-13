@@ -131,7 +131,6 @@ export function AiTaskCapture() {
   const [editing, setEditing] = useState<{ clientId: string; source: string }>();
   const [frame, setFrame] = useState<CaptureFrame>(readFrame);
   const picker = useRef<HTMLInputElement>(null);
-  const autoAttachedBug = useRef(false);
   const openRef = useRef(false);
   const composer = useChatComposer({ maxAttachments: 4 });
   const appView = useStore(s => s.appView);
@@ -182,8 +181,7 @@ export function AiTaskCapture() {
     setMode(item.id);
     setText(value => value.startsWith(item.token) ? value : `${item.token} ${value}`.trimEnd());
     setSuggestionsOpen(false);
-    if (item.id === "bug_fix" && !autoAttachedBug.current) {
-      autoAttachedBug.current = true;
+    if (item.id === "bug_fix" && composer.attachments.length === 0 && !composer.isUploading) {
       void attachScreenshot();
     }
   };
@@ -236,7 +234,7 @@ export function AiTaskCapture() {
         <textarea autoFocus value={text} onChange={event => update(event.target.value)} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
         {suggestionsOpen && <div className="ai-task-capture__suggestions">{modes.filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.id} type="button" onMouseDown={event => { event.preventDefault(); selectMode(item); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
       </div>
-      <div className="ai-task-capture__context"><span>定位 · {location}</span><span>{composer.attachments.length ? `${composer.attachments.length} 张截图` : "输入 /bug 自动截图"}</span></div>
+      <div className="ai-task-capture__context"><span>定位 · {location}</span><span>{composer.attachments.length ? `${composer.attachments.length} 张截图` : "选择 BUG 后自动截图"}</span></div>
       {composer.attachments.length > 0 && <div className="ai-task-capture__images">{composer.attachments.map(item => <figure key={item.clientId}><button type="button" className="ai-task-capture__preview" onClick={() => setEditing({ clientId: item.clientId, source: item.previewUrl })}><img src={item.previewUrl} alt="任务截图，点击编辑" /></button><button type="button" className="ai-task-capture__remove" aria-label="删除截图" onClick={() => composer.detach(item.clientId)}>×</button><figcaption>点击截图标注</figcaption></figure>)}</div>}
       <footer><input ref={picker} type="file" accept="image/*" onChange={event => { const file = event.currentTarget.files?.[0]; if (file) void composer.attach(file); event.currentTarget.value = ""; }} /><button type="button" onClick={() => picker.current?.click()}>添加图片</button><button type="button" onClick={() => void attachScreenshot()}>截取当前界面</button><button type="button" className="primary" disabled={!text.replace(/^\/\w+\s*/, "").trim() || saving || composer.isUploading} onClick={() => void submit()}>{saving ? "登记中…" : "登记任务"}</button></footer>
       <span className="ai-task-capture__resize" aria-label="调整窗口大小" onPointerDown={event => beginMove(event, true)} />
