@@ -103,15 +103,15 @@
 .issue-data-grid--striped .ag-row-even .ag-cell { background:transparent; }
 .issue-data-grid--compact .ag-cell { font-size:12px; }
 
-/* A selected dropdown is a full cell state, not a small tag sitting inside one. */
+/* A selected dropdown keeps an inset, full-size outline as the cell grows. */
 .issue-data-grid .ag-cell.issue-data-grid__select-cell { padding:0; }
 .issue-data-grid .issue-data-grid__select-cell .ag-cell-value { display:flex; width:100%; height:100%; }
-.issue-data-grid .issue-data-grid__select-cell .issue-data-grid__select-badge { display:flex; width:100%; height:100%; min-height:100%; box-sizing:border-box; border-width:0 0 0 3px; border-radius:0; padding:0 15px; }
-.issue-data-grid .issue-data-grid__select-cell .issue-data-grid__select-badge--standard { border-left-color:#76858c; background:#273137; }
-.issue-data-grid .issue-data-grid__select-cell .issue-data-grid__select-badge--soft { border-left-color:#4c9297; background:#214249; }
-.issue-data-grid .issue-data-grid__select-cell .issue-data-grid__select-badge--pill { border-left-color:#5ca0a5; border-radius:0; background:#214249; }
-.issue-data-grid .issue-data-grid__select-cell .issue-data-grid__select-badge--signal { border-left-color:#c47b43; background:#493429; }
-.issue-data-grid .issue-data-grid__select-cell .issue-data-grid__select-badge--empty { border-left-color:#59616a; background:transparent; }
+.issue-data-grid .issue-data-grid__select-cell .issue-data-grid__select-badge { display:flex; width:calc(100% - 10px); height:calc(100% - 10px); min-height:0; box-sizing:border-box; margin:5px; border:2px solid; border-radius:4px; padding:0 10px; background:transparent; }
+.issue-data-grid .issue-data-grid__select-cell .issue-data-grid__select-badge--standard { border-color:#82939a; color:#e2ecee; background:transparent; }
+.issue-data-grid .issue-data-grid__select-cell .issue-data-grid__select-badge--soft { border-color:#54aeb4; color:#9eeff1; background:transparent; }
+.issue-data-grid .issue-data-grid__select-cell .issue-data-grid__select-badge--pill { border-color:#64bcc0; border-radius:4px; color:#b7f4f4; background:transparent; }
+.issue-data-grid .issue-data-grid__select-cell .issue-data-grid__select-badge--signal { border-color:#de9556; color:#ffe0a6; background:transparent; }
+.issue-data-grid .issue-data-grid__select-cell .issue-data-grid__select-badge--empty { border-color:#69757a; color:#9aa6aa; background:transparent; }
 .issue-data-grid__select-drawer-option .issue-data-grid__select-badge { display:flex; width:100%; box-sizing:border-box; }
 
 /* AG Grid headers use an inner flex label, so alignment needs an explicit layout rule. */

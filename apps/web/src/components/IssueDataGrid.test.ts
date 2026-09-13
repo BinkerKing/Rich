@@ -22,10 +22,12 @@ test("表格内下拉以向下抽屉展示带最终样式的选项", () => {
   assert.match(styles, /\.issue-data-grid__select-drawer\s*\{[^}]*border-radius:0 0 8px 8px/s);
 });
 
-test("下拉选中的值以完整单元格效果呈现", () => {
+test("下拉选中的值以随单元格伸缩的彩色描边框呈现", () => {
   assert.match(source, /column\.fieldType === "select" \? "issue-data-grid__select-cell"/);
   assert.match(styles, /\.issue-data-grid \.ag-cell\.issue-data-grid__select-cell\s*\{[^}]*padding:0/s);
-  assert.match(styles, /\.issue-data-grid \.issue-data-grid__select-cell \.issue-data-grid__select-badge\s*\{[^}]*width:100%[^}]*height:100%/s);
+  assert.match(styles, /\.issue-data-grid \.issue-data-grid__select-cell \.issue-data-grid__select-badge\s*\{[^}]*width:calc\(100% - 10px\)[^}]*height:calc\(100% - 10px\)[^}]*margin:5px[^}]*border:2px solid/s);
+  assert.match(styles, /\.issue-data-grid \.issue-data-grid__select-cell \.issue-data-grid__select-badge--standard\s*\{[^}]*border-color:[^}]*color:[^}]*background:transparent/s);
+  assert.match(styles, /\.issue-data-grid \.issue-data-grid__select-cell \.issue-data-grid__select-badge--signal\s*\{[^}]*border-color:[^}]*color:[^}]*background:transparent/s);
 });
 
 test("普通单元格的长内容不会穿透到相邻列", () => {
