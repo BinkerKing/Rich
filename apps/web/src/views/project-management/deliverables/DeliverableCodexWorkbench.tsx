@@ -7,6 +7,7 @@ import { RichContent } from "../../../components/RichContent.js";
 import { notifyDeliverableDataChanged, requestDeliverableItemFocus } from "./DeliverablesModel.js";
 import { requestShortcutOpen } from "../../../lib/shortcutEngine.js";
 import { useStore } from "../../../state/store.js";
+import { api, type AiManagedTaskCreateInput } from "../../../api/client.js";
 import "./DeliverableCodexWorkbench.css";
 import "./DeliverableCodexWorkbenchAutosize.css";
 
@@ -14,6 +15,7 @@ type Mode = "free";
 type TaskMode = { id: string; label: string; hint: string };
 type TaskModeSession = TaskMode & { location: CodexLocationContextInput; startedAt: string };
 type Theme = "obsidian" | "graphite";
+type PendingAiTask = { sceneId: AiManagedTaskCreateInput["sceneId"]; label: string; payload?: Record<string, unknown> };
 type Conversation = { id: string; title: string; mode: Mode; status: "active" | "archived"; projectId: string; deliverableId: string; codexThreadId?: string; lastActiveAt: string };
 type Message = { role: "user" | "assistant" | "system"; content: string; createdAt?: string; durationMs?: number; kind?: "task-mode-started" | "task-mode-instruction" | "task-mode-policy-updated"; taskModeLabel?: string; taskModeLocation?: CodexLocationContextInput; attachments?: Array<{ id?: string; url?: string; previewUrl?: string }> };
 type QueuedMessage = { id: string; conversation: Conversation; content: string; attachments: Array<{ id: string; mime: string; url: string; width?: number; height?: number; previewUrl?: string }> };
@@ -125,6 +127,7 @@ function withMessageDurations(messages: Message[]): Message[] {
 export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverableTitle, visible, requestedConversationId, openSequence }: { projectId: string; deliverableId: string; deliverableTitle: string; visible: boolean; requestedConversationId?: string; openSequence?: number }): ReactNode {
   const appView = useStore(state => state.appView);
   const setAppView = useStore(state => state.setAppView);
+  const elements = useStore(state => state.elements);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string>();
   const [creating, setCreating] = useState(false);
@@ -151,6 +154,10 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const [error, setError] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string>();
   const [capturingCurrentView, setCapturingCurrentView] = useState(false);
+  const [pendingAiTask, setPendingAiTask] = useState<PendingAiTask>();
+  const [projectTaskPickerOpen, setProjectTaskPickerOpen] = useState(false);
+  const [pickerProjectId, setPickerProjectId] = useState<string>();
+  const [pickerDeliverables, setPickerDeliverables] = useState<Array<{ id: string; title: string }>>([]);
   const composer = useChatComposer({ maxAttachments: 4 });
   const composerTextareaRef = useRef<HTMLTextAreaElement>(null);
   const composerFilePickerRef = useRef<HTMLInputElement>(null);
@@ -381,6 +388,24 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     const content = locationContext ? `${locationContext}\n\n${draft}` : draft;
     const attachments = composer.getAttachmentRefs().map((attachment, index) => ({ ...attachment, previewUrl: composer.attachments[index]?.previewUrl }));
     if (isResponding) return;
+    if (pendingAiTask) {
+      const taskInput: AiManagedTaskCreateInput = {
+        sceneId: pendingAiTask.sceneId,
+        title: draft.slice(0, 80),
+        input: { text: content, images: attachments.map(item => ({ id: item.id, label: "对话附件", mime: item.mime })), materials: [] },
+        payload: pendingAiTask.sceneId === "bug_fix"
+          ? { ...pendingAiTask.payload, gitDeployLatest: /(?:提交\s*git|git\s*提交|重新部署|重新发布)/i.test(draft), deploymentPolicy: "git_deploy_latest_only" }
+          : pendingAiTask.payload,
+        contextSummary: content.slice(0, 2000),
+        sourceConversationId: active.id,
+        ...(pendingAiTask.sceneId === "deliverable_task" ? {
+          projectId: typeof pendingAiTask.payload?.projectId === "string" ? pendingAiTask.payload.projectId : projectId,
+          deliverableId: typeof pendingAiTask.payload?.deliverableId === "string" ? pendingAiTask.payload.deliverableId : deliverableId,
+        } : {}),
+      };
+      void api.createAiManagedTask(taskInput).then(() => setError(`${pendingAiTask.label}已记录，等待 AI 认领`)).catch(reason => setError(reason instanceof Error ? reason.message : String(reason)));
+      setPendingAiTask(undefined);
+    }
     void sendMessage(active, content, attachments, true);
     setLocationAttached(false);
   };
@@ -390,6 +415,16 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     if (tool.id === "image") composerFilePickerRef.current?.click();
     if (tool.id === "location") setLocationAttached(true);
     if (tool.id === "location-screenshot") void attachCurrentViewScreenshot();
+    if (tool.id === "bug") {
+      setLocationAttached(true); setPendingAiTask({ sceneId: "bug_fix", label: "Bug 任务", payload: { page: currentPageLocation(appView), gitDeployLatest: false } });
+      void attachCurrentViewScreenshot(); setInput("请描述 Bug 的现象、预期结果和触发方式。");
+    }
+    if (tool.id === "requirement") {
+      setPendingAiTask({ sceneId: "requirement_analysis", label: "需求 PRD" }); setInput("请描述你的需求想法、目标和约束，我会记录为 PRD 分析任务。");
+    }
+    if (tool.id === "project") {
+      setProjectTaskPickerOpen(true);
+    }
     if (tool.id === "task-mode") {
       if (availableTaskModes.length === 0) setError("当前页面没有可用的任务模式");
       else { setTaskModeIndex(0); setTaskModePickerOpen(true); }
@@ -470,6 +505,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
         </header>
         {creating && <form className="deliverable-codex-workbench__create" onSubmit={event => { event.preventDefault(); void create(); }}><input autoFocus value={title} onChange={event => setTitle(event.target.value)} placeholder="会话标题"/><button type="submit">创建</button></form>}
         {taskModePickerOpen && <section className="deliverable-codex-workbench__task-mode-picker" role="listbox" aria-label="任务模式选择"><small>当前页面：{currentPageLocation(appView).join(" / ")}</small>{availableTaskModes.map((mode, index) => <button key={mode.id} type="button" role="option" aria-selected={index === taskModeIndex} className={index === taskModeIndex ? "is-active" : ""} onClick={() => startTaskMode(mode)}><b>{mode.label}</b><span>{mode.hint} · Enter 启动</span></button>)}</section>}
+        {projectTaskPickerOpen && <section className="deliverable-codex-workbench__task-mode-picker" role="dialog" aria-label="选择项目交付物"><small>{pickerProjectId ? "选择交付物" : "选择项目"}</small>{!pickerProjectId ? Array.from(elements.values()).filter(item => item.type === "project").map(item => <button key={item.id} type="button" onClick={() => { setPickerProjectId(item.id); void api.listProjectManagementModuleItems(item.id, "deliverables", undefined, true).then(items => setPickerDeliverables(items.map(entry => ({ id: entry.id, title: entry.title })))).catch(reason => setError(String(reason))); }}><b>{item.title}</b><span>选择该项目的交付物</span></button>) : <><button type="button" onClick={() => { setPickerProjectId(undefined); setPickerDeliverables([]); }}>← 返回项目</button>{pickerDeliverables.map(item => <button key={item.id} type="button" onClick={() => { setPendingAiTask({ sceneId: "deliverable_task", label: "交付物任务", payload: { projectId: pickerProjectId, deliverableId: item.id, deliverableTitle: item.title } }); setInput(`请描述交付物「${item.title}」的任务目标和交付要求。`); setProjectTaskPickerOpen(false); }}><b>{item.title}</b><span>创建交付物任务</span></button>)}</>}<button type="button" onClick={() => setProjectTaskPickerOpen(false)}>取消</button></section>}
         <main ref={messagesRef} className="deliverable-codex-workbench__messages">
           {active ? displayedMessages.map((message, index) => {
             const isTaskModeStart = message.kind === "task-mode-started";

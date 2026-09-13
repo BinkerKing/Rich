@@ -6,6 +6,9 @@ export interface CodexSlashTool {
 }
 
 export const CODEX_SLASH_TOOLS: CodexSlashTool[] = [
+  { id: "bug", label: "BUG", hint: "记录当前页面的 Bug 修复任务", searchTerms: ["bug", "cuowu", "wenti"] },
+  { id: "requirement", label: "需求", hint: "记录并分析需求，形成 PRD", searchTerms: ["xuqiu", "prd", "requirement"] },
+  { id: "project", label: "项目", hint: "为交付物创建项目任务", searchTerms: ["xiangmu", "jiaofuwu", "project"] },
   { id: "image", label: "图片", hint: "添加图片", searchTerms: ["tupian", "tp", "image"] },
   { id: "location", label: "定位", hint: "附加页面和业务定位", searchTerms: ["dingwei", "dw", "location"] },
   { id: "location-screenshot", label: "定位截图", hint: "将当前界面作为图片附加", searchTerms: ["dingwei jietu", "dwjt", "location screenshot"] },

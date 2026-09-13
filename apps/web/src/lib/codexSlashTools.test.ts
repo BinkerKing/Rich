@@ -9,7 +9,7 @@ test("a leading slash opens the Codex tool list", () => {
 });
 
 test("slash tools are the composer attachment tools and support Chinese or pinyin", () => {
-  assert.deepEqual(filterCodexSlashTools("").map(tool => tool.id), ["image", "location", "location-screenshot", "task-mode"]);
+  assert.deepEqual(filterCodexSlashTools("").map(tool => tool.id), ["bug", "requirement", "project", "image", "location", "location-screenshot", "task-mode"]);
   assert.deepEqual(filterCodexSlashTools("定位").map(tool => tool.id), ["location", "location-screenshot"]);
   assert.deepEqual(filterCodexSlashTools("dingwei").map(tool => tool.id), ["location", "location-screenshot"]);
   assert.deepEqual(filterCodexSlashTools("dwjt").map(tool => tool.id), ["location-screenshot"]);

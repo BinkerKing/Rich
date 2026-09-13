@@ -147,6 +147,10 @@ export interface GreatMeBrainResult {
 }
 
 export const api = {
+  async createAiManagedTask(input: AiManagedTaskCreateInput): Promise<AiManagedTask> {
+    const r = await fetch("/api/ai-task-management", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (!r.ok) throw new Error(`create AI task failed: ${r.status}`); return r.json();
+  },
   async listAiManagedTasks(): Promise<AiManagedTask[]> {
     const r = await fetch("/api/ai-task-management"); if (!r.ok) throw new Error(`list AI tasks failed: ${r.status}`); return (await r.json()).tasks;
   },
@@ -2394,5 +2398,10 @@ export type AiManagedTaskStatus = "ready" | "claimed" | "needs_review" | "blocke
 export interface AiManagedTask {
   id: string; rootTaskId: string; parentTaskId?: string; sceneId: "bug_fix" | "requirement_analysis" | "deliverable_task" | "system_improvement";
   title: string; status: AiManagedTaskStatus; contextSummary: string; claimedBy?: string; projectId?: string; deliverableId?: string; updatedAt: string;
+}
+export interface AiManagedTaskCreateInput {
+  sceneId: AiManagedTask["sceneId"]; title: string;
+  input: { text: string; images: Array<{ id: string; label: string; path?: string; mime?: string }>; materials: Array<{ id: string; label: string; path?: string; mime?: string }> };
+  payload?: Record<string, unknown>; contextSummary?: string; sourceConversationId?: string; projectId?: string; deliverableId?: string;
 }
 export interface AiManagedTaskPacket { task: AiManagedTask; scene: { id: string; label: string; instructions: string }; nodes: Array<{ id: string; analysis: string; result: string; pending?: string; createdAt: string }>; }
