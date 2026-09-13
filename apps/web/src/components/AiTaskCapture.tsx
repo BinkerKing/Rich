@@ -128,6 +128,7 @@ export function AiTaskCapture() {
   const [saving, setSaving] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [bugSelected, setBugSelected] = useState(false);
   const [editing, setEditing] = useState<{ clientId: string; source: string }>();
   const [frame, setFrame] = useState<CaptureFrame>(readFrame);
   const picker = useRef<HTMLInputElement>(null);
@@ -179,7 +180,8 @@ export function AiTaskCapture() {
   };
   const selectMode = (item: typeof modes[number]) => {
     setMode(item.id);
-    setText(value => value.startsWith(item.token) ? value : `${item.token} ${value}`.trimEnd());
+    setBugSelected(item.id === "bug_fix");
+    setText(value => value.replace(/^\s*\/\w*\s*/i, ""));
     setSuggestionsOpen(false);
     if (item.id === "bug_fix" && composer.attachments.length === 0 && !composer.isUploading) {
       void attachScreenshot();
@@ -230,8 +232,9 @@ export function AiTaskCapture() {
   return <div className={`ai-task-capture${capturing ? " is-capturing" : ""}`} role="dialog" aria-modal="true" aria-label="登记 AI 任务">
     <section className="ai-task-capture__window" style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
       <header className="ai-task-capture__titlebar" onPointerDown={beginMove}><span>AI 任务登记</span></header>
-      <div className="ai-task-capture__input-wrap">
-        <textarea autoFocus value={text} onChange={event => update(event.target.value)} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
+      <div className="ai-task-capture__input-wrap" style={bugSelected ? { display: "flex", alignItems: "stretch", gap: 10 } : undefined}>
+        {bugSelected && <span aria-label="BUG 模式" style={{ display: "grid", minWidth: 70, placeItems: "center", border: "1px solid #ef6660", borderRadius: 10, color: "#ffaaa5", fontWeight: 700, letterSpacing: "0.08em" }}>BUG</span>}
+        <textarea autoFocus style={bugSelected ? { flex: 1, width: "auto" } : undefined} value={text} onChange={event => update(event.target.value)} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
         {suggestionsOpen && <div className="ai-task-capture__suggestions">{modes.filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.id} type="button" onMouseDown={event => { event.preventDefault(); selectMode(item); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
       </div>
       <div className="ai-task-capture__context"><span>定位 · {location}</span><span>{composer.attachments.length ? `${composer.attachments.length} 张截图` : "选择 BUG 后自动截图"}</span></div>
