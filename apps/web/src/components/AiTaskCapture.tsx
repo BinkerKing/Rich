@@ -418,7 +418,17 @@ export function AiTaskCapture() {
         }
       </header>
       <div className="ai-task-capture__input-wrap" style={{ marginBottom: selectedMode || listMode ? 14 : 0 }}>
-        <textarea ref={inputRef} autoFocus style={{ minHeight: 0, height: 56, borderColor: selectedMode || listMode ? modeColor : undefined }} value={text} onChange={event => update(event.target.value)} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder={listMode ? "搜索未结束的 AI 任务…" : "描述你要登记的任务…"} />
+        <textarea ref={inputRef} autoFocus style={{ minHeight: 0, height: 56, borderColor: selectedMode || listMode ? modeColor : undefined }} value={text} onChange={event => update(event.target.value)} onPaste={event => {
+          if (!selectedMode) return;
+          const images = Array.from(event.clipboardData.items).flatMap(item => {
+            if (!item.type.startsWith("image/")) return [];
+            const file = item.getAsFile();
+            return file ? [file] : [];
+          });
+          if (!images.length) return;
+          event.preventDefault();
+          images.forEach(image => void composer.attach(image));
+        }} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder={listMode ? "搜索未结束的 AI 任务…" : "描述你要登记的任务…"} />
         {(selectedModeItem || listMode) && <span style={{ position: "absolute", zIndex: 1, left: 14, bottom: -13, border: `1px solid ${modeColor}`, borderRadius: 4, padding: "2px 8px", background: modeColor, color: "#fff", fontSize: 12, fontWeight: 700, letterSpacing: ".06em", lineHeight: 1.35 }}>{listMode ? listCommand.label : selectedModeItem?.label}</span>}
         {suggestionsOpen && <div className="ai-task-capture__suggestions" style={{ position: "static", marginTop: 8 }}>{[...modes, listCommand].filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.token} type="button" onMouseDown={event => { event.preventDefault(); "id" in item ? selectMode(item as typeof modes[number]) : selectListMode(); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
       </div>
