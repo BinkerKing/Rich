@@ -10,6 +10,9 @@ const modes: Array<{ id: AiManagedTask["sceneId"]; token: string; label: string;
   { id: "deliverable_task", token: "/task", label: "任务", description: "登记交付任务" },
   { id: "system_improvement", token: "/improve", label: "改造", description: "登记系统改造任务" },
 ];
+const listCommand = { token: "/list", label: "清单", description: "查看当前未结束的 AI 任务" };
+const taskTypeLabel: Record<AiManagedTask["sceneId"], string> = { bug_fix: "BUG", requirement_analysis: "需求", deliverable_task: "任务", system_improvement: "改造" };
+const taskStatusLabel: Record<AiManagedTask["status"], string> = { ready: "待认领", claimed: "已认领", needs_review: "待 Review", blocked: "有阻塞", resolved: "已解决" };
 
 const viewLabels: Record<string, string> = { aiTaskManagement: "AI 任务管理", projects: "项目管理", deliverables: "交付物", taskWorkbench: "任务工作台" };
 type Box = { x: number; y: number; width: number; height: number };
@@ -166,6 +169,9 @@ export function AiTaskCapture() {
   const [text, setText] = useState("");
   const [mode, setMode] = useState<AiManagedTask["sceneId"]>("bug_fix");
   const [selectedMode, setSelectedMode] = useState<AiManagedTask["sceneId"]>();
+  const [listMode, setListMode] = useState(false);
+  const [listedTasks, setListedTasks] = useState<AiManagedTask[]>([]);
+  const [listLoading, setListLoading] = useState(false);
   const [frozenLocation, setFrozenLocation] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [capturing, setCapturing] = useState(false);
@@ -187,6 +193,17 @@ export function AiTaskCapture() {
   useEffect(() => {
     openRef.current = open;
   }, [open]);
+  useEffect(() => {
+    if (!open || !listMode) return;
+    let active = true;
+    setListLoading(true);
+    void api.listAiManagedTasks().then(tasks => {
+      if (active) setListedTasks(tasks);
+    }).finally(() => {
+      if (active) setListLoading(false);
+    });
+    return () => { active = false; };
+  }, [open, listMode]);
   useEffect(() => {
     const show = () => {
       if (openRef.current) {
@@ -249,6 +266,7 @@ export function AiTaskCapture() {
     }
   };
   const selectMode = (item: typeof modes[number]) => {
+    setListMode(false);
     setMode(item.id);
     setSelectedMode(item.id);
     setFrozenLocation(item.id === "bug_fix" ? location : undefined);
@@ -266,6 +284,21 @@ export function AiTaskCapture() {
       requestAnimationFrame(() => void attachScreenshot());
     }
   };
+  const selectListMode = () => {
+    setListMode(true);
+    setSelectedMode(undefined);
+    setFrozenLocation(undefined);
+    composer.clear();
+    setEditing(undefined);
+    setText("");
+    setSuggestionsOpen(false);
+    requestAnimationFrame(() => {
+      const input = inputRef.current;
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(0, 0);
+    });
+  };
   const update = (value: string) => {
     setText(value);
     const show = /^\s*\/\w*$/.test(value);
@@ -274,9 +307,17 @@ export function AiTaskCapture() {
     if (hit) setMode(hit.id);
   };
   const confirmSlashMode = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== "Enter" || text.trim().toLowerCase() !== "/bug") return;
+    if (event.key !== "Enter") return;
+    const command = text.trim().toLowerCase();
+    if (command === listCommand.token) {
+      event.preventDefault();
+      selectListMode();
+      return;
+    }
+    const item = modes.find(candidate => candidate.token === command);
+    if (!item) return;
     event.preventDefault();
-    selectMode(modes[0]!);
+    selectMode(item);
   };
   const replaceAttachment = async (file: File) => {
     if (!editing) return;
@@ -312,13 +353,15 @@ export function AiTaskCapture() {
     setSaving(true);
     try {
       await api.createAiManagedTask({ sceneId: mode, title: content.slice(0, 80), input: { text: `页面定位：${taskLocation}\n\n${content}`, images: composer.getAttachmentRefs().map(item => ({ id: item.id, label: "任务截图", mime: item.mime })), materials: [] }, payload: { page: [taskLocation] }, contextSummary: content.slice(0, 2000) });
-      composer.clear(); setText(""); setSelectedMode(undefined); setFrozenLocation(undefined); setOpen(false);
+      composer.clear(); setText(""); setSelectedMode(undefined); setListMode(false); setFrozenLocation(undefined); setOpen(false);
     } finally { setSaving(false); }
   };
 
   if (!open) return null;
   const selectedModeItem = modes.find(item => item.id === selectedMode);
-  const modeColor = selectedMode === "bug_fix" ? "#ef5350" : "#7f8b90";
+  const modeColor = listMode ? "#37b86b" : selectedMode === "bug_fix" ? "#ef5350" : "#7f8b90";
+  const search = text.trim().toLocaleLowerCase();
+  const visibleTasks = listedTasks.filter(task => task.status !== "resolved" && (!search || `${taskTypeLabel[task.sceneId]} ${task.title} ${taskStatusLabel[task.status]}`.toLocaleLowerCase().includes(search)));
   return <div className={`ai-task-capture${capturing ? " is-capturing" : ""}`} role="dialog" aria-modal="true" aria-label="登记 AI 任务">
     <section className="ai-task-capture__window" style={{ left: frame.x, top: frame.y, width: frame.width, height: "auto", minHeight: 0, maxHeight: "calc(100vh - 24px)" }}>
       <header className="ai-task-capture__titlebar" onPointerDown={beginMove}>
@@ -333,11 +376,14 @@ export function AiTaskCapture() {
         </div>
         }
       </header>
-      <div className="ai-task-capture__input-wrap" style={{ marginBottom: selectedMode ? 14 : 0 }}>
-        <textarea ref={inputRef} autoFocus style={{ minHeight: 0, height: 56, borderColor: selectedMode ? modeColor : undefined }} value={text} onChange={event => update(event.target.value)} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
-        {selectedModeItem && <span style={{ position: "absolute", zIndex: 1, left: 14, bottom: -13, border: `1px solid ${modeColor}`, borderRadius: 4, padding: "2px 8px", background: modeColor, color: "#fff", fontSize: 12, fontWeight: 700, letterSpacing: ".06em", lineHeight: 1.35 }}>{selectedModeItem.label}</span>}
-        {suggestionsOpen && <div className="ai-task-capture__suggestions" style={{ position: "static", marginTop: 8 }}>{modes.filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.id} type="button" onMouseDown={event => { event.preventDefault(); selectMode(item); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
+      <div className="ai-task-capture__input-wrap" style={{ marginBottom: selectedMode || listMode ? 14 : 0 }}>
+        <textarea ref={inputRef} autoFocus style={{ minHeight: 0, height: 56, borderColor: selectedMode || listMode ? modeColor : undefined }} value={text} onChange={event => update(event.target.value)} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder={listMode ? "搜索未结束的 AI 任务…" : "描述你要登记的任务…"} />
+        {(selectedModeItem || listMode) && <span style={{ position: "absolute", zIndex: 1, left: 14, bottom: -13, border: `1px solid ${modeColor}`, borderRadius: 4, padding: "2px 8px", background: modeColor, color: "#fff", fontSize: 12, fontWeight: 700, letterSpacing: ".06em", lineHeight: 1.35 }}>{listMode ? listCommand.label : selectedModeItem?.label}</span>}
+        {suggestionsOpen && <div className="ai-task-capture__suggestions" style={{ position: "static", marginTop: 8 }}>{[...modes, listCommand].filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.token} type="button" onMouseDown={event => { event.preventDefault(); "id" in item ? selectMode(item as typeof modes[number]) : selectListMode(); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
       </div>
+      {listMode && <div style={{ marginTop: 18, borderTop: "1px solid #30383c" }}>
+        {listLoading ? <p style={{ margin: "16px 0", color: "#99a5aa" }}>正在加载任务清单…</p> : visibleTasks.length ? visibleTasks.map(task => <article key={task.id} style={{ display: "grid", gridTemplateColumns: "72px minmax(0, 1fr) auto", gap: 12, alignItems: "center", padding: "13px 4px", borderBottom: "1px solid #293034" }}><b style={{ color: "#68d891", fontSize: 12, letterSpacing: ".06em" }}>{taskTypeLabel[task.sceneId]}</b><span style={{ overflow: "hidden", color: "#eef3f4", fontWeight: 600, textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.title}</span><small style={{ color: "#aab6ba" }}>{taskStatusLabel[task.status]}</small></article>) : <p style={{ margin: "16px 0", color: "#99a5aa" }}>没有符合条件的未结束 AI 任务。</p>}
+      </div>}
       {composer.attachments.length > 0 && <div className="ai-task-capture__images" style={{ marginTop: 16 }}>{composer.attachments.map(item => <figure key={item.clientId}><button type="button" className="ai-task-capture__preview" onClick={() => editing?.clientId === item.clientId ? editorRef.current?.save() : setEditing({ clientId: item.clientId, source: item.previewUrl })}><img src={item.previewUrl} alt="任务截图，点击编辑并再次点击保存" /></button><button type="button" className="ai-task-capture__remove" aria-label="删除截图" title="删除截图" onClick={() => detachAttachment(item.clientId)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M9 7l1-2h4l1 2m-9 0 1 13h10l1-13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></button></figure>)}</div>}
       {editing && <ScreenshotEditor ref={editorRef} source={editing.source} onSave={file => void replaceAttachment(file)} />}
     </section>
