@@ -24,13 +24,14 @@ type ConfigurableDataGridProps<Row extends ConfigurableGridRow> = {
   toolbar?: ReactNode;
   emptyRowsRenderer?: ReactNode;
   showSettings?: boolean;
+  fillHeight?: boolean;
 };
 
 function columnKeyFromLabel(value: string) {
   return `custom_${value.trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "_").replace(/^_+|_+$/g, "") || "column"}`;
 }
 
-export function ConfigurableDataGrid<Row extends ConfigurableGridRow>({ ariaLabel, rows, columns, onRowsChange, onColumnsChange, onAddRow, onRowClick, toolbar, emptyRowsRenderer, showSettings = true }: ConfigurableDataGridProps<Row>): ReactNode {
+export function ConfigurableDataGrid<Row extends ConfigurableGridRow>({ ariaLabel, rows, columns, onRowsChange, onColumnsChange, onAddRow, onRowClick, toolbar, emptyRowsRenderer, showSettings = true, fillHeight = false }: ConfigurableDataGridProps<Row>): ReactNode {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
   const [selectedRows, setSelectedRows] = useState<ReadonlySet<Key>>(() => new Set());
@@ -79,7 +80,8 @@ export function ConfigurableDataGrid<Row extends ConfigurableGridRow>({ ariaLabe
 
   const updateColumn = (key: string, patch: Partial<ConfigurableGridColumn>) => onColumnsChange(columns.map(column => column.key === key ? { ...column, ...patch } : column));
 
-  return <section className="configurable-data-grid" aria-label={ariaLabel}>
+  const configuredColumnOffset = 1 + (columns.some(column => column.name.trim() === "序号") ? 0 : 1);
+  return <section className={`configurable-data-grid${fillHeight ? " configurable-data-grid--fill" : ""}`} aria-label={ariaLabel}>
     <header className="configurable-data-grid__toolbar">
       <div>{toolbar}</div>
       <div className="configurable-data-grid__actions">
@@ -101,7 +103,7 @@ export function ConfigurableDataGrid<Row extends ConfigurableGridRow>({ ariaLabe
       onSelectedRowsChange={setSelectedRows}
       onRowsChange={onRowsChange}
       onCellClick={onRowClick ? ({ row }) => onRowClick(row) : undefined}
-      onColumnResize={(index, width) => { const column = columns[index]; if (column) updateColumn(column.key, { width }); }}
+      onColumnResize={(index, width) => { const column = columns[index - configuredColumnOffset]; if (column) updateColumn(column.key, { width }); }}
       onColumnsReorder={(sourceKey, targetKey) => { const sourceIndex = columns.findIndex(column => column.key === sourceKey); const targetIndex = columns.findIndex(column => column.key === targetKey); if (sourceIndex < 0 || targetIndex < 0) return; const next = [...columns]; const [source] = next.splice(sourceIndex, 1); next.splice(targetIndex, 0, source); onColumnsChange(next); }}
     />
     {!rows.length && emptyRowsRenderer && <div className="configurable-data-grid__empty">{emptyRowsRenderer}</div>}
