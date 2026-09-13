@@ -11,6 +11,7 @@ export type ConfigurableGridColumn = {
   frozen?: boolean | "left" | "right";
   editable?: boolean;
   options?: Array<{ label: string; value: string }>;
+  renderCell?: (row: ConfigurableGridRow) => ReactNode;
 };
 
 type ConfigurableDataGridProps<Row extends ConfigurableGridRow> = {
@@ -64,7 +65,7 @@ export function ConfigurableDataGrid<Row extends ConfigurableGridRow>({ ariaLabe
           resizable: true,
           sortable: !isRowNumberColumn,
           draggable: true,
-          renderCell: isRowNumberColumn ? ({ rowIdx }: { rowIdx: number }) => <span className="configurable-data-grid__row-number">{String(rowIdx + 1).padStart(2, "0")}</span> : undefined,
+          renderCell: column.renderCell ? ({ row }) => column.renderCell?.(row) : isRowNumberColumn ? ({ rowIdx }: { rowIdx: number }) => <span className="configurable-data-grid__row-number">{String(rowIdx + 1).padStart(2, "0")}</span> : undefined,
           renderEditCell: column.options ? ({ row, onRowChange }) => <select className="configurable-data-grid__select" autoFocus value={String(row[column.key] ?? "")} onChange={event => onRowChange({ ...row, [column.key]: event.target.value })}>{column.options?.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : undefined,
         };
       }),

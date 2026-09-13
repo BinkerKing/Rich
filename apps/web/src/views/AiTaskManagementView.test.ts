@@ -6,15 +6,18 @@ describe("AiTaskManagementView bug workflow", () => {
     const source = readFileSync(new URL("./AiTaskManagementView.tsx", import.meta.url), "utf8");
     expect(source).toContain('{ key: "type", name: "类型"');
     expect(source).toContain('{ key: "page", name: "定位"');
-    expect(source).toContain('task.sceneId === "bug_fix" ? "🔴 BUG"');
+    expect(source).toContain('rich.ai-task-table.bug.columns.v2');
+    expect(source).toContain('className="atm-task-type atm-task-type--bug"');
   });
 
-  it("lets a completed bug be accepted or continued in its linked Codex conversation", () => {
+  it("shows inline review actions for a completed bug and continues it in its linked Codex conversation", () => {
     const source = readFileSync(new URL("./AiTaskManagementView.tsx", import.meta.url), "utf8");
     expect(source).toContain('aria-label="验收完成"');
     expect(source).toContain('aria-label="继续处理"');
+    expect(source).toContain('className="atm-review-actions"');
+    expect(source).toContain('className="atm-review-accept"');
     expect(source).toContain("openBoundCodex({ projectId: \"__general__\"");
     expect(source).toContain("executionTaskId: next.id");
-    expect(source).toContain("原始 Bug 任务 ID：${packet.task.id}");
+    expect(source).toContain("原始 Bug 任务 ID：${task.id}");
   });
 });
