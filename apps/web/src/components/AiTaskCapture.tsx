@@ -180,6 +180,10 @@ export function AiTaskCapture() {
   const location = viewLabels[appView] ?? appView;
 
   useEffect(() => {
+    if (editing && !composer.attachments.some(item => item.clientId === editing.clientId)) setEditing(undefined);
+  }, [editing, composer.attachments]);
+
+  useEffect(() => {
     openRef.current = open;
   }, [open]);
   useEffect(() => {
@@ -269,6 +273,10 @@ export function AiTaskCapture() {
     await composer.attach(file);
     setEditing(undefined);
   };
+  const detachAttachment = (clientId: string) => {
+    composer.detach(clientId);
+    if (editing?.clientId === clientId) setEditing(undefined);
+  };
   const beginMove = (event: React.PointerEvent<HTMLElement>, resize = false) => {
     if (!resize && (event.target as Element).closest("button")) return;
     event.preventDefault();
@@ -316,7 +324,7 @@ export function AiTaskCapture() {
         <textarea ref={inputRef} autoFocus style={{ minHeight: 0, height: 56 }} value={text} onChange={event => update(event.target.value)} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
         {suggestionsOpen && <div className="ai-task-capture__suggestions" style={{ position: "static", marginTop: 8 }}>{modes.filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.id} type="button" onMouseDown={event => { event.preventDefault(); selectMode(item); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
       </div>
-      {composer.attachments.length > 0 && <div className="ai-task-capture__images" style={{ marginTop: 16 }}>{composer.attachments.map(item => <figure key={item.clientId}><button type="button" className="ai-task-capture__preview" onClick={() => editing?.clientId === item.clientId ? editorRef.current?.save() : setEditing({ clientId: item.clientId, source: item.previewUrl })}><img src={item.previewUrl} alt="任务截图，点击编辑并再次点击保存" /></button><button type="button" className="ai-task-capture__remove" aria-label="删除截图" onClick={() => composer.detach(item.clientId)}>×</button></figure>)}</div>}
+      {composer.attachments.length > 0 && <div className="ai-task-capture__images" style={{ marginTop: 16 }}>{composer.attachments.map(item => <figure key={item.clientId}><button type="button" className="ai-task-capture__preview" onClick={() => editing?.clientId === item.clientId ? editorRef.current?.save() : setEditing({ clientId: item.clientId, source: item.previewUrl })}><img src={item.previewUrl} alt="任务截图，点击编辑并再次点击保存" /></button><button type="button" className="ai-task-capture__remove" aria-label="删除截图" onClick={() => detachAttachment(item.clientId)}>×</button></figure>)}</div>}
       {editing && <ScreenshotEditor ref={editorRef} source={editing.source} onSave={file => void replaceAttachment(file)} />}
     </section>
   </div>;
