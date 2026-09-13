@@ -22,6 +22,7 @@ describe("AI task management view", () => {
     expect(source).toContain("atm-drawer__section");
     expect(source).toContain("atm-screenshot");
     expect(source).toContain("atm-image-lightbox");
+    expect(source).toContain('event.key === "Escape"');
     expect(source).toContain("atm-drawer__close");
     expect(source).toContain("activeRowId={selected}");
     expect(source).not.toContain("TaskWorkbench");
