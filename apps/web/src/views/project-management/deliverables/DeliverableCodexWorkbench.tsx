@@ -374,7 +374,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     try {
       setComposerMenuOpen(false);
       setCapturingCurrentView(true);
-      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       const dataUrl = await richWindow?.captureCurrentView?.();
       if (!dataUrl) return;
       const blob = await (await fetch(dataUrl)).blob();
