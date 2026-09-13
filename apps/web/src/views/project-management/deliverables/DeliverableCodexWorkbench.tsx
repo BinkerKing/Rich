@@ -139,7 +139,7 @@ function withMessageDurations(messages: Message[]): Message[] {
   });
 }
 
-export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverableTitle, visible, requestedConversationId, openSequence }: { projectId: string; deliverableId: string; deliverableTitle: string; visible: boolean; requestedConversationId?: string; openSequence?: number }): ReactNode {
+export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverableTitle, visible, requestedConversationId, initialPrompt, executionTaskId, initialConversationTitle, openSequence }: { projectId: string; deliverableId: string; deliverableTitle: string; visible: boolean; requestedConversationId?: string; initialPrompt?: string; executionTaskId?: string; initialConversationTitle?: string; openSequence?: number }): ReactNode {
   const appView = useStore(state => state.appView);
   const setAppView = useStore(state => state.setAppView);
   const elements = useStore(state => state.elements);
@@ -181,6 +181,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const composerMenuRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<HTMLElement>(null);
   const streamingRef = useRef(false);
+  const launchedExecutionTaskRef = useRef<string>();
   const [windowState, setWindowState] = useState<WindowState>(() => { try { return fitWindowToViewport({ ...defaultWindow, ...JSON.parse(localStorage.getItem(windowStorageKey) ?? "{}") }); } catch { return fitWindowToViewport(defaultWindow); } });
   const [theme, setTheme] = useState<Theme>(() => localStorage.getItem(themeStorageKey) === "graphite" ? "graphite" : "obsidian");
   const dragRef = useRef<{ x: number; y: number; startX: number; startY: number }>();
@@ -261,14 +262,22 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const beginDrag = (event: ReactPointerEvent<HTMLElement>) => { if (windowState.maximized || (event.target as HTMLElement).closest("button, input, .deliverable-codex-workbench__title")) return; dragRef.current = { x: event.clientX, y: event.clientY, startX: windowState.x, startY: windowState.y }; event.currentTarget.setPointerCapture(event.pointerId); };
   const drag = (event: ReactPointerEvent<HTMLElement>) => { const point = dragRef.current; if (point) setWindowState(current => fitWindowToViewport({ ...current, x: point.startX + event.clientX - point.x, y: point.startY + event.clientY - point.y })); };
 
-  const create = async () => {
-    if (!title.trim()) return;
+  const create = async (startup?: { prompt?: string; taskId?: string; title?: string }) => {
+    const conversationTitle = startup?.title ?? title.trim();
+    if (!conversationTitle) return;
     setError("");
     try {
-      const payload = await readJson<{ conversation: Conversation }>(`/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: title.trim() }) });
+      const payload = await readJson<{ conversation: Conversation }>(`/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: conversationTitle }) });
+      if (startup?.taskId) await api.claimAiManagedTask(startup.taskId, "Rich·Codex", payload.conversation.id);
       setConversations(current => { const next = [payload.conversation, ...current]; saveConversationOrder(next); return next; }); setActiveId(payload.conversation.id); setTitle(""); setCreating(false);
+      if (startup?.prompt) void sendMessage(payload.conversation, startup.prompt, [], false);
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
+  useEffect(() => {
+    if (!visible || !initialPrompt || !executionTaskId || launchedExecutionTaskRef.current === executionTaskId) return;
+    launchedExecutionTaskRef.current = executionTaskId;
+    void create({ prompt: initialPrompt, taskId: executionTaskId, title: initialConversationTitle ?? "Rich·Codex Bug 任务" });
+  }, [visible, initialPrompt, executionTaskId, initialConversationTitle, openSequence]);
   const archive = async () => {
     if (!active) return;
     await readJson(`/api/deliverable-codex/conversations/${encodeURIComponent(active.id)}/archive`, { method: "POST" });

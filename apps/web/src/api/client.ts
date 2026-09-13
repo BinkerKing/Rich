@@ -165,6 +165,10 @@ export const api = {
   async getAiManagedTask(id: string): Promise<AiManagedTaskPacket> {
     const r = await fetch(`/api/ai-task-management/${encodeURIComponent(id)}`); if (!r.ok) throw new Error(`get AI task failed: ${r.status}`); return r.json();
   },
+  async claimAiManagedTask(id: string, agentId: string, sourceConversationId?: string): Promise<AiManagedTask> {
+    const r = await fetch(`/api/ai-task-management/${encodeURIComponent(id)}/claim`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ agentId, sourceConversationId }) });
+    if (!r.ok) throw new Error(`claim AI task failed: ${r.status}`); return (await r.json()).task;
+  },
   async continueAiManagedTask(id: string): Promise<AiManagedTask> {
     const r = await fetch(`/api/ai-task-management/${encodeURIComponent(id)}/continue`, { method: "POST" }); if (!r.ok) throw new Error(`continue AI task failed: ${r.status}`); return r.json();
   },
@@ -2408,7 +2412,7 @@ export interface ProbeConnectionsResult {
 export type AiManagedTaskStatus = "draft" | "ready" | "claimed" | "needs_review" | "blocked" | "resolved";
 export interface AiManagedTask {
   id: string; rootTaskId: string; parentTaskId?: string; sceneId: "bug_fix" | "requirement_analysis" | "deliverable_task" | "system_improvement";
-  title: string; status: AiManagedTaskStatus; contextSummary: string; input: AiManagedTaskCreateInput["input"]; payload: Record<string, unknown>; claimedBy?: string; projectId?: string; deliverableId?: string; latestFeedback?: string; updatedAt: string;
+  title: string; status: AiManagedTaskStatus; contextSummary: string; input: AiManagedTaskCreateInput["input"]; payload: Record<string, unknown>; claimedBy?: string; sourceConversationId?: string; projectId?: string; deliverableId?: string; latestFeedback?: string; updatedAt: string;
 }
 export interface AiManagedTaskCreateInput {
   sceneId: AiManagedTask["sceneId"]; title: string;

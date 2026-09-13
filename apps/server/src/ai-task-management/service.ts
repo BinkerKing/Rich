@@ -38,7 +38,13 @@ export class AiTaskManagementService {
     const next: AiManagedTask = { ...task, sceneId: scene.id, sceneVersion: scene.version, title: input.title, status: "ready", input: input.input, payload: input.payload ?? {}, contextSummary: input.contextSummary ?? input.input.text.slice(0, 2000), updatedAt: now };
     await this.repo.save(next); return next;
   }
-  async claim(id: string, agentId: string) { return this.repo.claim(id, agentId); }
+  async claim(id: string, agentId: string, sourceConversationId?: string) {
+    const result = await this.repo.claim(id, agentId);
+    if (!result.ok || !sourceConversationId) return result;
+    const task = { ...result.task, sourceConversationId, updatedAt: new Date().toISOString() };
+    await this.repo.save(task);
+    return { ok: true as const, task };
+  }
   async getPacket(id: string): Promise<{ task: AiManagedTask; scene: AiTaskScene; nodes: AiTaskNode[] }> { const task = await this.requireTask(id); return { task, scene: getAiTaskScene(task.sceneId), nodes: await this.repo.listNodes(id) }; }
   async reportResult(id: string, agentId: string, input: Pick<AiTaskNode, "analysis" | "result" | "carryForward" | "statusAfter"> & { title?: string; pending?: string; resourceIds?: string[] }): Promise<AiTaskNode> {
     const task = await this.requireTask(id); if (task.claimedBy !== agentId) throw new Error("Only the claiming Agent can report a result.");

@@ -10,7 +10,8 @@ describe("AI task management service", () => {
       sceneId: "bug_fix", title: "首页不刷新", input: { text: "完成后没有刷新", images: [{ id: "image-1", label: "初始截图" }], materials: [] },
       payload: { gitDeployLatest: false }, contextSummary: "初始问题：首页列表没有刷新。",
     });
-    await service.claim(task.id, "codex-app");
+    await service.claim(task.id, "codex-app", "deliverable-codex:bug-session");
+    expect((await service.getPacket(task.id)).task).toMatchObject({ status: "claimed", claimedBy: "codex-app", sourceConversationId: "deliverable-codex:bug-session" });
     await service.reportResult(task.id, "codex-app", {
       analysis: "任务更新事件未触发刷新。", result: "已补充刷新事件。", carryForward: "若继续，检查切页后订阅重连。", statusAfter: "needs_review",
     });
