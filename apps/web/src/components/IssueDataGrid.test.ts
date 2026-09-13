@@ -171,6 +171,21 @@ test("问题表包含可编辑的项目跟进字段，并记住每张表的列�
   assert.match(source, /saveColumnOrder/);
 });
 
+test("旧问题表设置会迁移到每张表独立的设置键", () => {
+  assert.match(source, /const legacyGridSettingsKeys = \[`issue-table:\$\{tableId\}`, "issues"\];/);
+  assert.match(source, /for \(const legacyKey of legacyGridSettingsKeys\)/);
+  assert.match(source, /await api\.saveTestCenterGridSettings\(projectId, gridSettingsKey, settings\.columns, restoredStyle\)/);
+});
+
+test("应用表格设置等待服务端保存成功，失败时保留草稿并提示", () => {
+  assert.match(source, /const \[settingsSaving, setSettingsSaving\] = useState\(false\);/);
+  assert.match(source, /const persistSettings = async/);
+  assert.match(source, /await api\.saveTestCenterGridSettings/);
+  assert.match(source, /const saved = await persistSettings\(settingsColumns, settingsStyle, draftDeletedColumns\);/);
+  assert.match(source, /表格样式保存失败，请重试。/);
+  assert.match(source, /settingsSaving \? "正在保存…" : settingsDirty \? "应用更改" : "已应用"/);
+});
+
 test("字段设置支持将列固定在左右侧并兼容旧的左侧固定配置", () => {
   assert.match(source, /pinned: column\.frozen === "right" \? "right" : column\.frozen \? "left" : undefined/);
   assert.match(source, /固定列<select value=\{column\.frozen === "right" \? "right" : column\.frozen \? "left" : ""\}/);
@@ -276,7 +291,7 @@ test("字段设置使用草稿并通过右下角应用按钮生效", () => {
   assert.match(source, /const \[draftColumns, setDraftColumns\]/);
   assert.match(source, /updateDraft\(settingsColumns\.filter/);
   assert.match(source, /settingsDirty \? "应用更改" : "已应用"/);
-  assert.match(source, /disabled=\{!settingsDirty\}/);
+  assert.match(source, /disabled=\{!settingsDirty \|\| settingsSaving\}/);
   assert.match(source, /persistSettings\(settingsColumns, settingsStyle, draftDeletedColumns\)/);
   assert.match(styles, /\.issue-data-grid__apply-settings\s*\{[^}]*margin-left:auto/s);
 });

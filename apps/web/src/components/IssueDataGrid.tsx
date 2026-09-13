@@ -112,6 +112,8 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
   const [deletedColumns, setDeletedColumns] = useState<TestCenterGridColumn[]>([]);
   const [draftDeletedColumns, setDraftDeletedColumns] = useState<TestCenterGridColumn[]>([]);
   const [settingsDirty, setSettingsDirty] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState("");
   const [newFieldName, setNewFieldName] = useState("");
   const [styleSelection, setStyleSelection] = useState<StyleSelection | null>(null);
   const [recordMenu, setRecordMenu] = useState<{ x: number; y: number; issueId?: string } | null>(null);
@@ -122,7 +124,19 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
 
   useEffect(() => {
     let cancelled = false;
-    void api.getTestCenterGridSettings(projectId, gridSettingsKey).then(settings => {
+    const legacyGridSettingsKeys = [`issue-table:${tableId}`, "issues"];
+    const loadSettings = async () => {
+      let settings = await api.getTestCenterGridSettings(projectId, gridSettingsKey);
+      let restoredFromLegacy = false;
+      if (!settings.columns.length) {
+        for (const legacyKey of legacyGridSettingsKeys) {
+          const legacySettings = await api.getTestCenterGridSettings(projectId, legacyKey);
+          if (!legacySettings.columns.length) continue;
+          settings = legacySettings;
+          restoredFromLegacy = true;
+          break;
+        }
+      }
       if (cancelled || !settings.columns.length) return;
       const saved = new Map(settings.columns.map(column => [column.key, column]));
       const savedActiveColumns = settings.columns.filter(column => !column.deleted);
@@ -130,9 +144,14 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
         ...savedActiveColumns.map(column => ({ ...defaultColumns.find(defaultColumn => defaultColumn.key === column.key), ...column })),
         ...defaultColumns.filter(column => !saved.has(column.key)),
       ];
+      const restoredStyle = { ...defaultStyle, ...settings.style };
       setColumns(restored);
-      setTableStyle({ ...defaultStyle, ...settings.style });
+      setTableStyle(restoredStyle);
       setDeletedColumns(settings.columns.filter(column => column.deleted));
+      if (restoredFromLegacy) await api.saveTestCenterGridSettings(projectId, gridSettingsKey, settings.columns, restoredStyle);
+    };
+    void loadSettings().catch(() => {
+      if (!cancelled) setSettingsError("读取表格设置失败，请重试。");
     });
     return () => { cancelled = true; };
   }, [gridSettingsKey, projectId]);
@@ -212,10 +231,20 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     cellClass: [column.key === "serial" ? "issue-data-grid__serial" : "", column.fieldType === "select" ? "issue-data-grid__select-cell" : "", isTextField(column) ? "issue-data-grid__cell-text" : "", `issue-data-grid__cell-align-${column.cellStyle?.textAlign ?? "left"}`].filter(Boolean).join(" "),
   })), [columns, handleClipboardShortcut, query]);
 
-  const persistSettings = (nextColumns: TestCenterGridColumn[], nextStyle = tableStyle, nextDeletedColumns = deletedColumns) => {
+  const persistSettings = async (nextColumns: TestCenterGridColumn[], nextStyle = tableStyle, nextDeletedColumns = deletedColumns) => {
     setColumns(nextColumns);
     setTableStyle(nextStyle);
-    void api.saveTestCenterGridSettings(projectId, gridSettingsKey, [...nextColumns, ...nextDeletedColumns], nextStyle);
+    setSettingsSaving(true);
+    setSettingsError("");
+    try {
+      await api.saveTestCenterGridSettings(projectId, gridSettingsKey, [...nextColumns, ...nextDeletedColumns], nextStyle);
+      return true;
+    } catch {
+      setSettingsError("表格样式保存失败，请重试。");
+      return false;
+    } finally {
+      setSettingsSaving(false);
+    }
   };
   const settingsColumns = draftColumns ?? columns;
   const settingsStyle = draftTableStyle ?? tableStyle;
@@ -275,8 +304,9 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     setDraftTableStyle({ ...settingsStyle, ...patch });
     setSettingsDirty(true);
   };
-  const applySettings = () => {
-    persistSettings(settingsColumns, settingsStyle, draftDeletedColumns);
+  const applySettings = async () => {
+    const saved = await persistSettings(settingsColumns, settingsStyle, draftDeletedColumns);
+    if (!saved) return;
     setDeletedColumns(draftDeletedColumns);
     setSettingsDirty(false);
   };
@@ -314,7 +344,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
         <td><input type="checkbox" checked={column.visible !== false} onChange={event => updateColumn(column.key, { visible: event.target.checked })} /></td>
         <td><button className="issue-data-grid__delete-column" type="button" aria-label="删除字段" title="删除字段" onClick={() => removeColumn(column.key)}><svg className="issue-data-grid__delete-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" /></svg></button></td>
       </tr>)}</tbody></table></div>
-      <section className="issue-data-grid__style"><b>表格样式</b><label>密度<select value={settingsStyle.density} onChange={event => updateStyle({ density: event.target.value as TestCenterGridStyle["density"] })}><option value="compact">紧凑</option><option value="comfortable">舒适</option></select></label><label>表头色调<select value={settingsStyle.headerTone} onChange={event => updateStyle({ headerTone: event.target.value as TestCenterGridStyle["headerTone"] })}><option value="neutral">中性</option><option value="slate">石板</option><option value="cyan">青色</option></select></label><label>边框颜色<input aria-label="边框颜色" type="color" value={settingsStyle.borderColor} onChange={event => updateStyle({ borderColor: event.target.value })} /></label><label>边框粗细<select value={settingsStyle.borderWidth} onChange={event => updateStyle({ borderWidth: event.target.value as TestCenterGridStyle["borderWidth"] })}><option value="1px">细</option><option value="2px">中</option><option value="3px">粗</option></select></label><label>边框线型<select value={settingsStyle.borderStyle} onChange={event => updateStyle({ borderStyle: event.target.value as TestCenterGridStyle["borderStyle"] })}><option value="solid">实线</option><option value="dashed">虚线</option><option value="dotted">点线</option></select></label><label><input type="checkbox" checked={settingsStyle.stripedRows} onChange={event => updateStyle({ stripedRows: event.target.checked })} /> 斑马纹行</label><button className={`issue-data-grid__apply-settings${settingsDirty ? " is-ready" : ""}`} type="button" disabled={!settingsDirty} onClick={applySettings}>{settingsDirty ? "应用更改" : "已应用"}</button></section>
+      <section className="issue-data-grid__style"><b>表格样式</b><label>密度<select value={settingsStyle.density} onChange={event => updateStyle({ density: event.target.value as TestCenterGridStyle["density"] })}><option value="compact">紧凑</option><option value="comfortable">舒适</option></select></label><label>表头色调<select value={settingsStyle.headerTone} onChange={event => updateStyle({ headerTone: event.target.value as TestCenterGridStyle["headerTone"] })}><option value="neutral">中性</option><option value="slate">石板</option><option value="cyan">青色</option></select></label><label>边框颜色<input aria-label="边框颜色" type="color" value={settingsStyle.borderColor} onChange={event => updateStyle({ borderColor: event.target.value })} /></label><label>边框粗细<select value={settingsStyle.borderWidth} onChange={event => updateStyle({ borderWidth: event.target.value as TestCenterGridStyle["borderWidth"] })}><option value="1px">细</option><option value="2px">中</option><option value="3px">粗</option></select></label><label>边框线型<select value={settingsStyle.borderStyle} onChange={event => updateStyle({ borderStyle: event.target.value as TestCenterGridStyle["borderStyle"] })}><option value="solid">实线</option><option value="dashed">虚线</option><option value="dotted">点线</option></select></label><label><input type="checkbox" checked={settingsStyle.stripedRows} onChange={event => updateStyle({ stripedRows: event.target.checked })} /> 斑马纹行</label>{settingsError && <span className="issue-data-grid__settings-error" role="alert">{settingsError}</span>}<button className={`issue-data-grid__apply-settings${settingsDirty ? " is-ready" : ""}`} type="button" disabled={!settingsDirty || settingsSaving} onClick={() => void applySettings()}>{settingsSaving ? "正在保存…" : settingsDirty ? "应用更改" : "已应用"}</button></section>
     </aside>}
     <div className="issue-data-grid__table" onKeyDownCapture={handleGridKeyDownCapture} onContextMenu={event => { if (event.target === event.currentTarget) { event.preventDefault(); setRecordMenu({ x: event.clientX, y: event.clientY }); } }}><AgGridReact<IssueGridRow>
       theme={issueGridTheme} rowData={visibleRows} columnDefs={columnDefs} defaultColDef={{ sortable: true }} getRowId={params => params.data.id} onGridReady={event => { gridApi.current = event.api; }} rowDragManaged={!query} suppressMoveWhenRowDragging animateRows enableCellTextSelection suppressClipboardPaste suppressCutToClipboard rowHeight={baseRowHeight} headerHeight={40} singleClickEdit={false} stopEditingWhenCellsLoseFocus
