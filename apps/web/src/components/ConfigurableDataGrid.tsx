@@ -8,7 +8,7 @@ export type ConfigurableGridColumn = {
   key: string;
   name: string;
   width?: number;
-  frozen?: boolean;
+  frozen?: boolean | "left" | "right";
   editable?: boolean;
   options?: Array<{ label: string; value: string }>;
 };
@@ -54,7 +54,7 @@ export function ConfigurableDataGrid<Row extends ConfigurableGridRow>({ ariaLabe
           key: column.key,
           name: column.name,
           width: column.width,
-          frozen: column.frozen,
+          frozen: Boolean(column.frozen),
           editable: !isRowNumberColumn && column.editable !== false,
           resizable: true,
           sortable: !isRowNumberColumn,

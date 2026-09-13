@@ -171,6 +171,14 @@ test("问题表包含可编辑的项目跟进字段，并记住每张表的列�
   assert.match(source, /saveColumnOrder/);
 });
 
+test("字段设置支持将列固定在左右侧并兼容旧的左侧固定配置", () => {
+  assert.match(source, /pinned: column\.frozen === "right" \? "right" : column\.frozen \? "left" : undefined/);
+  assert.match(source, /固定列<select value=\{column\.frozen === "right" \? "right" : column\.frozen \? "left" : ""\}/);
+  assert.match(source, /<option value="left">固定左侧<\/option><option value="right">固定右侧<\/option>/);
+  assert.match(client, /frozen\?: boolean \| "left" \| "right"/);
+  assert.match(route, /frozen: z\.union\(\[z\.boolean\(\), z\.enum\(\["left", "right"\]\)\]\)\.optional\(\)/);
+});
+
 test("列宽调整完成后立即持久化，切换页面不会取消保存", () => {
   assert.match(source, /const saveColumnWidths = \(gridApi: GridApi<IssueGridRow>\) => \{\s*const widths/s);
   assert.doesNotMatch(source, /saveColumnWidths[\s\S]{0,360}setTimeout/);
