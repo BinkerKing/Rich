@@ -21,7 +21,7 @@ describe("AI task management view", () => {
     expect(source).toContain("onClick={() => setSelected(undefined)}");
     expect(source).toContain("atm-drawer__section");
     expect(source).toContain("atm-screenshot");
-    expect(source).toContain("ke-lightbox-open");
+    expect(source).toContain("atm-image-lightbox");
     expect(source).toContain("atm-drawer__close");
     expect(source).toContain("activeRowId={selected}");
     expect(source).not.toContain("TaskWorkbench");
