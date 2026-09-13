@@ -35,4 +35,16 @@ describe("AI task management service", () => {
     expect(packet.task.input.text).toBe("原始 Bug 描述：点击保存后列表未刷新");
     expect((await service.list())[0]).toMatchObject({ latestFeedback: "已补充刷新事件" });
   });
+
+  it("deletes a task together with its feedback nodes", async () => {
+    const service = new AiTaskManagementService(new SqliteAiTaskManagementRepo(openDb(":memory:")));
+    const task = await service.create({ sceneId: "system_improvement", title: "移除的任务", input: { text: "不再需要", images: [], materials: [] } });
+    await service.claim(task.id, "codex-app");
+    await service.reportResult(task.id, "codex-app", { analysis: "无需继续", result: "准备删除", carryForward: "无", statusAfter: "needs_review" });
+
+    await service.remove(task.id);
+
+    await expect(service.getPacket(task.id)).rejects.toThrow(`AI task ${task.id} was not found.`);
+    expect(await service.list()).toEqual([]);
+  });
 });

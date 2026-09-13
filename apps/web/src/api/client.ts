@@ -163,6 +163,9 @@ export const api = {
   async resolveAiManagedTask(id: string): Promise<AiManagedTask> {
     const r = await fetch(`/api/ai-task-management/${encodeURIComponent(id)}/resolve`, { method: "POST" }); if (!r.ok) throw new Error(`resolve AI task failed: ${r.status}`); return r.json();
   },
+  async deleteAiManagedTask(id: string): Promise<void> {
+    const r = await fetch(`/api/ai-task-management/${encodeURIComponent(id)}`, { method: "DELETE" }); if (!r.ok) throw new Error(`delete AI task failed: ${r.status}`);
+  },
   async getAgentSession(conversationId: string): Promise<AgentSessionState | null> {
     const r = await fetch(`/api/chat/conversations/${encodeURIComponent(conversationId)}/agent-session`);
     if (r.status === 404) return null;

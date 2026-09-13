@@ -17,6 +17,7 @@ export class SqliteAiTaskManagementRepo implements AiTaskManagementRepo {
     return (this.db.prepare(`SELECT ${TASK_COLUMNS} FROM ai_tasks ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY updated_at DESC LIMIT ?`).all(...values) as TaskRow[]).map(hydrateTask);
   }
   save(task: AiManagedTask): void { const result = this.db.prepare(`UPDATE ai_tasks SET root_task_id=?, parent_task_id=?, scene_id=?, scene_version=?, title=?, status=?, input_json=?, payload_json=?, context_summary=?, source_conversation_id=?, project_id=?, deliverable_id=?, claimed_by=?, claimed_at=?, created_at=?, updated_at=? WHERE id=?`).run(...taskValues(task).slice(1), task.id); if (result.changes !== 1) throw new Error(`AI task ${task.id} was not found.`); }
+  remove(id: string): void { const result = this.db.prepare("DELETE FROM ai_tasks WHERE id=?").run(id); if (result.changes !== 1) throw new Error(`AI task ${id} was not found.`); }
   claim(id: string, agentId: string): AiTaskClaimResult {
     const now = new Date().toISOString();
     const result = this.db.prepare("UPDATE ai_tasks SET status='claimed', claimed_by=?, claimed_at=?, updated_at=? WHERE id=? AND status='ready' AND claimed_by IS NULL").run(agentId, now, now, id);

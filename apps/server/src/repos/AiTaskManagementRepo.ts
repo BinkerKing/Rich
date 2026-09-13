@@ -23,6 +23,7 @@ export interface AiTaskManagementRepo {
   get(id: string): AiManagedTask | null | Promise<AiManagedTask | null>;
   list(options?: { status?: AiTaskStatus; sceneId?: AiTaskSceneId; limit?: number }): AiManagedTask[] | Promise<AiManagedTask[]>;
   save(task: AiManagedTask): void | Promise<void>;
+  remove(id: string): void | Promise<void>;
   claim(id: string, agentId: string): AiTaskClaimResult | Promise<AiTaskClaimResult>;
   addNode(node: AiTaskNode): void | Promise<void>;
   listNodes(taskId: string): AiTaskNode[] | Promise<AiTaskNode[]>;

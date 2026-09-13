@@ -30,6 +30,7 @@ export class AiTaskManagementService {
     await this.repo.create(task); return task;
   }
   async resolve(id: string): Promise<AiManagedTask> { const task = await this.requireTask(id); const next = { ...task, status: "resolved" as const, updatedAt: new Date().toISOString() }; await this.repo.save(next); return next; }
+  async remove(id: string): Promise<void> { await this.requireTask(id); await this.repo.remove(id); }
   private async requireTask(id: string): Promise<AiManagedTask> { const task = await this.repo.get(id); if (!task) throw new Error(`AI task ${id} was not found.`); return task; }
 }
 function conciseContext(current: string, node?: Pick<AiTaskNode, "analysis" | "result" | "carryForward" | "pending">): string { const next = node ? [current, `已确认：${node.analysis}`, `结果：${node.result}`, `后续：${node.carryForward}`, node.pending ? `待处理：${node.pending}` : ""].filter(Boolean).join("\n") : current; return next.slice(-4000); }
