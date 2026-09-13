@@ -5,6 +5,7 @@ import type { AiManagedTask, AiTaskManagementRepo, AiTaskNode, AiTaskSceneId } f
 type TaskInput = AiManagedTask["input"];
 export class AiTaskManagementService {
   constructor(private readonly repo: AiTaskManagementRepo) {}
+  async list() { return this.repo.list(); }
   async create(input: { sceneId: AiTaskSceneId; title: string; input: TaskInput; payload?: Record<string, unknown>; contextSummary?: string; sourceConversationId?: string; projectId?: string; deliverableId?: string }): Promise<AiManagedTask> {
     const scene = getAiTaskScene(input.sceneId); const now = new Date().toISOString(); const id = `ai-task-${randomUUID()}`;
     const task: AiManagedTask = { id, rootTaskId: id, sceneId: scene.id, sceneVersion: scene.version, title: input.title, status: "ready", input: input.input, payload: input.payload ?? {}, contextSummary: input.contextSummary ?? input.input.text.slice(0, 2000), ...(input.sourceConversationId ? { sourceConversationId: input.sourceConversationId } : {}), ...(input.projectId ? { projectId: input.projectId } : {}), ...(input.deliverableId ? { deliverableId: input.deliverableId } : {}), createdAt: now, updatedAt: now };
