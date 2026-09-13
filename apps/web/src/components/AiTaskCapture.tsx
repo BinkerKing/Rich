@@ -125,6 +125,7 @@ export function AiTaskCapture() {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [mode, setMode] = useState<AiManagedTask["sceneId"]>("bug_fix");
+  const [selectedMode, setSelectedMode] = useState<AiManagedTask["sceneId"]>();
   const [saving, setSaving] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
@@ -186,6 +187,7 @@ export function AiTaskCapture() {
   };
   const selectMode = (item: typeof modes[number]) => {
     setMode(item.id);
+    setSelectedMode(item.id);
     setText(value => `#${item.label}：${value.replace(/^\s*(?:#(?:BUG|需求|任务|改造)：)?\s*\/\w*\s*/i, "")}`);
     setSuggestionsOpen(false);
     requestAnimationFrame(() => {
@@ -202,6 +204,7 @@ export function AiTaskCapture() {
     setText(value);
     const show = /^\s*\/\w*$/.test(value);
     setSuggestionsOpen(show);
+    if (!/^\s*#(?:BUG|需求|任务|改造)：/i.test(value)) setSelectedMode(undefined);
     const hit = modes.find(item => value.trimStart().startsWith(item.token));
     if (hit) setMode(hit.id);
   };
@@ -240,29 +243,28 @@ export function AiTaskCapture() {
     setSaving(true);
     try {
       await api.createAiManagedTask({ sceneId: mode, title: content.slice(0, 80), input: { text: `页面定位：${location}\n\n${content}`, images: composer.getAttachmentRefs().map(item => ({ id: item.id, label: "任务截图", mime: item.mime })), materials: [] }, payload: { page: [location] }, contextSummary: content.slice(0, 2000) });
-      composer.clear(); setText(""); setOpen(false); setAppView("aiTaskManagement");
+      composer.clear(); setText(""); setSelectedMode(undefined); setOpen(false); setAppView("aiTaskManagement");
     } finally { setSaving(false); }
   };
 
   if (!open) return null;
   return <div className={`ai-task-capture${capturing ? " is-capturing" : ""}`} role="dialog" aria-modal="true" aria-label="登记 AI 任务">
-    <section className="ai-task-capture__window" style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
+    <section className="ai-task-capture__window" style={{ left: frame.x, top: frame.y, width: frame.width, height: "auto", minHeight: 0, maxHeight: "calc(100vh - 24px)" }}>
       <header className="ai-task-capture__titlebar" onPointerDown={beginMove}>
         <span>定位 · {location}</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {selectedMode && <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button type="button" aria-label="截取当前界面" title="截取当前界面" onClick={() => void attachScreenshot()} style={{ display: "grid", width: 36, height: 36, padding: 0, placeItems: "center" }}>
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M8 8h8v8H8z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
           <button type="button" className="primary" disabled={!text.replace(/^\s*#(?:BUG|需求|任务|改造)：\s*/, "").replace(/^\/\w+\s*/, "").trim() || saving || composer.isUploading} onClick={() => void submit()}>{saving ? "登记中…" : "登记"}</button>
         </div>
+        }
       </header>
       <div className="ai-task-capture__input-wrap">
         <textarea ref={inputRef} autoFocus style={{ minHeight: 0, height: 56 }} value={text} onChange={event => update(event.target.value)} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder="描述你要登记的任务…" />
         {suggestionsOpen && <div className="ai-task-capture__suggestions" style={{ position: "static", marginTop: 8 }}>{modes.filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.id} type="button" onMouseDown={event => { event.preventDefault(); selectMode(item); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
       </div>
-      <div className="ai-task-capture__context"><span>{composer.attachments.length ? `${composer.attachments.length} 张截图` : "选择 BUG 后自动截图"}</span></div>
       {composer.attachments.length > 0 && <div className="ai-task-capture__images">{composer.attachments.map(item => <figure key={item.clientId}><button type="button" className="ai-task-capture__preview" onClick={() => setEditing({ clientId: item.clientId, source: item.previewUrl })}><img src={item.previewUrl} alt="任务截图，点击编辑" /></button><button type="button" className="ai-task-capture__remove" aria-label="删除截图" onClick={() => composer.detach(item.clientId)}>×</button><figcaption>点击截图标注</figcaption></figure>)}</div>}
-      <span className="ai-task-capture__resize" aria-label="调整窗口大小" onPointerDown={event => beginMove(event, true)} />
     </section>
     {editing && <ScreenshotEditor source={editing.source} onSave={file => void replaceAttachment(file)} onClose={() => setEditing(undefined)} />}
   </div>;
