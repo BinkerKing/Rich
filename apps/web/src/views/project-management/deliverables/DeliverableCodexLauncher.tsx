@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { DeliverableCodexWorkbench } from "./DeliverableCodexWorkbench.js";
+import type { CodexInitialAttachment } from "../../../lib/aiTaskCodexContext.js";
 
 export type DeliverableCodexTarget = {
   projectId: string;
@@ -7,6 +8,7 @@ export type DeliverableCodexTarget = {
   deliverableTitle: string;
   conversationId?: string;
   initialPrompt?: string;
+  initialAttachments?: CodexInitialAttachment[];
   executionTaskId?: string;
   initialConversationTitle?: string;
   onConversationCreated?: (conversationId: string) => void;
@@ -92,6 +94,7 @@ export function DeliverableCodexLauncher(): ReactNode {
       visible={visible}
       requestedConversationId={target.conversationId}
       initialPrompt={target.initialPrompt}
+      initialAttachments={target.initialAttachments}
       executionTaskId={target.executionTaskId}
       initialConversationTitle={target.initialConversationTitle}
       onConversationCreated={target.onConversationCreated}

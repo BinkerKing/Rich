@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import { api, type AiManagedTask } from "../api/client.js";
 import { useChatComposer } from "../lib/useChatComposer.js";
 import { useStore } from "../state/store.js";
+import { buildBugCodexContext, bugCodexAttachments } from "../lib/aiTaskCodexContext.js";
 import { openBoundCodex } from "../views/project-management/deliverables/DeliverableCodexLauncher.js";
 import "./AiTaskCapture.css";
 
@@ -420,23 +421,7 @@ export function AiTaskCapture() {
     });
   };
   const assignRichCodex = (task: AiManagedTask) => {
-    const prompt = [
-      "# Rich BUG 处理任务",
-      "",
-      `- AI 任务唯一标识：${task.id}`,
-      `- 当前页面定位：${Array.isArray(task.payload.page) ? task.payload.page.filter((item): item is string => typeof item === "string").join(" / ") : "未记录"}`,
-      "- 此任务已由界面分配给执行人 `Rich·Codex`，状态已是“处理中”，并已写入本会话 ID；不要另建任务，也不要再次认领。",
-      "",
-      "## 必须遵守的执行流程",
-      "1. 先调用 `rich_ai_task_get` 读取该唯一标识对应的完整 Bug 包、截图和上下文，再定位并修复问题。",
-      "2. 每次完成代码修正后必须提交 Git，提交信息应准确说明修复内容。",
-      "3. 默认不要重新部署或发布 Rich App；只有用户明确要求部署时才执行，并在结果中说明。",
-      "4. 完成后必须调用 `rich_ai_task_report_result` 回写：`taskId` 使用上面的唯一标识，`agentId` 必须为 `Rich·Codex`，写明问题分析、处理结果、后续事项，并把 `statusAfter` 设为 `needs_review`（界面显示为“处理完成”）。",
-      "5. 回写结果必须包含 Git 提交信息，以及是否部署 App（默认“未部署”）。",
-      "",
-      "现在开始处理该 Bug。",
-    ].join("\n");
-    openBoundCodex({ projectId: "__general__", deliverableId: "__general__", deliverableTitle: "Rich BUG 任务", executionTaskId: task.id, initialConversationTitle: `BUG · ${task.title.slice(0, 56)}`, initialPrompt: prompt, onConversationCreated: conversationId => setListedTasks(current => current.map(item => item.id === task.id ? { ...item, status: "claimed", claimedBy: "Rich·Codex", sourceConversationId: conversationId } : item)) });
+    openBoundCodex({ projectId: "__general__", deliverableId: "__general__", deliverableTitle: "Rich BUG 任务", executionTaskId: task.id, initialConversationTitle: `BUG · ${task.title.slice(0, 56)}`, initialPrompt: buildBugCodexContext(task), initialAttachments: bugCodexAttachments(task), onConversationCreated: conversationId => setListedTasks(current => current.map(item => item.id === task.id ? { ...item, status: "claimed", claimedBy: "Rich·Codex", sourceConversationId: conversationId } : item)) });
   };
   const reviewTask = async (task: AiManagedTask, action: "resolve" | "continue") => {
     if (action === "continue" && task.claimedBy === "Rich·Codex" && task.sourceConversationId) {
@@ -450,7 +435,7 @@ export function AiTaskCapture() {
     const next = action === "resolve" ? await api.resolveAiManagedTask(task.id) : await api.continueAiManagedTask(task.id);
     setListedTasks(current => current.map(item => item.id === task.id ? next : item));
     if (action !== "continue") return;
-    openBoundCodex({ projectId: "__general__", deliverableId: "__general__", deliverableTitle: "Rich BUG 任务", executionTaskId: next.id, initialConversationTitle: `BUG · ${task.title.slice(0, 56)}`, initialPrompt: [`# 继续处理 Rich BUG`, "", `- 原始 Bug 任务 ID：${task.id}`, `- 延续任务 ID：${next.id}`, "- 此任务继承原 Bug 的描述、截图、分析和处理结果。先调用 rich_ai_task_get 读取延续任务，再继续修复并回写结果。"].join("\n") });
+    openBoundCodex({ projectId: "__general__", deliverableId: "__general__", deliverableTitle: "Rich BUG 任务", executionTaskId: next.id, initialConversationTitle: `BUG · ${task.title.slice(0, 56)}`, initialPrompt: buildBugCodexContext(next, task.id), initialAttachments: bugCodexAttachments(next) });
   };
   const openTaskLocation = (task: AiManagedTask) => {
     const location = taskPageLocation(task);

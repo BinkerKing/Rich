@@ -40,3 +40,7 @@ test("网页命令面板不再占用 Command-Space", () => {
 test("转交任务创建对话后把对话编号回传给发起列表", () => {
   assert.match(launcher, /onConversationCreated=\{target\.onConversationCreated\}/);
 });
+
+test("转交任务可把截图作为 Codex 首条消息的附件", () => {
+  assert.match(launcher, /initialAttachments=\{target\.initialAttachments\}/);
+});

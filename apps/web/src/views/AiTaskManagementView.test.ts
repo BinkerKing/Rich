@@ -20,6 +20,12 @@ describe("AiTaskManagementView bug workflow", () => {
     expect(source).toContain('className="atm-review-accept"');
     expect(source).toContain("openBoundCodex({ projectId: \"__general__\"");
     expect(source).toContain("executionTaskId: next.id");
-    expect(source).toContain("原始 Bug 任务 ID：${task.id}");
+    expect(source).toContain('buildBugCodexContext(next, task.id)');
+  });
+
+  it("includes the inherited Bug context and screenshots when continuing in Codex", () => {
+    const source = readFileSync(new URL("./AiTaskManagementView.tsx", import.meta.url), "utf8");
+    expect(source).toContain('buildBugCodexContext(next, task.id)');
+    expect(source).toContain('initialAttachments: bugCodexAttachments(next)');
   });
 });

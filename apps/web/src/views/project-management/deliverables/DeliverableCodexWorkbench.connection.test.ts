@@ -20,6 +20,12 @@ test("流式回复的用时按会话分别保存和显示", () => {
   assert.match(source, /streamingConversationId === active\.id && index === displayedMessages\.length - 1 \? elapsedMsByConversation\[active\.id\] \?\? 0 : 0/);
 });
 
+test("任务启动上下文会把截图附件发送给 Codex", () => {
+  assert.match(source, /attachments\?: QueuedMessage\["attachments"\]/);
+  assert.match(source, /sendMessage\(payload\.conversation, startup\.prompt, startup\.attachments \?\? \[\], false, undefined, true\)/);
+  assert.match(source, /create\(\{ prompt: initialPrompt, attachments: initialAttachments,/);
+});
+
 test("交付物 Codex 的附加菜单可将当前界面截图加入图片附件", () => {
   assert.match(source, /async function attachCurrentViewScreenshot\(\)/);
   assert.match(source, /richWindow\?\.captureCurrentView\?\./);

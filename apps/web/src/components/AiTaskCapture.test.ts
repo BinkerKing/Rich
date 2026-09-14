@@ -39,6 +39,12 @@ describe("AiTaskCapture task list", () => {
     expect(source).toContain('gitDeployLatest: false');
   });
 
+  it("hands Codex the Bug description, location, and screenshot attachments directly", () => {
+    expect(source).toContain('buildBugCodexContext(task)');
+    expect(source).toContain('bugCodexAttachments(task)');
+    expect(source).toContain('initialAttachments: bugCodexAttachments(task)');
+  });
+
   it("opens in list mode with an empty search field and archives an accepted Rich Codex conversation", () => {
     expect(source).toContain('const [listMode, setListMode] = useState(true)');
     expect(source).toContain('const [text, setText] = useState("")');

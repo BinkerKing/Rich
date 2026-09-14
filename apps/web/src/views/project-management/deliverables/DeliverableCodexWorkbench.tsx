@@ -9,6 +9,7 @@ import { requestShortcutOpen } from "../../../lib/shortcutEngine.js";
 import { useStore } from "../../../state/store.js";
 import { api, type AiManagedTaskCreateInput } from "../../../api/client.js";
 import { shouldRedeployLatestApp } from "../../../lib/bugDeploymentPolicy.js";
+import type { CodexInitialAttachment } from "../../../lib/aiTaskCodexContext.js";
 import "./DeliverableCodexWorkbench.css";
 import "./DeliverableCodexWorkbenchAutosize.css";
 
@@ -140,7 +141,7 @@ function withMessageDurations(messages: Message[]): Message[] {
   });
 }
 
-export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverableTitle, visible, requestedConversationId, initialPrompt, executionTaskId, initialConversationTitle, onConversationCreated, openSequence }: { projectId: string; deliverableId: string; deliverableTitle: string; visible: boolean; requestedConversationId?: string; initialPrompt?: string; executionTaskId?: string; initialConversationTitle?: string; onConversationCreated?: (conversationId: string) => void; openSequence?: number }): ReactNode {
+export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverableTitle, visible, requestedConversationId, initialPrompt, initialAttachments, executionTaskId, initialConversationTitle, onConversationCreated, openSequence }: { projectId: string; deliverableId: string; deliverableTitle: string; visible: boolean; requestedConversationId?: string; initialPrompt?: string; initialAttachments?: CodexInitialAttachment[]; executionTaskId?: string; initialConversationTitle?: string; onConversationCreated?: (conversationId: string) => void; openSequence?: number }): ReactNode {
   const appView = useStore(state => state.appView);
   const setAppView = useStore(state => state.setAppView);
   const elements = useStore(state => state.elements);
@@ -275,7 +276,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const beginDrag = (event: ReactPointerEvent<HTMLElement>) => { if (windowState.maximized || (event.target as HTMLElement).closest("button, input, .deliverable-codex-workbench__title")) return; dragRef.current = { x: event.clientX, y: event.clientY, startX: windowState.x, startY: windowState.y }; event.currentTarget.setPointerCapture(event.pointerId); };
   const drag = (event: ReactPointerEvent<HTMLElement>) => { const point = dragRef.current; if (point) setWindowState(current => fitWindowToViewport({ ...current, x: point.startX + event.clientX - point.x, y: point.startY + event.clientY - point.y })); };
 
-  const create = async (startup?: { prompt?: string; taskId?: string; title?: string }) => {
+  const create = async (startup?: { prompt?: string; attachments?: QueuedMessage["attachments"]; taskId?: string; title?: string }) => {
     const conversationTitle = startup?.title ?? title.trim();
     if (!conversationTitle) return;
     setError("");
@@ -283,14 +284,14 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       const payload = await readJson<{ conversation: Conversation }>(`/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: conversationTitle }) });
       if (startup?.taskId) { await api.claimAiManagedTask(startup.taskId, "Rich·Codex", payload.conversation.id); onConversationCreated?.(payload.conversation.id); }
       setConversations(current => { const next = [payload.conversation, ...current]; saveConversationOrder(next); return next; }); setActiveId(payload.conversation.id); setTitle(""); setCreating(false);
-      if (startup?.prompt) void sendMessage(payload.conversation, startup.prompt, [], false, undefined, true);
+      if (startup?.prompt) void sendMessage(payload.conversation, startup.prompt, startup.attachments ?? [], false, undefined, true);
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
   useEffect(() => {
     if (!visible || !initialPrompt || !executionTaskId || launchedExecutionTaskRef.current === executionTaskId) return;
     launchedExecutionTaskRef.current = executionTaskId;
-    void create({ prompt: initialPrompt, taskId: executionTaskId, title: initialConversationTitle ?? "Rich·Codex Bug 任务" });
-  }, [visible, initialPrompt, executionTaskId, initialConversationTitle, openSequence]);
+    void create({ prompt: initialPrompt, attachments: initialAttachments, taskId: executionTaskId, title: initialConversationTitle ?? "Rich·Codex Bug 任务" });
+  }, [visible, initialPrompt, initialAttachments, executionTaskId, initialConversationTitle, openSequence]);
   const archive = async () => {
     if (!active) return;
     await readJson(`/api/deliverable-codex/conversations/${encodeURIComponent(active.id)}/archive`, { method: "POST" });
