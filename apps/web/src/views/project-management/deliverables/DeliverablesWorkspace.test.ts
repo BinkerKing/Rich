@@ -99,6 +99,11 @@ test("项目内的独立交付物可在目录失效后重新绑定目录", () =>
   assert.match(styles, /\.deliverables-workspace__rebind-folder\s*\{[^}]*border:1px solid #515151[^}]*background:#282828/s);
 });
 
+test("已使用独立交付物关联的项目不会回退显示已解绑的旧项目交付物", () => {
+  assert.match(deliverables, /if \(standalone \|\| deliverableIds !== undefined\) \{[\s\S]*?setItems\(global\); return;/);
+  assert.doesNotMatch(deliverables, /const legacy = await api\.listProjectManagementModuleItems\(projectId, "deliverables", undefined, true\);[\s\S]*?setItems\(\[\.\.\.global, \.\.\.legacy/);
+});
+
 test("交付物详情将操作收进标题行图标栏，绑定按钮仅在列表标题行显示", () => {
   assert.match(deliverables, /className="deliverables-workspace__title-actions"[\s\S]*?aria-label="Codex 对话"[\s\S]*?aria-label="版本策略"[\s\S]*?aria-label="打开文件夹"/);
   assert.match(deliverables, /className="deliverables-workspace__bind project-create-action"[\s\S]*?>＋ 绑定已有交付物<\/button>/);

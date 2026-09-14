@@ -152,10 +152,7 @@ export function DeliverablesWorkspace({
   const refreshItems = async () => {
     if (standalone || deliverableIds !== undefined) {
       const global = (await api.listDeliverables()).filter(item => standalone || (deliverableIds ?? []).includes(item.id)).map(item => ({ ...item, moduleKey: "deliverables", parentId: null, subtitle: null, sortOrder: 0, content: normalizeDeliverableContent(item.content), standalone: true, legacyProjectItemId: typeof item.content.legacyProjectItemId === "string" ? item.content.legacyProjectItemId : undefined } as unknown as Item));
-      if (standalone) { setItems(global); return; }
-      const legacy = await api.listProjectManagementModuleItems(projectId, "deliverables", undefined, true);
-      const migratedLegacyIds = new Set(global.map(item => item.legacyProjectItemId).filter((id): id is string => typeof id === "string"));
-      setItems([...global, ...legacy.filter(item => !migratedLegacyIds.has(item.id)).map(item => ({ ...item, content: normalizeDeliverableContent(item.content) }))]);
+      setItems(global);
       return;
     }
     if (!projectId) return;
