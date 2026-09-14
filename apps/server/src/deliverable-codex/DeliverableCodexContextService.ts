@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { realpath } from "node:fs/promises";
 import { resolve } from "node:path";
+import { realpath } from "node:fs/promises";
 import type { AiTaskContextSnapshot } from "../ai-tasks/types.js";
 import type { DeliverableTaskContextService } from "../ai-tasks/DeliverableTaskContextService.js";
 import { deliverableTaskContextBrief } from "../ai-tasks/deliverableTaskBrief.js";
@@ -88,11 +88,14 @@ export class DeliverableCodexContextService {
   constructor(
     private readonly taskContext: Pick<DeliverableTaskContextService, "createSnapshot">,
     private readonly elements: Pick<ElementsRepo, "get">,
+    private readonly generalWorkspaceRoot = process.env.RICH_PROJECT_ROOT
+      ? resolve(process.env.RICH_PROJECT_ROOT)
+      : resolve(process.env.HOME ?? process.cwd(), "Documents", "Ai-WorkSpace", "Rich"),
   ) {}
 
   async build(input: { projectId: string; deliverableId: string; mode: DeliverableContextMode }): Promise<DeliverableCodexContext> {
     if (input.projectId === GENERAL_CODEX_SCOPE && input.deliverableId === GENERAL_CODEX_SCOPE) {
-      return { scopeKey: "workbench:general", contextVersion: "workbench-v1", systemInstruction: "Assist the user in Rich. Use the task workbench for plan-based tasks when requested.", initialContext: "通用 Codex 对话；尚未绑定项目或交付物。", allowedMcpTools: ["rich_workbench_manage", "rich_ai_task_get", "rich_ai_task_report_result"], workspaceRoot: process.cwd() };
+      return { scopeKey: "workbench:general", contextVersion: "workbench-v1", systemInstruction: "Assist the user in Rich. Use the task workbench for plan-based tasks when requested.", initialContext: "通用 Codex 对话；尚未绑定项目或交付物。", allowedMcpTools: ["rich_workbench_manage", "rich_ai_task_get", "rich_ai_task_report_result"], workspaceRoot: this.generalWorkspaceRoot };
     }
     const snapshot = await this.taskContext.createSnapshot(input.projectId, input.deliverableId);
     const project = await this.elements.get(input.projectId);

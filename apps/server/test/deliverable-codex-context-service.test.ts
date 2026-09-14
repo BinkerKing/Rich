@@ -14,6 +14,14 @@ const snapshot = {
 const elements = { get: async () => ({ type: "project", content: { localFolder: process.cwd() } }) };
 
 describe("DeliverableCodexContextService", () => {
+  it("uses the Rich source directory for general Codex work instead of the packaged app process directory", async () => {
+    const service = new DeliverableCodexContextService({ createSnapshot: async () => snapshot }, elements as never, "/workspace/Rich");
+
+    const context = await service.build({ projectId: "__general__", deliverableId: "__general__", mode: "free" });
+
+    expect(context.workspaceRoot).toBe("/workspace/Rich");
+  });
+
   it("builds a task-mode context with the explicit-only writeback contract", async () => {
     const service = new DeliverableCodexContextService({ createSnapshot: async () => snapshot }, elements as never);
 
