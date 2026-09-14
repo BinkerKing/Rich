@@ -39,6 +39,11 @@ describe("AiTaskCapture task list", () => {
     expect(source).toContain('gitDeployLatest: false');
   });
 
+  it("confirms an unambiguous restart command prefix with Enter", () => {
+    expect(source).toContain('restartCommand.token.startsWith(command)');
+    expect(source).toContain('every(item => !item.token.startsWith(command))');
+  });
+
   it("hands Codex the Bug description, location, and screenshot attachments directly", () => {
     expect(source).toContain('buildBugCodexContext(task)');
     expect(source).toContain('bugCodexAttachments(task)');

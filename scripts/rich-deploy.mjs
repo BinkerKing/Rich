@@ -42,7 +42,7 @@ export async function runDeployment({ run = runCommand, logPath, source = source
   await run("rm", ["-rf", target]);
   await run("mv", [stagedApp, target]);
   await report("Launching Rich");
-  await run("open", [target]);
+  await run("open", ["-n", target]);
   await report("Deployment finished");
 }
 

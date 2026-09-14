@@ -333,7 +333,8 @@ export function AiTaskCapture() {
       selectListMode();
       return;
     }
-    if (command === restartCommand.token) {
+    const restartPrefixIsUnambiguous = command.length > 1 && restartCommand.token.startsWith(command) && [...modes, listCommand].every(item => !item.token.startsWith(command));
+    if (command === restartCommand.token || restartPrefixIsUnambiguous) {
       event.preventDefault();
       requestRestart();
       return;
