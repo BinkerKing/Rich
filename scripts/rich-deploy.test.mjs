@@ -16,7 +16,7 @@ test("creates an isolated job with a stable log path", () => {
 test("runs package, installation, and relaunch in order", async () => {
   const commands = [];
   await runDeployment({
-    run: async (command, args) => commands.push([command, args]),
+    run: async (...args) => commands.push(args),
     source: "/build/Rich.app",
     target: "/Applications/Rich.app",
   });
@@ -24,4 +24,6 @@ test("runs package, installation, and relaunch in order", async () => {
   assert.deepEqual(commands.map(([command]) => command), ["pnpm", "osascript", "ditto", "rm", "mv", "open"]);
   assert.deepEqual(commands[2][1], ["/build/Rich.app", "/Applications/Rich.app.new"]);
   assert.deepEqual(commands[5][1], ["-n", "/Applications/Rich.app"]);
+  assert.ok(commands[5][2]?.env);
+  assert.equal(commands[5][2].env.ELECTRON_RUN_AS_NODE, undefined);
 });
