@@ -1195,7 +1195,7 @@ export const api = {
     if (!r.ok) throw new Error(`getTestCenterGridSettings ${r.status}`);
     return r.json();
   },
-  async listTestCenterGridSettings(projectId: string, prefix: string): Promise<Array<{ key: string; columns: TestCenterGridColumn[] }>> {
+  async listTestCenterGridSettings(projectId: string, prefix: string): Promise<Array<{ key: string; columns: TestCenterGridColumn[]; style?: TestCenterGridStyle }>> {
     const r = await fetch(`/api/project-management/testing/${encodeURIComponent(projectId)}/grid-settings?prefix=${encodeURIComponent(prefix)}`);
     if (!r.ok) throw new Error(`listTestCenterGridSettings ${r.status}`);
     return r.json();

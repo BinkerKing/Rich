@@ -14,6 +14,7 @@ type CopiedCell = { issueId: string; field: string; value: string };
 
 type IssueDataGridProps = { projectId: string; tableId: string; title?: string; onBack?: () => void; issues: TestCenterIssue[]; onIssueChange: (issueId: string, patch: IssueChange) => void; onIssueReorder: (issueIds: string[]) => void; onAddIssue: () => void; onDeleteIssue: (issueId: string) => void };
 type StyleSelection = { key: string; target: "header" | "cell" | "dropdown"; optionValue?: string };
+type SavedTableStyle = { key: string; columns: TestCenterGridColumn[]; style?: TestCenterGridStyle };
 
 const systemFields = new Set(["serial", "title", "description", "owner", "status", "externalRef", "updatedAt"]);
 const statusLabels: Record<Exclude<IssueStatus, "">, string> = { open: "待处理", fixed: "已修复", retest: "待复测", closed: "已关闭" };
@@ -118,6 +119,10 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsError, setSettingsError] = useState("");
+  const [savedStyles, setSavedStyles] = useState<SavedTableStyle[]>([]);
+  const [savedStyleName, setSavedStyleName] = useState("");
+  const [selectedSavedStyleKey, setSelectedSavedStyleKey] = useState("");
+  const [savedStyleSaving, setSavedStyleSaving] = useState(false);
   const [newFieldName, setNewFieldName] = useState("");
   const [styleSelection, setStyleSelection] = useState<StyleSelection | null>(null);
   const [recordMenu, setRecordMenu] = useState<{ x: number; y: number; issueId?: string } | null>(null);
@@ -170,6 +175,16 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     });
     return () => { cancelled = true; };
   }, [gridSettingsKey, projectId]);
+  useEffect(() => {
+    if (!settingsOpen) return;
+    let cancelled = false;
+    void api.listTestCenterGridSettings(projectId, "issue-style:").then(styles => {
+      if (!cancelled) setSavedStyles(styles);
+    }).catch(() => {
+      if (!cancelled) setSettingsError("读取表格样式失败，请重试。");
+    });
+    return () => { cancelled = true; };
+  }, [projectId, settingsOpen]);
   useEffect(() => {
     if (!recordMenu) return;
     const closeMenu = () => setRecordMenu(null);
@@ -345,6 +360,39 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     setDeletedColumns(draftDeletedColumns);
     setSettingsDirty(false);
   };
+  const saveCurrentStyle = async () => {
+    const name = savedStyleName.trim();
+    if (!name) return;
+    setSavedStyleSaving(true);
+    setSettingsError("");
+    try {
+      const key = `issue-style:${encodeURIComponent(name)}`;
+      const saved = await api.saveTestCenterGridSettings(projectId, key, [...settingsColumns, ...draftDeletedColumns], settingsStyle);
+      setSavedStyles(current => [...current.filter(item => item.key !== key), { key, ...saved }].sort((left, right) => left.key.localeCompare(right.key)));
+      setSelectedSavedStyleKey(key);
+      setSavedStyleName("");
+    } catch {
+      setSettingsError("保存表格样式失败，请重试。");
+    } finally {
+      setSavedStyleSaving(false);
+    }
+  };
+  const applySavedStyle = async () => {
+    const savedStyle = savedStyles.find(item => item.key === selectedSavedStyleKey);
+    if (!savedStyle) return;
+    const savedColumns = new Map(savedStyle.columns.map(column => [column.key, column]));
+    const nextColumns = [
+      ...savedStyle.columns.filter(column => !column.deleted).map(column => ({ ...defaultColumns.find(defaultColumn => defaultColumn.key === column.key), ...column })),
+      ...defaultColumns.filter(column => !savedColumns.has(column.key)),
+    ];
+    const nextDeletedColumns = savedStyle.columns.filter(column => column.deleted);
+    const nextStyle = { ...defaultStyle, ...savedStyle.style };
+    setDraftColumns(nextColumns);
+    setDraftTableStyle(nextStyle);
+    setDraftDeletedColumns(nextDeletedColumns);
+    const applied = await persistSettings(nextColumns, nextStyle, nextDeletedColumns);
+    if (applied) setSettingsDirty(false);
+  };
   const toggleSettings = () => {
     if (settingsOpen) { setSettingsOpen(false); setDraftColumns(null); setDraftTableStyle(null); setStyleSelection(null); return; }
     const defaultStyleColumn = columns.find(column => column.key !== "serial");
@@ -380,6 +428,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
         <td><button className="issue-data-grid__delete-column" type="button" aria-label="删除字段" title="删除字段" onClick={() => removeColumn(column.key)}><svg className="issue-data-grid__delete-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" /></svg></button></td>
       </tr>)}</tbody></table></div>
       <section className="issue-data-grid__style"><b>表格样式</b><label>密度<select value={settingsStyle.density} onChange={event => updateStyle({ density: event.target.value as TestCenterGridStyle["density"] })}><option value="compact">紧凑</option><option value="comfortable">舒适</option></select></label><label>表头色调<select value={settingsStyle.headerTone} onChange={event => updateStyle({ headerTone: event.target.value as TestCenterGridStyle["headerTone"] })}><option value="neutral">中性</option><option value="slate">石板</option><option value="cyan">青色</option></select></label><label>边框颜色<input aria-label="边框颜色" type="color" value={settingsStyle.borderColor} onChange={event => updateStyle({ borderColor: event.target.value })} /></label><label>边框粗细<select value={settingsStyle.borderWidth} onChange={event => updateStyle({ borderWidth: event.target.value as TestCenterGridStyle["borderWidth"] })}><option value="1px">细</option><option value="2px">中</option><option value="3px">粗</option></select></label><label>边框线型<select value={settingsStyle.borderStyle} onChange={event => updateStyle({ borderStyle: event.target.value as TestCenterGridStyle["borderStyle"] })}><option value="solid">实线</option><option value="dashed">虚线</option><option value="dotted">点线</option></select></label><label><input type="checkbox" checked={settingsStyle.stripedRows} onChange={event => updateStyle({ stripedRows: event.target.checked })} /> 斑马纹行</label>{settingsError && <span className="issue-data-grid__settings-error" role="alert">{settingsError}</span>}<button className={`issue-data-grid__apply-settings${settingsDirty ? " is-ready" : ""}`} type="button" disabled={!settingsDirty || settingsSaving} onClick={() => void applySettings()}>{settingsSaving ? "正在保存…" : settingsDirty ? "应用更改" : "已应用"}</button></section>
+      <section className="issue-data-grid__saved-styles" aria-label="表格样式库"><input aria-label="样式名称" value={savedStyleName} onChange={event => setSavedStyleName(event.target.value)} onKeyDown={event => { if (event.key === "Enter") void saveCurrentStyle(); }} placeholder="样式名称" /><button type="button" disabled={!savedStyleName.trim() || savedStyleSaving} onClick={() => void saveCurrentStyle()}>{savedStyleSaving ? "正在保存…" : "保存为样式"}</button><select aria-label="已保存的表格样式" value={selectedSavedStyleKey} onChange={event => setSelectedSavedStyleKey(event.target.value)}><option value="">选择已保存的样式</option>{savedStyles.map(item => <option key={item.key} value={item.key}>{decodeURIComponent(item.key.slice("issue-style:".length))}</option>)}</select><button type="button" disabled={!selectedSavedStyleKey || settingsSaving} onClick={() => void applySavedStyle()}>套用样式</button></section>
     </aside>}
     <div className="issue-data-grid__table" onKeyDownCapture={handleGridKeyDownCapture} onContextMenu={event => { if (event.target === event.currentTarget) { event.preventDefault(); setRecordMenu({ x: event.clientX, y: event.clientY }); } }}><AgGridReact<IssueGridRow>
       theme={issueGridTheme} rowData={visibleRows} columnDefs={columnDefs} defaultColDef={{ sortable: true }} getRowId={params => params.data.id} onGridReady={event => { gridApi.current = event.api; if (pendingGridColumnState.current) restoreGridColumnState(event.api, pendingGridColumnState.current); }} rowDragManaged={!query} suppressMoveWhenRowDragging animateRows enableCellTextSelection suppressClipboardPaste suppressCutToClipboard rowHeight={baseRowHeight} headerHeight={40} singleClickEdit={false} stopEditingWhenCellsLoseFocus

@@ -126,6 +126,19 @@ describe("TestCenterSqliteRepo", () => {
     db.close();
   });
 
+  it("保存的表格样式可枚举，并保留完整表格外观", async () => {
+    const db = new Database(":memory:");
+    db.exec(SQLITE_PROJECT_MANAGEMENT_SCHEMA);
+    const repo = new TestCenterSqliteRepo(db);
+    const columns = [{ key: "title", name: "问题", width: 280, frozen: true }];
+    const style = { density: "compact", headerTone: "slate", stripedRows: true, borderColor: "#334455", borderWidth: "2px", borderStyle: "dashed" };
+
+    await repo.saveGridSettings("p1", "issue-style:compact", columns, style);
+
+    expect(await repo.listGridSettings("p1", "issue-style:")).toEqual([{ key: "issue-style:compact", columns, style }]);
+    db.close();
+  });
+
   it("从用例和问题实时汇总测试报告", async () => {
     const db = new Database(":memory:");
     db.exec(SQLITE_PROJECT_MANAGEMENT_SCHEMA);

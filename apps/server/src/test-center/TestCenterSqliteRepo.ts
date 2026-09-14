@@ -247,10 +247,10 @@ export class TestCenterSqliteRepo {
     try { const saved = row ? JSON.parse(row.columns_json) as unknown : []; return Array.isArray(saved) ? { columns: saved } : saved as { columns: unknown[]; style?: unknown }; } catch { return { columns: [] }; }
   }
 
-  async listGridSettings(projectId: string, prefix: string): Promise<Array<{ key: string; columns: unknown[] }>> {
+  async listGridSettings(projectId: string, prefix: string): Promise<Array<{ key: string; columns: unknown[]; style?: unknown }>> {
     const rows = this.db.prepare(`SELECT grid_key, columns_json FROM pm_test_grid_settings WHERE project_id=? AND grid_key LIKE ? ORDER BY grid_key ASC`).all(projectId, `${prefix}%`) as Array<{ grid_key: string; columns_json: string }>;
     return rows.map(row => {
-      try { const saved = JSON.parse(row.columns_json) as unknown; return { key: row.grid_key, columns: Array.isArray(saved) ? saved : (saved as { columns?: unknown[] }).columns ?? [] }; } catch { return { key: row.grid_key, columns: [] }; }
+      try { const saved = JSON.parse(row.columns_json) as unknown; return Array.isArray(saved) ? { key: row.grid_key, columns: saved } : { key: row.grid_key, columns: (saved as { columns?: unknown[] }).columns ?? [], style: (saved as { style?: unknown }).style }; } catch { return { key: row.grid_key, columns: [] }; }
     });
   }
 

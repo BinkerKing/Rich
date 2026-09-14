@@ -175,3 +175,10 @@
 .issue-data-grid__record-menu button:hover { background:#313b40; color:#f2f8f9; }
 .issue-data-grid__record-menu button.is-danger { color:#e8b8bc; }
 .issue-data-grid__record-menu button.is-danger:hover { color:#ffd9dc; background:#472f34; }
+
+.issue-data-grid__saved-styles { display:flex; align-items:center; gap:6px; min-width:0; border-top:1px solid #394147; padding-top:10px; }
+.issue-data-grid__saved-styles input,.issue-data-grid__saved-styles select { height:30px; min-width:0; border:1px solid #424b50; border-radius:6px; padding:0 8px; color:#dbe3e5; background:#202427; font:11px inherit; }
+.issue-data-grid__saved-styles input { width:120px; }.issue-data-grid__saved-styles select { width:180px; }
+.issue-data-grid__saved-styles button { height:30px; border:1px solid #4b555a; border-radius:6px; padding:0 10px; color:#dfe7e9; background:#282e31; font:600 11px inherit; white-space:nowrap; cursor:pointer; }
+.issue-data-grid__saved-styles button:disabled { opacity:.45; cursor:default; }
+.issue-data-grid:has(.issue-data-grid__settings) .issue-data-grid__settings { grid-template-rows:auto minmax(0,1fr) auto auto; }

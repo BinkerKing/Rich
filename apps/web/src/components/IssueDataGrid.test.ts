@@ -241,6 +241,15 @@ test("问题表提供字段配置器，支持列类型、搜索和样式设置",
   assert.match(source, /tableStyle/);
 });
 
+test("问题表可保存完整设置为命名样式并在其他表套用", () => {
+  assert.match(source, /listTestCenterGridSettings\(projectId, "issue-style:"\)/);
+  assert.match(source, /保存为样式/);
+  assert.match(source, /套用样式/);
+  assert.match(source, /const applySavedStyle = async/);
+  assert.match(source, /const key = `issue-style:\$\{encodeURIComponent\(name\)\}`/);
+  assert.match(source, /api\.saveTestCenterGridSettings\(projectId, key,/);
+});
+
 test("字段设置以表格行展示，并提供日期、勾选和多选类型", () => {
   assert.match(source, /issue-data-grid__field-table/);
   assert.match(source, /<th>字段名称<\/th>/);
