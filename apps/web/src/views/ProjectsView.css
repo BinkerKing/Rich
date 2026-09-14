@@ -11438,6 +11438,19 @@
 .prj-ws .reports-workspace__date-head h2 { font-size:22px; }
 .prj-ws .reports-workspace__date-head span { font-size:11px; }
 
+/* A report may be taller than its panel; keep the calendar in place and scroll only the detail pane. */
+.reports-workspace { display:flex; flex-direction:column; overflow:hidden; }
+.reports-workspace__header { flex:0 0 auto; }
+.reports-workspace__layout { flex:1 1 auto; grid-template-rows:minmax(0,1fr); min-height:0; }
+.reports-calendar,.reports-workspace__list { min-height:0; }
+.reports-workspace__detail-actions { display:flex; align-items:center; gap:6px; }
+.reports-workspace__detail-actions .reports-workspace__detail-action { display:grid; width:30px; height:30px; box-sizing:border-box; place-items:center; padding:0; border:1px solid #515151; border-radius:6px; color:#d7dde1; background:#303030; }
+.reports-workspace__detail-actions .reports-workspace__detail-action svg { width:15px; height:15px; stroke-width:2.2; }
+.reports-workspace__detail-actions .reports-workspace__detail-action:hover:not(:disabled) { border-color:#777; color:#fff; background:#3a3a3a; }
+.reports-workspace__detail-actions .reports-workspace__detail-action:focus-visible { outline:2px solid #d7dde1; outline-offset:2px; }
+.reports-workspace__detail-actions .reports-workspace__detail-action:disabled { cursor:wait; }
+@media (max-width:900px) { .reports-workspace { overflow:auto; }.reports-workspace__layout { flex:none; grid-template-rows:auto; } }
+
 /* Project workspaces share the dashboard's compact top rhythm. */
 .prj-ws .delivery { padding:8px 12px 14px; }
 .prj-ws .delivery__header { gap:12px; min-height:42px; margin-bottom:8px; }

@@ -30,6 +30,12 @@ function ReportActionIcon() {
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v5h5M9 13h6M9 17h6" /></svg>;
 }
 
+function ReportDetailActionIcon({ kind }: { kind: "preview" | "edit" | "save" }) {
+  if (kind === "preview") return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></svg>;
+  if (kind === "edit") return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m4 20 4.2-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z" /><path d="m13.7 7.5 3 3" /></svg>;
+  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3h12l3 3v15H5z" /><path d="M8 3v6h8V3M8 20v-6h8v6" /></svg>;
+}
+
 function todayWorkItems(items: ProjectModuleItem[], date: string): TodayWorkItem[] {
   return items.flatMap(item => {
     if (item.content.kind !== "task" || !Array.isArray(item.content.activities)) return [];
@@ -173,7 +179,7 @@ export function ReportsWorkspace({ projectId }: { projectId: string }) {
             <b className={`report-type-icon is-${draft.type}`}>{reportTypeIcon(draft.type)}</b><span><strong>{draft.title}</strong><small>点击返回当天报告列表</small></span><em>{reportTypeLabel(draft.type)}</em><i>⌃</i>
           </button>
           <div className="reports-workspace__detail">
-            <header><div><span className={`report-workbench__eyebrow is-${draft.type}`}>{reportTypeLabel(draft.type)} · {reportTypeDescriptor(draft.type)}</span><h2>{draft.title}</h2><small>{draft.date}{draft.filePath ? ` · ${draft.filePath}` : " · 尚未写入文件"}</small></div><div className="reports-workspace__detail-actions">{!editing && <button type="button" onClick={() => setShowReport(current => !current)}>{showReport ? "收起报告" : "显示报告"}</button>}{!editing && <button type="button" onClick={() => { setEditing(true); setShowReport(false); }}>编辑报告</button>}<button type="button" onClick={() => void saveReport()} disabled={busy}>{busy ? "保存中…" : "保存并写入文件"}</button></div></header>
+            <header><div><span className={`report-workbench__eyebrow is-${draft.type}`}>{reportTypeLabel(draft.type)} · {reportTypeDescriptor(draft.type)}</span><h2>{draft.title}</h2><small>{draft.date}{draft.filePath ? ` · ${draft.filePath}` : " · 尚未写入文件"}</small></div><div className="reports-workspace__detail-actions">{!editing && <button className="reports-workspace__detail-action" aria-label={showReport ? "收起报告" : "显示报告"} title={showReport ? "收起报告" : "显示报告"} type="button" onClick={() => setShowReport(current => !current)}><ReportDetailActionIcon kind="preview" /></button>}{!editing && <button className="reports-workspace__detail-action" aria-label="编辑报告" title="编辑报告" type="button" onClick={() => { setEditing(true); setShowReport(false); }}><ReportDetailActionIcon kind="edit" /></button>}<button className="reports-workspace__detail-action" aria-label={busy ? "保存中" : "保存并写入文件"} title={busy ? "保存中" : "保存并写入文件"} type="button" onClick={() => void saveReport()} disabled={busy}><ReportDetailActionIcon kind="save" /></button></div></header>
             {!editing && !showReport && <ReportWorkbench report={draft} todayWork={todayWork} />}
             {!editing && showReport && <section className="report-workbench__editor"><header><div><span>DAILY REPORT</span><h3>{draft.title}</h3></div><small>可直接编辑报告内容，保存后写入文件。</small></header><ProjectRichTextEditor projectId={`${projectId}-report-${openId}`} value={draft.body} onChange={body => setDraft(current => ({ ...current, body, summary: plainText(body).slice(0, 160) }))} /></section>}
             {editing && <>

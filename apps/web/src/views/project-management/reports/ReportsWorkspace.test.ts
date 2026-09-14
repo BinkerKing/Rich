@@ -19,6 +19,21 @@ test("日报工作台可在摘要和富文本报告之间切换", () => {
   assert.match(source, /<ProjectRichTextEditor projectId=\{`\$\{projectId\}-report-\$\{openId\}`\} value=\{draft\.body\}/);
 });
 
+test("打开日报时仅右侧详情区域滚动，日历保持固定", () => {
+  assert.match(styles, /\.reports-workspace\s*\{[^}]*display:flex[^}]*flex-direction:column[^}]*overflow:hidden/s);
+  assert.match(styles, /\.reports-workspace__layout\s*\{[^}]*flex:1 1 auto[^}]*min-height:0/s);
+  assert.match(styles, /\.reports-workspace__working-report \.reports-workspace__detail\s*\{[^}]*overflow:auto/s);
+});
+
+test("日报详情操作使用带说明的图标按钮", () => {
+  assert.match(source, /className="reports-workspace__detail-action" aria-label=\{showReport \? "收起报告" : "显示报告"\}/);
+  assert.match(source, /className="reports-workspace__detail-action" aria-label="编辑报告"/);
+  assert.match(source, /className="reports-workspace__detail-action" aria-label=\{busy \? "保存中" : "保存并写入文件"\}/);
+  assert.match(source, /<ReportDetailActionIcon kind="preview" \/>/);
+  assert.match(source, /<ReportDetailActionIcon kind="edit" \/>/);
+  assert.match(source, /<ReportDetailActionIcon kind="save" \/>/);
+});
+
 test("今日完成工作按当天任务活动分组展示", () => {
   assert.match(source, /listProjectManagementModuleItems\(projectId, "deliveryPlan", undefined, true\)/);
   assert.match(source, /function todayWorkItems\(items: ProjectModuleItem\[\], date: string\)/);
