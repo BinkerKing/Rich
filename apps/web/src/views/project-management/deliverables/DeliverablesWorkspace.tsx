@@ -804,13 +804,13 @@ export function DeliverablesWorkspace({
                                 : recordFiles.map((file) => file.name).join("、")}
                             </small>
                           </aside>
-                          <button style={{ marginLeft: "auto" }} onClick={() => {
+                          <button className="deliverables-workspace__record-publish" type="button" title={isEditingCurrentRecord ? "保存记录" : kind === "ai_task" ? "发布 AI 任务" : "发布记录"} aria-label={isEditingCurrentRecord ? "保存记录" : kind === "ai_task" ? "发布 AI 任务" : "发布记录"} onClick={() => {
                             const record = isEditingCurrentRecord ? item.content.records.find((current) => current.id === editingRecordId) : undefined;
                             if (record) void saveRecordEdit(item, record);
                             else if (kind === "ai_task") void publishDeliverableAiTask(item);
                             else void addRecord(item);
                           }}>
-                            {isEditingCurrentRecord ? "保存" : kind === "ai_task" ? "发布 AI 任务" : "发布记录"}
+                            <span aria-hidden="true">↥</span>
                           </button>
                           {isEditingCurrentRecord && <button className="deliverables-workspace__record-edit-cancel" onClick={clearRecordEdit}>取消</button>}
                         </footer>

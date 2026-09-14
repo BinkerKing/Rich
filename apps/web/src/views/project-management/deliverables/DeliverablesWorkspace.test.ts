@@ -223,6 +223,14 @@ test("工具栏按钮紧凑，需求说明编辑使用无背景绿色图标", ()
   assert.match(styles, /content:"✎"; color:#54d7a7/);
 });
 
+test("项目内交付物记录编辑器使用透明表面，发布记录为图标操作", () => {
+  assert.match(deliverables, /className="deliverables-workspace__record-publish"[\s\S]*aria-label=\{isEditingCurrentRecord \? "保存记录" : kind === "ai_task" \? "发布 AI 任务" : "发布记录"\}/);
+  assert.match(deliverables, /<span aria-hidden="true">↥<\/span>/);
+  assert.match(styles, /\.prj-ws \.deliverables-workspace:not\(\.deliverables-workspace--standalone\) \.deliverables-workspace__record-composer \.prj-pm-rich-editor \{[^}]*background:transparent!important/s);
+  assert.match(styles, /\.prj-ws \.deliverables-workspace:not\(\.deliverables-workspace--standalone\) \.deliverables-workspace__record-composer \.prj-pm-rich-toolbar \{[^}]*background:transparent!important/s);
+  assert.match(styles, /\.deliverables-workspace__record-publish \{[^}]*width:34px[^}]*padding:0[^}]*background:transparent/s);
+});
+
 test("文件清单将文件大小放到末列，文件名区域只保留文件名和备注两行", () => {
   assert.match(deliverables, /deliverables-workspace__file-head/);
   assert.match(deliverables, /<span>类型<\/span>\s*<span>版本<\/span>\s*<span>文件名<\/span>\s*<span>更新时间<\/span>\s*<span>大小<\/span>\s*<span>操作<\/span>/);
