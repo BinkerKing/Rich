@@ -71,6 +71,13 @@ test("问题记录可通过右键菜单新增或删除", () => {
   assert.match(styles, /\.issue-data-grid__record-menu button\.is-danger/);
 });
 
+test("空问题表可在表格空白区右键新增第一条记录", () => {
+  assert.match(source, /const handleTableContextMenu = \(event: ReactMouseEvent<HTMLDivElement>\) => \{/);
+  assert.match(source, /target\?\.closest\("\.ag-root"\)/);
+  assert.match(source, /target\.closest\("\.ag-row"\)/);
+  assert.match(source, /onContextMenu=\{handleTableContextMenu\}/);
+});
+
 test("右键记录菜单会在点击菜单外后自动收起", () => {
   assert.match(source, /window\.addEventListener\("pointerdown", closeMenu\)/);
   assert.match(source, /window\.removeEventListener\("pointerdown", closeMenu\)/);
