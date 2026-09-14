@@ -152,9 +152,11 @@ test("进入交付物工作台时同步任务和交付物名称对应的目录",
   assert.match(deliverables, /title: activity\.text, content/);
 });
 
-test("打开文件夹会先确保目录存在，再调用系统打开该目录", () => {
-  assert.match(deliverables, /const openFolder = async \(item: Item\) => \{ await api\.createDeliverableFolder\(projectId, item\.content\.folderPath\); await api\.deliverableFileAction\(projectId, "open", item\.content\.folderPath\); \}/);
-  assert.match(deliverables, /onClick=\{\(\) => void openFolder\(item\)\}>\s*打开文件夹/);
+test("打开文件夹会先确保目录存在，并通过 Rich 桌面端原生通道打开", () => {
+  assert.match(deliverables, /const openInDesktopShell = \(path: string\) => window\.open\(`rich:\/\/open-external\?url=\$\{encodeURIComponent\(`file:\/\/\$\{path\.split\("\/"\)\.map\(encodeURIComponent\)\.join\("\/"\)\}\`\)\}`, "_blank", "noopener,noreferrer"\);/);
+  assert.match(deliverables, /await api\.createDeliverableFolder\(projectId, item\.content\.folderPath\); openInDesktopShell\(absoluteFolderPath\(projectRoot, item\.content\.folderPath\)\);/);
+  assert.match(deliverables, /window\.alert\(`打开交付物文件夹失败: \$\{error instanceof Error \? error\.message : String\(error\)\}`\);/);
+  assert.match(deliverables, /aria-label="打开文件夹"[^>]*onClick=\{\(\) => void openFolder\(item\)\}/);
 });
 
 test("交付物版本与材料展示目录内全部文件，并支持刷新", () => {

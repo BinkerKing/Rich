@@ -53,6 +53,7 @@ const recordKindLabel = (kind: DeliverableRecordKind) =>
   kind === "requirement" ? "要求" : kind === "status" ? "进展" : kind === "decision" ? "决策" : kind === "issue" ? "问题" : kind === "risk" ? "风险" : kind === "change" ? "变更" : kind === "information" ? "信息" : kind === "material" ? "材料" : kind === "codex" ? "Codex" : kind === "ai_task_result" ? "AI 回复" : "AI 任务";
 const richTextHasContent = (value: string) => value.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0;
 const absoluteFolderPath = (projectRoot: string | undefined, folderPath: string) => projectRoot ? `${projectRoot.replace(/\/+$/, "")}/${folderPath.replace(/^\/+/, "")}` : folderPath;
+const openInDesktopShell = (path: string) => window.open(`rich://open-external?url=${encodeURIComponent(`file://${path.split("/").map(encodeURIComponent).join("/")}`)}`, "_blank", "noopener,noreferrer");
 function DeliverableListIcon({ name }: { name: "add" | "file" | "link" }) {
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     {name === "add" ? <path d="M12 5v14M5 12h14" /> : name === "link" ? <><path d="m9.5 14.5 5-5" /><path d="m7.2 16.8-1.1 1.1a3 3 0 0 1-4.2-4.2l3.2-3.2a3 3 0 0 1 4.2 0" /><path d="m16.8 7.2 1.1-1.1a3 3 0 0 1 4.2 4.2l-3.2 3.2a3 3 0 0 1-4.2 0" /></> : <><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v5h5M9 13h6M9 17h6" /></>}
@@ -385,9 +386,12 @@ export function DeliverablesWorkspace({
     );
   };
   const openFolder = async (item: Item) => {
-    if (standalone || deliverableIds !== undefined) { await api.createStandaloneDeliverableFolder(item.id); await api.openStandaloneDeliverableFolder(item.id); return; }
-    await api.createDeliverableFolder(projectId, item.content.folderPath);
-    await api.deliverableFileAction(projectId, "open", item.content.folderPath);
+    try {
+      if (standalone || deliverableIds !== undefined) { await api.createStandaloneDeliverableFolder(item.id); openInDesktopShell(item.content.folderPath); return; }
+      await api.createDeliverableFolder(projectId, item.content.folderPath); openInDesktopShell(absoluteFolderPath(projectRoot, item.content.folderPath));
+    } catch (error) {
+      window.alert(`打开交付物文件夹失败: ${error instanceof Error ? error.message : String(error)}`);
+    }
   };
   const fileAction = async (item: Item, action: "open" | "reveal", path: string) => {
     if (standalone || deliverableIds !== undefined) {
