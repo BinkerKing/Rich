@@ -981,6 +981,9 @@ export const api = {
   async createStandaloneDeliverableFolder(id: string): Promise<void> {
     const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}/folder`, { method: "POST" }); if (!r.ok) throw new Error(`createStandaloneDeliverableFolder ${r.status}`);
   },
+  async rebindStandaloneDeliverableFolder(id: string, folderPath: string): Promise<Deliverable> {
+    const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}/rebind-folder`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ folderPath }) }); if (!r.ok) throw new Error(`rebindStandaloneDeliverableFolder ${r.status}`); return r.json();
+  },
   async listStandaloneDeliverableFiles(id: string): Promise<Array<{ fileName: string; relativePath: string; size: number; modifiedAt: string; isDirectory: boolean }>> {
     const r = await fetch(`/api/deliverables/${encodeURIComponent(id)}/files`); if (!r.ok) throw new Error(`listStandaloneDeliverableFiles ${r.status}`); return (await r.json()).files;
   },

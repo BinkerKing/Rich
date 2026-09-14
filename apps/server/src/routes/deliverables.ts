@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { basename, isAbsolute, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import type { DeliverablesRepo } from "../repos/DeliverablesRepo.js";
@@ -24,8 +24,10 @@ export function deliverablesRoutes(repo: DeliverablesRepo, dependencies?: { elem
     const legacyIds = new Map(existing.flatMap(item => typeof item.content.legacyProjectItemId === "string" ? [[item.content.legacyProjectItemId, item.id] as const] : []));
     let migrated = 0;
     for (const project of (await dependencies.elements.list()).filter(item => item.type === "project")) {
+      const projectContent = content(project.content) ?? {};
+      if (projectContent.deliverablesMigrationVersion === 1) continue;
       const legacy = await dependencies.projectManagement.listAllModuleItems(project.id, "deliverables");
-      const ids = [...((project.content as { deliverableIds?: unknown } | null)?.deliverableIds instanceof Array ? (project.content as { deliverableIds: unknown[] }).deliverableIds.filter((id): id is string => typeof id === "string") : [])];
+      const ids = [...(projectContent.deliverableIds instanceof Array ? projectContent.deliverableIds.filter((id): id is string => typeof id === "string") : [])];
       for (const item of legacy) {
         let id = legacyIds.get(item.id);
         if (!id) {
@@ -34,7 +36,7 @@ export function deliverablesRoutes(repo: DeliverablesRepo, dependencies?: { elem
         }
         if (!ids.includes(id)) ids.push(id);
       }
-      if (ids.length) await dependencies.elements.put({ ...project, content: { ...(project.content as Record<string, unknown>), deliverableIds: ids } });
+      await dependencies.elements.put({ ...project, content: { ...projectContent, deliverableIds: ids, deliverablesMigrationVersion: 1 } });
     }
     return c.json({ migrated });
   });
@@ -48,6 +50,18 @@ export function deliverablesRoutes(repo: DeliverablesRepo, dependencies?: { elem
   route.post("/:id/folder", async c => {
     const path = await folder(c.req.param("id")); if (!path) return c.json({ error: "deliverable folder not found" }, 404);
     await mkdir(path, { recursive: true }); return c.json({ folderPath: path });
+  });
+  route.post("/:id/rebind-folder", async c => {
+    const body = await c.req.json().catch(() => ({})) as { folderPath?: unknown };
+    const folderPath = directory({ folderPath: body.folderPath });
+    const item = await repo.get(c.req.param("id"));
+    const currentFolder = item ? directory(item.content) : null;
+    if (!item || !folderPath || !currentFolder) return c.json({ error: "deliverable and absolute folderPath are required" }, 400);
+    await mkdir(folderPath, { recursive: true });
+    if (currentFolder !== folderPath && (await stat(currentFolder).catch(() => null))?.isDirectory()) {
+      for (const entry of await readdir(currentFolder)) await cp(resolve(currentFolder, entry), resolve(folderPath, entry), { recursive: true, force: false, errorOnExist: true });
+    }
+    return c.json(await repo.update(item.id, { content: { ...item.content, folderPath } }));
   });
   route.get("/:id/files", async c => {
     const path = await folder(c.req.param("id")); if (!path) return c.json({ error: "deliverable folder not found" }, 404);

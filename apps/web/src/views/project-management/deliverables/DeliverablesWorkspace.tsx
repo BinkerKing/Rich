@@ -60,7 +60,7 @@ function DeliverableListIcon({ name }: { name: "add" | "file" | "link" }) {
   </svg>;
 }
 
-function DeliverableActionIcon({ name }: { name: "chat" | "latest" | "history" | "folder" | "unlink" }) {
+function DeliverableActionIcon({ name }: { name: "chat" | "latest" | "history" | "folder" | "unlink" | "rebind" }) {
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{name === "chat" ? <><path d="M5 18.5 4 21l4-1.5H18a3 3 0 0 0 3-3v-9a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v7" /><path d="M8 11h8M8 15h5" /></> : name === "latest" ? <><path d="M5 19h14" /><path d="M7 15h10v4H7z" /><path d="m12 4 3 3M12 4 9 7M12 4v8" /></> : name === "history" ? <><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5M12 7v5l3 2" /></> : name === "folder" ? <><path d="M3 6h7l2 2h9v11H3z" /><path d="M3 10h18" /></> : <><path d="m9.5 14.5 5-5" /><path d="m7.2 16.8-1.1 1.1a3 3 0 0 1-4.2-4.2l3.2-3.2a3 3 0 0 1 4.2 0" /><path d="m16.8 7.2 1.1-1.1a3 3 0 0 1 4.2 4.2l-3.2 3.2a3 3 0 0 1-4.2 0" /></>}</svg>;
 }
 
@@ -106,6 +106,8 @@ export function DeliverablesWorkspace({
   const [newFolderPath, setNewFolderPath] = useState("");
   const [binding, setBinding] = useState(false);
   const [availableDeliverables, setAvailableDeliverables] = useState<Array<{ id: string; title: string }>>([]);
+  const [rebindingFolderId, setRebindingFolderId] = useState<string>();
+  const [rebindingFolderPath, setRebindingFolderPath] = useState("");
   const itemRefs = useRef<Record<string, HTMLElement | null>>({});
   const materialInputRef = useRef<HTMLInputElement>(null);
   const editingMaterialInputRef = useRef<HTMLInputElement>(null);
@@ -420,6 +422,23 @@ export function DeliverablesWorkspace({
     if (!onDeliverableIdsChange || !item.standalone || !window.confirm(`解除“${item.title}”与当前项目的关联？交付物和目录不会删除。`)) return;
     await onDeliverableIdsChange((deliverableIds ?? []).filter(id => id !== item.id));
   };
+  const startRebindingFolder = (item: Item) => {
+    setRebindingFolderId(item.id);
+    setRebindingFolderPath(item.content.folderPath);
+  };
+  const rebindFolder = async (item: Item) => {
+    const folderPath = rebindingFolderPath.trim();
+    if (!folderPath) return;
+    const updated = await api.rebindStandaloneDeliverableFolder(item.id, folderPath);
+    setItems(all => all.map(current => current.id === item.id ? ({ ...current, ...updated, content: normalizeDeliverableContent(updated.content) } as Item) : current));
+    setFilesByFolder(all => {
+      const next = { ...all };
+      delete next[item.content.folderPath];
+      return next;
+    });
+    setRebindingFolderId(undefined);
+    setRebindingFolderPath("");
+  };
   const upload = async (item: Item, files: File[]) => {
     if (!files.length) return;
     if (standalone || deliverableIds !== undefined) {
@@ -681,6 +700,7 @@ export function DeliverablesWorkspace({
                     <button className={item.content.versionPolicy === "versioned" ? "is-active" : ""} type="button" aria-label="版本控制" title="版本控制" onClick={() => void save(item, { ...item.content, versionPolicy: "versioned" })}><DeliverableActionIcon name="history" /></button>
                   </div>
                   <button className="deliverables-workspace__title-action" type="button" aria-label="打开文件夹" title="打开文件夹" onClick={() => void openFolder(item)}><DeliverableActionIcon name="folder" /></button>
+                  {item.standalone && <button className="deliverables-workspace__title-action" type="button" aria-label="重新绑定目录" title="重新绑定目录" onClick={() => startRebindingFolder(item)}><DeliverableActionIcon name="rebind" /></button>}
                   {item.standalone && <button className="deliverables-workspace__title-action is-danger" type="button" aria-label="解除项目绑定" title="解除项目绑定" onClick={() => void unbind(item)}><DeliverableActionIcon name="unlink" /></button>}
                 </div>}
               </header>
@@ -704,6 +724,7 @@ export function DeliverablesWorkspace({
                     文件位置 <code>{absoluteFolderPath(projectRoot, item.content.folderPath)}</code>
                   </span>
                 </div>
+                {rebindingFolderId === item.id && <form className="deliverables-workspace__rebind-folder" onSubmit={event => { event.preventDefault(); void rebindFolder(item); }}><label>交付物目录<input aria-label="交付物目录" value={rebindingFolderPath} onChange={event => setRebindingFolderPath(event.target.value)} placeholder="/Users/me/Deliverables/UAT" /></label><button type="submit" disabled={!rebindingFolderPath.trim()}>重新绑定</button><button type="button" onClick={() => { setRebindingFolderId(undefined); setRebindingFolderPath(""); }}>取消</button></form>}
                 <div className="deliverables-workspace__grid">
                   <section className="deliverables-workspace__description">
                     <header>
