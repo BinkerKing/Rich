@@ -5,6 +5,7 @@ import { execFileSync, spawn } from "node:child_process";
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 import ExcelJS from "exceljs";
+import { findRichProjectRoot } from "./restartLatestApp";
 
 // File-based logger so we can see what happened when launched from .app bundle
 // (where stdout is swallowed). Always logs to /tmp/ke-desktop.log.
@@ -1532,9 +1533,22 @@ ipcMain.handle("rich-chat:capture-current-view", async (event) => {
 
 ipcMain.handle("rich-app:restart-latest", (event) => {
   if (event.sender !== mainWindow?.webContents && event.sender !== chatWindow?.webContents) throw new Error("Unauthorized restart request");
-  const child = spawn("pnpm", ["run", "deploy"], { cwd: process.cwd(), detached: true, stdio: "ignore" });
-  child.unref();
-  return true;
+  const projectRoot = findRichProjectRoot({ cwd: process.cwd(), home: app.getPath("home") });
+  if (!projectRoot) throw new Error("Rich source directory with scripts/rich-deploy.mjs was not found");
+  return new Promise<boolean>((resolvePromise, reject) => {
+    const child = spawn(process.execPath, [join(projectRoot, "scripts", "rich-deploy.mjs")], {
+      cwd: projectRoot,
+      detached: true,
+      stdio: "ignore",
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+    });
+    child.once("error", reject);
+    child.once("spawn", () => {
+      child.unref();
+      app.quit();
+      resolvePromise(true);
+    });
+  });
 });
 
 function createChatWindow(port: number): BrowserWindow {

@@ -25,6 +25,7 @@ import { Lightbox } from "./components/Lightbox.js";
 import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import { CommandPalette } from "./components/CommandPalette.js";
 import { AiTaskCapture } from "./components/AiTaskCapture.js";
+import { RichRestartOverlay } from "./components/RichRestartOverlay.js";
 import { MascotDock } from "./components/MascotDock.js";
 import { FloatingTaskDock } from "./components/FloatingTaskDock.js";
 import { RichControlCenter, type RichLayoutMode } from "./components/RichControlCenter.js";
@@ -264,6 +265,7 @@ function MainApp() {
       <Lightbox />
       <CommandPalette />
       <AiTaskCapture />
+      <RichRestartOverlay />
       <DeliverableCodexLauncher />
       {controlCenterOpen && <RichControlCenter mode={layoutMode} onClose={() => setControlCenterOpen(false)} onModeChange={changeLayoutMode} />}
       {appView === "home" && (
