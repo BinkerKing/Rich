@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell, dialog, Menu, Tray, nativeImage, globalShortcut, screen, ipcMain } from "electron";
 import { existsSync, mkdirSync, statSync, readdirSync, copyFileSync, appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 import ExcelJS from "exceljs";
@@ -1528,6 +1528,13 @@ ipcMain.handle("rich-chat:capture-current-view", async (event) => {
   if ((event.sender !== chatWindow?.webContents && event.sender !== mainWindow?.webContents) || !mainWindow || mainWindow.isDestroyed()) return null;
   const image = await mainWindow.webContents.capturePage();
   return image.toDataURL();
+});
+
+ipcMain.handle("rich-app:restart-latest", (event) => {
+  if (event.sender !== mainWindow?.webContents && event.sender !== chatWindow?.webContents) throw new Error("Unauthorized restart request");
+  const child = spawn("pnpm", ["run", "deploy"], { cwd: process.cwd(), detached: true, stdio: "ignore" });
+  child.unref();
+  return true;
 });
 
 function createChatWindow(port: number): BrowserWindow {
