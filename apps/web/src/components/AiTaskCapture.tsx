@@ -380,7 +380,7 @@ export function AiTaskCapture() {
   const submit = async () => {
     const content = text.replace(/^\s*(?:#(?:BUG|需求|任务|改造)：)?\s*\/(bug|requirement|task|improve)\s*/i, "").replace(/^\s*#(?:BUG|需求|任务|改造)：\s*/i, "").trim();
     if (!content || composer.isUploading) return;
-    const taskInput = { sceneId: mode, title: content.slice(0, 80), input: { text: `页面定位：${taskLocation}\n\n${content}`, images: composer.getAttachmentRefs().map(item => ({ id: item.id, label: "任务截图", path: item.url, mime: item.mime })), materials: [] }, payload: { page: [taskLocation], draft: { text: content, location: taskLocation } }, contextSummary: content.slice(0, 2000) };
+    const taskInput = { sceneId: mode, title: content.slice(0, 80), input: { text: `页面定位：${taskLocation}\n\n${content}`, images: composer.getAttachmentRefs().map(item => ({ id: item.id, label: "任务截图", path: item.url, mime: item.mime })), materials: [] }, payload: { page: [taskLocation], draft: { text: content, location: taskLocation }, ...(mode === "bug_fix" ? { gitDeployLatest: false, deploymentPolicy: "git_deploy_latest_only" } : {}) }, contextSummary: content.slice(0, 2000) };
     setSaving(true);
     try {
       if (draftId) await api.publishAiManagedTaskDraft(draftId, taskInput); else if (republishId) await api.republishAiManagedTask(republishId, taskInput); else await api.createAiManagedTask(taskInput);

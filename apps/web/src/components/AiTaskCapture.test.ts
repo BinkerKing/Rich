@@ -22,4 +22,8 @@ describe("AiTaskCapture task list", () => {
     expect(source).toContain("api.continueAiManagedTask(task.id)");
     expect(source).toContain("原始 Bug 任务 ID：${task.id}");
   });
+
+  it("records bug tasks without a redeploy request by default", () => {
+    expect(source).toContain('gitDeployLatest: false');
+  });
 });

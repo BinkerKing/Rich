@@ -8,6 +8,7 @@ import { notifyDeliverableDataChanged, requestDeliverableItemFocus } from "./Del
 import { requestShortcutOpen } from "../../../lib/shortcutEngine.js";
 import { useStore } from "../../../state/store.js";
 import { api, type AiManagedTaskCreateInput } from "../../../api/client.js";
+import { shouldRedeployLatestApp } from "../../../lib/bugDeploymentPolicy.js";
 import "./DeliverableCodexWorkbench.css";
 import "./DeliverableCodexWorkbenchAutosize.css";
 
@@ -422,7 +423,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
         title: draft.slice(0, 80),
         input: { text: content, images: attachments.map(item => ({ id: item.id, label: "对话附件", mime: item.mime })), materials: [] },
         payload: pendingAiTask.sceneId === "bug_fix"
-          ? { ...pendingAiTask.payload, gitDeployLatest: /(?:提交\s*git|git\s*提交|重新部署|重新发布)/i.test(draft), deploymentPolicy: "git_deploy_latest_only" }
+          ? { ...pendingAiTask.payload, gitDeployLatest: shouldRedeployLatestApp(draft), deploymentPolicy: "git_deploy_latest_only" }
           : pendingAiTask.payload,
         contextSummary: content.slice(0, 2000),
         sourceConversationId: active.id,

@@ -2,6 +2,11 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("DeliverableCodexWorkbench", () => {
+  it("marks a bug for redeployment only when the conversation requests deployment or restart", () => {
+    const source = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
+    expect(source).toContain('gitDeployLatest: shouldRedeployLatestApp(draft)');
+  });
+
   it("uses the native context menu for selected message text", () => {
     const source = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
     const css = readFileSync(new URL("./DeliverableCodexWorkbench.css", import.meta.url), "utf8");

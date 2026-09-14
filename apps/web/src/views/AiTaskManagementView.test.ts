@@ -6,6 +6,8 @@ describe("AiTaskManagementView bug workflow", () => {
     const source = readFileSync(new URL("./AiTaskManagementView.tsx", import.meta.url), "utf8");
     expect(source).toContain('{ key: "type", name: "类型"');
     expect(source).toContain('{ key: "page", name: "定位"');
+    expect(source).toContain('{ key: "redeploy", name: "是否重新部署"');
+    expect(source).toContain('redeploy: task.payload.gitDeployLatest === true ? "是" : "否"');
     expect(source).toContain('rich.ai-task-table.bug.columns.v2');
     expect(source).toContain('className="atm-task-type atm-task-type--bug"');
   });
