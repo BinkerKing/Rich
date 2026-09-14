@@ -927,6 +927,13 @@ export const api = {
   async openProjectFolderFile(projectId: string, itemId: string): Promise<void> {
     await projectFolderAction(projectId, "open", { itemId });
   },
+  async openProjectDirectory(projectId: string): Promise<void> {
+    const r = await fetch(`/api/projects/${encodeURIComponent(projectId)}/folder/open-directory`, { method: "POST" });
+    if (!r.ok) {
+      const payload = await r.json().catch(() => ({})) as { error?: string };
+      throw new Error(payload.error ?? `openProjectDirectory ${r.status}`);
+    }
+  },
   async setProjectFolderIgnored(projectId: string, itemId: string, ignored: boolean): Promise<void> {
     await projectFolderAction(projectId, "ignore", { itemId, ignored });
   },

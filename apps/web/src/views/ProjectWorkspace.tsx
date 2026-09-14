@@ -746,14 +746,12 @@ function ProjectFolderCard({ project }: { project: Element }) {
     }
   }
 
-  function openInFinder() {
+  async function openInFinder() {
     if (!c.localFolder) return;
-    // 在 Electron 主进程的 setWindowOpenHandler 里：file:// URL 走 shell.openExternal，
-    // macOS 上等价于 Finder 打开。如果用户禁用了 window.open（很少），就回退到剪贴板。
     try {
-      window.open(`file://${c.localFolder}`);
-    } catch {
-      void copyPath();
+      await api.openProjectDirectory(project.id);
+    } catch (e) {
+      window.alert(`打开项目目录失败: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
@@ -774,7 +772,7 @@ function ProjectFolderCard({ project }: { project: Element }) {
               <button className="prj-btn-link" onClick={() => void copyPath()}>
                 {copyMsg ?? "📋 复制"}
               </button>
-              <button className="prj-btn-link" onClick={openInFinder}>🗂 在 Finder 打开</button>
+              <button className="prj-btn-link" onClick={() => void openInFinder()}>🗂 在 Finder 打开</button>
               <button className="prj-btn-link" onClick={() => { setDraft(c.localFolder ?? ""); setEditing(true); }}>✎ 改</button>
             </div>
           </div>

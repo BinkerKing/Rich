@@ -599,6 +599,25 @@ export function projectsRoutes(elements: ElementsRepo, projectManagement: Projec
     } catch (e) { return c.json({ error: e instanceof Error ? e.message : String(e) }, 500); }
   });
 
+  // POST /api/projects/:id/folder/open-directory
+  // Open the configured project root through the native shell.  Keeping this
+  // server-side avoids Electron treating a file:// navigation as a web popup.
+  r.post("/:id/folder/open-directory", async c => {
+    const { folder, error } = await getProjectFolder(c.req.param("id"));
+    if (!folder) return c.json({ error }, 400);
+    try {
+      const info = await stat(folder);
+      if (!info.isDirectory()) return c.json({ error: "project folder is not a directory" }, 400);
+      const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer" : "xdg-open";
+      const child = spawn(command, [folder], { detached: true, stdio: "ignore" });
+      child.unref();
+      return c.json({ ok: true });
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === "ENOENT") return c.json({ error: "project folder does not exist" }, 400);
+      return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
+    }
+  });
+
   // POST /api/projects/probe-connections
   // body: { connections: [{ id, ip, port }] }
   // 服务器视角：对每条连接的目标 ip:port 做 TCP connect，2s timeout
