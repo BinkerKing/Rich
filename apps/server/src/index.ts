@@ -453,7 +453,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     [hermesTaskExecutor, multicaTaskExecutor],
     new DeliverableTaskHistoryService(multicaWorkTasks),
   );
-  const aiTaskManagement = new AiTaskManagementService(aiTaskManagementRepo);
+  const aiTaskManagement = new AiTaskManagementService(aiTaskManagementRepo, improvements ?? undefined);
   if (improvements) {
     void migrateImprovementTasks(improvements, aiTaskManagementRepo, aiTaskManagement)
       .catch(error => log.warn(`Failed to migrate legacy system improvements into AI tasks: ${String(error)}`));

@@ -1,11 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { getAiTaskScene, type AiTaskScene } from "./scenes.js";
 import type { AiManagedTask, AiTaskManagementRepo, AiTaskNode, AiTaskSceneId } from "../repos/AiTaskManagementRepo.js";
+import type { ImprovementsStore } from "../repos/ImprovementsRepo.js";
 
 type TaskInput = AiManagedTask["input"];
 type TaskDraftInput = { sceneId: AiTaskSceneId; title: string; input: TaskInput; payload?: Record<string, unknown>; contextSummary?: string; sourceConversationId?: string; projectId?: string; deliverableId?: string };
 export class AiTaskManagementService {
-  constructor(private readonly repo: AiTaskManagementRepo) {}
+  constructor(
+    private readonly repo: AiTaskManagementRepo,
+    private readonly legacyImprovements?: Pick<ImprovementsStore, "remove">,
+  ) {}
   async list() {
     const tasks = await this.repo.list();
     return Promise.all(tasks.map(async task => {
@@ -64,7 +68,14 @@ export class AiTaskManagementService {
     await this.repo.create(task); return task;
   }
   async resolve(id: string): Promise<AiManagedTask> { const task = await this.requireTask(id); const next = { ...task, status: "resolved" as const, updatedAt: new Date().toISOString() }; await this.repo.save(next); return next; }
-  async remove(id: string): Promise<void> { await this.requireTask(id); await this.repo.remove(id); }
+  async remove(id: string): Promise<void> {
+    const task = await this.requireTask(id);
+    await this.repo.remove(id);
+    const legacyImprovementId = task.payload.legacyImprovementId;
+    if (task.sceneId === "system_improvement" && typeof legacyImprovementId === "string") {
+      await this.legacyImprovements?.remove(legacyImprovementId);
+    }
+  }
   private async requireTask(id: string): Promise<AiManagedTask> { const task = await this.repo.get(id); if (!task) throw new Error(`AI task ${id} was not found.`); return task; }
 }
 function conciseContext(current: string, node?: Pick<AiTaskNode, "analysis" | "result" | "carryForward" | "pending">): string { const next = node ? [current, `已确认：${node.analysis}`, `结果：${node.result}`, `后续：${node.carryForward}`, node.pending ? `待处理：${node.pending}` : ""].filter(Boolean).join("\n") : current; return next.slice(-4000); }

@@ -39,6 +39,12 @@ describe("DeliverableCodexWorkbench", () => {
     expect(source).not.toContain("const durationMs = 1_000;");
   });
 
+  it("keeps the Codex reply status visible beside the composer", () => {
+    const css = readFileSync(new URL("./DeliverableCodexWorkbench.css", import.meta.url), "utf8");
+    expect(css).toContain(".deliverable-codex-workbench__turn-status { display:flex;");
+    expect(css).not.toContain(".deliverable-codex-workbench__turn-status { display:none; }");
+  });
+
   it("does not pull a reader back to the bottom when background message polling refreshes", () => {
     const source = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
     expect(source).toContain("const shouldFollowMessagesRef = useRef(true)");

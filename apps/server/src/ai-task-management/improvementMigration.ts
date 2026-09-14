@@ -4,8 +4,9 @@ import { AiTaskManagementService } from "./service.js";
 
 /**
  * Copy the legacy system-improvement board into the unified AI task manager.
- * The old board stays untouched for auditability; legacyImprovementId makes the
- * backfill safe to run on every server start.
+ * legacyImprovementId makes the backfill safe to run on every server start.
+ * Deleting its unified task also removes the legacy source, so deleted items
+ * are never migrated back.
  */
 export async function migrateImprovementTasks(
   improvements: ImprovementsStore,
