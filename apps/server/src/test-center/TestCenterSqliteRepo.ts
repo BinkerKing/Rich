@@ -6,6 +6,8 @@ type CreateCaseInput = Pick<TestCenterCase, "projectId" | "code" | "title" | "ob
 
 function now() { return new Date().toISOString(); }
 
+const sharedIssueStyleProjectId = "__rich_shared_issue_styles__";
+
 export class TestCenterSqliteRepo {
   constructor(private readonly db: Database.Database) { this.migrateLegacyScenarios(); }
 
@@ -248,15 +250,22 @@ export class TestCenterSqliteRepo {
   }
 
   async listGridSettings(projectId: string, prefix: string): Promise<Array<{ key: string; columns: unknown[]; style?: unknown }>> {
-    const rows = this.db.prepare(`SELECT grid_key, columns_json FROM pm_test_grid_settings WHERE project_id=? AND grid_key LIKE ? ORDER BY grid_key ASC`).all(projectId, `${prefix}%`) as Array<{ grid_key: string; columns_json: string }>;
-    return rows.map(row => {
+    const sharedIssueStyles = prefix.startsWith("issue-style:");
+    const rows = sharedIssueStyles
+      ? this.db.prepare(`SELECT grid_key, columns_json FROM pm_test_grid_settings WHERE grid_key LIKE ? ORDER BY grid_key ASC, CASE WHEN project_id=? THEN 0 ELSE 1 END, updated_at DESC`).all(`${prefix}%`, sharedIssueStyleProjectId) as Array<{ grid_key: string; columns_json: string }>
+      : this.db.prepare(`SELECT grid_key, columns_json FROM pm_test_grid_settings WHERE project_id=? AND grid_key LIKE ? ORDER BY grid_key ASC`).all(projectId, `${prefix}%`) as Array<{ grid_key: string; columns_json: string }>;
+    const settings = rows.map(row => {
       try { const saved = JSON.parse(row.columns_json) as unknown; return Array.isArray(saved) ? { key: row.grid_key, columns: saved } : { key: row.grid_key, columns: (saved as { columns?: unknown[] }).columns ?? [], style: (saved as { style?: unknown }).style }; } catch { return { key: row.grid_key, columns: [] }; }
     });
+    if (!sharedIssueStyles) return settings;
+    const uniqueSettings = new Map<string, { key: string; columns: unknown[]; style?: unknown }>();
+    for (const setting of settings) if (!uniqueSettings.has(setting.key)) uniqueSettings.set(setting.key, setting);
+    return [...uniqueSettings.values()];
   }
 
   async saveGridSettings(projectId: string, gridKey: string, columns: unknown[], style?: unknown): Promise<{ columns: unknown[]; style?: unknown }> {
     this.db.prepare(`INSERT INTO pm_test_grid_settings (project_id, grid_key, columns_json, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(project_id, grid_key) DO UPDATE SET columns_json=excluded.columns_json, updated_at=excluded.updated_at`)
-      .run(projectId, gridKey, JSON.stringify({ columns, style }), now());
+      .run(gridKey.startsWith("issue-style:") ? sharedIssueStyleProjectId : projectId, gridKey, JSON.stringify({ columns, style }), now());
     return { columns, style };
   }
 

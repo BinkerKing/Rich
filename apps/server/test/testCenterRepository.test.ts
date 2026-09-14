@@ -134,8 +134,16 @@ describe("TestCenterSqliteRepo", () => {
     const style = { density: "compact", headerTone: "slate", stripedRows: true, borderColor: "#334455", borderWidth: "2px", borderStyle: "dashed" };
 
     await repo.saveGridSettings("p1", "issue-style:compact", columns, style);
+    const legacyColumns = [{ key: "status", name: "状态", width: 120 }];
+    db.prepare(`INSERT INTO pm_test_grid_settings (project_id, grid_key, columns_json, updated_at) VALUES (?, ?, ?, ?)`)
+      .run("p1", "issue-style:legacy", JSON.stringify({ columns: legacyColumns }), "2026-01-01T00:00:00.000Z");
+    db.prepare(`INSERT INTO pm_test_grid_settings (project_id, grid_key, columns_json, updated_at) VALUES (?, ?, ?, ?)`)
+      .run("p1", "issue-style:compact", JSON.stringify({ columns: [{ key: "legacy", name: "旧样式", width: 120 }] }), "2099-01-01T00:00:00.000Z");
 
-    expect(await repo.listGridSettings("p1", "issue-style:")).toEqual([{ key: "issue-style:compact", columns, style }]);
+    expect(await repo.listGridSettings("p2", "issue-style:")).toEqual([
+      { key: "issue-style:compact", columns, style },
+      { key: "issue-style:legacy", columns: legacyColumns },
+    ]);
     db.close();
   });
 
