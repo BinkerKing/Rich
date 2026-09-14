@@ -73,7 +73,10 @@ export class AiTaskManagementService {
     await this.repo.remove(id);
     const legacyImprovementId = task.payload.legacyImprovementId;
     if (task.sceneId === "system_improvement" && typeof legacyImprovementId === "string") {
-      await this.legacyImprovements?.remove(legacyImprovementId);
+      // The unified task has already been deleted. Legacy cleanup is only a
+      // migration compatibility step, so it must not turn that completed
+      // deletion into a 500 response when the old source is unavailable.
+      await Promise.resolve(this.legacyImprovements?.remove(legacyImprovementId)).catch(() => undefined);
     }
   }
   private async requireTask(id: string): Promise<AiManagedTask> { const task = await this.repo.get(id); if (!task) throw new Error(`AI task ${id} was not found.`); return task; }

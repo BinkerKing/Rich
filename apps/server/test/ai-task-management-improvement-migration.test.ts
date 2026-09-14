@@ -35,4 +35,20 @@ describe("system improvement migration", () => {
     expect(improvements.get(legacy.id)).toBeNull();
     expect(await migrateImprovementTasks(improvements, repo, tasks)).toBe(0);
   });
+
+  it("keeps unified task deletion successful when legacy cleanup has already failed", async () => {
+    const repo = new SqliteAiTaskManagementRepo(openDb(":memory:"));
+    const tasks = new AiTaskManagementService(repo, {
+      remove: async () => { throw new Error("legacy source is unavailable"); },
+    });
+    const task = await tasks.create({
+      sceneId: "system_improvement",
+      title: "已迁移任务",
+      input: { text: "", images: [], materials: [] },
+      payload: { legacyImprovementId: "imp-missing" },
+    });
+
+    await expect(tasks.remove(task.id)).resolves.toBeUndefined();
+    await expect(tasks.getPacket(task.id)).rejects.toThrow(`AI task ${task.id} was not found.`);
+  });
 });
