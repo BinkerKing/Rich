@@ -110,7 +110,7 @@ function MultiSelectEditor({ value, onValueChange, options = [] }: { value?: str
 export function IssueDataGrid({ projectId, tableId, title = "产品问题测试清单", onBack, issues, onIssueChange, onIssueReorder, onAddIssue, onDeleteIssue }: IssueDataGridProps): ReactNode {
   const [query, setQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [columns, setColumns] = useState(defaultColumns);
+  const [columns, setColumns] = useState<TestCenterGridColumn[]>([]);
   const [tableStyle, setTableStyle] = useState(defaultStyle);
   const [draftColumns, setDraftColumns] = useState<TestCenterGridColumn[] | null>(null);
   const [draftTableStyle, setDraftTableStyle] = useState<TestCenterGridStyle | null>(null);
@@ -142,7 +142,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
 
   useEffect(() => {
     let cancelled = false;
-    const legacyGridSettingsKeys = [`issue-table:${tableId}`, "issues"];
+    const legacyGridSettingsKeys = [`issue-table:${tableId}`];
     const loadSettings = async () => {
       let settings = await api.getTestCenterGridSettings(projectId, gridSettingsKey);
       let restoredFromLegacy = false;
@@ -155,13 +155,12 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
           break;
         }
       }
-      if (cancelled || !settings.columns.length) return;
-      const saved = new Map(settings.columns.map(column => [column.key, column]));
-      const savedActiveColumns = settings.columns.filter(column => !column.deleted);
-      const restored = [
-        ...savedActiveColumns.map(column => ({ ...defaultColumns.find(defaultColumn => defaultColumn.key === column.key), ...column })),
-        ...defaultColumns.filter(column => !saved.has(column.key)),
-      ];
+      if (cancelled || !settings.columns.length) {
+        setColumns([]);
+        setDeletedColumns([]);
+        return;
+      }
+      const restored = settings.columns.filter(column => !column.deleted);
       const restoredStyle = { ...defaultStyle, ...settings.style };
       setColumns(restored);
       setTableStyle(restoredStyle);
@@ -380,11 +379,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
   const applySavedStyle = async () => {
     const savedStyle = savedStyles.find(item => item.key === selectedSavedStyleKey);
     if (!savedStyle) return;
-    const savedColumns = new Map(savedStyle.columns.map(column => [column.key, column]));
-    const nextColumns = [
-      ...savedStyle.columns.filter(column => !column.deleted).map(column => ({ ...defaultColumns.find(defaultColumn => defaultColumn.key === column.key), ...column })),
-      ...defaultColumns.filter(column => !savedColumns.has(column.key)),
-    ];
+    const nextColumns = savedStyle.columns.filter(column => !column.deleted);
     const nextDeletedColumns = savedStyle.columns.filter(column => column.deleted);
     const nextStyle = { ...defaultStyle, ...savedStyle.style };
     setDraftColumns(nextColumns);

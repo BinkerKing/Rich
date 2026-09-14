@@ -171,8 +171,21 @@ test("问题表包含可编辑的项目跟进字段，并记住每张表的列�
   assert.match(source, /saveColumnOrder/);
 });
 
-test("旧问题表设置会迁移到每张表独立的设置键", () => {
-  assert.match(source, /const legacyGridSettingsKeys = \[`issue-table:\$\{tableId\}`, "issues"\];/);
+test("新建问题表从空字段开始，且不会继承全局通用表格", () => {
+  assert.match(source, /const \[columns, setColumns\] = useState<TestCenterGridColumn\[\]>\(\[\]\);/);
+  assert.match(source, /const legacyGridSettingsKeys = \[`issue-table:\$\{tableId\}`\];/);
+  assert.match(source, /if \(cancelled \|\| !settings\.columns\.length\) \{\s*setColumns\(\[\]\);\s*setDeletedColumns\(\[\]\);\s*return;\s*\}/);
+});
+
+test("问题表设置与保存样式按原样恢复，不补回通用字段", () => {
+  assert.match(source, /const restored = settings\.columns\.filter\(column => !column\.deleted\);/);
+  assert.match(source, /const nextColumns = savedStyle\.columns\.filter\(column => !column\.deleted\);/);
+  assert.doesNotMatch(source, /\.\.\.defaultColumns\.filter\(column => !saved\.has\(column\.key\)\)/);
+  assert.doesNotMatch(source, /\.\.\.defaultColumns\.filter\(column => !savedColumns\.has\(column\.key\)\)/);
+});
+
+test("旧问题表自身设置会迁移到每张表独立的设置键", () => {
+  assert.match(source, /const legacyGridSettingsKeys = \[`issue-table:\$\{tableId\}`\];/);
   assert.match(source, /for \(const legacyKey of legacyGridSettingsKeys\)/);
   assert.match(source, /await api\.saveTestCenterGridSettings\(projectId, gridSettingsKey, settings\.columns, restoredStyle\)/);
 });
@@ -224,8 +237,7 @@ test("异步恢复后会把已存列宽和固定状态显式应用到已就绪�
 });
 
 test("恢复字段配置时按已保存的列顺序构建表格", () => {
-  assert.match(source, /const savedActiveColumns = settings\.columns\.filter\(column => !column\.deleted\)/);
-  assert.match(source, /savedActiveColumns\.map\(column =>/);
+  assert.match(source, /const restored = settings\.columns\.filter\(column => !column\.deleted\);/);
   assert.match(source, /gridApi\.getColumnState\(\).*positions/s);
 });
 
