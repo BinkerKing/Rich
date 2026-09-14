@@ -10,7 +10,7 @@ describe("AiTaskCapture task list", () => {
   });
 
   it("places a red BUG label and location before the task title", () => {
-    expect(source).toContain('const taskListGridColumns = "72px 170px minmax(440px, 1fr) 110px 88px 105px"');
+    expect(source).toContain('const taskListGridColumns = "64px 150px minmax(0, 1fr) 88px 72px 112px"');
     expect(source).toContain("<span>定位</span><span>任务</span>");
     expect(source).toContain('task.sceneId === "bug_fix" ? "#ff6269"');
   });
@@ -43,5 +43,11 @@ describe("AiTaskCapture task list", () => {
     expect(source).toContain('const [listMode, setListMode] = useState(true)');
     expect(source).toContain('const [text, setText] = useState("")');
     expect(source).toContain('`/api/deliverable-codex/conversations/${encodeURIComponent(task.sourceConversationId)}/archive`');
+  });
+
+  it("keeps the executor column visible and makes the recorded location navigable", () => {
+    expect(source).toContain('minmax(0, 1fr) 88px 72px 112px');
+    expect(source).toContain('title={`跳转至 ${taskPageLocation(task)}`}');
+    expect(source).toContain('if (location.startsWith("项目管理")) setAppView("projects")');
   });
 });
