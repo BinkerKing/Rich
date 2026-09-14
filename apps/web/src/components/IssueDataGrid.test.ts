@@ -24,6 +24,15 @@ test("表格内下拉以向下抽屉展示带最终样式的选项", () => {
   assert.match(styles, /\.issue-data-grid__select-drawer\s*\{[^}]*border-radius:0 0 8px 8px/s);
 });
 
+test("状态列的自定义下拉值会沿保存链路保留", () => {
+  const workspace = readFileSync(new URL("../views/project-management/issues/IssuesWorkspace.tsx", import.meta.url), "utf8");
+  assert.match(source, /type IssueStatus = string;/);
+  assert.match(workspace, /status: patch\.status/);
+  assert.doesNotMatch(workspace, /\["", "open", "fixed", "retest", "closed"\]\.includes\(String\(patch\.status\)\)/);
+  assert.match(client, /status\?: string;/);
+  assert.match(route, /status: z\.string\(\)\.max\(80\)\.optional\(\)/);
+});
+
 test("下拉选中的值以随单元格伸缩的彩色描边框呈现", () => {
   assert.match(source, /column\.fieldType === "select" \? "issue-data-grid__select-cell"/);
   assert.match(styles, /\.issue-data-grid \.ag-cell\.issue-data-grid__select-cell\s*\{[^}]*padding:0/s);

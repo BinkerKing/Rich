@@ -3,8 +3,6 @@ import { api, type ProjectModuleItem, type TestCenterGridColumn, type TestCenter
 import IssueDataGrid from "../../../components/IssueDataGrid.js";
 import "./IssuesWorkspace.css";
 
-type IssueStatus = "" | "open" | "fixed" | "retest" | "closed";
-
 export function IssuesWorkspace({ projectId }: { projectId: string }): ReactNode {
   const [tables, setTables] = useState<ProjectModuleItem[]>([]);
   const [issues, setIssues] = useState<TestCenterIssue[]>([]);
@@ -47,13 +45,12 @@ export function IssuesWorkspace({ projectId }: { projectId: string }): ReactNode
     }
   };
   const saveIssueChange = (issueId: string, patch: { title?: string; description?: string; owner?: string; status?: string; externalRef?: string; customFields?: Record<string, string> }) => {
-    const status: IssueStatus = ["", "open", "fixed", "retest", "closed"].includes(String(patch.status)) ? patch.status as IssueStatus : "";
     void api.updateTestCenterIssue(projectId, issueId, {
       title: patch.title === undefined ? undefined : patch.title.trim(),
       description: patch.description,
       owner: patch.owner === undefined ? undefined : patch.owner.trim() || null,
       externalRef: patch.externalRef === undefined ? undefined : patch.externalRef.trim() || null,
-      status: patch.status === undefined ? undefined : status,
+      status: patch.status,
       customFields: patch.customFields,
     }).then(updated => setIssues(current => current.map(issue => issue.id === updated.id ? updated : issue))).catch(() => setError("保存问题失败。"));
   };
