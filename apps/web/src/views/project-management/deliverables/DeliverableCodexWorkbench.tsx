@@ -166,6 +166,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const [streaming, setStreaming] = useState(false);
   const [streamingConversationId, setStreamingConversationId] = useState<string>();
   const [elapsedMsByConversation, setElapsedMsByConversation] = useState<Record<string, number>>({});
+  const [activityByConversation, setActivityByConversation] = useState<Record<string, string>>({});
   const [runningByConversation, setRunningByConversation] = useState<Record<string, boolean>>({});
   const [lostConversationIds, setLostConversationIds] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState("");
@@ -310,7 +311,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     if (streamingRef.current && !force) return;
     const userMessageId = crypto.randomUUID(); const clientRequestId = crypto.randomUUID(); const createdAt = new Date().toISOString(); const startedAt = Date.now();
     if (target.id === active?.id) shouldFollowMessagesRef.current = true;
-    if (target.id === active?.id) setInput(""); setElapsedMsByConversation(current => ({ ...current, [target.id]: 0 })); streamingRef.current = true; setStreaming(true); setStreamingConversationId(target.id); setError("");
+    if (target.id === active?.id) setInput(""); setElapsedMsByConversation(current => ({ ...current, [target.id]: 0 })); setActivityByConversation(current => ({ ...current, [target.id]: "" })); streamingRef.current = true; setStreaming(true); setStreamingConversationId(target.id); setError("");
     setMessages(current => ({ ...current, [target.id]: [...(current[target.id] ?? []), { role: "user", content, createdAt, kind: taskMode ? "task-mode-instruction" : undefined, taskModeLabel: taskMode?.label, taskModeLocation: taskMode?.location, attachments }, { role: "assistant", content: "", createdAt }] }));
     try {
       const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(target.id)}/stream`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, userMessageId, clientRequestId, attachments, metadata: taskMode ? { type: "task-mode-instruction", mode: { id: taskMode.id, label: taskMode.label }, location: taskMode.location } : undefined }) });
@@ -327,8 +328,9 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
         const parts = buffer.split("\n\n"); buffer = parts.pop() ?? "";
         for (const part of parts) {
           const event = /^event: (.+)$/m.exec(part)?.[1]; const raw = /^data: (.+)$/m.exec(part)?.[1]; if (!raw) continue;
-          const data = JSON.parse(raw) as { chunk?: string; content?: string; createdAt?: string; message?: string; name?: string; status?: string };
+          const data = JSON.parse(raw) as { chunk?: string; content?: string; createdAt?: string; message?: string; name?: string; status?: string; text?: string };
           if (event === "text" && data.chunk) setMessages(current => ({ ...current, [target.id]: (current[target.id] ?? []).map((message, index, all) => index === all.length - 1 ? { ...message, content: message.content + data.chunk } : message) }));
+          if (event === "activity" && data.text) { const activity = data.text; setActivityByConversation(current => ({ ...current, [target.id]: activity })); }
           const policyContent = data.content;
           if (event === "policy" && policyContent) setMessages(current => {
             const currentMessages = current[target.id] ?? [];
@@ -348,7 +350,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       setLostConversationIds(current => new Set(current).add(target.id));
       setError(reason instanceof Error ? reason.message : String(reason));
     }
-      finally { const durationMs = Date.now() - startedAt; setMessages(current => ({ ...current, [target.id]: (current[target.id] ?? []).map((message, index, all) => index === all.length - 1 && message.role === "assistant" ? { ...message, durationMs } : message) })); streamingRef.current = false; setStreaming(false); setStreamingConversationId(undefined); }
+      finally { const durationMs = Date.now() - startedAt; setMessages(current => ({ ...current, [target.id]: (current[target.id] ?? []).map((message, index, all) => index === all.length - 1 && message.role === "assistant" ? { ...message, durationMs } : message) })); setActivityByConversation(current => ({ ...current, [target.id]: "" })); streamingRef.current = false; setStreaming(false); setStreamingConversationId(undefined); }
     };
   const interruptAndSend = async (message: QueuedMessage) => {
     setQueuedMessages(current => current.filter(item => item.id !== message.id));
@@ -522,6 +524,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const displayedMessages: Message[] = active
     ? (messages[active.id] ?? []).filter(message => message.role !== "system" || message.kind === "task-mode-started" || message.kind === "task-mode-policy-updated")
     : [];
+  const liveActivity = active && streamingConversationId === active.id ? activityByConversation[active.id] : "";
   const workbench = <div className={`deliverable-codex-backdrop${visible ? "" : " is-hidden"}${windowState.maximized ? " is-maximized" : ""}${capturingCurrentView ? " is-capturing-current-view" : ""}`} style={windowState.maximized ? { zIndex: 2147483000, top: desktopTitlebarHeight, padding: 0, background: "#09090a" } : undefined} role="dialog" aria-modal="true" aria-label="交付物 Codex 对话">
     <section className={`deliverable-codex-workbench is-theme-${theme}${activeTaskMode ? " is-task-mode" : ""}${windowState.maximized ? " is-maximized" : ""}`} style={workbenchStyle}>
       <aside className="deliverable-codex-workbench__sidebar">
@@ -548,6 +551,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
             return <article key={index} className={`${isTaskModeStart ? "is-event" : isTaskInstruction ? "is-task-instruction" : `is-${message.role}`}${streaming && message.role === "assistant" && index === displayedMessages.length - 1 ? " is-streaming" : ""}`}>
               {message.role === "assistant" && <div className="deliverable-codex-workbench__duration">用时 {formatDuration(message.durationMs ?? (streamingConversationId === active.id && index === displayedMessages.length - 1 ? elapsedMsByConversation[active.id] ?? 0 : 0))}</div>}
               <div className="deliverable-codex-workbench__message-bubble">
+                {message.role === "assistant" && streamingConversationId === active.id && index === displayedMessages.length - 1 && !message.content && liveActivity && <div className="deliverable-codex-workbench__activity" role="status">{liveActivity}</div>}
                 {message.attachments?.length ? <div className="deliverable-codex-workbench__message-images">{message.attachments.map((attachment, imageIndex) => <img key={attachment.id ?? imageIndex} src={attachment.previewUrl ?? attachment.url ?? `/api/chat/attachments/${attachment.id}/data`} alt={message.role === "assistant" ? "Codex 生成图片" : "已发送图片"} onClick={() => setPreviewUrl(attachment.previewUrl ?? attachment.url ?? `/api/chat/attachments/${attachment.id}/data`)}/>)}</div> : null}
                 {isTaskModeStart
                   ? <section className="deliverable-codex-workbench__event-card"><header><i aria-hidden="true">✦</i><span><small>任务模式已启动</small><b>{message.taskModeLabel ?? message.content.replace("任务模式已启动 · ", "")}</b></span><time>已就绪</time></header><div><span><small>页面定位</small><b>{message.taskModeLocation?.page.join(" / ") ?? "定位信息缺失"}</b></span><span><small>业务定位</small><b>{message.taskModeLocation?.business ? `${message.taskModeLocation.business.kind}：${message.taskModeLocation.business.title}` : "不适用"}</b></span></div></section>

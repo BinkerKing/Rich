@@ -26,6 +26,13 @@ test("任务启动上下文会把截图附件发送给 Codex", () => {
   assert.match(source, /create\(\{ prompt: initialPrompt, attachments: initialAttachments,/);
 });
 
+test("Codex 尚未输出文字时展示正在执行的工具活动", () => {
+  assert.match(source, /const \[activityByConversation, setActivityByConversation\] = useState<Record<string, string>>\(\{\}\)/);
+  assert.match(source, /if \(event === "activity" && data\.text\).*setActivityByConversation/);
+  assert.match(source, /className="deliverable-codex-workbench__activity"/);
+  assert.match(css, /\.deliverable-codex-workbench__activity/);
+});
+
 test("交付物 Codex 的附加菜单可将当前界面截图加入图片附件", () => {
   assert.match(source, /async function attachCurrentViewScreenshot\(\)/);
   assert.match(source, /richWindow\?\.captureCurrentView\?\./);
