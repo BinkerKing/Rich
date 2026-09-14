@@ -277,7 +277,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       const payload = await readJson<{ conversation: Conversation }>(`/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: conversationTitle }) });
       if (startup?.taskId) await api.claimAiManagedTask(startup.taskId, "Rich·Codex", payload.conversation.id);
       setConversations(current => { const next = [payload.conversation, ...current]; saveConversationOrder(next); return next; }); setActiveId(payload.conversation.id); setTitle(""); setCreating(false);
-      if (startup?.prompt) void sendMessage(payload.conversation, startup.prompt, [], false);
+      if (startup?.prompt) void sendMessage(payload.conversation, startup.prompt, [], false, undefined, true);
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
   useEffect(() => {
