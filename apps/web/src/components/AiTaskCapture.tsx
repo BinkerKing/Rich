@@ -3,6 +3,7 @@ import { api, type AiManagedTask } from "../api/client.js";
 import { useChatComposer } from "../lib/useChatComposer.js";
 import { useStore } from "../state/store.js";
 import { buildBugCodexContext, bugCodexAttachments } from "../lib/aiTaskCodexContext.js";
+import { startAutomaticBugFix } from "../lib/automaticBugFix.js";
 import { openBoundCodex } from "../views/project-management/deliverables/DeliverableCodexLauncher.js";
 import "./AiTaskCapture.css";
 
@@ -14,6 +15,9 @@ const modes: Array<{ id: AiManagedTask["sceneId"]; token: string; label: string;
 ];
 const listCommand = { token: "/list", label: "清单", description: "查看当前未结束的 AI 任务" };
 const restartCommand = { token: "/restart", label: "重启", description: "3 秒后部署并启动最新 Rich App" };
+const enableAutoFixCommand = { token: "/开启自动修复", label: "开启自动修复", description: "新建 BUG 后自动交给 Rich·Codex" };
+const disableAutoFixCommand = { token: "/关闭自动修复", label: "关闭自动修复", description: "新建 BUG 不再自动交给 Rich·Codex" };
+const autoFixStorageKey = "rich.bug-auto-fix-enabled";
 const taskTypeLabel: Record<AiManagedTask["sceneId"], string> = { bug_fix: "BUG", requirement_analysis: "需求", deliverable_task: "任务", system_improvement: "改造" };
 const taskStatusLabel: Record<AiManagedTask["status"], string> = { draft: "暂存", ready: "待认领", claimed: "处理中", needs_review: "处理完成", blocked: "有阻塞", resolved: "已解决" };
 const taskListGridColumns = "64px 150px minmax(0, 1fr) 88px 72px 112px";
@@ -189,6 +193,7 @@ export function AiTaskCapture() {
   const [frozenLocation, setFrozenLocation] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [autoFixEnabled, setAutoFixEnabled] = useState(() => window.localStorage.getItem(autoFixStorageKey) === "true");
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [editing, setEditing] = useState<{ clientId: string; source: string }>();
   const [frame, setFrame] = useState<CaptureFrame>(readFrame);
@@ -320,10 +325,16 @@ export function AiTaskCapture() {
   };
   const update = (value: string) => {
     setText(value);
-    const show = /^\s*\/\w*$/.test(value);
+    const show = /^\s*\/\S*$/.test(value);
     setSuggestionsOpen(show);
     const hit = modes.find(item => value.trimStart().startsWith(item.token));
     if (hit) setMode(hit.id);
+  };
+  const setAutoFix = (enabled: boolean) => {
+    window.localStorage.setItem(autoFixStorageKey, String(enabled));
+    setAutoFixEnabled(enabled);
+    setText("");
+    setSuggestionsOpen(false);
   };
   const confirmSlashMode = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== "Enter") return;
@@ -339,6 +350,8 @@ export function AiTaskCapture() {
       requestRestart();
       return;
     }
+    if (command === enableAutoFixCommand.token) { event.preventDefault(); setAutoFix(true); return; }
+    if (command === disableAutoFixCommand.token) { event.preventDefault(); setAutoFix(false); return; }
     const item = modes.find(candidate => candidate.token === command);
     if (!item) return;
     event.preventDefault();
@@ -383,8 +396,9 @@ export function AiTaskCapture() {
     const taskInput = { sceneId: mode, title: content.slice(0, 80), input: { text: `页面定位：${taskLocation}\n\n${content}`, images: composer.getAttachmentRefs().map(item => ({ id: item.id, label: "任务截图", path: item.url, mime: item.mime })), materials: [] }, payload: { page: [taskLocation], draft: { text: content, location: taskLocation }, ...(mode === "bug_fix" ? { gitDeployLatest: false, deploymentPolicy: "git_deploy_latest_only" } : {}) }, contextSummary: content.slice(0, 2000) };
     setSaving(true);
     try {
-      if (draftId) await api.publishAiManagedTaskDraft(draftId, taskInput); else if (republishId) await api.republishAiManagedTask(republishId, taskInput); else await api.createAiManagedTask(taskInput);
-      composer.clear(); setText(""); setDraftId(undefined); setRepublishId(undefined); setSelectedMode(undefined); setListMode(false); setFrozenLocation(undefined); setOpen(false);
+      const task = draftId ? await api.publishAiManagedTaskDraft(draftId, taskInput) : republishId ? await api.republishAiManagedTask(republishId, taskInput) : await api.createAiManagedTask(taskInput);
+      if (mode === "bug_fix" && autoFixEnabled) await startAutomaticBugFix(task);
+      composer.clear(); setText(""); setDraftId(undefined); setRepublishId(undefined); setSelectedMode(undefined); setListMode(true); setFrozenLocation(undefined); setListedTasks(await api.listAiManagedTasks());
     } finally { setSaving(false); }
   };
   const saveDraft = async () => {
@@ -482,9 +496,10 @@ export function AiTaskCapture() {
           if (!images.length) return;
           event.preventDefault();
           images.forEach(image => void composer.attach(image));
-        }} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\w*$/.test(text))} placeholder={listMode ? "搜索未结束的 AI 任务…" : "描述你要登记的任务…"} />
+        }} onKeyDown={confirmSlashMode} onFocus={() => setSuggestionsOpen(/^\s*\/\S*$/.test(text))} placeholder={listMode ? "搜索未结束的 AI 任务…" : "描述你要登记的任务…"} />
         {(selectedModeItem || listMode) && <span style={{ position: "absolute", zIndex: 1, left: 14, bottom: -13, border: `1px solid ${modeColor}`, borderRadius: 4, padding: "2px 8px", background: modeColor, color: "#fff", fontSize: 12, fontWeight: 700, letterSpacing: ".06em", lineHeight: 1.35 }}>{listMode ? listCommand.label : selectedModeItem?.label}</span>}
-         {suggestionsOpen && <div className="ai-task-capture__suggestions" style={{ position: "static", marginTop: 8 }}>{[...modes, listCommand, restartCommand].filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.token} type="button" onMouseDown={event => { event.preventDefault(); if (item.token === restartCommand.token) requestRestart(); else if ("id" in item) selectMode(item as typeof modes[number]); else selectListMode(); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
+         {suggestionsOpen && <div className="ai-task-capture__suggestions" style={{ position: "static", marginTop: 8 }}>{[...modes, listCommand, restartCommand, enableAutoFixCommand, disableAutoFixCommand].filter(item => item.token.startsWith(text.trimStart().toLowerCase()) || text.trim() === "/").map(item => <button key={item.token} type="button" onMouseDown={event => { event.preventDefault(); if (item.token === restartCommand.token) requestRestart(); else if (item.token === enableAutoFixCommand.token) setAutoFix(true); else if (item.token === disableAutoFixCommand.token) setAutoFix(false); else if ("id" in item) selectMode(item as typeof modes[number]); else selectListMode(); }}><b>{item.label}</b><span>{item.description}</span><kbd>{item.token}</kbd></button>)}</div>}
+         {listMode && <p role="status" style={{ margin: "10px 0 0", color: autoFixEnabled ? "#9de0ae" : "#99a5aa", fontSize: 13 }}>自动修复：{autoFixEnabled ? "已开启，新建 BUG 将由 Rich·Codex 自动处理" : "已关闭"}</p>}
       </div>
       {listMode && <div style={{ marginTop: 18, borderTop: "1px solid #30383c" }}>
         <div style={{ display: "grid", gridTemplateColumns: taskListGridColumns, gap: 8, padding: "10px 4px 7px", color: "#89969b", fontSize: 12 }}><span>类型</span><span>定位</span><span>任务</span><span>状态</span><span>操作</span><span>执行人</span></div>

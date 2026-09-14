@@ -39,6 +39,15 @@ describe("AiTaskCapture task list", () => {
     expect(source).toContain('gitDeployLatest: false');
   });
 
+  it("can persist automatic Rich Codex bug repair and returns a submitted bug to the task list", () => {
+    expect(source).toContain('const enableAutoFixCommand = { token: "/开启自动修复"');
+    expect(source).toContain('const disableAutoFixCommand = { token: "/关闭自动修复"');
+    expect(source).toContain('/^\\s*\\/\\S*$/');
+    expect(source).toContain('startAutomaticBugFix(task)');
+    expect(source).toContain('setListMode(true)');
+    expect(source).toContain('setListedTasks(await api.listAiManagedTasks())');
+  });
+
   it("confirms an unambiguous restart command prefix with Enter", () => {
     expect(source).toContain('restartCommand.token.startsWith(command)');
     expect(source).toContain('every(item => !item.token.startsWith(command))');
