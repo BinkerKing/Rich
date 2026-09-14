@@ -14,6 +14,10 @@ test("项目管理内的流程图清单有紧凑标题头和交付物式列表�
   assert.doesNotMatch(source, /!standalone && <button aria-label="创建流程图任务"/);
 });
 
+test("流程图空状态不重复提供创建入口", () => {
+  assert.doesNotMatch(source, /items\.length === 0 \? <div className="pfc-empty">[\s\S]*?<button[\s\S]*?>新建流程图<\/button>/);
+});
+
 test("项目流程图记住上次打开的图和列表状态", () => {
   assert.match(source, /const viewKey = `rich-flowchart-view:\$\{projectId \?\? flowchartIds\?\.join\(","\) \?\? "standalone"\}`/);
   assert.match(source, /const view = JSON\.parse\(sessionStorage\.getItem\(viewKey\) \|\| "null"\)/);

@@ -381,7 +381,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
       <button type="button" disabled={busy || !loaded} onClick={() => setCreating(true)}>＋ 新建流程图</button>
     </header>}
     {standalone && !expanded && <div className="pfc-list-label">流程图</div>}
-    {!loaded ? <p>加载中…</p> : items.length === 0 ? <div className="pfc-empty"><strong>还没有流程图</strong><p>创建一张图，从梳理第一个流程开始。</p><button className="pfc-list-create" type="button" onClick={() => setCreating(true)}>新建流程图</button></div> : <div className={standalone ? "pfc-list-grid" : "pfc-task-list"}>{items.map((item, index) => {
+    {!loaded ? <p>加载中…</p> : items.length === 0 ? <div className="pfc-empty"><strong>还没有流程图</strong><p>创建一张图，从梳理第一个流程开始。</p></div> : <div className={standalone ? "pfc-list-grid" : "pfc-task-list"}>{items.map((item, index) => {
       if (expanded && active !== item.id) return null;
       return <article key={item.id} className={`pfc-task${active === item.id && expanded ? " is-expanded" : ""}`}>
       <header className="pfc-title-row">
