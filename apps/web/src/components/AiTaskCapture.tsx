@@ -175,7 +175,7 @@ const ScreenshotEditor = forwardRef<ScreenshotEditorHandle, { source: string; on
 
 export function AiTaskCapture() {
   const [open, setOpen] = useState(false);
-  const [text, setText] = useState("/list");
+  const [text, setText] = useState("");
   const [mode, setMode] = useState<AiManagedTask["sceneId"]>("bug_fix");
   const [selectedMode, setSelectedMode] = useState<AiManagedTask["sceneId"]>();
   const [draftId, setDraftId] = useState<string>();
@@ -306,7 +306,7 @@ export function AiTaskCapture() {
     setRepublishId(undefined);
     composer.clear();
     setEditing(undefined);
-    setText("/list");
+    setText("");
     setSuggestionsOpen(false);
     requestAnimationFrame(() => {
       const input = inputRef.current;
@@ -448,7 +448,7 @@ export function AiTaskCapture() {
   if (!open) return null;
   const selectedModeItem = modes.find(item => item.id === selectedMode);
   const modeColor = listMode ? "#37b86b" : selectedMode === "bug_fix" ? "#ef5350" : "#7f8b90";
-  const search = listMode && text.trim().toLowerCase() === "/list" ? "" : text.trim().toLocaleLowerCase();
+  const search = text.trim().toLocaleLowerCase();
   const visibleTasks = listedTasks.filter(task => task.status !== "resolved" && (!search || `${taskTypeLabel[task.sceneId]} ${task.title} ${taskStatusLabel[task.status]}`.toLocaleLowerCase().includes(search)));
   return <div className={`ai-task-capture${capturing ? " is-capturing" : ""}`} role="dialog" aria-modal="true" aria-label="登记 AI 任务">
     <section className="ai-task-capture__window" style={{ left: frame.x, top: frame.y, width: frame.width, height: "auto", minHeight: 0, maxHeight: "calc(100vh - 24px)" }}>

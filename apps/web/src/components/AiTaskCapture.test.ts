@@ -39,9 +39,9 @@ describe("AiTaskCapture task list", () => {
     expect(source).toContain('gitDeployLatest: false');
   });
 
-  it("opens in list mode and archives an accepted Rich Codex conversation", () => {
-    expect(source).toContain('const [text, setText] = useState("/list")');
-    expect(source).toContain('const search = listMode && text.trim().toLowerCase() === "/list" ? "" : text.trim().toLocaleLowerCase();');
+  it("opens in list mode with an empty search field and archives an accepted Rich Codex conversation", () => {
+    expect(source).toContain('const [listMode, setListMode] = useState(true)');
+    expect(source).toContain('const [text, setText] = useState("")');
     expect(source).toContain('`/api/deliverable-codex/conversations/${encodeURIComponent(task.sourceConversationId)}/archive`');
   });
 });
