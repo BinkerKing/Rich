@@ -55,8 +55,11 @@ test("富文本展示态保留编辑时插入的空行", () => {
   assert.match(styles, /\.workflow-rich-content:not\(\.prj-pm-rich-surface\) p:empty,\s*\.workflow-rich-content:not\(\.prj-pm-rich-surface\) p:has\(> br:only-child\)\s*\{[^}]*min-height:\s*1\.7em/s);
 });
 
-test("项目说明编辑器采用场景手册式的居中内容面板", () => {
-  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-editor\s*\{[^}]*max-width:\s*1120px[^}]*border-color:\s*rgba\(143,\s*254,\s*247,/s);
+test("项目说明编辑器以石墨底色融入工作区，并仅以细色线强调边界", () => {
+  assert.match(styles, /\.prj-pm-description__document\s*\{[^}]*background:\s*transparent[^}]*box-shadow:\s*inset 3px 0 0 rgba\(105, 183, 192, \.52\)/s);
+  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-editor\s*\{[^}]*max-width:\s*1120px[^}]*border-color:\s*rgba\(105, 183, 192, \.46\)[^}]*background:\s*transparent[^}]*box-shadow:\s*inset 3px 0 0 rgba\(105, 183, 192, \.52\)/s);
+  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-toolbar\s*\{[^}]*background:\s*transparent/s);
+  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-surface\s*\{[^}]*background:\s*transparent/s);
   assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-surface\s*\{[^}]*padding:\s*24px 28px/s);
   assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-toolbar button\s*\{[^}]*border-radius:\s*999px/s);
 });
