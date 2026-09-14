@@ -46,6 +46,8 @@ describe("AiTaskCapture task list", () => {
     expect(source).toContain('startAutomaticBugFix(task)');
     expect(source).toContain('setListMode(true)');
     expect(source).toContain('setListedTasks(await api.listAiManagedTasks())');
+    expect(source).toContain('right: 14, bottom: -13');
+    expect(source).toContain('自动修复 · {autoFixEnabled ? "已开启" : "已关闭"}');
   });
 
   it("confirms an unambiguous restart command prefix with Enter", () => {
