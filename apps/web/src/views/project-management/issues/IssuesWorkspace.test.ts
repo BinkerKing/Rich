@@ -26,7 +26,7 @@ test("新建问题表通过页面内创建卡收集名称，而不依赖桌面�
 test("新建问题表只可选择已保存样式，并按所选样式初始化", () => {
   assert.match(source, /const \[selectedStyleKey, setSelectedStyleKey\] = useState\(""\);/);
   assert.match(source, /api\.listTestCenterGridSettings\(projectId, "issue-style:"\)/);
-  assert.match(source, /const selectedStyle = savedStyles\.find\(style => style\.key === selectedStyleKey\);/);
+  assert.match(source, /const selectedStyle = selectedStyleKey \? await api\.getTestCenterGridSettings\(projectId, selectedStyleKey\) : null;/);
   assert.match(source, /await api\.saveTestCenterGridSettings\(projectId, `issues:\$\{createdTable\.id\}:columns`, selectedStyle\.columns, selectedStyle\.style\);/);
   assert.match(source, /<label>初始化样式<select value=\{selectedStyleKey\}/);
   assert.match(source, /<option value="">空表<\/option>/);

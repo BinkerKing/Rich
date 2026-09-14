@@ -245,7 +245,9 @@ export class TestCenterSqliteRepo {
   }
 
   async getGridSettings(projectId: string, gridKey: string): Promise<{ columns: unknown[]; style?: unknown }> {
-    const row = this.db.prepare(`SELECT columns_json FROM pm_test_grid_settings WHERE project_id=? AND grid_key=?`).get(projectId, gridKey) as { columns_json: string } | undefined;
+    const row = gridKey.startsWith("issue-style:")
+      ? this.db.prepare(`SELECT columns_json FROM pm_test_grid_settings WHERE grid_key=? ORDER BY CASE WHEN project_id=? THEN 0 ELSE 1 END, updated_at DESC LIMIT 1`).get(gridKey, sharedIssueStyleProjectId) as { columns_json: string } | undefined
+      : this.db.prepare(`SELECT columns_json FROM pm_test_grid_settings WHERE project_id=? AND grid_key=?`).get(projectId, gridKey) as { columns_json: string } | undefined;
     try { const saved = row ? JSON.parse(row.columns_json) as unknown : []; return Array.isArray(saved) ? { columns: saved } : saved as { columns: unknown[]; style?: unknown }; } catch { return { columns: [] }; }
   }
 

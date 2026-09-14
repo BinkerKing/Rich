@@ -144,6 +144,7 @@ describe("TestCenterSqliteRepo", () => {
       { key: "issue-style:compact", columns, style },
       { key: "issue-style:legacy", columns: legacyColumns },
     ]);
+    expect(await repo.getGridSettings("p2", "issue-style:compact")).toEqual({ columns, style });
     db.close();
   });
 

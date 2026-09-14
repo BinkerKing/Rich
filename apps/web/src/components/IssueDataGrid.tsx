@@ -366,7 +366,10 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     setSettingsError("");
     try {
       const key = `issue-style:${encodeURIComponent(name)}`;
-      const saved = await api.saveTestCenterGridSettings(projectId, key, [...settingsColumns, ...draftDeletedColumns], settingsStyle);
+      await settingsSaveQueue.current;
+      const currentSettings = await api.getTestCenterGridSettings(projectId, gridSettingsKey);
+      if (!currentSettings.columns.length) throw new Error("current table settings are empty");
+      const saved = await api.saveTestCenterGridSettings(projectId, key, currentSettings.columns, currentSettings.style);
       setSavedStyles(current => [...current.filter(item => item.key !== key), { key, ...saved }].sort((left, right) => left.key.localeCompare(right.key)));
       setSelectedSavedStyleKey(key);
       setSavedStyleName("");

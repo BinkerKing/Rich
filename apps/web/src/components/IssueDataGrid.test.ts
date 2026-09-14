@@ -78,6 +78,12 @@ test("空问题表可在表格空白区右键新增第一条记录", () => {
   assert.match(source, /onContextMenu=\{handleTableContextMenu\}/);
 });
 
+test("保存样式以前等待当前表格设置落盘，并从已保存快照生成样式", () => {
+  assert.match(source, /await settingsSaveQueue\.current/);
+  assert.match(source, /const currentSettings = await api\.getTestCenterGridSettings\(projectId, gridSettingsKey\);/);
+  assert.match(source, /currentSettings\.columns, currentSettings\.style/);
+});
+
 test("右键记录菜单会在点击菜单外后自动收起", () => {
   assert.match(source, /window\.addEventListener\("pointerdown", closeMenu\)/);
   assert.match(source, /window\.removeEventListener\("pointerdown", closeMenu\)/);

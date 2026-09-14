@@ -36,8 +36,8 @@ export function IssuesWorkspace({ projectId }: { projectId: string }): ReactNode
     try {
       const createdTable = await api.createProjectManagementModuleItem(projectId, "issues", { title, content: {} });
       table = createdTable;
-      const selectedStyle = savedStyles.find(style => style.key === selectedStyleKey);
-      if (selectedStyle) await api.saveTestCenterGridSettings(projectId, `issues:${createdTable.id}:columns`, selectedStyle.columns, selectedStyle.style);
+      const selectedStyle = selectedStyleKey ? await api.getTestCenterGridSettings(projectId, selectedStyleKey) : null;
+      if (selectedStyle?.columns.length) await api.saveTestCenterGridSettings(projectId, `issues:${createdTable.id}:columns`, selectedStyle.columns, selectedStyle.style);
       setTables(current => [...current, createdTable]); setActiveId(createdTable.id); setCreatingTable(false); setNewTableTitle("");
     } catch {
       if (!table) { setError("新建问题表失败，请稍后重试。"); return; }
