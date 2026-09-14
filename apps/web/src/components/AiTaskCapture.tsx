@@ -17,6 +17,12 @@ const taskStatusLabel: Record<AiManagedTask["status"], string> = { draft: "暂�
 function taskPageLocation(task: AiManagedTask): string { const page = task.payload.page; return Array.isArray(page) ? page.filter((item): item is string => typeof item === "string").join(" / ") || "—" : "—"; }
 
 const viewLabels: Record<string, string> = { aiTaskManagement: "AI 任务管理", projects: "项目管理", deliverables: "交付物", taskWorkbench: "任务工作台" };
+function currentTaskLocation(appView: string): string {
+  const root = viewLabels[appView] ?? appView;
+  if (appView !== "projects" || typeof document === "undefined") return root;
+  const menu = document.querySelector<HTMLElement>(".prj-ws__nav-btn[aria-selected=\"true\"]")?.getAttribute("aria-label")?.trim();
+  return menu ? `${root} / ${menu}` : root;
+}
 type Box = { x: number; y: number; width: number; height: number };
 type Note = { x: number; y: number; text: string };
 type AnnotationState = { boxes: Box[]; notes: Note[] };
@@ -203,7 +209,7 @@ export function AiTaskCapture() {
   }, [executorPickerTaskId]);
   const composer = useChatComposer({ maxAttachments: 4 });
   const appView = useStore(s => s.appView);
-  const location = viewLabels[appView] ?? appView;
+  const location = currentTaskLocation(appView);
   const taskLocation = frozenLocation ?? location;
 
   useEffect(() => {
