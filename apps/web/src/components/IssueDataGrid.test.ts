@@ -254,6 +254,13 @@ test("恢复字段配置时按已保存的列顺序构建表格", () => {
   assert.match(source, /gridApi\.getColumnState\(\).*positions/s);
 });
 
+test("问题表将列布局立即保存到本地，并在服务端读取落后时优先恢复", () => {
+  assert.match(source, /const gridLayoutStorageKey = `rich\.issue-data-grid:\$\{projectId\}:\$\{tableId\}:columns\.v1`;/);
+  assert.match(source, /window\.localStorage\.setItem\(gridLayoutStorageKey, JSON\.stringify\(\[\.\.\.nextColumns, \.\.\.nextDeletedColumns\]\)\)/);
+  assert.match(source, /const localColumns = loadStoredGridColumns\(gridLayoutStorageKey\);/);
+  assert.match(source, /if \(localColumns\.length\) settings = \{ \.\.\.settings, columns: localColumns \};/);
+});
+
 test("问题表提供字段配置器，支持列类型、搜索和样式设置", () => {
   assert.match(source, /表格设置/);
   assert.match(source, /添加字段/);

@@ -46,6 +46,13 @@ type DropdownOption = NonNullable<TestCenterGridColumn["options"]>[number];
 const optionColorStyle = (color?: string) => color ? { "--issue-dropdown-color": color } as CSSProperties : undefined;
 const dropdownColor = (style: NonNullable<TestCenterGridColumn["dropdownStyle"]>, color?: string) => color ?? dropdownStyleColors[style];
 
+function loadStoredGridColumns(key: string): TestCenterGridColumn[] {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(key) ?? "[]") as unknown;
+    return Array.isArray(stored) && stored.every(column => column && typeof column === "object" && typeof (column as TestCenterGridColumn).key === "string") ? stored as TestCenterGridColumn[] : [];
+  } catch { return []; }
+}
+
 function SelectBadge({ value, options, dropdownStyle = "soft" }: { value: string | number; options?: TestCenterGridColumn["options"]; dropdownStyle?: TestCenterGridColumn["dropdownStyle"] }): ReactNode {
   const option = options?.find(item => item.value === value);
   const label = option?.label ?? String(value || "");
@@ -134,6 +141,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
   const pendingGridColumnState = useRef<TestCenterGridColumn[] | null>(null);
   const restoringGridColumnState = useRef(false);
   const gridSettingsKey = `issues:${tableId}:columns`;
+  const gridLayoutStorageKey = `rich.issue-data-grid:${projectId}:${tableId}:columns.v1`;
   const restoreGridColumnState = (api: GridApi<IssueGridRow>, configuredColumns: TestCenterGridColumn[]) => {
     restoringGridColumnState.current = true;
     api.applyColumnState({ state: configuredColumns.map(column => ({ colId: column.key, width: column.width, hide: column.visible === false, pinned: column.frozen === "right" ? "right" : column.frozen ? "left" : undefined })), applyOrder: true });
@@ -145,6 +153,8 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     const legacyGridSettingsKeys = [`issue-table:${tableId}`];
     const loadSettings = async () => {
       let settings = await api.getTestCenterGridSettings(projectId, gridSettingsKey);
+      const localColumns = loadStoredGridColumns(gridLayoutStorageKey);
+      if (localColumns.length) settings = { ...settings, columns: localColumns };
       let restoredFromLegacy = false;
       if (!settings.columns.length) {
         for (const legacyKey of legacyGridSettingsKeys) {
@@ -266,6 +276,7 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     setColumns(nextColumns);
     setTableStyle(nextStyle);
     setDeletedColumns(nextDeletedColumns);
+    try { window.localStorage.setItem(gridLayoutStorageKey, JSON.stringify([...nextColumns, ...nextDeletedColumns])); } catch { /* The server copy remains authoritative when local storage is unavailable. */ }
     setSettingsSaving(true);
     const previousSave = settingsSaveQueue.current;
     const save = previousSave.then(async () => {
