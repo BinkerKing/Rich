@@ -1087,11 +1087,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  border: 1px solid #7557ad;
-  border-radius: 10px;
-  background: linear-gradient(105deg, #28242d, #222225 62%, #29242f);
-  box-shadow: inset 0 1px rgba(232, 211, 255, .1), 0 0 0 1px rgba(132, 95, 195, .12);
-  padding: 18px;
+  border: 1px solid #424242;
+  border-radius: 8px;
+  background: #252525;
+  padding: 14px;
 }
 .prj-pm-todos__head {
   display: flex;
@@ -1340,7 +1339,7 @@
 }
 .prj-pm-code__layout {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   gap: 14px;
   min-height: 0;
 }
@@ -1624,6 +1623,8 @@
 .prj-pm-code__detail {
   overflow-y: auto;
 }
+.prj-pm-code__apps { min-width: 0; overflow-x: hidden; }
+.prj-pm-code__detail { min-width: 0; }
 .prj-pm-todos__board {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1852,12 +1853,13 @@
   display: grid;
   gap: 7px;
   width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
   margin-bottom: 9px;
-  border: 1px solid #465568;
-  border-radius: 9px;
-  background: linear-gradient(135deg, #27292d, #232426);
-  color: #d9e2e6;
-  box-shadow: inset 0 1px rgba(255, 255, 255, .035);
+  border: 1px solid #424242;
+  border-radius: 6px;
+  background: #202020;
+  color: #d9d9d9;
   text-align: left;
   padding: 12px;
   font-family: inherit;
@@ -1865,24 +1867,27 @@
 }
 .prj-pm-code__apps button:hover,
 .prj-pm-code__apps button.is-active {
-  border-color: #8170c7;
-  background: linear-gradient(135deg, #302a40, #282a36);
-  box-shadow: inset 3px 0 #a98aff, inset 0 1px rgba(235, 221, 255, .1), 0 0 14px rgba(144, 108, 226, .16);
+  border-color: #777;
+  background: #303030;
+  box-shadow: none;
 }
 .prj-pm-code__apps button strong {
+  min-width: 0;
   color: #eff4fb;
   font-size: 13px;
   line-height: 1.35;
 }
 .prj-pm-code__apps button p {
+  min-width: 0;
   margin: 0;
-  color: #abb7c3;
+  color: #bdbdbd;
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
 }
+.prj-pm-code__apps button :is(strong,p) { overflow-wrap: anywhere; }
 .prj-pm-code__apps button span {
-  color: #9cc8ff;
+  color: #a8a8a8;
   font-size: 12px;
 }
 .prj-pm-code__detail article {
@@ -1918,10 +1923,10 @@
   font-size: 12px;
 }
 .prj-pm-code-version {
-  border: 1px solid #347f88;
-  border-radius: 9px;
-  background: linear-gradient(105deg, #20292a, #232526 68%);
-  box-shadow: inset 3px 0 #3ad3da, inset 0 1px rgba(201, 255, 255, .09), 0 0 14px rgba(48, 200, 210, .1);
+  border: 1px solid #424242;
+  border-radius: 6px;
+  background: #202020;
+  box-shadow: none;
   padding: 12px;
 }
 .prj-pm-code__timeline {

@@ -95,8 +95,10 @@ test("环境配置用亮色边框区分模块、服务器和连接关系表", ()
   assert.match(styles, /\.env-connection-table\s*\{[^}]*border:\s*1px solid #338e99/s);
 });
 
-test("版本控制以紫色模块边框和青蓝版本卡片保持可读对比", () => {
-  assert.match(styles, /\.prj-pm-code__head\s*\{[^}]*border:\s*1px solid #7557ad[^}]*background:\s*linear-gradient\(105deg, #28242d/s);
-  assert.match(styles, /\.prj-pm-code__apps button\.is-active\s*\{[^}]*border-color:\s*#8170c7/s);
-  assert.match(styles, /\.prj-pm-code-version\s*\{[^}]*border:\s*1px solid #347f88[^}]*inset 3px 0 #3ad3da/s);
+test("版本控制使用中性深色面板，左栏条目不会因内边距或长文本溢出", () => {
+  assert.match(styles, /\.prj-pm-code__head\s*\{[^}]*border:\s*1px solid #424242[^}]*background:\s*#252525/s);
+  assert.match(styles, /\.prj-pm-code__apps\s*\{[^}]*min-width:\s*0/s);
+  assert.match(styles, /\.prj-pm-code__apps button\s*\{[^}]*box-sizing:\s*border-box[^}]*min-width:\s*0/s);
+  assert.match(styles, /\.prj-pm-code__apps button :is\(strong,p\)\s*\{[^}]*overflow-wrap:\s*anywhere/s);
+  assert.match(styles, /\.prj-pm-code-version\s*\{[^}]*border:\s*1px solid #424242[^}]*background:\s*#202020/s);
 });

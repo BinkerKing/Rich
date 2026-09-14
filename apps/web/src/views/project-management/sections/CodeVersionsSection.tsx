@@ -29,8 +29,6 @@ export function CodeVersionsSection({ project, summary }: { project: Element; su
   const selected = apps.find(app => app.id === selectedId) ?? apps[0];
   const original = recordValue(selected?.content.original);
   const versions = arrayRecords(original.versions);
-  const versionCount = apps.reduce((sum, app) => sum + arrayRecords(recordValue(app.content.original).versions).length, 0);
-  const count = summary?.modules.find(module => module.key === "codeVersions")?.count ?? apps.length;
   const beginEdit = () => {
     if (!selected) return;
     setDraft({ ...original, title: selected.title });
@@ -63,13 +61,7 @@ export function CodeVersionsSection({ project, summary }: { project: Element; su
     <div className="prj-pm-code">
       <section className="prj-pm-code__head">
         <div>
-          <p className="prj-pm-eyebrow">Application Versions</p>
           <h3>版本控制</h3>
-          <p>按应用记录版本号、发布时间、上线时间、升级路线和升级内容，后续可继续扩展版本审批与上线关联。</p>
-        </div>
-        <div className="prj-pm-code__stats">
-          <span><b>{count}</b>应用</span>
-          <span><b>{versionCount}</b>版本</span>
         </div>
       </section>
 
