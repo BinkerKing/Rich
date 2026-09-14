@@ -294,12 +294,14 @@ test("交付物记录编辑器的操作栏位于正文下方，编辑记录在�
   assert.match(styles, /\.deliverables-workspace__records > \.deliverables-workspace__record-composer\.is-editing \{ order:1;/);
 });
 
-test("嵌入式交付物详情用边框而非深蓝底色区分记录和材料区域", () => {
+test("嵌入式交付物详情以细分彩色边框区分区域，并保持中性石墨灰表面", () => {
   assert.match(styles, /Embedded deliverable detail: neutral panels separated by explicit semantic borders/);
-  assert.match(styles, /deliverables-workspace__records \{ border-color:#3e9dab!important; background:#282828!important;/);
-  assert.match(styles, /deliverables-workspace__versions \{ border-color:#927841!important; background:#292724!important;/);
-  assert.match(styles, /record-composer \.prj-pm-rich-editor \{[^}]*border:1px solid #3e98a5!important/s);
-  assert.match(styles, /deliverables-workspace__file-head \{ border-bottom:1px solid #806b3e;/);
+  assert.match(styles, /deliverables-workspace__description \{ border-color:rgba\(101,180,190,.58\)!important; background:transparent!important; box-shadow:none!important;/);
+  assert.match(styles, /deliverables-workspace__records \{ border-color:rgba\(105,183,192,.58\)!important; background:transparent!important; box-shadow:none!important;/);
+  assert.match(styles, /deliverables-workspace__versions \{ border-color:rgba\(193,159,91,.58\)!important; background:transparent!important; box-shadow:none!important;/);
+  assert.match(styles, /record-composer \.prj-pm-rich-editor \{[^}]*border:1px solid rgba\(105,183,192,.62\)!important[^}]*background:#202020!important[^}]*box-shadow:none!important/s);
+  assert.match(styles, /record-composer \.prj-pm-rich-surface \{ background:transparent!important; color:#edf0f1!important;/);
+  assert.match(styles, /deliverables-workspace__file-head \{ border-bottom:1px solid rgba\(193,159,91,.48\); background:#252525!important;/);
 });
 
 test("交付物记录可选择 AI 任务并显式选择 Hermes 或 Multica", () => {
