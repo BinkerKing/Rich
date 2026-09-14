@@ -13,6 +13,13 @@ test("连接丢失时仅把对应会话标为红色闪烁", () => {
   assert.match(css, /@keyframes deliverable-codex-connection-lost/);
 });
 
+test("流式回复的用时按会话分别保存和显示", () => {
+  assert.match(source, /const \[elapsedMsByConversation, setElapsedMsByConversation\] = useState<Record<string, number>>\(\{\}\)/);
+  assert.match(source, /setElapsedMsByConversation\(current => \(\{ \.\.\.current, \[target\.id\]: 0 \}\)\)/);
+  assert.match(source, /const elapsedMs = elapsedMsByConversation\[streamingConversationId\] \?\? 0/);
+  assert.match(source, /streamingConversationId === active\.id && index === displayedMessages\.length - 1 \? elapsedMsByConversation\[active\.id\] \?\? 0 : 0/);
+});
+
 test("交付物 Codex 的附加菜单可将当前界面截图加入图片附件", () => {
   assert.match(source, /async function attachCurrentViewScreenshot\(\)/);
   assert.match(source, /richWindow\?\.captureCurrentView\?\./);

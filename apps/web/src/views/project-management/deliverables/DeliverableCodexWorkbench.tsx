@@ -164,7 +164,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const [queueMenuId, setQueueMenuId] = useState<string>();
   const [streaming, setStreaming] = useState(false);
   const [streamingConversationId, setStreamingConversationId] = useState<string>();
-  const [elapsedMs, setElapsedMs] = useState(0);
+  const [elapsedMsByConversation, setElapsedMsByConversation] = useState<Record<string, number>>({});
   const [runningByConversation, setRunningByConversation] = useState<Record<string, boolean>>({});
   const [lostConversationIds, setLostConversationIds] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState("");
@@ -262,7 +262,13 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     if (!visible) return;
     composerTextareaRef.current?.focus();
   }, [visible]);
-  useEffect(() => { if (!streaming) return; const startedAt = Date.now() - elapsedMs; const timer = window.setInterval(() => setElapsedMs(Date.now() - startedAt), 250); return () => window.clearInterval(timer); }, [streaming]);
+  useEffect(() => {
+    if (!streamingConversationId) return;
+    const elapsedMs = elapsedMsByConversation[streamingConversationId] ?? 0;
+    const startedAt = Date.now() - elapsedMs;
+    const timer = window.setInterval(() => setElapsedMsByConversation(current => ({ ...current, [streamingConversationId]: Date.now() - startedAt })), 250);
+    return () => window.clearInterval(timer);
+  }, [streamingConversationId]);
   useEffect(() => { if (!conversationMenuOpen) return; const close = (event: PointerEvent) => { if (!conversationMenuRef.current?.contains(event.target as Node)) setConversationMenuOpen(false); }; document.addEventListener("pointerdown", close); return () => document.removeEventListener("pointerdown", close); }, [conversationMenuOpen]);
   useEffect(() => { if (!composerMenuOpen) return; const close = (event: PointerEvent) => { if (!composerMenuRef.current?.contains(event.target as Node)) setComposerMenuOpen(false); }; document.addEventListener("pointerdown", close); return () => document.removeEventListener("pointerdown", close); }, [composerMenuOpen]);
   useEffect(() => { const resize = () => setWindowState(fitWindowToViewport); window.addEventListener("resize", resize); return () => window.removeEventListener("resize", resize); }, []);
@@ -303,7 +309,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     if (streamingRef.current && !force) return;
     const userMessageId = crypto.randomUUID(); const clientRequestId = crypto.randomUUID(); const createdAt = new Date().toISOString(); const startedAt = Date.now();
     if (target.id === active?.id) shouldFollowMessagesRef.current = true;
-    if (target.id === active?.id) setInput(""); setElapsedMs(0); streamingRef.current = true; setStreaming(true); setStreamingConversationId(target.id); setError("");
+    if (target.id === active?.id) setInput(""); setElapsedMsByConversation(current => ({ ...current, [target.id]: 0 })); streamingRef.current = true; setStreaming(true); setStreamingConversationId(target.id); setError("");
     setMessages(current => ({ ...current, [target.id]: [...(current[target.id] ?? []), { role: "user", content, createdAt, kind: taskMode ? "task-mode-instruction" : undefined, taskModeLabel: taskMode?.label, taskModeLocation: taskMode?.location, attachments }, { role: "assistant", content: "", createdAt }] }));
     try {
       const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(target.id)}/stream`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, userMessageId, clientRequestId, attachments, metadata: taskMode ? { type: "task-mode-instruction", mode: { id: taskMode.id, label: taskMode.label }, location: taskMode.location } : undefined }) });
@@ -539,7 +545,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
             const isTaskInstruction = message.kind === "task-mode-instruction" || message.kind === "task-mode-policy-updated";
             const isTaskPolicyUpdate = message.kind === "task-mode-policy-updated";
             return <article key={index} className={`${isTaskModeStart ? "is-event" : isTaskInstruction ? "is-task-instruction" : `is-${message.role}`}${streaming && message.role === "assistant" && index === displayedMessages.length - 1 ? " is-streaming" : ""}`}>
-              {message.role === "assistant" && <div className="deliverable-codex-workbench__duration">用时 {formatDuration(message.durationMs ?? (streaming && index === displayedMessages.length - 1 ? elapsedMs : 0))}</div>}
+              {message.role === "assistant" && <div className="deliverable-codex-workbench__duration">用时 {formatDuration(message.durationMs ?? (streamingConversationId === active.id && index === displayedMessages.length - 1 ? elapsedMsByConversation[active.id] ?? 0 : 0))}</div>}
               <div className="deliverable-codex-workbench__message-bubble">
                 {message.attachments?.length ? <div className="deliverable-codex-workbench__message-images">{message.attachments.map((attachment, imageIndex) => <img key={attachment.id ?? imageIndex} src={attachment.previewUrl ?? attachment.url ?? `/api/chat/attachments/${attachment.id}/data`} alt={message.role === "assistant" ? "Codex 生成图片" : "已发送图片"} onClick={() => setPreviewUrl(attachment.previewUrl ?? attachment.url ?? `/api/chat/attachments/${attachment.id}/data`)}/>)}</div> : null}
                 {isTaskModeStart
