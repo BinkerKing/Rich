@@ -10,7 +10,7 @@ describe("AiTaskCapture task list", () => {
   });
 
   it("places a red BUG label and location before the task title", () => {
-    expect(source).toContain("gridTemplateColumns: \"72px 150px minmax(0, 1fr) 150px 142px 92px\"");
+    expect(source).toContain('const taskListGridColumns = "72px 170px minmax(440px, 1fr) 110px 88px 105px"');
     expect(source).toContain("<span>定位</span><span>任务</span>");
     expect(source).toContain('task.sceneId === "bug_fix" ? "#ff6269"');
   });
@@ -37,5 +37,11 @@ describe("AiTaskCapture task list", () => {
 
   it("records bug tasks without a redeploy request by default", () => {
     expect(source).toContain('gitDeployLatest: false');
+  });
+
+  it("opens in list mode and archives an accepted Rich Codex conversation", () => {
+    expect(source).toContain('const [text, setText] = useState("/list")');
+    expect(source).toContain('const search = listMode && text.trim().toLowerCase() === "/list" ? "" : text.trim().toLocaleLowerCase();');
+    expect(source).toContain('`/api/deliverable-codex/conversations/${encodeURIComponent(task.sourceConversationId)}/archive`');
   });
 });
