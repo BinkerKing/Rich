@@ -23,6 +23,16 @@ test("新建问题表通过页面内创建卡收集名称，而不依赖桌面�
   assert.doesNotMatch(source, /window\.prompt\("问题表名称"/);
 });
 
+test("新建问题表只可选择已保存样式，并按所选样式初始化", () => {
+  assert.match(source, /const \[selectedStyleKey, setSelectedStyleKey\] = useState\(""\);/);
+  assert.match(source, /api\.listTestCenterGridSettings\(projectId, "issue-style:"\)/);
+  assert.match(source, /const selectedStyle = savedStyles\.find\(style => style\.key === selectedStyleKey\);/);
+  assert.match(source, /await api\.saveTestCenterGridSettings\(projectId, `issues:\$\{createdTable\.id\}:columns`, selectedStyle\.columns, selectedStyle\.style\);/);
+  assert.match(source, /<label>初始化样式<select value=\{selectedStyleKey\}/);
+  assert.match(source, /<option value="">空表<\/option>/);
+  assert.doesNotMatch(source, /通用表格/);
+});
+
 test("问题清单操作按钮采用工作台统一的紧凑描边样式", () => {
   assert.match(source, /className="issues-workspace__create-button project-create-action"/);
   assert.match(source, /className="issues-workspace__create-button project-create-action"[\s\S]*?>＋ 新建问题表<\/button>/);
