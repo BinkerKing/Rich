@@ -15,12 +15,12 @@ describe("AiTaskCapture task list", () => {
     expect(source).toContain('task.sceneId === "bug_fix" ? "#ff6269"');
   });
 
-  it("offers inline accept and continue actions for completed bugs", () => {
+  it("offers inline accept and continue actions before a completed Rich Codex bug's bound conversation", () => {
     expect(source).toContain('aria-label="验收完成"');
     expect(source).toContain('aria-label="继续处理"');
     expect(source).toContain("api.resolveAiManagedTask(task.id)");
     expect(source).toContain("api.continueAiManagedTask(task.id)");
-    expect(source).toContain("原始 Bug 任务 ID：${task.id}");
+    expect(source).toContain('task.status !== "needs_review" && task.claimedBy === "Rich·Codex" && task.sourceConversationId');
   });
 
   it("keeps pending claim as a status and uses the operation column for Rich Codex or its bound conversation", () => {
@@ -28,6 +28,11 @@ describe("AiTaskCapture task list", () => {
     expect(source).toContain('>Rich · Codex</button>');
     expect(source).toContain('>对话框</button>');
     expect(source).toContain('conversationId: task.sourceConversationId');
+  });
+
+  it("reopens the original Rich Codex conversation instead of creating a continuation task", () => {
+    expect(source).toContain('if (action === "continue" && task.claimedBy === "Rich·Codex" && task.sourceConversationId)');
+    expect(source).toContain('openBoundCodex({ projectId: "__general__", deliverableId: "__general__", deliverableTitle: "Rich BUG 任务", conversationId: task.sourceConversationId });');
   });
 
   it("records bug tasks without a redeploy request by default", () => {
