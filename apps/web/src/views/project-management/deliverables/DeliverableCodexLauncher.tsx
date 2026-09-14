@@ -9,6 +9,7 @@ export type DeliverableCodexTarget = {
   initialPrompt?: string;
   executionTaskId?: string;
   initialConversationTitle?: string;
+  onConversationCreated?: (conversationId: string) => void;
 };
 
 const targetStorageKey = "rich.deliverable-codex.target";
@@ -93,6 +94,7 @@ export function DeliverableCodexLauncher(): ReactNode {
       initialPrompt={target.initialPrompt}
       executionTaskId={target.executionTaskId}
       initialConversationTitle={target.initialConversationTitle}
+      onConversationCreated={target.onConversationCreated}
       openSequence={openSequence}
     />
   ) : null;

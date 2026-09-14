@@ -140,7 +140,7 @@ function withMessageDurations(messages: Message[]): Message[] {
   });
 }
 
-export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverableTitle, visible, requestedConversationId, initialPrompt, executionTaskId, initialConversationTitle, openSequence }: { projectId: string; deliverableId: string; deliverableTitle: string; visible: boolean; requestedConversationId?: string; initialPrompt?: string; executionTaskId?: string; initialConversationTitle?: string; openSequence?: number }): ReactNode {
+export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverableTitle, visible, requestedConversationId, initialPrompt, executionTaskId, initialConversationTitle, onConversationCreated, openSequence }: { projectId: string; deliverableId: string; deliverableTitle: string; visible: boolean; requestedConversationId?: string; initialPrompt?: string; executionTaskId?: string; initialConversationTitle?: string; onConversationCreated?: (conversationId: string) => void; openSequence?: number }): ReactNode {
   const appView = useStore(state => state.appView);
   const setAppView = useStore(state => state.setAppView);
   const elements = useStore(state => state.elements);
@@ -275,7 +275,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     setError("");
     try {
       const payload = await readJson<{ conversation: Conversation }>(`/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: conversationTitle }) });
-      if (startup?.taskId) await api.claimAiManagedTask(startup.taskId, "Rich·Codex", payload.conversation.id);
+      if (startup?.taskId) { await api.claimAiManagedTask(startup.taskId, "Rich·Codex", payload.conversation.id); onConversationCreated?.(payload.conversation.id); }
       setConversations(current => { const next = [payload.conversation, ...current]; saveConversationOrder(next); return next; }); setActiveId(payload.conversation.id); setTitle(""); setCreating(false);
       if (startup?.prompt) void sendMessage(payload.conversation, startup.prompt, [], false, undefined, true);
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }

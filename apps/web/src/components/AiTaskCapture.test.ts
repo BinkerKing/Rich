@@ -23,6 +23,13 @@ describe("AiTaskCapture task list", () => {
     expect(source).toContain("原始 Bug 任务 ID：${task.id}");
   });
 
+  it("keeps pending claim as a status and uses the operation column for Rich Codex or its bound conversation", () => {
+    expect(source).toContain('<small style={{ color: task.status === "draft" ? "#d7aa55" : "#aab6ba" }}>{taskStatusLabel[task.status]}</small>');
+    expect(source).toContain('>Rich · Codex</button>');
+    expect(source).toContain('>对话框</button>');
+    expect(source).toContain('conversationId: task.sourceConversationId');
+  });
+
   it("records bug tasks without a redeploy request by default", () => {
     expect(source).toContain('gitDeployLatest: false');
   });

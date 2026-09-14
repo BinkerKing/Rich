@@ -2,6 +2,11 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("DeliverableCodexWorkbench", () => {
+  it("reports the bound conversation after creating a task-startup conversation", () => {
+    const source = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
+    expect(source).toContain("onConversationCreated?.(payload.conversation.id)");
+  });
+
   it("sends each newly assigned bug prompt even while another Codex conversation is streaming", () => {
     const source = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
     expect(source).toContain("if (startup?.prompt) void sendMessage(payload.conversation, startup.prompt, [], false, undefined, true);");

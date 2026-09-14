@@ -183,7 +183,6 @@ export function AiTaskCapture() {
   const [listedTasks, setListedTasks] = useState<AiManagedTask[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState<string>();
-  const [executorPickerTaskId, setExecutorPickerTaskId] = useState<string>();
   const [frozenLocation, setFrozenLocation] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [capturing, setCapturing] = useState(false);
@@ -193,20 +192,6 @@ export function AiTaskCapture() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const editorRef = useRef<ScreenshotEditorHandle>(null);
   const openRef = useRef(false);
-  const executorPickerRef = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    if (!executorPickerTaskId) return;
-
-    const closeExecutorPicker = (event: PointerEvent) => {
-      if (!executorPickerRef.current?.contains(event.target as Node)) {
-        setExecutorPickerTaskId(undefined);
-      }
-    };
-
-    document.addEventListener("pointerdown", closeExecutorPicker);
-    return () => document.removeEventListener("pointerdown", closeExecutorPicker);
-  }, [executorPickerTaskId]);
   const composer = useChatComposer({ maxAttachments: 4 });
   const appView = useStore(s => s.appView);
   const location = currentTaskLocation(appView);
@@ -416,7 +401,6 @@ export function AiTaskCapture() {
     });
   };
   const assignRichCodex = (task: AiManagedTask) => {
-    setExecutorPickerTaskId(undefined);
     const prompt = [
       "# Rich BUG 处理任务",
       "",
@@ -433,7 +417,7 @@ export function AiTaskCapture() {
       "",
       "现在开始处理该 Bug。",
     ].join("\n");
-    openBoundCodex({ projectId: "__general__", deliverableId: "__general__", deliverableTitle: "Rich BUG 任务", executionTaskId: task.id, initialConversationTitle: `BUG · ${task.title.slice(0, 56)}`, initialPrompt: prompt });
+    openBoundCodex({ projectId: "__general__", deliverableId: "__general__", deliverableTitle: "Rich BUG 任务", executionTaskId: task.id, initialConversationTitle: `BUG · ${task.title.slice(0, 56)}`, initialPrompt: prompt, onConversationCreated: conversationId => setListedTasks(current => current.map(item => item.id === task.id ? { ...item, status: "claimed", claimedBy: "Rich·Codex", sourceConversationId: conversationId } : item)) });
   };
   const reviewTask = async (task: AiManagedTask, action: "resolve" | "continue") => {
     const next = action === "resolve" ? await api.resolveAiManagedTask(task.id) : await api.continueAiManagedTask(task.id);
@@ -490,7 +474,7 @@ export function AiTaskCapture() {
         <div style={{ display: "grid", gridTemplateColumns: "72px 150px minmax(0, 1fr) 150px 142px 92px", gap: 12, padding: "10px 4px 7px", color: "#89969b", fontSize: 12 }}><span>类型</span><span>定位</span><span>任务</span><span>状态</span><span>操作</span><span>执行人</span></div>
         {listLoading ? <p style={{ margin: "16px 0", color: "#99a5aa" }}>正在加载任务清单…</p> : visibleTasks.length ? visibleTasks.map(task => {
           const expanded = expandedTaskId === task.id;
-          return <article key={task.id} title={task.status === "draft" ? "双击继续编辑暂存任务" : task.status === "ready" ? "双击调整并重新发布任务" : undefined} onClick={() => setExpandedTaskId(current => current === task.id ? undefined : task.id)} onDoubleClick={() => restoreEditableTask(task)} style={{ display: "grid", gridTemplateColumns: "72px 150px minmax(0, 1fr) 150px 142px 92px", gap: 12, alignItems: expanded ? "start" : "center", padding: "13px 4px", borderBottom: "1px solid #293034", cursor: "pointer" }}><b style={{ color: task.sceneId === "bug_fix" ? "#ff6269" : task.status === "draft" ? "#d7aa55" : "#68d891", fontSize: 12, letterSpacing: ".06em" }}>{taskTypeLabel[task.sceneId]}</b><small style={{ overflow: "hidden", color: "#aab6ba", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{taskPageLocation(task)}</small><span style={{ overflow: expanded ? "visible" : "hidden", color: "#eef3f4", fontWeight: 600, textOverflow: expanded ? undefined : "ellipsis", whiteSpace: expanded ? "normal" : "nowrap", overflowWrap: expanded ? "anywhere" : undefined }}>{task.title}</span>{task.status === "ready" && task.sceneId === "bug_fix" ? <span ref={executorPickerTaskId === task.id ? executorPickerRef : undefined} style={{ position: "relative" }}><button type="button" onClick={event => { event.stopPropagation(); setExecutorPickerTaskId(current => current === task.id ? undefined : task.id); }} style={{ border: 0, padding: 0, background: "transparent", color: "#9de0ae", font: "inherit", cursor: "pointer" }}>待认领</button>{executorPickerTaskId === task.id && <span style={{ position: "absolute", zIndex: 3, top: 24, left: 0, width: 164, border: "1px solid #4f5d62", borderRadius: 9, padding: 6, background: "#202426", boxShadow: "0 12px 28px #000a" }}><button type="button" onClick={event => { event.stopPropagation(); assignRichCodex(task); }} style={{ width: "100%", border: 0, borderRadius: 6, padding: "9px 10px", background: "transparent", color: "#eef4f5", font: "inherit", textAlign: "left", cursor: "pointer" }}>Rich · Codex</button></span>}</span> : <small style={{ color: task.status === "draft" ? "#d7aa55" : "#aab6ba" }}>{taskStatusLabel[task.status]}</small>}<span>{task.sceneId === "bug_fix" && task.status === "needs_review" && <span style={{ display: "flex", gap: 7 }}><button type="button" aria-label="验收完成" title="验收完成" onClick={event => { event.stopPropagation(); void reviewTask(task, "resolve"); }} style={{ width: 28, height: 28, border: "1px solid #39c979", borderRadius: "50%", padding: 0, background: "transparent", color: "#43df8b", fontSize: 17, fontWeight: 800, cursor: "pointer" }}>✓</button><button type="button" aria-label="继续处理" title="继续处理" onClick={event => { event.stopPropagation(); void reviewTask(task, "continue"); }} style={{ width: 28, height: 28, border: "1px solid #7b8790", borderRadius: "50%", padding: 0, background: "transparent", color: "#d4dbe0", fontSize: 17, fontWeight: 800, cursor: "pointer" }}>↻</button></span>}</span><small style={{ overflow: "hidden", color: "#aab6ba", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.claimedBy ?? "—"}</small></article>;
+          return <article key={task.id} title={task.status === "draft" ? "双击继续编辑暂存任务" : task.status === "ready" ? "双击调整并重新发布任务" : undefined} onClick={() => setExpandedTaskId(current => current === task.id ? undefined : task.id)} onDoubleClick={() => restoreEditableTask(task)} style={{ display: "grid", gridTemplateColumns: "72px 150px minmax(0, 1fr) 150px 142px 92px", gap: 12, alignItems: expanded ? "start" : "center", padding: "13px 4px", borderBottom: "1px solid #293034", cursor: "pointer" }}><b style={{ color: task.sceneId === "bug_fix" ? "#ff6269" : task.status === "draft" ? "#d7aa55" : "#68d891", fontSize: 12, letterSpacing: ".06em" }}>{taskTypeLabel[task.sceneId]}</b><small style={{ overflow: "hidden", color: "#aab6ba", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{taskPageLocation(task)}</small><span style={{ overflow: expanded ? "visible" : "hidden", color: "#eef3f4", fontWeight: 600, textOverflow: expanded ? undefined : "ellipsis", whiteSpace: expanded ? "normal" : "nowrap", overflowWrap: expanded ? "anywhere" : undefined }}>{task.title}</span><small style={{ color: task.status === "draft" ? "#d7aa55" : "#aab6ba" }}>{taskStatusLabel[task.status]}</small><span>{task.sceneId === "bug_fix" && task.status === "ready" ? <button type="button" onClick={event => { event.stopPropagation(); assignRichCodex(task); }} style={{ border: 0, padding: 0, background: "transparent", color: "#9de0ae", font: "inherit", cursor: "pointer" }}>Rich · Codex</button> : task.sceneId === "bug_fix" && task.claimedBy === "Rich·Codex" && task.sourceConversationId ? <button type="button" onClick={event => { event.stopPropagation(); openBoundCodex({ projectId: "__general__", deliverableId: "__general__", deliverableTitle: "Rich BUG 任务", conversationId: task.sourceConversationId }); }} style={{ border: 0, padding: 0, background: "transparent", color: "#9de0ae", font: "inherit", cursor: "pointer" }}>对话框</button> : task.sceneId === "bug_fix" && task.status === "needs_review" && <span style={{ display: "flex", gap: 7 }}><button type="button" aria-label="验收完成" title="验收完成" onClick={event => { event.stopPropagation(); void reviewTask(task, "resolve"); }} style={{ width: 28, height: 28, border: "1px solid #39c979", borderRadius: "50%", padding: 0, background: "transparent", color: "#43df8b", fontSize: 17, fontWeight: 800, cursor: "pointer" }}>✓</button><button type="button" aria-label="继续处理" title="继续处理" onClick={event => { event.stopPropagation(); void reviewTask(task, "continue"); }} style={{ width: 28, height: 28, border: "1px solid #7b8790", borderRadius: "50%", padding: 0, background: "transparent", color: "#d4dbe0", fontSize: 17, fontWeight: 800, cursor: "pointer" }}>↻</button></span>}</span><small style={{ overflow: "hidden", color: "#aab6ba", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.claimedBy ?? "—"}</small></article>;
         }) : <p style={{ margin: "16px 0", color: "#99a5aa" }}>没有符合条件的未结束 AI 任务。</p>}
       </div>}
       {composer.attachments.length > 0 && <div className="ai-task-capture__images" style={{ marginTop: 16 }}>{composer.attachments.map(item => <figure key={item.clientId}><button type="button" className={`ai-task-capture__preview${editing?.clientId === item.clientId ? " is-selected" : ""}`} onClick={() => editing?.clientId === item.clientId ? editorRef.current?.save() : setEditing({ clientId: item.clientId, source: item.previewUrl })}><img src={item.previewUrl} alt="任务截图，点击编辑并再次点击保存" /></button><button type="button" className="ai-task-capture__remove" aria-label="删除截图" title="删除截图" onClick={() => detachAttachment(item.clientId)}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M9 7l1-2h4l1 2m-9 0 1 13h10l1-13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></button></figure>)}</div>}

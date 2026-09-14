@@ -36,3 +36,7 @@ test("交付物页面更新最近的 Codex 定位上下文", () => {
 test("网页命令面板不再占用 Command-Space", () => {
   assert.doesNotMatch(commandPalette, /e\.key === " " \|\| e\.code === "Space"/);
 });
+
+test("转交任务创建对话后把对话编号回传给发起列表", () => {
+  assert.match(launcher, /onConversationCreated=\{target\.onConversationCreated\}/);
+});
