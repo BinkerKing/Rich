@@ -89,10 +89,11 @@ test("作业流程内容区在可用高度内自适应，超出部分由流程�
   assert.match(styles, /\.workflow-rail\s*\{[^}]*flex:\s*1 1 auto[^}]*min-height:\s*0[^}]*overflow-y:\s*auto/s);
 });
 
-test("环境配置用亮色边框区分模块、服务器和连接关系表", () => {
-  assert.match(styles, /\.env-module-card\s*\{[^}]*border-color:\s*color-mix\(in srgb, var\(--env-module-accent, var\(--accent\)\) 78%, #3a4b4e\)/s);
-  assert.match(styles, /\.server\.env-server-card\s*\{[^}]*border:\s*1px solid color-mix\(in srgb, var\(--env-module-accent, var\(--accent\)\) 54%, #344044\)/s);
-  assert.match(styles, /\.env-connection-table\s*\{[^}]*border:\s*1px solid #338e99/s);
+test("环境配置使用紧凑的中性石墨面板，而非彩色发光卡片", () => {
+  assert.match(styles, /\.prj-ws \.env-module-card\s*\{[^}]*height:\s*auto[^}]*min-height:\s*0[^}]*border:\s*1px solid #424242[^}]*background:\s*#252525[^}]*box-shadow:\s*none/s);
+  assert.match(styles, /\.prj-ws \.server\.env-server-card\s*\{[^}]*height:\s*auto[^}]*min-height:\s*96px[^}]*border:\s*1px solid #4a4a4a[^}]*background:\s*#202020[^}]*box-shadow:\s*none/s);
+  assert.match(styles, /\.prj-ws \.env-connection-panel\s*\{[^}]*border:\s*1px solid #424242[^}]*background:\s*#252525[^}]*box-shadow:\s*none/s);
+  assert.match(styles, /\.prj-ws \.env-connection-table\s*\{[^}]*border-color:\s*#424242[^}]*background:\s*#202020[^}]*box-shadow:\s*none/s);
 });
 
 test("版本控制使用中性深色面板，左栏条目不会因内边距或长文本溢出", () => {
