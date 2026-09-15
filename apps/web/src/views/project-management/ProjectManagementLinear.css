@@ -178,6 +178,46 @@
 .prj-ws .prj-pm-global-search__section, .prj-ws .prj-pm-global-search__content small { color: var(--pm-text-muted); }
 .prj-ws .prj-pm-global-search__content strong { color: var(--pm-text); font-weight: 500; }
 
+/* Project description: indigo document surface with quiet editorial landmarks. */
+.prj-ws .prj-pm-description > header { border-bottom-color: rgba(169,169,238,.28); }
+.prj-ws .prj-pm-description > header > div:first-child > span { color: #aaaaf0; }
+.prj-ws .prj-pm-description > header h2 { color: #eeeefe; }
+.prj-ws .prj-pm-description > header > div:last-child > span:first-child { border-color: rgba(169,169,238,.38); color: #c7c7fb; background: rgba(169,169,238,.12); }
+.prj-ws .prj-pm-description__action { border-color: rgba(169,169,238,.36) !important; color: #e9e9ff !important; background: rgba(169,169,238,.08) !important; }
+.prj-ws .prj-pm-description__action:hover:not(:disabled) { border-color: rgba(185,185,248,.66) !important; background: rgba(169,169,238,.16) !important; }
+.prj-ws .prj-pm-description .rich-prose { position: relative; color: #d5d5df; }
+.prj-ws .prj-pm-description .rich-prose::before { position: absolute; top: 38px; bottom: 104px; left: -20px; width: 2px; border-radius: 2px; background: linear-gradient(#aaaaf0, transparent 28%); content: ""; opacity: .65; }
+.prj-ws .prj-pm-description .rich-prose :is(h1, h2, h3) { color: #efefff; }
+.prj-ws .prj-pm-description .rich-prose h2 { border-bottom: 1px solid rgba(169,169,238,.20); padding-bottom: 10px; }
+.prj-ws .prj-pm-description .rich-prose a { color: #aeb0f4; }
+.prj-ws .prj-pm-description nav[aria-label="项目说明目录"] { border-left-color: rgba(169,169,238,.26); }
+.prj-ws .prj-pm-description nav[aria-label="项目说明目录"] p { color: #aaaaf0; }
+.prj-ws .prj-pm-description nav[aria-label="项目说明目录"] button:hover, .prj-ws .prj-pm-description nav[aria-label="项目说明目录"] button[aria-current="location"] { border-left-color: #aaaaf0; color: #eeeefe; background: rgba(169,169,238,.07); }
+.prj-ws .prj-pm-description.is-editing .prj-pm-rich-editor { border-color: rgba(169,169,238,.32); background: #1d1d25; }
+.prj-ws .prj-pm-description.is-editing .prj-pm-rich-toolbar { border-bottom-color: rgba(169,169,238,.24); background: #252530; }
+.prj-ws .prj-pm-description.is-editing .prj-pm-rich-surface { background: #1d1d25; caret-color: #bfc0ff; }
+
+/* Workflow: cyan establishes the operational chain; colors only identify the flow. */
+.prj-ws .workflow__head { border-bottom-color: rgba(108,190,194,.28); }
+.prj-ws .workflow__title > svg { color: var(--pm-cyan); }
+.prj-ws .workflow__head h2 { color: #e7fbfb; }
+.prj-ws .workflow__create { border-color: rgba(108,190,194,.40) !important; color: #d9f7f7 !important; background: rgba(108,190,194,.09) !important; }
+.prj-ws .workflow__create:hover:not(:disabled) { border-color: rgba(138,215,218,.68) !important; background: rgba(108,190,194,.17) !important; }
+.prj-ws .workflow-step { border-bottom-color: var(--pm-border); }
+.prj-ws .workflow-step:hover { border-color: rgba(108,190,194,.32); background: linear-gradient(90deg, rgba(108,190,194,.08), transparent 42%); }
+.prj-ws .workflow-step:not(:last-child)::after { border-left-color: rgba(108,190,194,.30); }
+.prj-ws .workflow-order { border-color: rgba(108,190,194,.34); color: #bfe8e9; background: rgba(108,190,194,.08); }
+.prj-ws .workflow-order i { color: var(--pm-cyan); }
+.prj-ws .workflow-step-meta span { color: var(--pm-cyan); }
+.prj-ws .workflow-title:hover { color: #bceff0; }
+.prj-ws .workflow-actions button { border: 1px solid transparent; }
+.prj-ws .workflow-actions button:hover { border-color: rgba(108,190,194,.24); color: #e9ffff; background: rgba(108,190,194,.10); }
+.prj-ws .workflow-actions strong { color: #bceff0; }
+.prj-ws .workflow-empty { border-color: rgba(108,190,194,.24); background: rgba(108,190,194,.04); }
+.prj-ws .prj-pm-workflow-detail > header { border-bottom-color: rgba(108,190,194,.24); }
+.prj-ws .prj-pm-workflow-detail > header p, .prj-ws .prj-pm-workflow-detail__block > strong { color: var(--pm-cyan); }
+.prj-ws .prj-pm-workflow-detail > header span, .prj-ws .prj-pm-workflow-detail__block.is-important { border-color: rgba(108,190,194,.28); background: rgba(108,190,194,.07); }
+
 /* Data-heavy modules: quiet headers and scan-friendly rows. */
 .prj-ws :is(.delivery-dashboard-task__head, .delivery-dashboard-panel > header, .delivery-dashboard-tasks > h2, .deliverables-workspace__file-head, .reports-workspace__date-head, .report-workbench__completed > header, .report-workbench__side header, .issues-workspace__table-title) {
   border-color: var(--pm-border) !important;
