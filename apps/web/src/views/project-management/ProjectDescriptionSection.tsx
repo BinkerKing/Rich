@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type UIEvent } from "react";
 import { FileText, Pencil, Save, X } from "lucide-react";
 import { api, type ProjectDescription } from "../../api/client.js";
 import { Button, ScrollArea } from "../../ui/index.js";
 import { ProjectRichTextEditor } from "./ProjectManagementModules.js";
+
+type DescriptionHeading = { id: string; title: string; level: number };
 
 export function ProjectDescriptionSection({ projectId }: { projectId: string }) {
   const [description, setDescription] = useState<ProjectDescription | null>(null);
@@ -10,6 +12,9 @@ export function ProjectDescriptionSection({ projectId }: { projectId: string }) 
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [headings, setHeadings] = useState<DescriptionHeading[]>([]);
+  const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
+  const documentRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,6 +32,16 @@ export function ProjectDescriptionSection({ projectId }: { projectId: string }) 
       });
     return () => { cancelled = true; };
   }, [projectId]);
+
+  useEffect(() => {
+    const next = Array.from(documentRef.current?.querySelectorAll<HTMLElement>("h1, h2, h3") ?? []).map((heading, index) => {
+      const id = `project-description-heading-${index}`;
+      heading.id = id;
+      return { id, title: heading.textContent?.trim() || `章节 ${index + 1}`, level: Number(heading.tagName.slice(1)) };
+    });
+    setHeadings(next);
+    setActiveHeadingId(next[0]?.id ?? null);
+  }, [description?.html, editing]);
 
   const beginEdit = () => {
     setDraft(description?.html ?? "");
@@ -52,6 +67,11 @@ export function ProjectDescriptionSection({ projectId }: { projectId: string }) 
       setBusy(false);
     }
   };
+  const updateActiveHeading = (_event: UIEvent<HTMLDivElement>) => {
+    const visibleHeadings = Array.from(documentRef.current?.querySelectorAll<HTMLElement>("h1, h2, h3") ?? []);
+    const active = visibleHeadings.reduce<HTMLElement | undefined>((current, heading) => heading.getBoundingClientRect().top <= 144 ? heading : current, undefined) ?? visibleHeadings[0];
+    if (active) setActiveHeadingId(active.id);
+  };
 
   return (
     <div className={`prj-pm-description${editing ? " is-editing" : ""}`}>
@@ -75,11 +95,17 @@ export function ProjectDescriptionSection({ projectId }: { projectId: string }) 
       </header>
 
       {error && <div className="prj-pm-error" role="alert">{error}</div>}
-      <ScrollArea className="prj-pm-description__body">
+      <ScrollArea className="prj-pm-description__body" onScroll={updateActiveHeading}>
         {description === null && !error ? <div className="prj-pm-empty">正在读取项目说明…</div> : editing ? (
           <ProjectRichTextEditor projectId={`${projectId}-description`} value={draft} onChange={setDraft} />
         ) : description?.text ? (
-          <article className="prj-pm-description__document workflow-rich-content" dangerouslySetInnerHTML={{ __html: description.html }} />
+          <div className="prj-pm-description__reading">
+            {headings.length > 0 && <nav className="prj-pm-description__toc" aria-label="项目说明目录">
+              <p>目录</p>
+              {headings.map(heading => <button type="button" key={heading.id} className={activeHeadingId === heading.id ? "is-active" : ""} data-level={heading.level} onClick={() => document.getElementById(heading.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}>{heading.title}</button>)}
+            </nav>}
+            <article ref={documentRef} className="prj-pm-description__document workflow-rich-content" dangerouslySetInnerHTML={{ __html: description.html }} />
+          </div>
         ) : (
           <div className="prj-pm-description__empty">
             <FileText aria-hidden="true" />

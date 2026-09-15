@@ -26,8 +26,15 @@ test("项目说明使用现有富文本编辑器并显式保存或取消", () =>
 test("项目说明使用共享 UI 组件和线性图标统一操作样式", () => {
   assert.match(source, /import \{ Button, ScrollArea \} from "\.\.\/\.\.\/ui\/index\.js"/);
   assert.match(source, /import \{ FileText, Pencil, Save, X \} from "lucide-react"/);
-  assert.match(source, /<ScrollArea className="prj-pm-description__body">/);
+  assert.match(source, /<ScrollArea className="prj-pm-description__body"/);
   assert.match(source, /<Button variant="primary"/);
+});
+
+test("项目说明在阅读态提供跟随正文的章节目录", () => {
+  assert.match(source, /querySelectorAll<HTMLElement>\("h1, h2, h3"\)/);
+  assert.match(source, /aria-label="项目说明目录"/);
+  assert.match(source, /scrollIntoView\(\{ behavior: "smooth", block: "start" \}\)/);
+  assert.match(styles, /\.prj-pm-description__toc\s*\{[^}]*position:\s*sticky/s);
 });
 
 test("项目说明工作区自适应窗口并在内部滚动", () => {
