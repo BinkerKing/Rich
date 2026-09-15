@@ -234,16 +234,20 @@
 .prj-ws .prj-pm-env, .prj-ws .prj-pm-todos { --pm-module-tone: var(--pm-success); --pm-module-line: rgba(121,185,154,.30); --pm-module-soft: rgba(121,185,154,.08); }
 .prj-ws .prj-pm-monitor, .prj-ws .issues-workspace { --pm-module-tone: var(--pm-rose); --pm-module-line: rgba(204,132,157,.30); --pm-module-soft: rgba(204,132,157,.08); }
 
-.prj-ws :is(.delivery > header, .test-center__masthead, .deliverables-workspace > header, .reports-workspace__header, .automation-toolbar, .pfc-list-header, .pfc-project-header, .issues-workspace > header, .prj-pm-code__head, .prj-pm-dict__hero, .prj-pm-scenarios__head, .prj-pm-env__head, .prj-pm-deploy__head, .prj-pm-monitor__head, .prj-pm-todos__head) {
-  box-shadow: inset 2px 0 0 var(--pm-module-tone);
+.prj-ws :is(.prj-pm-workspace-head, .delivery > header, .test-center__masthead, .deliverables-workspace > header, .reports-workspace__header, .automation-toolbar, .pfc-list-header, .pfc-project-header, .issues-workspace > header, .prj-pm-code__head, .prj-pm-dict__hero, .workflow__head, .prj-pm-scenarios__head, .prj-pm-env__head, .prj-pm-deploy__head, .prj-pm-monitor__head, .prj-pm-todos__head) {
+  align-items: center;
+  min-height: 58px;
+  border: 1px solid var(--pm-border);
+  border-radius: var(--pm-radius-panel);
+  padding: 10px 12px;
+  background: var(--pm-surface);
+  box-shadow: none;
 }
-.prj-ws :is(.delivery > header, .test-center__masthead, .deliverables-workspace > header, .reports-workspace__header, .automation-toolbar, .pfc-list-header, .pfc-project-header, .issues-workspace > header, .prj-pm-code__head, .prj-pm-dict__hero, .prj-pm-scenarios__head, .prj-pm-env__head, .prj-pm-deploy__head, .prj-pm-monitor__head, .prj-pm-todos__head) :is(h1, h2, h3, strong:first-child) { color: var(--pm-text); }
-.prj-ws :is(.delivery > header, .test-center__masthead, .deliverables-workspace > header, .reports-workspace__header, .automation-toolbar, .pfc-list-header, .pfc-project-header, .issues-workspace > header, .prj-pm-code__head, .prj-pm-dict__hero, .prj-pm-scenarios__head, .prj-pm-env__head, .prj-pm-deploy__head, .prj-pm-monitor__head, .prj-pm-todos__head) :is(svg, [aria-hidden="true"]) { color: var(--pm-module-tone); }
+.prj-ws :is(.prj-pm-workspace-head, .delivery > header, .test-center__masthead, .deliverables-workspace > header, .reports-workspace__header, .automation-toolbar, .pfc-list-header, .pfc-project-header, .issues-workspace > header, .prj-pm-code__head, .prj-pm-dict__hero, .workflow__head, .prj-pm-scenarios__head, .prj-pm-env__head, .prj-pm-deploy__head, .prj-pm-monitor__head, .prj-pm-todos__head) :is(h1, h2, h3, strong:first-child) { color: var(--pm-text); font-size: 18px; font-weight: 600; line-height: 1.35; letter-spacing: -.015em; }
+.prj-ws :is(.prj-pm-workspace-head, .delivery > header, .test-center__masthead, .deliverables-workspace > header, .reports-workspace__header, .automation-toolbar, .pfc-list-header, .pfc-project-header, .issues-workspace > header, .prj-pm-code__head, .prj-pm-dict__hero, .workflow__head, .prj-pm-scenarios__head, .prj-pm-env__head, .prj-pm-deploy__head, .prj-pm-monitor__head, .prj-pm-todos__head) :is(p, small, span) { color: var(--pm-text-secondary); font-size: 12px; line-height: 1.45; }
+.prj-ws :is(.prj-pm-workspace-head, .delivery > header, .test-center__masthead, .deliverables-workspace > header, .reports-workspace__header, .automation-toolbar, .pfc-list-header, .pfc-project-header, .issues-workspace > header, .prj-pm-code__head, .prj-pm-dict__hero, .workflow__head, .prj-pm-scenarios__head, .prj-pm-env__head, .prj-pm-deploy__head, .prj-pm-monitor__head, .prj-pm-todos__head) :is(svg, [aria-hidden="true"]) { color: var(--pm-module-tone); }
 .prj-ws :is(.delivery-dashboard-panel > header, .delivery-dashboard-tasks > h2, .deliverables-workspace__file-head, .reports-workspace__date-head, .issues-workspace__table-title, .test-center__scene-head) { border-left: 2px solid var(--pm-module-tone) !important; }
 
-.prj-ws .deliverables-workspace > header { min-height: 48px; padding-left: 10px; }
-.prj-ws .deliverables-workspace > header h1 { color: #fff !important; font-size: 20px; font-weight: 600; line-height: 1.3; letter-spacing: -.02em; }
-.prj-ws .deliverables-workspace > header p { color: var(--pm-text-secondary); font-size: 12px; line-height: 1.45; }
 
 .prj-ws .deliverables-workspace :is(.deliverables-workspace__list-index, .deliverables-workspace__title-action svg, .deliverables-workspace__attachment-link, .deliverables-workspace__binding-index) { color: var(--pm-module-tone); }
 .prj-ws .reports-workspace :is(.reports-workspace__row em, .report-workbench__eyebrow, .reports-workspace__detail-action svg) { color: var(--pm-module-tone); }

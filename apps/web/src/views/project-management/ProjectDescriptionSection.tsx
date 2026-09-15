@@ -76,6 +76,7 @@ export function ProjectDescriptionSection({ projectId }: { projectId: string }) 
   return (
     <div className={`prj-pm-description${editing ? " is-editing" : ""}`}>
       <PageHeader
+        className="prj-pm-workspace-head"
         icon={<FileText aria-hidden="true" />}
         title="项目说明"
         description="记录项目背景、架构、运行方式和重要约束，供项目成员与 AI 快速了解上下文。"
