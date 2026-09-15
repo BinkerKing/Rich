@@ -234,6 +234,13 @@
 .prj-ws .prj-pm-env, .prj-ws .prj-pm-todos { --pm-module-tone: var(--pm-success); --pm-module-line: rgba(121,185,154,.30); --pm-module-soft: rgba(121,185,154,.08); }
 .prj-ws .prj-pm-monitor, .prj-ws .issues-workspace { --pm-module-tone: var(--pm-rose); --pm-module-line: rgba(204,132,157,.30); --pm-module-soft: rgba(204,132,157,.08); }
 
+/* Monitoring uses the same fixed-height workspace rhythm as the adjacent project modules. */
+.prj-ws .prj-pm-monitor { height: 100%; min-height: 0; overflow: hidden; }
+.prj-ws .prj-pm-monitor__head-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 12px; margin-left: auto; }
+.prj-ws .prj-pm-monitor__actions { display: flex; align-items: center; gap: 8px; }
+.prj-ws .prj-pm-monitor__layout { flex: 1 1 auto; min-height: 0; }
+.prj-ws .prj-pm-monitor :is(.prj-pm-monitor__menu, .prj-pm-monitor__detail) { min-height: 0; }
+
 .prj-ws :is(.prj-pm-workspace-head, .delivery > header, .test-center__masthead, .deliverables-workspace > header, .reports-workspace__header, .automation-toolbar, .pfc-list-header, .pfc-project-header, .issues-workspace > header, .prj-pm-code__head, .prj-pm-dict__hero, .workflow__head, .prj-pm-scenarios__head, .prj-pm-env__head, .prj-pm-deploy__head, .prj-pm-monitor__head, .prj-pm-todos__head) {
   align-items: center;
   min-height: 58px;

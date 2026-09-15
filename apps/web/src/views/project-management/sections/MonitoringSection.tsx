@@ -114,19 +114,20 @@ export function MonitoringSection({ project, summary }: { project: Element; summ
           <Activity aria-hidden="true" />
           <div><h3>监控预警</h3><p>把任务状态、异常预警、资源风险、启停检查沉淀成可追踪的运行保障清单。</p></div>
         </div>
-        <div className="prj-pm-monitor__stats">
-          <span><b>{count}</b>分组</span>
-          <span><b>{itemCount}</b>事项</span>
+        <div className="prj-pm-monitor__head-actions">
+          <div className="prj-pm-monitor__actions">
+            <button type="button" className="prj-btn-primary" onClick={() => void createSection()} disabled={busy}>新增分组</button>
+            {selected && !editing && <button type="button" className="prj-btn-link" onClick={() => beginEdit(selected)}>编辑当前分组</button>}
+            {selected && editing && <button type="button" className="prj-btn-link prj-btn-danger" onClick={() => void deleteSection()} disabled={busy}>删除当前分组</button>}
+          </div>
+          <div className="prj-pm-monitor__stats">
+            <span><b>{count}</b>分组</span>
+            <span><b>{itemCount}</b>事项</span>
+          </div>
         </div>
       </section>
 
       {error && <div className="prj-pm-error">{error}</div>}
-
-      <div className="prj-pm-monitor__actions">
-        <button type="button" className="prj-btn-primary" onClick={() => void createSection()} disabled={busy}>新增分组</button>
-        {selected && !editing && <button type="button" className="prj-btn-link" onClick={() => beginEdit(selected)}>编辑当前分组</button>}
-        {selected && editing && <button type="button" className="prj-btn-link prj-btn-danger" onClick={() => void deleteSection()} disabled={busy}>删除当前分组</button>}
-      </div>
 
       <div className="prj-pm-monitor__layout">
         <aside className="prj-pm-panel prj-pm-monitor__menu">

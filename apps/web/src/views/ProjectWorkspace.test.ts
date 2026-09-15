@@ -5,9 +5,11 @@ import test from "node:test";
 const styles = readFileSync(new URL("./ProjectsView.css", import.meta.url), "utf8");
 const workspace = readFileSync(new URL("./ProjectWorkspace.tsx", import.meta.url), "utf8");
 const workflow = readFileSync(new URL("./project-management/sections/WorkflowSection.tsx", import.meta.url), "utf8");
+const monitoring = readFileSync(new URL("./project-management/sections/MonitoringSection.tsx", import.meta.url), "utf8");
 const scenarios = readFileSync(new URL("./project-management/sections/ScenariosSection.tsx", import.meta.url), "utf8");
 const environments = readFileSync(new URL("./project-management/sections/EnvironmentsSection.tsx", import.meta.url), "utf8");
 const deployment = readFileSync(new URL("./project-management/sections/DeploymentStepsSection.tsx", import.meta.url), "utf8");
+const projectManagementStyles = readFileSync(new URL("./project-management/ProjectManagementLinear.css", import.meta.url), "utf8");
 
 test("项目菜单设置按钮与标题行保持紧凑一致", () => {
   assert.match(
@@ -56,6 +58,14 @@ test("项目管理各模块的标题操作区采用统一紧凑行距", () => {
   assert.match(styles, /\.prj-ws \.delivery__header\s*\{[^}]*min-height:42px[^}]*margin-bottom:8px/s);
   assert.match(styles, /\.prj-ws \.prj-pm-description__head\s*\{[^}]*min-height:58px[^}]*padding:8px 0 16px/s);
   assert.match(styles, /\.prj-ws :is\(\.prj-pm-dict__hero,[^}]*min-height:58px[^}]*padding:10px 12px/s);
+});
+
+test("监控预警将分组操作收拢到标题栏，并让下方工作区占满剩余高度", () => {
+  assert.match(monitoring, /<div className="prj-pm-monitor__head-actions">[\s\S]*prj-pm-monitor__actions[\s\S]*prj-pm-monitor__stats/s);
+  assert.doesNotMatch(monitoring, /<\/section>\s*\{error[\s\S]*<div className="prj-pm-monitor__actions">/);
+  assert.match(projectManagementStyles, /\.prj-ws \.prj-pm-monitor\s*\{[^}]*height:\s*100%[^}]*min-height:\s*0[^}]*overflow:\s*hidden/s);
+  assert.match(projectManagementStyles, /\.prj-ws \.prj-pm-monitor__layout\s*\{[^}]*flex:\s*1 1 auto[^}]*min-height:\s*0/s);
+  assert.match(projectManagementStyles, /\.prj-ws \.prj-pm-monitor__head-actions\s*\{[^}]*align-items:\s*center/s);
 });
 
 test("交付物与报告的标题头行压缩纵向高度", () => {
