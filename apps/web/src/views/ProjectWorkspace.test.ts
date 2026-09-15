@@ -81,6 +81,13 @@ test("项目菜单首次展示时完整显示最左侧菜单项", () => {
   assert.match(workspace, /<nav ref=\{menuNavRef\}/);
 });
 
+test("项目菜单仅在对应模块没有信息时使用未配置灰色状态", () => {
+  assert.match(workspace, /const itemCount = summary\.modules\.find\(module => module\.key === sectionId\)\?\.count \?\? 0/);
+  assert.match(workspace, /sectionId === "flowcharts"\) return itemCount === 0 && \(c\.flowchartIds\?\.length \?\? 0\) === 0/);
+  assert.match(workspace, /sectionId === "deliverables"\) return itemCount === 0 && \(c\.deliverableIds\?\.length \?\? 0\) === 0/);
+  assert.match(workspace, /return itemCount === 0/);
+});
+
 test("作业流程采用明亮文字、线条图标与透明描边操作", () => {
   assert.match(workflow, /import \{ GitBranch, Plus \} from "lucide-react"/);
   assert.match(workflow, /import \{ Button \} from "\.\.\/\.\.\/\.\.\/ui\/index\.js"/);

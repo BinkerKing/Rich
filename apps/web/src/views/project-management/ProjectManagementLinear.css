@@ -86,7 +86,7 @@
 .prj-ws__menu-panel label:hover, .prj-ws__menu-panel > button:hover { color: var(--pm-text); background: var(--pm-surface-hover); }
 .prj-ws__menu-panel > button { border: 1px solid var(--pm-border); border-radius: var(--pm-radius-control); color: var(--pm-text-secondary); background: var(--pm-surface); }
 .prj-ws__nav { gap: 4px; min-height: 54px; }
-.prj-ws__nav-btn { width: 68px; min-width: 68px; height: 50px; grid-template-rows: 27px 13px; gap: 1px; border-radius: var(--pm-radius-control); color: var(--pm-text-muted); font-size: 11px; transition: color var(--pm-transition), background var(--pm-transition), border-color var(--pm-transition); }
+.prj-ws__nav-btn { width: 68px; min-width: 68px; height: 50px; grid-template-rows: 27px 13px; gap: 1px; border-radius: var(--pm-radius-control); color: var(--nav-tone); font-size: 11px; transition: color var(--pm-transition), background var(--pm-transition), border-color var(--pm-transition); }
 .prj-ws__nav-btn[data-section] { --nav-tone: var(--pm-text-muted); --nav-soft: rgba(255,255,255,.04); --nav-line: var(--pm-border); --nav-glow: transparent; }
 .prj-ws__nav-btn[data-section="dashboard"] { --nav-tone: var(--pm-cyan); --nav-soft: rgba(108,190,194,.12); --nav-line: rgba(108,190,194,.30); }
 .prj-ws__nav-btn[data-section="description"] { --nav-tone: #a9a9ee; --nav-soft: rgba(169,169,238,.12); --nav-line: rgba(169,169,238,.30); }
@@ -99,13 +99,13 @@
 .prj-ws__nav-btn[data-section="environments"], .prj-ws__nav-btn[data-section="todos"] { --nav-tone: var(--pm-success); --nav-soft: rgba(121,185,154,.12); --nav-line: rgba(121,185,154,.30); }
 .prj-ws__nav-btn[data-section="monitoring"], .prj-ws__nav-btn[data-section="issues"] { --nav-tone: var(--pm-rose); --nav-soft: rgba(204,132,157,.12); --nav-line: rgba(204,132,157,.30); }
 .prj-ws__nav-btn[data-section="codeVersions"] { --nav-tone: var(--pm-violet); --nav-soft: rgba(167,139,212,.12); --nav-line: rgba(167,139,212,.30); }
-.prj-ws__nav-btn:hover { border-color: var(--nav-line); color: var(--pm-text-secondary); background: var(--nav-soft); }
-.prj-ws__nav-btn.is-active { border-color: var(--nav-line); color: var(--pm-text); background: var(--nav-soft); }
+.prj-ws__nav-btn:hover { border-color: var(--nav-line); color: var(--nav-tone); background: var(--nav-soft); }
+.prj-ws__nav-btn.is-active { border-color: var(--nav-line); color: var(--nav-tone); background: var(--nav-soft); }
 .prj-ws__nav-icon { width: 26px; height: 26px; color: inherit; }
 .prj-ws__nav-icon svg { width: 20px; height: 20px; stroke-width: 1.7; }
 .prj-ws__nav-btn:hover .prj-ws__nav-icon, .prj-ws__nav-btn.is-active .prj-ws__nav-icon { color: inherit; }
 .prj-ws__nav-label, .prj-ws__nav-btn:hover .prj-ws__nav-label { color: inherit; font-weight: 500; }
-.prj-ws__nav-btn.is-active .prj-ws__nav-label { color: var(--pm-text); font-weight: 600; }
+.prj-ws__nav-btn.is-active .prj-ws__nav-label { color: inherit; font-weight: 600; }
 .prj-ws__nav-btn.is-unconfigured, .prj-ws__nav-btn.is-unconfigured:hover, .prj-ws__nav-btn.is-unconfigured.is-active { color: var(--pm-text-muted); background: transparent; border-color: transparent; }
 
 /* Shared compact controls, cards and data surfaces. */

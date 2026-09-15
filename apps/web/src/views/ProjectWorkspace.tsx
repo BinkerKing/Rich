@@ -43,10 +43,6 @@ type ProjectMenuConfig = {
   searchVisible: boolean;
 };
 
-const EMPTY_STATE_SECTIONS = new Set<ProjectManagementSection>([
-  "workflow", "scenarios", "environments", "deploymentSteps", "monitoring", "codeVersions",
-]);
-
 function ProjectMenuIcon({ section }: { section: ProjectMenuIconName }): ReactNode {
   let artwork: ReactNode;
   switch (section) {
@@ -293,12 +289,12 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   };
   const isUnconfigured = (sectionId: ProjectManagementSection) => {
     if (!summary) return false;
-    if (sectionId === "dictionary") {
-      const { systems, tables, fields } = summary.dictionary;
-      return systems === 0 && tables === 0 && fields === 0;
-    }
-    return EMPTY_STATE_SECTIONS.has(sectionId)
-      && (summary.modules.find(module => module.key === sectionId)?.count ?? 0) === 0;
+    const itemCount = summary.modules.find(module => module.key === sectionId)?.count ?? 0;
+    if (sectionId === "dashboard") return summary.modules.every(module => module.count === 0) && (c.flowchartIds?.length ?? 0) === 0;
+    if (sectionId === "flowcharts") return itemCount === 0 && (c.flowchartIds?.length ?? 0) === 0;
+    if (sectionId === "deliverables") return itemCount === 0 && (c.deliverableIds?.length ?? 0) === 0;
+    if (sectionId === "folder") return itemCount === 0 && !c.localFolder?.trim();
+    return itemCount === 0;
   };
 
   return (
