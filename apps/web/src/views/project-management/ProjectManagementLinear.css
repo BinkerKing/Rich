@@ -251,6 +251,20 @@
 .prj-ws .prj-pm-workspace-head__identity > div { min-width: 0; }
 .prj-ws .prj-pm-workspace-head__identity :is(h1, h2, h3) { margin: 0; }
 .prj-ws .prj-pm-workspace-head__identity p { margin: 3px 0 0; }
+.prj-ws .delivery :is(.delivery-gantt-split__toggle, .delivery-gantt-split__milestone-toggle, .delivery-gantt-split__risk-toggle) {
+  display: grid;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent !important;
+  line-height: 1;
+}
 .prj-ws :is(.delivery-dashboard-panel > header, .delivery-dashboard-tasks > h2, .deliverables-workspace__file-head, .reports-workspace__date-head, .issues-workspace__table-title, .test-center__scene-head) { border-left: 2px solid var(--pm-module-tone) !important; }
 
 
