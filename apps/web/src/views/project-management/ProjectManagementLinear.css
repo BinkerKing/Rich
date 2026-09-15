@@ -295,6 +295,31 @@
 .prj-ws .delivery-kpi.is-red strong, .prj-ws .report-workbench__kpis .is-risk b { color: var(--pm-danger); }
 .prj-ws :is(.delivery-kpi span, .delivery-kpi small, .report-workbench__kpis span, .delivery-dashboard-empty, .reports-workspace__empty) { color: var(--pm-text-muted); }
 
+/* Report center: the calendar and report list are peer surfaces, not competing cards. */
+.prj-ws .reports-workspace { padding: var(--pm-space-3); color: var(--pm-text); background: var(--pm-canvas) !important; }
+.prj-ws .reports-workspace__header { gap: var(--pm-space-3); }
+.prj-ws .reports-workspace__header p { margin: 3px 0 0; color: var(--pm-text-secondary); font-size: 12px; font-weight: 400; letter-spacing: 0; }
+.prj-ws .reports-workspace__layout { gap: var(--pm-space-3); margin-top: var(--pm-space-3); }
+.prj-ws :is(.reports-calendar, .reports-workspace__list) { border: 1px solid var(--pm-border) !important; border-radius: var(--pm-radius-panel); background: var(--pm-surface) !important; box-shadow: none !important; }
+.prj-ws .reports-calendar { padding: var(--pm-space-3); }
+.prj-ws .reports-calendar header { margin-bottom: var(--pm-space-3); padding-bottom: var(--pm-space-3); border-bottom: 1px solid var(--pm-border); }
+.prj-ws .reports-calendar header strong { color: var(--pm-text); font-size: 16px; }
+.prj-ws .reports-calendar header button { width: 28px; height: 28px; border: 1px solid var(--pm-border) !important; border-radius: var(--pm-radius-control); color: var(--pm-text-secondary) !important; background: var(--pm-surface-raised) !important; font-size: 20px; }
+.prj-ws .reports-calendar header button:hover { border-color: var(--pm-border-strong) !important; color: var(--pm-text) !important; background: var(--pm-surface-hover) !important; }
+.prj-ws .reports-calendar__week { margin-bottom: var(--pm-space-2); color: var(--pm-text-muted) !important; }
+.prj-ws .reports-calendar__days button { height: 40px; border: 1px solid transparent; border-radius: var(--pm-radius-control); color: var(--pm-text-secondary) !important; }
+.prj-ws .reports-calendar__days button:hover { outline: 0; border-color: var(--pm-border); background: var(--pm-surface-hover) !important; }
+.prj-ws .reports-calendar__days button.is-selected { border-color: var(--pm-module-line) !important; color: var(--pm-text) !important; background: var(--pm-module-soft) !important; box-shadow: none; }
+.prj-ws .reports-calendar__days button.is-outside { color: var(--pm-text-muted) !important; opacity: .58; }
+.prj-ws .reports-calendar__days i { background: var(--pm-module-tone) !important; }
+.prj-ws .reports-calendar footer { padding-top: var(--pm-space-3); border-top-color: var(--pm-border) !important; color: var(--pm-text-muted) !important; }
+.prj-ws .reports-calendar footer b { color: var(--pm-text-secondary) !important; }
+.prj-ws .reports-workspace__date-head { margin: 0 !important; padding: var(--pm-space-3); border-bottom: 1px solid var(--pm-border) !important; border-left: 0 !important; background: var(--pm-surface-raised) !important; }
+.prj-ws .reports-workspace__date-head h2 { color: var(--pm-text) !important; font-size: 18px; }
+.prj-ws .reports-workspace__date-head span { color: var(--pm-module-tone) !important; }
+.prj-ws .reports-workspace__report-list article { border-bottom-color: var(--pm-border-soft) !important; }
+.prj-ws .reports-workspace__empty { color: var(--pm-text-muted) !important; }
+
 /* Project list follows the same system without changing its card grid. */
 .prj { background: var(--pm-canvas); }
 .prj__title { color: var(--pm-text); font-size: 22px; letter-spacing: -.02em; }
