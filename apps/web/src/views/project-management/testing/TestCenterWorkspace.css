@@ -385,11 +385,15 @@
 .prj-ws .test-case-execution__meta span:nth-child(2) { border-color:rgba(212,169,106,.42)!important; color:var(--pm-amber)!important; background:rgba(212,169,106,.09)!important; }
 .prj-ws .test-case-execution__meta span:nth-child(3) { border-color:rgba(117,167,232,.42)!important; color:var(--pm-blue)!important; background:rgba(117,167,232,.09)!important; }
 .prj-ws .test-case-execution__meta span:nth-child(4) { border-color:rgba(167,139,212,.42)!important; color:var(--pm-violet)!important; background:rgba(167,139,212,.09)!important; }
-.prj-ws .test-case-module { --test-panel-tone:var(--pm-module-tone); --test-panel-line:var(--pm-module-line); --test-panel-soft:var(--pm-module-soft); border-color:var(--test-panel-line)!important; }
+.prj-ws .test-case-module { --test-panel-tone:var(--pm-module-tone); --test-panel-line:var(--pm-module-line); --test-panel-soft:var(--pm-module-soft); border-color:var(--test-panel-line)!important; background:var(--pm-surface)!important; }
 .prj-ws .test-case-module--steps { --test-panel-tone:var(--pm-blue); --test-panel-line:rgba(117,167,232,.34); --test-panel-soft:rgba(117,167,232,.09); }
 .prj-ws .test-case-module--issues { --test-panel-tone:var(--pm-danger); --test-panel-line:rgba(240,139,149,.34); --test-panel-soft:rgba(240,139,149,.09); }
 .prj-ws .test-case-module--evidence { --test-panel-tone:var(--pm-amber); --test-panel-line:rgba(212,169,106,.34); --test-panel-soft:rgba(212,169,106,.09); }
 .prj-ws .test-case-module--comments { --test-panel-tone:var(--pm-violet); --test-panel-line:rgba(167,139,212,.34); --test-panel-soft:rgba(167,139,212,.09); }
-.prj-ws .test-case-module h3 { border-left:2px solid var(--test-panel-tone)!important; color:var(--pm-text)!important; background:var(--test-panel-soft); }
+.prj-ws .test-case-module h3 { border-left:2px solid var(--test-panel-tone)!important; color:var(--pm-text)!important; background:var(--test-panel-soft)!important; }
 .prj-ws .test-case-module h3 b { color:var(--test-panel-tone)!important; background:transparent!important; }
 .prj-ws .test-case-module p em { color:var(--pm-canvas)!important; background:var(--test-panel-tone)!important; }
+.prj-ws .test-case-module--comments .test-case-activity__header { border-bottom-color:var(--test-panel-line)!important; background:var(--test-panel-soft)!important; }
+.prj-ws .test-case-module--comments .delivery-dashboard-activity > div { border:1px solid var(--test-panel-line)!important; border-radius:var(--pm-radius-control); background:var(--pm-surface-raised)!important; box-shadow:none!important; }
+.prj-ws .test-case-module--comments .delivery-dashboard-activity > i { background:var(--test-panel-tone)!important; }
+.prj-ws .test-case-module--comments .delivery-dashboard-activity:not(:last-of-type) > i::after { background:var(--test-panel-line)!important; }
