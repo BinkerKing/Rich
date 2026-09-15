@@ -236,8 +236,17 @@
 
 /* Monitoring uses the same fixed-height workspace rhythm as the adjacent project modules. */
 .prj-ws .prj-pm-monitor { height: 100%; min-height: 0; overflow: hidden; }
-.prj-ws .prj-pm-monitor__head-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 12px; margin-left: auto; }
-.prj-ws .prj-pm-monitor__actions { display: flex; align-items: center; gap: 8px; }
+.prj-ws .prj-pm-monitor__head-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 14px; margin-left: auto; }
+.prj-ws .prj-pm-monitor__stats { display:flex; align-items:baseline; gap:0; background:transparent!important; border:0!important; }
+.prj-ws .prj-pm-monitor__stats span { display:flex; align-items:baseline; gap:5px; min-width:auto; padding:0 12px; border:0!important; border-right:1px solid var(--pm-border)!important; border-radius:0!important; color:var(--pm-text-muted)!important; background:transparent!important; font-size:11px; }
+.prj-ws .prj-pm-monitor__stats span:first-child { padding-left:0; }
+.prj-ws .prj-pm-monitor__stats span:last-child { padding-right:0; border-right:0!important; }
+.prj-ws .prj-pm-monitor__stats b { display:inline; margin:0!important; color:var(--pm-module-tone)!important; font:600 19px/1 ui-monospace,SFMono-Regular,Menlo,monospace!important; }
+.prj-ws .prj-pm-monitor__actions { display: flex; align-items: center; gap: 6px; padding-left:14px; border-left:1px solid var(--pm-border); }
+.prj-ws .prj-pm-monitor__actions :is(.prj-btn-primary,.prj-btn-link) { min-height:30px; padding:0 10px; border:1px solid var(--pm-border-strong)!important; border-radius:var(--pm-radius-control)!important; color:var(--pm-text-secondary)!important; background:transparent!important; font-size:12px; font-weight:500; }
+.prj-ws .prj-pm-monitor__actions .prj-btn-primary { border-color:var(--pm-module-line)!important; color:var(--pm-module-tone)!important; background:var(--pm-module-soft)!important; }
+.prj-ws .prj-pm-monitor__actions :is(.prj-btn-primary,.prj-btn-link):hover:not(:disabled) { border-color:var(--pm-module-tone)!important; color:var(--pm-text)!important; background:var(--pm-surface-hover)!important; }
+.prj-ws .prj-pm-monitor__actions .prj-btn-danger { color:var(--pm-danger)!important; }
 .prj-ws .prj-pm-monitor__layout { flex: 1 1 auto; min-height: 0; }
 .prj-ws .prj-pm-monitor :is(.prj-pm-monitor__menu, .prj-pm-monitor__detail) { min-height: 0; }
 

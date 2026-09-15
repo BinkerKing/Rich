@@ -60,12 +60,14 @@ test("项目管理各模块的标题操作区采用统一紧凑行距", () => {
   assert.match(styles, /\.prj-ws :is\(\.prj-pm-dict__hero,[^}]*min-height:58px[^}]*padding:10px 12px/s);
 });
 
-test("监控预警将分组操作收拢到标题栏，并让下方工作区占满剩余高度", () => {
-  assert.match(monitoring, /<div className="prj-pm-monitor__head-actions">[\s\S]*prj-pm-monitor__actions[\s\S]*prj-pm-monitor__stats/s);
+test("监控预警将统计置于标题栏前侧、分组操作收拢在后侧，并让下方工作区占满剩余高度", () => {
+  assert.match(monitoring, /<div className="prj-pm-monitor__head-actions">[\s\S]*prj-pm-monitor__stats[\s\S]*prj-pm-monitor__actions/s);
   assert.doesNotMatch(monitoring, /<\/section>\s*\{error[\s\S]*<div className="prj-pm-monitor__actions">/);
   assert.match(projectManagementStyles, /\.prj-ws \.prj-pm-monitor\s*\{[^}]*height:\s*100%[^}]*min-height:\s*0[^}]*overflow:\s*hidden/s);
   assert.match(projectManagementStyles, /\.prj-ws \.prj-pm-monitor__layout\s*\{[^}]*flex:\s*1 1 auto[^}]*min-height:\s*0/s);
   assert.match(projectManagementStyles, /\.prj-ws \.prj-pm-monitor__head-actions\s*\{[^}]*align-items:\s*center/s);
+  assert.match(projectManagementStyles, /\.prj-ws \.prj-pm-monitor__stats\s*\{[^}]*background:transparent!important[^}]*border:0!important/s);
+  assert.match(projectManagementStyles, /\.prj-ws \.prj-pm-monitor__actions\s*\{[^}]*border-left:1px solid var\(--pm-border\)/s);
 });
 
 test("环境上下文标题在窄宽下保持横向可达，而不裁切标题", () => {
