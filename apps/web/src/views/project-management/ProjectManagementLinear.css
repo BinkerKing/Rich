@@ -21,6 +21,11 @@
   --pm-accent-hover: #9b9df0;
   --pm-accent-soft: rgba(139, 142, 232, .13);
   --pm-accent-line: rgba(139, 142, 232, .38);
+  --pm-blue: #75a7e8;
+  --pm-cyan: #6cbec2;
+  --pm-violet: #a78bd4;
+  --pm-amber: #d4a96a;
+  --pm-rose: #cc849d;
   --pm-success: #79b99a;
   --pm-warning: #c7a66b;
   --pm-danger: #cf7d87;
@@ -82,9 +87,20 @@
 .prj-ws__menu-panel > button { border: 1px solid var(--pm-border); border-radius: var(--pm-radius-control); color: var(--pm-text-secondary); background: var(--pm-surface); }
 .prj-ws__nav { gap: 4px; min-height: 54px; }
 .prj-ws__nav-btn { width: 68px; min-width: 68px; height: 50px; grid-template-rows: 27px 13px; gap: 1px; border-radius: var(--pm-radius-control); color: var(--pm-text-muted); font-size: 11px; transition: color var(--pm-transition), background var(--pm-transition), border-color var(--pm-transition); }
-.prj-ws__nav-btn[data-section] { --nav-tone: var(--pm-text-muted); --nav-glow: transparent; }
-.prj-ws__nav-btn:hover { border-color: var(--pm-border); color: var(--pm-text-secondary); background: var(--pm-surface); }
-.prj-ws__nav-btn.is-active { border-color: rgba(139,142,232,.32); color: var(--pm-text); background: var(--pm-accent-soft); }
+.prj-ws__nav-btn[data-section] { --nav-tone: var(--pm-text-muted); --nav-soft: rgba(255,255,255,.04); --nav-line: var(--pm-border); --nav-glow: transparent; }
+.prj-ws__nav-btn[data-section="dashboard"] { --nav-tone: var(--pm-cyan); --nav-soft: rgba(108,190,194,.12); --nav-line: rgba(108,190,194,.30); }
+.prj-ws__nav-btn[data-section="description"] { --nav-tone: #a9a9ee; --nav-soft: rgba(169,169,238,.12); --nav-line: rgba(169,169,238,.30); }
+.prj-ws__nav-btn[data-section="deliveryPlan"] { --nav-tone: var(--pm-blue); --nav-soft: rgba(117,167,232,.12); --nav-line: rgba(117,167,232,.30); }
+.prj-ws__nav-btn[data-section="deliverables"] { --nav-tone: var(--pm-violet); --nav-soft: rgba(167,139,212,.12); --nav-line: rgba(167,139,212,.30); }
+.prj-ws__nav-btn[data-section="reports"] { --nav-tone: var(--pm-amber); --nav-soft: rgba(212,169,106,.12); --nav-line: rgba(212,169,106,.30); }
+.prj-ws__nav-btn[data-section="dictionary"], .prj-ws__nav-btn[data-section="workflow"] { --nav-tone: var(--pm-cyan); --nav-soft: rgba(108,190,194,.12); --nav-line: rgba(108,190,194,.30); }
+.prj-ws__nav-btn[data-section="automation"], .prj-ws__nav-btn[data-section="flowcharts"] { --nav-tone: var(--pm-blue); --nav-soft: rgba(117,167,232,.12); --nav-line: rgba(117,167,232,.30); }
+.prj-ws__nav-btn[data-section="scenarios"], .prj-ws__nav-btn[data-section="deploymentSteps"] { --nav-tone: var(--pm-amber); --nav-soft: rgba(212,169,106,.12); --nav-line: rgba(212,169,106,.30); }
+.prj-ws__nav-btn[data-section="environments"], .prj-ws__nav-btn[data-section="todos"] { --nav-tone: var(--pm-success); --nav-soft: rgba(121,185,154,.12); --nav-line: rgba(121,185,154,.30); }
+.prj-ws__nav-btn[data-section="monitoring"], .prj-ws__nav-btn[data-section="issues"] { --nav-tone: var(--pm-rose); --nav-soft: rgba(204,132,157,.12); --nav-line: rgba(204,132,157,.30); }
+.prj-ws__nav-btn[data-section="codeVersions"] { --nav-tone: var(--pm-violet); --nav-soft: rgba(167,139,212,.12); --nav-line: rgba(167,139,212,.30); }
+.prj-ws__nav-btn:hover { border-color: var(--nav-line); color: var(--pm-text-secondary); background: var(--nav-soft); }
+.prj-ws__nav-btn.is-active { border-color: var(--nav-line); color: var(--pm-text); background: var(--nav-soft); }
 .prj-ws__nav-icon { width: 26px; height: 26px; color: inherit; }
 .prj-ws__nav-icon svg { width: 20px; height: 20px; stroke-width: 1.7; }
 .prj-ws__nav-btn:hover .prj-ws__nav-icon, .prj-ws__nav-btn.is-active .prj-ws__nav-icon { color: inherit; }
@@ -110,6 +126,11 @@
   box-shadow: none;
 }
 .prj-ws :is(.prj-pm-dict__stats b, .prj-pm-shell__meta b, .prj-pm-workflow__count b, .prj-pm-todos__stats b, .prj-pm-code__stats b, .prj-pm-monitor__stats b, .prj-pm-deploy__stats b, .prj-pm-env__stats b, .prj-pm-scenarios__stats b) { color: var(--pm-text); font-size: 20px; font-weight: 600; text-shadow: none; }
+.prj-ws .prj-pm-dict__stats b, .prj-ws .prj-pm-workflow__count b { color: var(--pm-cyan); }
+.prj-ws .prj-pm-scenarios__stats b, .prj-ws .prj-pm-code__stats b { color: var(--pm-blue); }
+.prj-ws .prj-pm-env__stats b, .prj-ws .prj-pm-todos__stats b { color: var(--pm-success); }
+.prj-ws .prj-pm-deploy__stats b { color: var(--pm-amber); }
+.prj-ws .prj-pm-monitor__stats b { color: var(--pm-rose); }
 .prj-ws :is(.prj-pm-workflow__list button, .prj-pm-scenarios__group, .prj-pm-scenarios__scene-list button, .prj-pm-env__tabs button, .prj-pm-deploy__releases button, .deliverables-workspace__row, .reports-workspace__row, .issues-workspace__list > button) {
   border-color: var(--pm-border) !important;
   border-radius: var(--pm-radius-control);
@@ -169,14 +190,18 @@
 .prj-ws :is(.delivery-dashboard-activity header b, .reports-workspace__row em, .delivery-activity-kind-chip) { border: 1px solid var(--pm-border); border-radius: 4px; color: var(--pm-text-secondary); background: rgba(255,255,255,.03); font-weight: 500; }
 .prj-ws :is(.delivery-kpi, .report-workbench__kpis) { border-color: var(--pm-border) !important; background: var(--pm-surface) !important; }
 .prj-ws :is(.delivery-kpi strong, .report-workbench__kpis b) { color: var(--pm-text); font-weight: 600; }
+.prj-ws .delivery-kpi.is-blue strong, .prj-ws .report-workbench__kpis .is-active b { color: var(--pm-blue); }
+.prj-ws .delivery-kpi.is-teal strong, .prj-ws .report-workbench__kpis .is-done b, .prj-ws .report-workbench__kpis .is-clear b { color: var(--pm-success); }
+.prj-ws .delivery-kpi.is-amber strong, .prj-ws .report-workbench__kpis .is-progress b { color: var(--pm-amber); }
+.prj-ws .delivery-kpi.is-red strong, .prj-ws .report-workbench__kpis .is-risk b { color: var(--pm-danger); }
 .prj-ws :is(.delivery-kpi span, .delivery-kpi small, .report-workbench__kpis span, .delivery-dashboard-empty, .reports-workspace__empty) { color: var(--pm-text-muted); }
 
 /* Project list follows the same system without changing its card grid. */
 .prj { background: var(--pm-canvas); }
 .prj__title { color: var(--pm-text); font-size: 22px; letter-spacing: -.02em; }
 .prj__sub, .prj-card__owner { color: var(--pm-text-muted); }
-.prj-card { border-color: var(--pm-border); border-radius: var(--pm-radius-panel); background: var(--pm-surface); box-shadow: none; }
-.prj-card:hover { border-color: var(--pm-border-strong); background: var(--pm-surface-hover); }
+.prj-card { border-color: var(--pm-border); border-radius: var(--pm-radius-panel); background: linear-gradient(135deg, rgba(139,142,232,.06), transparent 42%), var(--pm-surface); box-shadow: none; }
+.prj-card:hover { border-color: rgba(139,142,232,.38); background: linear-gradient(135deg, rgba(139,142,232,.11), transparent 46%), var(--pm-surface-hover); }
 .prj-card__name { color: var(--pm-text); font-weight: 500; }
 .prj-card__desc, .prj-card__stat { color: var(--pm-text-secondary); }
 .prj-card__stat { border: 1px solid var(--pm-border); border-radius: 4px; background: transparent; }
