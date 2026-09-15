@@ -348,6 +348,12 @@
 .prj-ws .prj-pm-title-choice:hover { border-color: var(--pm-border) !important; color: var(--pm-text) !important; background: var(--pm-surface-hover) !important; }
 .prj-ws .prj-pm-title-choice.is-active { border-color: var(--pm-module-line) !important; color: var(--pm-text) !important; background: var(--pm-module-soft) !important; box-shadow: inset 2px 0 0 var(--pm-module-tone) !important; }
 .prj-ws .prj-pm-title-choice.is-active::after { display: none; }
+.prj-ws .env-title-row { min-width: 0; }
+.prj-ws .env-title-tabs { display: flex; min-width: 0; flex: 1 1 auto; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.prj-ws .env-title-tabs .prj-pm-title-choice { flex: 0 0 132px; }
+.prj-ws .delivery__title { display: flex; min-width: 0; align-items: flex-start; gap: 10px; }
+.prj-ws .delivery__title > svg { flex: 0 0 auto; width: 21px; height: 21px; margin-top: 1px; color: var(--pm-module-tone); stroke-width: 1.9; }
+.prj-ws .delivery__title > div { min-width: 0; }
 .prj-ws :is(.deployment-release-row, .deployment-sheet-row) { border: 0; border-radius: 0; background: transparent; }
 .prj-ws .deployment-title-row { min-height: 54px; padding: 0 0 var(--pm-space-2); border-bottom: 1px solid var(--pm-border); }
 

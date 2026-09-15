@@ -57,6 +57,12 @@ test("嵌入项目工作区时不将测试中心上移到顶部导航下方", ()
   assert.doesNotMatch(embeddedWorkspace, /margin-top:-/);
 });
 
+test("测试中心标题使用线性图标，并在项目工作区保持可见", () => {
+  assert.match(source, /import \{ FlaskConical \} from "lucide-react"/);
+  assert.match(source, /<header className="test-center__masthead"><FlaskConical aria-hidden="true" \/><h1>测试中心<\/h1><\/header>/);
+  assert.match(styles, /\.prj-ws \.delivery\.test-center > \.test-center__masthead\s*\{[^}]*display:flex!important[^}]*min-height:58px/s);
+});
+
 test("问题清单以表格占满工作区，不再渲染右侧详情面板", () => {
   const issueWorkspace = source.slice(source.indexOf("function TestIssueExecution"), source.indexOf("function TestCaseActivity"));
   assert.match(issueWorkspace, /test-issue-execution--grid-only/);

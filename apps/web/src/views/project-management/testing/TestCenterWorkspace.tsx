@@ -1,4 +1,5 @@
 import { Fragment, createContext, useContext, useEffect, useMemo, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { FlaskConical } from "lucide-react";
 import { api, type TestCenterCase, type TestCenterCaseComment, type TestCenterCaseStep, type TestCenterEvidence, type TestCenterGroup, type TestCenterIssue, type TestCenterIssueDiscussion, type TestCenterReport, type TestCenterRun, type TestCenterRunStep, type TestCenterTask } from "../../../api/client.js";
 import { ConfigurableDataGrid, type ConfigurableGridColumn, type ConfigurableGridRow } from "../../../components/ConfigurableDataGrid.js";
 import "./TestCenterWorkspace.css";
@@ -231,7 +232,7 @@ export function TestCenterWorkspace({ projectId }: { projectId: string }): React
   };
 
   return <TestCenterTreeContext.Provider value={{ projectId, groups, addGroup: group => setGroups(current => [...current, group]) }}><section className="delivery test-center">
-    <header className="test-center__masthead"><h1>测试中心</h1></header>
+    <header className="test-center__masthead"><FlaskConical aria-hidden="true" /><h1>测试中心</h1></header>
     {panel === "overview" && <div className="test-center__kpis"><span>用例 <b>{report?.totalCases ?? cases.length}</b></span><span>通过率 <b>{report?.passRate ?? 0}%</b></span><span>失败 <b>{report?.failedCases ?? 0}</b></span><span>待复测 <b>{report?.retestCases ?? 0}</b></span><span>待处理问题 <b>{report?.openIssues ?? 0}</b></span></div>}
     {error && <p role="alert">{error}</p>}
 

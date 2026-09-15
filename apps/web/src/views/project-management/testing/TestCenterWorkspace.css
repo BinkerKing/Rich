@@ -209,6 +209,11 @@
 .prj-ws .test-case-workbench__filter.is-block.is-active { box-shadow:inset 0 0 0 1px rgba(251,191,36,.7); background:rgba(120,83,20,.32); }
 .prj-ws .test-case-execution { flex:1 1 auto; min-height:0; height:auto; max-height:none; }
 
+/* Keep the shared project title visible when the test workspace is embedded. */
+.prj-ws .delivery.test-center > .test-center__masthead { display:flex!important; flex:0 0 auto; align-items:center; gap:10px; min-height:58px; height:auto!important; margin:0 0 8px; }
+.prj-ws .test-center__masthead > svg { flex:0 0 auto; width:21px; height:21px; stroke-width:1.9; }
+.prj-ws .test-center__masthead h1 { margin:0; }
+
 /* 详情区域固定在工作台内；步骤、证据、评论各自滚动，不再由内容撑高整页。 */
 .prj-ws .test-case-execution__detail { display:flex; flex-direction:column; min-height:0; overflow:hidden; }
 .prj-ws .test-case-execution__detail-head { flex:0 0 auto; }

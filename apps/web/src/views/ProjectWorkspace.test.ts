@@ -68,6 +68,11 @@ test("监控预警将分组操作收拢到标题栏，并让下方工作区占�
   assert.match(projectManagementStyles, /\.prj-ws \.prj-pm-monitor__head-actions\s*\{[^}]*align-items:\s*center/s);
 });
 
+test("环境上下文标题在窄宽下保持横向可达，而不裁切标题", () => {
+  assert.match(projectManagementStyles, /\.prj-ws \.env-title-tabs\s*\{[^}]*flex-wrap:\s*nowrap[^}]*overflow-x:\s*auto/s);
+  assert.match(projectManagementStyles, /\.prj-ws \.env-title-tabs \.prj-pm-title-choice\s*\{[^}]*flex:\s*0 0 132px/s);
+});
+
 test("交付物与报告的标题头行压缩纵向高度", () => {
   assert.match(styles, /\.prj-ws \.deliverables-workspace > header\s*\{[^}]*min-height:42px/s);
   assert.match(styles, /\.prj-ws \.reports-workspace__header\s*\{[^}]*min-height:42px/s);

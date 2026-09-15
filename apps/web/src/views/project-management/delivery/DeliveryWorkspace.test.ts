@@ -43,6 +43,11 @@ test("交付计划默认使用工作日时间轴", () => {
   assert.match(source, /const \[calendarMode, setCalendarMode\] = useState<GanttCalendarMode>\("working"\)/);
 });
 
+test("交付计划标题使用线性日历图标", () => {
+  assert.match(source, /import \{ CalendarDays \} from "lucide-react"/);
+  assert.match(source, /<div className="delivery__title"><CalendarDays aria-hidden="true" \/><div><h1>交付计划<\/h1>/);
+});
+
 test("交付计划区分计划与实际起止时间", () => {
   assert.match(source, /actualStartDate: storedActualStartDate \|\| \(status === "todo" \? undefined : actualStartDateFor\(/);
   assert.match(source, /计划开始时间/);
