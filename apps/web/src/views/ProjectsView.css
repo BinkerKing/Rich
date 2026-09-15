@@ -722,83 +722,104 @@
 .prj-pm-description {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 14px;
+  gap: 12px;
   min-height: 0;
   overflow: hidden;
-  padding: 8px 4px 0 16px;
+  padding: 8px 16px 0;
 }
 .prj-pm-description:has(.prj-pm-error) {
   grid-template-rows: auto auto minmax(0, 1fr);
 }
 .prj-pm-description__head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 8px 12px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, .08);
+  gap: 24px;
+  padding: 12px 0 16px;
+  border-bottom: 1px solid #303038;
+}
+.prj-pm-description__title {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 12px;
+}
+.prj-pm-description__title > svg {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin-top: 3px;
+  color: #a7a8ec;
+  stroke-width: 1.8;
 }
 .prj-pm-description__head h2 {
   margin: 0;
-  color: #fff;
-  font-size: 24px;
+  color: #f4f4f6;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -.02em;
 }
 .prj-pm-description__head p {
-  margin: 7px 0 0;
-  color: rgba(255, 255, 255, .48);
-  font-size: 13px;
+  max-width: 720px;
+  margin: 5px 0 0;
+  color: #92929d;
+  font-size: 12px;
+  line-height: 1.55;
 }
 .prj-pm-description__actions {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: flex-end;
-  gap: 9px;
-  min-height: 34px;
+  gap: 8px;
+  min-height: 32px;
 }
 .prj-pm-description__actions small {
-  margin-right: 6px;
-  color: rgba(255, 255, 255, .42);
+  margin-right: 4px;
+  color: #777782;
   font-size: 11px;
   white-space: nowrap;
 }
 .prj-pm-description__body {
   min-height: 0;
   overflow: auto;
-  padding: 0 12px 18px;
+  padding: 4px 0 20px;
 }
 .prj-pm-description__document {
-  max-width: 1120px;
+  max-width: 840px;
   min-height: 100%;
   margin: 0 auto;
-  border: 1px solid rgba(105, 183, 192, .32);
+  border: 1px solid #303038;
   border-radius: 10px;
-  background: transparent;
-  box-shadow: inset 3px 0 0 rgba(105, 183, 192, .52);
-  padding: 24px 28px;
-  color: rgba(244, 247, 251, .84);
+  background: #151519;
+  padding: 32px 36px 44px;
+  color: #d8d8df;
   font-size: 14px;
-  line-height: 1.75;
+  line-height: 1.8;
   box-sizing: border-box;
 }
 .prj-pm-description__empty {
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 10px;
-  min-height: 320px;
-  border: 1px dashed rgba(233, 184, 107, .24);
+  gap: 12px;
+  width: min(100%, 840px);
+  min-height: 360px;
+  margin: 0 auto;
+  border: 1px solid #303038;
   border-radius: 10px;
-  background: rgba(233, 184, 107, .025);
+  background: #151519;
   text-align: center;
 }
+.prj-pm-description__empty > svg { width: 28px; height: 28px; color: #a7a8ec; stroke-width: 1.5; }
 .prj-pm-description__empty strong {
-  color: #f2d095;
-  font-size: 17px;
+  color: #f1f1f4;
+  font-size: 16px;
 }
 .prj-pm-description__empty p {
-  max-width: 620px;
-  margin: 0 0 6px;
-  color: rgba(255, 255, 255, .5);
+  max-width: 520px;
+  margin: 0 0 4px;
+  color: #92929d;
   font-size: 13px;
   line-height: 1.7;
 }
@@ -809,13 +830,12 @@
 }
 .prj-pm-description.is-editing .prj-pm-rich-editor {
   width: 100%;
-  max-width: 1120px;
+  max-width: 840px;
   min-height: 100%;
   margin: 0 auto;
-  border-color: rgba(105, 183, 192, .46);
-  border-radius: 8px;
-  background: transparent;
-  box-shadow: inset 3px 0 0 rgba(105, 183, 192, .52);
+  border-color: #4a4a54;
+  border-radius: 10px;
+  background: #151519;
   box-sizing: border-box;
 }
 .prj-pm-description.is-editing .prj-pm-rich-toolbar {
@@ -824,27 +844,32 @@
   z-index: 2;
   gap: 7px;
   padding: 10px 14px;
-  border-bottom-color: rgba(143, 254, 247, .13);
-  background: transparent;
-  backdrop-filter: blur(12px);
+  border-bottom-color: #303038;
+  background: #1b1b20;
 }
 .prj-pm-description.is-editing .prj-pm-rich-toolbar button {
-  background: transparent;
-  border-radius: 999px;
+  border-radius: 6px;
 }
 .prj-pm-description.is-editing .prj-pm-rich-surface {
   flex: 1;
   min-height: 360px;
   max-height: none;
-  padding: 24px 28px;
-  background: transparent;
+  padding: 28px 36px 40px;
+  background: #151519;
   box-sizing: border-box;
-  caret-color: #8ffef7;
+  caret-color: #b6b7f7;
 }
 .prj-pm-description.is-editing .prj-pm-rich-surface:empty::before {
   content: "从项目背景、业务目标、技术架构、数据库、启动方式或注意事项开始记录…";
-  color: rgba(244, 247, 251, .28);
+  color: #656570;
   pointer-events: none;
+}
+@media (max-width: 720px) {
+  .prj-pm-description { padding: 6px 10px 0; }
+  .prj-pm-description__head { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .prj-pm-description__actions { width: 100%; justify-content: space-between; }
+  .prj-pm-description__document,
+  .prj-pm-description.is-editing .prj-pm-rich-surface { padding: 22px 20px 32px; }
 }
 .prj-pm-global-search {
   position: sticky;

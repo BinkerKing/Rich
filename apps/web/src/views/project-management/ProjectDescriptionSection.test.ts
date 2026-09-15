@@ -23,6 +23,13 @@ test("项目说明使用现有富文本编辑器并显式保存或取消", () =>
   assert.match(source, />取消</);
 });
 
+test("项目说明使用共享 UI 组件和线性图标统一操作样式", () => {
+  assert.match(source, /import \{ Button, ScrollArea \} from "\.\.\/\.\.\/ui\/index\.js"/);
+  assert.match(source, /import \{ FileText, Pencil, Save, X \} from "lucide-react"/);
+  assert.match(source, /<ScrollArea className="prj-pm-description__body">/);
+  assert.match(source, /<Button variant="primary"/);
+});
+
 test("项目说明工作区自适应窗口并在内部滚动", () => {
   assert.match(styles, /\.prj-pm-description\s*\{[^}]*min-height:\s*0[^}]*overflow:\s*hidden/s);
   assert.match(styles, /\.prj-pm-description__body\s*\{[^}]*overflow:\s*auto/s);
@@ -55,13 +62,13 @@ test("富文本展示态保留编辑时插入的空行", () => {
   assert.match(styles, /\.workflow-rich-content:not\(\.prj-pm-rich-surface\) p:empty,\s*\.workflow-rich-content:not\(\.prj-pm-rich-surface\) p:has\(> br:only-child\)\s*\{[^}]*min-height:\s*1\.7em/s);
 });
 
-test("项目说明编辑器以石墨底色融入工作区，并仅以细色线强调边界", () => {
-  assert.match(styles, /\.prj-pm-description__document\s*\{[^}]*background:\s*transparent[^}]*box-shadow:\s*inset 3px 0 0 rgba\(105, 183, 192, \.52\)/s);
-  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-editor\s*\{[^}]*max-width:\s*1120px[^}]*border-color:\s*rgba\(105, 183, 192, \.46\)[^}]*background:\s*transparent[^}]*box-shadow:\s*inset 3px 0 0 rgba\(105, 183, 192, \.52\)/s);
-  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-toolbar\s*\{[^}]*background:\s*transparent/s);
-  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-surface\s*\{[^}]*background:\s*transparent/s);
-  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-surface\s*\{[^}]*padding:\s*24px 28px/s);
-  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-toolbar button\s*\{[^}]*border-radius:\s*999px/s);
+test("项目说明以中等阅读宽度和中性深色边界呈现文档", () => {
+  assert.match(styles, /\.prj-pm-description__document\s*\{[^}]*max-width:\s*840px[^}]*border:\s*1px solid #303038[^}]*background:\s*#151519/s);
+  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-editor\s*\{[^}]*max-width:\s*840px[^}]*border-color:\s*#4a4a54[^}]*background:\s*#151519/s);
+  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-toolbar\s*\{[^}]*background:\s*#1b1b20/s);
+  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-surface\s*\{[^}]*background:\s*#151519/s);
+  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-surface\s*\{[^}]*padding:\s*28px 36px 40px/s);
+  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-toolbar button\s*\{[^}]*border-radius:\s*6px/s);
 });
 
 test("富文本颜色选择器在窄栏中保留完整色块", () => {
