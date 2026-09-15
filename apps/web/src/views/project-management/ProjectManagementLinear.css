@@ -218,6 +218,31 @@
 .prj-ws .prj-pm-workflow-detail > header p, .prj-ws .prj-pm-workflow-detail__block > strong { color: var(--pm-cyan); }
 .prj-ws .prj-pm-workflow-detail > header span, .prj-ws .prj-pm-workflow-detail__block.is-important { border-color: rgba(108,190,194,.28); background: rgba(108,190,194,.07); }
 
+/* Module identity: quiet surfaces, with color carried by type, icons and hairlines. */
+.prj-ws .delivery, .prj-ws .test-center { --pm-module-tone: var(--pm-blue); --pm-module-line: rgba(117,167,232,.30); --pm-module-soft: rgba(117,167,232,.08); }
+.prj-ws .deliverables-workspace, .prj-ws .prj-pm-code { --pm-module-tone: var(--pm-violet); --pm-module-line: rgba(167,139,212,.30); --pm-module-soft: rgba(167,139,212,.08); }
+.prj-ws .reports-workspace, .prj-ws .prj-pm-scenarios, .prj-ws .prj-pm-deploy { --pm-module-tone: var(--pm-amber); --pm-module-line: rgba(212,169,106,.30); --pm-module-soft: rgba(212,169,106,.08); }
+.prj-ws .prj-pm-dict, .prj-ws .workflow { --pm-module-tone: var(--pm-cyan); --pm-module-line: rgba(108,190,194,.30); --pm-module-soft: rgba(108,190,194,.08); }
+.prj-ws .automation-workspace, .prj-ws .pfc { --pm-module-tone: var(--pm-blue); --pm-module-line: rgba(117,167,232,.30); --pm-module-soft: rgba(117,167,232,.08); }
+.prj-ws .prj-pm-env, .prj-ws .prj-pm-todos { --pm-module-tone: var(--pm-success); --pm-module-line: rgba(121,185,154,.30); --pm-module-soft: rgba(121,185,154,.08); }
+.prj-ws .prj-pm-monitor, .prj-ws .issues-workspace { --pm-module-tone: var(--pm-rose); --pm-module-line: rgba(204,132,157,.30); --pm-module-soft: rgba(204,132,157,.08); }
+
+.prj-ws :is(.delivery > header, .test-center__masthead, .deliverables-workspace > header, .reports-workspace__header, .automation-toolbar, .pfc-list-header, .pfc-project-header, .issues-workspace > header, .prj-pm-code__head, .prj-pm-dict__hero, .prj-pm-scenarios__head, .prj-pm-env__head, .prj-pm-deploy__head, .prj-pm-monitor__head, .prj-pm-todos__head) {
+  box-shadow: inset 2px 0 0 var(--pm-module-tone);
+}
+.prj-ws :is(.delivery > header, .test-center__masthead, .deliverables-workspace > header, .reports-workspace__header, .automation-toolbar, .pfc-list-header, .pfc-project-header, .issues-workspace > header, .prj-pm-code__head, .prj-pm-dict__hero, .prj-pm-scenarios__head, .prj-pm-env__head, .prj-pm-deploy__head, .prj-pm-monitor__head, .prj-pm-todos__head) :is(h1, h2, h3, strong:first-child) { color: var(--pm-module-tone); }
+.prj-ws :is(.delivery > header, .test-center__masthead, .deliverables-workspace > header, .reports-workspace__header, .automation-toolbar, .pfc-list-header, .pfc-project-header, .issues-workspace > header, .prj-pm-code__head, .prj-pm-dict__hero, .prj-pm-scenarios__head, .prj-pm-env__head, .prj-pm-deploy__head, .prj-pm-monitor__head, .prj-pm-todos__head) :is(svg, [aria-hidden="true"]) { color: var(--pm-module-tone); }
+.prj-ws :is(.delivery-dashboard-panel > header, .delivery-dashboard-tasks > h2, .deliverables-workspace__file-head, .reports-workspace__date-head, .issues-workspace__table-title, .test-center__scene-head) { border-left: 2px solid var(--pm-module-tone) !important; }
+
+.prj-ws .deliverables-workspace :is(.deliverables-workspace__list-index, .deliverables-workspace__title-action svg, .deliverables-workspace__attachment-link, .deliverables-workspace__binding-index) { color: var(--pm-module-tone); }
+.prj-ws .reports-workspace :is(.reports-workspace__row em, .report-workbench__eyebrow, .reports-workspace__detail-action svg) { color: var(--pm-module-tone); }
+.prj-ws .automation-workspace :is(.automation-plans header strong, .automation-order, .automation-table-name, .automation-status) { color: var(--pm-module-tone); }
+.prj-ws .pfc :is(.pfc-list-icon, .pfc-task-index, .pfc-list-label, .pfc-legend span:first-child) { color: var(--pm-module-tone); }
+.prj-ws .issues-workspace :is(.issues-workspace__list-index, .issues-workspace__create-button svg) { color: var(--pm-module-tone); }
+.prj-ws .test-center :is(.test-center__kpis b, .test-center__scene-kpis b, .test-case-execution__count b) { color: var(--pm-module-tone); }
+.prj-ws :is(.prj-pm-dict, .prj-pm-env, .prj-pm-deploy, .prj-pm-monitor, .prj-pm-todos, .prj-pm-code) :is(.prj-pm-eyebrow, .prj-pm-shell__meta b, .prj-pm-code__timeline b) { color: var(--pm-module-tone); }
+.prj-ws :is(.deliverables-workspace__row, .reports-workspace__row, .issues-workspace__list > button, .automation-plans > button):hover { box-shadow: inset 2px 0 0 var(--pm-module-tone) !important; }
+
 /* Data-heavy modules: quiet headers and scan-friendly rows. */
 .prj-ws :is(.delivery-dashboard-task__head, .delivery-dashboard-panel > header, .delivery-dashboard-tasks > h2, .deliverables-workspace__file-head, .reports-workspace__date-head, .report-workbench__completed > header, .report-workbench__side header, .issues-workspace__table-title) {
   border-color: var(--pm-border) !important;
