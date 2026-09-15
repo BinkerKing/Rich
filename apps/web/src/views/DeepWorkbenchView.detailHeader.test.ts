@@ -22,4 +22,5 @@ test("shows a collapsed node-detail module list with description open by default
   assert.match(source, /deep-node-detail__preview workflow-rich-content/);
   assert.match(source, /setActiveDetailSection\("description"\); setNodeDetailEditing\(false\)/);
   assert.match(styles, /deep-node-detail__section/);
+  assert.match(source, /scrollIntoView\(\{ behavior: "smooth", block: "start" \}\)/);
 });
