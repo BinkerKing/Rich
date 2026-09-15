@@ -343,3 +343,31 @@
 .prj-ws .test-center__masthead .prj-pm-workspace-head__identity { align-items:center; }
 .prj-ws .test-center__masthead .prj-pm-workspace-head__identity > svg { width:21px; height:21px; margin:0; color:var(--pm-module-tone); stroke-width:1.9; }
 .prj-ws .test-center__masthead h1 { color:var(--pm-text)!important; font-size:18px!important; font-weight:600!important; line-height:1.35; letter-spacing:-.015em; }
+
+/* Test Center embedded palette: graphite surfaces and semantic hairlines. */
+.prj-ws .test-center { background:var(--pm-canvas)!important; }
+.prj-ws .test-case-execution { border-color:var(--pm-border)!important; border-radius:var(--pm-radius-panel)!important; background:var(--pm-surface)!important; }
+.prj-ws .test-case-execution__list { border-right-color:var(--pm-border)!important; background:var(--pm-surface)!important; }
+.prj-ws .test-case-execution__list-head { border-bottom-color:var(--pm-border)!important; color:var(--pm-text-muted)!important; background:var(--pm-surface-raised)!important; }
+.prj-ws .test-case-execution__root { border-bottom-color:var(--pm-border)!important; color:var(--pm-text-secondary)!important; background:var(--pm-surface-raised)!important; }
+.prj-ws .test-case-execution__task-row { border-bottom-color:var(--pm-border)!important; box-shadow:inset 2px 0 0 var(--pm-module-tone)!important; color:var(--pm-text)!important; background:var(--pm-surface-raised)!important; }
+.prj-ws .test-case-execution__task-row.is-selected { box-shadow:inset 2px 0 0 var(--pm-module-tone)!important; color:var(--pm-text)!important; background:var(--pm-module-soft)!important; }
+.prj-ws .test-case-execution__group-row,.prj-ws .test-case-execution__case-row { border-bottom-color:var(--pm-border-soft)!important; box-shadow:inset 2px 0 0 transparent!important; color:var(--pm-text-secondary)!important; background:transparent!important; }
+.prj-ws .test-case-execution__group-row { box-shadow:inset 2px 0 0 var(--pm-module-line)!important; }
+.prj-ws .test-case-execution__case-row:is(.is-data,.is-functional) { background:transparent!important; }
+.prj-ws .test-case-execution__group-row:hover,.prj-ws .test-case-execution__case-row:hover { color:var(--pm-text)!important; background:var(--pm-surface-hover)!important; }
+.prj-ws .test-case-execution__case-row.is-selected { box-shadow:inset 2px 0 0 var(--pm-module-tone)!important; color:var(--pm-text)!important; background:var(--pm-module-soft)!important; }
+.prj-ws .test-case-execution__detail { background:var(--pm-surface)!important; }
+.prj-ws .test-case-execution__detail-head { border-bottom-color:var(--pm-border)!important; }
+.prj-ws .test-case-execution__detail-head :is(h2,h3) { color:var(--pm-text)!important; }
+.prj-ws .test-case-execution__detail-head :is(p,span) { color:var(--pm-text-secondary)!important; }
+.prj-ws .test-case-execution__records,.prj-ws .test-case-execution__sections section { border-color:var(--pm-border)!important; border-radius:var(--pm-radius-control)!important; background:var(--pm-surface-raised)!important; }
+.prj-ws .test-case-execution__records :is(> header,article),.prj-ws .test-case-execution__sections :is(h3,p) { border-color:var(--pm-border-soft)!important; }
+.prj-ws .test-case-execution__records button { border-color:var(--pm-border-strong)!important; color:var(--pm-text-secondary)!important; background:transparent!important; }
+.prj-ws .test-case-execution__records button:hover { border-color:var(--pm-module-line)!important; color:var(--pm-module-tone)!important; background:var(--pm-module-soft)!important; }
+.prj-ws .test-case-execution__meta span { border-color:var(--pm-border)!important; color:var(--pm-text-secondary)!important; background:transparent!important; }
+.prj-ws .test-case-execution__status-dot { box-shadow:0 0 0 2px color-mix(in srgb,currentColor 20%,transparent)!important; }
+.prj-ws .test-case-execution__status-dot.is-pass { background:var(--pm-success)!important; }
+.prj-ws .test-case-execution__status-dot.is-fail { background:var(--pm-danger)!important; }
+.prj-ws .test-case-execution__status-dot.is-block { background:var(--pm-amber)!important; }
+.prj-ws .test-case-execution__status-dot.is-testing { background:var(--pm-blue)!important; }

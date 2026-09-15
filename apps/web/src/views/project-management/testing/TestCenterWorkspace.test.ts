@@ -32,6 +32,14 @@ test("测试中心以清晰的实色文字和较大字号呈现信息", () => {
   assert.match(styles, /test-case-activity__timeline.*header strong\s*\{[^}]*color:#f1f7ff[^}]*font-size:14px/s);
 });
 
+test("测试中心工作区采用共享石墨基面与低对比边框，而非蓝色大底块", () => {
+  assert.match(styles, /Test Center embedded palette: graphite surfaces and semantic hairlines/);
+  assert.match(styles, /\.prj-ws \.test-center \{[^}]*background:var\(--pm-canvas\)!important/s);
+  assert.match(styles, /\.prj-ws \.test-case-execution \{[^}]*border-color:var\(--pm-border\)!important[^}]*background:var\(--pm-surface\)!important/s);
+  assert.match(styles, /\.prj-ws \.test-case-execution__task-row \{[^}]*box-shadow:inset 2px 0 0 var\(--pm-module-tone\)!important[^}]*background:var\(--pm-surface-raised\)!important/s);
+  assert.match(styles, /\.prj-ws \.test-case-execution__group-row,\.prj-ws \.test-case-execution__case-row \{[^}]*background:transparent!important/s);
+});
+
 test("测试动态的时间与内容靠左，更多操作保持紧凑", () => {
   assert.match(styles, /test-case-activity__timeline\s*\{\s*padding:8px 2px/s);
   assert.match(styles, /delivery-dashboard-activity\s*\{\s*grid-template-columns:42px 14px minmax\(0,1fr\)/s);
