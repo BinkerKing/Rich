@@ -216,7 +216,7 @@ export function ProjectDeploymentStepsSection({ project, summary }: { project: E
                   <button
                     key={name}
                     type="button"
-                    className={`deployment-title-tab deployment-release-tab${active ? " is-active" : ""}`}
+                    className={`deployment-title-tab deployment-release-tab prj-pm-title-choice${active ? " is-active" : ""}`}
                     draggable={editing}
                     onDragStart={() => setDraggedReleaseName(name)}
                     onDragOver={event => { if (editing) event.preventDefault(); }}
@@ -259,7 +259,7 @@ export function ProjectDeploymentStepsSection({ project, summary }: { project: E
                   <button
                     key={name}
                     type="button"
-                    className={`deployment-title-tab${active ? " is-active" : ""}`}
+                    className={`deployment-title-tab prj-pm-title-choice${active ? " is-active" : ""}`}
                     draggable={editing}
                     onDragStart={() => setDraggedSheetName(name)}
                     onDragOver={event => { if (editing) event.preventDefault(); }}

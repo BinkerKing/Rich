@@ -320,6 +320,30 @@
 .prj-ws .reports-workspace__report-list article { border-bottom-color: var(--pm-border-soft) !important; }
 .prj-ws .reports-workspace__empty { color: var(--pm-text-muted) !important; }
 
+/* Shared context title choice: releases, sheets and environments use one quiet hierarchy. */
+.prj-ws .prj-pm-title-choice {
+  position: relative;
+  display: grid;
+  min-width: 132px;
+  min-height: 54px;
+  align-content: center;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid transparent !important;
+  border-radius: var(--pm-radius-control) !important;
+  color: var(--pm-text-secondary) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-align: left;
+}
+.prj-ws .prj-pm-title-choice :is(strong, .deployment-title-name) { overflow: hidden; color: inherit; font-size: 13px; font-weight: 600; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.prj-ws .prj-pm-title-choice :is(small, span) { overflow: hidden; margin: 0; color: var(--pm-text-muted); font-size: 11px; font-weight: 400; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.prj-ws .prj-pm-title-choice:hover { border-color: var(--pm-border) !important; color: var(--pm-text) !important; background: var(--pm-surface-hover) !important; }
+.prj-ws .prj-pm-title-choice.is-active { border-color: var(--pm-module-line) !important; color: var(--pm-text) !important; background: var(--pm-module-soft) !important; box-shadow: inset 2px 0 0 var(--pm-module-tone) !important; }
+.prj-ws .prj-pm-title-choice.is-active::after { display: none; }
+.prj-ws :is(.deployment-release-row, .deployment-sheet-row) { border: 0; border-radius: 0; background: transparent; }
+.prj-ws .deployment-title-row { min-height: 54px; padding: 0 0 var(--pm-space-2); border-bottom: 1px solid var(--pm-border); }
+
 @media (min-width: 601px) and (max-width: 900px) {
   .prj-ws .reports-workspace { padding: var(--pm-space-4); }
   .prj-ws .reports-workspace__layout { gap: var(--pm-space-4); margin-top: var(--pm-space-4); }

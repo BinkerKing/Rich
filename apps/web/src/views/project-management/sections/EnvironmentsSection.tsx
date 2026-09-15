@@ -85,7 +85,7 @@ export function EnvironmentsSection({ project, summary }: { project: Element; su
             <button
               key={env.id}
               type="button"
-              className={selected?.id === env.id ? "is-active" : ""}
+              className={`prj-pm-title-choice${selected?.id === env.id ? " is-active" : ""}`}
               onClick={() => {
                 setSelectedId(env.id);
                 setEditing(false);
