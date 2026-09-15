@@ -4,12 +4,13 @@ import test from "node:test";
 
 const source = readFileSync(new URL("./IssueDataGrid.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("./IssueDataGrid.css", import.meta.url), "utf8");
+const sharedStyles = readFileSync(new URL("../ui/data-table.css", import.meta.url), "utf8");
 const client = readFileSync(new URL("../api/client.ts", import.meta.url), "utf8");
 const route = readFileSync(new URL("../../../server/src/routes/testCenter.ts", import.meta.url), "utf8");
 
 test("问题表使用 AG Grid 并提供搜索、状态筛选和内联编辑", () => {
   assert.match(source, /from "ag-grid-react"/);
-  assert.match(source, /placeholder="搜索已设为可检索的字段"/);
+  assert.match(source, /placeholder="搜索可检索字段"/);
   assert.match(source, /cellEditor: column\.fieldType === "select" \? SelectDrawerEditor/);
   assert.match(source, /cellEditorPopupPosition: column\.fieldType === "select" \? "under"/);
   assert.match(source, /onCellValueChanged=/);
@@ -144,7 +145,7 @@ test("问题表以克制的数据工作台层级呈现，避免厚重装饰", ()
 });
 
 test("问题表具有产品级的清单身份区与记录状态", () => {
-  assert.match(source, /TEST CENTER · ISSUE LOG/);
+  assert.match(source, /测试中心 · 问题记录/);
   assert.match(source, /title = "产品问题测试清单"/);
   assert.match(source, /issue-data-grid__identity-title/);
   assert.match(source, /onBack/);
@@ -152,6 +153,15 @@ test("问题表具有产品级的清单身份区与记录状态", () => {
   assert.match(styles, /\.issue-data-grid__identity\s*\{[^}]*min-height:70px/s);
   assert.match(styles, /\.issue-data-grid .ag-root-wrapper\s*\{[^}]*border-radius:10px/s);
   assert.match(styles, /\.issue-data-grid__identity h2\s*\{[^}]*font-size:23px[^}]*font-weight:800/s);
+});
+
+test("问题表接入共享数据表基底并保留页面级表头与密度配置", () => {
+  assert.match(source, /import "\.\.\/ui\/data-table\.css"/);
+  assert.match(source, /rich-data-table--\$\{tableStyle\.density\}/);
+  assert.match(source, /"--rich-data-table-raised": headerBackground/);
+  assert.match(sharedStyles, /\.rich-data-table__search\s*\{[^}]*height:\s*34px[^}]*border:\s*1px solid/s);
+  assert.match(sharedStyles, /\.rich-data-table \.ag-header\s*\{[^}]*min-height:\s*40px/s);
+  assert.match(sharedStyles, /\.rich-data-table--striped \.ag-row-even/);
 });
 
 test("应用后的表格样式与表格设置中的色调、密度和斑马纹对应", () => {
