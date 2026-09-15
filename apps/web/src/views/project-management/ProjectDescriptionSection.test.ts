@@ -27,7 +27,11 @@ test("项目说明使用共享 UI 组件和线性图标统一操作样式", () =
   assert.match(source, /ScrollArea/);
   assert.match(source, /import \{ FileText, Pencil, Save, X \} from "lucide-react"/);
   assert.match(source, /<ScrollArea className="prj-pm-description__body"/);
-  assert.match(source, /<Button variant="primary"/);
+  assert.match(source, /<Button variant="secondary" className="prj-pm-description__action gap-1\.5"/);
+});
+
+test("项目说明的操作使用明亮文字和透明描边，而非实色填充", () => {
+  assert.match(styles, /\.prj-pm-description__action\s*\{[^}]*border:\s*1px solid #51515b[^}]*background:\s*transparent[^}]*color:\s*#f1f1f4/s);
 });
 
 test("项目说明在阅读态提供右侧跟随的章节目录", () => {

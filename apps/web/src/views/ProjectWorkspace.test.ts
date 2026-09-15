@@ -92,6 +92,14 @@ test("作业流程采用明亮文字、线条图标与透明描边操作", () =>
   assert.match(styles, /\.workflow-actions button\s*\{[^}]*border:\s*0[^}]*background:\s*transparent/s);
 });
 
+test("项目管理的场景、环境与部署模块共享明亮的深色工作台层级", () => {
+  assert.match(styles, /\.prj-ws \.prj-pm-scenarios-skin\s*\{[^}]*--scenario-text:\s*#f1f1f4[^}]*--scenario-line:\s*#34343c/s);
+  assert.match(styles, /\.prj-ws \.scenario-toolbar,\s*\.prj-ws \.env-title-row,\s*\.prj-ws \.deployment-title-row\s*\{[^}]*border-bottom:\s*1px solid #303038[^}]*background:\s*transparent/s);
+  assert.match(styles, /\.prj-ws :is\(\.scenario-edit-toggle, \.env-mode-toggle, \.deployment-mode-toggle\)\s*\{[^}]*border:\s*1px solid #51515b[^}]*background:\s*transparent[^}]*color:\s*#f1f1f4/s);
+  assert.match(styles, /\.prj-ws \.scenario-index-item\s*\{[^}]*border:\s*0[^}]*border-bottom:\s*1px solid #303038[^}]*background:\s*transparent/s);
+  assert.match(styles, /\.prj-ws \.deployment-sidebar,\s*\.prj-ws \.deployment-detail\s*\{[^}]*border-color:\s*#34343c[^}]*background:\s*#202024/s);
+});
+
 test("作业流程内容区在可用高度内自适应，超出部分由流程轨道滚动", () => {
   assert.match(styles, /\.workflow-content\s*\{[^}]*display:\s*flex[^}]*flex:\s*1 1 0[^}]*flex-direction:\s*column[^}]*min-height:\s*0[^}]*overflow:\s*hidden/s);
   assert.match(styles, /\.workflow-rail\s*\{[^}]*flex:\s*1 1 auto[^}]*min-height:\s*0[^}]*overflow-y:\s*auto/s);

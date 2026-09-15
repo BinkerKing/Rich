@@ -11623,3 +11623,64 @@
 .prj-ws :is(.prj-pm-monitor__stats,.prj-pm-code__stats,.prj-pm-todos__stats) { grid-template-columns:repeat(2,72px); }
 .prj-ws :is(.prj-pm-dict__stats,.prj-pm-scenarios__stats,.prj-pm-env__stats,.prj-pm-deploy__stats,.prj-pm-monitor__stats,.prj-pm-code__stats,.prj-pm-todos__stats) span { padding:6px 8px; font-size:10px; }
 .prj-ws :is(.prj-pm-dict__stats,.prj-pm-scenarios__stats,.prj-pm-env__stats,.prj-pm-deploy__stats,.prj-pm-monitor__stats,.prj-pm-code__stats,.prj-pm-todos__stats) b { margin-bottom:2px; font-size:18px; }
+
+/* Project management uses one bright, graphite workbench vocabulary. */
+.prj-ws .prj-pm-description__action { border:1px solid #51515b!important; background:transparent!important; color:#f1f1f4!important; box-shadow:none!important; }
+.prj-ws .prj-pm-description__action:hover:not(:disabled) { border-color:#8a8a96!important; background:#2b2b31!important; color:#fff!important; }
+.prj-ws .prj-pm-description__title > svg { color:#d8d8de; }
+.prj-ws .prj-pm-description__head p,.prj-ws .prj-pm-description__actions small { color:#aaaab4; }
+
+.prj-ws .prj-pm-scenarios-skin { --scenario-text:#f1f1f4; --scenario-line:#34343c; --scenario-accent:#d8d8de; }
+.prj-ws .scenario-toolbar,
+.prj-ws .env-title-row,
+.prj-ws .deployment-title-row { border-bottom:1px solid #303038; background:transparent; }
+.prj-ws :is(.scenario-edit-toggle, .env-mode-toggle, .deployment-mode-toggle) { border:1px solid #51515b!important; background:transparent!important; color:#f1f1f4!important; box-shadow:none!important; }
+.prj-ws :is(.scenario-edit-toggle, .env-mode-toggle, .deployment-mode-toggle):hover:not(:disabled) { border-color:#8a8a96!important; background:#2b2b31!important; color:#fff!important; }
+
+.prj-ws .scenario-toolbar { min-height:58px; padding:8px 0 16px; }
+.prj-ws .scenario-group-title { border-color:transparent; color:#aaaab4; background:transparent; }
+.prj-ws .scenario-group-title.is-active,.prj-ws .scenario-group-title:hover { border-color:#51515b; color:#fff; background:#29292f; }
+.prj-ws .scenario-group-title.is-active::after { background:#d8d8de; box-shadow:none; }
+.prj-ws .scenario-toolbar-meta span { border-color:#45454f; color:#c7c7d0; background:transparent; }
+.prj-ws .scenario-workbench { gap:0; }
+.prj-ws .scenario-index { border:0; border-right:1px solid #303038; border-radius:0; padding:0 16px 0 0; background:transparent; }
+.prj-ws .scenario-index-title { color:#f1f1f4; }
+.prj-ws .scenario-index-item { border:0; border-bottom:1px solid #303038; border-radius:0; background:transparent; color:#c7c7d0; }
+.prj-ws .scenario-index-item.is-active,.prj-ws .scenario-index-item:hover { border-color:#51515b; background:#242429; color:#fff; }
+.prj-ws .scenario-index-item.has-marker { background:transparent; }
+.prj-ws .scenario-detail { border:0; border-radius:0; padding:0 0 0 24px; background:transparent; }
+.prj-ws .scenario-detail-head { border-bottom-color:#303038; }
+.prj-ws .scenario-detail-head h3,.prj-ws .scenario-summary-text,.prj-ws .scenario-field p,.prj-ws .scenario-field li { color:#f1f1f4; }
+.prj-ws .scenario-summary-box,.prj-ws .scenario-field,.prj-ws .scenario-process,.prj-ws .scenario-step { border-color:#34343c; background:#202024; box-shadow:none; }
+.prj-ws .scenario-summary-box label,.prj-ws .scenario-field .field-head label { color:#aaaab4; }
+
+.prj-ws .env-title-row,.prj-ws .deployment-title-row { min-height:58px; padding:8px 0 16px; }
+.prj-ws .env-title-tabs button,.prj-ws .deployment-title-tab { border-color:transparent; color:#bcbcc6; background:transparent; box-shadow:none; }
+.prj-ws .env-title-tabs button:hover,.prj-ws .env-title-tabs button.is-active,.prj-ws .deployment-title-tab:hover,.prj-ws .deployment-title-tab.is-active { border-color:#51515b; color:#fff; background:#29292f; }
+.prj-ws .env-mini-stat { border:0; color:#c7c7d0; background:transparent; }
+.prj-ws .env-module-card { border-color:#34343c!important; background:#202024!important; box-shadow:none!important; }
+.prj-ws .env-module-card .env-module-read-title strong { color:#f1f1f4!important; }
+.prj-ws .env-module-card .env-module-read-title small,.prj-ws .env-module-card .server-row { color:#bcbcc6!important; }
+.prj-ws .env-module-card .env-card-actions span { border-color:#51515b!important; color:#d8d8de!important; background:transparent!important; }
+.prj-ws .env-connection-panel { border-color:#34343c!important; background:#202024!important; box-shadow:none!important; }
+.prj-ws .env-connection-table { border-color:#34343c!important; background:#1d1d21!important; }
+.prj-ws .env-connection-header { background:#28282e!important; }
+.prj-ws .env-connection-header span,.prj-ws .env-connection-row strong,.prj-ws .env-connection-row code { color:#f1f1f4!important; }
+.prj-ws .env-connection-row:nth-child(odd) { background:#202024; }
+.prj-ws .env-connection-row:hover { background:#29292f; }
+
+.prj-ws .deployment-sidebar,
+.prj-ws .deployment-detail { border-color:#34343c; background:#202024; }
+.prj-ws .deployment-sidebar { border-right:1px solid #34343c; border-radius:0; padding:0 16px 0 0; }
+.prj-ws .deployment-detail-card { border-color:#34343c; border-radius:0; background:#202024; box-shadow:none; }
+.prj-ws .deployment-sidebar-head,.prj-ws .deployment-detail-head { border-bottom-color:#303038; }
+.prj-ws .deployment-sidebar-head strong,.prj-ws .deployment-detail-head h3,.prj-ws .deployment-step-main strong { color:#f1f1f4; }
+.prj-ws .deployment-sidebar-head span,.prj-ws .deployment-detail-head p,.prj-ws .deployment-step-main small,.prj-ws .deployment-count-note { color:#aaaab4; }
+.prj-ws .deployment-step-nav { border:0; border-bottom:1px solid #303038; border-radius:0; background:transparent; }
+.prj-ws .deployment-step-nav:hover,.prj-ws .deployment-step-nav.is-active { border-color:#51515b; background:#29292f; }
+.prj-ws .deployment-step-main span { border-color:#51515b; color:#d8d8de; }
+.prj-ws .deployment-title-actions button,.prj-ws .deployment-edit-section-head button,.prj-ws .deployment-add-module-bottom { border-color:#51515b; background:transparent; color:#f1f1f4; box-shadow:none; }
+.prj-ws .deployment-title-actions button:hover,.prj-ws .deployment-edit-section-head button:hover,.prj-ws .deployment-add-module-bottom:hover { border-color:#8a8a96; background:#2b2b31; color:#fff; }
+.prj-ws .deployment-release-row,.prj-ws .deployment-sheet-row { border-color:#34343c; border-radius:0; background:transparent; }
+.prj-ws .deployment-release-row .deployment-title-tab.is-active,.prj-ws .deployment-sheet-row .deployment-title-tab.is-active { color:#fff; }
+.prj-ws .deployment-release-row .deployment-title-tab.is-active::after,.prj-ws .deployment-sheet-row .deployment-title-tab.is-active::after { background:#d8d8de; box-shadow:none; }

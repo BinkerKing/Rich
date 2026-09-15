@@ -88,10 +88,10 @@ export function ProjectDescriptionSection({ projectId }: { projectId: string }) 
           <Separator className="h-4 w-px" />
           {description?.updatedAt && <small>最后保存：{formatProjectDescriptionTime(description.updatedAt)}</small>}
           {editing ? <>
-            <Button variant="ghost" className="gap-1.5" onClick={cancelEdit} disabled={busy}><X size={15} aria-hidden="true" />取消</Button>
-            <Button variant="primary" className="gap-1.5" onClick={() => void save()} disabled={busy}><Save size={15} aria-hidden="true" />{busy ? "保存中…" : "保存"}</Button>
+            <Button variant="secondary" className="prj-pm-description__action gap-1.5" onClick={cancelEdit} disabled={busy}><X size={15} aria-hidden="true" />取消</Button>
+            <Button variant="secondary" className="prj-pm-description__action gap-1.5" onClick={() => void save()} disabled={busy}><Save size={15} aria-hidden="true" />{busy ? "保存中…" : "保存"}</Button>
           </> : (
-            <Button variant="primary" className="gap-1.5" onClick={beginEdit}><Pencil size={15} aria-hidden="true" />{description?.text ? "编辑" : "开始填写"}</Button>
+            <Button variant="secondary" className="prj-pm-description__action gap-1.5" onClick={beginEdit}><Pencil size={15} aria-hidden="true" />{description?.text ? "编辑" : "开始填写"}</Button>
           )}
         </div>
       </header>
@@ -113,7 +113,7 @@ export function ProjectDescriptionSection({ projectId }: { projectId: string }) 
             <FileText aria-hidden="true" />
             <strong>还没有项目说明</strong>
             <p>可以自由记录项目背景、业务目标、技术架构、数据库、启动方式、当前进度及注意事项。</p>
-            <Button variant="primary" className="gap-1.5" onClick={beginEdit}><Pencil size={15} aria-hidden="true" />开始填写</Button>
+            <Button variant="secondary" className="prj-pm-description__action gap-1.5" onClick={beginEdit}><Pencil size={15} aria-hidden="true" />开始填写</Button>
           </div>
         )}
       </ScrollArea>
