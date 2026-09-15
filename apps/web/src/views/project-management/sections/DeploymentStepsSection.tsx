@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Element } from "@ke/domain";
 import { api, type ProjectManagementSummary, type ProjectModuleItem } from "../../../api/client.js";
+import { Button } from "../../../ui/index.js";
 import { DeploymentStepDetail, DeploymentStepEditor, arrayRecords, deploymentSheetOf, recordValue, textValue } from "../ProjectManagementModules.js";
 
 type DictionaryTreeDragEvent = { dataTransfer: DataTransfer; preventDefault: () => void };
@@ -198,7 +199,7 @@ export function ProjectDeploymentStepsSection({ project, summary }: { project: E
           <section className="deployment-title-row">
             <div className="deployment-title-tabs" />
             <div className="deployment-title-actions">
-              <button type="button" className={`deployment-mode-toggle${editing ? " is-saving" : ""}`} onClick={() => setEditing(!editing)}>{editing ? "完成" : "编辑"}</button>
+              <Button variant="secondary" className={`deployment-mode-toggle${editing ? " is-saving" : ""}`} onClick={() => setEditing(!editing)}>{editing ? "完成" : "编辑"}</Button>
             </div>
           </section>
           <section className="panel"><p className="empty-note">暂无部署步骤。</p></section>
@@ -238,13 +239,13 @@ export function ProjectDeploymentStepsSection({ project, summary }: { project: E
             </div>
             <div className="deployment-title-actions">
               <span className="deployment-count-note">{count} 区块 · {checklistTotal} 检查</span>
-              <button type="button" className={`deployment-mode-toggle${editing ? " is-saving" : ""}`} onClick={() => {
+              <Button variant="secondary" className={`deployment-mode-toggle${editing ? " is-saving" : ""}`} onClick={() => {
                 if (editing) setEditing(false);
                 else beginEdit();
-              }}>{editing ? "完成" : "编辑"}</button>
+              }}>{editing ? "完成" : "编辑"}</Button>
               {editing && <>
-                <button type="button" onClick={() => void createDeploymentArea()} disabled={busy}>+ 区域</button>
-                <button type="button" onClick={() => void createDeploymentStep()} disabled={busy}>+ 主题</button>
+                <Button variant="secondary" onClick={() => void createDeploymentArea()} disabled={busy}>+ 区域</Button>
+                <Button variant="secondary" onClick={() => void createDeploymentStep()} disabled={busy}>+ 主题</Button>
               </>}
             </div>
           </section>

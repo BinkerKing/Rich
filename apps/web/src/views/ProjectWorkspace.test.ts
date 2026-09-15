@@ -5,6 +5,9 @@ import test from "node:test";
 const styles = readFileSync(new URL("./ProjectsView.css", import.meta.url), "utf8");
 const workspace = readFileSync(new URL("./ProjectWorkspace.tsx", import.meta.url), "utf8");
 const workflow = readFileSync(new URL("./project-management/sections/WorkflowSection.tsx", import.meta.url), "utf8");
+const scenarios = readFileSync(new URL("./project-management/sections/ScenariosSection.tsx", import.meta.url), "utf8");
+const environments = readFileSync(new URL("./project-management/sections/EnvironmentsSection.tsx", import.meta.url), "utf8");
+const deployment = readFileSync(new URL("./project-management/sections/DeploymentStepsSection.tsx", import.meta.url), "utf8");
 
 test("项目菜单设置按钮与标题行保持紧凑一致", () => {
   assert.match(
@@ -98,6 +101,17 @@ test("项目管理的场景、环境与部署模块共享明亮的深色工作�
   assert.match(styles, /\.prj-ws :is\(\.scenario-edit-toggle, \.env-mode-toggle, \.deployment-mode-toggle\)\s*\{[^}]*border:\s*1px solid #51515b[^}]*background:\s*transparent[^}]*color:\s*#f1f1f4/s);
   assert.match(styles, /\.prj-ws \.scenario-index-item\s*\{[^}]*border:\s*0[^}]*border-bottom:\s*1px solid #303038[^}]*background:\s*transparent/s);
   assert.match(styles, /\.prj-ws \.deployment-sidebar,\s*\.prj-ws \.deployment-detail\s*\{[^}]*border-color:\s*#34343c[^}]*background:\s*#202024/s);
+});
+
+test("项目管理的可执行操作复用共享 Button，而导航仍保留其原生语义", () => {
+  for (const source of [scenarios, environments, deployment]) {
+    assert.match(source, /import \{ Button \} from "\.\.\/\.\.\/\.\.\/ui\/index\.js"/);
+  }
+  assert.match(scenarios, /<Button variant="secondary" className="scenario-edit-toggle"/);
+  assert.match(scenarios, /<Button variant="danger" className="scenario-edit-toggle is-danger"/);
+  assert.match(environments, /<Button variant="secondary" className=\{`env-mode-toggle/);
+  assert.match(deployment, /<Button variant="secondary" className=\{`deployment-mode-toggle/);
+  assert.match(deployment, /<Button variant="secondary" onClick=\{\(\) => void createDeploymentArea\(\)\}/);
 });
 
 test("作业流程内容区在可用高度内自适应，超出部分由流程轨道滚动", () => {

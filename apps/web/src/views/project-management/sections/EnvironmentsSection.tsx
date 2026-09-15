@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Element } from "@ke/domain";
 import { api, type ProjectManagementSummary, type ProjectModuleItem } from "../../../api/client.js";
+import { Button } from "../../../ui/index.js";
 import {
   EnvironmentModuleCard,
   EnvironmentServerDetailModal,
@@ -101,11 +102,11 @@ export function EnvironmentsSection({ project, summary }: { project: Element; su
             <div className="env-mini-stat"><strong>{editing ? arrayRecords(draft.connections).length : connections.length}</strong><span>连接</span></div>
             {editing ? (
               <>
-                <button type="button" className={`env-mode-toggle env-mode-toggle--compact${busy ? " is-saving" : ""}`} onClick={() => void save()} disabled={busy}>{busy ? "保存中" : "保存"}</button>
-                <button type="button" className="env-mode-toggle env-mode-toggle--compact" onClick={() => setEditing(false)} disabled={busy}>取消</button>
+                <Button variant="secondary" className={`env-mode-toggle env-mode-toggle--compact${busy ? " is-saving" : ""}`} onClick={() => void save()} disabled={busy}>{busy ? "保存中" : "保存"}</Button>
+                <Button variant="secondary" className="env-mode-toggle env-mode-toggle--compact" onClick={() => setEditing(false)} disabled={busy}>取消</Button>
               </>
             ) : (
-              <button type="button" className="env-mode-toggle env-mode-toggle--compact" onClick={beginEdit}>编辑</button>
+              <Button variant="secondary" className="env-mode-toggle env-mode-toggle--compact" onClick={beginEdit}>编辑</Button>
             )}
           </div>
         )}

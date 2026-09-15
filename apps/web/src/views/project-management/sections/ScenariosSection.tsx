@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Element } from "@ke/domain";
 import { api, type ProjectManagementSummary, type ProjectModuleItem } from "../../../api/client.js";
+import { Button } from "../../../ui/index.js";
 import { ScenarioDetail, getScenarios, recordValue, scenarioMarkerClass, scenarioToDraft, splitLines, textValue } from "../ProjectManagementModules.js";
 
 export function ScenariosSection({ project, summary }: { project: Element; summary: ProjectManagementSummary | null }) {
@@ -149,14 +150,14 @@ export function ScenariosSection({ project, summary }: { project: Element; summa
               </button>
             );
           })}
-          {editing && <button type="button" className="scenario-group-add" onClick={() => void createGroup()} disabled={busy}>+ 新增分组</button>}
+          {editing && <Button variant="secondary" className="scenario-group-add" onClick={() => void createGroup()} disabled={busy}>+ 新增分组</Button>}
         </div>
         <div className="scenario-toolbar-meta">
           <span>{groupCount} 分组</span>
           <span>{count} 场景</span>
-          {selectedGroup && !editing && <button type="button" className="scenario-edit-toggle" onClick={() => beginEdit(selectedGroup)}>编辑</button>}
-          {selectedGroup && editing && <button type="button" className="scenario-edit-toggle is-saving" onClick={() => void saveGroup()} disabled={busy}>保存</button>}
-          {selectedGroup && editing && <button type="button" className="scenario-edit-toggle is-danger" onClick={() => void deleteGroup()} disabled={busy}>删除分组</button>}
+          {selectedGroup && !editing && <Button variant="secondary" className="scenario-edit-toggle" onClick={() => beginEdit(selectedGroup)}>编辑</Button>}
+          {selectedGroup && editing && <Button variant="secondary" className="scenario-edit-toggle is-saving" onClick={() => void saveGroup()} disabled={busy}>保存</Button>}
+          {selectedGroup && editing && <Button variant="danger" className="scenario-edit-toggle is-danger" onClick={() => void deleteGroup()} disabled={busy}>删除分组</Button>}
         </div>
       </section>
 
@@ -179,12 +180,12 @@ export function ScenariosSection({ project, summary }: { project: Element; summa
                 </button>
                 <div className="scenario-index-list">
                   {editing && isOpen && (
-                    <button
-                      type="button"
+                    <Button
+                      variant="secondary"
                       className="scenario-add-item"
                       onClick={() => onAddDraftScenario(draftScenarios, setDraftScenarios)}>
                       + 新增场景
-                    </button>
+                    </Button>
                   )}
                   {groupScenarios.map(scenario => {
                     const scenarioId = textValue(scenario, "id") || textValue(scenario, "title");
@@ -281,8 +282,8 @@ function ScenarioGroupEditor({
       <header>
         <h3>编辑场景分组</h3>
         <div>
-          <button type="button" className="prj-btn-link" onClick={onCancel} disabled={busy}>取消</button>
-          <button type="button" className="prj-btn-primary" onClick={onSave} disabled={busy}>保存</button>
+          <Button variant="secondary" className="prj-btn-link" onClick={onCancel} disabled={busy}>取消</Button>
+          <Button variant="secondary" className="prj-btn-primary" onClick={onSave} disabled={busy}>保存</Button>
         </div>
       </header>
       <label>
@@ -294,7 +295,7 @@ function ScenarioGroupEditor({
           <section key={`${scenario.id}-${index}`}>
             <div className="prj-pm-scenarios__editor-scene-head">
               <strong>{scenario.sceneNo || `场景${index + 1}`}</strong>
-              <button type="button" className="prj-btn-link prj-btn-danger" onClick={() => onScenariosChange(scenarios.filter((_, i) => i !== index))}>删除</button>
+              <Button variant="danger" className="prj-btn-link prj-btn-danger" onClick={() => onScenariosChange(scenarios.filter((_, i) => i !== index))}>删除</Button>
             </div>
             <div className="prj-pm-scenarios__editor-grid">
               <label>
@@ -333,12 +334,12 @@ function ScenarioGroupEditor({
           </section>
         ))}
       </div>
-      <button
-        type="button"
+      <Button
+        variant="secondary"
         className="prj-btn-link"
         onClick={() => onAddDraftScenario(scenarios, onScenariosChange)}>
         新增场景
-      </button>
+      </Button>
     </div>
   );
 }
