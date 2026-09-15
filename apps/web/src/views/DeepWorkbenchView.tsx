@@ -8,11 +8,12 @@ import { createDeepWorkbenchMap, type DeepWorkbenchItem, type DeepWorkbenchMap }
 import { fromOutlineNode, toOutlineNode } from "./deep-workbench/deepWorkbenchOutlineAdapter.js";
 import { planKnowledgeTreeChanges, projectKnowledgeTree } from "./deep-workbench/knowledgeTreeWorkbench.js";
 import { workbenchTitleFromRootText } from "./deep-workbench/workbenchTitle.js";
-import { nodeDetails, updateNodeDetails } from "./deep-workbench/nodeDetails.js";
+import { nodeDetails, nodeResources, updateNodeDetails, updateNodeResources, type NodeResources } from "./deep-workbench/nodeDetails.js";
 import { clampNodeDetailPanelWidth, loadNodeDetailPanelWidth, nodeDetailPanelMaxWidth, NODE_DETAIL_PANEL_WIDTH_KEY } from "./deep-workbench/nodeDetailPanel.js";
 import { titleFromNodeHtml } from "../components/mindmap/richTextNode.js";
 import { ProjectRichTextEditor as ProjectRichTextEditorInput } from "./project-management/ProjectManagementModules.js";
-import { api } from "../api/client.js";
+import { ConfigurableDataGrid } from "../components/ConfigurableDataGrid.js";
+import { api, type Flowchart } from "../api/client.js";
 import { useStore } from "../state/store.js";
 import "./DeepWorkbenchView.css";
 
@@ -48,10 +49,52 @@ function countOutline(root: DeepWorkbenchMap["root"]): { topics: number; words: 
   }, { topics: 1, words: root.data.text.trim().length });
 }
 
-function ProjectRichTextEditor({ projectId, value, onChange }: { projectId: string; value: string; onChange: (value: string) => void }) {
-  const [nodeDetailEditing, setNodeDetailEditing] = useState(false);
-  useEffect(() => setNodeDetailEditing(false), [projectId]);
-  return <section className="deep-node-detail__description"><header><h3>说明</h3><button type="button" className="deep-node-detail__edit" aria-label={nodeDetailEditing ? "完成编辑说明" : "编辑说明"} title={nodeDetailEditing ? "完成" : "编辑"} onClick={() => setNodeDetailEditing(editing => !editing)}>{nodeDetailEditing ? "完成" : "✎"}</button></header>{nodeDetailEditing ? <ProjectRichTextEditorInput projectId={projectId} value={value} onChange={onChange} /> : <article className="deep-node-detail__preview workflow-rich-content" dangerouslySetInnerHTML={{ __html: value || "<p>暂无说明。</p>" }} />}</section>;
+type DetailSection = "description" | "flowcharts" | "table" | "files";
+
+function NodeDetailSection({ title, open, onToggle, actions, children }: { title: string; open: boolean; onToggle: () => void; actions?: React.ReactNode; children: React.ReactNode }) {
+  return <section className={`deep-node-detail__section${open ? " is-open" : ""}`}><header onDoubleClick={onToggle}><h3>{title}</h3><div>{actions}<span className="deep-node-detail__section-state" aria-hidden="true">{open ? "−" : "+"}</span></div></header>{open && <div className="deep-node-detail__section-content">{children}</div>}</section>;
+}
+
+function ProjectRichTextEditor({ projectId, value, editing, onChange }: { projectId: string; value: string; editing: boolean; onChange: (value: string) => void }) {
+  return <>{editing ? <ProjectRichTextEditorInput projectId={projectId} value={value} onChange={onChange} /> : <article className="deep-node-detail__preview workflow-rich-content" dangerouslySetInnerHTML={{ __html: value || "<p>暂无说明。</p>" }} />}</>;
+}
+
+function FlowchartBindings({ resources, onChange }: { resources: NodeResources; onChange: (resources: NodeResources) => void }) {
+  const [flowcharts, setFlowcharts] = useState<Flowchart[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  useEffect(() => { void api.listFlowcharts().then(setFlowcharts).catch(() => setFlowcharts([])); }, []);
+  const bound = flowcharts.filter(flowchart => resources.flowchartIds.includes(flowchart.id));
+  const bind = () => {
+    if (!selectedId || resources.flowchartIds.includes(selectedId)) return;
+    onChange({ ...resources, flowchartIds: [...resources.flowchartIds, selectedId] });
+    setSelectedId("");
+  };
+  return <div className="deep-node-detail__resource"><div className="deep-node-detail__bind-row"><select aria-label="选择要绑定的流程图" value={selectedId} onChange={event => setSelectedId(event.target.value)}><option value="">选择已有流程图</option>{flowcharts.filter(flowchart => !resources.flowchartIds.includes(flowchart.id)).map(flowchart => <option key={flowchart.id} value={flowchart.id}>{flowchart.title}</option>)}</select><button type="button" onClick={bind} disabled={!selectedId}>绑定</button></div>{bound.length === 0 ? <p className="deep-node-detail__empty">还没有绑定流程图。</p> : <div className="deep-node-detail__flowchart-list">{bound.map(flowchart => <article key={flowchart.id} className="deep-node-detail__flowchart"><header><strong>{flowchart.title}</strong><button type="button" aria-label={`解除绑定 ${flowchart.title}`} onClick={() => onChange({ ...resources, flowchartIds: resources.flowchartIds.filter(id => id !== flowchart.id) })}>×</button></header><div className="deep-node-detail__flowchart-preview">{flowchartLabels(flowchart).map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}</div></article>)}</div>}</div>;
+}
+
+function flowchartLabels(flowchart: Flowchart): string[] {
+  const graph = flowchart.graph as { nodes?: Array<{ data?: { label?: unknown } }> };
+  const labels = graph.nodes?.map(node => node.data?.label).filter((label): label is string => typeof label === "string" && label.trim().length > 0) ?? [];
+  return labels.slice(0, 5).length ? labels.slice(0, 5) : ["空流程图"];
+}
+
+function NodeDetailTableEditor({ resources, onChange }: { resources: NodeResources; onChange: (resources: NodeResources) => void }) {
+  const table = resources.table;
+  if (!table.columns.length) return <div className="deep-node-detail__resource"><button type="button" onClick={() => onChange({ ...resources, table: { columns: [{ key: "name", name: "名称", width: 180 }], rows: [] } })}>新建表格</button></div>;
+  return <ConfigurableDataGrid ariaLabel="节点表格数据" rows={table.rows} columns={table.columns} onRowsChange={rows => onChange({ ...resources, table: { ...table, rows } })} onColumnsChange={columns => onChange({ ...resources, table: { ...table, columns } })} onAddRow={() => onChange({ ...resources, table: { ...table, rows: [...table.rows, { id: newId() }] } })} emptyRowsRenderer="新增一条记录开始填写数据。" showSettings />;
+}
+
+function ExternalFileBindings({ resources, onChange }: { resources: NodeResources; onChange: (resources: NodeResources) => void }) {
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const bind = () => {
+    const target = url.trim();
+    if (!target) return;
+    const label = name.trim() || target.split(/[\\/]/).filter(Boolean).at(-1) || "外部文件";
+    onChange({ ...resources, files: [...resources.files, { id: newId(), name: label, url: target }] });
+    setName(""); setUrl("");
+  };
+  return <div className="deep-node-detail__resource"><div className="deep-node-detail__file-form"><input aria-label="外部文件名称" value={name} onChange={event => setName(event.target.value)} placeholder="文件名称（可选）" /><input aria-label="外部文件路径或网址" value={url} onChange={event => setUrl(event.target.value)} onKeyDown={event => { if (event.key === "Enter") bind(); }} placeholder="文件路径或网址" /><button type="button" onClick={bind} disabled={!url.trim()}>绑定文件</button></div>{resources.files.length === 0 ? <p className="deep-node-detail__empty">可绑定本地文件路径或网址。</p> : <ul className="deep-node-detail__file-list">{resources.files.map(file => <li key={file.id}><a href={file.url} target="_blank" rel="noreferrer">{file.name}</a><button type="button" aria-label={`解除绑定 ${file.name}`} onClick={() => onChange({ ...resources, files: resources.files.filter(item => item.id !== file.id) })}>×</button></li>)}</ul>}</div>;
 }
 
 export function DeepWorkbenchView() {
@@ -67,6 +110,8 @@ export function DeepWorkbenchView() {
   const [savingKnowledge, setSavingKnowledge] = useState(false);
   const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<{ id: string; text: string } | null>(null);
+  const [activeDetailSection, setActiveDetailSection] = useState<DetailSection>("description");
+  const [nodeDetailEditing, setNodeDetailEditing] = useState(false);
   const [nodeDetailPanelWidth, setNodeDetailPanelWidth] = useState(() => loadNodeDetailPanelWidth(localStorage.getItem(NODE_DETAIL_PANEL_WIDTH_KEY), nodeDetailPanelMaxWidth(window.innerWidth)));
   const [nodeDetailPanelFullscreen, setNodeDetailPanelFullscreen] = useState(false);
   const knowledgeSyncTimer = useRef<number | undefined>();
@@ -82,6 +127,7 @@ export function DeepWorkbenchView() {
     window.addEventListener("keydown", closeOnEscape, true);
     return () => window.removeEventListener("keydown", closeOnEscape, true);
   }, [selectedNode]);
+  useEffect(() => { setActiveDetailSection("description"); setNodeDetailEditing(false); }, [selectedNode?.id]);
   const active = items.find(item => item.id === activeId) ?? null;
   const standaloneItems = items.filter(item => item.source !== "knowledge-tree");
   const knowledgeRoots = useMemo(() => {
@@ -198,6 +244,7 @@ export function DeepWorkbenchView() {
   const activeLineStyle = active.map.theme.lineStyle ?? "curve";
   const activePanSensitivity = active.map.panSensitivity ?? 0.4;
   const selectedDetails = selectedNode ? nodeDetails(findNode(active.map.root, selectedNode.id) ?? active.map.root) : "";
+  const selectedResources = selectedNode ? nodeResources(findNode(active.map.root, selectedNode.id) ?? active.map.root) : { flowchartIds: [], table: { columns: [], rows: [] }, files: [] };
   const resizeNodeDetailPanel = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     const startX = event.clientX;
@@ -229,7 +276,7 @@ export function DeepWorkbenchView() {
       </div>
     </header>
     {knowledgeError && <p className="deep-knowledge-error" role="alert">知识树同步失败：{knowledgeError}</p>}
-    {viewMode === "mindmap" ? <div className="deep-canvas__map"><MindmapFloatingToolbar themes={DARK_MINDMAP_THEMES} theme={activeTheme.id} lineStyles={MINDMAP_LINE_STYLES} lineStyle={activeLineStyle} layouts={[{ id: "logicalStructure", name: "逻辑结构" }, { id: "mindMap", name: "思维导图" }, { id: "organizationStructure", name: "组织结构" }]} layout={active.map.layout} panSensitivity={activePanSensitivity} onThemeChange={selectTheme} onLineStyleChange={lineStyle => selectLineStyle(lineStyle as MindmapLineStyle)} onLayoutChange={layout => saveMap({ ...active.map, layout: layout as DeepWorkbenchMap["layout"] })} onPanSensitivityChange={panSensitivity => saveMap({ ...active.map, panSensitivity })} onFitView={() => mindmapActions?.fitView()} onExportPng={() => mindmapActions?.exportPng(active.title)} /><MindmapCanvas data={active.map.root as unknown as Record<string, unknown>} layout={active.map.layout} theme={active.map.theme} panSensitivity={activePanSensitivity} onChange={root => saveMap({ ...active.map, root: root as unknown as DeepWorkbenchMap["root"] })} onNodeDoubleClick={setSelectedNode} onReady={setMindmapActions} />{selectedNode && <aside className={`deep-node-detail${nodeDetailPanelFullscreen ? " is-fullscreen" : ""}`} aria-label="节点详情" style={nodeDetailPanelFullscreen ? undefined : { width: nodeDetailPanelWidth }}><div className="deep-node-detail__resize-handle" role="separator" aria-label="调整节点详情宽度" aria-orientation="vertical" onPointerDown={resizeNodeDetailPanel} /><header><h2>{titleFromNodeHtml(selectedNode.text)}</h2><div className="deep-node-detail__header-actions"><button type="button" aria-label={nodeDetailPanelFullscreen ? "还原节点详情" : "全屏显示节点详情"} title={nodeDetailPanelFullscreen ? "还原" : "全屏"} onClick={() => setNodeDetailPanelFullscreen(fullscreen => !fullscreen)}>{nodeDetailPanelFullscreen ? "↙" : "⛶"}</button><button type="button" aria-label="关闭节点详情" onClick={() => setSelectedNode(null)}>×</button></div></header><div className="deep-node-detail__body"><ProjectRichTextEditor projectId={`deep-workbench-${active.id}-${selectedNode.id}`} value={selectedDetails} onChange={detailsHtml => saveMap({ ...active.map, root: updateNodeDetails(active.map.root, selectedNode.id, detailsHtml) })} /></div></aside>}</div> : <section className="deep-outline"><div className="deep-outline__document-label">{active.source === "knowledge-tree" ? "知识树结构（编辑后即时同步）" : "文档目录"}</div><OutlineEditor root={outlineRoot} onChange={updateOutline} createId={newId} themeConfig={active.map.theme.config} /></section>}
+    {viewMode === "mindmap" ? <div className="deep-canvas__map"><MindmapFloatingToolbar themes={DARK_MINDMAP_THEMES} theme={activeTheme.id} lineStyles={MINDMAP_LINE_STYLES} lineStyle={activeLineStyle} layouts={[{ id: "logicalStructure", name: "逻辑结构" }, { id: "mindMap", name: "思维导图" }, { id: "organizationStructure", name: "组织结构" }]} layout={active.map.layout} panSensitivity={activePanSensitivity} onThemeChange={selectTheme} onLineStyleChange={lineStyle => selectLineStyle(lineStyle as MindmapLineStyle)} onLayoutChange={layout => saveMap({ ...active.map, layout: layout as DeepWorkbenchMap["layout"] })} onPanSensitivityChange={panSensitivity => saveMap({ ...active.map, panSensitivity })} onFitView={() => mindmapActions?.fitView()} onExportPng={() => mindmapActions?.exportPng(active.title)} /><MindmapCanvas data={active.map.root as unknown as Record<string, unknown>} layout={active.map.layout} theme={active.map.theme} panSensitivity={activePanSensitivity} onChange={root => saveMap({ ...active.map, root: root as unknown as DeepWorkbenchMap["root"] })} onNodeDoubleClick={setSelectedNode} onReady={setMindmapActions} />{selectedNode && <aside className={`deep-node-detail${nodeDetailPanelFullscreen ? " is-fullscreen" : ""}`} aria-label="节点详情" style={nodeDetailPanelFullscreen ? undefined : { width: nodeDetailPanelWidth }}><div className="deep-node-detail__resize-handle" role="separator" aria-label="调整节点详情宽度" aria-orientation="vertical" onPointerDown={resizeNodeDetailPanel} /><header><h2>{titleFromNodeHtml(selectedNode.text)}</h2><div className="deep-node-detail__header-actions"><button type="button" aria-label={nodeDetailPanelFullscreen ? "还原节点详情" : "全屏显示节点详情"} title={nodeDetailPanelFullscreen ? "还原" : "全屏"} onClick={() => setNodeDetailPanelFullscreen(fullscreen => !fullscreen)}>{nodeDetailPanelFullscreen ? "↙" : "⛶"}</button><button type="button" aria-label="关闭节点详情" onClick={() => setSelectedNode(null)}>×</button></div></header><div className="deep-node-detail__body"><NodeDetailSection title="说明" open={activeDetailSection === "description"} onToggle={() => setActiveDetailSection("description")} actions={<button type="button" className="deep-node-detail__edit" aria-label={nodeDetailEditing ? "完成编辑说明" : "编辑说明"} title={nodeDetailEditing ? "完成" : "编辑"} onClick={event => { event.stopPropagation(); setActiveDetailSection("description"); setNodeDetailEditing(editing => !editing); }}>{nodeDetailEditing ? "完成" : "✎"}</button>}><ProjectRichTextEditor projectId={`deep-workbench-${active.id}-${selectedNode.id}`} value={selectedDetails} editing={nodeDetailEditing} onChange={detailsHtml => saveMap({ ...active.map, root: updateNodeDetails(active.map.root, selectedNode.id, detailsHtml) })} /></NodeDetailSection><NodeDetailSection title="流程图" open={activeDetailSection === "flowcharts"} onToggle={() => setActiveDetailSection("flowcharts")}><FlowchartBindings resources={selectedResources} onChange={resources => saveMap({ ...active.map, root: updateNodeResources(active.map.root, selectedNode.id, resources) })} /></NodeDetailSection><NodeDetailSection title="表格数据" open={activeDetailSection === "table"} onToggle={() => setActiveDetailSection("table")}><NodeDetailTableEditor resources={selectedResources} onChange={resources => saveMap({ ...active.map, root: updateNodeResources(active.map.root, selectedNode.id, resources) })} /></NodeDetailSection><NodeDetailSection title="外部文件" open={activeDetailSection === "files"} onToggle={() => setActiveDetailSection("files")}><ExternalFileBindings resources={selectedResources} onChange={resources => saveMap({ ...active.map, root: updateNodeResources(active.map.root, selectedNode.id, resources) })} /></NodeDetailSection></div></aside>}</div> : <section className="deep-outline"><div className="deep-outline__document-label">{active.source === "knowledge-tree" ? "知识树结构（编辑后即时同步）" : "文档目录"}</div><OutlineEditor root={outlineRoot} onChange={updateOutline} createId={newId} themeConfig={active.map.theme.config} /></section>}
   </main>;
 }
 

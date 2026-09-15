@@ -10,11 +10,16 @@ test("keeps node detail chrome free of redundant labels", () => {
   assert.doesNotMatch(source, /deep-node-detail__label">详情/);
 });
 
-test("shows node details as a preview until the user chooses to edit", () => {
+test("shows a collapsed node-detail module list with description open by default", () => {
   assert.match(source, /const \[nodeDetailEditing, setNodeDetailEditing\] = useState\(false\);/);
-  assert.match(source, /<h3>说明<\/h3>/);
-  assert.match(source, /nodeDetailEditing \? <ProjectRichTextEditorInput/);
+  assert.match(source, /const \[activeDetailSection, setActiveDetailSection\] = useState<DetailSection>\("description"\)/);
+  assert.match(source, /<header onDoubleClick=\{onToggle\}>/);
+  assert.match(source, /<NodeDetailSection title="说明" open=\{activeDetailSection === "description"\}/);
+  assert.match(source, /<NodeDetailSection title="流程图" open=\{activeDetailSection === "flowcharts"\}/);
+  assert.match(source, /<NodeDetailSection title="表格数据" open=\{activeDetailSection === "table"\}/);
+  assert.match(source, /<NodeDetailSection title="外部文件" open=\{activeDetailSection === "files"\}/);
+  assert.match(source, /editing \? <ProjectRichTextEditorInput/);
   assert.match(source, /deep-node-detail__preview workflow-rich-content/);
-  assert.match(source, /setNodeDetailEditing\(false\), \[projectId\]\)/);
-  assert.match(styles, /deep-node-detail__description/);
+  assert.match(source, /setActiveDetailSection\("description"\); setNodeDetailEditing\(false\)/);
+  assert.match(styles, /deep-node-detail__section/);
 });
