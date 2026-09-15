@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  --color-rich-canvas: #0c0c0e;
+  --color-rich-surface: #151519;
+  --color-rich-raised: #1b1b20;
+  --color-rich-border: #303038;
+  --color-rich-text: #ececf0;
+  --color-rich-muted: #92929d;
+  --color-rich-accent: #8b8ee8;
+}

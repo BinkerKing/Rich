@@ -1,0 +1,7 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "nova",
+  "tsx": true,
+  "tailwind": { "css": "src/styles/tailwind.css", "baseColor": "neutral", "cssVariables": true },
+  "aliases": { "components": "@/components", "utils": "@/ui/cn", "ui": "@/ui" }
+}

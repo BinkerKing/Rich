@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App.js";
 import "./theme/tokens.css";
+import "./styles/tailwind.css";
 import "./theme/themeStore.js";
 import "./theme/theme-cyber.css";
 import "./theme/theme-brutal.css";
