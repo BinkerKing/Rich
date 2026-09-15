@@ -9,4 +9,11 @@ test("Rich UI exposes the common primitive barrel", () => {
   assert.match(source, /export \{ Input \}/);
   assert.match(source, /export \{ ScrollArea \}/);
   assert.match(source, /export \{ Dialog \}/);
+  assert.match(source, /export \{ PageHeader \}/);
+  assert.match(source, /export \{ DocumentLayout \}/);
+  assert.match(source, /export \{ TableOfContents, type TableOfContentsItem \}/);
+  assert.match(source, /export \{ EmptyState \}/);
+  assert.match(source, /export \{ Alert \}/);
+  assert.match(source, /export \{ Prose \}/);
+  assert.match(source, /export \{ Skeleton \}/);
 });

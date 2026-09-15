@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type UIEvent } from "react";
 import { FileText, Pencil, Save, X } from "lucide-react";
 import { api, type ProjectDescription } from "../../api/client.js";
-import { Badge, Button, ScrollArea, Separator } from "../../ui/index.js";
+import { Alert, Badge, Button, DocumentLayout, EmptyState, MetaText, PageHeader, Prose, ScrollArea, Separator, Skeleton, TableOfContents } from "../../ui/index.js";
 import { ProjectRichTextEditor } from "./ProjectManagementModules.js";
 
 type DescriptionHeading = { id: string; title: string; level: number };
@@ -75,46 +75,24 @@ export function ProjectDescriptionSection({ projectId }: { projectId: string }) 
 
   return (
     <div className={`prj-pm-description${editing ? " is-editing" : ""}`}>
-      <header className="prj-pm-description__head">
-        <div className="prj-pm-description__title">
-          <FileText aria-hidden="true" />
-          <div>
-            <h2>项目说明</h2>
-            <p>记录项目背景、架构、运行方式和重要约束，供项目成员与 AI 快速了解上下文。</p>
-          </div>
-        </div>
-        <div className="prj-pm-description__actions">
-          <Badge>项目说明</Badge>
-          <Separator className="h-4 w-px" />
-          {description?.updatedAt && <small>最后保存：{formatProjectDescriptionTime(description.updatedAt)}</small>}
-          {editing ? <>
-            <Button variant="secondary" className="prj-pm-description__action gap-1.5" onClick={cancelEdit} disabled={busy}><X size={15} aria-hidden="true" />取消</Button>
-            <Button variant="secondary" className="prj-pm-description__action gap-1.5" onClick={() => void save()} disabled={busy}><Save size={15} aria-hidden="true" />{busy ? "保存中…" : "保存"}</Button>
-          </> : (
-            <Button variant="secondary" className="prj-pm-description__action gap-1.5" onClick={beginEdit}><Pencil size={15} aria-hidden="true" />{description?.text ? "编辑" : "开始填写"}</Button>
-          )}
-        </div>
-      </header>
+      <PageHeader
+        icon={<FileText aria-hidden="true" />}
+        title="项目说明"
+        description="记录项目背景、架构、运行方式和重要约束，供项目成员与 AI 快速了解上下文。"
+        meta={<><Badge>项目说明</Badge><Separator className="h-4 w-px" />{description?.updatedAt && <MetaText>最后保存：{formatProjectDescriptionTime(description.updatedAt)}</MetaText>}</>}
+        actions={editing ? <><Button variant="secondary" className="prj-pm-description__action gap-1.5" onClick={cancelEdit} disabled={busy}><X size={15} aria-hidden="true" />取消</Button><Button variant="secondary" className="prj-pm-description__action gap-1.5" onClick={() => void save()} disabled={busy}><Save size={15} aria-hidden="true" />{busy ? "保存中…" : "保存"}</Button></> : <Button variant="secondary" className="prj-pm-description__action gap-1.5" onClick={beginEdit}><Pencil size={15} aria-hidden="true" />{description?.text ? "编辑" : "开始填写"}</Button>}
+      />
 
-      {error && <div className="prj-pm-error" role="alert">{error}</div>}
+      {error && <Alert role="alert">{error}</Alert>}
       <ScrollArea className="prj-pm-description__body" onScroll={updateActiveHeading}>
-        {description === null && !error ? <div className="prj-pm-empty">正在读取项目说明…</div> : editing ? (
+        {description === null && !error ? <Skeleton className="h-[360px] w-full" /> : editing ? (
           <ProjectRichTextEditor projectId={`${projectId}-description`} value={draft} onChange={setDraft} />
         ) : description?.text ? (
-          <div className="prj-pm-description__reading">
-            {headings.length > 0 && <nav className="prj-pm-description__toc" aria-label="项目说明目录">
-              <p>目录</p>
-              {headings.map(heading => <button type="button" key={heading.id} className={activeHeadingId === heading.id ? "is-active" : ""} data-level={heading.level} onClick={() => document.getElementById(heading.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}>{heading.title}</button>)}
-            </nav>}
-            <article ref={documentRef} className="prj-pm-description__document workflow-rich-content" dangerouslySetInnerHTML={{ __html: description.html }} />
-          </div>
+          <DocumentLayout aside={headings.length > 0 ? <TableOfContents items={headings} activeId={activeHeadingId} onSelect={heading => document.getElementById(heading.id)?.scrollIntoView({ behavior: "smooth", block: "start" })} label="项目说明目录" /> : undefined}>
+            <Prose ref={documentRef} dangerouslySetInnerHTML={{ __html: description.html }} />
+          </DocumentLayout>
         ) : (
-          <div className="prj-pm-description__empty">
-            <FileText aria-hidden="true" />
-            <strong>还没有项目说明</strong>
-            <p>可以自由记录项目背景、业务目标、技术架构、数据库、启动方式、当前进度及注意事项。</p>
-            <Button variant="secondary" className="prj-pm-description__action gap-1.5" onClick={beginEdit}><Pencil size={15} aria-hidden="true" />开始填写</Button>
-          </div>
+          <EmptyState icon={<FileText aria-hidden="true" />} title="还没有项目说明" description="可以自由记录项目背景、业务目标、技术架构、数据库、启动方式、当前进度及注意事项。" action={<Button variant="secondary" className="prj-pm-description__action gap-1.5" onClick={beginEdit}><Pencil size={15} aria-hidden="true" />开始填写</Button>} />
         )}
       </ScrollArea>
     </div>
