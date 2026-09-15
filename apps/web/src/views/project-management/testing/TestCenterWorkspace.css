@@ -337,3 +337,9 @@
 .prj-ws .test-center__case-summary .test-case-workbench__filter.is-fail b { color:var(--pm-danger); }
 .prj-ws .test-center__case-summary .test-case-workbench__filter.is-block b { color:var(--pm-amber); }
 .prj-ws .test-center .test-case-workbench__header { display:none; }
+
+/* Test Center uses the shared project module title treatment. */
+.prj-ws .delivery.test-center > .test-center__masthead { min-height:58px; padding:10px 12px!important; border:1px solid var(--pm-border)!important; border-radius:var(--pm-radius-panel)!important; background:var(--pm-surface)!important; }
+.prj-ws .test-center__masthead .prj-pm-workspace-head__identity { align-items:center; }
+.prj-ws .test-center__masthead .prj-pm-workspace-head__identity > svg { width:21px; height:21px; margin:0; color:var(--pm-module-tone); stroke-width:1.9; }
+.prj-ws .test-center__masthead h1 { color:var(--pm-text)!important; font-size:18px!important; font-weight:600!important; line-height:1.35; letter-spacing:-.015em; }
