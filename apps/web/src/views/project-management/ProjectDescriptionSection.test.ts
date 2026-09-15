@@ -36,6 +36,9 @@ test("项目说明在阅读态提供右侧跟随的章节目录", () => {
   assert.match(source, /scrollIntoView\(\{ behavior: "smooth", block: "start" \}\)/);
   assert.match(styles, /\.prj-pm-description__toc\s*\{[^}]*position:\s*sticky[^}]*top:\s*18px/s);
   assert.match(styles, /\.prj-pm-description__reading\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*760px\)\s+220px/s);
+  assert.match(styles, /\.prj-pm-description__reading\s*\{[^}]*grid-template-areas:\s*"document toc"/s);
+  assert.match(styles, /\.prj-pm-description__document\s*\{[^}]*grid-area:\s*document/s);
+  assert.match(styles, /\.prj-pm-description__toc\s*\{[^}]*grid-area:\s*toc/s);
 });
 
 test("项目说明以轻量文档工作台呈现，并复用操作层 UI 原语", () => {
@@ -49,6 +52,9 @@ test("项目说明工作区自适应窗口并在内部滚动", () => {
   assert.match(styles, /\.prj-pm-description\s*\{[^}]*min-height:\s*0[^}]*overflow:\s*hidden/s);
   assert.match(styles, /\.prj-pm-description__body\s*\{[^}]*overflow:\s*auto/s);
   assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-surface\s*\{[^}]*max-height:\s*none/s);
+  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-description__body\s*\{[^}]*flex:\s*1 1 auto[^}]*overflow:\s*hidden/s);
+  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-content\s*\{[^}]*flex:\s*1 1 auto[^}]*min-height:\s*0/s);
+  assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-surface\s*\{[^}]*min-height:\s*0[^}]*overflow-y:\s*auto/s);
 });
 
 test("富文本输入时不通过 React 重建编辑区 DOM，避免光标跳回开头", () => {
