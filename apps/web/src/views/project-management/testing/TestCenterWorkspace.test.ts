@@ -40,6 +40,14 @@ test("测试中心工作区采用共享石墨基面与低对比边框，而非�
   assert.match(styles, /\.prj-ws \.test-case-execution__group-row,\.prj-ws \.test-case-execution__case-row \{[^}]*background:transparent!important/s);
 });
 
+test("测试中心用语义色区分草稿、状态标签与资料模块边框", () => {
+  assert.match(source, /className=\{`status \$\{statusClass\(value\)\} is-\$\{value\}`\}/);
+  assert.match(styles, /\.prj-ws \.test-center \.status\.is-draft \{[^}]*color:var\(--pm-cyan\)!important/s);
+  assert.match(styles, /\.prj-ws \.test-case-module--steps \{[^}]*--test-panel-tone:var\(--pm-blue\)/s);
+  assert.match(styles, /\.prj-ws \.test-case-module--issues \{[^}]*--test-panel-tone:var\(--pm-danger\)/s);
+  assert.match(styles, /\.prj-ws \.test-case-execution__meta span:nth-child\(2\) \{[^}]*color:var\(--pm-amber\)!important/s);
+});
+
 test("测试动态的时间与内容靠左，更多操作保持紧凑", () => {
   assert.match(styles, /test-case-activity__timeline\s*\{\s*padding:8px 2px/s);
   assert.match(styles, /delivery-dashboard-activity\s*\{\s*grid-template-columns:42px 14px minmax\(0,1fr\)/s);

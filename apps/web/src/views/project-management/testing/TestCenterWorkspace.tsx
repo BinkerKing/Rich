@@ -27,7 +27,7 @@ function statusClass(status: string) {
 }
 
 function Status({ value }: { value: string }) {
-  return <span className={`status ${statusClass(value)}`}>{labels[value] ?? value}</span>;
+  return <span className={`status ${statusClass(value)} is-${value}`}>{labels[value] ?? value}</span>;
 }
 
 function executionTone(cases: TestCenterCase[]) {

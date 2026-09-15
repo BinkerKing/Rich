@@ -371,3 +371,25 @@
 .prj-ws .test-case-execution__status-dot.is-fail { background:var(--pm-danger)!important; }
 .prj-ws .test-case-execution__status-dot.is-block { background:var(--pm-amber)!important; }
 .prj-ws .test-case-execution__status-dot.is-testing { background:var(--pm-blue)!important; }
+
+/* Semantic color returns through status labels and section hairlines, never through large fills. */
+.prj-ws .test-center .status { border:1px solid var(--pm-border)!important; border-radius:var(--pm-radius-control)!important; color:var(--pm-text-secondary)!important; background:transparent!important; font-weight:600; }
+.prj-ws .test-center .status.is-draft { border-color:rgba(108,190,194,.38)!important; color:var(--pm-cyan)!important; background:rgba(108,190,194,.10)!important; }
+.prj-ws .test-center .status.is-ready,.prj-ws .test-center .status.is-testing { border-color:rgba(117,167,232,.42)!important; color:var(--pm-blue)!important; background:rgba(117,167,232,.10)!important; }
+.prj-ws .test-center .status.pass,.prj-ws .test-center .status.is-fixed { border-color:rgba(121,185,154,.42)!important; color:var(--pm-success)!important; background:rgba(121,185,154,.10)!important; }
+.prj-ws .test-center .status.fail { border-color:rgba(240,139,149,.42)!important; color:var(--pm-danger)!important; background:rgba(240,139,149,.10)!important; }
+.prj-ws .test-center .status.block,.prj-ws .test-center .status.is-retest { border-color:rgba(212,169,106,.42)!important; color:var(--pm-amber)!important; background:rgba(212,169,106,.10)!important; }
+.prj-ws .test-center .status.is-open { border-color:rgba(167,139,212,.42)!important; color:var(--pm-violet)!important; background:rgba(167,139,212,.10)!important; }
+.prj-ws .test-center .status.is-closed { border-color:var(--pm-border)!important; color:var(--pm-text-muted)!important; background:transparent!important; }
+.prj-ws .test-case-execution__meta span:nth-child(1) { border-color:rgba(108,190,194,.42)!important; color:var(--pm-cyan)!important; background:rgba(108,190,194,.09)!important; }
+.prj-ws .test-case-execution__meta span:nth-child(2) { border-color:rgba(212,169,106,.42)!important; color:var(--pm-amber)!important; background:rgba(212,169,106,.09)!important; }
+.prj-ws .test-case-execution__meta span:nth-child(3) { border-color:rgba(117,167,232,.42)!important; color:var(--pm-blue)!important; background:rgba(117,167,232,.09)!important; }
+.prj-ws .test-case-execution__meta span:nth-child(4) { border-color:rgba(167,139,212,.42)!important; color:var(--pm-violet)!important; background:rgba(167,139,212,.09)!important; }
+.prj-ws .test-case-module { --test-panel-tone:var(--pm-module-tone); --test-panel-line:var(--pm-module-line); --test-panel-soft:var(--pm-module-soft); border-color:var(--test-panel-line)!important; }
+.prj-ws .test-case-module--steps { --test-panel-tone:var(--pm-blue); --test-panel-line:rgba(117,167,232,.34); --test-panel-soft:rgba(117,167,232,.09); }
+.prj-ws .test-case-module--issues { --test-panel-tone:var(--pm-danger); --test-panel-line:rgba(240,139,149,.34); --test-panel-soft:rgba(240,139,149,.09); }
+.prj-ws .test-case-module--evidence { --test-panel-tone:var(--pm-amber); --test-panel-line:rgba(212,169,106,.34); --test-panel-soft:rgba(212,169,106,.09); }
+.prj-ws .test-case-module--comments { --test-panel-tone:var(--pm-violet); --test-panel-line:rgba(167,139,212,.34); --test-panel-soft:rgba(167,139,212,.09); }
+.prj-ws .test-case-module h3 { border-left:2px solid var(--test-panel-tone)!important; color:var(--pm-text)!important; background:var(--test-panel-soft); }
+.prj-ws .test-case-module h3 b { color:var(--test-panel-tone)!important; background:transparent!important; }
+.prj-ws .test-case-module p em { color:var(--pm-canvas)!important; background:var(--test-panel-tone)!important; }
