@@ -41,6 +41,16 @@ test("项目名称在顶部具有明确的视觉层级，编辑状态保持一�
   assert.match(styles, /\.prj-ws__title-input\s*\{[^}]*font:\s*700 25px\/1\.1 inherit/s);
 });
 
+test("顶部项目状态可直接选择并写回现有项目状态字段", () => {
+  assert.match(workspace, /const updateProjectStatus = async \(status: NonNullable<ProjectContent\["status"\]>\)/);
+  assert.match(workspace, /await api\.patchElement\(project\.id, \{ content: \{ \.\.\.c, status \} satisfies ProjectContent \}\)/);
+  assert.match(workspace, /<select className="prj-ws__status" aria-label="项目状态"/);
+  assert.match(workspace, /option value="active">进行中<\/option>/);
+  assert.doesNotMatch(workspace, /prj-ws__owner/);
+  assert.match(styles, /\.prj-ws__status\s*\{[^}]*appearance:\s*none[^}]*min-height:\s*26px/s);
+  assert.match(styles, /\.prj-ws__status-select::after\s*\{[^}]*content:\s*"⌄"/s);
+});
+
 test("项目管理各模块的标题操作区采用统一紧凑行距", () => {
   assert.match(styles, /\.prj-ws \.delivery\s*\{[^}]*padding:8px 12px 14px/s);
   assert.match(styles, /\.prj-ws \.delivery__header\s*\{[^}]*min-height:42px[^}]*margin-bottom:8px/s);
@@ -89,9 +99,9 @@ test("项目菜单仅在对应模块没有信息时使用未配置灰色状态",
 });
 
 test("作业流程采用明亮文字、线条图标与透明描边操作", () => {
-  assert.match(workflow, /import \{ GitBranch, Plus \} from "lucide-react"/);
+  assert.match(workflow, /import \{ Plus, Workflow \} from "lucide-react"/);
   assert.match(workflow, /import \{ Button \} from "\.\.\/\.\.\/\.\.\/ui\/index\.js"/);
-  assert.match(workflow, /<div className="workflow__title">[\s\S]*<GitBranch[\s\S]*<h2>作业流程<\/h2>/);
+  assert.match(workflow, /<div className="workflow__title">[\s\S]*<Workflow[\s\S]*<h2>作业流程<\/h2>/);
   assert.match(workflow, /<Button variant="secondary" className="workflow__create"[\s\S]*<Plus[\s\S]*新增流程/s);
   assert.doesNotMatch(workflow, /prj-pm-legacy-skin/);
   assert.match(styles, /\.workflow__head\s*\{[^}]*border-bottom:\s*1px solid #303038[^}]*background:\s*transparent/s);

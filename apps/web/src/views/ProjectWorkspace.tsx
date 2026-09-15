@@ -83,6 +83,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const [draggedMenuId, setDraggedMenuId] = useState<ProjectManagementSection | null>(null);
   const [isEditingProjectTitle, setIsEditingProjectTitle] = useState(false);
   const [projectTitleDraft, setProjectTitleDraft] = useState("");
+  const [isSavingProjectStatus, setIsSavingProjectStatus] = useState(false);
   const workspaceHeaderRef = useRef<HTMLElement | null>(null);
   const menuNavRef = useRef<HTMLElement | null>(null);
   const menuNavDragRef = useRef<{ pointerId: number; startX: number; startScrollLeft: number; dragging: boolean } | null>(null);
@@ -211,7 +212,18 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
     await api.patchElement(project.id, { content: { ...c, deliverableIds } satisfies ProjectContent });
     await hydrate();
   };
-  const statusLabel = ({ active: "进行中", paused: "已暂停", archived: "已归档" } as const)[c.status ?? "active"];
+  const updateProjectStatus = async (status: NonNullable<ProjectContent["status"]>) => {
+    if (status === (c.status ?? "active")) return;
+    setIsSavingProjectStatus(true);
+    try {
+      await api.patchElement(project.id, { content: { ...c, status } satisfies ProjectContent });
+      await hydrate();
+    } catch (error) {
+      window.alert(`项目状态保存失败: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsSavingProjectStatus(false);
+    }
+  };
 
   const startEditingProjectTitle = () => {
     setProjectTitleDraft(project.title);
@@ -327,8 +339,13 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
               {project.title}
             </span>
           )}
-          <span className={`prj-ws__status prj-ws__status--${c.status ?? "active"}`}>{statusLabel}</span>
-          {c.owner && <span className="prj-ws__owner">· {c.owner}</span>}
+          <span className={`prj-ws__status-select prj-ws__status-select--${c.status ?? "active"}`}>
+            <select className="prj-ws__status" aria-label="项目状态" title="项目状态" value={c.status ?? "active"} disabled={isSavingProjectStatus} onChange={event => void updateProjectStatus(event.target.value as NonNullable<ProjectContent["status"]>)}>
+              <option value="active">进行中</option>
+              <option value="paused">已暂停</option>
+              <option value="archived">已归档</option>
+            </select>
+          </span>
           </div>
           <button
             ref={menuSettingsButtonRef}
