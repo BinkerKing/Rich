@@ -59,6 +59,8 @@ test("测试动态的时间与内容靠左，更多操作保持紧凑", () => {
   assert.match(styles, /delivery-dashboard-activity\s*\{\s*grid-template-columns:42px 14px minmax\(0,1fr\)/s);
   assert.match(styles, /delivery-dashboard-activity > time\s*\{\s*text-align:left/s);
   assert.match(styles, /delivery-dashboard-activity header > button\s*\{[^}]*width:20px[^}]*height:20px[^}]*font-size:12px/s);
+  assert.match(styles, /test-case-activity__header h3\s*\{[^}]*width:fit-content[^}]*background:transparent!important/s);
+  assert.match(styles, /test-case-activity__header p\s*\{[^}]*padding:4px 0 0 11px!important[^}]*border-bottom:0!important/s);
 });
 
 test("层级列表不显示类型列", () => {
