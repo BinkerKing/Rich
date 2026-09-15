@@ -4,6 +4,7 @@ import test from "node:test";
 
 const styles = readFileSync(new URL("./ProjectsView.css", import.meta.url), "utf8");
 const workspace = readFileSync(new URL("./ProjectWorkspace.tsx", import.meta.url), "utf8");
+const workflow = readFileSync(new URL("./project-management/sections/WorkflowSection.tsx", import.meta.url), "utf8");
 
 test("项目菜单设置按钮与标题行保持紧凑一致", () => {
   assert.match(
@@ -37,10 +38,10 @@ test("项目名称在顶部具有明确的视觉层级，编辑状态保持一�
   assert.match(styles, /\.prj-ws__title-input\s*\{[^}]*font:\s*700 25px\/1\.1 inherit/s);
 });
 
-test("项目管理各模块的标题操作区采用驾驶舱式紧凑行距", () => {
+test("项目管理各模块的标题操作区采用统一紧凑行距", () => {
   assert.match(styles, /\.prj-ws \.delivery\s*\{[^}]*padding:8px 12px 14px/s);
   assert.match(styles, /\.prj-ws \.delivery__header\s*\{[^}]*min-height:42px[^}]*margin-bottom:8px/s);
-  assert.match(styles, /\.prj-ws \.prj-pm-description__head\s*\{[^}]*min-height:42px[^}]*padding:4px 0 8px/s);
+  assert.match(styles, /\.prj-ws \.prj-pm-description__head\s*\{[^}]*min-height:58px[^}]*padding:8px 0 16px/s);
   assert.match(styles, /\.prj-ws :is\(\.prj-pm-dict__hero,[^}]*min-height:58px[^}]*padding:10px 12px/s);
 });
 
@@ -77,11 +78,16 @@ test("项目菜单首次展示时完整显示最左侧菜单项", () => {
   assert.match(workspace, /<nav ref=\{menuNavRef\}/);
 });
 
-test("作业流程以黑白外框和内嵌彩色细线呈现", () => {
-  assert.match(styles, /\.workflow\.prj-pm-legacy-skin \.panel\s*\{[^}]*border-color:\s*#505050[^}]*background:\s*#252525/s);
-  assert.match(styles, /\.workflow-step\s*\{[^}]*border:\s*1px solid #505050[^}]*background:\s*#252525[^}]*box-shadow:\s*inset 3px 0 #52c7cc/s);
-  assert.match(styles, /\.workflow-order\s*\{[^}]*border:\s*1px solid #9a9a9a[^}]*background:\s*#202020[^}]*inset 0 0 0 1px rgba\(82, 199, 204, \.55\)/s);
-  assert.match(styles, /\.workflow-actions button\s*\{[^}]*border:\s*1px solid #4f4f4f[^}]*background:\s*#202020/s);
+test("作业流程复用项目管理的石墨灰标题栏与操作组件", () => {
+  assert.match(workflow, /import \{ GitBranch, Plus \} from "lucide-react"/);
+  assert.match(workflow, /import \{ Button \} from "\.\.\/\.\.\/\.\.\/ui\/index\.js"/);
+  assert.match(workflow, /<div className="workflow__title">[\s\S]*<GitBranch[\s\S]*<h2>作业流程<\/h2>/);
+  assert.match(workflow, /<Button variant="primary"[\s\S]*<Plus[\s\S]*新增流程/s);
+  assert.doesNotMatch(workflow, /prj-pm-legacy-skin/);
+  assert.match(styles, /\.workflow__head\s*\{[^}]*border-bottom:\s*1px solid #303038[^}]*background:\s*transparent/s);
+  assert.match(styles, /\.workflow-step\s*\{[^}]*border:\s*1px solid #3a3a42[^}]*background:\s*#252525[^}]*box-shadow:\s*none/s);
+  assert.match(styles, /\.workflow-order\s*\{[^}]*border:\s*1px solid #4a4a52[^}]*background:\s*transparent[^}]*box-shadow:\s*none/s);
+  assert.match(styles, /\.workflow-actions button\s*\{[^}]*border:\s*0[^}]*background:\s*transparent/s);
 });
 
 test("作业流程内容区在可用高度内自适应，超出部分由流程轨道滚动", () => {

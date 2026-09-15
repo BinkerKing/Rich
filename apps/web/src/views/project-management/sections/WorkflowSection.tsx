@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Element } from "@ke/domain";
+import { GitBranch, Plus } from "lucide-react";
 import { api, type ProjectManagementSummary, type ProjectModuleItem } from "../../../api/client.js";
+import { Button } from "../../../ui/index.js";
 import {
   WorkflowModal,
   arrayRecords,
@@ -32,7 +34,6 @@ export function WorkflowSection({ project, summary }: { project: Element; summar
     return () => { cancelled = true; };
   }, [project.id]);
 
-  const count = summary?.modules.find(module => module.key === "workflow")?.count ?? items.length;
   const beginEdit = (item: ProjectModuleItem) => {
     const original = recordValue(item.content.original);
     setDraft({ ...original, title: textValue(original, "title") || item.title });
@@ -106,21 +107,22 @@ export function WorkflowSection({ project, summary }: { project: Element; summar
   if (!error && items.length === 0) return <p className="prj-pm-unconfigured">暂未配置。</p>;
 
   return (
-    <div className="workflow prj-pm-legacy-skin">
-      <section className="panel flow-intro">
-        <div>
-          <span className="flow-kicker">Operation Flow</span>
-          <h3>{project.title} 作业流程</h3>
+    <div className="workflow">
+      <header className="workflow__head">
+        <div className="workflow__title">
+          <GitBranch aria-hidden="true" />
+          <div>
+            <h2>作业流程</h2>
           <p>围绕数据准备、加工处理、检查预警、部署和上线运维维护项目的完整作业链路。</p>
+          </div>
         </div>
-        <div className="flow-summary">
-          <strong>{count}</strong>
-          <span>流程节点</span>
+        <div className="workflow__actions">
+          <Button variant="primary" onClick={() => void createWorkflow()} disabled={busy}>
+            <Plus aria-hidden="true" size={16} />
+            {busy ? "处理中..." : "新增流程"}
+          </Button>
         </div>
-        <div className="flow-controls">
-          <button type="button" className="flow-add" onClick={() => void createWorkflow()} disabled={busy}>{busy ? "处理中..." : "+ 新增流程"}</button>
-        </div>
-      </section>
+      </header>
 
       {error && <div className="prj-pm-error">{error}</div>}
 

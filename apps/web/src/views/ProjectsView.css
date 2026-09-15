@@ -3545,63 +3545,57 @@
 .workflow {
   display: flex;
   flex-direction: column;
-  gap: 14px;
   min-height: 0;
   height: 100%;
+  overflow: hidden;
 }
-.workflow.prj-pm-legacy-skin .panel {
-  border-color: #505050;
-  background: #252525;
-  box-shadow: inset 0 0 0 1px rgba(143, 254, 247, .18);
-}
-.flow-intro {
+.workflow__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  border-color: rgba(147, 197, 253, .26);
+  flex: 0 0 auto;
+  gap: 20px;
+  min-height: 58px;
+  padding: 8px 0 16px;
+  border-bottom: 1px solid #303038;
+  background: transparent;
 }
-.flow-kicker {
-  display: block;
-  margin-bottom: 7px;
-  color: #6cebf4;
-  font-size: 11px;
-  font-weight: 700;
-}
-.flow-intro h3 {
-  margin: 0 0 6px;
-  color: #f5fdff;
-  font-size: 20px;
-}
-.flow-intro p {
-  margin: 0;
-  max-width: 860px;
-  color: #b6cbd1;
-  font-size: 12px;
-  line-height: 1.6;
-}
-.flow-summary {
-  min-width: 112px;
-  border-left: 1px solid #4a4a4a;
-  padding-left: 20px;
-  text-align: right;
-}
-.flow-summary strong {
-  display: block;
-  color: #62e8f2;
-  font-size: 28px;
-  line-height: 1;
-  text-shadow: none;
-}
-.flow-summary span {
-  color: #a4c2c9;
-  font-size: 11px;
-}
-.flow-controls {
+.workflow__title {
   display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 12px;
+}
+.workflow__title > svg {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin-top: 3px;
+  color: #a7a8ec;
+  stroke-width: 1.8;
+}
+.workflow__head h2 {
+  margin: 0;
+  color: #f4f4f6;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+.workflow__head p {
+  margin: 0;
+  max-width: 720px;
+  margin-top: 5px;
+  color: #92929d;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.workflow__actions {
+  display: flex;
+  flex: 0 0 auto;
   align-items: center;
 }
-.flow-add,
+.workflow__actions button { gap: 6px; }
+.workflow__actions svg { stroke-width: 2; }
 .env-mode-toggle {
   min-height: 34px;
   border: 1px solid #575757;
@@ -3613,11 +3607,7 @@
   cursor: pointer;
   font-size: 12px;
 }
-.flow-add:hover,
-.env-mode-toggle:hover {
-  border-color: #7a7a7a;
-  background: #2a2a2a;
-}
+.env-mode-toggle:hover { border-color: #7a7a7a; background: #2a2a2a; }
 .workflow-rail {
   display: grid;
   flex: 1 1 auto;
@@ -3625,7 +3615,7 @@
   min-height: 0;
   overflow-y: auto;
   align-content: start;
-  padding-right: 2px;
+  padding: 18px 2px 18px 0;
 }
 .workflow-content {
   display: flex;
@@ -3640,43 +3630,43 @@
 .workflow-step {
   position: relative;
   display: grid;
-  grid-template-columns: 58px minmax(360px, 1fr) minmax(300px, 420px);
-  gap: 14px;
+  grid-template-columns: 42px minmax(360px, 1fr) minmax(280px, 380px);
+  gap: 18px;
   align-items: center;
-  border: 1px solid #505050;
-  border-radius: 10px;
-  padding: 14px;
+  border: 1px solid #3a3a42;
+  border-radius: 8px;
+  padding: 18px;
   background: #252525;
-  box-shadow: inset 3px 0 #52c7cc, inset 0 0 0 1px rgba(82, 199, 204, .18);
-  transition: border-color .14s ease, box-shadow .14s ease;
+  box-shadow: none;
+  transition: border-color .14s ease, background .14s ease;
 }
-.workflow-step:hover { border-color: #767676; box-shadow: inset 3px 0 #7ae0e4, inset 0 0 0 1px rgba(122, 224, 228, .42); }
+.workflow-step:hover { border-color: #5a5a64; background: #29292f; }
 .workflow-step:not(:last-child)::after {
   content: "";
   position: absolute;
-  left: 42px;
+  left: 38px;
   bottom: -11px;
   height: 11px;
-  border-left: 1px solid #44d9e6;
+  border-left: 1px solid #4a4a52;
 }
 .workflow-order {
-  width: 48px;
-  height: 48px;
+  width: 34px;
+  height: 34px;
   display: grid;
   grid-template-rows: 1fr auto;
   place-items: center;
-  border: 1px solid #9a9a9a;
-  border-radius: 8px;
-  color: #92f7ff;
-  background: #202020;
-  box-shadow: inset 0 0 0 1px rgba(82, 199, 204, .55);
+  border: 1px solid #4a4a52;
+  border-radius: 6px;
+  color: #c7c7d0;
+  background: transparent;
+  box-shadow: none;
   font-family: "SF Mono", Menlo, Consolas, monospace;
   font-size: 14px;
 }
 .workflow-order i {
   margin-top: -2px;
-  color: #70e8f1;
-  font-size: 13px;
+  color: #858590;
+  font-size: 11px;
   font-style: normal;
   line-height: 1;
 }
@@ -3687,58 +3677,56 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #aabfc5;
+  color: #94949f;
   font-size: 11px;
 }
 .workflow-step-meta span {
-  color: #75dfff;
+  color: #b5b5c0;
 }
 .workflow-step-meta time {
-  color: var(--amber);
-  font-weight: 600;
+  color: #94949f;
+  font-weight: 500;
 }
 .workflow-title {
   display: block;
-  margin: 6px 0 5px;
+  margin: 7px 0 8px;
   padding: 0;
   border: 0;
   background: transparent;
-  color: #f1fbfd;
-  font-size: 17px;
-  font-weight: 700;
+  color: #f1f1f4;
+  font-size: 16px;
+  font-weight: 600;
   text-align: left;
   cursor: pointer;
 }
 .workflow-title:hover {
-  color: var(--accent);
+  color: #fff;
 }
 .workflow-summary {
   max-width: none;
   margin: 0;
-  color: #c4d2d6;
-  font-size: 12.5px;
-  line-height: 1.7;
+  color: #b8b8c0;
+  font-size: 13px;
+  line-height: 1.65;
 }
 .workflow-actions {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 5px;
+  gap: 2px;
 }
 .workflow-actions button {
   min-width: 0;
-  border: 1px solid #4f4f4f;
-  border-radius: 7px;
+  border: 0;
+  border-radius: 5px;
   padding: 7px 8px;
-  background: #202020;
-  color: #b7c9ce;
-  box-shadow: inset 0 0 0 1px rgba(82, 199, 204, .16);
+  background: transparent;
+  color: #9696a0;
   cursor: pointer;
   text-align: left;
 }
 .workflow-actions button:hover {
-  border-color: #777;
-  color: #edfeff;
-  background: #2a2a2a;
+  color: #f1f1f4;
+  background: #34343b;
 }
 .workflow-actions span,
 .workflow-actions strong {
@@ -3752,19 +3740,19 @@
 }
 .workflow-actions strong {
   margin-top: 2px;
-  color: #63edf5;
-  font-size: 15px;
-  text-shadow: 0 0 10px rgba(71, 226, 237, .32);
+  color: #d5d5dc;
+  font-size: 14px;
+  text-shadow: none;
 }
 .workflow-empty {
   min-height: 0;
   height: 100%;
   display: grid;
   place-content: center;
-  border: 1px solid rgba(143, 254, 247, .14);
+  border: 1px solid #3a3a42;
   border-radius: 8px;
-  color: var(--muted);
-  background: rgba(0, 0, 0, .2);
+  color: #92929d;
+  background: #252525;
 }
 .modal-backdrop {
   position: fixed;
