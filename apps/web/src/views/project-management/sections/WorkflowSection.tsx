@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Element } from "@ke/domain";
-import { GitBranch, Plus } from "lucide-react";
+import { Plus, Workflow } from "lucide-react";
 import { api, type ProjectManagementSummary, type ProjectModuleItem } from "../../../api/client.js";
 import { Button } from "../../../ui/index.js";
 import {
@@ -110,7 +110,7 @@ export function WorkflowSection({ project, summary }: { project: Element; summar
     <div className="workflow">
       <header className="workflow__head">
         <div className="workflow__title">
-          <GitBranch aria-hidden="true" />
+          <Workflow aria-hidden="true" />
           <div>
             <h2>作业流程</h2>
           <p>围绕数据准备、加工处理、检查预警、部署和上线运维维护项目的完整作业链路。</p>
