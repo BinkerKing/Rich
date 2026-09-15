@@ -325,3 +325,15 @@
 .prj-ws .test-case-activity__timeline .delivery-dashboard-activity > div { padding:6px 8px; }
 .prj-ws .test-case-activity__timeline .delivery-dashboard-activity header > button { flex:0 0 20px; width:20px; height:20px; margin-left:auto; padding:0; color:#c6d8ee; font-size:12px; line-height:1; }
 .test-case-workbench__toolbar .delivery-switch { display:none; }
+
+/* Case filters belong to the shared module title bar; the duplicate workbench caption is intentionally omitted. */
+.prj-ws .delivery.test-center > .test-center__masthead { justify-content:flex-start; }
+.prj-ws .test-center__case-summary { display:flex; align-items:center; gap:6px; min-width:0; margin-left:auto; }
+.prj-ws .test-center__case-summary .test-case-workbench__filter { min-height:30px; padding:0 9px; border:1px solid transparent; border-radius:var(--pm-radius-control); color:var(--pm-text-muted); background:transparent; font-size:12px; font-weight:500; }
+.prj-ws .test-center__case-summary .test-case-workbench__filter b { margin-left:4px; color:var(--pm-text-secondary); font:600 16px/1 ui-monospace,SFMono-Regular,Menlo,monospace; }
+.prj-ws .test-center__case-summary .test-case-workbench__filter:hover { border-color:var(--pm-border); color:var(--pm-text); background:var(--pm-surface-hover); }
+.prj-ws .test-center__case-summary .test-case-workbench__filter.is-active { border-color:var(--pm-module-line); color:var(--pm-text); background:var(--pm-module-soft); box-shadow:none; }
+.prj-ws .test-center__case-summary .test-case-workbench__filter.is-pass b { color:var(--pm-success); }
+.prj-ws .test-center__case-summary .test-case-workbench__filter.is-fail b { color:var(--pm-danger); }
+.prj-ws .test-center__case-summary .test-case-workbench__filter.is-block b { color:var(--pm-amber); }
+.prj-ws .test-center .test-case-workbench__header { display:none; }
