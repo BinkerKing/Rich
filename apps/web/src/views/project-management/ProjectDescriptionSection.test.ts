@@ -35,7 +35,7 @@ test("项目说明在阅读态提供右侧跟随的章节目录", () => {
   assert.match(source, /aria-label="项目说明目录"/);
   assert.match(source, /scrollIntoView\(\{ behavior: "smooth", block: "start" \}\)/);
   assert.match(styles, /\.prj-pm-description__toc\s*\{[^}]*position:\s*sticky[^}]*top:\s*18px/s);
-  assert.match(styles, /\.prj-pm-description__reading\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*760px\)\s+220px/s);
+  assert.match(styles, /\.prj-pm-description__reading\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*780px\)\s+220px/s);
   assert.match(styles, /\.prj-pm-description__reading\s*\{[^}]*grid-template-areas:\s*"document toc"/s);
   assert.match(styles, /\.prj-pm-description__document\s*\{[^}]*grid-area:\s*document/s);
   assert.match(styles, /\.prj-pm-description__toc\s*\{[^}]*grid-area:\s*toc/s);
@@ -83,8 +83,12 @@ test("富文本展示态保留编辑时插入的空行", () => {
   assert.match(styles, /\.workflow-rich-content:not\(\.prj-pm-rich-surface\) p:empty,\s*\.workflow-rich-content:not\(\.prj-pm-rich-surface\) p:has\(> br:only-child\)\s*\{[^}]*min-height:\s*1\.7em/s);
 });
 
-test("项目说明以开放的编辑式阅读列呈现文档", () => {
-  assert.match(styles, /\.prj-pm-description__document\s*\{[^}]*max-width:\s*760px[^}]*background:\s*transparent/s);
+test("项目说明以舒展的阅读排版呈现长文", () => {
+  assert.match(styles, /\.prj-pm-description__document\s*\{[^}]*max-width:\s*780px[^}]*font-size:\s*16px[^}]*line-height:\s*1\.95/s);
+  assert.match(styles, /\.prj-pm-description__document\.workflow-rich-content > p\s*\{[^}]*margin:\s*0 0 22px[^}]*color:\s*#c4c4cc/s);
+  assert.match(styles, /\.prj-pm-description__document\.workflow-rich-content > h2\s*\{[^}]*margin:\s*72px 0 20px[^}]*font-size:\s*26px/s);
+  assert.match(styles, /\.prj-pm-description__document\.workflow-rich-content > :is\(ul, ol\)\s*\{[^}]*margin:\s*0 0 26px[^}]*padding-left:\s*1\.45em/s);
+  assert.match(styles, /\.prj-pm-description__document\.workflow-rich-content > table\s*\{[^}]*margin:\s*32px 0[^}]*font-size:\s*14px/s);
   assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-editor\s*\{[^}]*max-width:\s*840px[^}]*border-color:\s*#4a4a54[^}]*background:\s*#151519/s);
   assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-toolbar\s*\{[^}]*background:\s*#1b1b20/s);
   assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-surface\s*\{[^}]*background:\s*#151519/s);
