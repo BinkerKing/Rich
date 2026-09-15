@@ -78,14 +78,16 @@ test("项目菜单首次展示时完整显示最左侧菜单项", () => {
   assert.match(workspace, /<nav ref=\{menuNavRef\}/);
 });
 
-test("作业流程复用项目管理的石墨灰标题栏与操作组件", () => {
+test("作业流程采用明亮文字、线条图标与透明描边操作", () => {
   assert.match(workflow, /import \{ GitBranch, Plus \} from "lucide-react"/);
   assert.match(workflow, /import \{ Button \} from "\.\.\/\.\.\/\.\.\/ui\/index\.js"/);
   assert.match(workflow, /<div className="workflow__title">[\s\S]*<GitBranch[\s\S]*<h2>作业流程<\/h2>/);
-  assert.match(workflow, /<Button variant="primary"[\s\S]*<Plus[\s\S]*新增流程/s);
+  assert.match(workflow, /<Button variant="secondary" className="workflow__create"[\s\S]*<Plus[\s\S]*新增流程/s);
   assert.doesNotMatch(workflow, /prj-pm-legacy-skin/);
   assert.match(styles, /\.workflow__head\s*\{[^}]*border-bottom:\s*1px solid #303038[^}]*background:\s*transparent/s);
-  assert.match(styles, /\.workflow-step\s*\{[^}]*border:\s*1px solid #3a3a42[^}]*background:\s*#252525[^}]*box-shadow:\s*none/s);
+  assert.match(styles, /\.workflow__title > svg\s*\{[^}]*color:\s*#d8d8de/s);
+  assert.match(styles, /\.workflow__create\s*\{[^}]*border:\s*1px solid #51515b[^}]*background:\s*transparent[^}]*color:\s*#f1f1f4/s);
+  assert.match(styles, /\.workflow-step\s*\{[^}]*grid-template-columns:\s*42px minmax\(0, 1fr\) auto[^}]*border-bottom:\s*1px solid #303038[^}]*background:\s*transparent/s);
   assert.match(styles, /\.workflow-order\s*\{[^}]*border:\s*1px solid #4a4a52[^}]*background:\s*transparent[^}]*box-shadow:\s*none/s);
   assert.match(styles, /\.workflow-actions button\s*\{[^}]*border:\s*0[^}]*background:\s*transparent/s);
 });

@@ -117,7 +117,7 @@ export function WorkflowSection({ project, summary }: { project: Element; summar
           </div>
         </div>
         <div className="workflow__actions">
-          <Button variant="primary" onClick={() => void createWorkflow()} disabled={busy}>
+          <Button variant="secondary" className="workflow__create" onClick={() => void createWorkflow()} disabled={busy}>
             <Plus aria-hidden="true" size={16} />
             {busy ? "处理中..." : "新增流程"}
           </Button>
