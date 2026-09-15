@@ -357,6 +357,33 @@
 .prj-ws :is(.deployment-release-row, .deployment-sheet-row) { border: 0; border-radius: 0; background: transparent; }
 .prj-ws .deployment-title-row { min-height: 54px; padding: 0 0 var(--pm-space-2); border-bottom: 1px solid var(--pm-border); }
 
+/* Embedded deliverables: neutral surfaces with semantic hairlines, not colored blocks. */
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) { background:transparent!important; color:var(--pm-text)!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__body { border-color:var(--pm-border)!important; border-top-color:var(--pm-border)!important; background:var(--pm-canvas)!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__toolbar { padding-bottom:var(--pm-space-2); border-bottom-color:var(--pm-border)!important; color:var(--pm-text-secondary)!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__toolbar code { color:var(--pm-module-tone)!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) :is(.deliverables-workspace__description,.deliverables-workspace__records,.deliverables-workspace__versions) { border-color:var(--pm-border)!important; background:var(--pm-surface)!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) :is(.deliverables-workspace__description > header,.deliverables-workspace__records > h2,.deliverables-workspace__versions > header) { border-bottom-color:var(--pm-border)!important; color:var(--pm-text)!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record-list > .deliverables-workspace__record { --record-tone:var(--pm-border-strong); padding-left:10px; border-left:2px solid var(--record-tone)!important; background:transparent!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record[class*="is-"] { background:transparent!important; border-left:2px solid var(--record-tone)!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record.is-requirement { --record-tone:var(--pm-blue); }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record.is-status,.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record.is-material { --record-tone:var(--pm-success); }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record.is-decision,.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record.is-information { --record-tone:var(--pm-violet); }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record.is-issue { --record-tone:var(--pm-rose); }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record.is-risk,.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record.is-change { --record-tone:var(--pm-amber); }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record.is-codex { --record-tone:var(--pm-cyan); }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record > b { color:var(--record-tone)!important; background:transparent!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record-composer:not(.is-editing-existing) { padding:var(--pm-space-3) 0 0!important; border-top-color:var(--pm-border)!important; background:var(--pm-surface-raised)!important; box-shadow:none!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record-composer .prj-pm-rich-editor { border-color:var(--pm-border-strong)!important; border-radius:var(--pm-radius-panel)!important; background:var(--pm-surface)!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record-composer .prj-pm-rich-toolbar { border-bottom-color:var(--pm-border)!important; background:var(--pm-surface-raised)!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record-composer .prj-pm-rich-surface { background:var(--pm-surface)!important; color:var(--pm-text)!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record-composer .prj-pm-rich-surface:focus-within { box-shadow:inset 0 0 0 1px var(--pm-module-line); }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record-composer > footer { padding-top:0; border-top:0; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record-publish { border-color:var(--pm-module-line)!important; color:var(--pm-module-tone)!important; background:transparent!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) .deliverables-workspace__record-publish:hover { border-color:var(--pm-module-tone)!important; color:var(--pm-text)!important; background:var(--pm-module-soft)!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) :is(.deliverables-workspace__title-action,.deliverables-workspace__record-actions button,.deliverables-workspace__refresh) { border-color:var(--pm-border)!important; color:var(--pm-text-secondary)!important; background:transparent!important; }
+.prj-ws .deliverables-workspace:not(.deliverables-workspace--standalone) :is(.deliverables-workspace__title-action,.deliverables-workspace__record-actions button,.deliverables-workspace__refresh):hover { border-color:var(--pm-module-line)!important; color:var(--pm-module-tone)!important; background:var(--pm-module-soft)!important; }
+
 @media (min-width: 601px) and (max-width: 900px) {
   .prj-ws .reports-workspace { padding: var(--pm-space-4); }
   .prj-ws .reports-workspace__layout { gap: var(--pm-space-4); margin-top: var(--pm-space-4); }

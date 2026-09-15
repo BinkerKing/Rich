@@ -10,6 +10,7 @@ const deliverableModel = readFileSync(new URL("./DeliverablesModel.ts", import.m
 const codexWorkbench = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
 const modules = readFileSync(new URL("../ProjectManagementModules.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../../ProjectsView.css", import.meta.url), "utf8");
+const linearStyles = readFileSync(new URL("../ProjectManagementLinear.css", import.meta.url), "utf8");
 const standaloneStyles = readFileSync(new URL("../../DeliverablesView.css", import.meta.url), "utf8");
 
 test("交付物是项目计划同级的顶层菜单", () => {
@@ -326,6 +327,14 @@ test("嵌入式交付物详情以细分彩色边框区分区域，并保持中�
   assert.match(styles, /record-composer \.prj-pm-rich-editor \{[^}]*border:1px solid rgba\(105,183,192,.62\)!important[^}]*background:#202020!important[^}]*box-shadow:none!important/s);
   assert.match(styles, /record-composer \.prj-pm-rich-surface \{ background:transparent!important; color:#edf0f1!important;/);
   assert.match(styles, /deliverables-workspace__file-head \{ border-bottom:1px solid rgba\(193,159,91,.48\); background:#252525!important;/);
+});
+
+test("项目交付物以中性基面、细语义线和克制按钮呈现记录", () => {
+  assert.match(linearStyles, /Embedded deliverables: neutral surfaces with semantic hairlines/);
+  assert.match(linearStyles, /\.prj-ws \.deliverables-workspace:not\(\.deliverables-workspace--standalone\) \{[^}]*background:transparent!important/s);
+  assert.match(linearStyles, /\.deliverables-workspace__record\[class\*="is-"\] \{[^}]*background:transparent!important[^}]*border-left:2px solid var\(--record-tone\)!important/s);
+  assert.match(linearStyles, /\.deliverables-workspace__record-composer:not\(\.is-editing-existing\) \{[^}]*background:var\(--pm-surface-raised\)!important/s);
+  assert.match(linearStyles, /\.deliverables-workspace__record-publish \{[^}]*border-color:var\(--pm-module-line\)!important[^}]*color:var\(--pm-module-tone\)!important/s);
 });
 
 test("交付物记录可选择 AI 任务并显式选择 Hermes 或 Multica", () => {
