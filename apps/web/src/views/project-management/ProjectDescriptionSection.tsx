@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type UIEvent } from "react";
 import { FileText, Pencil, Save, X } from "lucide-react";
 import { api, type ProjectDescription } from "../../api/client.js";
-import { Button, ScrollArea } from "../../ui/index.js";
+import { Badge, Button, Card, ScrollArea, Separator } from "../../ui/index.js";
 import { ProjectRichTextEditor } from "./ProjectManagementModules.js";
 
 type DescriptionHeading = { id: string; title: string; level: number };
@@ -84,6 +84,8 @@ export function ProjectDescriptionSection({ projectId }: { projectId: string }) 
           </div>
         </div>
         <div className="prj-pm-description__actions">
+          <Badge>项目说明</Badge>
+          <Separator className="h-4 w-px" />
           {description?.updatedAt && <small>最后保存：{formatProjectDescriptionTime(description.updatedAt)}</small>}
           {editing ? <>
             <Button variant="ghost" className="gap-1.5" onClick={cancelEdit} disabled={busy}><X size={15} aria-hidden="true" />取消</Button>
@@ -104,7 +106,9 @@ export function ProjectDescriptionSection({ projectId }: { projectId: string }) 
               <p>目录</p>
               {headings.map(heading => <button type="button" key={heading.id} className={activeHeadingId === heading.id ? "is-active" : ""} data-level={heading.level} onClick={() => document.getElementById(heading.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}>{heading.title}</button>)}
             </nav>}
-            <article ref={documentRef} className="prj-pm-description__document workflow-rich-content" dangerouslySetInnerHTML={{ __html: description.html }} />
+            <Card className="prj-pm-description__document-card">
+              <article ref={documentRef} className="prj-pm-description__document workflow-rich-content" dangerouslySetInnerHTML={{ __html: description.html }} />
+            </Card>
           </div>
         ) : (
           <div className="prj-pm-description__empty">

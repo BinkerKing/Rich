@@ -24,7 +24,7 @@ test("项目说明使用现有富文本编辑器并显式保存或取消", () =>
 });
 
 test("项目说明使用共享 UI 组件和线性图标统一操作样式", () => {
-  assert.match(source, /import \{ Button, ScrollArea \} from "\.\.\/\.\.\/ui\/index\.js"/);
+  assert.match(source, /ScrollArea/);
   assert.match(source, /import \{ FileText, Pencil, Save, X \} from "lucide-react"/);
   assert.match(source, /<ScrollArea className="prj-pm-description__body"/);
   assert.match(source, /<Button variant="primary"/);
@@ -35,6 +35,13 @@ test("项目说明在阅读态提供跟随正文的章节目录", () => {
   assert.match(source, /aria-label="项目说明目录"/);
   assert.match(source, /scrollIntoView\(\{ behavior: "smooth", block: "start" \}\)/);
   assert.match(styles, /\.prj-pm-description__toc\s*\{[^}]*position:\s*sticky/s);
+});
+
+test("项目说明以文档工作台呈现，并复用完整的共享 UI 原语", () => {
+  assert.match(source, /import \{ Badge, Button, Card, ScrollArea, Separator \} from "\.\.\/\.\.\/ui\/index\.js"/);
+  assert.match(source, /<Card className="prj-pm-description__document-card">/);
+  assert.match(source, /<Badge>项目说明<\/Badge>/);
+  assert.match(source, /<Separator className="h-4 w-px" \/>/);
 });
 
 test("项目说明工作区自适应窗口并在内部滚动", () => {
@@ -70,7 +77,8 @@ test("富文本展示态保留编辑时插入的空行", () => {
 });
 
 test("项目说明以中等阅读宽度和中性深色边界呈现文档", () => {
-  assert.match(styles, /\.prj-pm-description__document\s*\{[^}]*max-width:\s*840px[^}]*border:\s*1px solid #303038[^}]*background:\s*#151519/s);
+  assert.match(styles, /\.prj-pm-description__document-card\s*\{[^}]*background:\s*#151519/s);
+  assert.match(styles, /\.prj-pm-description__document\s*\{[^}]*max-width:\s*none[^}]*background:\s*transparent/s);
   assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-editor\s*\{[^}]*max-width:\s*840px[^}]*border-color:\s*#4a4a54[^}]*background:\s*#151519/s);
   assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-toolbar\s*\{[^}]*background:\s*#1b1b20/s);
   assert.match(styles, /\.prj-pm-description\.is-editing \.prj-pm-rich-surface\s*\{[^}]*background:\s*#151519/s);

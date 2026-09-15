@@ -787,10 +787,10 @@
 }
 .prj-pm-description__reading {
   display: grid;
-  grid-template-columns: 180px minmax(0, 840px);
+  grid-template-columns: 184px minmax(0, 840px);
   justify-content: center;
-  gap: 36px;
-  width: min(100%, 1056px);
+  gap: 40px;
+  width: min(100%, 1064px);
   margin: 0 auto;
 }
 .prj-pm-description__reading:not(:has(.prj-pm-description__toc)) { display: block; width: min(100%, 840px); }
@@ -829,13 +829,20 @@
 .prj-pm-description__toc button[data-level="3"] { padding-left: 20px; }
 .prj-pm-description__toc button:hover,
 .prj-pm-description__toc button.is-active { border-left-color: #b6b7f7; color: #f1f1f4; }
+.prj-pm-description__document-card {
+  width: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  background: #151519;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, .14);
+}
 .prj-pm-description__document {
-  max-width: 840px;
+  max-width: none;
   min-height: 100%;
   margin: 0;
-  border: 1px solid #303038;
-  border-radius: 10px;
-  background: #151519;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   padding: 32px 36px 44px;
   color: #d8d8df;
   font-size: 14px;
@@ -918,7 +925,6 @@
 @media (max-width: 1080px) {
   .prj-pm-description__reading { display: block; width: min(100%, 840px); }
   .prj-pm-description__toc { display: none; }
-  .prj-pm-description__document { margin: 0 auto; }
 }
 .prj-pm-global-search {
   position: sticky;
@@ -11574,11 +11580,11 @@
 .prj-ws .delivery button { padding:6px 9px; font-size:11px; }
 .prj-ws .project-plan__nav { padding:5px 12px 0; }
 .prj-ws .project-plan__nav button { padding:6px 8px; font-size:11px; }
-.prj-ws .prj-pm-description { gap:8px; padding:4px 0 0; }
-.prj-ws .prj-pm-description__head { align-items:center; gap:12px; min-height:42px; padding:4px 0 8px; }
-.prj-ws .prj-pm-description__head h2 { font-size:18px; }
-.prj-ws .prj-pm-description__head p { margin-top:3px; font-size:11px; }
-.prj-ws .prj-pm-description__actions { gap:7px; min-height:28px; }
+.prj-ws .prj-pm-description { gap:16px; padding:8px 10px 0; }
+.prj-ws .prj-pm-description__head { align-items:center; gap:20px; min-height:58px; padding:8px 0 16px; }
+.prj-ws .prj-pm-description__head h2 { font-size:20px; }
+.prj-ws .prj-pm-description__head p { margin-top:5px; font-size:12px; }
+.prj-ws .prj-pm-description__actions { gap:8px; min-height:32px; }
 .prj-ws :is(.prj-pm-dict__hero,.prj-pm-workflow__head,.prj-pm-scenarios__head,.prj-pm-env__head,.prj-pm-deploy__head,.prj-pm-monitor__head,.prj-pm-code__head,.prj-pm-todos__head) { gap:12px; min-height:58px; padding:10px 12px; }
 .prj-ws :is(.prj-pm-dict__hero,.prj-pm-workflow__head,.prj-pm-scenarios__head,.prj-pm-env__head,.prj-pm-deploy__head,.prj-pm-monitor__head,.prj-pm-code__head,.prj-pm-todos__head) h3 { font-size:18px; }
 .prj-ws :is(.prj-pm-dict__hero,.prj-pm-workflow__head,.prj-pm-scenarios__head,.prj-pm-env__head,.prj-pm-deploy__head,.prj-pm-monitor__head,.prj-pm-code__head,.prj-pm-todos__head) p { margin-top:3px; font-size:11px; }
