@@ -1,0 +1,190 @@
+/*
+ * Project management visual vocabulary
+ *
+ * This layer intentionally sits after the legacy project CSS. It only changes
+ * presentation: existing workspace geometry, content and interactions remain
+ * owned by their respective modules.
+ */
+.prj,
+.prj-ws {
+  --pm-canvas: #171719;
+  --pm-sidebar: #1b1b1e;
+  --pm-surface: #202024;
+  --pm-surface-raised: #28282d;
+  --pm-surface-hover: #2d2d33;
+  --pm-border: #35353c;
+  --pm-border-strong: #484851;
+  --pm-text: #e6e6eb;
+  --pm-text-secondary: #b0b0ba;
+  --pm-text-muted: #767680;
+  --pm-accent: #8b8ee8;
+  --pm-accent-hover: #9b9df0;
+  --pm-accent-soft: rgba(139, 142, 232, .13);
+  --pm-accent-line: rgba(139, 142, 232, .38);
+  --pm-success: #79b99a;
+  --pm-warning: #c7a66b;
+  --pm-danger: #cf7d87;
+  --pm-radius-control: 6px;
+  --pm-radius-panel: 8px;
+  --pm-space-1: 4px;
+  --pm-space-2: 8px;
+  --pm-space-3: 12px;
+  --pm-space-4: 16px;
+  --pm-space-5: 20px;
+  --pm-transition: 150ms ease;
+  background: var(--pm-canvas);
+  color: var(--pm-text);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.prj-ws {
+  --pm-page: var(--pm-canvas);
+  --pm-surface: #202024;
+  --pm-surface-raised: #28282d;
+  --pm-border: #35353c;
+  --pm-border-soft: #2a2a30;
+}
+
+.prj :is(button, input, select, textarea),
+.prj-ws :is(button, input, select, textarea) { font-family: inherit; }
+
+.prj-ws :is(button, input, select, textarea):focus-visible,
+.prj :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid rgba(139, 142, 232, .72);
+  outline-offset: 2px;
+}
+
+/* Workspace chrome: neutral navigation with one reserved interaction accent. */
+.prj-ws__head {
+  min-height: 92px;
+  border-bottom-color: var(--pm-border);
+  background: var(--pm-sidebar);
+}
+.prj-ws__project-title .prj-ws__title { color: var(--pm-text); font-size: 22px; font-weight: 600; letter-spacing: -.018em; }
+.prj-ws__title-input { border-color: var(--pm-accent-line); border-radius: var(--pm-radius-control); color: var(--pm-text); background: var(--pm-surface); font-size: 22px; font-weight: 600; }
+.prj-ws__owner, .prj-ws__menu-panel header span, .prj-ws__menu-drag { color: var(--pm-text-muted); }
+.prj-ws__status { border: 1px solid var(--pm-border); border-radius: 4px; padding: 2px 6px; font-size: 11px; font-weight: 500; letter-spacing: 0; }
+.prj-ws__status--active { border-color: rgba(121,185,154,.34); color: var(--pm-success); background: rgba(121,185,154,.09); }
+.prj-ws__status--paused { border-color: rgba(199,166,107,.34); color: var(--pm-warning); background: rgba(199,166,107,.09); }
+.prj-ws__status--archived { color: var(--pm-text-muted); background: rgba(255,255,255,.035); }
+.prj-ws__menu-settings { border-color: transparent; border-radius: var(--pm-radius-control); color: var(--pm-text-muted); }
+.prj-ws__menu-settings:hover, .prj-ws__menu-settings.is-open { border-color: var(--pm-border); color: var(--pm-text); background: var(--pm-surface-raised); }
+.prj-ws__menu-panel, .prj-context-menu, .prj-shortcut-dialog, .prj-pm-global-search__results {
+  border-color: var(--pm-border-strong);
+  border-radius: var(--pm-radius-panel);
+  background: #25252a;
+  box-shadow: 0 16px 34px rgba(0,0,0,.28);
+}
+.prj-ws__menu-panel label { color: var(--pm-text-secondary); border-radius: 4px; }
+.prj-ws__menu-panel label:hover, .prj-ws__menu-panel > button:hover { color: var(--pm-text); background: var(--pm-surface-hover); }
+.prj-ws__menu-panel > button { border: 1px solid var(--pm-border); border-radius: var(--pm-radius-control); color: var(--pm-text-secondary); background: var(--pm-surface); }
+.prj-ws__nav { gap: 4px; min-height: 54px; }
+.prj-ws__nav-btn { width: 68px; min-width: 68px; height: 50px; grid-template-rows: 27px 13px; gap: 1px; border-radius: var(--pm-radius-control); color: var(--pm-text-muted); font-size: 11px; transition: color var(--pm-transition), background var(--pm-transition), border-color var(--pm-transition); }
+.prj-ws__nav-btn[data-section] { --nav-tone: var(--pm-text-muted); --nav-glow: transparent; }
+.prj-ws__nav-btn:hover { border-color: var(--pm-border); color: var(--pm-text-secondary); background: var(--pm-surface); }
+.prj-ws__nav-btn.is-active { border-color: rgba(139,142,232,.32); color: var(--pm-text); background: var(--pm-accent-soft); }
+.prj-ws__nav-icon { width: 26px; height: 26px; color: inherit; }
+.prj-ws__nav-icon svg { width: 20px; height: 20px; stroke-width: 1.7; }
+.prj-ws__nav-btn:hover .prj-ws__nav-icon, .prj-ws__nav-btn.is-active .prj-ws__nav-icon { color: inherit; }
+.prj-ws__nav-label, .prj-ws__nav-btn:hover .prj-ws__nav-label { color: inherit; font-weight: 500; }
+.prj-ws__nav-btn.is-active .prj-ws__nav-label { color: var(--pm-text); font-weight: 600; }
+.prj-ws__nav-btn.is-unconfigured, .prj-ws__nav-btn.is-unconfigured:hover, .prj-ws__nav-btn.is-unconfigured.is-active { color: var(--pm-text-muted); background: transparent; border-color: transparent; }
+
+/* Shared compact controls, cards and data surfaces. */
+.prj-ws :is(.prj-pm-panel, .prj-pm-shell, .prj-pm-dict__hero, .prj-pm-workflow__head, .prj-pm-scenarios__head, .prj-pm-env__head, .prj-pm-deploy__head, .prj-pm-monitor__head, .prj-pm-todos__head, .delivery-card, .delivery-kpi, .delivery-dashboard-panel, .delivery-dashboard-tasks, .deliverables-workspace__body, .deliverables-workspace__description, .deliverables-workspace__records, .deliverables-workspace__versions, .reports-workspace__list, .reports-workspace__detail, .report-workbench__completed, .report-workbench__side > section, .issues-workspace__editor-shell) {
+  border-color: var(--pm-border) !important;
+  border-radius: var(--pm-radius-panel);
+  background: var(--pm-surface) !important;
+  box-shadow: none;
+}
+.prj-ws :is(.prj-pm-workflow__head, .prj-pm-scenarios__head, .prj-pm-env__head, .prj-pm-deploy__head, .prj-pm-monitor__head, .prj-pm-todos__head) { padding: var(--pm-space-3); }
+.prj-ws :is(.prj-pm-dict__hero h3, .prj-pm-todos__head h3, .prj-pm-code__head h3, .prj-pm-monitor__head h3, .prj-pm-deploy__head h3, .prj-pm-env__head h3, .prj-pm-scenarios__head h3, .prj-pm-workflow__head h3, .prj-pm-shell h3) { color: var(--pm-text); font-size: 16px; font-weight: 600; }
+.prj-ws :is(.prj-pm-dict__hero p, .prj-pm-todos__head p, .prj-pm-code__head p, .prj-pm-monitor__head p, .prj-pm-deploy__head p, .prj-pm-env__head p, .prj-pm-scenarios__head p, .prj-pm-workflow__head p, .prj-pm-shell p) { color: var(--pm-text-secondary); font-size: 12px; }
+.prj-ws :is(.prj-pm-dict__stats span, .prj-pm-shell__meta span, .prj-pm-workflow__count, .prj-pm-todos__stats span, .prj-pm-code__stats span, .prj-pm-monitor__stats span, .prj-pm-deploy__stats span, .prj-pm-env__stats span, .prj-pm-scenarios__stats span) {
+  border-color: var(--pm-border);
+  border-radius: var(--pm-radius-control);
+  color: var(--pm-text-muted);
+  background: var(--pm-surface-raised);
+  box-shadow: none;
+}
+.prj-ws :is(.prj-pm-dict__stats b, .prj-pm-shell__meta b, .prj-pm-workflow__count b, .prj-pm-todos__stats b, .prj-pm-code__stats b, .prj-pm-monitor__stats b, .prj-pm-deploy__stats b, .prj-pm-env__stats b, .prj-pm-scenarios__stats b) { color: var(--pm-text); font-size: 20px; font-weight: 600; text-shadow: none; }
+.prj-ws :is(.prj-pm-workflow__list button, .prj-pm-scenarios__group, .prj-pm-scenarios__scene-list button, .prj-pm-env__tabs button, .prj-pm-deploy__releases button, .deliverables-workspace__row, .reports-workspace__row, .issues-workspace__list > button) {
+  border-color: var(--pm-border) !important;
+  border-radius: var(--pm-radius-control);
+  color: var(--pm-text-secondary);
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.prj-ws :is(.prj-pm-workflow__list button, .prj-pm-scenarios__group, .prj-pm-scenarios__scene-list button, .prj-pm-env__tabs button, .prj-pm-deploy__releases button, .deliverables-workspace__row, .reports-workspace__row, .issues-workspace__list > button):hover,
+.prj-ws :is(.prj-pm-workflow__list button, .prj-pm-scenarios__group, .prj-pm-scenarios__scene-list button, .prj-pm-env__tabs button, .prj-pm-deploy__releases button).is-active,
+.prj-ws .reports-workspace__list article.is-open .reports-workspace__row {
+  border-color: var(--pm-border-strong) !important;
+  background: var(--pm-surface-hover) !important;
+  color: var(--pm-text);
+}
+.prj-ws :is(.prj-pm-workflow__list button strong, .prj-pm-scenarios__group strong, .prj-pm-scenarios__scene-list button strong, .prj-pm-env__tabs strong) { color: var(--pm-text); font-size: 13px; font-weight: 500; }
+.prj-ws :is(.prj-pm-workflow__list button span, .prj-pm-scenarios__group span, .prj-pm-scenarios__scene-list button span, .prj-pm-env__tabs span) { color: var(--pm-text-muted); font-size: 12px; font-weight: 400; }
+
+.prj-ws :is(button:not(.prj-ws__nav-btn), .delivery button, .issues-workspace button) { transition: color var(--pm-transition), background var(--pm-transition), border-color var(--pm-transition); }
+.prj-ws :is(.delivery button, .issues-workspace__create-button, .issues-workspace__add-row, .prj-pm-description__action) {
+  border-color: var(--pm-border-strong) !important;
+  border-radius: var(--pm-radius-control) !important;
+  color: var(--pm-text) !important;
+  background: var(--pm-surface-raised) !important;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: none !important;
+}
+.prj-ws :is(.delivery button, .issues-workspace__create-button, .issues-workspace__add-row, .prj-pm-description__action):hover { border-color: #5c5c67 !important; background: var(--pm-surface-hover) !important; }
+.prj-ws :is(.delivery-add, .delivery button[type="submit"], .issues-workspace__create button[type="submit"]) { border-color: var(--pm-accent-line) !important; color: #fff !important; background: var(--pm-accent) !important; }
+.prj-ws :is(.delivery-add, .delivery button[type="submit"], .issues-workspace__create button[type="submit"]):hover { border-color: var(--pm-accent-hover) !important; background: var(--pm-accent-hover) !important; }
+
+.prj-ws :is(input, select, textarea, .prj-pm-global-search label) {
+  border-color: var(--pm-border) !important;
+  border-radius: var(--pm-radius-control) !important;
+  color: var(--pm-text) !important;
+  background: var(--pm-surface) !important;
+  box-shadow: none !important;
+}
+.prj-ws :is(input, select, textarea, .prj-pm-global-search label):focus, .prj-ws .prj-pm-global-search label:focus-within { border-color: var(--pm-accent-line) !important; box-shadow: 0 0 0 3px rgba(139,142,232,.12) !important; }
+.prj-ws :is(input, textarea)::placeholder { color: var(--pm-text-muted); }
+.prj-ws .prj-pm-global-search { background: transparent; }
+.prj-ws .prj-pm-global-search__kind { border-color: rgba(139,142,232,.24); border-radius: 4px; color: #bfc1f5; background: var(--pm-accent-soft); font-weight: 500; }
+.prj-ws .prj-pm-global-search__results button { border-color: transparent; border-radius: 4px; background: transparent; }
+.prj-ws .prj-pm-global-search__results button:hover { border-color: transparent; background: var(--pm-surface-hover); }
+.prj-ws .prj-pm-global-search__section, .prj-ws .prj-pm-global-search__content small { color: var(--pm-text-muted); }
+.prj-ws .prj-pm-global-search__content strong { color: var(--pm-text); font-weight: 500; }
+
+/* Data-heavy modules: quiet headers and scan-friendly rows. */
+.prj-ws :is(.delivery-dashboard-task__head, .delivery-dashboard-panel > header, .delivery-dashboard-tasks > h2, .deliverables-workspace__file-head, .reports-workspace__date-head, .report-workbench__completed > header, .report-workbench__side header, .issues-workspace__table-title) {
+  border-color: var(--pm-border) !important;
+  background: var(--pm-surface-raised) !important;
+}
+.prj-ws :is(.delivery-dashboard-task__head, .delivery-dashboard-activity > div, .deliverables-workspace__file-row, .reports-workspace__report-list article, .report-workbench__completed article) { border-color: var(--pm-border-soft) !important; }
+.prj-ws :is(.delivery-dashboard-task__head, .deliverables-workspace__file-row, .reports-workspace__row, .report-workbench__completed article):hover { background: var(--pm-surface-hover) !important; }
+.prj-ws :is(.delivery-progress, .report-workbench__progress > div) { height: 5px; border-radius: 3px; background: #34343b; }
+.prj-ws :is(.delivery-progress i, .report-workbench__progress > div i) { background: var(--pm-accent); }
+.prj-ws :is(.delivery-dashboard-activity header b, .reports-workspace__row em, .delivery-activity-kind-chip) { border: 1px solid var(--pm-border); border-radius: 4px; color: var(--pm-text-secondary); background: rgba(255,255,255,.03); font-weight: 500; }
+.prj-ws :is(.delivery-kpi, .report-workbench__kpis) { border-color: var(--pm-border) !important; background: var(--pm-surface) !important; }
+.prj-ws :is(.delivery-kpi strong, .report-workbench__kpis b) { color: var(--pm-text); font-weight: 600; }
+.prj-ws :is(.delivery-kpi span, .delivery-kpi small, .report-workbench__kpis span, .delivery-dashboard-empty, .reports-workspace__empty) { color: var(--pm-text-muted); }
+
+/* Project list follows the same system without changing its card grid. */
+.prj { background: var(--pm-canvas); }
+.prj__title { color: var(--pm-text); font-size: 22px; letter-spacing: -.02em; }
+.prj__sub, .prj-card__owner { color: var(--pm-text-muted); }
+.prj-card { border-color: var(--pm-border); border-radius: var(--pm-radius-panel); background: var(--pm-surface); box-shadow: none; }
+.prj-card:hover { border-color: var(--pm-border-strong); background: var(--pm-surface-hover); }
+.prj-card__name { color: var(--pm-text); font-weight: 500; }
+.prj-card__desc, .prj-card__stat { color: var(--pm-text-secondary); }
+.prj-card__stat { border: 1px solid var(--pm-border); border-radius: 4px; background: transparent; }
+.prj-card__bar { height: 4px; background: #34343b; }.prj-card__bar span { background: var(--pm-accent); }
+.prj__create-btn, .prj__btn-primary { border: 1px solid var(--pm-accent); border-radius: var(--pm-radius-control); background: var(--pm-accent); color: #fff; font-size: 13px; }.prj__create-btn:hover, .prj__btn-primary:hover { background: var(--pm-accent-hover); border-color: var(--pm-accent-hover); }
+.prj__partition-btn, .prj__btn-link { border-color: var(--pm-border-strong); border-radius: var(--pm-radius-control); color: var(--pm-text-secondary); }.prj__partition-btn:hover, .prj__btn-link:hover { color: var(--pm-text); background: var(--pm-surface-hover); }
+.prj :is(.prj__create-input, .prj__create-group-input) { border-color: var(--pm-border); border-radius: var(--pm-radius-control); color: var(--pm-text); background: var(--pm-surface); }.prj :is(.prj__create-input, .prj__create-group-input):focus { border-color: var(--pm-accent-line); box-shadow: 0 0 0 3px rgba(139,142,232,.12); }
+
+@media (prefers-reduced-motion: reduce) {
+  .prj *, .prj-ws * { transition-duration: 0ms !important; }
+}

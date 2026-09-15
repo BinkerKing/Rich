@@ -3,6 +3,7 @@ import { ProjectListView } from "./ProjectListView.js";
 import { ProjectWorkspace } from "./ProjectWorkspace.js";
 import { consumeShortcutOpen, SHORTCUT_OPEN_EVENT, type ShortcutTarget } from "../lib/shortcutEngine.js";
 import "./ProjectsView.css";
+import "./project-management/ProjectManagementLinear.css";
 
 /**
  * 项目管理 顶级视图。
