@@ -606,7 +606,10 @@ export function ProjectRichTextEditor({
     extensions: [StarterKit.configure({ heading: { levels: [1, 2, 3] } }), Underline, TiptapTextStyle, Color, FontFamily, Highlight.configure({ multicolor: true }), TextAlign.configure({ types: ["heading", "paragraph"] }), Image.configure({ allowBase64: false }), Table.configure({ resizable: true }), TableRow, TableHeader, TableCell],
     content: value || "",
     editorProps: { attributes: { class: "prj-pm-rich-surface workflow-rich-content" } },
-    onUpdate: ({ editor: nextEditor }) => { latestHtmlRef.current = nextEditor.getHTML(); },
+    onUpdate: ({ editor: nextEditor }) => {
+      latestHtmlRef.current = nextEditor.getHTML();
+      onChangeRef.current(latestHtmlRef.current);
+    },
     onBlur: ({ editor: nextEditor }) => { latestHtmlRef.current = nextEditor.getHTML(); onChangeRef.current(latestHtmlRef.current); },
   });
 

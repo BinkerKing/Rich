@@ -81,6 +81,13 @@ test("富文本输入时不通过 React 重建编辑区 DOM，避免光标跳回
   assert.doesNotMatch(editorSource, /dangerouslySetInnerHTML/);
 });
 
+test("富文本格式变化会立即同步最新 HTML，保存时不会遗漏字体颜色", () => {
+  const editorStart = modules.indexOf("export function ProjectRichTextEditor");
+  const editorEnd = modules.indexOf("export function normalizeTodoStatus", editorStart);
+  const editorSource = modules.slice(editorStart, editorEnd);
+  assert.match(editorSource, /onUpdate:\s*\(\{ editor: nextEditor \}\)\s*=>\s*\{[\s\S]*?latestHtmlRef\.current = nextEditor\.getHTML\(\);[\s\S]*?onChangeRef\.current\(latestHtmlRef\.current\);/);
+});
+
 test("富文本编辑区可直接粘贴图片并复用附件上传插入图片", () => {
   const editorStart = modules.indexOf("export function ProjectRichTextEditor");
   const editorEnd = modules.indexOf("export function normalizeTodoStatus", editorStart);
