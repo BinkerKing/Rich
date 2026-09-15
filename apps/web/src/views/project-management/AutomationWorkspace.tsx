@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Bot } from "lucide-react";
 import {
   api,
   type ProjectAutomationGroup,
@@ -211,7 +212,7 @@ export function AutomationSection({
 
       <main className="automation-main">
         <header className="automation-toolbar">
-          <div><h2>{plan?.name || "数据自动化"}</h2><p>按分组和表顺序严格串行执行：SQL 验证 → 表更新 → 抽取准备 → 取数</p></div>
+          <div className="prj-pm-workspace-head__identity"><Bot aria-hidden="true" /><div><h2>{plan?.name || "数据自动化"}</h2><p>按分组和表顺序严格串行执行：SQL 验证 → 表更新 → 抽取准备 → 取数</p></div></div>
           <div className="automation-toolbar__actions">
             {plan && <button type="button" disabled={busy} onClick={createGroup}>＋ 执行分组</button>}
             {plan && <button type="button" className="is-danger" disabled={busy || currentRun?.status === "running"} onClick={() => {

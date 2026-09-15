@@ -377,7 +377,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
       <button className="pfc-list-create" type="button" title="新建流程图" aria-label="新建流程图" disabled={busy || !loaded} onClick={() => setCreating(true)}><FlowchartListIcon name="add" /></button>
     </header>}
     {embedded && !expanded && <header className="pfc-project-header">
-      <div><h1>项目流程图</h1><span>集中梳理项目流程、系统关系与处理路径。</span></div>
+      <div className="prj-pm-workspace-head__identity"><FlowchartListIcon name="flow" /><div><h1>项目流程图</h1><p>集中梳理项目流程、系统关系与处理路径。</p></div></div>
       <button type="button" disabled={busy || !loaded} onClick={() => setCreating(true)}>＋ 新建流程图</button>
     </header>}
     {standalone && !expanded && <div className="pfc-list-label">流程图</div>}

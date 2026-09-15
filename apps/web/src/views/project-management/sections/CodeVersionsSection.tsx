@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { GitBranch } from "lucide-react";
 import type { Element } from "@ke/domain";
 import { api, type ProjectManagementSummary, type ProjectModuleItem } from "../../../api/client.js";
 import { CodeVersionCard, CodeVersionsEditor, arrayRecords, recordValue, textValue } from "../ProjectManagementModules.js";
@@ -60,8 +61,9 @@ export function CodeVersionsSection({ project, summary }: { project: Element; su
   return (
     <div className="prj-pm-code">
       <section className="prj-pm-code__head">
-        <div>
-          <h3>版本控制</h3>
+        <div className="prj-pm-workspace-head__identity">
+          <GitBranch aria-hidden="true" />
+          <div><h3>版本控制</h3><p>集中管理应用版本、变更记录与发布信息。</p></div>
         </div>
       </section>
 

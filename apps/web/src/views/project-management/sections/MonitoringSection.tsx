@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Activity } from "lucide-react";
 import type { Element } from "@ke/domain";
 import { api, type ProjectManagementSummary, type ProjectModuleItem } from "../../../api/client.js";
 import { MonitoringCard, ProjectRichTextEditor, arrayRecords, recordValue, textValue } from "../ProjectManagementModules.js";
@@ -109,10 +110,9 @@ export function MonitoringSection({ project, summary }: { project: Element; summ
   return (
     <div className="prj-pm-monitor">
       <section className="prj-pm-monitor__head">
-        <div>
-          <p className="prj-pm-eyebrow">Monitoring And Alerts</p>
-          <h3>监控预警</h3>
-          <p>把任务状态、异常预警、资源风险、启停检查沉淀成可追踪的运行保障清单。</p>
+        <div className="prj-pm-workspace-head__identity">
+          <Activity aria-hidden="true" />
+          <div><h3>监控预警</h3><p>把任务状态、异常预警、资源风险、启停检查沉淀成可追踪的运行保障清单。</p></div>
         </div>
         <div className="prj-pm-monitor__stats">
           <span><b>{count}</b>分组</span>

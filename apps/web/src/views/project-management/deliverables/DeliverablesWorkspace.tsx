@@ -628,9 +628,12 @@ export function DeliverablesWorkspace({
   return (
     <section className={`deliverables-workspace${standalone ? " deliverables-workspace--standalone" : ""}${openId && !standalone ? " is-open" : ""}`}>
       {(!openId || standalone) && <header>
-        <div>
-          <h1>{standalone ? "把每一项成果，沉淀成可复用的交付。" : "交付物"}</h1>
-          {!standalone && <p>由项目任务自动关联的可追溯交付记录。</p>}
+        <div className="prj-pm-workspace-head__identity">
+          {!standalone && <DeliverableListIcon name="file" />}
+          <div>
+            <h1>{standalone ? "把每一项成果，沉淀成可复用的交付。" : "交付物"}</h1>
+            {!standalone && <p>由项目任务自动关联的可追溯交付记录。</p>}
+          </div>
         </div>
         {standalone && <button className="deliverables-workspace__primary" type="button" title={creating ? "取消新建交付物" : "新建交付物"} aria-label={creating ? "取消新建交付物" : "新建交付物"} onClick={() => setCreating(value => !value)}>{creating ? "×" : <DeliverableListIcon name="add" />}</button>}
         {!standalone && onDeliverableIdsChange && <button className="deliverables-workspace__bind project-create-action" type="button" title="绑定已有交付物" onClick={() => void openBinding()}>＋ 绑定已有交付物</button>}

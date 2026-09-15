@@ -246,6 +246,11 @@
 .prj-ws :is(.prj-pm-workspace-head, .delivery > header, .test-center__masthead, .deliverables-workspace > header, .reports-workspace__header, .automation-toolbar, .pfc-list-header, .pfc-project-header, .issues-workspace > header, .prj-pm-code__head, .prj-pm-dict__hero, .workflow__head, .prj-pm-scenarios__head, .prj-pm-env__head, .prj-pm-deploy__head, .prj-pm-monitor__head, .prj-pm-todos__head) :is(h1, h2, h3, strong:first-child) { color: var(--pm-text); font-size: 18px; font-weight: 600; line-height: 1.35; letter-spacing: -.015em; }
 .prj-ws :is(.prj-pm-workspace-head, .delivery > header, .test-center__masthead, .deliverables-workspace > header, .reports-workspace__header, .automation-toolbar, .pfc-list-header, .pfc-project-header, .issues-workspace > header, .prj-pm-code__head, .prj-pm-dict__hero, .workflow__head, .prj-pm-scenarios__head, .prj-pm-env__head, .prj-pm-deploy__head, .prj-pm-monitor__head, .prj-pm-todos__head) :is(p, small, span) { color: var(--pm-text-secondary); font-size: 12px; line-height: 1.45; }
 .prj-ws :is(.prj-pm-workspace-head, .delivery > header, .test-center__masthead, .deliverables-workspace > header, .reports-workspace__header, .automation-toolbar, .pfc-list-header, .pfc-project-header, .issues-workspace > header, .prj-pm-code__head, .prj-pm-dict__hero, .workflow__head, .prj-pm-scenarios__head, .prj-pm-env__head, .prj-pm-deploy__head, .prj-pm-monitor__head, .prj-pm-todos__head) :is(svg, [aria-hidden="true"]) { color: var(--pm-module-tone); }
+.prj-ws .prj-pm-workspace-head__identity { display: flex; min-width: 0; align-items: flex-start; gap: 10px; }
+.prj-ws .prj-pm-workspace-head__identity > svg { flex: 0 0 auto; width: 21px; height: 21px; margin-top: 1px; stroke-width: 1.9; color: var(--pm-module-tone); }
+.prj-ws .prj-pm-workspace-head__identity > div { min-width: 0; }
+.prj-ws .prj-pm-workspace-head__identity :is(h1, h2, h3) { margin: 0; }
+.prj-ws .prj-pm-workspace-head__identity p { margin: 3px 0 0; }
 .prj-ws :is(.delivery-dashboard-panel > header, .delivery-dashboard-tasks > h2, .deliverables-workspace__file-head, .reports-workspace__date-head, .issues-workspace__table-title, .test-center__scene-head) { border-left: 2px solid var(--pm-module-tone) !important; }
 
 

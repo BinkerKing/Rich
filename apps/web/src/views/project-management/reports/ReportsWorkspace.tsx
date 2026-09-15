@@ -147,7 +147,7 @@ export function ReportsWorkspace({ projectId }: { projectId: string }) {
 
   return <section className="reports-workspace">
     <header className="reports-workspace__header">
-      <div><p>PROJECT REPORTS</p><h1>报告中心</h1><small>日报、周报、月报与会议纪要，统一沉淀为可阅读、可追溯的项目记录。</small></div>
+      <div className="prj-pm-workspace-head__identity"><ReportActionIcon /><div><h1>报告中心</h1><p>日报、周报、月报与会议纪要，统一沉淀为可阅读、可追溯的项目记录。</p></div></div>
       <button className="reports-workspace__create" type="button" onClick={() => void createReport()} disabled={busy}><ReportActionIcon /><span>新建报告</span></button>
     </header>
     {error && <p className="reports-workspace__error">{error}</p>}
