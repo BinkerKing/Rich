@@ -114,7 +114,17 @@ export function DeliverableCodexLauncher(): ReactNode {
       initialAttachments={target.initialAttachments}
       executionTaskId={target.executionTaskId}
       initialConversationTitle={target.initialConversationTitle}
-      onConversationCreated={target.onConversationCreated}
+      onConversationCreated={conversationId => {
+        const next: DeliverableCodexTarget = {
+          projectId: target.projectId,
+          deliverableId: target.deliverableId,
+          deliverableTitle: target.deliverableTitle,
+          conversationId,
+        };
+        setDeliverableCodexTarget(next);
+        setTarget(next);
+        target.onConversationCreated?.(conversationId);
+      }}
       openSequence={openSequence}
     />
   ) : null;

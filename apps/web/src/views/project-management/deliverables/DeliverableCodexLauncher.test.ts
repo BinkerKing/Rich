@@ -45,6 +45,13 @@ test("转交任务可把截图作为 Codex 首条消息的附件", () => {
   assert.match(launcher, /initialAttachments=\{target\.initialAttachments\}/);
 });
 
+test("任务创建成功后，快捷键会恢复到该任务绑定的 Codex 对话", () => {
+  assert.match(launcher, /onConversationCreated=\{conversationId =>/);
+  assert.match(launcher, /conversationId,/);
+  assert.match(launcher, /setDeliverableCodexTarget\(next\)/);
+  assert.match(launcher, /setTarget\(next\)/);
+});
+
 test("旧的空项目定位不会生成无效的 Codex 创建地址", () => {
   assert.match(launcher, /target\.projectId\.trim\(\)\.length > 0/);
   assert.match(launcher, /window\.localStorage\.removeItem\(targetStorageKey\)/);
