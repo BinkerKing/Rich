@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { insertCard, moveCard, removeCard, validateDocument, type WorkbenchCard, type WorkbenchDocument } from "@ke/domain";
 import type { WorkbenchDocumentProposal, WorkbenchDocumentRepo } from "./repository.js";
+import { eventBus } from "../lib/eventBus.js";
 
 export type DocumentOperation =
   | { type: "insert"; card: WorkbenchCard; parentId?: string; index: number }
@@ -14,6 +15,7 @@ export class WorkbenchDocumentService {
     const now = new Date().toISOString();
     const document: WorkbenchDocument = { id: `document-${randomUUID()}`, conversationId: input.conversationId, title: input.title, version: 1, cards: [], createdAt: now, updatedAt: now };
     if (!await this.repo.save(document, 0)) throw new Error("创建工作台文档发生冲突");
+    this.changed(document, "create");
     return document;
   }
   async get(id: string) { const document = await this.repo.get(id); if (!document) throw new Error("工作台文档不存在"); return document; }
@@ -26,6 +28,7 @@ export class WorkbenchDocumentService {
     if (!input.summary.trim() || !input.operations.length) throw new Error("提议需要说明和操作");
     const proposal: WorkbenchDocumentProposal = { id: `proposal-${randomUUID()}`, documentId: id, baseVersion: expectedVersion, summary: input.summary.trim(), operations: input.operations, createdAt: new Date().toISOString() };
     await this.repo.saveProposal(proposal);
+    eventBus.publish("workbench_document.changed", { detail: { documentId: id, proposalId: proposal.id, op: "propose" } });
     return proposal;
   }
   async getProposal(id: string, proposalId: string) { const proposal = await this.repo.getProposal(id, proposalId); if (!proposal) throw new Error("提议不存在"); return proposal; }
@@ -33,19 +36,21 @@ export class WorkbenchDocumentService {
     const proposal = await this.getProposal(id, proposalId);
     return this.commit(id, proposal.baseVersion, proposal.operations as DocumentOperation[], proposalId);
   }
-  async commitManual(id: string, expectedVersion: number, operations: DocumentOperation[]) { return this.commit(id, expectedVersion, operations); }
-  private async commit(id: string, expectedVersion: number, operations: DocumentOperation[], proposalId?: string) {
+  async commitManual(id: string, expectedVersion: number, operations: DocumentOperation[], title?: string) { return this.commit(id, expectedVersion, operations, undefined, title); }
+  private async commit(id: string, expectedVersion: number, operations: DocumentOperation[], proposalId?: string, title?: string) {
     const current = await this.get(id);
     if (current.version !== expectedVersion) throw new Error("工作台文档已更新，请重新读取");
     let next = current;
     for (const operation of operations) next = apply(next, operation);
-    next = { ...validateDocument(next), version: current.version + 1, updatedAt: new Date().toISOString() };
+    next = { ...validateDocument({ ...next, ...(title === undefined ? {} : { title }) }), version: current.version + 1, updatedAt: new Date().toISOString() };
     const saved = proposalId
       ? await this.repo.saveAndRemoveProposal(next, current.version, proposalId)
       : await this.repo.save(next, current.version);
     if (!saved) throw new Error("工作台文档已更新，请重新读取");
+    this.changed(next, proposalId ? "accept-proposal" : "save");
     return next;
   }
+  private changed(document: WorkbenchDocument, op: string) { eventBus.publish("workbench_document.changed", { detail: { documentId: document.id, version: document.version, op } }); }
 }
 
 function apply(document: WorkbenchDocument, operation: DocumentOperation): WorkbenchDocument {

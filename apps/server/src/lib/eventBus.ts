@@ -18,6 +18,7 @@ import { EventEmitter } from "node:events";
  */
 export type EventKind =
   | "workbench.changed"
+  | "workbench_document.changed"
   | "element.changed"
   | "relation.changed"
   | "qa.changed"

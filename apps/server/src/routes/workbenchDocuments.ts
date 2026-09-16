@@ -24,8 +24,8 @@ export function workbenchDocumentRoutes(service: WorkbenchDocumentService): Hono
     return c.body(null, 204);
   });
   app.post("/:id/manual-save", async c => {
-    const body = await c.req.json() as { expectedVersion: number; operations: DocumentOperation[] };
-    return c.json({ document: await service.commitManual(c.req.param("id"), body.expectedVersion, body.operations) });
+    const body = await c.req.json() as { expectedVersion: number; operations: DocumentOperation[]; title?: string };
+    return c.json({ document: await service.commitManual(c.req.param("id"), body.expectedVersion, body.operations, body.title) });
   });
   return app;
 }
