@@ -19,9 +19,26 @@ const toggleEvent = "rich:toggle-deliverable-codex";
 const closeEvent = "rich:close-deliverable-codex";
 const openEvent = "rich:open-bound-codex";
 const closeAiTaskCaptureEvent = "rich:close-ai-task-capture";
+const generalTarget: DeliverableCodexTarget = {
+  projectId: "__general__",
+  deliverableId: "__general__",
+  deliverableTitle: "通用任务",
+};
+
+function isValidTarget(value: unknown): value is DeliverableCodexTarget {
+  if (!value || typeof value !== "object") return false;
+  const target = value as Partial<DeliverableCodexTarget>;
+  return typeof target.projectId === "string" && target.projectId.trim().length > 0
+    && typeof target.deliverableId === "string" && target.deliverableId.trim().length > 0
+    && typeof target.deliverableTitle === "string" && target.deliverableTitle.trim().length > 0;
+}
+
+function normalizeTarget(target?: DeliverableCodexTarget): DeliverableCodexTarget {
+  return isValidTarget(target) ? target : generalTarget;
+}
 
 export function openBoundCodex(target?: DeliverableCodexTarget) {
-  const next = target ?? { projectId: "__general__", deliverableId: "__general__", deliverableTitle: "通用任务" };
+  const next = normalizeTarget(target);
   setDeliverableCodexTarget(next);
   window.dispatchEvent(new CustomEvent(openEvent, { detail: next }));
 }
@@ -29,21 +46,22 @@ export function openBoundCodex(target?: DeliverableCodexTarget) {
 function readTarget(): DeliverableCodexTarget | undefined {
   try {
     const value = JSON.parse(window.localStorage.getItem(targetStorageKey) ?? "null");
-    return value && typeof value.projectId === "string" && typeof value.deliverableId === "string" && typeof value.deliverableTitle === "string"
-      ? value
-      : undefined;
+    if (isValidTarget(value)) return value;
+    window.localStorage.removeItem(targetStorageKey);
+    return undefined;
   } catch {
     return undefined;
   }
 }
 
 export function setDeliverableCodexTarget(target: DeliverableCodexTarget) {
-  window.localStorage.setItem(targetStorageKey, JSON.stringify(target));
+  window.localStorage.setItem(targetStorageKey, JSON.stringify(normalizeTarget(target)));
 }
 
 export function showDeliverableCodex(target: DeliverableCodexTarget) {
-  setDeliverableCodexTarget(target);
-  window.dispatchEvent(new CustomEvent<DeliverableCodexTarget>(toggleEvent, { detail: target }));
+  const next = normalizeTarget(target);
+  setDeliverableCodexTarget(next);
+  window.dispatchEvent(new CustomEvent<DeliverableCodexTarget>(toggleEvent, { detail: next }));
 }
 
 export function closeDeliverableCodex() {
@@ -57,7 +75,7 @@ export function DeliverableCodexLauncher(): ReactNode {
 
   useEffect(() => {
     const open = (event: Event) => {
-      setTarget((event as CustomEvent<DeliverableCodexTarget>).detail);
+      setTarget(normalizeTarget((event as CustomEvent<DeliverableCodexTarget>).detail));
       window.dispatchEvent(new Event(closeAiTaskCaptureEvent));
       setVisible(true); setOpenSequence(value => value + 1);
     };
@@ -68,8 +86,7 @@ export function DeliverableCodexLauncher(): ReactNode {
   useEffect(() => {
     const toggle = (event: Event) => {
       const requested = (event as CustomEvent<DeliverableCodexTarget>).detail;
-      const next = requested?.projectId ? requested : readTarget() ?? { projectId: "__general__", deliverableId: "__general__", deliverableTitle: "通用任务" };
-      if (!next) return;
+      const next = normalizeTarget(requested ?? readTarget());
       setTarget(next);
       setVisible(current => {
         const visible = !current;

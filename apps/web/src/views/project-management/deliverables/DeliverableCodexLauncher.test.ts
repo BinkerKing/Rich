@@ -44,3 +44,9 @@ test("转交任务创建对话后把对话编号回传给发起列表", () => {
 test("转交任务可把截图作为 Codex 首条消息的附件", () => {
   assert.match(launcher, /initialAttachments=\{target\.initialAttachments\}/);
 });
+
+test("旧的空项目定位不会生成无效的 Codex 创建地址", () => {
+  assert.match(launcher, /target\.projectId\.trim\(\)\.length > 0/);
+  assert.match(launcher, /window\.localStorage\.removeItem\(targetStorageKey\)/);
+  assert.match(launcher, /projectId: "__general__"/);
+});
