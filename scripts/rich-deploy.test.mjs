@@ -27,3 +27,15 @@ test("runs package, installation, and relaunch in order", async () => {
   assert.ok(commands[5][2]?.env);
   assert.equal(commands[5][2].env.ELECTRON_RUN_AS_NODE, undefined);
 });
+
+test("does not try to quit Rich again when the desktop app already exited", async () => {
+  const commands = [];
+  await runDeployment({
+    run: async (...args) => commands.push(args),
+    skipQuit: true,
+    source: "/build/Rich.app",
+    target: "/Applications/Rich.app",
+  });
+
+  assert.deepEqual(commands.map(([command]) => command), ["pnpm", "ditto", "rm", "mv", "open"]);
+});

@@ -29,13 +29,15 @@ async function log(logPath, message) {
   await appendFile(logPath, `[${new Date().toISOString()}] ${message}\n`);
 }
 
-export async function runDeployment({ run = runCommand, logPath, source = sourceApp, target = installedApp } = {}) {
+export async function runDeployment({ run = runCommand, logPath, source = sourceApp, target = installedApp, skipQuit = false } = {}) {
   const stagedApp = `${target}.new`;
   const report = message => logPath ? log(logPath, message) : Promise.resolve();
   await report("Packaging Rich.app");
   await run("pnpm", ["--filter", "@ke/desktop", "package"]);
-  await report("Quitting Rich");
-  await run("osascript", ["-e", 'tell application "Rich" to quit']).catch(() => undefined);
+  if (!skipQuit) {
+    await report("Quitting Rich");
+    await run("osascript", ["-e", 'tell application "Rich" to quit']).catch(() => undefined);
+  }
   await report("Staging new Rich.app");
   await run("ditto", [source, stagedApp]);
   await report("Replacing installed Rich.app");
@@ -62,7 +64,8 @@ export function startDeployment() {
 
 if (process.argv[2] === "--worker") {
   const logPath = process.argv[3];
-  runDeployment({ logPath }).catch(async error => {
+  const skipQuit = process.argv.includes("--skip-quit");
+  runDeployment({ logPath, skipQuit }).catch(async error => {
     await log(logPath, `Deployment failed: ${error instanceof Error ? error.stack || error.message : String(error)}`);
     process.exitCode = 1;
   });

@@ -1536,7 +1536,7 @@ ipcMain.handle("rich-app:restart-latest", (event) => {
   const projectRoot = findRichProjectRoot({ cwd: process.cwd(), home: app.getPath("home") });
   if (!projectRoot) throw new Error("Rich source directory with scripts/rich-deploy.mjs was not found");
   return new Promise<boolean>((resolvePromise, reject) => {
-    const child = spawn(process.execPath, [join(projectRoot, "scripts", "rich-deploy.mjs")], {
+    const child = spawn(process.execPath, [join(projectRoot, "scripts", "rich-deploy.mjs"), "--worker", join(app.getPath("temp"), `rich-restart-${Date.now()}.log`), "--skip-quit"], {
       cwd: projectRoot,
       detached: true,
       stdio: "ignore",
