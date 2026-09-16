@@ -27,7 +27,15 @@ export function AiTaskManagementView() {
   const sceneTasks = useMemo(() => tasks.filter(task => task.sceneId === scene && (status === "all" || task.status === status) && `${task.title} ${bugDescription(task)} ${task.latestFeedback ?? ""}`.toLowerCase().includes(query.trim().toLowerCase())), [tasks, scene, status, query]);
   const rows = useMemo<TaskRow[]>(() => sceneTasks.map(task => ({ id: task.id, type: task.sceneId === "bug_fix" ? "BUG" : sceneLabel[task.sceneId], redeploy: task.payload.gitDeployLatest === true ? "是" : "否", title: task.title, status: statusLabel[task.status], statusKind: task.status, project: task.projectId ?? "—", deliverable: task.deliverableId ?? "—", claimedBy: task.claimedBy ?? "—", updatedAt: new Date(task.updatedAt).toLocaleString("zh-CN"), page: pageLocation(task), screenshot: task.input.images.length ? `有 ${task.input.images.length}` : "—", description: bugDescription(task), feedback: task.latestFeedback ?? "—" })), [sceneTasks]);
   const saveBugColumns = (columns: ConfigurableGridColumn[]) => { setBugTableColumns(columns); localStorage.setItem(bugColumnsStorageKey, JSON.stringify(columns.map(column => ({ key: column.key, width: column.width })))); };
-  const review = async (task: AiManagedTask, action: "resolve" | "continue") => { try { const next = action === "resolve" ? await api.resolveAiManagedTask(task.id) : await api.continueAiManagedTask(task.id); await refresh(); setSelected(next.id); if (action === "continue") openBoundCodex({ projectId: "__general__", deliverableId: "__general__", deliverableTitle: "Rich BUG 任务", executionTaskId: next.id, initialConversationTitle: `BUG · ${task.title.slice(0, 56)}`, initialPrompt: buildBugCodexContext(next, task.id), initialAttachments: bugCodexAttachments(next) }); } catch (reason) { setError(String(reason)); } };
+  const review = async (task: AiManagedTask, action: "resolve" | "continue") => { try {
+    if (action === "resolve" && task.claimedBy === "Rich·Codex" && task.sourceConversationId) {
+      const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(task.sourceConversationId)}/archive`, { method: "POST" });
+      if (!response.ok) throw new Error("归档对应的 Rich·Codex 对话失败");
+    }
+    const next = action === "resolve" ? await api.resolveAiManagedTask(task.id) : await api.continueAiManagedTask(task.id);
+    await refresh(); setSelected(next.id);
+    if (action === "continue") openBoundCodex({ projectId: "__general__", deliverableId: "__general__", deliverableTitle: "Rich BUG 任务", executionTaskId: next.id, initialConversationTitle: `BUG · ${task.title.slice(0, 56)}`, initialPrompt: buildBugCodexContext(next, task.id), initialAttachments: bugCodexAttachments(next) });
+  } catch (reason) { setError(String(reason)); } };
   const renderedBugColumns = useMemo<ConfigurableGridColumn[]>(() => bugTableColumns.map(column => {
     if (column.key === "type") return { ...column, renderCell: () => <span className="atm-task-type atm-task-type--bug">BUG</span> };
     if (column.key !== "status") return column;

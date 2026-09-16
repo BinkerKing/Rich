@@ -23,6 +23,13 @@ describe("AiTaskManagementView bug workflow", () => {
     expect(source).toContain('buildBugCodexContext(next, task.id)');
   });
 
+  it("archives the linked Rich Codex conversation before accepting a completed bug", () => {
+    const source = readFileSync(new URL("./AiTaskManagementView.tsx", import.meta.url), "utf8");
+    expect(source).toContain('action === "resolve" && task.claimedBy === "Rich·Codex" && task.sourceConversationId');
+    expect(source).toContain('`/api/deliverable-codex/conversations/${encodeURIComponent(task.sourceConversationId)}/archive`');
+    expect(source).toContain('throw new Error("归档对应的 Rich·Codex 对话失败")');
+  });
+
   it("includes the inherited Bug context and screenshots when continuing in Codex", () => {
     const source = readFileSync(new URL("./AiTaskManagementView.tsx", import.meta.url), "utf8");
     expect(source).toContain('buildBugCodexContext(next, task.id)');
