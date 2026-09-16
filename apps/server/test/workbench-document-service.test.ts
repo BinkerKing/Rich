@@ -76,4 +76,22 @@ describe("workbench document service", () => {
       error: { code: "VALIDATION_ERROR" },
     });
   });
+
+  it("accepts concise heading cards from an agent outline", async () => {
+    const document = await service.create({ title: "数据迁移", conversationId: "conversation-1" });
+    const registry = new RichToolRegistry();
+    registerWorkbenchDocumentTools(registry, service, new SqliteMcpOperationRepo(db));
+
+    await expect(registry.invoke("rich_workbench_document", {
+      action: "outline",
+      documentId: document.id,
+      expectedVersion: document.version,
+      input: { operations: [{ type: "heading", title: "迁移范围与前置确认", level: 1 }] },
+      context: { requestId: "outline-short" },
+    })).resolves.toMatchObject({ ok: true });
+
+    expect((await service.get(document.id)).cards).toMatchObject([
+      { type: "heading", title: "迁移范围与前置确认", content: null },
+    ]);
+  });
 });
