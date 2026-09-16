@@ -71,5 +71,14 @@ describe("AiTaskCapture task list", () => {
     expect(source).toContain('minmax(0, 1fr) 88px 72px 112px');
     expect(source).toContain('title={`跳转至 ${taskPageLocation(task)}`}');
     expect(source).toContain('if (location.startsWith("项目管理")) setAppView("projects")');
+    expect(source).toContain('rikingProjects: "项目启动"');
+    expect(source).toContain('else if (location.startsWith("项目启动")) setAppView("rikingProjects")');
+  });
+
+  it("publishes a draft task directly from the task list", () => {
+    expect(source).toContain('const publishDraft = async (task: AiManagedTask) =>');
+    expect(source).toContain('api.publishAiManagedTaskDraft(task.id, taskInput(task))');
+    expect(source).toContain('title="发布草稿任务"');
+    expect(source).toContain('>发布</button>');
   });
 });
