@@ -86,7 +86,7 @@ describe("workbench document service", () => {
       action: "outline",
       documentId: document.id,
       expectedVersion: document.version,
-      input: { operations: [{ type: "heading", title: "迁移范围与前置确认", level: 1 }] },
+      input: { operations: [{ type: "insertCard", card: { type: "heading", content: { text: "迁移范围与前置确认" } } }] },
       context: { requestId: "outline-short" },
     })).resolves.toMatchObject({ ok: true });
 

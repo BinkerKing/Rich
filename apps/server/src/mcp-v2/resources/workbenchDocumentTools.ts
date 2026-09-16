@@ -45,6 +45,9 @@ function normalizeOperations(input: unknown[]): DocumentOperation[] {
     if (operation.type === "heading" && typeof operation.title === "string") {
       return { type: "insert", index, card: { id: `workbench-card-${randomUUID()}`, type: "heading", order: index, title: operation.title, content: null, properties: {} } };
     }
+    if (operation.type === "insertCard" && isHeadingCard(operation.card)) {
+      return { type: "insert", index, card: { id: `workbench-card-${randomUUID()}`, type: "heading", order: index, title: operation.card.content.text, content: null, properties: {} } };
+    }
     if (operation.type === "rich_text" && typeof operation.text === "string") {
       return { type: "insert", index, card: { id: `workbench-card-${randomUUID()}`, type: "rich_text", order: index, content: operation.text, properties: {} } };
     }
@@ -53,4 +56,11 @@ function normalizeOperations(input: unknown[]): DocumentOperation[] {
     }
     return operation as unknown as DocumentOperation;
   });
+}
+
+function isHeadingCard(value: unknown): value is { type: "heading"; content: { text: string } } {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const card = value as Record<string, unknown>;
+  if (card.type !== "heading" || !card.content || typeof card.content !== "object" || Array.isArray(card.content)) return false;
+  return typeof (card.content as Record<string, unknown>).text === "string";
 }
