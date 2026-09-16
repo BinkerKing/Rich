@@ -35,6 +35,7 @@ export class WorkbenchDocumentService {
     await this.repo.removeProposal(id, proposalId);
     return next;
   }
+  async commitManual(id: string, expectedVersion: number, operations: DocumentOperation[]) { return this.commit(id, expectedVersion, operations); }
   private async commit(id: string, expectedVersion: number, operations: DocumentOperation[]) {
     const current = await this.get(id);
     if (current.version !== expectedVersion) throw new Error("工作台文档已更新，请重新读取");
