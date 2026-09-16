@@ -649,6 +649,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   // the same SQLite the Rich UI is reading from.
   mountMcpV2(app, {
     workbench,
+    workbenchDocuments,
     elements,
     projectManagement,
     operationRepo: mcpOperationRepo,

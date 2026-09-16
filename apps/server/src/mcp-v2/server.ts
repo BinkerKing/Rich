@@ -19,6 +19,8 @@ import type { ExecutionTeamAdministrationPort } from "./scenarios/manageExecutio
 import { RichMcpError } from "./registry/errors.js";
 import type { WorkbenchService } from "../task-workbench/service.js";
 import { registerWorkbenchTools } from "./resources/workbenchTools.js";
+import type { WorkbenchDocumentService } from "../workbench-document/service.js";
+import { registerWorkbenchDocumentTools } from "./resources/workbenchDocumentTools.js";
 import type { TestCenterSqliteRepo } from "../test-center/TestCenterSqliteRepo.js";
 import type { AiTaskManagementService } from "../ai-task-management/service.js";
 import { registerAiTaskManagementTools } from "./tasks/aiTaskManagementTools.js";
@@ -38,6 +40,7 @@ export type McpToolEventDelivery = () => void | Promise<void>;
 
 export interface BuildMcpV2Deps {
   workbench?: WorkbenchService;
+  workbenchDocuments?: WorkbenchDocumentService;
   elements: ElementsRepo;
   projectManagement: ProjectManagementRepo;
   operationRepo: McpOperationRepo;
@@ -88,6 +91,7 @@ export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
   registerDeliverableTaskTools(registry, tasks, deps.elements, deps.projectManagement);
   registerDeliverableWorkspaceTools(registry, deps.elements, deps.projectManagement, deps.operationRepo);
   if (deps.workbench) registerWorkbenchTools(registry, deps.workbench, deps.operationRepo);
+  if (deps.workbenchDocuments) registerWorkbenchDocumentTools(registry, deps.workbenchDocuments, deps.operationRepo);
   registerDelegationTools(registry, {
     adapter,
     tasks,
