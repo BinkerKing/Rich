@@ -262,6 +262,9 @@ import { SqliteWorkbenchRepo, PostgresWorkbenchRepo, type WorkbenchRepo } from "
 import { WorkbenchService } from "./task-workbench/service.js";
 import { WorkbenchCommands } from "./task-workbench/commands.js";
 import { taskWorkbenchRoutes } from "./routes/taskWorkbench.js";
+import { SqliteWorkbenchDocumentRepo, PostgresWorkbenchDocumentRepo, type WorkbenchDocumentRepo } from "./workbench-document/repository.js";
+import { WorkbenchDocumentService } from "./workbench-document/service.js";
+import { workbenchDocumentRoutes } from "./routes/workbenchDocuments.js";
 import type { AiTaskManagementRepo } from "./repos/AiTaskManagementRepo.js";
 import { SqliteAiTaskManagementRepo } from "./repos/SqliteAiTaskManagementRepo.js";
 import { PostgresAiTaskManagementRepo } from "./repos/PostgresAiTaskManagementRepo.js";
@@ -287,6 +290,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let annotations: AnnotationsRepo;
   let state: StateRepo;
   let workbenchRepo: WorkbenchRepo | null = null;
+  let workbenchDocumentRepo: WorkbenchDocumentRepo | null = null;
   let corpus: CorpusRepo;
   let greatMe: GreatMeRepo;
   let improvements: ImprovementsStore | null = null;
@@ -326,6 +330,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     annotations = new PostgresAnnotationsRepo(pg);
     state = new PostgresStateRepo(pg);
     workbenchRepo = new PostgresWorkbenchRepo(pg);
+    workbenchDocumentRepo = new PostgresWorkbenchDocumentRepo(pg);
     corpus = new PostgresCorpusRepo(pg);
     greatMe = new PostgresGreatMeRepo(pg);
     invocations = new PostgresInvocationsRepo(pg);
@@ -362,6 +367,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     annotations = new SqliteAnnotationsRepo(db);
     state = new SqliteStateRepo(db);
     workbenchRepo = new SqliteWorkbenchRepo(db);
+    workbenchDocumentRepo = new SqliteWorkbenchDocumentRepo(db);
     corpus = new SqliteCorpusRepo(db);
     greatMe = new SqliteGreatMeRepo(db);
     improvements = new ImprovementsRepo(db);
@@ -512,6 +518,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   const aiContextProvider = createAIContextProvider(chatConversations);
   const deliverableCodexContext = new DeliverableCodexContextService(promotionContext, elements);
   const workbench = workbenchRepo && deliverableCodexConversations ? new WorkbenchService(workbenchRepo, deliverableCodexConversations) : undefined;
+  const workbenchDocuments = workbenchDocumentRepo ? new WorkbenchDocumentService(workbenchDocumentRepo) : undefined;
   // Self-heal: any op stuck in "running" from a previous crash / pkill / OOM
   // gets a synthetic error terminal line, so the admin UI doesn't show
   // dead-but-still-running entries indefinitely. Fire-and-forget.
@@ -559,6 +566,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/prompt-library", promptLibraryRoutes(promptLibrary));
   app.route("/api/chat-visual-blocks", chatVisualBlocksRoutes(chatVisualBlocks));
   app.route("/api/chat/attachments", chatAttachmentsRoutes(chatAttachments));
+  if (workbenchDocuments) app.route("/api/workbench-documents", workbenchDocumentRoutes(workbenchDocuments));
   app.route("/api/health", healthRoutes(healthRepo));
   app.route("/api/projects", projectsRoutes(elements, projectManagement));
   app.route("/api/ai-tasks", aiTaskRoutes({

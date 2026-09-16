@@ -1,5 +1,6 @@
 import { Pool } from "pg";
 import { WORKBENCH_SCHEMA } from "../task-workbench/repository.js";
+import { WORKBENCH_DOCUMENT_SCHEMA } from "../workbench-document/repository.js";
 import { POSTGRES_PROJECT_MANAGEMENT_SCHEMA } from "./projectManagementSchema.js";
 
 export interface PgPool {
@@ -22,6 +23,7 @@ export function openPostgresPool(connectionString: string): PgPool {
 
 async function applySchema(pool: Pool): Promise<void> {
   await pool.query(WORKBENCH_SCHEMA);
+  await pool.query(WORKBENCH_DOCUMENT_SCHEMA);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS elements (
       id TEXT PRIMARY KEY,

@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { WORKBENCH_SCHEMA } from "../task-workbench/repository.js";
+import { WORKBENCH_DOCUMENT_SCHEMA } from "../workbench-document/repository.js";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { SQLITE_PROJECT_MANAGEMENT_SCHEMA } from "./projectManagementSchema.js";
@@ -27,6 +28,7 @@ export function openDb(filePath: string): Database.Database {
 
 function applySchema(db: Database.Database) {
   db.exec(WORKBENCH_SCHEMA);
+  db.exec(WORKBENCH_DOCUMENT_SCHEMA);
   db.exec(`
     CREATE TABLE IF NOT EXISTS elements (
       id TEXT PRIMARY KEY,
