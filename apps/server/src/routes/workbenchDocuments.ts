@@ -18,6 +18,7 @@ export function workbenchDocumentRoutes(service: WorkbenchDocumentService): Hono
   app.post("/", async c => c.json({ document: await service.create(z.object({ title: z.string().trim().min(1).max(500), conversationId: z.string().trim().min(1).max(160) }).strict().parse(await c.req.json())) }, 201));
   app.get("/:id", async c => c.json({ document: await service.get(c.req.param("id")) }));
   app.get("/:id/history", async c => { await service.get(c.req.param("id")); return c.json({ versions: await service.repo.history(c.req.param("id")) }); });
+  app.get("/:id/proposals", async c => c.json({ proposals: await service.listProposals(c.req.param("id")) }));
   app.post("/:id/outline", async c => {
     const body = writeSchema.parse(await c.req.json());
     return c.json({ document: await service.outline(c.req.param("id"), body.expectedVersion, { operations: body.operations }) });

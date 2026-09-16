@@ -32,6 +32,7 @@ export class WorkbenchDocumentService {
     return proposal;
   }
   async getProposal(id: string, proposalId: string) { const proposal = await this.repo.getProposal(id, proposalId); if (!proposal) throw new Error("提议不存在"); return proposal; }
+  async listProposals(id: string) { await this.get(id); return this.repo.listProposals(id); }
   async acceptProposal(id: string, proposalId: string) {
     const proposal = await this.getProposal(id, proposalId);
     return this.commit(id, proposal.baseVersion, proposal.operations as DocumentOperation[], proposalId);

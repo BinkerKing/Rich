@@ -35,6 +35,7 @@ export interface WorkbenchDocumentRepo {
   save(document: WorkbenchDocument, expectedVersion: number): Promise<boolean>;
   history(id: string): Promise<WorkbenchDocument[]>;
   saveProposal(proposal: WorkbenchDocumentProposal): Promise<void>;
+  listProposals(documentId: string): Promise<WorkbenchDocumentProposal[]>;
   getProposal(documentId: string, proposalId: string): Promise<WorkbenchDocumentProposal | null>;
   removeProposal(documentId: string, proposalId: string): Promise<boolean>;
   saveAndRemoveProposal(document: WorkbenchDocument, expectedVersion: number, proposalId: string): Promise<boolean>;
@@ -70,6 +71,9 @@ export class SqliteWorkbenchDocumentRepo implements WorkbenchDocumentRepo {
   }
   async saveProposal(proposal: WorkbenchDocumentProposal) {
     this.db.prepare("INSERT INTO workbench_document_proposals (id, document_id, proposal) VALUES (?, ?, ?)").run(proposal.id, proposal.documentId, JSON.stringify(proposal));
+  }
+  async listProposals(documentId: string) {
+    return (this.db.prepare("SELECT proposal FROM workbench_document_proposals WHERE document_id = ? ORDER BY rowid").all(documentId) as { proposal: string }[]).map(row => JSON.parse(row.proposal) as WorkbenchDocumentProposal);
   }
   async getProposal(documentId: string, proposalId: string) {
     const row = this.db.prepare("SELECT proposal FROM workbench_document_proposals WHERE id = ? AND document_id = ?").get(proposalId, documentId) as { proposal: string } | undefined;
@@ -130,6 +134,10 @@ export class PostgresWorkbenchDocumentRepo implements WorkbenchDocumentRepo {
   async saveProposal(proposal: WorkbenchDocumentProposal) {
     await this.pool.ready;
     await this.pool.query("INSERT INTO workbench_document_proposals (id, document_id, proposal) VALUES ($1, $2, $3)", [proposal.id, proposal.documentId, JSON.stringify(proposal)]);
+  }
+  async listProposals(documentId: string) {
+    await this.pool.ready;
+    return (await this.pool.query<{ proposal: string }>("SELECT proposal FROM workbench_document_proposals WHERE document_id = $1 ORDER BY id", [documentId])).rows.map(row => JSON.parse(row.proposal) as WorkbenchDocumentProposal);
   }
   async getProposal(documentId: string, proposalId: string) {
     await this.pool.ready;
