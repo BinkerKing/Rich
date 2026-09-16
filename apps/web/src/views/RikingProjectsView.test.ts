@@ -13,4 +13,11 @@ describe("RikingProjectsView", () => {
     expect(source).toContain('aria-expanded={!collapsedGroups[group.id]}');
     expect(css).toContain(".rkp-project-group-toggle");
   });
+
+  it("keeps long project values inside a shrinkable detail column", () => {
+    const css = readFileSync(new URL("./RikingProjectsView.css", import.meta.url), "utf8");
+
+    expect(css).toContain(".rkp-detail {\n  position: relative;\n  min-width: 0;");
+    expect(css).toContain("overflow-wrap: anywhere;");
+  });
 });

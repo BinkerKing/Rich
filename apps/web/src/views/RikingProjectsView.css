@@ -273,6 +273,7 @@
 
 .rkp-detail {
   position: relative;
+  min-width: 0;
   height: 100%;
   box-sizing: border-box;
   padding: 20px;
@@ -438,6 +439,7 @@
   color: rgba(232, 245, 255, 0.82);
   line-height: 1.55;
   word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .rkp-read-list span {
