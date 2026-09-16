@@ -31,18 +31,19 @@ export class WorkbenchDocumentService {
   async getProposal(id: string, proposalId: string) { const proposal = await this.repo.getProposal(id, proposalId); if (!proposal) throw new Error("提议不存在"); return proposal; }
   async acceptProposal(id: string, proposalId: string) {
     const proposal = await this.getProposal(id, proposalId);
-    const next = await this.commit(id, proposal.baseVersion, proposal.operations as DocumentOperation[]);
-    await this.repo.removeProposal(id, proposalId);
-    return next;
+    return this.commit(id, proposal.baseVersion, proposal.operations as DocumentOperation[], proposalId);
   }
   async commitManual(id: string, expectedVersion: number, operations: DocumentOperation[]) { return this.commit(id, expectedVersion, operations); }
-  private async commit(id: string, expectedVersion: number, operations: DocumentOperation[]) {
+  private async commit(id: string, expectedVersion: number, operations: DocumentOperation[], proposalId?: string) {
     const current = await this.get(id);
     if (current.version !== expectedVersion) throw new Error("工作台文档已更新，请重新读取");
     let next = current;
     for (const operation of operations) next = apply(next, operation);
     next = { ...validateDocument(next), version: current.version + 1, updatedAt: new Date().toISOString() };
-    if (!await this.repo.save(next, current.version)) throw new Error("工作台文档已更新，请重新读取");
+    const saved = proposalId
+      ? await this.repo.saveAndRemoveProposal(next, current.version, proposalId)
+      : await this.repo.save(next, current.version);
+    if (!saved) throw new Error("工作台文档已更新，请重新读取");
     return next;
   }
 }

@@ -13,6 +13,11 @@ CREATE TABLE IF NOT EXISTS workbench_document_versions (
   version INTEGER NOT NULL,
   document TEXT NOT NULL,
   PRIMARY KEY (document_id, version)
+);
+CREATE TABLE IF NOT EXISTS workbench_document_proposals (
+  id TEXT PRIMARY KEY,
+  document_id TEXT NOT NULL,
+  proposal TEXT NOT NULL
 );`;
 
 export interface WorkbenchDocumentProposal {
@@ -32,6 +37,7 @@ export interface WorkbenchDocumentRepo {
   saveProposal(proposal: WorkbenchDocumentProposal): Promise<void>;
   getProposal(documentId: string, proposalId: string): Promise<WorkbenchDocumentProposal | null>;
   removeProposal(documentId: string, proposalId: string): Promise<boolean>;
+  saveAndRemoveProposal(document: WorkbenchDocument, expectedVersion: number, proposalId: string): Promise<boolean>;
 }
 
 function decode(row: { document: string }): WorkbenchDocument {
@@ -63,17 +69,28 @@ export class SqliteWorkbenchDocumentRepo implements WorkbenchDocumentRepo {
     return (this.db.prepare("SELECT document FROM workbench_document_versions WHERE document_id = ? ORDER BY version DESC LIMIT 3").all(id) as { document: string }[]).map(decode);
   }
   async saveProposal(proposal: WorkbenchDocumentProposal) {
-    this.db.prepare("CREATE TABLE IF NOT EXISTS workbench_document_proposals (id TEXT PRIMARY KEY, document_id TEXT NOT NULL, proposal TEXT NOT NULL)").run();
     this.db.prepare("INSERT INTO workbench_document_proposals (id, document_id, proposal) VALUES (?, ?, ?)").run(proposal.id, proposal.documentId, JSON.stringify(proposal));
   }
   async getProposal(documentId: string, proposalId: string) {
-    this.db.prepare("CREATE TABLE IF NOT EXISTS workbench_document_proposals (id TEXT PRIMARY KEY, document_id TEXT NOT NULL, proposal TEXT NOT NULL)").run();
     const row = this.db.prepare("SELECT proposal FROM workbench_document_proposals WHERE id = ? AND document_id = ?").get(proposalId, documentId) as { proposal: string } | undefined;
     return row ? JSON.parse(row.proposal) as WorkbenchDocumentProposal : null;
   }
   async removeProposal(documentId: string, proposalId: string) {
-    this.db.prepare("CREATE TABLE IF NOT EXISTS workbench_document_proposals (id TEXT PRIMARY KEY, document_id TEXT NOT NULL, proposal TEXT NOT NULL)").run();
     return Boolean(this.db.prepare("DELETE FROM workbench_document_proposals WHERE id = ? AND document_id = ?").run(proposalId, documentId).changes);
+  }
+  async saveAndRemoveProposal(document: WorkbenchDocument, expectedVersion: number, proposalId: string) {
+    return this.db.transaction(() => {
+      const serialized = JSON.stringify(workbenchDocumentSchema.parse(document));
+      const result = this.db.prepare("UPDATE workbench_documents SET version = ?, document = ? WHERE id = ? AND version = ?").run(document.version, serialized, document.id, expectedVersion);
+      if (!result.changes) return false;
+      const removed = this.db.prepare("DELETE FROM workbench_document_proposals WHERE id = ? AND document_id = ?").run(proposalId, document.id);
+      if (!removed.changes) throw new Error("提议不存在");
+      this.db.prepare("INSERT INTO workbench_document_versions (document_id, version, document) VALUES (?, ?, ?)").run(document.id, document.version, serialized);
+      this.db.prepare(`DELETE FROM workbench_document_versions WHERE document_id = ? AND version NOT IN (
+        SELECT version FROM workbench_document_versions WHERE document_id = ? ORDER BY version DESC LIMIT 3
+      )`).run(document.id, document.id);
+      return true;
+    })();
   }
 }
 
@@ -112,18 +129,36 @@ export class PostgresWorkbenchDocumentRepo implements WorkbenchDocumentRepo {
   }
   async saveProposal(proposal: WorkbenchDocumentProposal) {
     await this.pool.ready;
-    await this.pool.query("CREATE TABLE IF NOT EXISTS workbench_document_proposals (id TEXT PRIMARY KEY, document_id TEXT NOT NULL, proposal TEXT NOT NULL)");
     await this.pool.query("INSERT INTO workbench_document_proposals (id, document_id, proposal) VALUES ($1, $2, $3)", [proposal.id, proposal.documentId, JSON.stringify(proposal)]);
   }
   async getProposal(documentId: string, proposalId: string) {
     await this.pool.ready;
-    await this.pool.query("CREATE TABLE IF NOT EXISTS workbench_document_proposals (id TEXT PRIMARY KEY, document_id TEXT NOT NULL, proposal TEXT NOT NULL)");
     const row = (await this.pool.query<{ proposal: string }>("SELECT proposal FROM workbench_document_proposals WHERE id = $1 AND document_id = $2", [proposalId, documentId])).rows[0];
     return row ? JSON.parse(row.proposal) as WorkbenchDocumentProposal : null;
   }
   async removeProposal(documentId: string, proposalId: string) {
     await this.pool.ready;
-    await this.pool.query("CREATE TABLE IF NOT EXISTS workbench_document_proposals (id TEXT PRIMARY KEY, document_id TEXT NOT NULL, proposal TEXT NOT NULL)");
     return Boolean((await this.pool.query("DELETE FROM workbench_document_proposals WHERE id = $1 AND document_id = $2", [proposalId, documentId])).rowCount);
+  }
+  async saveAndRemoveProposal(document: WorkbenchDocument, expectedVersion: number, proposalId: string) {
+    await this.pool.ready;
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const serialized = JSON.stringify(workbenchDocumentSchema.parse(document));
+      const saved = await client.query("UPDATE workbench_documents SET version = $1, document = $2 WHERE id = $3 AND version = $4", [document.version, serialized, document.id, expectedVersion]);
+      if (!saved.rowCount) { await client.query("ROLLBACK"); return false; }
+      const removed = await client.query("DELETE FROM workbench_document_proposals WHERE id = $1 AND document_id = $2", [proposalId, document.id]);
+      if (!removed.rowCount) throw new Error("提议不存在");
+      await client.query("INSERT INTO workbench_document_versions (document_id, version, document) VALUES ($1, $2, $3)", [document.id, document.version, serialized]);
+      await client.query(`DELETE FROM workbench_document_versions WHERE document_id = $1 AND version NOT IN (
+        SELECT version FROM workbench_document_versions WHERE document_id = $1 ORDER BY version DESC LIMIT 3
+      )`, [document.id]);
+      await client.query("COMMIT");
+      return true;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally { client.release(); }
   }
 }
