@@ -399,3 +399,9 @@
 .prj-ws .test-case-module--comments .delivery-dashboard-activity > div { border:1px solid var(--test-panel-line)!important; border-radius:var(--pm-radius-control); background:var(--pm-surface-raised)!important; box-shadow:none!important; }
 .prj-ws .test-case-module--comments .delivery-dashboard-activity > i { background:var(--test-panel-tone)!important; }
 .prj-ws .test-case-module--comments .delivery-dashboard-activity:not(:last-of-type) > i::after { background:var(--test-panel-line)!important; }
+
+/* Task detail fields share the embedded graphite workspace palette. */
+.prj-ws .test-task-detail__fields label { border-color:var(--pm-border)!important; border-radius:var(--pm-radius-control)!important; color:var(--pm-text)!important; background:var(--pm-surface-raised)!important; }
+.prj-ws .test-task-detail__fields :is(textarea,input) { border-color:var(--pm-border)!important; color:var(--pm-text)!important; background:var(--pm-canvas)!important; }
+.prj-ws .test-task-detail__fields :is(textarea,input)::placeholder { color:var(--pm-text-muted)!important; }
+.prj-ws .test-task-detail__fields :is(textarea,input):focus { border-color:var(--pm-module-line)!important; }
