@@ -15,11 +15,23 @@ CREATE TABLE IF NOT EXISTS workbench_document_versions (
   PRIMARY KEY (document_id, version)
 );`;
 
+export interface WorkbenchDocumentProposal {
+  id: string;
+  documentId: string;
+  baseVersion: number;
+  summary: string;
+  operations: unknown[];
+  createdAt: string;
+}
+
 export interface WorkbenchDocumentRepo {
   list(): Promise<WorkbenchDocument[]>;
   get(id: string): Promise<WorkbenchDocument | null>;
   save(document: WorkbenchDocument, expectedVersion: number): Promise<boolean>;
   history(id: string): Promise<WorkbenchDocument[]>;
+  saveProposal(proposal: WorkbenchDocumentProposal): Promise<void>;
+  getProposal(documentId: string, proposalId: string): Promise<WorkbenchDocumentProposal | null>;
+  removeProposal(documentId: string, proposalId: string): Promise<boolean>;
 }
 
 function decode(row: { document: string }): WorkbenchDocument {
@@ -49,6 +61,19 @@ export class SqliteWorkbenchDocumentRepo implements WorkbenchDocumentRepo {
   }
   async history(id: string) {
     return (this.db.prepare("SELECT document FROM workbench_document_versions WHERE document_id = ? ORDER BY version DESC LIMIT 3").all(id) as { document: string }[]).map(decode);
+  }
+  async saveProposal(proposal: WorkbenchDocumentProposal) {
+    this.db.prepare("CREATE TABLE IF NOT EXISTS workbench_document_proposals (id TEXT PRIMARY KEY, document_id TEXT NOT NULL, proposal TEXT NOT NULL)").run();
+    this.db.prepare("INSERT INTO workbench_document_proposals (id, document_id, proposal) VALUES (?, ?, ?)").run(proposal.id, proposal.documentId, JSON.stringify(proposal));
+  }
+  async getProposal(documentId: string, proposalId: string) {
+    this.db.prepare("CREATE TABLE IF NOT EXISTS workbench_document_proposals (id TEXT PRIMARY KEY, document_id TEXT NOT NULL, proposal TEXT NOT NULL)").run();
+    const row = this.db.prepare("SELECT proposal FROM workbench_document_proposals WHERE id = ? AND document_id = ?").get(proposalId, documentId) as { proposal: string } | undefined;
+    return row ? JSON.parse(row.proposal) as WorkbenchDocumentProposal : null;
+  }
+  async removeProposal(documentId: string, proposalId: string) {
+    this.db.prepare("CREATE TABLE IF NOT EXISTS workbench_document_proposals (id TEXT PRIMARY KEY, document_id TEXT NOT NULL, proposal TEXT NOT NULL)").run();
+    return Boolean(this.db.prepare("DELETE FROM workbench_document_proposals WHERE id = ? AND document_id = ?").run(proposalId, documentId).changes);
   }
 }
 
@@ -84,5 +109,21 @@ export class PostgresWorkbenchDocumentRepo implements WorkbenchDocumentRepo {
   async history(id: string) {
     await this.pool.ready;
     return (await this.pool.query<{ document: string }>("SELECT document FROM workbench_document_versions WHERE document_id = $1 ORDER BY version DESC LIMIT 3", [id])).rows.map(decode);
+  }
+  async saveProposal(proposal: WorkbenchDocumentProposal) {
+    await this.pool.ready;
+    await this.pool.query("CREATE TABLE IF NOT EXISTS workbench_document_proposals (id TEXT PRIMARY KEY, document_id TEXT NOT NULL, proposal TEXT NOT NULL)");
+    await this.pool.query("INSERT INTO workbench_document_proposals (id, document_id, proposal) VALUES ($1, $2, $3)", [proposal.id, proposal.documentId, JSON.stringify(proposal)]);
+  }
+  async getProposal(documentId: string, proposalId: string) {
+    await this.pool.ready;
+    await this.pool.query("CREATE TABLE IF NOT EXISTS workbench_document_proposals (id TEXT PRIMARY KEY, document_id TEXT NOT NULL, proposal TEXT NOT NULL)");
+    const row = (await this.pool.query<{ proposal: string }>("SELECT proposal FROM workbench_document_proposals WHERE id = $1 AND document_id = $2", [proposalId, documentId])).rows[0];
+    return row ? JSON.parse(row.proposal) as WorkbenchDocumentProposal : null;
+  }
+  async removeProposal(documentId: string, proposalId: string) {
+    await this.pool.ready;
+    await this.pool.query("CREATE TABLE IF NOT EXISTS workbench_document_proposals (id TEXT PRIMARY KEY, document_id TEXT NOT NULL, proposal TEXT NOT NULL)");
+    return Boolean((await this.pool.query("DELETE FROM workbench_document_proposals WHERE id = $1 AND document_id = $2", [proposalId, documentId])).rowCount);
   }
 }
