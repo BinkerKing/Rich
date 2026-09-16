@@ -66,7 +66,7 @@ export function WorkbenchDocumentView(): ReactNode {
     <article className="wd-flow">{cards.length ? cards.map(card => <Card key={card.id} card={card} number={displayNumber({ ...draft, cards }, card.id)} depth={depth(card)} selected={selectedCard === card.id} onSelect={() => setSelectedCard(card.id)} />) : <div className="wd-flow__empty"><h2>从空白开始</h2><p>在右侧告诉 Rich 你的目标。明确后，Agent 会先建立可调整的标题骨架。</p></div>}</article>
     {selected && <section className="wd-editor"><label>卡片内容<textarea value={text(selected.content)} onChange={event => updateCard(selected.id, { content: event.target.value })} /></label><button onClick={removeSelected}>删除卡片</button></section>}
   </div>;
-  return <CollaborativeWorkspaceShell information={<InformationWorkspaceShell locator={draft ? locator : undefined} main={main} />} conversation={<CodexConversationPanel conversationId={currentDocument?.conversationId} header={<><strong>{currentDocument?.title ?? "与 Rich 协作"}</strong><small>讨论形成候选，确认后写入左侧工作台</small></>} />} />;
+  return <CollaborativeWorkspaceShell information={<InformationWorkspaceShell locator={draft ? locator : undefined} main={main} />} conversation={<CodexConversationPanel conversationId={currentDocument?.conversationId} metadata={currentDocument ? { workbenchDocumentId: currentDocument.id } : undefined} header={<><strong>{currentDocument?.title ?? "与 Rich 协作"}</strong><small>讨论形成候选，确认后写入左侧工作台</small></>} />} />;
 }
 
 function Card({ card, number, depth, selected, onSelect }: { card: WorkbenchCard; number: string; depth: number; selected: boolean; onSelect: () => void }): ReactNode {

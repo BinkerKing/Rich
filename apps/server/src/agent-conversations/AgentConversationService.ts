@@ -58,6 +58,7 @@ export interface ResolveAgentApprovalInput {
 export function buildAgentRuntimeMessages(input: {
   executor: AgentConversationExecutor;
   content: string;
+  runtimeInstruction?: string;
   imageUrls?: string[];
   recent: Array<{ role: "user" | "assistant" | "system"; content: string }>;
   summaryContext: string;
@@ -65,7 +66,7 @@ export function buildAgentRuntimeMessages(input: {
   // Codex owns the thread context. Rich only supplies explicit context that
   // belongs to this turn (for example, the user's attached location prefix).
   if (input.executor === "codex") {
-    return [{ role: "user", content: input.content, imageUrls: input.imageUrls }];
+    return [{ role: "user", content: `${input.runtimeInstruction ? `${input.runtimeInstruction}\n\n` : ""}${input.content}`, imageUrls: input.imageUrls }];
   }
 
   return [
@@ -169,7 +170,7 @@ export class AgentConversationService {
 
   async sendMessage(
     conversationId: string,
-    input: { clientRequestId: string; userMessageId: string; content: string; imageUrls?: string[]; metadata?: Record<string, unknown> },
+    input: { clientRequestId: string; userMessageId: string; content: string; runtimeInstruction?: string; imageUrls?: string[]; metadata?: Record<string, unknown> },
     onEvent?: (event: AgentConversationEvent) => Promise<void> | void,
   ): Promise<{ turn: AgentConversationTurn; events: AgentConversationEvent[] }> {
     if (!this.execution) throw new Error("Agent conversation execution is not configured");
@@ -230,6 +231,7 @@ export class AgentConversationService {
     const transcript = buildAgentRuntimeMessages({
       executor: config.executor,
       content: input.content,
+      runtimeInstruction: input.runtimeInstruction,
       imageUrls: input.imageUrls,
       recent,
       summaryContext,

@@ -149,6 +149,7 @@ export function deliverableCodexRoutes(deps: {
     const metadata = typeof body?.metadata === "object" && body.metadata && !Array.isArray(body.metadata)
       ? body.metadata as Record<string, unknown>
       : undefined;
+    const workbenchDocumentId = typeof metadata?.workbenchDocumentId === "string" ? metadata.workbenchDocumentId : undefined;
     const messages = await deps.chats.listMessages(existing.conversationId, 200);
     const lastMode = [...messages].reverse().find(message => (message.metadata as { type?: string } | undefined)?.type === "task-mode-started");
     const generalTaskMode = (lastMode?.metadata as { mode?: { id?: string } } | undefined)?.mode?.id === "general-task";
@@ -201,7 +202,10 @@ export function deliverableCodexRoutes(deps: {
       try {
         if (policyCardContent) await stream.writeSSE({ event: "policy", data: JSON.stringify({ content: policyCardContent, createdAt: policyCreatedAt }) });
         if (deps.attachments) await Promise.all(attachmentIds.map(id => deps.attachments!.bindToMessage(id, userMessageId)));
-        const result = await deps.agents.sendMessage(existing.conversationId, { clientRequestId, userMessageId, content: runtimeContent, imageUrls, metadata }, write);
+        const runtimeInstruction = workbenchDocumentId
+          ? `You are collaborating in Rich workbench document ${workbenchDocumentId}. Before any planning or implementation, use rich_workbench_document get for this document. Use rich_workbench_document outline only for empty heading cards. For all substantive plans, scripts, tables, validation or conclusions, use rich_workbench_document propose and wait for the user's acceptance. Do not create, edit, or test project files unless the user explicitly asks after accepting a workbench proposal. Do not bypass Rich through direct database writes.`
+          : undefined;
+        const result = await deps.agents.sendMessage(existing.conversationId, { clientRequestId, userMessageId, content: runtimeContent, runtimeInstruction, imageUrls, metadata }, write);
         const sessionId = result.turn.runtimeSessionId;
         if (sessionId) await deps.conversations.setCodexThread(existing.id, sessionId, existing.contextVersion, new Date().toISOString());
       } catch (error) {

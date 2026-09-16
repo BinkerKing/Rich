@@ -10,10 +10,11 @@ export type CodexConversationPanelProps = {
   tone?: "default" | "calm";
   density?: "comfortable" | "compact";
   accent?: "teal" | "violet";
+  metadata?: Record<string, unknown>;
   blockRenderers?: ConversationBlockRenderers;
 };
 
-export function CodexConversationPanel({ conversationId, header, composer, sidebarActions, tone = "default", density = "comfortable", accent = "teal", blockRenderers }: CodexConversationPanelProps): ReactNode {
+export function CodexConversationPanel({ conversationId, header, composer, sidebarActions, tone = "default", density = "comfortable", accent = "teal", blockRenderers, metadata }: CodexConversationPanelProps): ReactNode {
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
@@ -34,7 +35,7 @@ export function CodexConversationPanel({ conversationId, header, composer, sideb
     setInput(""); setError(""); setRunning(true);
     setMessages(current => [...current, { id: clientRequestId, role: "user", content, createdAt }, { id: `${clientRequestId}-assistant`, role: "assistant", content: "", createdAt, state: "streaming", blocks: [{ type: "status", text: "正在思考…", state: "streaming" }] }]);
     try {
-      const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(conversationId)}/stream`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, userMessageId: crypto.randomUUID(), clientRequestId, attachments: [] }) });
+      const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(conversationId)}/stream`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, userMessageId: crypto.randomUUID(), clientRequestId, attachments: [], metadata }) });
       if (!response.ok || !response.body) throw new Error(`发送失败 (${response.status})`);
       const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = "";
       while (true) {
