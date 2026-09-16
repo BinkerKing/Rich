@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import { displayNumber, type WorkbenchCard, type WorkbenchDocument } from "@ke/domain";
 import { CollaborativeWorkspaceShell } from "../../components/collaborative-workspace/CollaborativeWorkspaceShell.js";
 import { InformationWorkspaceShell } from "../../components/collaborative-workspace/InformationWorkspaceShell.js";
 import { CodexConversationPanel } from "../../components/codex-conversation/CodexConversationPanel.js";
+import { useStore } from "../../state/store.js";
 import "./WorkbenchDocumentView.css";
 import "./WorkbenchDocumentProposal.css";
 
@@ -70,7 +71,9 @@ export function WorkbenchDocumentView(): ReactNode {
 
 function Card({ card, number, depth, selected, onSelect }: { card: WorkbenchCard; number: string; depth: number; selected: boolean; onSelect: () => void }): ReactNode {
   const component = ["module", "flowchart", "mindmap", "image", "file", "link"].includes(card.type);
+  const setAppView = useStore(state => state.setAppView);
+  const openBinding = (event: MouseEvent) => { event.stopPropagation(); if (card.type === "flowchart") setAppView("flowcharts"); if (card.type === "mindmap") setAppView("deepWorkbench"); };
   return <section id={`workbench-card-${card.id}`} className={`wd-card ${component ? "wd-card--component" : ""} ${selected ? "is-selected" : ""}`} style={{ marginLeft: `${depth * 20}px` }} onClick={onSelect}>
-    {card.type === "heading" ? <h2><small>{number}</small>{card.title || "未命名标题"}</h2> : component ? <><small>{card.type}</small><h3>{card.title || "未命名组件"}</h3><p>{text(card.content) || "此卡片绑定 Rich 中的独立对象。"}</p></> : <p>{text(card.content) || "空文本卡片"}</p>}
+    {card.type === "heading" ? <h2><small>{number}</small>{card.title || "未命名标题"}</h2> : component ? <><small>{card.type}</small><h3>{card.title || "未命名组件"}</h3><p>{text(card.content) || "此卡片绑定 Rich 中的独立对象。"}</p>{["flowchart", "mindmap"].includes(card.type) && <button className="wd-card__open" onClick={openBinding}>打开原对象</button>}</> : <p>{text(card.content) || "空文本卡片"}</p>}
   </section>;
 }
