@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import Database from "better-sqlite3";
 import { SqliteWorkbenchDocumentRepo, WORKBENCH_DOCUMENT_SCHEMA } from "../src/workbench-document/repository.js";
-import { WorkbenchDocumentService } from "../src/workbench-document/service.js";
+import { WorkbenchDocumentService, type DocumentOperation } from "../src/workbench-document/service.js";
 import { SqliteMcpOperationRepo } from "../src/repos/SqliteMcpOperationRepo.js";
 import { RichToolRegistry } from "../src/mcp-v2/registry/toolRegistry.js";
 import { registerWorkbenchDocumentTools } from "../src/mcp-v2/resources/workbenchDocumentTools.js";
@@ -92,6 +92,19 @@ describe("workbench document service", () => {
 
     expect((await service.get(document.id)).cards).toMatchObject([
       { type: "heading", title: "迁移范围与前置确认", content: null },
+    ]);
+  });
+
+  it("accepts a legacy markdown proposal as a rich-text card", async () => {
+    const document = await service.create({ title: "数据迁移", conversationId: "conversation-1" });
+    const proposal = await service.propose(document.id, document.version, {
+      summary: "迁移方案",
+      operations: [{ type: "insertCard", card: { type: "markdown", content: { markdown: "# 迁移方案" } } } as unknown as DocumentOperation],
+    });
+
+    await service.acceptProposal(document.id, proposal.id);
+    expect((await service.get(document.id)).cards).toMatchObject([
+      { type: "rich_text", content: "# 迁移方案" },
     ]);
   });
 });

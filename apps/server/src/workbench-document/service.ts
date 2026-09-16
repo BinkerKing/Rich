@@ -26,7 +26,7 @@ export class WorkbenchDocumentService {
   async propose(id: string, expectedVersion: number, input: { summary: string; operations: DocumentOperation[] }) {
     await this.get(id);
     if (!input.summary.trim() || !input.operations.length) throw new Error("提议需要说明和操作");
-    const proposal: WorkbenchDocumentProposal = { id: `proposal-${randomUUID()}`, documentId: id, baseVersion: expectedVersion, summary: input.summary.trim(), operations: input.operations, createdAt: new Date().toISOString() };
+    const proposal: WorkbenchDocumentProposal = { id: `proposal-${randomUUID()}`, documentId: id, baseVersion: expectedVersion, summary: input.summary.trim(), operations: normalizeLegacyOperations(input.operations), createdAt: new Date().toISOString() };
     await this.repo.saveProposal(proposal);
     eventBus.publish("workbench_document.changed", { detail: { documentId: id, proposalId: proposal.id, op: "propose" } });
     return proposal;
@@ -35,7 +35,7 @@ export class WorkbenchDocumentService {
   async listProposals(id: string) { await this.get(id); return this.repo.listProposals(id); }
   async acceptProposal(id: string, proposalId: string) {
     const proposal = await this.getProposal(id, proposalId);
-    return this.commit(id, proposal.baseVersion, proposal.operations as DocumentOperation[], proposalId);
+    return this.commit(id, proposal.baseVersion, normalizeLegacyOperations(proposal.operations as DocumentOperation[]), proposalId);
   }
   async commitManual(id: string, expectedVersion: number, operations: DocumentOperation[], title?: string) { return this.commit(id, expectedVersion, operations, undefined, title); }
   private async commit(id: string, expectedVersion: number, operations: DocumentOperation[], proposalId?: string, title?: string) {
@@ -61,4 +61,20 @@ function apply(document: WorkbenchDocument, operation: DocumentOperation): Workb
   const card = document.cards.find(item => item.id === operation.cardId);
   if (!card) throw new Error("卡片不存在");
   return validateDocument({ ...document, cards: document.cards.map(item => item.id === card.id ? { ...item, ...operation.patch } : item) });
+}
+
+function normalizeLegacyOperations(operations: DocumentOperation[]): DocumentOperation[] {
+  return operations.map((operation, index) => {
+    const raw = operation as unknown as Record<string, unknown>;
+    if (raw.type !== "insertCard" || !raw.card || typeof raw.card !== "object" || Array.isArray(raw.card)) return operation;
+    const card = raw.card as Record<string, unknown>;
+    const content = card.content as Record<string, unknown> | undefined;
+    if (card.type === "heading" && typeof content?.text === "string") {
+      return { type: "insert", index, card: { id: `workbench-card-${randomUUID()}`, type: "heading", order: index, title: content.text, content: null, properties: {} } };
+    }
+    if (card.type === "markdown" && typeof content?.markdown === "string") {
+      return { type: "insert", index, card: { id: `workbench-card-${randomUUID()}`, type: "rich_text", order: index, content: content.markdown, properties: {} } };
+    }
+    return operation;
+  });
 }
