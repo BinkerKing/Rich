@@ -1,0 +1,497 @@
+/* A workbench reads like a project document; the conversation remains its own shell. */
+.collaborative-workspace--workbench-document {
+  box-sizing: border-box;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 34%);
+  gap: 14px;
+  padding: 14px;
+  background: #111216;
+}
+
+.collaborative-workspace--workbench-document .collaborative-workspace__information,
+.collaborative-workspace--workbench-document .collaborative-workspace__conversation {
+  border: 1px solid #34353d;
+  border-radius: 12px;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.22);
+}
+
+.collaborative-workspace--workbench-document .collaborative-workspace__information,
+.collaborative-workspace--workbench-document .information-workspace {
+  background: #191a1e;
+}
+
+.collaborative-workspace--workbench-document .collaborative-workspace__conversation {
+  background: #1d1e23;
+}
+
+.collaborative-workspace--workbench-document .information-workspace__content {
+  flex-direction: row-reverse;
+}
+
+.collaborative-workspace--workbench-document .information-workspace__main {
+  scroll-padding-top: 126px;
+  background: transparent;
+}
+
+.collaborative-workspace--workbench-document .information-workspace__locator {
+  width: 190px;
+  padding: 58px 24px 48px 16px;
+  border: 0;
+  background: transparent;
+}
+
+.collaborative-workspace--workbench-document .codex-conversation__header {
+  min-height: 72px;
+  padding: 16px 20px;
+  border-bottom-color: rgba(242, 200, 123, 0.22);
+  background: linear-gradient(110deg, rgba(242, 200, 123, 0.06), transparent 48%);
+}
+
+.collaborative-workspace--workbench-document .codex-conversation__messages {
+  padding: 20px;
+  background: #1b1c21;
+}
+
+.collaborative-workspace--workbench-document .codex-conversation__composer {
+  padding: 14px;
+  border-top-color: #393a43;
+  background: #202126;
+}
+
+.collaborative-workspace--workbench-document .codex-conversation__composer textarea {
+  min-height: 62px;
+  background: #17181c;
+  border-color: #44454e;
+}
+
+.wd-conversation-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: #f2c87b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.wd-document {
+  max-width: none;
+  margin: 0;
+  padding: 48px 34px 120px 48px;
+  color: #e1e3ea;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.wd-document__header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-height: 98px;
+  padding: 5px 0 32px;
+  background: #191a1e;
+}
+
+.wd-document__header > div {
+  min-width: 0;
+  width: 100%;
+  padding-top: 8px;
+}
+
+.wd-document__header input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  color: #f2c87b;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+}
+
+.wd-document button,
+.wd-empty button {
+  padding: 8px 11px;
+  margin-left: 7px;
+  color: #fff2d5;
+  background: rgba(242, 200, 123, 0.08);
+  border: 1px solid rgba(242, 200, 123, 0.42);
+  border-radius: 5px;
+  font-size: 13px;
+  transition: background 0.16s, border-color 0.16s;
+}
+
+.wd-document button:hover:not(:disabled),
+.wd-empty button:hover:not(:disabled) {
+  background: rgba(242, 200, 123, 0.17);
+  border-color: rgba(255, 222, 165, 0.78);
+}
+
+.wd-primary {
+  color: #202126 !important;
+  background: #f2c87b !important;
+  border-color: #f2c87b !important;
+  font-weight: 650;
+}
+
+.wd-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.wd-card {
+  padding: 12px 0;
+  cursor: text;
+  border: 1px solid transparent;
+  border-radius: 7px;
+}
+
+.wd-card h2 {
+  margin: 58px 0 18px;
+  padding: 0 0 13px;
+  color: #04bdd6;
+  border-bottom: 1px solid rgba(242, 200, 123, 0.28);
+  font-size: 29px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.28;
+}
+
+.wd-card h2 small {
+  margin-right: 9px;
+  color: #f2c87b;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.wd-card p {
+  max-width: none;
+  margin: 0;
+  color: #d3d5dd;
+  font-size: 17px;
+  letter-spacing: 0.005em;
+  line-height: 1.92;
+  white-space: pre-wrap;
+}
+
+.wd-card--component {
+  margin: 16px 0 14px;
+  padding: 18px 20px;
+  background: #141b22;
+  border-color: rgba(4, 189, 214, 0.25);
+  box-shadow: inset 3px 0 0 rgba(4, 189, 214, 0.75);
+}
+
+.wd-card--flowchart {
+  margin: 20px 0 14px;
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.wd-card--component small {
+  color: #11bed4;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.wd-card--component h3 {
+  margin: 8px 0 14px;
+  color: #f1f6f7;
+  font-size: 18px;
+}
+
+.wd-card__open {
+  margin: 13px 0 0 !important;
+  color: #b6f4f7 !important;
+  background: rgba(4, 189, 214, 0.08) !important;
+  border-color: rgba(4, 189, 214, 0.42) !important;
+}
+
+.wd-flowchart-drawer {
+  margin: 0;
+  overflow: visible;
+  background: transparent;
+}
+
+.wd-flowchart-drawer__label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 16px 0 18px;
+  color: #8fa9b0;
+  font-size: 12px;
+}
+
+.wd-flowchart-drawer__label span {
+  color: #11bed4;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.wd-flowchart-drawer__label strong {
+  min-width: 0;
+  color: #e8f6f7;
+  font-size: 15px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wd-flowchart-drawer__label small {
+  color: #7f9ca3;
+  font-size: 11px;
+}
+
+.wd-flowchart-drawer__expand {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  margin-left: auto;
+  place-items: center;
+  color: #a8e9ee;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.wd-flowchart-drawer__expand:hover {
+  color: #e7feff;
+  background: rgba(4, 189, 214, 0.1);
+  border-color: rgba(4, 189, 214, 0.38);
+}
+
+.wd-flowchart-drawer .pfc {
+  height: 430px;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.wd-flowchart-drawer .pfc-project-header {
+  display: none;
+}
+
+.wd-flowchart-drawer .pfc-task-list {
+  height: 100%;
+}
+
+.wd-flowchart-drawer .pfc-task {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.wd-flowchart-drawer .pfc-task.is-expanded {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.wd-flowchart-drawer .pfc-title-row {
+  display: none;
+}
+
+.wd-flowchart-drawer .pfc-editor {
+  pointer-events: none;
+  border-top-color: rgba(4, 189, 214, 0.22);
+}
+
+.wd-flowchart-drawer .pfc-canvas {
+  background: #0d1318;
+}
+
+.wd-flowchart-drawer .pfc-legend,
+.wd-flowchart-drawer .react-flow__controls,
+.wd-flowchart-drawer .pfc-node-style-toolbar,
+.wd-flowchart-drawer .pfc-edge-toolbar,
+.wd-flowchart-drawer .pfc-quick-create,
+.wd-flowchart-drawer .pfc-details {
+  display: none;
+}
+
+.wd-flowchart-drawer__empty {
+  padding: 18px;
+  color: #a9bbc0;
+  font-size: 14px;
+}
+
+.wd-flowchart-modal {
+  position: fixed;
+  z-index: 100;
+  inset: 36px;
+  display: grid;
+  grid-template-rows: 58px minmax(0, 1fr);
+  overflow: hidden;
+  background: #101419;
+  border: 1px solid rgba(4, 189, 214, 0.5);
+  border-radius: 14px;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.66);
+}
+
+.wd-flowchart-modal > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px 0 20px;
+  border-bottom: 1px solid rgba(4, 189, 214, 0.2);
+  background: #141b22;
+}
+
+.wd-flowchart-modal > header div {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.wd-flowchart-modal > header span {
+  color: #11bed4;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+}
+
+.wd-flowchart-modal > header strong {
+  color: #f0f8f9;
+  font-size: 17px;
+}
+
+.wd-flowchart-modal > header button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
+  color: #c7d7da;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  font-size: 23px;
+  line-height: 1;
+}
+
+.wd-flowchart-modal > header button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.wd-flowchart-modal__canvas,
+.wd-flowchart-modal__canvas .pfc {
+  min-height: 0;
+  height: 100%;
+}
+
+.wd-flowchart-modal__canvas .pfc {
+  padding: 0;
+}
+
+.wd-flowchart-modal__canvas .pfc-project-header {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .wd-flowchart-modal {
+    inset: 12px;
+  }
+}
+
+.wd-locator {
+  position: sticky;
+  top: 46px;
+  display: grid;
+  gap: 3px;
+  padding-left: 0;
+  border-left: 1px solid rgba(242, 200, 123, 0.28);
+}
+
+.wd-locator strong {
+  padding: 0 0 14px 14px;
+  color: #f2c87b;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.wd-locator button {
+  min-height: 31px;
+  padding: 5px 11px 5px 14px;
+  margin: 0;
+  text-align: left;
+  color: #cfd1d9;
+  background: transparent;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.wd-locator button:hover,
+.wd-locator button[aria-current="location"] {
+  color: #fffaf0;
+  background: rgba(242, 200, 123, 0.08);
+  border-left-color: #f2c87b;
+}
+
+.wd-empty {
+  max-width: 620px;
+  padding: 110px 52px;
+}
+
+.wd-empty h1 {
+  color: #f2c87b;
+  font-size: 34px;
+}
+
+.wd-empty p,
+.wd-flow__empty {
+  color: #bcbec8;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.wd-flow__empty {
+  padding: 100px 0;
+  text-align: center;
+}
+
+.wd-error {
+  color: #ff9daa;
+  font-size: 15px;
+}
+
+@media (max-width: 1200px) {
+  .collaborative-workspace--workbench-document {
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 38%);
+  }
+
+  .collaborative-workspace--workbench-document .information-workspace__locator {
+    width: 170px;
+    padding: 42px 18px 42px 12px;
+  }
+
+  .wd-document {
+    padding: 42px 28px 100px 36px;
+  }
+
+  .wd-document__header input {
+    font-size: 32px;
+  }
+
+  .wd-card p {
+    font-size: 16px;
+  }
+}

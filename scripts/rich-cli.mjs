@@ -23,6 +23,13 @@ Common semantic commands:
   workbench update|record|resource|confirm|checkpoint|answer <taskId> --file write.json
   workbench history <taskId>
 
+  workbench-document list
+  workbench-document get <documentId>
+  workbench-document create --file document.json
+  workbench-document history <documentId>
+  workbench-document outline <documentId> --file operations.json
+  workbench-document propose <documentId> --file proposal.json
+
   elements list
   elements get <id>
   elements create --json '{"title":"X","type":"topic","parentId":"optional"}'
@@ -312,6 +319,14 @@ async function semantic(positional, flags) {
     if (action === "get") return request("GET", `/api/workbench/${id(a)}`, flags);
     if (action === "history") return request("GET", `/api/workbench/${id(a)}/history`, flags);
     if (["update", "plan", "step", "record", "resource", "confirm", "checkpoint", "answer"].includes(action)) return request("POST", `/api/workbench/${id(a)}/write`, flags, { ...(body ?? {}), action });
+  }
+  if (domain === "workbench-document") {
+    if (action === "list") return request("GET", "/api/workbench-documents", flags);
+    if (action === "create") return request("POST", "/api/workbench-documents", flags, body ?? {});
+    if (action === "get") return request("GET", `/api/workbench-documents/${id(a)}`, flags);
+    if (action === "history") return request("GET", `/api/workbench-documents/${id(a)}/history`, flags);
+    if (action === "outline") return request("POST", `/api/workbench-documents/${id(a)}/outline`, flags, body ?? {});
+    if (action === "propose") return request("POST", `/api/workbench-documents/${id(a)}/proposals`, flags, body ?? {});
   }
   if (domain === "elements") {
     if (action === "list") return request("GET", withQuery("/api/elements", flags), flags);

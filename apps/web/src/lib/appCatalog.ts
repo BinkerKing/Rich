@@ -18,6 +18,7 @@ export const APP_MENU_ITEMS: AppMenuItem[] = [
   { id: "deliverables", label: "交付物", icon: "card", desc: "统一管理并复用绑定目录的交付物", tone: "gold" },
   { id: "greatme", label: "计划管理", icon: "target", desc: "目标拆解、每日任务、每周复盘", tone: "blue" },
   { id: "taskWorkbench", label: "任务", icon: "card", desc: "需求、计划、Codex 执行与成果", tone: "gold" },
+  { id: "workbenchDocument", label: "工作台文档", icon: "card", desc: "由讨论持续生长的任务说明文档", tone: "cyan" },
   { id: "aiTaskManagement", label: "AI 任务管理", icon: "target", desc: "记录、认领与 Review AI 任务", tone: "violet" },
   { id: "practice", label: "应用开发", icon: "card", desc: "应用需求、功能拆解、代码开发与效果图", tone: "violet" },
   { id: "projects", label: "项目管理", icon: "card", desc: "部署、代码、待办、答疑、文件夹、日报周报", tone: "blue" },

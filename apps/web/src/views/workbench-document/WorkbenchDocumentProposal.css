@@ -1,0 +1,2 @@
+.wd-proposal { display:flex; gap:20px; align-items:center; justify-content:space-between; margin:0 0 18px; padding:12px 14px; border:1px solid var(--teal-line); border-radius:var(--radius); background:var(--teal-soft); }
+.wd-proposal p { margin:4px 0 0; color:var(--soft); }

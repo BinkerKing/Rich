@@ -104,7 +104,7 @@ const edgeStyle = (edge: FlowEdge) => ({
   ...(edge.data?.lineStyle === "dashed" ? { strokeDasharray: "7 4" } : edge.data?.lineStyle === "dotted" ? { strokeDasharray: "2 4" } : {}),
 });
 
-export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowchartIdsChange, standalone = false, embedded = false }: { projectId?: string; focusId?: string; flowchartIds?: string[]; onFlowchartIdsChange?: (ids: string[]) => Promise<void>; standalone?: boolean; embedded?: boolean }) {
+export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowchartIdsChange, standalone = false, embedded = false, preview = false, readOnly = false }: { projectId?: string; focusId?: string; flowchartIds?: string[]; onFlowchartIdsChange?: (ids: string[]) => Promise<void>; standalone?: boolean; embedded?: boolean; preview?: boolean; readOnly?: boolean }) {
   const [items, setItems] = useState<ProjectModuleItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
@@ -164,7 +164,9 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
             restoredDraft = true;
           }
         } catch { /* An unavailable or invalid local draft never blocks server data. */ }
-        if (!restoredDraft && !focusId) {
+        if (preview && next[0]) {
+          setGraph(readFlowchart(next[0].content)); setActive(next[0].id); setTitle(next[0].title); setExpanded(true);
+        } else if (!restoredDraft && !focusId) {
           try {
             const view = JSON.parse(sessionStorage.getItem(viewKey) || "null") as { id?: string; expanded?: boolean } | null;
             const remembered = view?.id ? next.find(item => item.id === view.id) : undefined;
@@ -177,7 +179,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
       }
     }).catch(e => { if (!cancelled) { setError(String(e)); setLoaded(true); } });
     return () => { cancelled = true; };
-  }, [projectId, flowchartIds]);
+  }, [projectId, flowchartIds, preview]);
   useEffect(() => {
     if (!embedded || !loaded) return;
     try {
@@ -475,8 +477,8 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
                 {quickCreate && <div className="pfc-quick-create" style={{ left: quickCreate.screen.x, top: quickCreate.screen.y }} role="dialog" aria-label="快速新建节点菜单"><strong>{quickCreate.source ? "新建并连接" : "新增节点"}</strong>{(["step", "note", "region"] as FlowNodeKind[]).map(kind => <button key={kind} type="button" onClick={() => addNode(kind, quickCreate.position, quickCreate.source)}>{({ step: "图标节点", note: "备注", region: "区域" } as Record<string, string>)[kind]}</button>)}<button type="button" onClick={() => setQuickCreate(undefined)}>取消</button></div>}
               </div>
               <div className="pfc-legend" aria-label="流程图图例"><span>● 处理</span><span>● 数据表</span><span>◇ 判断</span><span>— 主线</span><span>┄ 规则 / 数据关联</span></div>
-              {selectedNodes.length > 0 && <FlowchartNodeStyleToolbar nodes={selectedNodes} onChange={editNode} onKindChange={kind => editNode({ kind })} onAlign={alignment => graph && update(alignFlowNodes(graph, selectedIds, alignment))} onDistribute={direction => graph && update(distributeFlowNodes(graph, selectedIds, direction))} onLayout={direction => graph && update(layoutFlowNodes(graph, selectedIds, direction))} onGroup={groupSelectedNodes} onToggleGroup={() => graph && selected && update(toggleFlowGroup(graph, selected))} />}
-              {selectedFlowEdge && <FlowchartFloatingToolbar className="pfc-edge-toolbar" ariaLabel="连线编辑器">
+              {!readOnly && selectedNodes.length > 0 && <FlowchartNodeStyleToolbar nodes={selectedNodes} onChange={editNode} onKindChange={kind => editNode({ kind })} onAlign={alignment => graph && update(alignFlowNodes(graph, selectedIds, alignment))} onDistribute={direction => graph && update(distributeFlowNodes(graph, selectedIds, direction))} onLayout={direction => graph && update(layoutFlowNodes(graph, selectedIds, direction))} onGroup={groupSelectedNodes} onToggleGroup={() => graph && selected && update(toggleFlowGroup(graph, selected))} />}
+              {!readOnly && selectedFlowEdge && <FlowchartFloatingToolbar className="pfc-edge-toolbar" ariaLabel="连线编辑器">
                 <input aria-label="连线文字" placeholder="连线文字" value={String(selectedFlowEdge.label || "")} onChange={event => editEdge({ label: event.target.value })} />
                 <select aria-label="连线路径" value={selectedFlowEdge.type || "smoothstep"} onChange={event => editEdge({ type: event.target.value })}><option value="smoothstep">平滑折线</option><option value="straight">直线</option><option value="step">直角线</option><option value="bezier">贝塞尔曲线</option></select>
                 <select aria-label="连线样式" value={selectedFlowEdge.data?.lineStyle || "solid"} onChange={event => editEdge({ data: { lineStyle: event.target.value as NonNullable<FlowEdge["data"]>["lineStyle"] } })}><option value="solid">实线</option><option value="dashed">虚线</option><option value="dotted">点线</option></select>

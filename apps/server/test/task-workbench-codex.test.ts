@@ -6,7 +6,9 @@ describe("general Codex task mode", () => {
   it("does not require a project or deliverable context", async () => {
     const snapshots = { createSnapshot: vi.fn() };
     const context = new DeliverableCodexContextService(snapshots as any, { get: vi.fn() } as any);
-    expect(await context.build({ projectId: "__general__", deliverableId: "__general__", mode: "free" })).toMatchObject({ scopeKey: "workbench:general", allowedMcpTools: ["rich_workbench_manage"] });
+    const built = await context.build({ projectId: "__general__", deliverableId: "__general__", mode: "free" });
+    expect(built.scopeKey).toBe("workbench:general");
+    expect(built.allowedMcpTools).toContain("rich_workbench_document");
     expect(snapshots.createSnapshot).not.toHaveBeenCalled();
   });
   it("starts general task mode without invoking the deliverable template and binds the correct record ID", async () => {

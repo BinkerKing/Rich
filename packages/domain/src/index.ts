@@ -1,5 +1,6 @@
 export * from "./types/element.js";
 export * from "./types/workbench.js";
+export * from "./types/workbenchDocument.js";
 export * from "./types/relation.js";
 export * from "./types/path.js";
 export * from "./types/signal.js";
@@ -20,6 +21,7 @@ export * from "./elementTypes/practice.js";
 export * from "./elementTypes/productDesign.js";
 export * from "./elementTypes/project.js";
 export * from "./logic/tree.js";
+export * from "./logic/workbenchDocument.js";
 export * from "./schemas/element.js";
 export * from "./schemas/relation.js";
 export * from "./schemas/path.js";
