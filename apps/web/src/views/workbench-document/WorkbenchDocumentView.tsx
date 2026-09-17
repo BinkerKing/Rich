@@ -16,7 +16,6 @@ export function WorkbenchDocumentView(): ReactNode {
   const [, setDocuments] = useState<WorkbenchDocument[]>([]);
   const [currentDocument, setCurrentDocument] = useState<WorkbenchDocument>();
   const [draft, setDraft] = useState<WorkbenchDocument>();
-  const [selectedCard, setSelectedCard] = useState<string>();
   const [activeHeadingId, setActiveHeadingId] = useState<string>();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [busy, setBusy] = useState(false); const [error, setError] = useState("");
@@ -34,9 +33,6 @@ export function WorkbenchDocumentView(): ReactNode {
   }, [currentDocument?.id]);
   const cards = draft?.cards ?? [];
   const depth = (card: WorkbenchCard) => { let result = 0; let parent = card.parentId; while (parent) { result++; parent = cards.find(item => item.id === parent)?.parentId; } return result; };
-  const selected = cards.find(card => card.id === selectedCard);
-  const updateCard = (cardId: string, patch: Partial<WorkbenchCard>) => setDraft(current => current ? { ...current, cards: current.cards.map(card => card.id === cardId ? { ...card, ...patch } : card) } : current);
-  const removeSelected = () => { if (!selectedCard) return; setDraft(current => { if (!current) return current; const removed = new Set([selectedCard]); for (let changed = true; changed;) { changed = false; current.cards.forEach(card => { if (card.parentId && removed.has(card.parentId) && !removed.has(card.id)) { removed.add(card.id); changed = true; } }); } return { ...current, cards: current.cards.filter(card => !removed.has(card.id)) }; }); setSelectedCard(undefined); };
   const formatMarkdown = async () => {
     if (!currentDocument) return; setBusy(true); setError("");
     try {
@@ -61,17 +57,16 @@ export function WorkbenchDocumentView(): ReactNode {
     <header className="wd-document__header"><div><input value={draft.title} aria-label="工作台标题" onChange={event => setDraft({ ...draft, title: event.target.value })} /></div>{cards.length === 1 && cards[0]?.type === "rich_text" && typeof cards[0].content === "string" && /(^|\n)##\s+/.test(cards[0].content) && <button disabled={busy} onClick={() => void formatMarkdown()}>整理为卡片</button>}</header>
     {error && <p className="wd-error" role="alert">{error}</p>}
     {proposals.map(proposal => <section className="wd-proposal" key={proposal.id}><div><strong>工作台更新候选</strong><p>{proposal.summary}</p></div><div><button disabled={busy} onClick={() => void resolveProposal(proposal, false)}>暂不写入</button><button className="wd-primary" disabled={busy} onClick={() => void resolveProposal(proposal, true)}>写入工作台</button></div></section>)}
-    <article className="wd-flow">{cards.length ? cards.map(card => <Card key={card.id} card={card} number={card.type === "heading" ? String(headings.findIndex(heading => heading.id === card.id) + 1) : displayNumber({ ...draft, cards }, card.id)} depth={depth(card)} selected={selectedCard === card.id} onSelect={() => setSelectedCard(card.id)} />) : <div className="wd-flow__empty"><h2>从空白开始</h2><p>在右侧告诉 Rich 你的目标。明确后，Agent 会先建立可调整的标题骨架。</p></div>}</article>
-    {selected && <section className="wd-editor"><label>卡片内容<textarea value={text(selected.content)} onChange={event => updateCard(selected.id, { content: event.target.value })} /></label><button onClick={removeSelected}>删除卡片</button></section>}
+    <article className="wd-flow">{cards.length ? cards.map(card => <Card key={card.id} card={card} number={card.type === "heading" ? String(headings.findIndex(heading => heading.id === card.id) + 1) : displayNumber({ ...draft, cards }, card.id)} depth={depth(card)} />) : <div className="wd-flow__empty"><h2>从空白开始</h2><p>在右侧告诉 Rich 你的目标。明确后，Agent 会先建立可调整的标题骨架。</p></div>}</article>
   </div>;
   return <CollaborativeWorkspaceShell className="collaborative-workspace--workbench-document" information={<InformationWorkspaceShell locator={draft ? locator : undefined} main={main} onMainScroll={updateActiveHeading} />} conversation={<CodexConversationPanel conversationId={currentDocument?.conversationId} metadata={currentDocument ? { workbenchDocumentId: currentDocument.id } : undefined} header={<><span className="wd-conversation-kicker">任务对话</span><strong>{currentDocument?.title ?? "与 Rich 协作"}</strong><small>讨论形成候选，确认后写入左侧工作台</small></>} />} />;
 }
 
-function Card({ card, number, depth, selected, onSelect }: { card: WorkbenchCard; number: string; depth: number; selected: boolean; onSelect: () => void }): ReactNode {
+function Card({ card, number, depth }: { card: WorkbenchCard; number: string; depth: number }): ReactNode {
   const component = ["module", "flowchart", "mindmap", "image", "file", "link"].includes(card.type);
   const setAppView = useStore(state => state.setAppView);
   const openBinding = (event: MouseEvent) => { event.stopPropagation(); if (card.type === "flowchart") setAppView("flowcharts"); if (card.type === "mindmap") setAppView("deepWorkbench"); };
-  return <section id={`workbench-card-${card.id}`} className={`wd-card ${component ? "wd-card--component" : ""} ${selected ? "is-selected" : ""}`} style={{ marginLeft: `${depth * 20}px` }} onClick={event => { if (!(event.target instanceof Element && event.target.closest(".wd-flowchart-drawer"))) onSelect(); }}>
+  return <section id={`workbench-card-${card.id}`} className={`wd-card ${component ? "wd-card--component" : ""}`} style={{ marginLeft: `${depth * 20}px` }}>
     {card.type === "heading" ? <h2><small>{number}</small>{card.title || "未命名标题"}</h2> : component ? <>{card.type !== "flowchart" && <><small>{card.type}</small><h3>{card.title || "未命名组件"}</h3><p>{text(card.content) || "此卡片绑定 Rich 中的独立对象。"}</p></>}{card.type === "flowchart" ? <FlowchartDrawer card={card} /> : card.type === "mindmap" && <button className="wd-card__open" onClick={openBinding}>打开原对象</button>}</> : <p>{text(card.content) || "空文本卡片"}</p>}
   </section>;
 }
