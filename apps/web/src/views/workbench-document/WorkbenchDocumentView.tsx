@@ -84,7 +84,7 @@ function FlowchartDrawer({ card }: { card: WorkbenchCard }): ReactNode {
   const flowchartId = boundId ?? fallbackId;
   return <div className="wd-flowchart-drawer" aria-label={`${card.title || "流程图"}引用`}>
     <div className="wd-flowchart-drawer__label"><span>流程图</span><strong>{card.title || "未命名流程图"}</strong><small>{boundId ? "已绑定" : "引用现有流程图"}</small><button type="button" className="wd-flowchart-drawer__expand" aria-label="放大流程图" title="放大流程图" onClick={() => setEnlarged(true)}>⛶</button></div>
-    {flowchartId ? <FlowchartsWorkspace flowchartIds={[flowchartId]} embedded preview /> : <p className="wd-flowchart-drawer__empty">当前没有可引用的流程图。</p>}
+    {flowchartId ? <FlowchartsWorkspace flowchartIds={[flowchartId]} embedded preview readOnly /> : <p className="wd-flowchart-drawer__empty">当前没有可引用的流程图。</p>}
     {enlarged && flowchartId && <div className="wd-flowchart-modal" role="dialog" aria-modal="true" aria-label={`${card.title || "流程图"}放大视图`}>
       <header><div><span>流程图</span><strong>{card.title || "未命名流程图"}</strong></div><button type="button" aria-label="关闭放大流程图" onClick={() => setEnlarged(false)}>×</button></header>
       <div className="wd-flowchart-modal__canvas"><FlowchartsWorkspace flowchartIds={[flowchartId]} embedded preview /></div>
