@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from "react";
 import "./CollaborativeWorkspaceShell.css";
 
-export function CollaborativeWorkspaceShell({ information, conversation }: { information: ReactNode; conversation: ReactNode }): ReactNode {
+export function CollaborativeWorkspaceShell({ information, conversation, className }: { information: ReactNode; conversation: ReactNode; className?: string }): ReactNode {
   const [conversationFocused, setConversationFocused] = useState(false);
-  return <section className={`collaborative-workspace ${conversationFocused ? "collaborative-workspace--conversation-focused" : ""}`}>
+  return <section className={`collaborative-workspace ${className ?? ""} ${conversationFocused ? "collaborative-workspace--conversation-focused" : ""}`}>
     <div className="collaborative-workspace__information">{information}</div>
     <aside className="collaborative-workspace__conversation" aria-label="对话">
       <button className="collaborative-workspace__focus" type="button" onClick={() => setConversationFocused(value => !value)} aria-pressed={conversationFocused}>
