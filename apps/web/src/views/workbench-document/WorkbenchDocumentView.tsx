@@ -3,6 +3,7 @@ import { displayNumber, type WorkbenchCard, type WorkbenchDocument } from "@ke/d
 import { CollaborativeWorkspaceShell } from "../../components/collaborative-workspace/CollaborativeWorkspaceShell.js";
 import { InformationWorkspaceShell } from "../../components/collaborative-workspace/InformationWorkspaceShell.js";
 import { CodexConversationPanel } from "../../components/codex-conversation/CodexConversationPanel.js";
+import { FlowchartsWorkspace } from "../project-management/flowcharts/FlowchartsWorkspace.js";
 import { useStore } from "../../state/store.js";
 import "./WorkbenchDocumentView.css";
 import "./WorkbenchDocumentProposal.css";
@@ -70,9 +71,23 @@ function Card({ card, number, depth, selected, onSelect }: { card: WorkbenchCard
   const component = ["module", "flowchart", "mindmap", "image", "file", "link"].includes(card.type);
   const setAppView = useStore(state => state.setAppView);
   const openBinding = (event: MouseEvent) => { event.stopPropagation(); if (card.type === "flowchart") setAppView("flowcharts"); if (card.type === "mindmap") setAppView("deepWorkbench"); };
-  const steps = card.type === "flowchart" && card.content && typeof card.content === "object" && Array.isArray((card.content as { steps?: unknown }).steps) ? (card.content as { steps: string[] }).steps : [];
   return <section id={`workbench-card-${card.id}`} className={`wd-card ${component ? "wd-card--component" : ""} ${selected ? "is-selected" : ""}`} style={{ marginLeft: `${depth * 20}px` }} onClick={onSelect}>
-    {card.type === "heading" ? <h2><small>{number}</small>{card.title || "未命名标题"}</h2> : component ? <><small>{card.type}</small><h3>{card.title || "未命名组件"}</h3>{card.type !== "flowchart" && <p>{text(card.content) || "此卡片绑定 Rich 中的独立对象。"}</p>}{["flowchart", "mindmap"].includes(card.type) && <button className="wd-card__open" onClick={openBinding}>打开原对象</button>}</> : <p>{text(card.content) || "空文本卡片"}</p>}
-    {card.type === "flowchart" && steps.length > 0 && <div className="wd-flowchart" aria-label={`${card.title}流程图`}>{steps.map((step, index) => <span key={step}>{step}{index < steps.length - 1 && <b>→</b>}</span>)}</div>}
+    {card.type === "heading" ? <h2><small>{number}</small>{card.title || "未命名标题"}</h2> : component ? <>{card.type !== "flowchart" && <><small>{card.type}</small><h3>{card.title || "未命名组件"}</h3><p>{text(card.content) || "此卡片绑定 Rich 中的独立对象。"}</p></>}{card.type === "flowchart" ? <FlowchartDrawer card={card} /> : card.type === "mindmap" && <button className="wd-card__open" onClick={openBinding}>打开原对象</button>}</> : <p>{text(card.content) || "空文本卡片"}</p>}
   </section>;
+}
+
+function FlowchartDrawer({ card }: { card: WorkbenchCard }): ReactNode {
+  const content = card.content && typeof card.content === "object" ? card.content as { flowchartId?: unknown } : undefined;
+  const propertyId = card.properties.flowchartId;
+  const boundId = typeof content?.flowchartId === "string" ? content.flowchartId : typeof propertyId === "string" ? propertyId : undefined;
+  const [fallbackId, setFallbackId] = useState<string>();
+  useEffect(() => {
+    if (boundId) return;
+    void fetch("/api/flowcharts").then(async response => response.ok ? response.json() as Promise<Array<{ id: string }>> : []).then(items => setFallbackId(items[0]?.id)).catch(() => setFallbackId(undefined));
+  }, [boundId]);
+  const flowchartId = boundId ?? fallbackId;
+  return <div className="wd-flowchart-drawer" aria-label={`${card.title || "流程图"}引用`}>
+    <div className="wd-flowchart-drawer__label"><span>流程图引用</span>{boundId ? "已绑定" : "引用现有流程图"}</div>
+    {flowchartId ? <FlowchartsWorkspace flowchartIds={[flowchartId]} embedded /> : <p className="wd-flowchart-drawer__empty">当前没有可引用的流程图。</p>}
+  </div>;
 }

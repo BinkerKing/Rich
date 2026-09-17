@@ -214,28 +214,113 @@
   border-color: rgba(4, 189, 214, 0.42) !important;
 }
 
-.wd-flowchart {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 2px;
-  padding: 14px 0 1px;
+.wd-flowchart-drawer {
+  margin: 20px 0 12px;
+  overflow: hidden;
+  border: 1px solid rgba(4, 189, 214, 0.34);
+  border-radius: 10px;
+  background: #11181e;
+  box-shadow: inset 3px 0 #04bdd6, 0 10px 24px rgba(0, 0, 0, 0.16);
 }
 
-.wd-flowchart span {
+.wd-flowchart-drawer__label {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: #b6f4f7;
-  font-size: 13px;
+  justify-content: space-between;
+  min-height: 32px;
+  padding: 0 14px 0 17px;
+  color: #8fa9b0;
+  border-bottom: 1px solid rgba(4, 189, 214, 0.16);
+  font-size: 12px;
+}
+
+.wd-flowchart-drawer__label span {
+  color: #11bed4;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.wd-flowchart-drawer .pfc {
+  height: 62px;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+  transition: height 0.24s ease;
+}
+
+.wd-flowchart-drawer .pfc:has(.pfc-task.is-expanded) {
+  height: 430px;
+}
+
+.wd-flowchart-drawer .pfc-project-header {
+  display: none;
+}
+
+.wd-flowchart-drawer .pfc-task-list {
+  height: 100%;
+}
+
+.wd-flowchart-drawer .pfc-task {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.wd-flowchart-drawer .pfc-title-row {
+  min-height: 62px;
+  padding: 0 12px;
+  background: rgba(4, 189, 214, 0.035);
+}
+
+.wd-flowchart-drawer .pfc-task-title {
+  color: #eefbfc;
+}
+
+.wd-flowchart-drawer .pfc-task-title::after {
+  margin-left: auto;
+  color: #77d5df;
+  content: "展开画布  ›";
+  font-size: 12px;
   font-weight: 600;
 }
 
-.wd-flowchart b {
-  color: #4a8490;
-  font-size: 16px;
-  font-weight: 400;
+.wd-flowchart-drawer .pfc-task.is-expanded .pfc-task-title::after {
+  content: "收起  ‹";
+}
+
+.wd-flowchart-drawer .pfc-task-index {
+  display: grid;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: #8ee8ef;
+  border: 1px solid rgba(4, 189, 214, 0.48);
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.wd-flowchart-drawer .pfc-editor {
+  pointer-events: none;
+  border-top-color: rgba(4, 189, 214, 0.22);
+}
+
+.wd-flowchart-drawer .pfc-canvas {
+  background: #0d1318;
+}
+
+.wd-flowchart-drawer .pfc-legend,
+.wd-flowchart-drawer .react-flow__controls {
+  display: none;
+}
+
+.wd-flowchart-drawer__empty {
+  padding: 18px;
+  color: #a9bbc0;
+  font-size: 14px;
 }
 
 .wd-editor {
