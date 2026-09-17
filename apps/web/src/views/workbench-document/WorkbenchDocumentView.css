@@ -218,11 +218,8 @@
 
 .wd-flowchart-drawer {
   margin: 0;
-  overflow: hidden;
-  border: 1px solid rgba(4, 189, 214, 0.34);
-  border-radius: 10px;
-  background: #11181e;
-  box-shadow: inset 3px 0 #04bdd6, 0 10px 24px rgba(0, 0, 0, 0.16);
+  overflow: visible;
+  background: transparent;
 }
 
 .wd-flowchart-drawer__label {
@@ -232,7 +229,6 @@
   min-height: 42px;
   padding: 0 16px 0 18px;
   color: #8fa9b0;
-  border-bottom: 1px solid rgba(4, 189, 214, 0.16);
   font-size: 12px;
 }
 
@@ -320,7 +316,11 @@
 }
 
 .wd-flowchart-drawer .pfc-legend,
-.wd-flowchart-drawer .react-flow__controls {
+.wd-flowchart-drawer .react-flow__controls,
+.wd-flowchart-drawer .pfc-node-style-toolbar,
+.wd-flowchart-drawer .pfc-edge-toolbar,
+.wd-flowchart-drawer .pfc-quick-create,
+.wd-flowchart-drawer .pfc-details {
   display: none;
 }
 
