@@ -187,6 +187,14 @@
   box-shadow: inset 3px 0 0 rgba(4, 189, 214, 0.75);
 }
 
+.wd-card--flowchart {
+  margin: 20px 0 14px;
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
 .wd-card--component small {
   color: #11bed4;
   font-size: 11px;
@@ -209,7 +217,7 @@
 }
 
 .wd-flowchart-drawer {
-  margin: 20px 0 12px;
+  margin: 0;
   overflow: hidden;
   border: 1px solid rgba(4, 189, 214, 0.34);
   border-radius: 10px;
@@ -247,9 +255,29 @@
 }
 
 .wd-flowchart-drawer__label small {
-  margin-left: auto;
   color: #7f9ca3;
   font-size: 11px;
+}
+
+.wd-flowchart-drawer__expand {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  margin-left: auto;
+  place-items: center;
+  color: #a8e9ee;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.wd-flowchart-drawer__expand:hover {
+  color: #e7feff;
+  background: rgba(4, 189, 214, 0.1);
+  border-color: rgba(4, 189, 214, 0.38);
 }
 
 .wd-flowchart-drawer .pfc {
@@ -300,6 +328,84 @@
   padding: 18px;
   color: #a9bbc0;
   font-size: 14px;
+}
+
+.wd-flowchart-modal {
+  position: fixed;
+  z-index: 100;
+  inset: 36px;
+  display: grid;
+  grid-template-rows: 58px minmax(0, 1fr);
+  overflow: hidden;
+  background: #101419;
+  border: 1px solid rgba(4, 189, 214, 0.5);
+  border-radius: 14px;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.66);
+}
+
+.wd-flowchart-modal > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px 0 20px;
+  border-bottom: 1px solid rgba(4, 189, 214, 0.2);
+  background: #141b22;
+}
+
+.wd-flowchart-modal > header div {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.wd-flowchart-modal > header span {
+  color: #11bed4;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+}
+
+.wd-flowchart-modal > header strong {
+  color: #f0f8f9;
+  font-size: 17px;
+}
+
+.wd-flowchart-modal > header button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
+  color: #c7d7da;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  font-size: 23px;
+  line-height: 1;
+}
+
+.wd-flowchart-modal > header button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.wd-flowchart-modal__canvas,
+.wd-flowchart-modal__canvas .pfc {
+  min-height: 0;
+  height: 100%;
+}
+
+.wd-flowchart-modal__canvas .pfc {
+  padding: 0;
+}
+
+.wd-flowchart-modal__canvas .pfc-project-header {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .wd-flowchart-modal {
+    inset: 12px;
+  }
 }
 
 .wd-locator {

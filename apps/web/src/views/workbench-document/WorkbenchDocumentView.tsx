@@ -66,7 +66,7 @@ function Card({ card, number, depth }: { card: WorkbenchCard; number: string; de
   const component = ["module", "flowchart", "mindmap", "image", "file", "link"].includes(card.type);
   const setAppView = useStore(state => state.setAppView);
   const openBinding = (event: MouseEvent) => { event.stopPropagation(); if (card.type === "flowchart") setAppView("flowcharts"); if (card.type === "mindmap") setAppView("deepWorkbench"); };
-  return <section id={`workbench-card-${card.id}`} className={`wd-card ${component ? "wd-card--component" : ""}`} style={{ marginLeft: `${depth * 20}px` }}>
+  return <section id={`workbench-card-${card.id}`} className={`wd-card ${component ? "wd-card--component" : ""} ${card.type === "flowchart" ? "wd-card--flowchart" : ""}`} style={{ marginLeft: `${depth * 20}px` }}>
     {card.type === "heading" ? <h2><small>{number}</small>{card.title || "未命名标题"}</h2> : component ? <>{card.type !== "flowchart" && <><small>{card.type}</small><h3>{card.title || "未命名组件"}</h3><p>{text(card.content) || "此卡片绑定 Rich 中的独立对象。"}</p></>}{card.type === "flowchart" ? <FlowchartDrawer card={card} /> : card.type === "mindmap" && <button className="wd-card__open" onClick={openBinding}>打开原对象</button>}</> : <p>{text(card.content) || "空文本卡片"}</p>}
   </section>;
 }
@@ -76,13 +76,18 @@ function FlowchartDrawer({ card }: { card: WorkbenchCard }): ReactNode {
   const propertyId = card.properties.flowchartId;
   const boundId = typeof content?.flowchartId === "string" ? content.flowchartId : typeof propertyId === "string" ? propertyId : undefined;
   const [fallbackId, setFallbackId] = useState<string>();
+  const [enlarged, setEnlarged] = useState(false);
   useEffect(() => {
     if (boundId) return;
     void fetch("/api/flowcharts").then(async response => response.ok ? response.json() as Promise<Array<{ id: string }>> : []).then(items => setFallbackId(items[0]?.id)).catch(() => setFallbackId(undefined));
   }, [boundId]);
   const flowchartId = boundId ?? fallbackId;
   return <div className="wd-flowchart-drawer" aria-label={`${card.title || "流程图"}引用`}>
-    <div className="wd-flowchart-drawer__label"><span>流程图</span><strong>{card.title || "未命名流程图"}</strong><small>{boundId ? "已绑定" : "引用现有流程图"}</small></div>
+    <div className="wd-flowchart-drawer__label"><span>流程图</span><strong>{card.title || "未命名流程图"}</strong><small>{boundId ? "已绑定" : "引用现有流程图"}</small><button type="button" className="wd-flowchart-drawer__expand" aria-label="放大流程图" title="放大流程图" onClick={() => setEnlarged(true)}>⛶</button></div>
     {flowchartId ? <FlowchartsWorkspace flowchartIds={[flowchartId]} embedded preview /> : <p className="wd-flowchart-drawer__empty">当前没有可引用的流程图。</p>}
+    {enlarged && flowchartId && <div className="wd-flowchart-modal" role="dialog" aria-modal="true" aria-label={`${card.title || "流程图"}放大视图`}>
+      <header><div><span>流程图</span><strong>{card.title || "未命名流程图"}</strong></div><button type="button" aria-label="关闭放大流程图" onClick={() => setEnlarged(false)}>×</button></header>
+      <div className="wd-flowchart-modal__canvas"><FlowchartsWorkspace flowchartIds={[flowchartId]} embedded preview /></div>
+    </div>}
   </div>;
 }
