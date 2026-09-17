@@ -82,7 +82,7 @@ function FlowchartDrawer({ card }: { card: WorkbenchCard }): ReactNode {
   }, [boundId]);
   const flowchartId = boundId ?? fallbackId;
   return <div className="wd-flowchart-drawer" aria-label={`${card.title || "流程图"}引用`}>
-    <div className="wd-flowchart-drawer__label"><span>流程图引用</span>{boundId ? "已绑定" : "引用现有流程图"}</div>
-    {flowchartId ? <FlowchartsWorkspace flowchartIds={[flowchartId]} embedded /> : <p className="wd-flowchart-drawer__empty">当前没有可引用的流程图。</p>}
+    <div className="wd-flowchart-drawer__label"><span>流程图</span><strong>{card.title || "未命名流程图"}</strong><small>{boundId ? "已绑定" : "引用现有流程图"}</small></div>
+    {flowchartId ? <FlowchartsWorkspace flowchartIds={[flowchartId]} embedded preview /> : <p className="wd-flowchart-drawer__empty">当前没有可引用的流程图。</p>}
   </div>;
 }

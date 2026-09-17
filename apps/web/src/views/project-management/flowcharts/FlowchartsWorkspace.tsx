@@ -104,7 +104,7 @@ const edgeStyle = (edge: FlowEdge) => ({
   ...(edge.data?.lineStyle === "dashed" ? { strokeDasharray: "7 4" } : edge.data?.lineStyle === "dotted" ? { strokeDasharray: "2 4" } : {}),
 });
 
-export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowchartIdsChange, standalone = false, embedded = false }: { projectId?: string; focusId?: string; flowchartIds?: string[]; onFlowchartIdsChange?: (ids: string[]) => Promise<void>; standalone?: boolean; embedded?: boolean }) {
+export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowchartIdsChange, standalone = false, embedded = false, preview = false }: { projectId?: string; focusId?: string; flowchartIds?: string[]; onFlowchartIdsChange?: (ids: string[]) => Promise<void>; standalone?: boolean; embedded?: boolean; preview?: boolean }) {
   const [items, setItems] = useState<ProjectModuleItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
@@ -164,7 +164,9 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
             restoredDraft = true;
           }
         } catch { /* An unavailable or invalid local draft never blocks server data. */ }
-        if (!restoredDraft && !focusId) {
+        if (preview && next[0]) {
+          setGraph(readFlowchart(next[0].content)); setActive(next[0].id); setTitle(next[0].title); setExpanded(true);
+        } else if (!restoredDraft && !focusId) {
           try {
             const view = JSON.parse(sessionStorage.getItem(viewKey) || "null") as { id?: string; expanded?: boolean } | null;
             const remembered = view?.id ? next.find(item => item.id === view.id) : undefined;
@@ -177,7 +179,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
       }
     }).catch(e => { if (!cancelled) { setError(String(e)); setLoaded(true); } });
     return () => { cancelled = true; };
-  }, [projectId, flowchartIds]);
+  }, [projectId, flowchartIds, preview]);
   useEffect(() => {
     if (!embedded || !loaded) return;
     try {

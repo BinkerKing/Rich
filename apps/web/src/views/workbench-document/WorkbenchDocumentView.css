@@ -220,9 +220,9 @@
 .wd-flowchart-drawer__label {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  min-height: 32px;
-  padding: 0 14px 0 17px;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 16px 0 18px;
   color: #8fa9b0;
   border-bottom: 1px solid rgba(4, 189, 214, 0.16);
   font-size: 12px;
@@ -236,16 +236,27 @@
   text-transform: uppercase;
 }
 
+.wd-flowchart-drawer__label strong {
+  min-width: 0;
+  color: #e8f6f7;
+  font-size: 15px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wd-flowchart-drawer__label small {
+  margin-left: auto;
+  color: #7f9ca3;
+  font-size: 11px;
+}
+
 .wd-flowchart-drawer .pfc {
-  height: 62px;
+  height: 430px;
   padding: 0;
   overflow: hidden;
   background: transparent;
-  transition: height 0.24s ease;
-}
-
-.wd-flowchart-drawer .pfc:has(.pfc-task.is-expanded) {
-  height: 430px;
 }
 
 .wd-flowchart-drawer .pfc-project-header {
@@ -263,42 +274,12 @@
   box-shadow: none;
 }
 
+.wd-flowchart-drawer .pfc-task.is-expanded {
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .wd-flowchart-drawer .pfc-title-row {
-  min-height: 62px;
-  padding: 0 12px;
-  background: rgba(4, 189, 214, 0.035);
-}
-
-.wd-flowchart-drawer .pfc-title-row > button:not(.pfc-task-title) {
   display: none;
-}
-
-.wd-flowchart-drawer .pfc-task-title {
-  color: #eefbfc;
-}
-
-.wd-flowchart-drawer .pfc-task-title::after {
-  margin-left: auto;
-  color: #77d5df;
-  content: "展开画布  ›";
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.wd-flowchart-drawer .pfc-task.is-expanded .pfc-task-title::after {
-  content: "收起  ‹";
-}
-
-.wd-flowchart-drawer .pfc-task-index {
-  display: grid;
-  flex: 0 0 28px;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  color: #8ee8ef;
-  border: 1px solid rgba(4, 189, 214, 0.48);
-  border-radius: 6px;
-  font-size: 11px;
 }
 
 .wd-flowchart-drawer .pfc-editor {
