@@ -13,7 +13,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> { const 
 function text(value: unknown): string { return typeof value === "string" ? value : value ? JSON.stringify(value) : ""; }
 
 export function WorkbenchDocumentView(): ReactNode {
-  const [documents, setDocuments] = useState<WorkbenchDocument[]>([]);
+  const [, setDocuments] = useState<WorkbenchDocument[]>([]);
   const [currentDocument, setCurrentDocument] = useState<WorkbenchDocument>();
   const [draft, setDraft] = useState<WorkbenchDocument>();
   const [selectedCard, setSelectedCard] = useState<string>();
@@ -68,7 +68,7 @@ export function WorkbenchDocumentView(): ReactNode {
   const headings = cards.filter(card => card.type === "heading");
   const locator = <div className="wd-locator"><strong>工作台目录</strong>{headings.map((card, index) => <button key={card.id} onClick={() => document.getElementById(`workbench-card-${card.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}>{index + 1}. {card.title || "未命名标题"}</button>)}</div>;
   const main = !draft ? <div className="wd-empty"><h1>工作台文档</h1><p>先创建一个工作台，Rich 会收集信息，Agent 把确认后的内容组织成文档卡片。</p><button className="wd-primary" disabled={busy} onClick={() => void create()}>新建工作台</button></div> : <div className="wd-document">
-    <header className="wd-document__header"><div><select value={draft.id} onChange={event => void load(event.target.value)} aria-label="切换工作台">{documents.map(item => <option value={item.id} key={item.id}>{item.title}</option>)}</select><input value={draft.title} aria-label="工作台标题" onChange={event => setDraft({ ...draft, title: event.target.value })} /></div><div>{cards.length === 1 && cards[0]?.type === "rich_text" && typeof cards[0].content === "string" && /(^|\n)##\s+/.test(cards[0].content) && <button disabled={busy} onClick={() => void formatMarkdown()}>整理为卡片</button>}<button onClick={addText}>添加文本</button><button className="wd-primary" disabled={!dirty || busy} onClick={() => void save()}>{busy ? "保存中" : "保存"}</button></div></header>
+    <header className="wd-document__header"><div><input value={draft.title} aria-label="工作台标题" onChange={event => setDraft({ ...draft, title: event.target.value })} /></div><div>{cards.length === 1 && cards[0]?.type === "rich_text" && typeof cards[0].content === "string" && /(^|\n)##\s+/.test(cards[0].content) && <button disabled={busy} onClick={() => void formatMarkdown()}>整理为卡片</button>}<button onClick={addText}>添加文本</button><button className="wd-primary" disabled={!dirty || busy} onClick={() => void save()}>{busy ? "保存中" : "保存"}</button></div></header>
     {error && <p className="wd-error" role="alert">{error}</p>}
     {proposals.map(proposal => <section className="wd-proposal" key={proposal.id}><div><strong>工作台更新候选</strong><p>{proposal.summary}</p></div><div><button disabled={busy} onClick={() => void resolveProposal(proposal, false)}>暂不写入</button><button className="wd-primary" disabled={busy} onClick={() => void resolveProposal(proposal, true)}>写入工作台</button></div></section>)}
     <article className="wd-flow">{cards.length ? cards.map(card => <Card key={card.id} card={card} number={card.type === "heading" ? String(headings.findIndex(heading => heading.id === card.id) + 1) : displayNumber({ ...draft, cards }, card.id)} depth={depth(card)} selected={selectedCard === card.id} onSelect={() => setSelectedCard(card.id)} />) : <div className="wd-flow__empty"><h2>从空白开始</h2><p>在右侧告诉 Rich 你的目标。明确后，Agent 会先建立可调整的标题骨架。</p></div>}</article>
