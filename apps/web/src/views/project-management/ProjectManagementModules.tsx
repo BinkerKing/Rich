@@ -524,13 +524,13 @@ export function ProjectTextField({ label, value, onChange }: { label: string; va
 }
 
 type RichToolbarIconName =
-  | "undo" | "redo" | "paragraph" | "heading-one" | "heading-two" | "bold" | "italic" | "underline" | "strike"
+  | "undo" | "redo" | "paragraph" | "heading-one" | "heading-two" | "heading-three" | "bold" | "italic" | "underline" | "strike"
   | "text-color" | "highlight" | "align-left" | "align-center" | "align-right" | "bullet-list" | "ordered-list"
   | "quote" | "code" | "link" | "image" | "table" | "clear" | "more";
 
 const RICH_TEXT_COLORS = ["#1f2937", "#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899", "#ffffff"];
 const RICH_HIGHLIGHT_COLORS = ["#fff3b0", "#fee2e2", "#ffedd5", "#fef3c7", "#dcfce7", "#cffafe", "#dbeafe", "#ede9fe", "#fce7f3", "#e5e7eb"];
-const RICH_TOOLBAR_ITEM_COUNT = 24;
+const RICH_TOOLBAR_ITEM_COUNT = 25;
 
 function RichToolbarIcon({ name }: { name: RichToolbarIconName }) {
   const common = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
@@ -540,6 +540,7 @@ function RichToolbarIcon({ name }: { name: RichToolbarIconName }) {
     case "paragraph": return <svg {...common}><path d="M5 5h14M5 10h10M5 15h14M5 20h10"/></svg>;
     case "heading-one": return <svg {...common}><path d="M5 5v14M13 5v14M5 12h8M18 8l2-2v13"/></svg>;
     case "heading-two": return <svg {...common}><path d="M5 5v14M13 5v14M5 12h8M18 8a2 2 0 1 1 4 0c0 3-4 4-4 7h4"/></svg>;
+    case "heading-three": return <svg {...common}><path d="M5 5v14M13 5v14M5 12h8M18 7h2a2 2 0 0 1 0 4h-2M18 11h2a2 2 0 0 1 0 4h-2"/></svg>;
     case "bold": return <svg {...common}><path d="M7 5h6a4 4 0 0 1 0 8H7zM7 13h7a4 4 0 0 1 0 8H7z"/></svg>;
     case "italic": return <svg {...common}><path d="M15 4 9 20M7 4h10M7 20h10"/></svg>;
     case "underline": return <svg {...common}><path d="M7 4v6a5 5 0 0 0 10 0V4M5 20h14"/></svg>;
@@ -680,9 +681,10 @@ export function ProjectRichTextEditor({
   const toolbarItems = [
     { key: "undo", node: <RichToolbarButton icon="undo" label="撤销" onClick={() => editor.chain().focus().undo().run()}/> },
     { key: "redo", node: <RichToolbarButton icon="redo" label="重做" onClick={() => editor.chain().focus().redo().run()}/> },
-    { key: "style", node: <select className="prj-pm-rich-toolbar__select is-style" aria-label="段落样式" value={editor.isActive("heading", { level: 2 }) ? "h2" : editor.isActive("heading", { level: 3 }) ? "h3" : "p"} onChange={event => { const next = event.target.value; if (next === "p") editor.chain().focus().setParagraph().run(); else editor.chain().focus().toggleHeading({ level: Number(next.slice(1)) as 2 | 3 }).run(); }}><option value="p">正文</option><option value="h2">一级标题</option><option value="h3">二级标题</option></select> },
-    { key: "heading-one", node: <RichToolbarButton icon="heading-one" label="一级标题" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}/> },
-    { key: "heading-two", node: <RichToolbarButton icon="heading-two" label="二级标题" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}/> },
+    { key: "style", node: <select className="prj-pm-rich-toolbar__select is-style" aria-label="段落样式" value={editor.isActive("heading", { level: 1 }) ? "h1" : editor.isActive("heading", { level: 2 }) ? "h2" : editor.isActive("heading", { level: 3 }) ? "h3" : "p"} onChange={event => { const next = event.target.value; if (next === "p") editor.chain().focus().setParagraph().run(); else editor.chain().focus().toggleHeading({ level: Number(next.slice(1)) as 1 | 2 | 3 }).run(); }}><option value="p">正文</option><option value="h1">一级标题</option><option value="h2">二级标题</option><option value="h3">三级标题</option></select> },
+    { key: "heading-one", node: <RichToolbarButton icon="heading-one" label="一级标题" active={editor.isActive("heading", { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}/> },
+    { key: "heading-two", node: <RichToolbarButton icon="heading-two" label="二级标题" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}/> },
+    { key: "heading-three", node: <RichToolbarButton icon="heading-three" label="三级标题" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}/> },
     { key: "font", node: <select className="prj-pm-rich-toolbar__select" aria-label="字体" defaultValue="PingFang SC" onChange={event => editor.chain().focus().setFontFamily(event.target.value).run()}><option>PingFang SC</option><option>Microsoft YaHei</option><option>Arial</option><option>Georgia</option><option>Menlo</option></select> },
     { key: "size", node: <select className="prj-pm-rich-toolbar__select is-size" aria-label="字号" defaultValue="14px" onChange={event => editor.chain().focus().setMark("textStyle", { fontSize: event.target.value }).run()}><option value="12px">12px</option><option value="14px">14px</option><option value="16px">16px</option><option value="18px">18px</option><option value="24px">24px</option></select> },
     { key: "bold", node: <RichToolbarButton icon="bold" label="加粗" active={editor.isActive("bold")} onClick={toggleBoldUniformly}/> },
