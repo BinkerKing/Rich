@@ -71,7 +71,7 @@ function Card({ card, number, depth, selected, onSelect }: { card: WorkbenchCard
   const component = ["module", "flowchart", "mindmap", "image", "file", "link"].includes(card.type);
   const setAppView = useStore(state => state.setAppView);
   const openBinding = (event: MouseEvent) => { event.stopPropagation(); if (card.type === "flowchart") setAppView("flowcharts"); if (card.type === "mindmap") setAppView("deepWorkbench"); };
-  return <section id={`workbench-card-${card.id}`} className={`wd-card ${component ? "wd-card--component" : ""} ${selected ? "is-selected" : ""}`} style={{ marginLeft: `${depth * 20}px` }} onClick={onSelect}>
+  return <section id={`workbench-card-${card.id}`} className={`wd-card ${component ? "wd-card--component" : ""} ${selected ? "is-selected" : ""}`} style={{ marginLeft: `${depth * 20}px` }} onClick={event => { if (!(event.target instanceof Element && event.target.closest(".wd-flowchart-drawer"))) onSelect(); }}>
     {card.type === "heading" ? <h2><small>{number}</small>{card.title || "未命名标题"}</h2> : component ? <>{card.type !== "flowchart" && <><small>{card.type}</small><h3>{card.title || "未命名组件"}</h3><p>{text(card.content) || "此卡片绑定 Rich 中的独立对象。"}</p></>}{card.type === "flowchart" ? <FlowchartDrawer card={card} /> : card.type === "mindmap" && <button className="wd-card__open" onClick={openBinding}>打开原对象</button>}</> : <p>{text(card.content) || "空文本卡片"}</p>}
   </section>;
 }

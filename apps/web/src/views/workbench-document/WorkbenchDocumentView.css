@@ -275,6 +275,10 @@
   background: rgba(4, 189, 214, 0.035);
 }
 
+.wd-flowchart-drawer .pfc-title-row > button:not(.pfc-task-title) {
+  display: none;
+}
+
 .wd-flowchart-drawer .pfc-task-title {
   color: #eefbfc;
 }
