@@ -64,11 +64,54 @@ export function WorkbenchDocumentView(): ReactNode {
 
 function Card({ card, number, depth }: { card: WorkbenchCard; number: string; depth: number }): ReactNode {
   const component = ["module", "flowchart", "mindmap", "image", "file", "link"].includes(card.type);
+  const headingLevel = Math.min(depth + 1, 3);
   const setAppView = useStore(state => state.setAppView);
   const openBinding = (event: MouseEvent) => { event.stopPropagation(); if (card.type === "flowchart") setAppView("flowcharts"); if (card.type === "mindmap") setAppView("deepWorkbench"); };
-  return <section id={`workbench-card-${card.id}`} className={`wd-card ${component ? "wd-card--component" : ""} ${card.type === "flowchart" ? "wd-card--flowchart" : ""}`} style={{ marginLeft: `${depth * 20}px` }}>
-    {card.type === "heading" ? <h2><small>{number}</small>{card.title || "未命名标题"}</h2> : component ? <>{card.type !== "flowchart" && <><small>{card.type}</small><h3>{card.title || "未命名组件"}</h3><p>{text(card.content) || "此卡片绑定 Rich 中的独立对象。"}</p></>}{card.type === "flowchart" ? <FlowchartDrawer card={card} /> : card.type === "mindmap" && <button className="wd-card__open" onClick={openBinding}>打开原对象</button>}</> : <p>{text(card.content) || "空文本卡片"}</p>}
-  </section>;
+  return (
+    <section id={`workbench-card-${card.id}`} className={`wd-card ${card.type === "heading" ? `wd-card--heading-level-${headingLevel}` : ""} ${component ? "wd-card--component" : ""} ${card.type === "flowchart" ? "wd-card--flowchart" : ""}`} style={{ marginLeft: `${depth * 20}px` }}>
+      {card.type === "heading" ? <HeadingCard level={headingLevel} number={number} title={card.title || "未命名标题"} /> : component ? (
+        <>
+          {card.type !== "flowchart" && <><small>{card.type}</small><h3>{card.title || "未命名组件"}</h3><p>{text(card.content) || "此卡片绑定 Rich 中的独立对象。"}</p></>}
+          {card.type === "flowchart" ? <FlowchartDrawer card={card} /> : card.type === "mindmap" && <button className="wd-card__open" onClick={openBinding}>打开原对象</button>}
+        </>
+      ) : <RichTextCard content={text(card.content)} />}
+    </section>
+  );
+}
+
+function HeadingCard({ level, number, title }: { level: number; number: string; title: string }) {
+  if (level === 1) return <h2><small>{number}</small>{title}</h2>;
+  if (level === 2) return <h3><small>{number}</small>{title}</h3>;
+  return <h4><small>{number}</small>{title}</h4>;
+}
+
+function RichTextCard({ content }: { content: string }): ReactNode {
+  if (!content) return <p>空文本卡片</p>;
+  return <>{content.split(/(```[\s\S]*?```)/g).filter(Boolean).map((part, index) => {
+    const code = part.match(/^```([\w-]+)?\n?([\s\S]*?)```$/);
+    if (code) return <pre className="wd-code-card" key={index}><span>{code[1] || "代码"}</span><code>{code[2].trim()}</code></pre>;
+    return <TextBlocks key={index} content={part} />;
+  })}</>;
+}
+
+function TextBlocks({ content }: { content: string }): ReactNode {
+  const lines = content.trim().split("\n").map(line => line.trim()).filter(Boolean);
+  const blocks: Array<{ type: "text"; value: string } | { type: "steps"; value: string[] }> = [];
+  let prose: string[] = [];
+  let steps: string[] = [];
+  const flushProse = () => { if (prose.length) { blocks.push({ type: "text", value: prose.join("\n") }); prose = []; } };
+  const flushSteps = () => { if (steps.length) { blocks.push({ type: "steps", value: steps }); steps = []; } };
+  for (const line of lines) {
+    const step = line.match(/^\d+[.、]\s*(.+)$/)?.[1];
+    if (step) { flushProse(); steps.push(step); continue; }
+    flushSteps();
+    prose.push(line);
+  }
+  flushProse();
+  flushSteps();
+  return <>{blocks.map((block, index) => block.type === "steps"
+    ? <ol className="wd-step-card" key={index}>{block.value.map((step, stepIndex) => <li key={stepIndex}>{step}</li>)}</ol>
+    : <p key={index}>{block.value}</p>)}</>;
 }
 
 function FlowchartDrawer({ card }: { card: WorkbenchCard }): ReactNode {

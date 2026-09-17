@@ -151,21 +151,50 @@
   border-radius: 7px;
 }
 
-.wd-card h2 {
+.wd-card--heading-level-1 h2 {
   margin: 58px 0 18px;
-  padding: 0 0 13px;
+  padding: 0 0 13px 15px;
   color: #04bdd6;
+  border-left: 3px solid #04bdd6;
   border-bottom: 1px solid rgba(242, 200, 123, 0.28);
-  font-size: 29px;
+  font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.025em;
   line-height: 1.28;
 }
 
-.wd-card h2 small {
+.wd-card--heading-level-1 h2 small {
   margin-right: 9px;
   color: #f2c87b;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.wd-card--heading-level-2 h3 {
+  margin: 38px 0 14px;
+  padding: 0 0 9px;
+  color: #f1f6f7;
+  border-bottom: 1px solid rgba(4, 189, 214, 0.22);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.wd-card--heading-level-3 h4 {
+  margin: 28px 0 10px;
+  padding-left: 11px;
+  color: #c7d7da;
+  border-left: 2px solid rgba(4, 189, 214, 0.65);
   font-size: 18px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.wd-card--heading-level-2 small,
+.wd-card--heading-level-3 small {
+  margin-right: 8px;
+  color: #f2c87b;
+  font-size: .8em;
   font-weight: 700;
 }
 
@@ -178,6 +207,71 @@
   line-height: 1.92;
   white-space: pre-wrap;
 }
+
+.wd-step-card {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 10px 0;
+  list-style: none;
+  counter-reset: workbench-step;
+}
+
+.wd-step-card li {
+  position: relative;
+  min-height: 26px;
+  padding: 12px 16px 12px 52px;
+  color: #dce7e9;
+  background: #151d23;
+  border: 1px solid rgba(23, 162, 180, 0.34);
+  border-radius: 8px;
+  font-size: 16px;
+  line-height: 1.7;
+  counter-increment: workbench-step;
+}
+
+.wd-step-card li::before {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  color: #8ee9f0;
+  background: rgba(4, 189, 214, 0.11);
+  border: 1px solid rgba(4, 189, 214, 0.45);
+  border-radius: 6px;
+  content: counter(workbench-step, decimal-leading-zero);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.wd-code-card {
+  position: relative;
+  margin: 16px 0;
+  padding: 35px 16px 15px;
+  overflow: auto;
+  color: #d8ebff;
+  background: #0f171f;
+  border: 1px solid rgba(102, 166, 224, 0.36);
+  border-left: 3px solid #72baf4;
+  border-radius: 8px;
+  font: 13px/1.65 "SF Mono", Menlo, Consolas, monospace;
+}
+
+.wd-code-card > span {
+  position: absolute;
+  top: 11px;
+  left: 15px;
+  color: #86c7f6;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.wd-code-card code { white-space: pre; }
 
 .wd-card--component {
   margin: 16px 0 14px;
