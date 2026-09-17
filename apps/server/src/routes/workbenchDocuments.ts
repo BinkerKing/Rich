@@ -37,5 +37,9 @@ export function workbenchDocumentRoutes(service: WorkbenchDocumentService): Hono
     const body = writeSchema.parse(await c.req.json());
     return c.json({ document: await service.commitManual(c.req.param("id"), body.expectedVersion, body.operations, body.title) });
   });
+  app.post("/:id/format-markdown", async c => {
+    const body = z.object({ expectedVersion: z.number().int().positive() }).strict().parse(await c.req.json());
+    return c.json({ document: await service.formatMarkdown(c.req.param("id"), body.expectedVersion) });
+  });
   return app;
 }

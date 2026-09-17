@@ -37,6 +37,16 @@ export class WorkbenchDocumentService {
     const proposal = await this.getProposal(id, proposalId);
     return this.commit(id, proposal.baseVersion, normalizeLegacyOperations(proposal.operations as DocumentOperation[]), proposalId);
   }
+  async formatMarkdown(id: string, expectedVersion: number) {
+    const document = await this.get(id);
+    if (document.version !== expectedVersion) throw new Error("工作台文档已更新，请重新读取");
+    const source = document.cards.length === 1 && document.cards[0]?.type === "rich_text" && typeof document.cards[0].content === "string"
+      ? document.cards[0].content
+      : "";
+    const formatted = markdownOperations(source);
+    if (!formatted.operations.length) throw new Error("当前文档没有可整理的 Markdown 内容");
+    return this.commit(id, expectedVersion, [{ type: "remove", cardId: document.cards[0]!.id }, ...formatted.operations], undefined, formatted.title ?? document.title);
+  }
   async commitManual(id: string, expectedVersion: number, operations: DocumentOperation[], title?: string) { return this.commit(id, expectedVersion, operations, undefined, title); }
   private async commit(id: string, expectedVersion: number, operations: DocumentOperation[], proposalId?: string, title?: string) {
     const current = await this.get(id);
@@ -64,17 +74,44 @@ function apply(document: WorkbenchDocument, operation: DocumentOperation): Workb
 }
 
 function normalizeLegacyOperations(operations: DocumentOperation[]): DocumentOperation[] {
-  return operations.map((operation, index) => {
+  return operations.flatMap((operation, index): DocumentOperation[] => {
     const raw = operation as unknown as Record<string, unknown>;
-    if (raw.type !== "insertCard" || !raw.card || typeof raw.card !== "object" || Array.isArray(raw.card)) return operation;
+    if (raw.type !== "insertCard" || !raw.card || typeof raw.card !== "object" || Array.isArray(raw.card)) return [operation];
     const card = raw.card as Record<string, unknown>;
     const content = card.content as Record<string, unknown> | undefined;
     if (card.type === "heading" && typeof content?.text === "string") {
-      return { type: "insert", index, card: { id: `workbench-card-${randomUUID()}`, type: "heading", order: index, title: content.text, content: null, properties: {} } };
+      return [{ type: "insert", index, card: { id: `workbench-card-${randomUUID()}`, type: "heading", order: index, title: content.text, content: null, properties: {} } }];
     }
     if (card.type === "markdown" && typeof content?.markdown === "string") {
-      return { type: "insert", index, card: { id: `workbench-card-${randomUUID()}`, type: "rich_text", order: index, content: content.markdown, properties: {} } };
+      return markdownOperations(content.markdown).operations;
     }
-    return operation;
+    return [operation];
   });
+}
+
+function markdownOperations(markdown: string): { title?: string; operations: DocumentOperation[] } {
+  const lines = markdown.replace(/\r/g, "").split("\n");
+  const title = lines.find(line => /^#\s+/.test(line))?.replace(/^#\s+/, "").trim();
+  const sections: Array<{ title: string; body: string[] }> = [];
+  let current: { title: string; body: string[] } | undefined;
+  for (const line of lines) {
+    if (/^#\s+/.test(line)) continue;
+    if (/^##\s+/.test(line)) {
+      current = { title: line.replace(/^##\s+/, "").trim(), body: [] };
+      sections.push(current);
+    } else if (current) current.body.push(line);
+  }
+  const operations: DocumentOperation[] = [];
+  if (!sections.length && title) {
+    const body = lines.filter(line => !/^#\s+/.test(line)).join("\n").trim();
+    operations.push({ type: "insert", index: 0, card: { id: `workbench-card-${randomUUID()}`, type: "heading", order: 0, title, content: null, properties: {} } });
+    if (body) operations.push({ type: "insert", index: 1, card: { id: `workbench-card-${randomUUID()}`, type: "rich_text", order: 1, content: body, properties: {} } });
+  }
+  for (const section of sections) {
+    operations.push({ type: "insert", index: operations.length, card: { id: `workbench-card-${randomUUID()}`, type: "heading", order: operations.length, title: section.title, content: null, properties: {} } });
+    const body = section.body.join("\n").trim();
+    if (body) operations.push({ type: "insert", index: operations.length, card: { id: `workbench-card-${randomUUID()}`, type: "rich_text", order: operations.length, content: body, properties: {} } });
+    if (section.title === "整体方案") operations.push({ type: "insert", index: operations.length, card: { id: `workbench-card-${randomUUID()}`, type: "flowchart", order: operations.length, title: "迁移执行流程", content: { steps: ["范围冻结", "隔离演练", "增量与补数", "回滚演练", "切换验收"] }, properties: { source: "workbench" } } });
+  }
+  return { title, operations };
 }

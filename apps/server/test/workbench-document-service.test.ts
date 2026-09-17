@@ -104,7 +104,20 @@ describe("workbench document service", () => {
 
     await service.acceptProposal(document.id, proposal.id);
     expect((await service.get(document.id)).cards).toMatchObject([
-      { type: "rich_text", content: "# 迁移方案" },
+      { type: "heading", title: "迁移方案" },
     ]);
+  });
+
+  it("formats an existing markdown card into titled sections and a flowchart", async () => {
+    const document = await service.create({ title: "未命名工作台", conversationId: "conversation-1" });
+    await service.commitManual(document.id, document.version, [{ type: "insert", index: 0, card: { id: "legacy", type: "rich_text", order: 0, content: "# 数据迁移方案\n\n## 整体方案\n\n迁移范围冻结后执行。\n\n## 验收\n\n校验差异为零。", properties: {} } }]);
+
+    const formatted = await service.formatMarkdown(document.id, 2);
+    expect(formatted.title).toBe("数据迁移方案");
+    expect(formatted.cards).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "heading", title: "整体方案" }),
+      expect.objectContaining({ type: "flowchart", title: "迁移执行流程" }),
+      expect.objectContaining({ type: "heading", title: "验收" }),
+    ]));
   });
 });
