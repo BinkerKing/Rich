@@ -32,6 +32,11 @@
   background: transparent;
 }
 
+.collaborative-workspace--workbench-document .information-workspace__main--shared > .wd-document {
+  flex: 1;
+  min-width: 0;
+}
+
 .collaborative-workspace--workbench-document .information-workspace__locator {
   width: 190px;
   padding: 58px 24px 48px 16px;

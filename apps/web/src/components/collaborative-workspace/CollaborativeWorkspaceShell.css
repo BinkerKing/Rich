@@ -7,4 +7,6 @@
 .information-workspace__content { min-width:0; flex:1; display:flex; }
 .information-workspace__locator { width:172px; flex:none; overflow:auto; padding:22px 12px; border-right:1px solid var(--line); }
 .information-workspace__main { flex:1; min-width:0; min-height:0; overflow:auto; }
+.information-workspace__main--shared { display:flex; align-items:flex-start; }
+.information-workspace__main--shared .information-workspace__locator { height:auto; overflow:visible; }
 @media (max-width: 900px) { .collaborative-workspace { grid-template-columns:1fr; } .collaborative-workspace__conversation { display:none; } .collaborative-workspace--conversation-focused .collaborative-workspace__information { display:none; } .collaborative-workspace--conversation-focused .collaborative-workspace__conversation { display:block; } .collaborative-workspace__focus { display:block; position:absolute; z-index:2; right:14px; top:13px; border:0; background:transparent; color:var(--muted); } .information-workspace__locator { width:132px; } }

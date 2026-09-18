@@ -14,3 +14,8 @@ test("工作台文档提供可插入的脑图、表格和图片展示卡片", ()
   assert.match(styles, /\.wd-table-card/);
   assert.match(styles, /\.wd-image-card/);
 });
+
+test("工作台目录与正文共用滚动容器", () => {
+  assert.match(view, /sharedScroll/);
+  assert.match(styles, /information-workspace__main--shared/);
+});
