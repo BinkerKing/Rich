@@ -15,10 +15,9 @@ test("工作台文档提供可插入的脑图、表格和图片展示卡片", ()
   assert.match(styles, /\.wd-image-card/);
 });
 
-test("工作台目录与正文共用滚动容器", () => {
-  assert.match(view, /sharedScroll/);
-  assert.match(styles, /information-workspace__main--shared/);
-  assert.match(styles, /information-workspace__main--shared\s*\{[^}]*flex-direction:\s*row/s);
-  assert.match(styles, /information-workspace__main--shared\s*\{[^}]*overflow-y:\s*scroll[^}]*scrollbar-gutter:\s*stable/s);
-  assert.match(styles, /information-workspace__main--shared\s*>\s*\.information-workspace__locator\s*\{[^}]*position:\s*sticky/s);
+test("工作台目录固定在与正文共用的阅读网格中", () => {
+  assert.match(view, /className="wd-reading-layout"/);
+  assert.doesNotMatch(view, /sharedScroll/);
+  assert.match(styles, /\.wd-reading-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) 190px/s);
+  assert.match(styles, /\.wd-locator-host\s*\{[^}]*position:\s*sticky[^}]*top:\s*0/s);
 });
