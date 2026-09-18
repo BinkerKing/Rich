@@ -334,11 +334,8 @@
   border: 1px solid rgba(4, 189, 214, 0.32);
   border-top: 0;
   border-radius: 0 0 8px 8px;
+  pointer-events: none;
 }
-
-.wd-mindmap-embed__canvas .mmp-frame { background: #071014; }
-.wd-mindmap-embed__canvas .mmp-title-panel,
-.wd-mindmap-embed__canvas .mmp-controls-toggle { display: none; }
 
 .wd-table-embed {
   max-height: 420px;

@@ -8,16 +8,17 @@ const styles = readFileSync(new URL("./WorkbenchDocumentView.css", import.meta.u
 test("工作台文档提供可插入的脑图、表格和图片展示卡片", () => {
   assert.match(view, /插入展示样例/);
   assert.match(view, /function MindmapDrawer/);
-  assert.match(view, /MindmapPlayer source=\{deck\.source\}/);
+  assert.match(view, /MindmapCanvas data=\{mindmap\.map\.root/);
   assert.match(view, /function TableCard/);
   assert.match(view, /function ImageCard/);
   assert.match(view, /ConfigurableDataGrid/);
-  assert.match(view, /useStore/);
+  assert.match(view, /deepWorkbenchId/);
   assert.doesNotMatch(view, /function MindmapCard/);
   assert.doesNotMatch(view, /<table>/);
   assert.match(styles, /\.wd-card--bare\s*\{[^}]*border-color:\s*transparent/s);
   assert.match(styles, /\.wd-table-embed\s*\{[^}]*overflow:\s*auto/s);
   assert.match(styles, /\.wd-mindmap-embed__canvas\s*\{[^}]*height:\s*460px/s);
+  assert.match(styles, /\.wd-mindmap-embed__canvas\s*\{[^}]*pointer-events:\s*none/s);
   assert.match(styles, /\.wd-image-embed img\s*\{[^}]*border:/s);
 });
 

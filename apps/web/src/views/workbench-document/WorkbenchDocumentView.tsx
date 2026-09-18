@@ -1,12 +1,12 @@
 import { useEffect, useState, type ReactNode, type UIEvent } from "react";
-import { displayNumber, type MindmapDeckView, type WorkbenchCard, type WorkbenchDocument } from "@ke/domain";
+import { displayNumber, type WorkbenchCard, type WorkbenchDocument } from "@ke/domain";
 import { CollaborativeWorkspaceShell } from "../../components/collaborative-workspace/CollaborativeWorkspaceShell.js";
 import { InformationWorkspaceShell } from "../../components/collaborative-workspace/InformationWorkspaceShell.js";
 import { CodexConversationPanel } from "../../components/codex-conversation/CodexConversationPanel.js";
 import { ConfigurableDataGrid, type ConfigurableGridColumn, type ConfigurableGridRow } from "../../components/ConfigurableDataGrid.js";
-import { MindmapPlayer } from "../../components/MindmapPlayer.js";
+import { MindmapCanvas } from "../../components/mindmap/MindmapCanvas.js";
 import { FlowchartsWorkspace } from "../project-management/flowcharts/FlowchartsWorkspace.js";
-import { useStore } from "../../state/store.js";
+import type { DeepWorkbenchItem } from "../deep-workbench/deepWorkbenchModel.js";
 import "./WorkbenchDocumentView.css";
 import "./WorkbenchDocumentProposal.css";
 
@@ -14,6 +14,14 @@ type Proposal = { id: string; documentId: string; summary: string; createdAt: st
 async function request<T>(path: string, init?: RequestInit): Promise<T> { const response = await fetch(`/api/workbench-documents${path}`, init); const data = await response.json(); if (!response.ok) throw new Error(data.error ?? "请求失败"); return data; }
 function text(value: unknown): string { return typeof value === "string" ? value : value ? JSON.stringify(value) : ""; }
 const EXAMPLE_IMAGE = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 440"><defs><linearGradient id="sky" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#193850"/><stop offset="1" stop-color="#08131d"/></linearGradient><linearGradient id="land" x1="0" x2="1"><stop stop-color="#168a9a"/><stop offset="1" stop-color="#65d6ce"/></linearGradient></defs><rect width="960" height="440" fill="url(#sky)"/><circle cx="760" cy="100" r="54" fill="#b9edf0" opacity=".82"/><path d="M0 272 150 180l105 76 166-134 174 145 146-112 219 118v167H0Z" fill="#102a38"/><path d="M0 345 174 245l134 84 136-109 173 132 126-80 217 92v76H0Z" fill="url(#land)"/><path d="M120 367c160-84 312-66 476-16 100 31 197 30 306-16" fill="none" stroke="#b5fff4" stroke-width="4" opacity=".62"/></svg>')}`;
+const DEEP_WORKBENCH_STORAGE_KEY = "rich.deep-workbench.v1";
+
+function deepWorkbenchMindmaps(): DeepWorkbenchItem[] {
+  try {
+    const stored = JSON.parse(localStorage.getItem(DEEP_WORKBENCH_STORAGE_KEY) ?? "[]") as unknown;
+    return Array.isArray(stored) ? stored.filter((item): item is DeepWorkbenchItem => Boolean(item) && typeof item === "object" && "id" in item && "map" in item) : [];
+  } catch { return []; }
+}
 
 export function WorkbenchDocumentView(): ReactNode {
   const [, setDocuments] = useState<WorkbenchDocument[]>([]);
@@ -49,11 +57,11 @@ export function WorkbenchDocumentView(): ReactNode {
     if (!currentDocument) return;
     setBusy(true); setError("");
     try {
-      const mindmaps = await fetch("/api/mindmaps").then(async response => response.ok ? response.json() as Promise<Array<{ id: string }>> : []);
+      const mindmaps = deepWorkbenchMindmaps();
       const sectionId = `showcase-${crypto.randomUUID()}`;
       const cards: WorkbenchCard[] = [
         { id: sectionId, type: "heading", order: 0, title: "内容组件展示", content: null, properties: {} },
-        { id: `mindmap-${crypto.randomUUID()}`, type: "mindmap", parentId: sectionId, order: 1, title: "迁移方案脑图", content: { mindmapId: mindmaps[0]?.id }, properties: {} },
+        { id: `mindmap-${crypto.randomUUID()}`, type: "mindmap", parentId: sectionId, order: 1, title: "迁移方案脑图", content: { deepWorkbenchId: mindmaps[0]?.id }, properties: {} },
         { id: `table-${crypto.randomUUID()}`, type: "module", parentId: sectionId, order: 2, title: "迁移范围核对表", content: { columns: ["数据域", "负责人", "状态"], rows: [["客户主数据", "数据治理组", "已核对"], ["交易流水", "应用团队", "待抽检"], ["影像附件", "基础架构组", "进行中"]] }, properties: { presentation: "table" } },
         { id: `image-${crypto.randomUUID()}`, type: "image", parentId: sectionId, order: 3, title: "目标架构示意", content: { src: EXAMPLE_IMAGE, alt: "目标架构示意图", caption: "图片卡包含图像、标题与说明，可用于呈现方案图、截图或素材。" }, properties: {} },
       ];
@@ -106,25 +114,15 @@ function tableContent(value: unknown): { columns: string[]; rows: string[][] } |
 }
 
 function MindmapDrawer({ card }: { card: WorkbenchCard }): ReactNode {
-  const openMindmap = useStore(state => state.openMindmap);
-  const loadMindmapDeck = useStore(state => state.loadMindmapDeck);
   const content = record(card.content);
-  const propertyId = card.properties.mindmapId;
-  const boundId = typeof content?.mindmapId === "string" ? content.mindmapId : typeof propertyId === "string" ? propertyId : undefined;
-  const [fallbackId, setFallbackId] = useState<string>();
-  const [deck, setDeck] = useState<MindmapDeckView | null>(null);
+  const propertyId = card.properties.deepWorkbenchId;
+  const boundId = typeof content?.deepWorkbenchId === "string" ? content.deepWorkbenchId : typeof propertyId === "string" ? propertyId : undefined;
+  const [mindmap, setMindmap] = useState<DeepWorkbenchItem>();
   useEffect(() => {
-    if (boundId) return;
-    void fetch("/api/mindmaps").then(async response => response.ok ? response.json() as Promise<Array<{ id: string }>> : []).then(items => setFallbackId(items[0]?.id)).catch(() => setFallbackId(undefined));
+    const items = deepWorkbenchMindmaps();
+    setMindmap(items.find(item => item.id === boundId) ?? items[0]);
   }, [boundId]);
-  const mindmapId = boundId ?? fallbackId;
-  useEffect(() => {
-    let cancelled = false;
-    if (!mindmapId) { setDeck(null); return; }
-    void loadMindmapDeck(mindmapId).then(result => { if (!cancelled) setDeck(result); });
-    return () => { cancelled = true; };
-  }, [loadMindmapDeck, mindmapId]);
-  return <figure className="wd-mindmap-embed" aria-label={`${card.title || "脑图"}引用`}><figcaption><span>思维导图</span><strong>{card.title || "未命名脑图"}</strong>{mindmapId && <button type="button" onClick={() => openMindmap(mindmapId)}>打开导图</button>}</figcaption>{deck ? <div className="wd-mindmap-embed__canvas"><MindmapPlayer source={deck.source} /></div> : <small>当前没有可呈现的 Rich 思维导图。</small>}</figure>;
+  return <figure className="wd-mindmap-embed" aria-label={`${card.title || "脑图"}引用`}><figcaption><span>思维导图</span><strong>{mindmap?.title || card.title || "未命名脑图"}</strong></figcaption>{mindmap ? <div className="wd-mindmap-embed__canvas"><MindmapCanvas data={mindmap.map.root as unknown as Record<string, unknown>} layout={mindmap.map.layout} theme={mindmap.map.theme} panSensitivity={mindmap.map.panSensitivity} onChange={() => undefined} /></div> : <small>当前没有可引用的 Rich 思维导图。</small>}</figure>;
 }
 
 function TableCard({ card }: { card: WorkbenchCard }): ReactNode {
