@@ -122,7 +122,7 @@ function MindmapDrawer({ card }: { card: WorkbenchCard }): ReactNode {
     const items = deepWorkbenchMindmaps();
     setMindmap(items.find(item => item.id === boundId) ?? items[0]);
   }, [boundId]);
-  return <figure className="wd-mindmap-embed" aria-label={`${card.title || "脑图"}引用`}><figcaption><span>思维导图</span><strong>{mindmap?.title || card.title || "未命名脑图"}</strong></figcaption>{mindmap ? <div className="wd-mindmap-embed__canvas"><MindmapCanvas data={mindmap.map.root as unknown as Record<string, unknown>} layout={mindmap.map.layout} theme={mindmap.map.theme} panSensitivity={mindmap.map.panSensitivity} onChange={() => undefined} /></div> : <small>当前没有可引用的 Rich 思维导图。</small>}</figure>;
+  return <figure className="wd-mindmap-embed" aria-label={`${card.title || "脑图"}引用`}><figcaption><span>思维导图</span><strong>{mindmap?.title || card.title || "未命名脑图"}</strong></figcaption>{mindmap ? <div className="wd-mindmap-embed__canvas"><MindmapCanvas data={mindmap.map.root as unknown as Record<string, unknown>} layout={mindmap.map.layout} theme={mindmap.map.theme} panSensitivity={mindmap.map.panSensitivity} fitOnResize onChange={() => undefined} /></div> : <small>当前没有可引用的 Rich 思维导图。</small>}</figure>;
 }
 
 function TableCard({ card }: { card: WorkbenchCard }): ReactNode {

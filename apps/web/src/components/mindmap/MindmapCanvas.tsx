@@ -34,12 +34,13 @@ export interface MindmapCanvasProps {
   layout: string;
   theme: MindmapTheme | string;
   panSensitivity?: number;
+  fitOnResize?: boolean;
   onChange(data: MindmapData): void;
   onNodeDoubleClick?(node: { id: string; text: string } | null): void;
   onReady?(actions: MindmapCanvasActions): void;
 }
 
-export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onChange, onNodeDoubleClick, onReady }: MindmapCanvasProps) {
+export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, fitOnResize = false, onChange, onNodeDoubleClick, onReady }: MindmapCanvasProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [activeNodes, setActiveNodes] = useState<MindmapNodeStyleTarget[]>([]);
   const [richTextSelection, setRichTextSelection] = useState<{ bold?: boolean; italic?: boolean; underline?: boolean; color?: string } | null>(null);
@@ -127,7 +128,14 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
       startInertia();
     };
     const preventContextMenu = (event: MouseEvent) => event.preventDefault();
-    const resizeObserver = new ResizeObserver(() => mindMap.resize());
+    let fitFrame: number | undefined;
+    const fitView = () => {
+      if (!fitOnResize) return;
+      window.cancelAnimationFrame(fitFrame ?? 0);
+      fitFrame = window.requestAnimationFrame(() => mindMap.view.fit());
+    };
+    const resizeObserver = new ResizeObserver(() => { mindMap.resize(); fitView(); });
+    fitView();
     hostRef.current.addEventListener("pointerdown", onPointerDown);
     let shiftSelectionAtPointerDown: MindmapNodeStyleTarget[] = [];
     const captureShiftSelection = (event: PointerEvent) => {
@@ -244,6 +252,7 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
 
     return () => {
       resizeObserver.disconnect();
+      window.cancelAnimationFrame(fitFrame ?? 0);
       stopInertia();
       hostRef.current?.removeEventListener("pointerdown", onPointerDown);
       hostRef.current?.removeEventListener("pointerdown", captureShiftSelection, true);
@@ -268,7 +277,7 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, onCha
   // loop, which presents as a visible flash. The map owns edits while mounted;
   // a new data tree is applied on the next mount (for example after returning
   // from the outline view).
-  }, [layout, theme]);
+  }, [fitOnResize, layout, theme]);
 
   const formatSelection = (format: Record<string, unknown>) => {
     const map = (hostRef.current as unknown as { __mindMap?: { richText?: { formatText(style: Record<string, unknown>): void } } })?.__mindMap;
