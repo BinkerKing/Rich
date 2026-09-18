@@ -3,7 +3,9 @@ import { displayNumber, type WorkbenchCard, type WorkbenchDocument } from "@ke/d
 import { CollaborativeWorkspaceShell } from "../../components/collaborative-workspace/CollaborativeWorkspaceShell.js";
 import { InformationWorkspaceShell } from "../../components/collaborative-workspace/InformationWorkspaceShell.js";
 import { CodexConversationPanel } from "../../components/codex-conversation/CodexConversationPanel.js";
+import { ConfigurableDataGrid, type ConfigurableGridColumn, type ConfigurableGridRow } from "../../components/ConfigurableDataGrid.js";
 import { FlowchartsWorkspace } from "../project-management/flowcharts/FlowchartsWorkspace.js";
+import { useStore } from "../../state/store.js";
 import "./WorkbenchDocumentView.css";
 import "./WorkbenchDocumentProposal.css";
 
@@ -46,10 +48,11 @@ export function WorkbenchDocumentView(): ReactNode {
     if (!currentDocument) return;
     setBusy(true); setError("");
     try {
+      const mindmaps = await fetch("/api/mindmaps").then(async response => response.ok ? response.json() as Promise<Array<{ id: string }>> : []);
       const sectionId = `showcase-${crypto.randomUUID()}`;
       const cards: WorkbenchCard[] = [
         { id: sectionId, type: "heading", order: 0, title: "内容组件展示", content: null, properties: {} },
-        { id: `mindmap-${crypto.randomUUID()}`, type: "mindmap", parentId: sectionId, order: 1, title: "迁移方案脑图", content: { center: "数据迁移", branches: ["范围确认", "数据校验", "灰度切换", "回滚预案"] }, properties: {} },
+        { id: `mindmap-${crypto.randomUUID()}`, type: "mindmap", parentId: sectionId, order: 1, title: "迁移方案脑图", content: { mindmapId: mindmaps[0]?.id }, properties: {} },
         { id: `table-${crypto.randomUUID()}`, type: "module", parentId: sectionId, order: 2, title: "迁移范围核对表", content: { columns: ["数据域", "负责人", "状态"], rows: [["客户主数据", "数据治理组", "已核对"], ["交易流水", "应用团队", "待抽检"], ["影像附件", "基础架构组", "进行中"]] }, properties: { presentation: "table" } },
         { id: `image-${crypto.randomUUID()}`, type: "image", parentId: sectionId, order: 3, title: "目标架构示意", content: { src: EXAMPLE_IMAGE, alt: "目标架构示意图", caption: "图片卡包含图像、标题与说明，可用于呈现方案图、截图或素材。" }, properties: {} },
       ];
@@ -80,10 +83,11 @@ export function WorkbenchDocumentView(): ReactNode {
 
 function Card({ card, number, depth }: { card: WorkbenchCard; number: string; depth: number }): ReactNode {
   const component = ["module", "flowchart", "mindmap", "image", "file", "link"].includes(card.type);
+  const bareComponent = card.type === "mindmap" || card.type === "image" || (card.type === "module" && Boolean(tableContent(card.content)));
   const headingLevel = Math.min(depth + 1, 3);
   return (
-    <section id={`workbench-card-${card.id}`} className={`wd-card ${card.type === "heading" ? `wd-card--heading-level-${headingLevel}` : ""} ${component ? "wd-card--component" : ""} ${card.type === "flowchart" ? "wd-card--flowchart" : ""}`} style={{ marginLeft: `${depth * 20}px` }}>
-      {card.type === "heading" ? <HeadingCard level={headingLevel} number={number} title={card.title || "未命名标题"} /> : card.type === "mindmap" ? <MindmapCard card={card} /> : card.type === "image" ? <ImageCard card={card} /> : card.type === "module" && tableContent(card.content) ? <TableCard card={card} /> : component ? (
+    <section id={`workbench-card-${card.id}`} className={`wd-card ${card.type === "heading" ? `wd-card--heading-level-${headingLevel}` : ""} ${bareComponent ? "wd-card--bare" : component ? "wd-card--component" : ""} ${card.type === "flowchart" ? "wd-card--flowchart" : ""}`} style={{ marginLeft: `${depth * 20}px` }}>
+      {card.type === "heading" ? <HeadingCard level={headingLevel} number={number} title={card.title || "未命名标题"} /> : card.type === "mindmap" ? <MindmapDrawer card={card} /> : card.type === "image" ? <ImageCard card={card} /> : card.type === "module" && tableContent(card.content) ? <TableCard card={card} /> : component ? (
         <>
           {card.type !== "flowchart" && <><small>{card.type}</small><h3>{card.title || "未命名组件"}</h3><p>{text(card.content) || "此卡片绑定 Rich 中的独立对象。"}</p></>}
           {card.type === "flowchart" && <FlowchartDrawer card={card} />}
@@ -100,16 +104,25 @@ function tableContent(value: unknown): { columns: string[]; rows: string[][] } |
   return { columns: data.columns, rows: data.rows };
 }
 
-function MindmapCard({ card }: { card: WorkbenchCard }): ReactNode {
+function MindmapDrawer({ card }: { card: WorkbenchCard }): ReactNode {
+  const openMindmap = useStore(state => state.openMindmap);
   const content = record(card.content);
-  const center = typeof content?.center === "string" ? content.center : card.title || "思维导图";
-  const branches = Array.isArray(content?.branches) ? content.branches.filter((item): item is string => typeof item === "string") : [];
-  return <figure className="wd-mindmap-card"><figcaption><span>脑图</span><strong>{card.title || "未命名脑图"}</strong></figcaption><div className="wd-mindmap-card__canvas"><b>{center}</b><div>{branches.map(branch => <span key={branch}>{branch}</span>)}</div></div></figure>;
+  const propertyId = card.properties.mindmapId;
+  const boundId = typeof content?.mindmapId === "string" ? content.mindmapId : typeof propertyId === "string" ? propertyId : undefined;
+  const [fallbackId, setFallbackId] = useState<string>();
+  useEffect(() => {
+    if (boundId) return;
+    void fetch("/api/mindmaps").then(async response => response.ok ? response.json() as Promise<Array<{ id: string }>> : []).then(items => setFallbackId(items[0]?.id)).catch(() => setFallbackId(undefined));
+  }, [boundId]);
+  const mindmapId = boundId ?? fallbackId;
+  return <div className="wd-mindmap-embed" aria-label={`${card.title || "脑图"}引用`}><span>脑图引用</span><strong>{card.title || "未命名脑图"}</strong>{mindmapId ? <button type="button" onClick={() => openMindmap(mindmapId)}>打开脑图</button> : <small>当前没有可引用的 Rich 脑图。</small>}</div>;
 }
 
 function TableCard({ card }: { card: WorkbenchCard }): ReactNode {
   const content = tableContent(card.content)!;
-  return <section className="wd-table-card"><header><span>表格</span><strong>{card.title || "未命名表格"}</strong></header><div><table><thead><tr>{content.columns.map(column => <th key={column}>{column}</th>)}</tr></thead><tbody>{content.rows.map((row, rowIndex) => <tr key={rowIndex}>{content.columns.map((_, columnIndex) => <td key={columnIndex}>{row[columnIndex] || "—"}</td>)}</tr>)}</tbody></table></div></section>;
+  const columns: ConfigurableGridColumn[] = content.columns.map((name, index) => ({ key: `column_${index}`, name, width: 220, editable: false }));
+  const rows: ConfigurableGridRow[] = content.rows.map((row, rowIndex) => ({ id: `${card.id}-${rowIndex}`, ...Object.fromEntries(content.columns.map((_, columnIndex) => [`column_${columnIndex}`, row[columnIndex] || "—"])) }));
+  return <div className="wd-table-embed"><ConfigurableDataGrid ariaLabel={card.title || "工作台表格"} rows={rows} columns={columns} onRowsChange={() => undefined} onColumnsChange={() => undefined} showSettings={false} toolbar={<strong>{card.title || "未命名表格"}</strong>} /></div>;
 }
 
 function ImageCard({ card }: { card: WorkbenchCard }): ReactNode {
@@ -117,7 +130,7 @@ function ImageCard({ card }: { card: WorkbenchCard }): ReactNode {
   const src = typeof content?.src === "string" ? content.src : EXAMPLE_IMAGE;
   const alt = typeof content?.alt === "string" ? content.alt : card.title || "图片";
   const caption = typeof content?.caption === "string" ? content.caption : "图片可包含架构图、界面截图或方案素材。";
-  return <figure className="wd-image-card"><img src={src} alt={alt} /><figcaption><span>图片</span><strong>{card.title || "未命名图片"}</strong><p>{caption}</p></figcaption></figure>;
+  return <figure className="wd-image-embed"><img src={src} alt={alt} /><figcaption><strong>{card.title || "未命名图片"}</strong><p>{caption}</p></figcaption></figure>;
 }
 
 function HeadingCard({ level, number, title }: { level: number; number: string; title: string }) {
