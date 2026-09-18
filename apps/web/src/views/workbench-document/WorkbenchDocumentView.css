@@ -23,7 +23,7 @@
   background: #1d1e23;
 }
 
-.collaborative-workspace--workbench-document .information-workspace__content {
+.collaborative-workspace--workbench-document .information-workspace__main--shared {
   flex-direction: row-reverse;
 }
 
