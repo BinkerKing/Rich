@@ -377,8 +377,9 @@
 .wd-card--flowchart {
   margin: 20px 0 14px;
   padding: 0;
-  background: transparent;
-  border-color: transparent;
+  overflow: hidden;
+  background: #0d1318;
+  border-color: rgba(4, 189, 214, 0.32);
   box-shadow: none;
 }
 
@@ -404,17 +405,22 @@
 }
 
 .wd-flowchart-drawer {
+  width: 100%;
   margin: 0;
-  overflow: visible;
-  background: transparent;
+  overflow: hidden;
+  background: #0d1318;
 }
 
 .wd-flowchart-drawer__label {
   display: flex;
+  width: 100%;
+  box-sizing: border-box;
   align-items: center;
   gap: 10px;
   min-height: 42px;
   padding: 0 16px 0 18px;
+  border-bottom: 1px solid rgba(4, 189, 214, 0.22);
+  background: #141b22;
   color: #8fa9b0;
   font-size: 12px;
 }
@@ -447,7 +453,7 @@
   width: 30px;
   height: 30px;
   padding: 0;
-  margin-left: auto;
+  margin: 0 0 0 auto;
   place-items: center;
   color: #a8e9ee;
   background: transparent;
@@ -455,6 +461,11 @@
   border-radius: 6px;
   font-size: 17px;
   line-height: 1;
+}
+
+.wd-flowchart-drawer__label .wd-flowchart-drawer__expand {
+  margin: 0 0 0 auto;
+  flex: 0 0 auto;
 }
 
 .wd-flowchart-drawer__expand:hover {
