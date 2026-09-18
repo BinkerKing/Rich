@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode, type UIEvent } from "react";
-import { displayNumber, type WorkbenchCard, type WorkbenchDocument } from "@ke/domain";
+import { displayNumber, type MindmapDeckView, type WorkbenchCard, type WorkbenchDocument } from "@ke/domain";
 import { CollaborativeWorkspaceShell } from "../../components/collaborative-workspace/CollaborativeWorkspaceShell.js";
 import { InformationWorkspaceShell } from "../../components/collaborative-workspace/InformationWorkspaceShell.js";
 import { CodexConversationPanel } from "../../components/codex-conversation/CodexConversationPanel.js";
 import { ConfigurableDataGrid, type ConfigurableGridColumn, type ConfigurableGridRow } from "../../components/ConfigurableDataGrid.js";
+import { MindmapPlayer } from "../../components/MindmapPlayer.js";
 import { FlowchartsWorkspace } from "../project-management/flowcharts/FlowchartsWorkspace.js";
 import { useStore } from "../../state/store.js";
 import "./WorkbenchDocumentView.css";
@@ -106,16 +107,24 @@ function tableContent(value: unknown): { columns: string[]; rows: string[][] } |
 
 function MindmapDrawer({ card }: { card: WorkbenchCard }): ReactNode {
   const openMindmap = useStore(state => state.openMindmap);
+  const loadMindmapDeck = useStore(state => state.loadMindmapDeck);
   const content = record(card.content);
   const propertyId = card.properties.mindmapId;
   const boundId = typeof content?.mindmapId === "string" ? content.mindmapId : typeof propertyId === "string" ? propertyId : undefined;
   const [fallbackId, setFallbackId] = useState<string>();
+  const [deck, setDeck] = useState<MindmapDeckView | null>(null);
   useEffect(() => {
     if (boundId) return;
     void fetch("/api/mindmaps").then(async response => response.ok ? response.json() as Promise<Array<{ id: string }>> : []).then(items => setFallbackId(items[0]?.id)).catch(() => setFallbackId(undefined));
   }, [boundId]);
   const mindmapId = boundId ?? fallbackId;
-  return <div className="wd-mindmap-embed" aria-label={`${card.title || "脑图"}引用`}><span>脑图引用</span><strong>{card.title || "未命名脑图"}</strong>{mindmapId ? <button type="button" onClick={() => openMindmap(mindmapId)}>打开脑图</button> : <small>当前没有可引用的 Rich 脑图。</small>}</div>;
+  useEffect(() => {
+    let cancelled = false;
+    if (!mindmapId) { setDeck(null); return; }
+    void loadMindmapDeck(mindmapId).then(result => { if (!cancelled) setDeck(result); });
+    return () => { cancelled = true; };
+  }, [loadMindmapDeck, mindmapId]);
+  return <figure className="wd-mindmap-embed" aria-label={`${card.title || "脑图"}引用`}><figcaption><span>思维导图</span><strong>{card.title || "未命名脑图"}</strong>{mindmapId && <button type="button" onClick={() => openMindmap(mindmapId)}>打开导图</button>}</figcaption>{deck ? <div className="wd-mindmap-embed__canvas"><MindmapPlayer source={deck.source} /></div> : <small>当前没有可呈现的 Rich 思维导图。</small>}</figure>;
 }
 
 function TableCard({ card }: { card: WorkbenchCard }): ReactNode {
