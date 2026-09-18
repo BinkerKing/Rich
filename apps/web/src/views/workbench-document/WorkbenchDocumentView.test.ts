@@ -19,4 +19,5 @@ test("工作台目录与正文共用滚动容器", () => {
   assert.match(view, /sharedScroll/);
   assert.match(styles, /information-workspace__main--shared/);
   assert.match(styles, /information-workspace__main--shared\s*\{[^}]*flex-direction:\s*row-reverse/s);
+  assert.match(styles, /information-workspace__main--shared\s*\{[^}]*overflow-y:\s*scroll[^}]*scrollbar-gutter:\s*stable/s);
 });

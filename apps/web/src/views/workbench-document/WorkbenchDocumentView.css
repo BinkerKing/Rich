@@ -25,6 +25,8 @@
 
 .collaborative-workspace--workbench-document .information-workspace__main--shared {
   flex-direction: row-reverse;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
 }
 
 .collaborative-workspace--workbench-document .information-workspace__main {
