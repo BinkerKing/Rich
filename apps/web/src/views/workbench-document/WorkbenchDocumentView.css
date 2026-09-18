@@ -24,9 +24,16 @@
 }
 
 .collaborative-workspace--workbench-document .information-workspace__main--shared {
-  flex-direction: row-reverse;
+  flex-direction: row;
   overflow-y: scroll;
   scrollbar-gutter: stable;
+}
+
+.collaborative-workspace--workbench-document .information-workspace__main--shared > .information-workspace__locator {
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  order: 2;
 }
 
 .collaborative-workspace--workbench-document .information-workspace__main {
@@ -37,6 +44,7 @@
 .collaborative-workspace--workbench-document .information-workspace__main--shared > .wd-document {
   flex: 1;
   min-width: 0;
+  order: 1;
 }
 
 .collaborative-workspace--workbench-document .information-workspace__locator {
@@ -44,6 +52,10 @@
   padding: 58px 24px 48px 16px;
   border: 0;
   background: transparent;
+}
+
+.collaborative-workspace--workbench-document .wd-locator {
+  position: static;
 }
 
 .collaborative-workspace--workbench-document .codex-conversation__header {
