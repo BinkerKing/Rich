@@ -10,6 +10,7 @@ test("工作台文档提供可插入的脑图、表格和图片展示卡片", ()
   assert.match(view, /function MindmapDrawer/);
   assert.match(view, /MindmapCanvas data=\{mindmap\.map\.root/);
   assert.match(view, /fitOnResize/);
+  assert.match(view, /放大思维导图/);
   assert.match(view, /function TableCard/);
   assert.match(view, /function ImageCard/);
   assert.match(view, /ConfigurableDataGrid/);
@@ -21,6 +22,7 @@ test("工作台文档提供可插入的脑图、表格和图片展示卡片", ()
   assert.match(styles, /\.wd-table-embed \.configurable-data-grid__grid\s*\{[^}]*height:\s*360px/s);
   assert.match(styles, /\.wd-mindmap-embed__canvas\s*\{[^}]*height:\s*460px/s);
   assert.match(styles, /\.wd-mindmap-embed__canvas\s*\{[^}]*pointer-events:\s*none/s);
+  assert.match(styles, /\.wd-mindmap-embed figcaption \.wd-mindmap-embed__expand\s*\{[^}]*margin:\s*0 0 0 auto/s);
   assert.match(styles, /\.wd-image-embed img\s*\{[^}]*border:/s);
 });
 

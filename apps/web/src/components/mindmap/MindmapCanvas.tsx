@@ -132,7 +132,7 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, fitOn
     const fitView = () => {
       if (!fitOnResize) return;
       window.cancelAnimationFrame(fitFrame ?? 0);
-      fitFrame = window.requestAnimationFrame(() => mindMap.view.fit());
+      fitFrame = window.requestAnimationFrame(() => mindMap.view.fit(() => {}, true));
     };
     const resizeObserver = new ResizeObserver(() => { mindMap.resize(); fitView(); });
     fitView();

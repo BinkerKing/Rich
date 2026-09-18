@@ -326,7 +326,8 @@
 
 .wd-mindmap-embed figcaption strong { min-width: 0; overflow: hidden; color: #f2f8fa; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
 .wd-mindmap-embed small { color: #a9bbc0; font-size: 12px; }
-.wd-mindmap-embed figcaption button { margin-left: auto !important; flex: 0 0 auto; }
+.wd-mindmap-embed figcaption .wd-mindmap-embed__expand { display: grid; width: 30px; height: 30px; padding: 0; margin: 0 0 0 auto; place-items: center; color: #a8e9ee; background: transparent; border-color: transparent; font-size: 17px; line-height: 1; }
+.wd-mindmap-embed figcaption .wd-mindmap-embed__expand:hover { color: #e7feff; background: rgba(4, 189, 214, 0.1); border-color: rgba(4, 189, 214, 0.38); }
 
 .wd-mindmap-embed__canvas {
   height: 460px;
@@ -336,6 +337,24 @@
   border-radius: 0 0 8px 8px;
   pointer-events: none;
 }
+
+.wd-mindmap-modal {
+  position: fixed;
+  z-index: 100;
+  inset: 36px;
+  display: grid;
+  grid-template-rows: 54px minmax(0, 1fr);
+  overflow: hidden;
+  background: #081012;
+  border: 1px solid rgba(4, 189, 214, 0.5);
+  border-radius: 14px;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.66);
+}
+
+.wd-mindmap-modal > header { display: flex; align-items: center; justify-content: space-between; padding: 0 16px 0 20px; color: #f0f8f9; background: #141b22; border-bottom: 1px solid rgba(4, 189, 214, 0.22); }
+.wd-mindmap-modal > header button { width: 32px; height: 32px; padding: 0; margin: 0; color: #c7d7da; background: transparent; border-color: transparent; font-size: 23px; line-height: 1; }
+.wd-mindmap-modal > header button:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+.wd-mindmap-modal__canvas { min-height: 0; }
 
 .wd-table-embed {
   margin: 18px 0;
