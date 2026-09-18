@@ -46,7 +46,7 @@ export async function runDeployment({ run = runCommand, logPath, source = source
   await report("Launching Rich");
   const launchEnvironment = { ...process.env };
   delete launchEnvironment.ELECTRON_RUN_AS_NODE;
-  await run("open", ["-n", target], { env: launchEnvironment });
+  await run("open", [target], { env: launchEnvironment });
   await report("Deployment finished");
 }
 

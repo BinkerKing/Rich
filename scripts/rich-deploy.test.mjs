@@ -23,7 +23,7 @@ test("runs package, installation, and relaunch in order", async () => {
 
   assert.deepEqual(commands.map(([command]) => command), ["pnpm", "osascript", "ditto", "rm", "mv", "open"]);
   assert.deepEqual(commands[2][1], ["/build/Rich.app", "/Applications/Rich.app.new"]);
-  assert.deepEqual(commands[5][1], ["-n", "/Applications/Rich.app"]);
+  assert.deepEqual(commands[5][1], ["/Applications/Rich.app"]);
   assert.ok(commands[5][2]?.env);
   assert.equal(commands[5][2].env.ELECTRON_RUN_AS_NODE, undefined);
 });
