@@ -201,7 +201,7 @@
 .wd-card p {
   max-width: none;
   margin: 0;
-  color: #d3d5dd;
+  color: #f2f4f8;
   font-size: 17px;
   letter-spacing: 0.005em;
   line-height: 1.92;
@@ -221,7 +221,7 @@
   position: relative;
   min-height: 26px;
   padding: 12px 16px 12px 52px;
-  color: #dce7e9;
+  color: #f1f8fa;
   background: #151d23;
   border: 1px solid rgba(23, 162, 180, 0.34);
   border-radius: 8px;
