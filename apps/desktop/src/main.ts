@@ -560,7 +560,7 @@ async function openMainWindow(port: number): Promise<BrowserWindow> {
           let taskEndIndex = -1;
           for (let index = dates.length - 1; index >= 0; index -= 1) if (dates[index]! <= String(plannedEnd)) { taskEndIndex = index; break; }
           const completeDateIndex = taskStartIndex + Math.ceil((taskEndIndex - taskStartIndex + 1) * Math.min(100, Math.max(0, Number(item.progress || 0))) / 100) - 1;
-          const taskStyle = item.status === "blocked" ? { fill: "FFFB7185", border: "FFFDA4AF" } : item.status === "done" ? { fill: "FF00A878", border: "FF6EE7B7" } : item.status === "todo" ? { fill: "FF718096", border: "FFCBD5E1" } : { fill: dateIndex <= completeDateIndex ? "FF00A878" : "FF718096", border: "FF6EE7B7" };
+          const taskStyle = item.status === "blocked" ? { fill: "FFFB7185", border: "FFFDA4AF" } : item.status === "done" ? { fill: "FF2563EB", border: "FF6EE7B7" } : item.status === "todo" ? { fill: "FF718096", border: "FFCBD5E1" } : { fill: dateIndex <= completeDateIndex ? "FF00A878" : "FF718096", border: "FF6EE7B7" };
           const isDelay = Boolean(delayEnd && date > String(plannedEnd));
           cell.fill = isDelay
             ? { type: "pattern", pattern: "darkTrellis", fgColor: { argb: "FFFB7185" }, bgColor: { argb: "FFE11D48" } }

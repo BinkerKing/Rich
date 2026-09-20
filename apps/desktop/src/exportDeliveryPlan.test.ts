@@ -17,7 +17,7 @@ test("桌面端暴露交付计划快照导出桥接", () => {
   assert.match(main, /style: "mediumDashed"/);
   assert.match(main, /"FFB15CFF"/);
   assert.match(main, /argb: "FF6B7280"/);
-  assert.match(main, /fill: "FF00A878", border: "FF6EE7B7"/);
+  assert.match(main, /item\.status === "done" \? \{ fill: "FF2563EB", border: "FF6EE7B7" \}/);
   assert.match(main, /const isTaskBar = item\?\.kind === "task"/);
   assert.match(main, /completeDateIndex = taskStartIndex/);
   assert.match(main, /const todayColumn = dates\.indexOf\(gantt\.today\) \+ 4/);
