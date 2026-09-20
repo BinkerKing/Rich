@@ -60,11 +60,11 @@ test("自动行高不再依赖内容模式的手工高度估算", () => {
   assert.doesNotMatch(source, /taskItemGap/);
 });
 
-test("任务文本编辑时 Command 或 Ctrl 加回车插入换行，普通回车提交", () => {
-  assert.match(source, /event\.key === "Enter" && \(event\.metaKey \|\| event\.ctrlKey\)/);
+test("任务文本编辑时 Command、Ctrl 或 Option 加回车插入换行，普通回车提交", () => {
+  assert.match(source, /event\.key === "Enter" && \(event\.metaKey \|\| event\.ctrlKey \|\| event\.altKey\)/);
   assert.match(source, /onValueChange\(nextValue\)/);
   assert.match(source, /stopEditing\(\)/);
-  assert.match(source, /placeholder="输入内容，⌘\/Ctrl \+ Enter 换行"/);
+  assert.match(source, /placeholder="输入内容，⌘\/Ctrl\/Option \+ Enter 换行"/);
 });
 
 test("编辑时输入区域贴合完整单元格，而非悬浮小输入框", () => {

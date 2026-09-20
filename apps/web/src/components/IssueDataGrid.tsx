@@ -92,7 +92,7 @@ function StructuredTextCell({ value, mode = "plain", setValue }: { value: string
 
 function StructuredTextEditor({ value, onValueChange, stopEditing }: CustomCellEditorProps<IssueGridRow, string>): ReactNode {
   return <textarea className="issue-data-grid__structured-editor" autoFocus defaultValue={value ?? ""} onKeyDown={event => {
-    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+    if (event.key === "Enter" && (event.metaKey || event.ctrlKey || event.altKey)) {
       event.preventDefault(); event.stopPropagation();
       const editor = event.currentTarget;
       editor.setRangeText("\n", editor.selectionStart, editor.selectionEnd, "end");
@@ -101,7 +101,7 @@ function StructuredTextEditor({ value, onValueChange, stopEditing }: CustomCellE
     }
     if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); stopEditing(); return; }
     event.stopPropagation();
-  }} onChange={event => onValueChange(event.target.value)} placeholder="输入内容，⌘/Ctrl + Enter 换行" />;
+  }} onChange={event => onValueChange(event.target.value)} placeholder="输入内容，⌘/Ctrl/Option + Enter 换行" />;
 }
 
 function ContentModeToolbar({ column, onChange }: { column: TestCenterGridColumn; onChange: (mode: NonNullable<TestCenterGridColumn["contentMode"]>) => void }): ReactNode {
