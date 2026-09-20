@@ -21,17 +21,32 @@ export function deliverablesRoutes(repo: DeliverablesRepo, dependencies?: { elem
   route.post("/migrate-project-items", async c => {
     if (!dependencies) return c.json({ migrated: 0 });
     const existing = await repo.list();
+    const existingById = new Map(existing.map(item => [item.id, item]));
     const legacyIds = new Map(existing.flatMap(item => typeof item.content.legacyProjectItemId === "string" ? [[item.content.legacyProjectItemId, item.id] as const] : []));
     let migrated = 0;
     for (const project of (await dependencies.elements.list()).filter(item => item.type === "project")) {
       const projectContent = content(project.content) ?? {};
+      const projectRoot = typeof projectContent.localFolder === "string" && isAbsolute(projectContent.localFolder) ? resolve(projectContent.localFolder) : null;
+      if (!projectRoot) continue;
+      const ids = [...(projectContent.deliverableIds instanceof Array ? projectContent.deliverableIds.filter((id): id is string => typeof id === "string") : [])];
+      for (const id of ids) {
+        const item = existingById.get(id);
+        if (!item) continue;
+        const folderPath = typeof item.content.folderPath === "string" ? resolve(projectRoot, item.content.folderPath) : projectRoot;
+        if (item.content.folderPath !== folderPath) {
+          await repo.update(item.id, { content: { ...item.content, folderPath } });
+          existingById.set(item.id, { ...item, content: { ...item.content, folderPath } });
+          migrated++;
+        }
+      }
       if (projectContent.deliverablesMigrationVersion === 1) continue;
       const legacy = await dependencies.projectManagement.listAllModuleItems(project.id, "deliverables");
-      const ids = [...(projectContent.deliverableIds instanceof Array ? projectContent.deliverableIds.filter((id): id is string => typeof id === "string") : [])];
       for (const item of legacy) {
         let id = legacyIds.get(item.id);
+        const legacyContent = content(item.content) ?? {};
+        const folderPath = typeof legacyContent.folderPath === "string" ? resolve(projectRoot, legacyContent.folderPath) : projectRoot;
         if (!id) {
-          const created = await repo.create({ title: item.title, content: { ...item.content, legacyProjectItemId: item.id } });
+          const created = await repo.create({ title: item.title, content: { ...legacyContent, folderPath, legacyProjectItemId: item.id } });
           id = created.id; legacyIds.set(item.id, id); migrated++;
         }
         if (!ids.includes(id)) ids.push(id);

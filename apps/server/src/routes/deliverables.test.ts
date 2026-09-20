@@ -4,9 +4,11 @@ import { test } from "vitest";
 
 const source = readFileSync(new URL("./deliverables.ts", import.meta.url), "utf8").replace(/\s+/g, " ");
 
-test("已完成旧交付物迁移的项目不会在后续访问中回填已解绑项目关联", () => {
+test("旧交付物迁移会将相对目录规范为项目根目录下的绝对路径", () => {
   assert.match(source, /deliverablesMigrationVersion/);
-  assert.match(source, /if \(projectContent\.deliverablesMigrationVersion === 1\) continue;/);
+  assert.match(source, /const projectRoot = typeof projectContent\.localFolder === "string" && isAbsolute\(projectContent\.localFolder\) \? resolve\(projectContent\.localFolder\) : null;/);
+  assert.match(source, /const folderPath = typeof legacyContent\.folderPath === "string" \? resolve\(projectRoot, legacyContent\.folderPath\) : projectRoot;/);
+  assert.match(source, /if \(item\.content\.folderPath !== folderPath\) \{ await repo\.update\(item\.id, \{ content: \{ \.\.\.item\.content, folderPath \} \}\);/);
   assert.match(source, /deliverablesMigrationVersion: 1/);
 });
 

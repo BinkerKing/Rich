@@ -174,6 +174,10 @@ test("打开文件夹会先确保目录存在，并通过 Rich 桌面端原生�
   assert.match(deliverables, /aria-label="打开文件夹"[^>]*onClick=\{\(\) => void openFolder\(item\)\}/);
 });
 
+test("项目交付物加载时会先修复旧迁移记录的目录路径", () => {
+  assert.match(deliverables, /if \(standalone \|\| deliverableIds !== undefined\) \{ await api\.migrateProjectDeliverables\(\); return refreshItems\(\); \}/);
+});
+
 test("交付物版本与材料展示目录内全部文件，并支持刷新", () => {
   assert.match(deliverables, /const refreshFiles = async \(item: Item\) => \{/);
   assert.match(deliverables, /setLoadingFolders\(\(?all\)? => \(\{ \.\.\.all, \[item\.content\.folderPath\]: true \}\)\)/);

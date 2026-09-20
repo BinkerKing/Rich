@@ -162,7 +162,7 @@ export function DeliverablesWorkspace({
     await Promise.all(next.map(refreshFiles));
   };
   const load = async () => {
-    if (standalone || deliverableIds !== undefined) return refreshItems();
+    if (standalone || deliverableIds !== undefined) { await api.migrateProjectDeliverables(); return refreshItems(); }
     if (!projectId) return;
     let deliverables = await api.listProjectManagementModuleItems(
       projectId,
