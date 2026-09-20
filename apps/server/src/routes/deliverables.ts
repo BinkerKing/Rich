@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { cp, mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { basename, isAbsolute, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import type { DeliverablesRepo } from "../repos/DeliverablesRepo.js";
@@ -70,12 +70,8 @@ export function deliverablesRoutes(repo: DeliverablesRepo, dependencies?: { elem
     const body = await c.req.json().catch(() => ({})) as { folderPath?: unknown };
     const folderPath = directory({ folderPath: body.folderPath });
     const item = await repo.get(c.req.param("id"));
-    const currentFolder = item ? directory(item.content) : null;
-    if (!item || !folderPath || !currentFolder) return c.json({ error: "deliverable and absolute folderPath are required" }, 400);
-    await mkdir(folderPath, { recursive: true });
-    if (currentFolder !== folderPath && (await stat(currentFolder).catch(() => null))?.isDirectory()) {
-      for (const entry of await readdir(currentFolder)) await cp(resolve(currentFolder, entry), resolve(folderPath, entry), { recursive: true, force: false, errorOnExist: true });
-    }
+    const info = folderPath ? await stat(folderPath).catch(() => null) : null;
+    if (!item || !folderPath || !info?.isDirectory()) return c.json({ error: "交付物目录不存在或不是文件夹" }, 404);
     return c.json(await repo.update(item.id, { content: { ...item.content, folderPath } }));
   });
   route.get("/:id/files", async c => {

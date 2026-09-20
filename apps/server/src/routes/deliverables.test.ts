@@ -12,7 +12,9 @@ test("旧交付物迁移会将相对目录规范为项目根目录下的绝对�
   assert.match(source, /deliverablesMigrationVersion: 1/);
 });
 
-test("重新绑定目录会在更新交付物路径前保留旧目录中的文件", () => {
+test("重新绑定目录只绑定已有目录，不创建或复制目录内容", () => {
   assert.match(source, /route\.post\("\/:id\/rebind-folder"/);
-  assert.match(source, /await cp\(resolve\(currentFolder, entry\), resolve\(folderPath, entry\), \{ recursive: true, force: false, errorOnExist: true \}\)/);
+  assert.match(source, /await stat\(folderPath\)\.catch\(\(\) => null\)/);
+  assert.match(source, /if \(!item \|\| !folderPath \|\| !info\?\.isDirectory\(\)\) return c\.json\(\{ error: "交付物目录不存在或不是文件夹" \}, 404\);/);
+  assert.doesNotMatch(source, /currentFolder !== folderPath/);
 });

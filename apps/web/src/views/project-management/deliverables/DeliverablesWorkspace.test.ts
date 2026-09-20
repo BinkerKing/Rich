@@ -105,6 +105,17 @@ test("已使用独立交付物关联的项目不会回退显示已解绑的旧�
   assert.doesNotMatch(deliverables, /const legacy = await api\.listProjectManagementModuleItems\(projectId, "deliverables", undefined, true\);[\s\S]*?setItems\(\[\.\.\.global, \.\.\.legacy/);
 });
 
+test("重新绑定只接受已有目录并显示失败原因", () => {
+  assert.match(deliverables, /const \[rebindingFolderError, setRebindingFolderError\] = useState\(""\);/);
+  assert.match(deliverables, /setRebindingFolderError\(error instanceof Error \? error\.message : String\(error\)\)/);
+  assert.match(deliverables, /rebindingFolderError && <p role="alert">\{rebindingFolderError\}<\/p>/);
+});
+
+test("交付物路径显示不会重复拼接项目根目录，解绑使用删除图标", () => {
+  assert.match(deliverables, /const absoluteFolderPath = \(projectRoot: string \| undefined, folderPath: string\) => folderPath\.startsWith\("\/"\) \? folderPath : projectRoot/);
+  assert.match(deliverables, /<DeliverableActionIcon name="delete" \/>/);
+});
+
 test("交付物详情将操作收进标题行图标栏，绑定按钮仅在列表标题行显示", () => {
   assert.match(deliverables, /className="deliverables-workspace__title-actions"[\s\S]*?aria-label="Codex 对话"[\s\S]*?aria-label="版本策略"[\s\S]*?aria-label="打开文件夹"/);
   assert.match(deliverables, /className="deliverables-workspace__bind project-create-action"[\s\S]*?>＋ 绑定已有交付物<\/button>/);
