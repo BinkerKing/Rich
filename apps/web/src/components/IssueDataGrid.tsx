@@ -40,6 +40,7 @@ const formatTime = (value: string) => value.replace("T", " ").slice(0, 16);
 const fieldKeyFromName = (name: string) => `custom_${name.trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "_").replace(/^_+|_+$/g, "") || "field"}`;
 const needsOptions = (type?: TestCenterGridColumn["fieldType"]) => type === "select" || type === "multiSelect";
 const isTextField = (column: TestCenterGridColumn) => !column.fieldType || column.fieldType === "text";
+const usesStructuredTextEditor = (column: TestCenterGridColumn) => isTextField(column) && ((column.contentMode ?? "plain") !== "plain" || column.cellStyle?.whiteSpace === "normal");
 const dropdownStyles = [{ value: "standard", label: "标准" }, { value: "soft", label: "轻柔色块" }, { value: "pill", label: "圆角标签" }, { value: "signal", label: "强调色块" }] as const;
 const dropdownStyleColors = { standard: "#82939a", soft: "#54aeb4", pill: "#64bcc0", signal: "#de9556" } as const;
 const contentModes = [{ value: "plain", label: "单行", icon: "T" }, { value: "wrap", label: "换行", icon: "↵" }, { value: "numbered", label: "序号任务", icon: "1." }, { value: "bulleted", label: "点点任务", icon: "•" }, { value: "checklist", label: "复选任务", icon: "☑" }] as const;
@@ -262,14 +263,17 @@ export function IssueDataGrid({ projectId, tableId, title = "产品问题测试�
     headerStyle: column.headerStyle,
     headerClass: `issue-data-grid__header-align-${column.headerStyle?.textAlign ?? "left"}`,
     cellStyle: column.cellStyle,
-    cellEditor: column.fieldType === "select" ? SelectDrawerEditor : column.fieldType === "date" ? DateEditor : column.fieldType === "multiSelect" ? MultiSelectEditor : isTextField(column) && ((column.contentMode ?? "plain") !== "plain" || column.cellStyle?.whiteSpace === "normal") ? StructuredTextEditor : undefined,
+    cellEditor: column.fieldType === "select" ? SelectDrawerEditor : column.fieldType === "date" ? DateEditor : column.fieldType === "multiSelect" ? MultiSelectEditor : usesStructuredTextEditor(column) ? StructuredTextEditor : undefined,
     cellEditorParams: needsOptions(column.fieldType) ? { values: column.options?.map(option => option.value) ?? [], options: column.options, dropdownStyle: column.dropdownStyle } : undefined,
     cellEditorPopup: column.fieldType === "select",
     cellEditorPopupPosition: column.fieldType === "select" ? "under" : undefined,
     cellRenderer: column.fieldType === "select" ? (params: { value: string | number }) => <SelectBadge value={params.value} options={column.options} dropdownStyle={column.dropdownStyle} /> : column.fieldType === "checkbox" ? (params: { value: string | number; setValue: (value: string) => void }) => <CheckboxCell {...params} /> : column.fieldType === "multiSelect" ? (params: { value: string | number }) => <MultiSelectCell {...params} options={column.options} dropdownStyle={column.dropdownStyle} /> : isTextField(column) && (column.contentMode ?? "plain") !== "plain" ? (params: { value: string | number; setValue: (value: string) => void }) => <StructuredTextCell {...params} mode={column.contentMode} /> : undefined,
     wrapText: isTextField(column),
     autoHeight: isTextField(column),
-    suppressKeyboardEvent: params => handleClipboardShortcut(params.event, params.data, column.key, params.editing),
+    suppressKeyboardEvent: params => {
+      if (usesStructuredTextEditor(column) && params.editing && params.event.key === "Enter") return true;
+      return handleClipboardShortcut(params.event, params.data, column.key, params.editing);
+    },
     cellClass: [column.key === "serial" ? "issue-data-grid__serial" : "", column.fieldType === "select" ? "issue-data-grid__select-cell" : "", isTextField(column) ? "issue-data-grid__cell-text" : "", `issue-data-grid__cell-align-${column.cellStyle?.textAlign ?? "left"}`].filter(Boolean).join(" "),
   })), [columns, handleClipboardShortcut, query]);
 

@@ -62,6 +62,7 @@ test("自动行高不再依赖内容模式的手工高度估算", () => {
 
 test("任务文本编辑时 Command、Ctrl 或 Option 加回车插入换行，普通回车提交", () => {
   assert.match(source, /event\.key === "Enter" && \(event\.metaKey \|\| event\.ctrlKey \|\| event\.altKey\)/);
+  assert.match(source, /params\.editing && params\.event\.key === "Enter"/);
   assert.match(source, /onValueChange\(nextValue\)/);
   assert.match(source, /stopEditing\(\)/);
   assert.match(source, /placeholder="输入内容，⌘\/Ctrl\/Option \+ Enter 换行"/);
