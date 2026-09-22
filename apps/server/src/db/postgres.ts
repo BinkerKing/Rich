@@ -292,13 +292,19 @@ async function applySchema(pool: Pool): Promise<void> {
       executor          TEXT NOT NULL DEFAULT 'codex',
       codex_thread_id   TEXT,
       status            TEXT NOT NULL DEFAULT 'active',
+      is_bound          BOOLEAN NOT NULL DEFAULT false,
       context_version   TEXT,
+      last_context_sync_at TEXT,
       created_at        TEXT NOT NULL,
       updated_at        TEXT NOT NULL,
       last_active_at    TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_deliverable_codex_scope_active
       ON deliverable_codex_conversations(scope_key, status, last_active_at DESC);
+    ALTER TABLE deliverable_codex_conversations ADD COLUMN IF NOT EXISTS is_bound BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE deliverable_codex_conversations ADD COLUMN IF NOT EXISTS last_context_sync_at TEXT;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_deliverable_codex_bound
+      ON deliverable_codex_conversations(scope_key) WHERE status = 'active' AND is_bound = true;
 
     CREATE TABLE IF NOT EXISTS agent_conversation_configs (
       conversation_id     TEXT PRIMARY KEY REFERENCES chat_conversations(id) ON DELETE CASCADE,

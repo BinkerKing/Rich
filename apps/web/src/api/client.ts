@@ -256,6 +256,20 @@ export const api = {
     }
     return r.json();
   },
+  async ensureDeliverableCodexSession(projectId: string, deliverableId: string, title: string): Promise<{ conversation: { id: string; conversationId: string; isBound?: boolean }; created: boolean; context?: string }> {
+    const r = await fetch(`/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations/ensure-bound`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title }) });
+    const payload = await r.json().catch(() => ({})) as { error?: string; conversation?: { id: string; conversationId: string; isBound?: boolean }; created?: boolean; context?: string };
+    if (!r.ok || !payload.conversation) throw new Error(payload.error ?? `ensureDeliverableCodexSession ${r.status}`);
+    return { conversation: payload.conversation, created: Boolean(payload.created), context: payload.context };
+  },
+  async markDeliverableCodexContextSynced(conversationId: string): Promise<void> {
+    const r = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(conversationId)}/context-synced`, { method: "POST" });
+    if (!r.ok) throw new Error(`markDeliverableCodexContextSynced ${r.status}`);
+  },
+  async archiveBoundDeliverableCodexSession(projectId: string, deliverableId: string): Promise<void> {
+    const r = await fetch(`/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations/archive-bound`, { method: "POST" });
+    if (!r.ok) throw new Error(`archiveBoundDeliverableCodexSession ${r.status}`);
+  },
   // ----- generate-tree -----
   generateTreeStream(topic: string, model?: Model, richness?: RichnessLevel) {
     return sseStream<GenerateTreeResult>("/ai/generate-tree", { topic, model, richness });

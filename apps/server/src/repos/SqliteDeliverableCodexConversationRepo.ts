@@ -12,14 +12,16 @@ interface Row {
   executor: "codex";
   codex_thread_id: string | null;
   status: DeliverableCodexConversationStatus;
+  is_bound: number;
   context_version: string | null;
+  last_context_sync_at: string | null;
   created_at: string;
   updated_at: string;
   last_active_at: string;
 }
 
 const columns = `id, conversation_id, scope_key, project_id, deliverable_id, title, mode, executor,
-  codex_thread_id, status, context_version, created_at, updated_at, last_active_at`;
+  codex_thread_id, status, is_bound, context_version, last_context_sync_at, created_at, updated_at, last_active_at`;
 
 function fromRow(row: Row): DeliverableCodexConversation {
   return {
@@ -33,7 +35,9 @@ function fromRow(row: Row): DeliverableCodexConversation {
     executor: row.executor,
     codexThreadId: row.codex_thread_id ?? undefined,
     status: row.status,
+    isBound: Boolean(row.is_bound),
     contextVersion: row.context_version ?? undefined,
+    lastContextSyncAt: row.last_context_sync_at ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     lastActiveAt: row.last_active_at,
@@ -46,11 +50,11 @@ export class SqliteDeliverableCodexConversationRepo implements DeliverableCodexC
   async create(value: DeliverableCodexConversation): Promise<void> {
     this.db.prepare(`
       INSERT INTO deliverable_codex_conversations
-        (${columns}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (${columns}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       value.id, value.conversationId, value.scopeKey, value.projectId, value.deliverableId,
-      value.title, value.mode, value.executor, value.codexThreadId ?? null, value.status,
-      value.contextVersion ?? null, value.createdAt, value.updatedAt, value.lastActiveAt,
+      value.title, value.mode, value.executor, value.codexThreadId ?? null, value.status, value.isBound ? 1 : 0,
+      value.contextVersion ?? null, value.lastContextSyncAt ?? null, value.createdAt, value.updatedAt, value.lastActiveAt,
     );
   }
 
@@ -71,6 +75,21 @@ export class SqliteDeliverableCodexConversationRepo implements DeliverableCodexC
     `).all(scopeKey) as Row[]).map(fromRow);
   }
 
+  async getBound(scopeKey: string): Promise<DeliverableCodexConversation | null> {
+    const row = this.db.prepare(`SELECT ${columns} FROM deliverable_codex_conversations WHERE scope_key = ? AND status = 'active' AND is_bound = 1`).get(scopeKey) as Row | undefined;
+    return row ? fromRow(row) : null;
+  }
+
+  async bind(id: string, at: string): Promise<DeliverableCodexConversation | null> {
+    const current = await this.get(id);
+    if (!current || current.status !== "active") return null;
+    this.db.transaction(() => {
+      this.db.prepare(`UPDATE deliverable_codex_conversations SET is_bound = 0, updated_at = ? WHERE scope_key = ? AND is_bound = 1`).run(at, current.scopeKey);
+      this.db.prepare(`UPDATE deliverable_codex_conversations SET is_bound = 1, updated_at = ? WHERE id = ?`).run(at, id);
+    })();
+    return this.get(id);
+  }
+
   async rename(id: string, title: string, at: string): Promise<DeliverableCodexConversation | null> {
     this.db.prepare(`UPDATE deliverable_codex_conversations SET title = ?, updated_at = ? WHERE id = ?`).run(title, at, id);
     return this.get(id);
@@ -82,7 +101,7 @@ export class SqliteDeliverableCodexConversationRepo implements DeliverableCodexC
   }
 
   async archive(id: string, at: string): Promise<DeliverableCodexConversation | null> {
-    this.db.prepare(`UPDATE deliverable_codex_conversations SET status = 'archived', updated_at = ? WHERE id = ?`).run(at, id);
+    this.db.prepare(`UPDATE deliverable_codex_conversations SET status = 'archived', is_bound = 0, updated_at = ? WHERE id = ?`).run(at, id);
     return this.get(id);
   }
 
@@ -92,5 +111,9 @@ export class SqliteDeliverableCodexConversationRepo implements DeliverableCodexC
       SET codex_thread_id = ?, context_version = ?, updated_at = ?
       WHERE id = ?
     `).run(threadId ?? null, contextVersion ?? null, at, id);
+  }
+
+  async markContextSynced(id: string, at: string): Promise<void> {
+    this.db.prepare(`UPDATE deliverable_codex_conversations SET last_context_sync_at = ?, updated_at = ? WHERE id = ?`).run(at, at, id);
   }
 }

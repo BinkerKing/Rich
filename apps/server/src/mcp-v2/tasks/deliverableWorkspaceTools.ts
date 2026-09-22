@@ -11,7 +11,7 @@ import type { RichToolRegistry } from "../registry/toolRegistry.js";
 import { executeSafeWrite } from "../registry/writeSafety.js";
 import { richContextSchema, richOptionsSchema } from "../resources/schemas.js";
 
-const recordKind = z.enum(["requirement", "status", "decision", "issue", "risk", "change", "information", "material", "codex"]);
+const recordKind = z.enum(["requirement", "status", "decision", "issue", "risk", "change", "information", "material", "codex", "question"]);
 const fileType = z.enum(["deliverable", "material", "intermediate"]);
 const targetSchema = z.object({ projectId: z.string().trim().min(1), deliverableId: z.string().trim().min(1) });
 const projectTargetSchema = z.object({ projectId: z.string().trim().min(1) });

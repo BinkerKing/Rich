@@ -39,11 +39,52 @@ export function deliverableCodexRoutes(deps: {
 }): Hono {
   const r = new Hono();
   const scopeKey = (projectId: string, deliverableId: string) => `deliverable:${projectId}:${deliverableId}`;
+  const createBoundConversation = async (projectId: string, deliverableId: string, title: string) => {
+    const context = await deps.context.build({ projectId, deliverableId, mode: "free" });
+    const now = new Date().toISOString();
+    const id = randomUUID();
+    const conversationId = `deliverable-codex:${id}`;
+    await deps.chats.ensureConversation({ id: conversationId, title, surface: "deliverable-codex", now });
+    await deps.conversations.create({ id, conversationId, scopeKey: context.scopeKey, projectId, deliverableId, title, mode: "free", executor: "codex", status: "active", isBound: true, contextVersion: context.contextVersion, createdAt: now, updatedAt: now, lastActiveAt: now });
+    const conversation = await deps.conversations.bind(id, now);
+    if (!conversation) throw new Error("Unable to bind Codex conversation.");
+    const session = await deps.agents.start(conversationId, { fresh: true, executor: "codex", workspaceRoot: context.workspaceRoot });
+    return { conversation: { ...conversation, resumed: session.resumed, allowedMcpTools: context.allowedMcpTools }, context: context.initialContext };
+  };
 
   r.get("/conversations", async c => c.json({ conversations: await deps.conversations.listAllActive() }));
 
   r.get("/:projectId/:deliverableId/conversations", async c => {
     return c.json({ conversations: await deps.conversations.listActive(scopeKey(c.req.param("projectId"), c.req.param("deliverableId"))) });
+  });
+
+  r.post("/:projectId/:deliverableId/conversations/ensure-bound", async c => {
+    const body = await c.req.json().catch(() => null) as { title?: unknown } | null;
+    const title = typeof body?.title === "string" ? body.title.trim() : "";
+    if (!title) return c.json({ error: "title is required" }, 400);
+    const projectId = c.req.param("projectId");
+    const deliverableId = c.req.param("deliverableId");
+    const existing = await deps.conversations.getBound(scopeKey(projectId, deliverableId));
+    if (existing) {
+      const context = existing.lastContextSyncAt
+        ? await deps.context.buildIncrementalContext({ projectId, deliverableId, since: existing.lastContextSyncAt })
+        : (await deps.context.build({ projectId, deliverableId, mode: "free" })).initialContext;
+      return c.json({ conversation: existing, created: false, ...(context ? { context } : {}) });
+    }
+    try {
+      const created = await createBoundConversation(projectId, deliverableId, title);
+      return c.json({ ...created, created: true }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  r.post("/:projectId/:deliverableId/conversations/archive-bound", async c => {
+    const bound = await deps.conversations.getBound(scopeKey(c.req.param("projectId"), c.req.param("deliverableId")));
+    if (!bound) return c.json({ archived: false });
+    await deps.conversations.archive(bound.id, new Date().toISOString());
+    await deps.agents.exit(bound.conversationId);
+    return c.json({ archived: true });
   });
 
   r.post("/:projectId/:deliverableId/conversations", async c => {
@@ -53,14 +94,7 @@ export function deliverableCodexRoutes(deps: {
     const projectId = c.req.param("projectId");
     const deliverableId = c.req.param("deliverableId");
     try {
-      const context = await deps.context.build({ projectId, deliverableId, mode: "free" });
-      const now = new Date().toISOString();
-      const id = randomUUID();
-      const conversationId = `deliverable-codex:${id}`;
-      await deps.chats.ensureConversation({ id: conversationId, title, surface: "deliverable-codex", now });
-      await deps.conversations.create({ id, conversationId, scopeKey: context.scopeKey, projectId, deliverableId, title, mode: "free", executor: "codex", status: "active", contextVersion: context.contextVersion, createdAt: now, updatedAt: now, lastActiveAt: now });
-      const session = await deps.agents.start(conversationId, { fresh: true, executor: "codex", workspaceRoot: context.workspaceRoot });
-      return c.json({ conversation: { ...(await deps.conversations.get(id))!, resumed: session.resumed, allowedMcpTools: context.allowedMcpTools } }, 201);
+      return c.json(await createBoundConversation(projectId, deliverableId, title), 201);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
@@ -72,6 +106,13 @@ export function deliverableCodexRoutes(deps: {
     const archived = await deps.conversations.archive(existing.id, new Date().toISOString());
     await deps.agents.exit(existing.conversationId);
     return c.json({ conversation: archived });
+  });
+
+  r.post("/conversations/:id/context-synced", async c => {
+    const existing = await deps.conversations.get(c.req.param("id"));
+    if (!existing || existing.status !== "active") return c.json({ error: "Active conversation not found" }, 404);
+    await deps.conversations.markContextSynced(existing.id, new Date().toISOString());
+    return c.json({ ok: true });
   });
 
   r.patch("/conversations/:id", async c => {
@@ -172,6 +213,16 @@ export function deliverableCodexRoutes(deps: {
       await deps.agents.start(existing.conversationId, { executor: "codex", workspaceRoot: taskContext.workspaceRoot });
     }
     const currentPromptRevision = !generalTaskMode && taskPromptStates.length > 0 ? await deps.prompts.revision("codex.deliverable-analysis-turn") : undefined;
+    const contextForTurn = taskContext
+      ? undefined
+      : existing.lastContextSyncAt
+        ? await deps.context.buildIncrementalContext({ projectId: existing.projectId, deliverableId: existing.deliverableId, since: existing.lastContextSyncAt })
+        : await deps.context.build({ projectId: existing.projectId, deliverableId: existing.deliverableId, mode: "free" });
+    const turnContent = typeof contextForTurn === "string"
+      ? `${contextForTurn}\n\n## 本次 Codex 任务\n${content}`
+      : contextForTurn
+        ? `${contextForTurn.systemInstruction}\n\n${contextForTurn.initialContext}\n\n## 本次 Codex 任务\n${content}`
+        : content;
     const shouldSendRuleUpdate = Boolean(currentPromptRevision && taskPromptStates.at(-1)?.revision !== currentPromptRevision && metadata?.type !== "task-mode-instruction");
     const renderedPolicy = shouldSendRuleUpdate
       ? await deps.prompts.render("codex.deliverable-analysis-turn", {
@@ -182,8 +233,8 @@ export function deliverableCodexRoutes(deps: {
       })
       : undefined;
     const runtimeContent = renderedPolicy
-      ? (await deps.prompts.render("codex.deliverable-analysis-turn", { projectId: existing.projectId, deliverableId: existing.deliverableId, deliverableContext: taskContext!.initialContext, userMessage: content })).content
-      : content;
+      ? (await deps.prompts.render("codex.deliverable-analysis-turn", { projectId: existing.projectId, deliverableId: existing.deliverableId, deliverableContext: taskContext!.initialContext, userMessage: turnContent })).content
+      : turnContent;
     const policyCardContent = renderedPolicy ? changedPolicyRules(taskPromptStates.at(-1)?.policyContent, renderedPolicy.content) : undefined;
     const policyCreatedAt = new Date().toISOString();
     if (shouldSendRuleUpdate && currentPromptRevision) {
@@ -208,6 +259,7 @@ export function deliverableCodexRoutes(deps: {
         const result = await deps.agents.sendMessage(existing.conversationId, { clientRequestId, userMessageId, content: runtimeContent, runtimeInstruction, imageUrls, metadata }, write);
         const sessionId = result.turn.runtimeSessionId;
         if (sessionId) await deps.conversations.setCodexThread(existing.id, sessionId, existing.contextVersion, new Date().toISOString());
+        if (contextForTurn) await deps.conversations.markContextSynced(existing.id, new Date().toISOString());
       } catch (error) {
         await stream.writeSSE({ event: "error", data: JSON.stringify({ message: error instanceof Error ? error.message : String(error) }) });
       }

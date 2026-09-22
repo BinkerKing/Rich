@@ -47,7 +47,8 @@ function modeInstruction(mode: DeliverableContextMode): string {
   return [
     "You are working in Rich free mode for this deliverable.",
     "Assist with the provided deliverable context through ordinary conversation.",
-    "Do not write Rich business records or deliverable results.",
+    "When information is required to proceed, create a Rich deliverable record whose kind is question; phrase it as a clear question for the user.",
+    "Do not write other Rich business records or deliverable results.",
   ].join("\n");
 }
 
@@ -62,6 +63,19 @@ function contextText(projectId: string, deliverableId: string, snapshot: AiTaskC
     "", "## Requirement", plainText(snapshot.deliverable.requirementHtml) || "- None",
     "", "## Deliverable records", records,
     "", "## Known files", files,
+  ].join("\n");
+}
+
+function incrementalContextText(projectId: string, deliverableId: string, snapshot: AiTaskContextSnapshot, since: string): string | undefined {
+  const records = snapshot.records.filter(record => record.createdAt > since).slice(0, 30);
+  if (!records.length) return undefined;
+  return [
+    "## Rich deliverable incremental context",
+    `- Project ID: ${projectId}`,
+    `- Deliverable ID: ${deliverableId}`,
+    `- Changes recorded after: ${since}`,
+    "", "## New deliverable records",
+    ...records.map(record => `- [${record.kind}] ${record.text}`),
   ].join("\n");
 }
 
@@ -120,7 +134,12 @@ export class DeliverableCodexContextService {
         "rich_deliverable_record_create",
         "rich_deliverable_record_update",
         "rich_deliverable_file_meta_update",
-      ] : [],
+      ] : input.mode === "free" ? ["rich_deliverable_record_create"] : [],
     };
+  }
+
+  async buildIncrementalContext(input: { projectId: string; deliverableId: string; since: string }): Promise<string | undefined> {
+    const snapshot = await this.taskContext.createSnapshot(input.projectId, input.deliverableId);
+    return incrementalContextText(input.projectId, input.deliverableId, snapshot, input.since);
   }
 }

@@ -205,7 +205,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   };
 
   const refresh = async () => {
-    const payload = await readJson<{ conversations: Conversation[] }>("/api/deliverable-codex/conversations");
+    const payload = await readJson<{ conversations: Conversation[] }>(`/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`);
     setConversations(sortConversations(payload.conversations));
     setActiveId(current => current && payload.conversations.some(item => item.id === current) ? current : payload.conversations[0]?.id);
   };
@@ -222,7 +222,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   useEffect(() => { void refresh().catch(reason => setError(reason instanceof Error ? reason.message : String(reason))); }, [projectId, deliverableId]);
   useEffect(() => {
     if (!visible || !requestedConversationId) return;
-    void readJson<{ conversations: Conversation[] }>("/api/deliverable-codex/conversations").then(payload => {
+    void readJson<{ conversations: Conversation[] }>(`/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`).then(payload => {
       setConversations(sortConversations(payload.conversations));
       if (payload.conversations.some(item => item.id === requestedConversationId)) setActiveId(requestedConversationId);
       else setError("绑定的 Codex 对话不可用，请检查是否已归档");

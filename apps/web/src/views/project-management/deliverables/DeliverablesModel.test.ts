@@ -70,6 +70,19 @@ test("AI 任务结果紧跟在其父任务后显示", () => {
   assert.equal(content.records.find(record => record.id === "result")?.aiTaskResult?.report?.fileName, "完整报告.md");
 });
 
+test("问题的答复紧跟在问题记录后显示", () => {
+  const content = normalizeDeliverableContent({
+    records: [
+      { id: "answer", kind: "answer", parentRecordId: "question", text: "确认以二代 SAFE 为准", createdAt: "2026-09-02T10:01:00.000Z" },
+      { id: "question", kind: "question", text: "Mapping 以哪一代 SAFE 为准？", createdAt: "2026-09-02T10:00:00.000Z" },
+    ],
+  });
+
+  assert.deepEqual(orderDeliverableRecords(content.records).map(record => record.id), ["question", "answer"]);
+  assert.equal(content.records.find(record => record.id === "answer")?.kind, "answer");
+  assert.equal(content.records.find(record => record.id === "answer")?.parentRecordId, "question");
+});
+
 test("只保留最新策略以同名文件替换既有版本", () => {
   const content = addDeliverableVersion(normalizeDeliverableContent({
     versionPolicy: "latest",

@@ -61,4 +61,25 @@ describe("SqliteDeliverableCodexConversationRepo", () => {
       lastActiveAt: "2026-09-02T00:03:00.000Z",
     }));
   });
+
+  it("binds one active conversation per deliverable and persists its context cursor", async () => {
+    const db = openDb(join(mkdtempSync(join(tmpdir(), "rich-deliverable-codex-")), "rich.db"));
+    const repo = new SqliteDeliverableCodexConversationRepo(db);
+    const chats = new SqliteChatConversationsRepo(db);
+    await chats.ensureConversation({ id: "chat-first", now: at });
+    await chats.ensureConversation({ id: "chat-second", now: at });
+    await repo.create(conversation("first"));
+    await repo.create(conversation("second"));
+
+    await repo.bind("first", "2026-09-02T00:01:00.000Z");
+    await repo.bind("second", "2026-09-02T00:02:00.000Z");
+    await repo.markContextSynced("second", "2026-09-02T00:03:00.000Z");
+
+    expect(await repo.getBound("deliverable:project-1:deliverable-1")).toEqual(expect.objectContaining({
+      id: "second",
+      isBound: true,
+      lastContextSyncAt: "2026-09-02T00:03:00.000Z",
+    }));
+    expect(await repo.get("first")).toEqual(expect.objectContaining({ isBound: false }));
+  });
 });
