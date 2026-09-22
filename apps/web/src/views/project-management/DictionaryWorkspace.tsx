@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { Element } from "@ke/domain";
+import { Bookmark, CheckCircle2, Clock3, Flag, Star, TriangleAlert, type LucideIcon } from "lucide-react";
 import {
   api,
   type ProjectDictionaryFieldHit,
@@ -15,6 +16,7 @@ import {
 } from "../../api/client.js";
 import { DictionaryTestDataPanel } from "./dictionary/DictionaryTestDataPanel.js";
 import { sortDictionaryFieldsByTemplateOrder } from "./dictionary/DictionaryMetadata.js";
+import { dictionaryTableMarker, dictionaryTableMarkerOptions, type DictionaryTableMarker } from "./dictionary/DictionaryTableMarker.js";
 import {
   DictionaryFieldGrid,
   DictionaryMappingPanel,
@@ -84,6 +86,8 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
   const [propertyViewer, setPropertyViewer] = useState<DictionaryPropertyPayload | null>(null);
   const [rectifications, setRectifications] = useState<ProjectDictionaryRectification[]>([]);
   const [rectificationMenu, setRectificationMenu] = useState<(DictionaryRectificationTarget & { x: number; y: number }) | null>(null);
+  const [tableMarkerMenu, setTableMarkerMenu] = useState<{ table: ProjectDictionaryTable; x: number; y: number } | null>(null);
+  const [tableMarkerBusy, setTableMarkerBusy] = useState(false);
   const [rectificationDraft, setRectificationDraft] = useState<DictionaryRectificationTarget | null>(null);
   const [rectificationRequirement, setRectificationRequirement] = useState("");
   const [rectificationBusy, setRectificationBusy] = useState(false);
@@ -544,6 +548,31 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
     event.stopPropagation();
     setRectificationMenu({ ...target, x: event.clientX, y: event.clientY });
   };
+  const openTableMarkerMenu = (event: ReactMouseEvent<HTMLElement>, table: ProjectDictionaryTable) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setRectificationMenu(null);
+    setTableMarkerMenu({ table, x: event.clientX, y: event.clientY });
+  };
+  const saveTableMarker = async (table: ProjectDictionaryTable, marker?: DictionaryTableMarker) => {
+    setTableMarkerBusy(true);
+    setError(null);
+    try {
+      const nextExtra = { ...(table.extra ?? {}) };
+      if (marker) nextExtra.tableMarker = marker;
+      else delete nextExtra.tableMarker;
+      const updated = await api.updateProjectDictionaryTable(project.id, table.id, { extra: nextExtra });
+      const replace = (items: ProjectDictionaryTable[]) => items.map(item => item.id === updated.id ? updated : item);
+      setTables(replace);
+      setTableTrees(current => Object.fromEntries(Object.entries(current).map(([systemId, items]) => [systemId, replace(items)])));
+      setTableCache(current => ({ ...current, [updated.id]: updated }));
+      setTableMarkerMenu(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setTableMarkerBusy(false);
+    }
+  };
   const rectificationFor = (target: DictionaryRectificationTarget) => rectificationIndex.get(`${target.entityType}:${target.entityId}:${target.propertyKey}`);
   const createRectification = async () => {
     if (!rectificationDraft || !rectificationRequirement.trim()) return;
@@ -752,11 +781,8 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
                         }}
                         onDragEnd={() => setTreeDrag(null)}
                         onClick={() => openTable(table.id)}
-                        onContextMenu={event => openRectificationMenu(event, {
-                          entityType: "table", entityId: table.id, propertyKey: "entity",
-                          label: `表：${table.tableCn || table.tableName}`,
-                        })}>
-                        <span>{table.tableCn || table.tableName}</span>
+                        onContextMenu={event => openTableMarkerMenu(event, table)}>
+                        <span className="prj-pm-dict__table-name">{renderDictionaryTableMarker(dictionaryTableMarker(table.extra))}{table.tableCn || table.tableName}</span>
                         <code>{table.tableName}</code>
                         <em>{table.fieldCount}</em>
                       </button>
@@ -913,6 +939,22 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
         onOpenFieldRef={openLinkedDictionaryField}
         onOpenTableRef={openTable}
       />
+      {tableMarkerMenu && (
+        <div className="prj-pm-dict-table-marker-menu" style={{ left: tableMarkerMenu.x, top: tableMarkerMenu.y }}>
+          <strong>{tableMarkerMenu.table.tableCn || tableMarkerMenu.table.tableName}</strong>
+          <span>选择图标</span>
+          <div className="prj-pm-dict-table-marker-menu__options">
+            {dictionaryTableMarkerOptions.map(option => (
+              <button key={option.id} type="button" disabled={tableMarkerBusy} className={dictionaryTableMarker(tableMarkerMenu.table.extra) === option.id ? "is-active" : ""} onClick={() => void saveTableMarker(tableMarkerMenu.table, option.id)}>
+                {renderDictionaryTableMarker(option.id)}{option.label}
+              </button>
+            ))}
+          </div>
+          {dictionaryTableMarker(tableMarkerMenu.table.extra) && <button type="button" disabled={tableMarkerBusy} onClick={() => void saveTableMarker(tableMarkerMenu.table)}>移除图标</button>}
+          <button type="button" className="is-subtle" onClick={() => { setRectificationDraft({ entityType: "table", entityId: tableMarkerMenu.table.id, propertyKey: "entity", label: `表：${tableMarkerMenu.table.tableCn || tableMarkerMenu.table.tableName}` }); setRectificationRequirement(""); setTableMarkerMenu(null); }}>标记整改</button>
+          <button type="button" className="is-subtle" onClick={() => setTableMarkerMenu(null)}>取消</button>
+        </div>
+      )}
       {rectificationMenu && (() => {
         const existing = rectificationFor(rectificationMenu);
         return (
@@ -949,6 +991,21 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
       )}
     </div>
   );
+}
+
+const dictionaryTableMarkerIcons: Record<DictionaryTableMarker, LucideIcon> = {
+  star: Star,
+  flag: Flag,
+  alert: TriangleAlert,
+  bookmark: Bookmark,
+  check: CheckCircle2,
+  clock: Clock3,
+};
+
+function renderDictionaryTableMarker(marker?: DictionaryTableMarker) {
+  if (!marker) return null;
+  const Icon = dictionaryTableMarkerIcons[marker];
+  return <Icon className="prj-pm-dict__table-marker" aria-hidden="true" strokeWidth={2.4} />;
 }
 
 function dictionaryTableIsInUse(table: ProjectDictionaryTable): boolean {

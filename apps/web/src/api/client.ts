@@ -1489,7 +1489,7 @@ export const api = {
     if (!r.ok) throw new Error(`listProjectDictionaryMappingScenarios ${r.status}`);
     return r.json();
   },
-  async updateProjectDictionaryTable(projectId: string, tableId: string, patch: { externalSql?: string | null }): Promise<ProjectDictionaryTable> {
+  async updateProjectDictionaryTable(projectId: string, tableId: string, patch: { externalSql?: string | null; extra?: Record<string, unknown> }): Promise<ProjectDictionaryTable> {
     const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/tables/${encodeURIComponent(tableId)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) });
     if (!r.ok) throw new Error(`updateProjectDictionaryTable ${r.status}`);
     return r.json();
