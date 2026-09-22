@@ -11,3 +11,9 @@ test("数据表标记只接受预设图标", () => {
 test("数据表标记提供可移除的预设图标", () => {
   assert.deepEqual(dictionaryTableMarkerOptions.map(option => option.id), ["star", "flag", "alert", "bookmark", "check", "clock"]);
 });
+
+test("每种数据表标记使用不同的语义颜色", () => {
+  const colors = dictionaryTableMarkerOptions.map(option => option.color);
+
+  assert.equal(new Set(colors).size, dictionaryTableMarkerOptions.length);
+});

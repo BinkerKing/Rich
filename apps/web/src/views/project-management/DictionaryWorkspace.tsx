@@ -1008,7 +1008,7 @@ const dictionaryTableMarkerIcons: Record<DictionaryTableMarker, LucideIcon> = {
 function renderDictionaryTableMarker(marker?: DictionaryTableMarker) {
   if (!marker) return null;
   const Icon = dictionaryTableMarkerIcons[marker];
-  return <Icon className="prj-pm-dict__table-marker" aria-hidden="true" strokeWidth={2.4} />;
+  return <Icon className={`prj-pm-dict__table-marker is-${marker}`} aria-hidden="true" strokeWidth={2.4} />;
 }
 
 function dictionaryTableIsInUse(table: ProjectDictionaryTable): boolean {

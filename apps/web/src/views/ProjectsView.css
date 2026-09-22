@@ -5847,6 +5847,11 @@
   height: 15px;
   color: #f5c451;
 }
+.prj-pm-dict__table-marker.is-flag { color: #67a9e8; }
+.prj-pm-dict__table-marker.is-alert { color: #fb923c; }
+.prj-pm-dict__table-marker.is-bookmark { color: #c084fc; }
+.prj-pm-dict__table-marker.is-check { color: #6bcf9c; }
+.prj-pm-dict__table-marker.is-clock { color: #94a3b8; }
 
 .prj-pm-dict-table-marker-menu {
   position: fixed;
