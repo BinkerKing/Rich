@@ -55,10 +55,13 @@ describe("DeliverableCodexContextService", () => {
       "rich_deliverable_record_create",
       "rich_deliverable_record_update",
       "rich_deliverable_requirement_update",
+      "rich_deliverable_file_write",
+      "rich_deliverable_file_copy",
     ]));
     expect(bug.allowedMcpTools).not.toContain("rich_deliverable_record_create");
     expect(free.systemInstruction).toContain("MUST use the Rich MCP tools");
     expect(free.systemInstruction).toContain("Do not merely paste the requested deliverable content into chat");
+    expect(free.systemInstruction).toContain("file attached");
     expect(bug.systemInstruction).toContain("reproduction");
   });
 });

@@ -35,6 +35,7 @@ export interface McpToolEvent {
     conversationId?: string;
     projectId?: string;
     deliverableId?: string;
+    attachment?: { fileName: string; relativePath: string; size: number };
     ok?: boolean;
   };
 }
@@ -154,6 +155,7 @@ export function buildMcpV2Server(deps: BuildMcpV2Deps): McpServer {
         phase: response.ok ? "completed" : "error",
         tool: tool.name,
         ...correlation,
+        ...(response.ok ? readDeliverableAttachment(tool.name, response.data) : {}),
         ok: response.ok,
       } });
       return {
@@ -195,6 +197,19 @@ function readDeliverableTarget(toolName: string, input: unknown): Pick<McpToolEv
     ...(typeof projectId === "string" && projectId.trim() ? { projectId } : {}),
     ...(typeof deliverableId === "string" && deliverableId.trim() ? { deliverableId } : {}),
   };
+}
+
+function readDeliverableAttachment(toolName: string, data: unknown): Pick<McpToolEvent["data"], "attachment"> {
+  if (toolName !== "rich_deliverable_file_write" && toolName !== "rich_deliverable_file_copy") return {};
+  if (!data || typeof data !== "object" || Array.isArray(data)) return {};
+  const { relativePath, size, content } = data as { relativePath?: unknown; size?: unknown; content?: unknown };
+  if (typeof relativePath !== "string" || !relativePath.trim()) return {};
+  const bytes = typeof size === "number" && Number.isFinite(size)
+    ? size
+    : typeof content === "string" ? Buffer.byteLength(content, "utf8") : undefined;
+  if (bytes === undefined) return {};
+  const fileName = relativePath.replaceAll("\\", "/").split("/").at(-1);
+  return fileName ? { attachment: { fileName, relativePath, size: bytes } } : {};
 }
 
 function createToolEventQueue(listener: BuildMcpV2Deps["onToolEvent"]): (event: McpToolEvent) => void {

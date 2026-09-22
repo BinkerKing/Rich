@@ -8,6 +8,7 @@ type OperationLogDeps = {
   projectId: string;
   deliverableId: string;
   summary: string;
+  attachment?: { fileName: string; relativePath: string; size: number };
 };
 
 const operationSummaries: Record<string, string> = {
@@ -29,19 +30,22 @@ function isDeliverableContent(value: unknown): value is Record<string, unknown> 
     && (value as Record<string, unknown>).recordType === "deliverable";
 }
 
-export async function appendDeliverableCodexOperationRecord({ projects, standaloneDeliverables, projectId, deliverableId, summary }: OperationLogDeps): Promise<boolean> {
+export async function appendDeliverableCodexOperationRecord({ projects, standaloneDeliverables, projectId, deliverableId, summary, attachment }: OperationLogDeps): Promise<boolean> {
   const projectItem = (await projects.listAllModuleItems(projectId, "deliverables")).find(item => item.id === deliverableId);
   const standalone = projectItem ? undefined : await standaloneDeliverables?.get(deliverableId);
   const deliverable = projectItem ?? standalone;
   if (!deliverable || !isDeliverableContent(deliverable.content)) return false;
 
+  const report = attachment
+    ? `已完成：${summary}\n已产出附件：${attachment.fileName}（${formatSize(attachment.size)}）。文件已保存至当前交付物目录，并已完成写入校验。`
+    : `已完成：${summary}`;
   const record = {
     id: `codex-operation-${randomUUID()}`,
     kind: "status",
-    text: `已完成：${summary}`,
+    text: report,
     createdAt: new Date().toISOString(),
     informationType: "information",
-    attachments: [],
+    attachments: attachment ? [attachment] : [],
     author: "Codex",
   };
   const records = Array.isArray(deliverable.content.records) ? deliverable.content.records : [];
@@ -49,4 +53,9 @@ export async function appendDeliverableCodexOperationRecord({ projects, standalo
   const updated = await projects.updateModuleItem(projectId, deliverableId, { content })
     ?? await standaloneDeliverables?.update(deliverableId, { content });
   return Boolean(updated);
+}
+
+function formatSize(size: number): string {
+  if (size < 1024) return `${size} B`;
+  return `${(size / 1024).toFixed(1)} KB`;
 }

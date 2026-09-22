@@ -19,6 +19,23 @@ describe("deliverable Codex routes", () => {
     expect(progress).toEqual([{ projectId: "p1", deliverableId: "d1", summary: "已完成本次回复" }]);
   });
 
+  it("does not add a second generic progress record after a file-producing turn", async () => {
+    const progress: Array<{ projectId: string; deliverableId: string; summary: string }> = [];
+    const app = deliverableCodexRoutes({
+      conversations: { async get() { return { id: "c1", conversationId: "chat-1", projectId: "p1", deliverableId: "d1", status: "active", contextVersion: "ctx-v1" } as never; }, async touch() {}, async setCodexThread() {}, async markContextSynced() {} } as never,
+      chats: { async listMessages() { return []; } } as never,
+      context: { async build() { return { systemInstruction: "规则", initialContext: "基线" }; } } as never,
+      prompts: {} as never,
+      attachments: null,
+      agents: { async sendMessage(_id, _input, onEvent) { await onEvent?.({ type: "tool", turnId: "turn-1", callId: "call-1", name: "rich_deliverable_file_write", status: "succeeded" }); await onEvent?.({ type: "done", turnId: "turn-1", content: "完成" }); return { turn: {}, events: [] }; } } as never,
+      onTurnCompleted: async update => { progress.push(update); },
+    });
+
+    const response = await app.request("/conversations/c1/stream", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content: "写入需求说明", clientRequestId: "request-1", userMessageId: "message-1" }) });
+    await response.text();
+    expect(progress).toEqual([]);
+  });
+
   it("renders changed task rules with variables and publishes the policy card before starting Codex", async () => {
     const chats: Array<Record<string, unknown>> = [{
       type: "message", conversationId: "chat-1", role: "system", content: "旧规则",

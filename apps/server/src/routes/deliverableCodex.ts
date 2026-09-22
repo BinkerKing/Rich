@@ -26,7 +26,7 @@ async function taskModeStartupInstruction(prompts: PromptLibraryService, mode: T
   const businessKind = typeof location.business?.kind === "string" ? location.business.kind : "业务";
   const businessTitle = typeof location.business?.title === "string" ? location.business.title : "未标注业务";
   const rendered = await prompts.render("codex.deliverable-analysis-start", { modeLabel: label, page, businessKind, businessTitle, project, projectId, deliverableId, deliverableContext, projectFolder });
-  return `${rendered.content}\n\n## 项目文件访问\n- 项目根目录：${projectFolder}\n- 可读取、创建、修改、移动和删除任意本地文件。\n- 可使用 \`rich_deliverable_file_write\` 写入文本文件，或使用 \`rich_deliverable_file_copy\` 复制文件；两者均支持绝对路径。\n- Rich MCP 的目录与文件查询结果均包含绝对路径。`;
+  return `${rendered.content}\n\n## 项目文件访问\n- 项目根目录：${projectFolder}\n- 可读取、创建、修改、移动和删除任意本地文件。\n- 可使用 \`rich_deliverable_file_write\` 写入文本文件，或使用 \`rich_deliverable_file_copy\` 复制文件；两者的目标路径必须位于当前交付物目录。\n- Rich MCP 的目录与文件查询结果均包含绝对路径。`;
 }
 
 export function deliverableCodexRoutes(deps: {
@@ -247,7 +247,11 @@ export function deliverableCodexRoutes(deps: {
     }
     await deps.conversations.touch(existing.id, new Date().toISOString());
     return streamSSE(c, async stream => {
+      let producedAttachment = false;
       const write = async (event: AgentConversationEvent) => {
+        if (event.type === "tool" && ["completed", "succeeded"].includes(event.status) && ["rich_deliverable_file_write", "rich_deliverable_file_copy"].includes(event.name)) {
+          producedAttachment = true;
+        }
         const name = event.type === "delta" ? "text" : event.type === "done" ? "done" : event.type;
         const data = event.type === "delta" ? { chunk: event.text, turnId: event.turnId } : event;
         await stream.writeSSE({ event: name, data: JSON.stringify(data) });
@@ -262,7 +266,7 @@ export function deliverableCodexRoutes(deps: {
         const sessionId = result.turn.runtimeSessionId;
         if (sessionId) await deps.conversations.setCodexThread(existing.id, sessionId, existing.contextVersion, new Date().toISOString());
         if (contextForTurn) await deps.conversations.markContextSynced(existing.id, new Date().toISOString());
-        await deps.onTurnCompleted?.({ projectId: existing.projectId, deliverableId: existing.deliverableId, summary: "已完成本次回复" });
+        if (!producedAttachment) await deps.onTurnCompleted?.({ projectId: existing.projectId, deliverableId: existing.deliverableId, summary: "已完成本次回复" });
       } catch (error) {
         await stream.writeSSE({ event: "error", data: JSON.stringify({ message: error instanceof Error ? error.message : String(error) }) });
       }

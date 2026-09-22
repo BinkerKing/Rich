@@ -672,7 +672,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
       const summary = describeDeliverableCodexOperation(event.data.tool);
       const deliverableOperation = event.data.phase === "completed" && event.data.ok && summary
         && event.data.projectId && event.data.deliverableId
-        ? { summary, projectId: event.data.projectId, deliverableId: event.data.deliverableId }
+        ? { summary, projectId: event.data.projectId, deliverableId: event.data.deliverableId, attachment: event.data.attachment }
         : undefined;
       const operationId = event.data.requestId && operationCorrelations.resolve(event.data.requestId);
       if (!deliverableOperation && !operationId) return;

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { copyFile, mkdir, readdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
-import { extname, relative, resolve, sep } from "node:path";
+import { extname, isAbsolute, relative, resolve, sep } from "node:path";
 import { z } from "zod";
 import type { ElementsRepo } from "../../repos/ElementsRepo.js";
 import type { McpOperationRepo } from "../../repos/McpOperationRepo.js";
@@ -72,10 +72,10 @@ async function listFiles(root: string, directory: string, relativeBase: string):
 }
 
 async function readableFile(root: string, folder: string, relativePath: string): Promise<string> {
-  const target = resolve(root, relativePath);
+  const target = deliverableFilePath(root, folder, relativePath);
   try {
     const actual = await realpath(target);
-    if (!(await stat(actual)).isFile()) throw new Error("not a file");
+    if (!isInside(folder, actual) || !(await stat(actual)).isFile()) throw new Error("not a file");
     return actual;
   } catch {
     throw new RichMcpError("NOT_FOUND", "The requested deliverable file was not found.");
@@ -102,8 +102,22 @@ async function readableProjectFile(root: string, relativePath: string): Promise<
   }
 }
 
-function writableFile(root: string, path: string): string {
-  return resolve(root, path);
+function isInside(folder: string, path: string): boolean {
+  const pathFromFolder = relative(folder, path);
+  return pathFromFolder !== "" && !pathFromFolder.startsWith(`..${sep}`) && pathFromFolder !== ".." && !isAbsolute(pathFromFolder);
+}
+
+function deliverableFilePath(root: string, folder: string, path: string): string {
+  const folderPath = relative(root, folder).replaceAll("\\", "/");
+  const target = isAbsolute(path)
+    ? resolve(path)
+    : path === folderPath || path.startsWith(`${folderPath}/`)
+      ? resolve(root, path)
+      : resolve(folder, path);
+  if (!isInside(folder, target)) {
+    throw new RichMcpError("VALIDATION_ERROR", "The file path must be inside the current deliverable folder.");
+  }
+  return target;
 }
 
 async function readTextFile(path: string, maxChars: number): Promise<string> {
@@ -133,15 +147,15 @@ export function registerDeliverableWorkspaceTools(
   const getDeliverable = (projectId: string, deliverableId: string) => findDeliverable(projects, standaloneDeliverables, projectId, deliverableId);
   registry.register({
     name: "rich_deliverable_file_write", title: "写入交付物文本文件", category: "manage",
-    description: "将 UTF-8 文本写入指定路径。支持绝对路径和相对项目根目录的路径。",
+    description: "将 UTF-8 文本写入当前交付物目录。路径可使用交付物目录内的相对路径，或该目录内的项目相对路径。",
     inputSchema: targetSchema.extend({ relativePath: z.string().trim().min(1), content: z.string().max(1_000_000), context: richContextSchema, options: richOptionsSchema }), annotations: { readOnly: false, destructive: false, idempotent: true },
-    examples: [{ description: "写入交付物说明", input: { projectId: "project-id", deliverableId: "deliverable-id", relativePath: "07-交付/UAT/说明.md", content: "# 说明" } }],
+    examples: [{ description: "写入交付物说明", input: { projectId: "project-id", deliverableId: "deliverable-id", relativePath: "说明.md", content: "# 说明" } }],
     verification: "Writes and reads back the exact UTF-8 file inside the specified deliverable.",
     handler: async ({ projectId, deliverableId, relativePath, content, context, options }) => executeSafeWrite({
       toolName: "rich_deliverable_file_write", operationRepo, context, options, inputForHash: { projectId, deliverableId, relativePath, content }, changes: [{ operation: "write", resource: "deliverableFile", id: relativePath }],
       execute: async () => {
         const item = await getDeliverable(projectId, deliverableId);
-        const root = await projectRoot(elements, projectId); const target = writableFile(root, relativePath);
+        const root = await projectRoot(elements, projectId); const target = deliverableFilePath(root, deliverableFolder(root, item.content.folderPath), relativePath);
         await mkdir(resolve(target, ".."), { recursive: true }); await writeFile(target, content, "utf8");
         return { deliverableId: item.id, relativePath: relative(root, target).replaceAll("\\", "/"), absolutePath: target, content };
       },
@@ -151,15 +165,15 @@ export function registerDeliverableWorkspaceTools(
   });
   registry.register({
     name: "rich_deliverable_file_copy", title: "复制项目文件到交付物", category: "manage",
-    description: "将任意可读取文件复制到指定路径。支持绝对路径和相对项目根目录的路径。",
+    description: "将项目文件复制到当前交付物目录。目标路径可使用交付物目录内的相对路径，或该目录内的项目相对路径。",
     inputSchema: targetSchema.extend({ sourceRelativePath: z.string().trim().min(1), destinationRelativePath: z.string().trim().min(1), context: richContextSchema, options: richOptionsSchema }), annotations: { readOnly: false, destructive: false, idempotent: true },
-    examples: [{ description: "复制项目材料", input: { projectId: "project-id", deliverableId: "deliverable-id", sourceRelativePath: "09-材料/基线.pdf", destinationRelativePath: "07-交付/UAT/基线.pdf" } }],
+    examples: [{ description: "复制项目材料", input: { projectId: "project-id", deliverableId: "deliverable-id", sourceRelativePath: "09-材料/基线.pdf", destinationRelativePath: "基线.pdf" } }],
     verification: "Copies a project file and verifies the destination byte size inside the specified deliverable.",
     handler: async ({ projectId, deliverableId, sourceRelativePath, destinationRelativePath, context, options }) => executeSafeWrite({
       toolName: "rich_deliverable_file_copy", operationRepo, context, options, inputForHash: { projectId, deliverableId, sourceRelativePath, destinationRelativePath }, changes: [{ operation: "copy", resource: "deliverableFile", id: destinationRelativePath }],
       execute: async () => {
         const item = await getDeliverable(projectId, deliverableId);
-        const root = await projectRoot(elements, projectId); const source = await readableProjectFile(root, sourceRelativePath); const target = writableFile(root, destinationRelativePath);
+        const root = await projectRoot(elements, projectId); const source = await readableProjectFile(root, sourceRelativePath); const target = deliverableFilePath(root, deliverableFolder(root, item.content.folderPath), destinationRelativePath);
         await mkdir(resolve(target, ".."), { recursive: true }); await copyFile(source, target);
         return { deliverableId: item.id, relativePath: relative(root, target).replaceAll("\\", "/"), absolutePath: target, size: (await stat(source)).size };
       },

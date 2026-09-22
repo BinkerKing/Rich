@@ -52,6 +52,7 @@ function modeInstruction(mode: DeliverableContextMode): string {
     "If you need any clarification, you MUST first call rich_deliverable_record_create with kind: question and phrase one clear question for the user.",
     "Never ask a clarification question only in the chat response. After creating a question record, the chat response must only confirm that the question has been recorded and that you are waiting for the user's answer.",
     "Never use a kind: codex record to give the user a response or completion update. Rich will add the completion feedback as a kind: status record.",
+    "When you create or copy an output file, it must be in the current deliverable folder. When using rich_deliverable_file_write or rich_deliverable_file_copy, Rich automatically posts a status report with the file attached; do not add a duplicate. For a file created by another allowed means, create one kind: status record with attachmentRelativePaths and clearly report its purpose, contents, and validation result.",
     "Do not create other Rich business records or deliverable results in free mode.",
   ].join("\n");
 }
@@ -139,6 +140,10 @@ export class DeliverableCodexContextService {
         "rich_deliverable_record_update",
         "rich_deliverable_file_meta_update",
       ] : input.mode === "free" ? [
+        "rich_deliverable_get",
+        "rich_deliverable_files_get",
+        "rich_deliverable_file_write",
+        "rich_deliverable_file_copy",
         "rich_deliverable_record_create",
         "rich_deliverable_record_update",
         "rich_deliverable_requirement_update",
