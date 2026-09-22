@@ -8752,6 +8752,13 @@
   font-family: "SF Mono", ui-monospace, monospace;
 }
 
+.dict-sql-token.is-keyword { color: #c4b5fd; font-weight: 700; }
+.dict-sql-token.is-string { color: #fde68a; }
+.dict-sql-token.is-comment { color: #7f93a4; font-style: italic; }
+.dict-sql-token.is-number { color: #7dd3fc; }
+.dict-sql-token.is-identifier { color: #8be9fd; }
+.dict-sql-token.is-punctuation { color: #cbd5e1; }
+
 .prj-pm-dict-property-viewer__refs {
   display: flex;
   flex-wrap: wrap;

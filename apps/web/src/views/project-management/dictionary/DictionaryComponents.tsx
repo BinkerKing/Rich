@@ -72,6 +72,7 @@ import {
   renderDictionaryCaliberLogic,
   renderDictionaryLogicWithRefs,
 } from "./DictionaryLogicRenderer.js";
+import { SqlSyntaxHighlight } from "./sqlSyntaxHighlight.js";
 
 type DictionaryView = "field-design" | "mapping" | "temp-table" | "relations" | "test-data" | "table-info";
 type DictionaryPropertyKind = "fieldDetail" | "tableDetail" | "systemDetail" | "description" | "codeValue" | "formatPattern" | "mappingLogic" | "mappingCaliber" | "externalSql" | "sourceRefs" | "generic";
@@ -160,7 +161,6 @@ export function DictionaryFieldGrid({
     { id: "codeValue", label: "码值说明", width: 280, minWidth: 140 },
     { id: "verificationStatus", label: "验证状态", width: 100, minWidth: 82 },
     { id: "remark", label: "备注", width: 220, minWidth: 120 },
-    { id: "externalSql", label: "外部SQL", width: 160, minWidth: 120 },
   ], []);
   const columnResize = useDictionaryResizableColumns(storageKey, columns, loadDictionaryColumnWidths, saveDictionaryColumnWidths);
   const gridStyle = useMemo(() => ({
@@ -1228,7 +1228,7 @@ function DictionaryPropertyContent({
   }
 
   if (payload.kind === "externalSql") {
-    return <div className="prj-pm-dict-property-viewer__logic"><p>仅供参考，不参与 Mapping 解析、SQL 转换或校验。</p><pre>{payload.value || "-"}</pre></div>;
+    return <div className="prj-pm-dict-property-viewer__logic"><p>仅供参考，不参与 Mapping 解析、SQL 转换或校验。</p><pre><SqlSyntaxHighlight sql={payload.value || "-"} /></pre></div>;
   }
 
   if (payload.kind === "mappingCaliber") {

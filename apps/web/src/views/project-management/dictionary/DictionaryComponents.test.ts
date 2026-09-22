@@ -1,7 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import type { ProjectDictionaryFieldHit, ProjectDictionaryTable } from "../../../api/client.js";
 import { buildDictionaryMappingScenarios } from "./DictionaryComponents.js";
+
+test("字段设计移除未渲染的外部 SQL 列，并在属性查看器高亮 SQL", () => {
+  const source = readFileSync(new URL("./DictionaryComponents.tsx", import.meta.url), "utf8");
+
+  assert.doesNotMatch(source.slice(source.indexOf("function DictionaryFieldGrid"), source.indexOf("export function DictionaryMappingPanel")), /id: "externalSql"/);
+  assert.match(source, /<SqlSyntaxHighlight sql=\{payload\.value \|\| "-"\} \/>/);
+});
 
 test("公共 Mapping 规则继承到每个显式场景，不生成默认场景页签", () => {
   const scenarios = buildDictionaryMappingScenarios(
