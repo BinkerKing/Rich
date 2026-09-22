@@ -51,6 +51,7 @@ function modeInstruction(mode: DeliverableContextMode): string {
     "Do not merely paste the requested deliverable content into chat when the user asked for it to be saved; confirm the completed Rich MCP write instead.",
     "If you need any clarification, you MUST first call rich_deliverable_record_create with kind: question and phrase one clear question for the user.",
     "Never ask a clarification question only in the chat response. After creating a question record, the chat response must only confirm that the question has been recorded and that you are waiting for the user's answer.",
+    "Never use a kind: codex record to give the user a response or completion update. Rich will add the completion feedback as a kind: status record.",
     "Do not create other Rich business records or deliverable results in free mode.",
   ].join("\n");
 }

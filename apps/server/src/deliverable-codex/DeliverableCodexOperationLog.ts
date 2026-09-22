@@ -37,7 +37,7 @@ export async function appendDeliverableCodexOperationRecord({ projects, standalo
 
   const record = {
     id: `codex-operation-${randomUUID()}`,
-    kind: "codex",
+    kind: "status",
     text: `已完成：${summary}`,
     createdAt: new Date().toISOString(),
     informationType: "information",

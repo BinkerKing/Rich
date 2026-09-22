@@ -21,7 +21,7 @@ describe("DeliverableCodexOperationLog", () => {
 
     expect(appended).toBe(true);
     expect(content.records).toEqual([expect.objectContaining({
-      kind: "codex", author: "Codex", text: "已完成：更新需求说明", informationType: "information", attachments: [],
+      kind: "status", author: "Codex", text: "已完成：更新需求说明", informationType: "information", attachments: [],
     })]);
   });
 

@@ -36,6 +36,7 @@ export function deliverableCodexRoutes(deps: {
   agents: AgentConversationService;
   attachments: ChatAttachmentsRepo | null;
   prompts: PromptLibraryService;
+  onTurnCompleted?: (input: { projectId: string; deliverableId: string; summary: string }) => Promise<void>;
 }): Hono {
   const r = new Hono();
   const scopeKey = (projectId: string, deliverableId: string) => `deliverable:${projectId}:${deliverableId}`;
@@ -261,6 +262,7 @@ export function deliverableCodexRoutes(deps: {
         const sessionId = result.turn.runtimeSessionId;
         if (sessionId) await deps.conversations.setCodexThread(existing.id, sessionId, existing.contextVersion, new Date().toISOString());
         if (contextForTurn) await deps.conversations.markContextSynced(existing.id, new Date().toISOString());
+        await deps.onTurnCompleted?.({ projectId: existing.projectId, deliverableId: existing.deliverableId, summary: "已完成本次回复" });
       } catch (error) {
         await stream.writeSSE({ event: "error", data: JSON.stringify({ message: error instanceof Error ? error.message : String(error) }) });
       }

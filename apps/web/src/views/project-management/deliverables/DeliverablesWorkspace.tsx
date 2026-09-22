@@ -94,6 +94,7 @@ export function DeliverablesWorkspace({
   const [editingRecordFiles, setEditingRecordFiles] = useState<File[]>([]);
   const [answeringQuestionId, setAnsweringQuestionId] = useState<string>();
   const [answerText, setAnswerText] = useState("");
+  const [runningCodexRecordIds, setRunningCodexRecordIds] = useState<Set<string>>(() => new Set());
   const [filesByFolder, setFilesByFolder] = useState<
     Record<string, DeliverableFile[]>
   >({});
@@ -419,11 +420,16 @@ export function DeliverablesWorkspace({
     if (!projectId) throw new Error("交付物尚未绑定项目，无法创建 Codex Session。");
     return api.ensureDeliverableCodexSession(projectId, item.id, `${item.title} · Codex`);
   };
-  const sendCodexRecord = async (item: Item, content: string) => {
-    const session = await ensureCodexSession(item);
-    const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(session.conversation.id)}/stream`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, userMessageId: crypto.randomUUID(), clientRequestId: crypto.randomUUID() }) });
-    if (!response.ok) throw new Error(`Codex 任务发送失败 (${response.status})`);
-    await response.text();
+  const sendCodexRecord = async (item: Item, content: string, recordId: string) => {
+    setRunningCodexRecordIds(current => new Set(current).add(recordId));
+    try {
+      const session = await ensureCodexSession(item);
+      const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(session.conversation.id)}/stream`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, userMessageId: crypto.randomUUID(), clientRequestId: crypto.randomUUID() }) });
+      if (!response.ok) throw new Error(`Codex 任务发送失败 (${response.status})`);
+      await response.text();
+    } finally {
+      setRunningCodexRecordIds(current => { const next = new Set(current); next.delete(recordId); return next; });
+    }
   };
   const openCodexConversation = async (item: Item) => {
     const session = await ensureCodexSession(item);
@@ -518,10 +524,11 @@ export function DeliverablesWorkspace({
       }
     }
     const recordText = text.trim();
+    const recordId = crypto.randomUUID();
     await save(
       item,
       addDeliverableRecord(content, {
-        id: crypto.randomUUID(),
+        id: recordId,
         kind,
         text: recordText,
         createdAt: new Date().toISOString(),
@@ -533,7 +540,7 @@ export function DeliverablesWorkspace({
     setRecordFiles([]);
     if (materialInputRef.current) materialInputRef.current.value = "";
     await refreshFiles(item);
-    if (kind === "codex") await sendCodexRecord(item, recordText);
+    if (kind === "codex") await sendCodexRecord(item, recordText, recordId);
   };
   const publishDeliverableAiTask = async (item: Item) => {
     if (!richTextHasContent(text)) return;
@@ -863,10 +870,11 @@ export function DeliverablesWorkspace({
                         return (
                           <article
                             key={record.id}
-                            className={`deliverables-workspace__record is-${record.kind}${isEditingCurrentRecord && editingRecordId === record.id ? " is-editing-existing" : ""}`}
+                            className={`deliverables-workspace__record is-${record.kind}${runningCodexRecordIds.has(record.id) ? " is-codex-running" : ""}${isEditingCurrentRecord && editingRecordId === record.id ? " is-editing-existing" : ""}`}
                             >
                             <b>{recordKindLabel(record.kind)}</b>
                             <div className="deliverables-workspace__record-content workflow-rich-content" onDoubleClick={() => record.kind === "ai_task_result" ? undefined : startRecordEdit(item, record)} title={record.kind === "ai_task_result" ? undefined : "双击编辑"} dangerouslySetInnerHTML={{ __html: record.text }} />
+                            {runningCodexRecordIds.has(record.id) && <i className="deliverables-workspace__codex-progress" aria-label="Codex 正在回复"/>}
                             <aside className="deliverables-workspace__record-actions">
                               <time>{fileDate(record.aiTaskResult?.completedAt || record.createdAt)}</time>
                               {record.aiTask && <small className="deliverables-workspace__record-ai-task">AI 任务 · {record.aiTask.executor === "hermes" ? "Hermes" : "Multica"} · {record.aiTask.status}</small>}

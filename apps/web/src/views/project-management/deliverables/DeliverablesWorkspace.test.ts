@@ -210,6 +210,14 @@ test("Codex 通过交付物 MCP 写入成功后，刷新当前交付物页面数
   assert.match(serverEvents, /notifyDeliverableDataChanged\(projectId, deliverableId\)/);
 });
 
+test("Codex 任务记录在回复期间显示流动进度条，并等待进展记录反馈", () => {
+  assert.match(deliverables, /const \[runningCodexRecordIds, setRunningCodexRecordIds\] = useState<Set<string>>\(\(\) => new Set\(\)\)/);
+  assert.match(deliverables, /runningCodexRecordIds\.has\(record\.id\) \? " is-codex-running" : ""/);
+  assert.match(deliverables, /<i className="deliverables-workspace__codex-progress" aria-label="Codex 正在回复"\/>/);
+  assert.match(styles, /\.deliverables-workspace__record\.is-codex-running \{[^}]*overflow:hidden/s);
+  assert.match(styles, /@keyframes deliverables-codex-progress/);
+});
+
 test("Codex 对话消息、卡片和图片支持右键复制", () => {
   assert.match(codexWorkbench, /onContextMenu=\{event => openMessageContextMenu\(event, message\.content\)\}/);
   assert.match(codexWorkbench, /openMessageContextMenu\(event, message\.content, attachment\)/);

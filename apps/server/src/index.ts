@@ -563,7 +563,10 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
       app.use("/api/workbench/*", async (_c, next) => { await ready; await next(); });
       app.route("/api/workbench", taskWorkbenchRoutes(workbench, commands, join(root, "task-materials")));
     }
-    app.route("/api/deliverable-codex", deliverableCodexRoutes({ conversations: deliverableCodexConversations, chats: chatConversations, context: deliverableCodexContext, agents: agentExecution, attachments: chatAttachments, prompts: promptLibrary }));
+    app.route("/api/deliverable-codex", deliverableCodexRoutes({ conversations: deliverableCodexConversations, chats: chatConversations, context: deliverableCodexContext, agents: agentExecution, attachments: chatAttachments, prompts: promptLibrary, onTurnCompleted: async input => {
+      const appended = await appendDeliverableCodexOperationRecord({ projects: projectManagement, standaloneDeliverables: deliverables, ...input });
+      if (appended) eventBus.publish("deliverable.changed", { source: "mcp", detail: input });
+    } }));
   }
   app.route("/api/prompt-library", promptLibraryRoutes(promptLibrary));
   app.route("/api/chat-visual-blocks", chatVisualBlocksRoutes(chatVisualBlocks));
