@@ -162,6 +162,7 @@ import { HermesTaskExecutor } from "./ai-tasks/HermesTaskExecutor.js";
 import { MulticaTaskExecutor } from "./ai-tasks/MulticaTaskExecutor.js";
 import { AiTaskDispatcher } from "./ai-tasks/AiTaskDispatcher.js";
 import { DeliverableTaskHistoryService } from "./ai-tasks/DeliverableTaskHistoryService.js";
+import { appendDeliverableCodexOperationRecord, describeDeliverableCodexOperation } from "./deliverable-codex/DeliverableCodexOperationLog.js";
 import { BailianAdapter } from "./ai/bailian.js";
 import { loadAIEngineSettings } from "./ai/engineSettings.js";
 import { configureOpLog, healStaleRunningOps, recordTraceForExistingOp } from "./ai/aiOpLog.js";
@@ -236,6 +237,7 @@ import { PostgresGreatMeRepo } from "./repos/PostgresGreatMeRepo.js";
 import { PostgresInvocationsRepo } from "./repos/PostgresInvocationsRepo.js";
 import { PostgresImprovementsRepo } from "./repos/PostgresImprovementsRepo.js";
 import { getAgentId } from "./lib/agentId.js";
+import { eventBus } from "./lib/eventBus.js";
 import { PROJECT_MANAGEMENT_MODULES, type ProjectManagementModuleKey, type ProjectManagementRepo } from "./repos/ProjectManagementRepo.js";
 import { PostgresProjectManagementRepo } from "./repos/PostgresProjectManagementRepo.js";
 import { SqliteProjectManagementRepo } from "./repos/SqliteProjectManagementRepo.js";
@@ -664,12 +666,30 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     taskService: multicaWorkTasks,
     aiTaskManagement,
     onToolEvent: event => {
+      const summary = describeDeliverableCodexOperation(event.data.tool);
+      const deliverableOperation = event.data.phase === "completed" && event.data.ok && summary
+        && event.data.projectId && event.data.deliverableId
+        ? { summary, projectId: event.data.projectId, deliverableId: event.data.deliverableId }
+        : undefined;
       const operationId = event.data.requestId && operationCorrelations.resolve(event.data.requestId);
-      if (!operationId) return;
-      return () => recordTraceForExistingOp(operationId, {
-        type: event.type,
-        data: { tool: event.data.tool, status: event.data.phase },
-      });
+      if (!deliverableOperation && !operationId) return;
+      return async () => {
+        if (deliverableOperation) {
+          await appendDeliverableCodexOperationRecord({
+            projects: projectManagement,
+            standaloneDeliverables: deliverables,
+            ...deliverableOperation,
+          });
+          eventBus.publish("deliverable.changed", {
+            source: "mcp",
+            detail: { projectId: deliverableOperation.projectId, deliverableId: deliverableOperation.deliverableId, tool: event.data.tool },
+          });
+        }
+        if (operationId) await recordTraceForExistingOp(operationId, {
+          type: event.type,
+          data: { tool: event.data.tool, status: event.data.phase },
+        });
+      };
     },
   }, {
     state: mcpTransportState,

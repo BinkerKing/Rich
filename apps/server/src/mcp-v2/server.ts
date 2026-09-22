@@ -33,6 +33,8 @@ export interface McpToolEvent {
     tool: string;
     requestId?: string;
     conversationId?: string;
+    projectId?: string;
+    deliverableId?: string;
     ok?: boolean;
   };
 }
@@ -135,7 +137,7 @@ export function buildMcpV2Server(deps: BuildMcpV2Deps): McpServer {
       // Idempotency belongs to the MCP transport, not to the model. Codex
       // should never have to invent or copy a Rich request ID just to write.
       const enrichedInput = injectMcpRequestContext(input, extra.requestId, extra.sessionId);
-      const correlation = readCorrelation(enrichedInput);
+      const correlation = { ...readCorrelation(enrichedInput), ...readDeliverableTarget(tool.name, enrichedInput) };
       emitToolEvent({ type: "mcp.tool", data: {
         phase: "started", tool: tool.name, ...correlation,
       } });
@@ -182,6 +184,16 @@ function readCorrelation(input: unknown): Pick<McpToolEvent["data"], "requestId"
   return {
     ...(typeof requestId === "string" ? { requestId } : {}),
     ...(typeof conversationId === "string" ? { conversationId } : {}),
+  };
+}
+
+function readDeliverableTarget(toolName: string, input: unknown): Pick<McpToolEvent["data"], "projectId" | "deliverableId"> {
+  if (!toolName.startsWith("rich_deliverable_")) return {};
+  if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+  const { projectId, deliverableId } = input as { projectId?: unknown; deliverableId?: unknown };
+  return {
+    ...(typeof projectId === "string" && projectId.trim() ? { projectId } : {}),
+    ...(typeof deliverableId === "string" && deliverableId.trim() ? { deliverableId } : {}),
   };
 }
 

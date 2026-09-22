@@ -104,6 +104,25 @@ describe("MCP observability", () => {
     db.close();
   });
 
+  it("keeps the deliverable target on tool events so a successful write can refresh its page", async () => {
+    const { app, db, events } = makeMcpApp();
+    const response = await rpc(app, {
+      id: 20,
+      method: "tools/call",
+      params: {
+        name: "rich_deliverable_record_create",
+        arguments: { projectId: "project-1", deliverableId: "delivery-1", kind: "information", text: "refresh me" },
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(events).toEqual([
+      { type: "mcp.tool", data: { phase: "started", tool: "rich_deliverable_record_create", projectId: "project-1", deliverableId: "delivery-1", requestId: "mcp:stateless:20" } },
+      { type: "mcp.tool", data: { phase: "error", tool: "rich_deliverable_record_create", projectId: "project-1", deliverableId: "delivery-1", requestId: "mcp:stateless:20", ok: false } },
+    ]);
+    db.close();
+  });
+
   it("tracks successful requests and caught transport errors", async () => {
     const { app, db, state } = makeMcpApp();
     expect(state.snapshot.requestsTotal).toBe(0);

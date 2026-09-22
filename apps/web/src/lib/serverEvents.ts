@@ -1,4 +1,5 @@
 import { useStore } from "../state/store.js";
+import { notifyDeliverableDataChanged } from "../views/project-management/deliverables/DeliverablesModel.js";
 
 /**
  * Subscribe to the backend's SSE channel at /api/events so the UI re-hydrates
@@ -33,7 +34,12 @@ export function connectServerEvents(): () => void {
     if (stopped) return;
     es = new EventSource("/api/events");
     es.addEventListener("change", event => {
-      if (JSON.parse((event as MessageEvent).data).kind !== "workbench.changed") scheduleHydrate();
+      const change = JSON.parse((event as MessageEvent).data) as { kind?: string; detail?: { projectId?: unknown; deliverableId?: unknown } };
+      if (change.kind === "deliverable.changed") {
+        const { projectId, deliverableId } = change.detail ?? {};
+        if (typeof projectId === "string" && typeof deliverableId === "string") notifyDeliverableDataChanged(projectId, deliverableId);
+      }
+      if (change.kind !== "workbench.changed") scheduleHydrate();
     });
     // Reconnect with backoff on error; EventSource auto-reconnects on most
     // network errors but we re-open the connection ourselves to be safe.

@@ -30,7 +30,8 @@ export type EventKind =
   | "corpus.changed"
   | "tool_invocation.changed"
   | "mascot.changed"
-  | "greatme.changed";
+  | "greatme.changed"
+  | "deliverable.changed";
 
 interface RichEvent {
   kind: EventKind;

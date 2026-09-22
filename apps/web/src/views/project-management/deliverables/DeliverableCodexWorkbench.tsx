@@ -32,6 +32,8 @@ const desktopTitlebarHeight = 56;
 const deliverableTaskModes: TaskMode[] = [{ id: "deliverable-analysis", label: "交付物分析", hint: "分析当前交付物的需求、记录与材料" }];
 const generalTaskMode: TaskMode = { id: "general-task", label: "任务模式（自动适配）", hint: "理解需求、制定计划；没有专用承接时进入通用任务" };
 const deliverableWriteToolNames = new Set([
+  "rich_deliverable_file_write",
+  "rich_deliverable_file_copy",
   "rich_deliverable_record_create",
   "rich_deliverable_record_update",
   "rich_deliverable_requirement_update",

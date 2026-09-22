@@ -8,6 +8,7 @@ const deliveryPlan = readFileSync(new URL("../delivery/DeliveryWorkspace.tsx", i
 const deliverables = readFileSync(new URL("./DeliverablesWorkspace.tsx", import.meta.url), "utf8").replace(/\s+/g, " ");
 const deliverableModel = readFileSync(new URL("./DeliverablesModel.ts", import.meta.url), "utf8");
 const codexWorkbench = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
+const serverEvents = readFileSync(new URL("../../../lib/serverEvents.ts", import.meta.url), "utf8");
 const modules = readFileSync(new URL("../ProjectManagementModules.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../../ProjectsView.css", import.meta.url), "utf8");
 const linearStyles = readFileSync(new URL("../ProjectManagementLinear.css", import.meta.url), "utf8");
@@ -205,6 +206,8 @@ test("Codex 通过交付物 MCP 写入成功后，刷新当前交付物页面数
   assert.match(codexWorkbench, /notifyDeliverableDataChanged\(projectId, deliverableId\)/);
   assert.match(deliverables, /window\.addEventListener\(DELIVERABLE_DATA_CHANGED_EVENT, refreshDeliverableData\)/);
   assert.match(deliverables, /void refreshItems\(\);/);
+  assert.match(serverEvents, /change\.kind === "deliverable\.changed"/);
+  assert.match(serverEvents, /notifyDeliverableDataChanged\(projectId, deliverableId\)/);
 });
 
 test("Codex 对话消息、卡片和图片支持右键复制", () => {
