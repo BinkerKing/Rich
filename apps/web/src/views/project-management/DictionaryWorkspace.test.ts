@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import type { ProjectDictionaryMappingTempTable, ProjectDictionaryTable } from "../../api/client.js";
-import { dictionaryTableHasTempTables, dictionaryTableSupportsMapping } from "./DictionaryWorkspace.js";
+import { dictionarySystemTableCounts, dictionaryTableHasTempTables, dictionaryTableSupportsMapping } from "./DictionaryWorkspace.js";
 
 const source = readFileSync(new URL("./DictionaryWorkspace.tsx", import.meta.url), "utf8");
 
@@ -33,4 +33,14 @@ test("有 Mapping 且配置临时表的表展示临时表页签", () => {
   const tempTables = [{ id: "temp-1" }] as ProjectDictionaryMappingTempTable[];
 
   assert.equal(dictionaryTableHasTempTables(table, tempTables), true);
+});
+
+test("数据系统标题显示已使用表数和表清单总数", () => {
+  const tables = [
+    { id: "used-a", usageStatus: "使用" },
+    { id: "used-b", usageStatus: "是" },
+    { id: "unused", usageStatus: "未使用" },
+  ] as ProjectDictionaryTable[];
+
+  assert.deepEqual(dictionarySystemTableCounts(tables, 7), { used: 2, total: 7 });
 });

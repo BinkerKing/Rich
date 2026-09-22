@@ -751,7 +751,10 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
                   <span>{(catalog === "business-scenarios" ? expandedScenarioSystemIds : expandedSystemIds).includes(system.id) ? "▾" : "▸"}</span>
                   <b>{system.code || system.name}</b>
                   <small>{catalog === "business-scenarios" ? "业务场景" : system.assetLayer || system.type || "mapping"}</small>
-                  <em>{catalog === "business-scenarios" ? `${businessScenarios.filter(scenario => scenario.libraryId === system.id).length} 个` : `${system.tableCount} / ${system.fieldCount}`}</em>
+                  <em>{catalog === "business-scenarios" ? `${businessScenarios.filter(scenario => scenario.libraryId === system.id).length} 个` : (() => {
+                    const counts = dictionarySystemTableCounts(getTreeTables(system.id), system.tableCount);
+                    return `${counts.used} / ${counts.total}`;
+                  })()}</em>
                 </button>
                 {expandedScenarioSystemIds.includes(system.id) && catalog === "business-scenarios" && (
                   <div className="prj-pm-dict__table-tree prj-pm-dict__scenario-tree">
@@ -1011,6 +1014,10 @@ function renderDictionaryTableMarker(marker?: DictionaryTableMarker) {
 function dictionaryTableIsInUse(table: ProjectDictionaryTable): boolean {
   return ["使用", "是", "yes", "true", "1", "active", "启用"]
     .includes(table.usageStatus?.trim().toLocaleLowerCase() || "");
+}
+
+export function dictionarySystemTableCounts(tables: ProjectDictionaryTable[], total: number): { used: number; total: number } {
+  return { used: tables.filter(dictionaryTableIsInUse).length, total };
 }
 
 export function dictionaryTableSupportsMapping(table?: ProjectDictionaryTable): boolean {
