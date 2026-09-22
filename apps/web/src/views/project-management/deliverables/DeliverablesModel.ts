@@ -1,6 +1,6 @@
 export type DeliverableStatus = "draft" | "preparing" | "ready" | "accepted";
 export type DeliverableVersionPolicy = "latest" | "versioned";
-export type DeliverableRecordKind = "requirement" | "status" | "decision" | "issue" | "risk" | "change" | "information" | "material" | "codex" | "ai_task" | "ai_task_result";
+export type DeliverableRecordKind = "requirement" | "status" | "decision" | "issue" | "risk" | "change" | "information" | "material" | "codex" | "question" | "answer" | "ai_task" | "ai_task_result";
 export type DeliverableRecordInformationType = "information" | "material";
 export type DeliverableFileType = "deliverable" | "material" | "intermediate";
 
@@ -120,7 +120,7 @@ function records(value: unknown): DeliverableRecord[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap(entry => {
     if (!isRecord(entry) || typeof entry.id !== "string" || typeof entry.text !== "string" || typeof entry.createdAt !== "string") return [];
-    if (entry.kind !== "requirement" && entry.kind !== "status" && entry.kind !== "decision" && entry.kind !== "issue" && entry.kind !== "risk" && entry.kind !== "change" && entry.kind !== "information" && entry.kind !== "material" && entry.kind !== "codex" && entry.kind !== "ai_task" && entry.kind !== "ai_task_result") return [];
+    if (entry.kind !== "requirement" && entry.kind !== "status" && entry.kind !== "decision" && entry.kind !== "issue" && entry.kind !== "risk" && entry.kind !== "change" && entry.kind !== "information" && entry.kind !== "material" && entry.kind !== "codex" && entry.kind !== "question" && entry.kind !== "answer" && entry.kind !== "ai_task" && entry.kind !== "ai_task_result") return [];
     const attachments = recordAttachments(entry.attachments);
     const aiTask = isRecord(entry.aiTask) && typeof entry.aiTask.id === "string" && typeof entry.aiTask.status === "string" && (entry.aiTask.executor === "hermes" || entry.aiTask.executor === "multica")
       ? { id: entry.aiTask.id, status: entry.aiTask.status, executor: entry.aiTask.executor as "hermes" | "multica" }
@@ -136,7 +136,7 @@ function records(value: unknown): DeliverableRecord[] {
       }
       : undefined;
     const kind = entry.informationType === "material" ? "material" : entry.kind as DeliverableRecordKind;
-    return [{ id: entry.id, kind, text: entry.text, createdAt: entry.createdAt, informationType: entry.informationType === "material" ? "material" : "information", attachments, author: typeof entry.author === "string" ? entry.author : undefined, aiTask, ...(kind === "ai_task_result" && typeof entry.parentRecordId === "string" ? { parentRecordId: entry.parentRecordId } : {}), ...(aiTaskResult ? { aiTaskResult } : {}) }];
+    return [{ id: entry.id, kind, text: entry.text, createdAt: entry.createdAt, informationType: entry.informationType === "material" ? "material" : "information", attachments, author: typeof entry.author === "string" ? entry.author : undefined, aiTask, ...((kind === "ai_task_result" || kind === "answer") && typeof entry.parentRecordId === "string" ? { parentRecordId: entry.parentRecordId } : {}), ...(aiTaskResult ? { aiTaskResult } : {}) }];
   });
 }
 
@@ -197,19 +197,19 @@ export function addDeliverableRecord(content: DeliverableContent, record: Delive
 
 export function orderDeliverableRecords(records: DeliverableRecord[]): DeliverableRecord[] {
   const byParent = new Map<string, DeliverableRecord[]>();
-  const parentIds = new Set(records.filter(record => record.kind === "ai_task").map(record => record.id));
+  const parentIds = new Set(records.filter(record => record.kind === "ai_task" || record.kind === "question").map(record => record.id));
   for (const record of records) {
-    if (record.kind !== "ai_task_result" || !record.parentRecordId || !parentIds.has(record.parentRecordId)) continue;
+    if ((record.kind !== "ai_task_result" && record.kind !== "answer") || !record.parentRecordId || !parentIds.has(record.parentRecordId)) continue;
     const children = byParent.get(record.parentRecordId) || [];
     children.push(record);
     byParent.set(record.parentRecordId, children);
   }
   const ordered: DeliverableRecord[] = [];
   for (const record of records) {
-    const isLinkedResult = record.kind === "ai_task_result" && Boolean(record.parentRecordId && parentIds.has(record.parentRecordId));
+    const isLinkedResult = (record.kind === "ai_task_result" || record.kind === "answer") && Boolean(record.parentRecordId && parentIds.has(record.parentRecordId));
     if (isLinkedResult) continue;
     ordered.push(record);
-    if (record.kind === "ai_task") ordered.push(...(byParent.get(record.id) || []));
+    if (record.kind === "ai_task" || record.kind === "question") ordered.push(...(byParent.get(record.id) || []));
   }
   return ordered;
 }

@@ -50,7 +50,7 @@ const fileDate = (value: string) =>
     minute: "2-digit",
   });
 const recordKindLabel = (kind: DeliverableRecordKind) =>
-  kind === "requirement" ? "要求" : kind === "status" ? "进展" : kind === "decision" ? "决策" : kind === "issue" ? "问题" : kind === "risk" ? "风险" : kind === "change" ? "变更" : kind === "information" ? "信息" : kind === "material" ? "材料" : kind === "codex" ? "Codex" : kind === "ai_task_result" ? "AI 回复" : "AI 任务";
+  kind === "requirement" ? "要求" : kind === "status" ? "进展" : kind === "decision" ? "决策" : kind === "issue" ? "事项" : kind === "question" ? "问题" : kind === "answer" ? "答复" : kind === "risk" ? "风险" : kind === "change" ? "变更" : kind === "information" ? "信息" : kind === "material" ? "材料" : kind === "codex" ? "Codex" : kind === "ai_task_result" ? "AI 回复" : "AI 任务";
 const richTextHasContent = (value: string) => value.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0;
 const absoluteFolderPath = (projectRoot: string | undefined, folderPath: string) => folderPath.startsWith("/") ? folderPath : projectRoot ? `${projectRoot.replace(/\/+$/, "")}/${folderPath.replace(/^\/+/, "")}` : folderPath;
 const openInDesktopShell = (path: string) => window.open(`rich://open-external?url=${encodeURIComponent(`file://${path.split("/").map(encodeURIComponent).join("/")}`)}`, "_blank", "noopener,noreferrer");
@@ -92,6 +92,8 @@ export function DeliverablesWorkspace({
   const [editingRecordKind, setEditingRecordKind] =
     useState<DeliverableRecordKind>("requirement");
   const [editingRecordFiles, setEditingRecordFiles] = useState<File[]>([]);
+  const [answeringQuestionId, setAnsweringQuestionId] = useState<string>();
+  const [answerText, setAnswerText] = useState("");
   const [filesByFolder, setFilesByFolder] = useState<
     Record<string, DeliverableFile[]>
   >({});
@@ -265,6 +267,9 @@ export function DeliverablesWorkspace({
               existing.id,
               { title: activity.text, content },
             );
+            if (current.status !== "accepted" && content.status === "accepted") {
+              await api.archiveBoundDeliverableCodexSession(projectId, existing.id);
+            }
             deliverables = deliverables.map((entry) =>
               entry.id === existing.id ? updated : entry,
             );
@@ -280,14 +285,13 @@ export function DeliverablesWorkspace({
             folderPath,
           );
           await api.createDeliverableFolder(projectId, folderPath);
-          deliverables = [
-            ...deliverables,
-            await api.createProjectManagementModuleItem(
-              projectId,
-              "deliverables",
-              { title: activity.text, content },
-            ),
-          ];
+          const created = await api.createProjectManagementModuleItem(
+            projectId,
+            "deliverables",
+            { title: activity.text, content },
+          );
+          await api.ensureDeliverableCodexSession(projectId, created.id, `${created.title} · Codex`);
+          deliverables = [...deliverables, created];
         }
       }
     }
@@ -363,9 +367,11 @@ export function DeliverablesWorkspace({
     if (item) void refreshFiles(item);
   }, [items, openId]);
   const save = async (item: Item, content: Item["content"]) => {
+    const becameAccepted = item.content.status !== "accepted" && content.status === "accepted";
     if (standalone || deliverableIds !== undefined) {
       const updated = await api.updateDeliverable(item.id, { content });
       setItems(all => all.map(current => current.id === item.id ? ({ ...current, ...updated, content: normalizeDeliverableContent(updated.content) } as Item) : current));
+      if (becameAccepted && projectId) await api.archiveBoundDeliverableCodexSession(projectId, item.id);
       return;
     }
     if (!projectId) return;
@@ -384,6 +390,7 @@ export function DeliverablesWorkspace({
           : current,
       ),
     );
+    if (becameAccepted) await api.archiveBoundDeliverableCodexSession(projectId, item.id);
   };
   const openFolder = async (item: Item) => {
     try {
@@ -406,6 +413,21 @@ export function DeliverablesWorkspace({
     await api.createStandaloneDeliverableFolder(item.id);
     setNewTitle(""); setNewFolderPath(""); setCreating(false);
     await refreshItems(); setOpenId(item.id);
+    if (projectId) await api.ensureDeliverableCodexSession(projectId, item.id, `${item.title} · Codex`);
+  };
+  const ensureCodexSession = (item: Item) => {
+    if (!projectId) throw new Error("交付物尚未绑定项目，无法创建 Codex Session。");
+    return api.ensureDeliverableCodexSession(projectId, item.id, `${item.title} · Codex`);
+  };
+  const sendCodexRecord = async (item: Item, content: string) => {
+    const session = await ensureCodexSession(item);
+    const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(session.conversation.id)}/stream`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, userMessageId: crypto.randomUUID(), clientRequestId: crypto.randomUUID() }) });
+    if (!response.ok) throw new Error(`Codex 任务发送失败 (${response.status})`);
+    await response.text();
+  };
+  const openCodexConversation = async (item: Item) => {
+    const session = await ensureCodexSession(item);
+    showDeliverableCodex({ projectId, deliverableId: item.id, deliverableTitle: item.title, conversationId: session.conversation.id });
   };
   const openBinding = async () => {
     setAvailableDeliverables((await api.listDeliverables()).filter(item => !(deliverableIds ?? []).includes(item.id)).map(item => ({ id: item.id, title: item.title })));
@@ -495,12 +517,13 @@ export function DeliverablesWorkspace({
         });
       }
     }
+    const recordText = text.trim();
     await save(
       item,
       addDeliverableRecord(content, {
         id: crypto.randomUUID(),
         kind,
-        text: text.trim(),
+        text: recordText,
         createdAt: new Date().toISOString(),
         informationType: kind === "material" ? "material" : "information",
         attachments,
@@ -510,6 +533,7 @@ export function DeliverablesWorkspace({
     setRecordFiles([]);
     if (materialInputRef.current) materialInputRef.current.value = "";
     await refreshFiles(item);
+    if (kind === "codex") await sendCodexRecord(item, recordText);
   };
   const publishDeliverableAiTask = async (item: Item) => {
     if (!richTextHasContent(text)) return;
@@ -590,6 +614,13 @@ export function DeliverablesWorkspace({
         (current) => current.id !== record.id,
       ),
     });
+  };
+  const answerQuestion = async (item: Item, questionId: string) => {
+    if (!richTextHasContent(answerText)) return;
+    await save(item, addDeliverableRecord(item.content, {
+      id: crypto.randomUUID(), kind: "answer", parentRecordId: questionId, text: answerText.trim(), createdAt: new Date().toISOString(), informationType: "information", attachments: [],
+    }));
+    setAnswerText(""); setAnsweringQuestionId(undefined);
   };
   const deleteFile = async (item: Item, file: DeliverableFile) => {
     if (!window.confirm(`删除 ${file.fileName}？`)) return;
@@ -701,7 +732,7 @@ export function DeliverablesWorkspace({
               >
                 <strong>{item.title}</strong>
                 {!standalone && <div className="deliverables-workspace__title-actions" role="toolbar" aria-label="交付物操作" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
-                  <button className="deliverables-workspace__title-action" type="button" aria-label="Codex 对话" title="Codex 对话" onClick={() => showDeliverableCodex({ projectId, deliverableId: item.id, deliverableTitle: item.title })}><DeliverableActionIcon name="chat" /></button>
+                  <button className="deliverables-workspace__title-action" type="button" aria-label="Codex 对话" title="Codex 对话" onClick={() => void openCodexConversation(item)}><DeliverableActionIcon name="chat" /></button>
                   <div className="deliverables-workspace__title-version" role="group" aria-label="版本策略">
                     <button className={item.content.versionPolicy === "latest" ? "is-active" : ""} type="button" aria-label="只保留最新" title="只保留最新" onClick={() => void save(item, { ...item.content, versionPolicy: "latest" })}><DeliverableActionIcon name="latest" /></button>
                     <button className={item.content.versionPolicy === "versioned" ? "is-active" : ""} type="button" aria-label="版本控制" title="版本控制" onClick={() => void save(item, { ...item.content, versionPolicy: "versioned" })}><DeliverableActionIcon name="history" /></button>
@@ -779,7 +810,8 @@ export function DeliverablesWorkspace({
                               <option value="requirement">要求</option>
                               <option value="status">进展</option>
                               <option value="decision">决策</option>
-                              <option value="issue">问题</option>
+                              <option value="issue">事项</option>
+                              <option value="question">问题</option>
                               <option value="risk">风险</option>
                               <option value="change">变更</option>
                               <option value="information">信息</option>
@@ -856,6 +888,7 @@ export function DeliverablesWorkspace({
                                 ))}
                               </ul>
                             )}
+                            {record.kind === "question" && <div className="deliverables-workspace__question-answer"><button type="button" onClick={() => { setAnsweringQuestionId(current => current === record.id ? undefined : record.id); setAnswerText(""); }}>答复问题</button>{answeringQuestionId === record.id && <div><textarea aria-label="答复问题" value={answerText} onChange={event => setAnswerText(event.target.value)} placeholder="请输入答复"/><button type="button" onClick={() => void answerQuestion(item, record.id)}>提交答复</button></div>}</div>}
                           </article>
                         );
                       })}

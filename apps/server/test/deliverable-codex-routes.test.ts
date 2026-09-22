@@ -11,7 +11,7 @@ describe("deliverable Codex routes", () => {
     const app = deliverableCodexRoutes({
       conversations: {
         async get() { return { id: "c1", conversationId: "chat-1", projectId: "p1", deliverableId: "d1", status: "active", contextVersion: "ctx-v1" } as never; },
-        async touch() {}, async setCodexThread() {},
+        async touch() {}, async setCodexThread() {}, async markContextSynced() {},
       } as never,
       chats: {
         async listMessages() { return chats.filter(item => item.type === "message") as never; },
@@ -53,6 +53,7 @@ describe("deliverable Codex routes", () => {
         async create(value) { conversations.set(value.id, { ...value }); },
         async get(id) { return (conversations.get(id) as never) ?? null; },
         async listActive(scopeKey) { return [...conversations.values()].filter(value => value.scopeKey === scopeKey && value.status === "active") as never; },
+        async bind(id) { const value = conversations.get(id)!; Object.assign(value, { isBound: true }); return value as never; },
         async touch(id, at) { const value = conversations.get(id)!; Object.assign(value, { updatedAt: at, lastActiveAt: at }); return value as never; },
         async archive(id, at) { const value = conversations.get(id)!; Object.assign(value, { status: "archived", updatedAt: at }); return value as never; },
         async setCodexThread() {},
@@ -84,5 +85,68 @@ describe("deliverable Codex routes", () => {
     expect((await (await app.request("/p1/d1/conversations")).json() as { conversations: unknown[] }).conversations).toHaveLength(1);
     expect(chats.filter(item => item.type === "message")).toHaveLength(1);
     expect(agents.some(value => value.startsWith("exit:"))).toBe(true);
+  });
+
+  it("creates and binds a replacement session when the deliverable has no active binding", async () => {
+    const conversations = new Map<string, Record<string, unknown>>();
+    const app = deliverableCodexRoutes({
+      conversations: {
+        async getBound() { return null; },
+        async create(value) { conversations.set(value.id, { ...value }); },
+        async bind(id) { const value = conversations.get(id)!; Object.assign(value, { isBound: true }); return value as never; },
+      } as never,
+      chats: { async ensureConversation(input) { return { ...input }; } } as never,
+      context: { async build(input) { return { scopeKey: `deliverable:${input.projectId}:${input.deliverableId}`, contextVersion: "ctx-v1", initialContext: "交付物汇总基线", allowedMcpTools: [] }; } } as never,
+      agents: { async start() { return { config: {} as never, resumed: false }; } } as never,
+      attachments: null,
+      prompts: {} as never,
+    });
+
+    const response = await app.request("/p1/d1/conversations/ensure-bound", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "验收报告 · Codex" }) });
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({ created: true, context: "交付物汇总基线", conversation: { isBound: true, projectId: "p1", deliverableId: "d1" } });
+  });
+
+  it("archives the bound session when its deliverable is completed", async () => {
+    const exited: string[] = [];
+    const app = deliverableCodexRoutes({
+      conversations: {
+        async getBound() { return { id: "bound-1", conversationId: "chat-bound", status: "active" } as never; },
+        async archive() { return null; },
+      } as never,
+      chats: {} as never,
+      context: {} as never,
+      prompts: {} as never,
+      attachments: null,
+      agents: { async exit(conversationId) { exited.push(conversationId); return null; } } as never,
+    });
+
+    const response = await app.request("/p1/d1/conversations/archive-bound", { method: "POST" });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ archived: true });
+    expect(exited).toEqual(["chat-bound"]);
+  });
+
+  it("returns only newly recorded context for an already synced binding", async () => {
+    const app = deliverableCodexRoutes({
+      conversations: { async getBound() { return { id: "bound-1", conversationId: "chat-bound", status: "active", lastContextSyncAt: "2026-09-22T00:00:00.000Z" } as never; } } as never,
+      chats: {} as never,
+      context: {
+        async buildIncrementalContext(input) {
+          expect(input).toEqual({ projectId: "p1", deliverableId: "d1", since: "2026-09-22T00:00:00.000Z" });
+          return "## Rich deliverable incremental context\n- [codex] 请整理需求";
+        },
+      } as never,
+      prompts: {} as never,
+      attachments: null,
+      agents: {} as never,
+    });
+
+    const response = await app.request("/p1/d1/conversations/ensure-bound", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "任意标题" }) });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ created: false, context: "## Rich deliverable incremental context\n- [codex] 请整理需求" });
   });
 });
