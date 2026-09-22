@@ -45,15 +45,20 @@ describe("DeliverableCodexContextService", () => {
     expect(context.contextVersion).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it("keeps free and bug modes read-only with different operating instructions", async () => {
+  it("lets free mode write an explicitly requested deliverable result through Rich MCP", async () => {
     const service = new DeliverableCodexContextService({ createSnapshot: async () => snapshot }, elements as never);
 
     const free = await service.build({ projectId: "project-1", deliverableId: "deliverable-1", mode: "free" });
     const bug = await service.build({ projectId: "project-1", deliverableId: "deliverable-1", mode: "bug" });
 
-    expect(free.allowedMcpTools).not.toContain("rich_deliverable_record_create");
+    expect(free.allowedMcpTools).toEqual(expect.arrayContaining([
+      "rich_deliverable_record_create",
+      "rich_deliverable_record_update",
+      "rich_deliverable_requirement_update",
+    ]));
     expect(bug.allowedMcpTools).not.toContain("rich_deliverable_record_create");
-    expect(free.systemInstruction).toContain("Do not write");
+    expect(free.systemInstruction).toContain("MUST use the Rich MCP tools");
+    expect(free.systemInstruction).toContain("Do not merely paste the requested deliverable content into chat");
     expect(bug.systemInstruction).toContain("reproduction");
   });
 });

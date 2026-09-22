@@ -47,6 +47,8 @@ function modeInstruction(mode: DeliverableContextMode): string {
   return [
     "You are working in Rich free mode for this deliverable.",
     "Assist with the provided deliverable context through ordinary conversation.",
+    "When the user explicitly asks you to create, write, update, summarize into, or otherwise save a deliverable artifact, you MUST use the Rich MCP tools to write it into this deliverable's interface.",
+    "Do not merely paste the requested deliverable content into chat when the user asked for it to be saved; confirm the completed Rich MCP write instead.",
     "If you need any clarification, you MUST first call rich_deliverable_record_create with kind: question and phrase one clear question for the user.",
     "Never ask a clarification question only in the chat response. After creating a question record, the chat response must only confirm that the question has been recorded and that you are waiting for the user's answer.",
     "Do not create other Rich business records or deliverable results in free mode.",
@@ -135,7 +137,11 @@ export class DeliverableCodexContextService {
         "rich_deliverable_record_create",
         "rich_deliverable_record_update",
         "rich_deliverable_file_meta_update",
-      ] : input.mode === "free" ? ["rich_deliverable_record_create"] : [],
+      ] : input.mode === "free" ? [
+        "rich_deliverable_record_create",
+        "rich_deliverable_record_update",
+        "rich_deliverable_requirement_update",
+      ] : [],
     };
   }
 
