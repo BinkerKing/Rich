@@ -213,16 +213,17 @@ export function deliverableCodexRoutes(deps: {
       await deps.agents.start(existing.conversationId, { executor: "codex", workspaceRoot: taskContext.workspaceRoot });
     }
     const currentPromptRevision = !generalTaskMode && taskPromptStates.length > 0 ? await deps.prompts.revision("codex.deliverable-analysis-turn") : undefined;
-    const contextForTurn = taskContext
+    const freeContext = taskContext
       ? undefined
-      : existing.lastContextSyncAt
+      : await deps.context.build({ projectId: existing.projectId, deliverableId: existing.deliverableId, mode: "free" });
+    const contextForTurn = freeContext
+      ? existing.lastContextSyncAt
         ? await deps.context.buildIncrementalContext({ projectId: existing.projectId, deliverableId: existing.deliverableId, since: existing.lastContextSyncAt })
-        : await deps.context.build({ projectId: existing.projectId, deliverableId: existing.deliverableId, mode: "free" });
-    const turnContent = typeof contextForTurn === "string"
-      ? `${contextForTurn}\n\n## 本次 Codex 任务\n${content}`
-      : contextForTurn
-        ? `${contextForTurn.systemInstruction}\n\n${contextForTurn.initialContext}\n\n## 本次 Codex 任务\n${content}`
-        : content;
+        : freeContext.initialContext
+      : undefined;
+    const turnContent = freeContext
+      ? `${freeContext.systemInstruction}${contextForTurn ? `\n\n${contextForTurn}` : ""}\n\n## 本次 Codex 任务\n${content}`
+      : content;
     const shouldSendRuleUpdate = Boolean(currentPromptRevision && taskPromptStates.at(-1)?.revision !== currentPromptRevision && metadata?.type !== "task-mode-instruction");
     const renderedPolicy = shouldSendRuleUpdate
       ? await deps.prompts.render("codex.deliverable-analysis-turn", {

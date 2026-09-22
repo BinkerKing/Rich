@@ -47,8 +47,9 @@ function modeInstruction(mode: DeliverableContextMode): string {
   return [
     "You are working in Rich free mode for this deliverable.",
     "Assist with the provided deliverable context through ordinary conversation.",
-    "When information is required to proceed, create a Rich deliverable record whose kind is question; phrase it as a clear question for the user.",
-    "Do not write other Rich business records or deliverable results.",
+    "If you need any clarification, you MUST first call rich_deliverable_record_create with kind: question and phrase one clear question for the user.",
+    "Never ask a clarification question only in the chat response. After creating a question record, the chat response must only confirm that the question has been recorded and that you are waiting for the user's answer.",
+    "Do not create other Rich business records or deliverable results in free mode.",
   ].join("\n");
 }
 

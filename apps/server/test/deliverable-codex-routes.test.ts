@@ -149,4 +149,35 @@ describe("deliverable Codex routes", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ created: false, context: "## Rich deliverable incremental context\n- [codex] 请整理需求" });
   });
+
+  it("repeats the question-record instruction when a synced session receives incremental context", async () => {
+    let sent = "";
+    const app = deliverableCodexRoutes({
+      conversations: {
+        async get() { return { id: "c1", conversationId: "chat-1", projectId: "p1", deliverableId: "d1", status: "active", contextVersion: "ctx-v1", lastContextSyncAt: "2026-09-22T00:00:00.000Z" } as never; },
+        async touch() {}, async setCodexThread() {}, async markContextSynced() {},
+      } as never,
+      chats: { async listMessages() { return []; } } as never,
+      context: {
+        async build() { return { systemInstruction: "必须使用 rich_deliverable_record_create(kind: question) 记录问题。", initialContext: "完整基线" }; },
+        async buildIncrementalContext() { return "增量记录"; },
+      } as never,
+      prompts: {} as never,
+      attachments: null,
+      agents: {
+        async sendMessage(_conversationId, input, onEvent) {
+          sent = input.content;
+          await onEvent?.({ type: "done", turnId: "turn-1", content: "已记录问题" });
+          return { turn: {}, events: [] };
+        },
+      } as never,
+    });
+
+    const response = await app.request("/conversations/c1/stream", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content: "请整理需求", clientRequestId: "request-1", userMessageId: "message-1" }) });
+
+    expect(response.status).toBe(200);
+    await response.text();
+    expect(sent).toContain("必须使用 rich_deliverable_record_create(kind: question) 记录问题。");
+    expect(sent).toContain("增量记录");
+  });
 });
