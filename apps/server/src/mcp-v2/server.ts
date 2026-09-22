@@ -4,6 +4,7 @@ import type { GreatMeRepo } from "../repos/GreatMeRepo.js";
 import type { McpOperationRepo } from "../repos/McpOperationRepo.js";
 import type { McpTaskRepo } from "../repos/McpTaskRepo.js";
 import type { ProjectManagementRepo } from "../repos/ProjectManagementRepo.js";
+import type { DeliverablesRepo } from "../repos/DeliverablesRepo.js";
 import type { ProjectAutomationRepo } from "../modules/project-automation/contracts.js";
 import type { WorkDelegationPort } from "./delegation/WorkDelegationPort.js";
 import { UnavailableDelegationAdapter } from "./delegation/UnavailableDelegationAdapter.js";
@@ -43,6 +44,7 @@ export interface BuildMcpV2Deps {
   workbenchDocuments?: WorkbenchDocumentService;
   elements: ElementsRepo;
   projectManagement: ProjectManagementRepo;
+  deliverables?: DeliverablesRepo;
   operationRepo: McpOperationRepo;
   taskRepo: McpTaskRepo;
   greatMe?: GreatMeRepo;
@@ -89,7 +91,7 @@ export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
   registerTaskTools(registry, { tasks, operationRepo: deps.operationRepo });
   if (deps.aiTaskManagement) registerAiTaskManagementTools(registry, deps.aiTaskManagement);
   registerDeliverableTaskTools(registry, tasks, deps.elements, deps.projectManagement);
-  registerDeliverableWorkspaceTools(registry, deps.elements, deps.projectManagement, deps.operationRepo);
+  registerDeliverableWorkspaceTools(registry, deps.elements, deps.projectManagement, deps.operationRepo, deps.deliverables);
   if (deps.workbench) registerWorkbenchTools(registry, deps.workbench, deps.operationRepo);
   if (deps.workbenchDocuments) registerWorkbenchDocumentTools(registry, deps.workbenchDocuments, deps.operationRepo);
   registerDelegationTools(registry, {

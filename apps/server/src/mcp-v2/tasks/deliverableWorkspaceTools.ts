@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { ElementsRepo } from "../../repos/ElementsRepo.js";
 import type { McpOperationRepo } from "../../repos/McpOperationRepo.js";
 import type { ProjectManagementRepo, ProjectModuleItem } from "../../repos/ProjectManagementRepo.js";
+import type { DeliverablesRepo } from "../../repos/DeliverablesRepo.js";
 import { RichMcpError } from "../registry/errors.js";
 import { richSuccess } from "../registry/response.js";
 import type { RichToolRegistry } from "../registry/toolRegistry.js";
@@ -17,7 +18,7 @@ const targetSchema = z.object({ projectId: z.string().trim().min(1), deliverable
 const projectTargetSchema = z.object({ projectId: z.string().trim().min(1) });
 const attachmentPathsSchema = z.array(z.string().trim().min(1)).max(50);
 
-type Deliverable = ProjectModuleItem & { content: Record<string, unknown> };
+type Deliverable = Pick<ProjectModuleItem, "id" | "title" | "subtitle" | "content"> & { content: Record<string, unknown> };
 
 function object(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -25,12 +26,18 @@ function object(value: unknown): value is Record<string, unknown> {
 
 function text(value: unknown): string { return typeof value === "string" ? value : ""; }
 
-async function findDeliverable(projects: Pick<ProjectManagementRepo, "listAllModuleItems">, projectId: string, deliverableId: string): Promise<Deliverable> {
+async function findDeliverable(projects: Pick<ProjectManagementRepo, "listAllModuleItems">, standaloneDeliverables: Pick<DeliverablesRepo, "get"> | undefined, projectId: string, deliverableId: string): Promise<Deliverable> {
   const item = (await projects.listAllModuleItems(projectId, "deliverables")).find(candidate => candidate.id === deliverableId);
-  if (!item || !object(item.content) || item.content.recordType !== "deliverable") {
+  const standalone = item ? undefined : await standaloneDeliverables?.get(deliverableId);
+  const deliverable = item ?? standalone;
+  if (!deliverable || !object(deliverable.content) || deliverable.content.recordType !== "deliverable") {
     throw new RichMcpError("NOT_FOUND", "The specified deliverable was not found in this project.");
   }
-  return item as Deliverable;
+  return deliverable as Deliverable;
+}
+
+async function updateDeliverable(projects: Pick<ProjectManagementRepo, "updateModuleItem">, standaloneDeliverables: Pick<DeliverablesRepo, "update"> | undefined, projectId: string, deliverableId: string, content: Record<string, unknown>): Promise<Deliverable | null> {
+  return (await projects.updateModuleItem(projectId, deliverableId, { content })) ?? await standaloneDeliverables?.update(deliverableId, { content }) ?? null;
 }
 
 async function projectRoot(elements: Pick<ElementsRepo, "get">, projectId: string): Promise<string> {
@@ -121,7 +128,9 @@ export function registerDeliverableWorkspaceTools(
   elements: Pick<ElementsRepo, "get">,
   projects: Pick<ProjectManagementRepo, "listAllModuleItems" | "updateModuleItem">,
   operationRepo?: McpOperationRepo,
+  standaloneDeliverables?: Pick<DeliverablesRepo, "get" | "update">,
 ): void {
+  const getDeliverable = (projectId: string, deliverableId: string) => findDeliverable(projects, standaloneDeliverables, projectId, deliverableId);
   registry.register({
     name: "rich_deliverable_file_write", title: "写入交付物文本文件", category: "manage",
     description: "将 UTF-8 文本写入指定路径。支持绝对路径和相对项目根目录的路径。",
@@ -131,7 +140,7 @@ export function registerDeliverableWorkspaceTools(
     handler: async ({ projectId, deliverableId, relativePath, content, context, options }) => executeSafeWrite({
       toolName: "rich_deliverable_file_write", operationRepo, context, options, inputForHash: { projectId, deliverableId, relativePath, content }, changes: [{ operation: "write", resource: "deliverableFile", id: relativePath }],
       execute: async () => {
-        const item = await findDeliverable(projects, projectId, deliverableId);
+        const item = await getDeliverable(projectId, deliverableId);
         const root = await projectRoot(elements, projectId); const target = writableFile(root, relativePath);
         await mkdir(resolve(target, ".."), { recursive: true }); await writeFile(target, content, "utf8");
         return { deliverableId: item.id, relativePath: relative(root, target).replaceAll("\\", "/"), absolutePath: target, content };
@@ -149,7 +158,7 @@ export function registerDeliverableWorkspaceTools(
     handler: async ({ projectId, deliverableId, sourceRelativePath, destinationRelativePath, context, options }) => executeSafeWrite({
       toolName: "rich_deliverable_file_copy", operationRepo, context, options, inputForHash: { projectId, deliverableId, sourceRelativePath, destinationRelativePath }, changes: [{ operation: "copy", resource: "deliverableFile", id: destinationRelativePath }],
       execute: async () => {
-        const item = await findDeliverable(projects, projectId, deliverableId);
+        const item = await getDeliverable(projectId, deliverableId);
         const root = await projectRoot(elements, projectId); const source = await readableProjectFile(root, sourceRelativePath); const target = writableFile(root, destinationRelativePath);
         await mkdir(resolve(target, ".."), { recursive: true }); await copyFile(source, target);
         return { deliverableId: item.id, relativePath: relative(root, target).replaceAll("\\", "/"), absolutePath: target, size: (await stat(source)).size };
@@ -165,7 +174,7 @@ export function registerDeliverableWorkspaceTools(
     examples: [{ description: "查看当前固定交付物", input: { projectId: "project-id", deliverableId: "deliverable-id" } }],
     verification: "Reads the exact deliverable record from the project-management repository.",
     handler: async ({ projectId, deliverableId }) => {
-      const item = await findDeliverable(projects, projectId, deliverableId);
+      const item = await getDeliverable(projectId, deliverableId);
       const root = await projectRoot(elements, projectId);
       return richSuccess("rich_deliverable_get", { deliverable: { id: item.id, title: item.title, subtitle: item.subtitle, ...item.content, folderPath: deliverableFolder(root, item.content.folderPath) } }, { refs: [{ type: "projectItem", id: item.id, label: item.title }] });
     },
@@ -177,7 +186,7 @@ export function registerDeliverableWorkspaceTools(
     examples: [{ description: "读取交付物文件目录", input: { projectId: "project-id", deliverableId: "deliverable-id" } }],
     verification: "Lists only paths inside the specified deliverable folder.",
     handler: async ({ projectId, deliverableId }) => {
-      const item = await findDeliverable(projects, projectId, deliverableId);
+      const item = await getDeliverable(projectId, deliverableId);
       const root = await projectRoot(elements, projectId);
       const folder = deliverableFolder(root, item.content.folderPath);
       const metadata = new Map((Array.isArray(item.content.fileMeta) ? item.content.fileMeta : []).flatMap(meta => object(meta) && text(meta.relativePath) ? [[text(meta.relativePath), meta] as const] : []));
@@ -192,7 +201,7 @@ export function registerDeliverableWorkspaceTools(
     examples: [{ description: "读取一个交付材料", input: { projectId: "project-id", deliverableId: "deliverable-id", relativePath: "07-交付/UAT/验收说明.md" } }],
     verification: "Reads only a regular file inside the specified deliverable folder.",
     handler: async ({ projectId, deliverableId, relativePath, maxChars }) => {
-      const item = await findDeliverable(projects, projectId, deliverableId);
+      const item = await getDeliverable(projectId, deliverableId);
       const root = await projectRoot(elements, projectId);
       const folder = deliverableFolder(root, item.content.folderPath);
       const file = await readableFile(root, folder, relativePath);
@@ -236,17 +245,17 @@ export function registerDeliverableWorkspaceTools(
       toolName: "rich_deliverable_record_create", operationRepo, context, options,
       inputForHash: { projectId, deliverableId, kind, text: recordText, attachmentRelativePaths }, changes: [{ operation: "create", resource: "deliverableRecord" }],
       execute: async () => {
-        const item = await findDeliverable(projects, projectId, deliverableId);
+        const item = await getDeliverable(projectId, deliverableId);
         const root = await projectRoot(elements, projectId);
         const attachments = await recordAttachments(root, deliverableFolder(root, item.content.folderPath), attachmentRelativePaths);
         const record = { id: `codex-${randomUUID()}`, kind, text: recordText, createdAt: new Date().toISOString(), informationType: kind === "material" ? "material" : "information", attachments, author: "Codex" };
         const records = [...(Array.isArray(item.content.records) ? item.content.records : []), record];
-        const updated = await projects.updateModuleItem(projectId, item.id, { content: { ...item.content, records } });
+        const updated = await updateDeliverable(projects, standaloneDeliverables, projectId, item.id, { ...item.content, records });
         if (!updated) throw new RichMcpError("NOT_FOUND", "The deliverable was no longer available.");
         return { record, deliverableId: item.id };
       },
       verify: async result => {
-        const item = await findDeliverable(projects, projectId, result.deliverableId);
+        const item = await getDeliverable(projectId, result.deliverableId);
         const found = Array.isArray(item.content.records) && item.content.records.some(record => object(record) && record.id === result.record.id);
         return { status: found ? "verified" : "failed", details: "Created record was read back from the deliverable." };
       }, refs: result => [{ type: "projectItem", id: result.deliverableId }, { type: "record", id: result.record.id, label: result.record.text }],
@@ -262,7 +271,7 @@ export function registerDeliverableWorkspaceTools(
       toolName: "rich_deliverable_record_update", operationRepo, context, options,
       inputForHash: { projectId, deliverableId, recordId, kind, text: recordText, attachmentRelativePaths }, changes: [{ operation: "update", resource: "deliverableRecord", id: recordId }],
       execute: async () => {
-        const item = await findDeliverable(projects, projectId, deliverableId);
+        const item = await getDeliverable(projectId, deliverableId);
         const records = Array.isArray(item.content.records) ? item.content.records : [];
         const existing = records.find(record => object(record) && record.id === recordId);
         if (!existing) throw new RichMcpError("NOT_FOUND", "The specified deliverable record was not found.");
@@ -270,12 +279,12 @@ export function registerDeliverableWorkspaceTools(
         const root = await projectRoot(elements, projectId);
         const attachments = attachmentRelativePaths === undefined ? undefined : await recordAttachments(root, deliverableFolder(root, item.content.folderPath), attachmentRelativePaths);
         const record = { ...existing, ...(kind ? { kind, informationType: kind === "material" ? "material" : "information" } : {}), ...(recordText ? { text: recordText } : {}), ...(attachments ? { attachments } : {}) };
-        const updated = await projects.updateModuleItem(projectId, item.id, { content: { ...item.content, records: records.map(current => object(current) && current.id === recordId ? record : current) } });
+        const updated = await updateDeliverable(projects, standaloneDeliverables, projectId, item.id, { ...item.content, records: records.map(current => object(current) && current.id === recordId ? record : current) });
         if (!updated) throw new RichMcpError("NOT_FOUND", "The deliverable was no longer available.");
         return { record, deliverableId: item.id };
       },
       verify: async result => {
-        const item = await findDeliverable(projects, projectId, result.deliverableId);
+        const item = await getDeliverable(projectId, result.deliverableId);
         const found = Array.isArray(item.content.records) && item.content.records.some(record => object(record) && record.id === result.record.id && (!recordText || record.text === recordText) && (!kind || record.kind === kind) && (attachmentRelativePaths === undefined || Array.isArray(record.attachments) && record.attachments.length === attachmentRelativePaths.length));
         return { status: found ? "verified" : "failed", details: "Updated record was read back from the deliverable." };
       }, refs: result => [{ type: "projectItem", id: result.deliverableId }, { type: "record", id: result.record.id }],
@@ -291,12 +300,12 @@ export function registerDeliverableWorkspaceTools(
       toolName: "rich_deliverable_requirement_update", operationRepo, context, options,
       inputForHash: { projectId, deliverableId, descriptionHtml }, changes: [{ operation: "update", resource: "deliverableRequirement", id: deliverableId }],
       execute: async () => {
-        const item = await findDeliverable(projects, projectId, deliverableId);
-        const updated = await projects.updateModuleItem(projectId, item.id, { content: { ...item.content, descriptionHtml } });
+        const item = await getDeliverable(projectId, deliverableId);
+        const updated = await updateDeliverable(projects, standaloneDeliverables, projectId, item.id, { ...item.content, descriptionHtml });
         if (!updated) throw new RichMcpError("NOT_FOUND", "The deliverable was no longer available.");
         return { deliverableId: item.id, descriptionHtml };
       },
-      verify: async result => ({ status: (await findDeliverable(projects, projectId, result.deliverableId)).content.descriptionHtml === descriptionHtml ? "verified" : "failed", details: "Requirement description was read back from the deliverable." }),
+      verify: async result => ({ status: (await getDeliverable(projectId, result.deliverableId)).content.descriptionHtml === descriptionHtml ? "verified" : "failed", details: "Requirement description was read back from the deliverable." }),
       refs: result => [{ type: "projectItem", id: result.deliverableId }],
     }),
   });
@@ -310,12 +319,12 @@ export function registerDeliverableWorkspaceTools(
       toolName: "rich_deliverable_settings_update", operationRepo, context, options,
       inputForHash: { projectId, deliverableId, versionPolicy }, changes: [{ operation: "update", resource: "deliverableSettings", id: deliverableId }],
       execute: async () => {
-        const item = await findDeliverable(projects, projectId, deliverableId);
-        const updated = await projects.updateModuleItem(projectId, item.id, { content: { ...item.content, versionPolicy } });
+        const item = await getDeliverable(projectId, deliverableId);
+        const updated = await updateDeliverable(projects, standaloneDeliverables, projectId, item.id, { ...item.content, versionPolicy });
         if (!updated) throw new RichMcpError("NOT_FOUND", "The deliverable was no longer available.");
         return { deliverableId: item.id, versionPolicy };
       },
-      verify: async result => ({ status: (await findDeliverable(projects, projectId, result.deliverableId)).content.versionPolicy === versionPolicy ? "verified" : "failed", details: "Version policy was read back from the deliverable." }),
+      verify: async result => ({ status: (await getDeliverable(projectId, result.deliverableId)).content.versionPolicy === versionPolicy ? "verified" : "failed", details: "Version policy was read back from the deliverable." }),
       refs: result => [{ type: "projectItem", id: result.deliverableId }],
     }),
   });
@@ -329,18 +338,18 @@ export function registerDeliverableWorkspaceTools(
       toolName: "rich_deliverable_file_meta_update", operationRepo, context, options,
       inputForHash: { projectId, deliverableId, relativePath, type, version, note }, changes: [{ operation: "update", resource: "deliverableFileMeta", id: relativePath }],
       execute: async () => {
-        const item = await findDeliverable(projects, projectId, deliverableId);
+        const item = await getDeliverable(projectId, deliverableId);
         const root = await projectRoot(elements, projectId);
         await readableFile(root, deliverableFolder(root, item.content.folderPath), relativePath);
         const current = Array.isArray(item.content.fileMeta) ? item.content.fileMeta.filter(object) : [];
         const existing = current.find(meta => meta.relativePath === relativePath);
         const metadata = { ...(existing ?? { relativePath, type: "material", version: "" }), ...(type ? { type } : {}), ...(version !== undefined ? { version } : {}), ...(note !== undefined ? { note } : {}) };
-        const updated = await projects.updateModuleItem(projectId, item.id, { content: { ...item.content, fileMeta: [...current.filter(meta => meta.relativePath !== relativePath), metadata] } });
+        const updated = await updateDeliverable(projects, standaloneDeliverables, projectId, item.id, { ...item.content, fileMeta: [...current.filter(meta => meta.relativePath !== relativePath), metadata] });
         if (!updated) throw new RichMcpError("NOT_FOUND", "The deliverable was no longer available.");
         return { deliverableId: item.id, metadata };
       },
       verify: async result => {
-        const item = await findDeliverable(projects, projectId, result.deliverableId);
+        const item = await getDeliverable(projectId, result.deliverableId);
         const found = Array.isArray(item.content.fileMeta) && item.content.fileMeta.some(meta => object(meta) && meta.relativePath === relativePath && (!type || meta.type === type) && (version === undefined || meta.version === version) && (note === undefined || meta.note === note));
         return { status: found ? "verified" : "failed", details: "File metadata was read back from the deliverable." };
       }, refs: result => [{ type: "projectItem", id: result.deliverableId }, { type: "file", id: relativePath }],
