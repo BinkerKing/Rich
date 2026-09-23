@@ -32,6 +32,11 @@ test("流程图变更自动同步后端，不保留本地草稿", () => {
   assert.doesNotMatch(source, />保存修改</);
 });
 
+test("锁定画布后双击节点仍打开详情，不触发默认缩放", () => {
+  assert.match(source, /zoomOnDoubleClick=\{false\}/);
+  assert.match(source, /onNodeDoubleClick=\{\(_, row\) => \{ setSelected\(row\.id\); setSelectedIds\(\[row\.id\]\); setDetailNode\(row\.id\); \}\}/);
+});
+
 const source = readFileSync(new URL("./FlowchartsWorkspace.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("./FlowchartsWorkspace.css", import.meta.url), "utf8");
 
