@@ -115,6 +115,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   const [template, setTemplate] = useState("code");
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [scope, setScope] = useState(ROOT_SCOPE);
   const [selected, setSelected] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -140,7 +141,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   const undoStack = useRef<FlowchartData[]>([]);
   const redoStack = useRef<FlowchartData[]>([]);
   const clipboard = useRef<FlowSelection>();
-  const draftKey = `rich-flowchart-draft:${projectId ?? "standalone"}`;
+  const saveVersion = useRef(0);
   const viewKey = `rich-flowchart-view:${projectId ?? flowchartIds?.join(",") ?? "standalone"}`;
   const isFullscreen = standalone;
 
@@ -154,19 +155,9 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     load.then(next => {
       if (!cancelled) {
         setItems(next); setLoaded(true);
-        let restoredDraft = false;
-        try {
-          const draft = JSON.parse(sessionStorage.getItem(draftKey) || "null");
-          if (draft && next.some(item => item.id === draft.id)) {
-            setGraph(readFlowchart({ graph: draft.graph })); setActive(draft.id);
-            setTitle(draft.title); setDirty(true);
-            setExpanded(true);
-            restoredDraft = true;
-          }
-        } catch { /* An unavailable or invalid local draft never blocks server data. */ }
         if (preview && next[0]) {
           setGraph(readFlowchart(next[0].content)); setActive(next[0].id); setTitle(next[0].title); setExpanded(true);
-        } else if (!restoredDraft && !focusId) {
+        } else if (!focusId) {
           try {
             const view = JSON.parse(sessionStorage.getItem(viewKey) || "null") as { id?: string; expanded?: boolean } | null;
             const remembered = view?.id ? next.find(item => item.id === view.id) : undefined;
@@ -186,19 +177,6 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
       sessionStorage.setItem(viewKey, JSON.stringify({ id: active ?? null, expanded }));
     } catch { /* The flowchart list stays usable when session storage is unavailable. */ }
   }, [active, embedded, expanded, loaded, viewKey]);
-  useEffect(() => {
-    if (!active || !graph) return;
-    try {
-      if (dirty) sessionStorage.setItem(draftKey, JSON.stringify({ id: active, title, graph }));
-      else sessionStorage.removeItem(draftKey);
-    } catch { /* Saving to the server remains available if browser storage is full. */ }
-  }, [active, graph, title, dirty, draftKey]);
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
   useEffect(() => { setNodeDetailFullscreen(false); }, [detailNode]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -228,7 +206,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   }, [flow, scope, target, active, expanded]);
 
   const open = (item: ProjectModuleItem) => {
-    if (busy || (dirty && !window.confirm("当前流程图有未保存修改，放弃修改并切换？"))) return;
+    if (busy) return;
     try {
       setGraph(readFlowchart(item.content)); setActive(item.id); setTitle(item.title); setDirty(false);
       setScope(ROOT_SCOPE); setSelected(""); setSelectedIds([]); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); setQuery(""); setTarget(undefined); setError("");
@@ -236,27 +214,27 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     } catch (e) { setError(String(e)); }
   };
   useEffect(() => {
-    if (!focusId || dirty || busy) return;
+    if (!focusId || busy) return;
     if (active === focusId) { setExpanded(true); return; }
     const item = items.find(row => row.id === focusId);
     if (item) open(item);
   }, [focusId, items]);
   const update = (next: FlowchartData) => {
     if (graph && graph !== next) { undoStack.current = [...undoStack.current.slice(-49), graph]; redoStack.current = []; }
-    setGraph(next); setDirty(true);
+    saveVersion.current += 1; setGraph(next); setDirty(true);
   };
   const undoGraph = () => setGraph(current => {
     const previous = undoStack.current.pop();
     if (!current || !previous) return current;
-    redoStack.current.push(current); setDirty(true); return previous;
+    redoStack.current.push(current); saveVersion.current += 1; setDirty(true); return previous;
   });
   const redoGraph = () => setGraph(current => {
     const next = redoStack.current.pop();
     if (!current || !next) return current;
-    undoStack.current.push(current); setDirty(true); return next;
+    undoStack.current.push(current); saveVersion.current += 1; setDirty(true); return next;
   });
   const create = async () => {
-    if (!newTitle.trim() || busy || (dirty && !window.confirm("当前流程图有未保存修改，放弃修改并创建？"))) return;
+    if (!newTitle.trim() || busy) return;
     setBusy(true); setError("");
     try {
       const next = createFlowchart(template === "code");
@@ -273,7 +251,8 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   };
   const save = async () => {
     if (!graph || !active || !title.trim()) return;
-    setBusy(true); setError("");
+    const version = saveVersion.current;
+    setSyncing(true); setError("");
     try {
       const original = items.find(row => row.id === active);
       const isLegacy = original?.content.legacyFlowchart === true;
@@ -284,9 +263,15 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
         : projectId
         ? await api.updateProjectManagementModuleItem(projectId, active, { title: title.trim(), content: { ...original?.content, graph } })
         : ({ ...(await api.updateFlowchart(active, { title: title.trim(), graph: graph as unknown as Record<string, unknown> })), moduleKey: "flowcharts", parentId: null, subtitle: null, sortOrder: 0, content: { graph } } as unknown as ProjectModuleItem);
-      setItems(rows => rows.map(row => row.id === item.id ? item : row)); setDirty(false);
-    } catch (e) { setError(`保存失败，修改仍保留在画布：${String(e)}`); } finally { setBusy(false); }
+      setItems(rows => rows.map(row => row.id === item.id ? item : row));
+      if (saveVersion.current === version) setDirty(false);
+    } catch (e) { setError(`自动保存失败：${String(e)}`); } finally { setSyncing(false); }
   };
+  useEffect(() => {
+    if (!dirty || !graph || !active || !title.trim()) return;
+    const timer = window.setTimeout(() => { void save(); }, 400);
+    return () => window.clearTimeout(timer);
+  }, [dirty, graph, active, title]);
   const removeTask = async () => {
     if (!active || !window.confirm(`删除流程图任务“${title}”及其所有节点？此操作不能撤销。`)) return;
     setBusy(true); setError("");
@@ -296,7 +281,6 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
       else if (flowchartIds) await onFlowchartIdsChange?.(flowchartIds.filter(id => id !== active));
       else if (projectId) await api.deleteProjectManagementModuleItem(projectId, active);
       else await api.deleteFlowchart(active);
-      try { sessionStorage.removeItem(draftKey); } catch { /* Optional draft storage. */ }
       setItems(rows => rows.filter(row => row.id !== active)); setActive(undefined); setGraph(undefined); setDirty(false);
     } catch (e) { setError(`删除失败：${String(e)}`); } finally { setBusy(false); }
   };
@@ -392,8 +376,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
           else open(item);
         }}>{embedded && !expanded ? <span className="pfc-task-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span> : <span className="pfc-list-icon" aria-hidden="true"><FlowchartListIcon name="flow" /></span>}<strong>{active === item.id ? title : item.title}</strong></button>
             {active === item.id && expanded && <>
-              {isFullscreen && <span className="pfc-save-state">{busy ? "保存中…" : dirty ? "未保存" : "已保存"}</span>}
-              {dirty && <button disabled={busy} onClick={() => void save()}>{busy ? "保存中…" : "保存修改"}</button>}
+              {isFullscreen && <span className="pfc-save-state">{syncing ? "自动保存中…" : dirty ? "等待自动保存…" : "已同步"}</span>}
               <button aria-label="撤销" title="撤销（⌘Z）" disabled={undoStack.current.length === 0} onClick={undoGraph}>↶</button>
               <button aria-label="重做" title="重做（⌘⇧Z）" disabled={redoStack.current.length === 0} onClick={redoGraph}>↷</button>
               <button aria-label="添加节点" title="添加处理节点" onClick={() => addNode("step")}>＋ 节点</button>
@@ -408,15 +391,14 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
         {settingsOpen && <fieldset disabled={busy} className="pfc-settings">
             <button className="pfc-close" aria-label="关闭任务设置" onClick={() => setSettingsOpen(false)}>×</button>
             <label>任务名称
-            <input aria-label="任务名称" value={title} onChange={e => { setTitle(e.target.value); setDirty(true); }} />
+            <input aria-label="任务名称" value={title} onChange={e => { saveVersion.current += 1; setTitle(e.target.value); setDirty(true); }} />
             </label>
             <label>任务状态
             <select aria-label="任务状态" value={graph.status} onChange={e => update({ ...graph, status: e.target.value as FlowchartData["status"] })}>
               <option value="draft">草稿</option><option value="active">分析中</option><option value="completed">已完成</option>
             </select>
             </label>
-            <span role="status">{busy ? "处理中…" : dirty ? "有未保存修改" : "已保存"}</span>
-            <button type="button" disabled={!dirty || !title.trim()} onClick={() => void save()}>保存</button>
+            <span role="status">{syncing ? "自动保存中…" : dirty ? "等待自动保存…" : "已同步"}</span>
             <button type="button" onClick={() => void removeTask()}>删除任务</button>
         </fieldset>}
         {scope !== ROOT_SCOPE && <nav className="pfc-breadcrumb" aria-label="子流程路径"><button onClick={() => enter(ROOT_SCOPE)}>总流程</button>{scopePath(graph.nodes, scope).map(row => <button key={row.id} onClick={() => enter(row.id)}>› {row.data.label}</button>)}</nav>}

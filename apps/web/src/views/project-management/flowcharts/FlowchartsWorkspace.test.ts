@@ -25,6 +25,13 @@ test("项目流程图记住上次打开的图和列表状态", () => {
   assert.match(source, /sessionStorage\.setItem\(viewKey, JSON\.stringify\(\{ id: active \?\? null, expanded \}\)\)/);
 });
 
+test("流程图变更自动同步后端，不保留本地草稿", () => {
+  assert.doesNotMatch(source, /rich-flowchart-draft/);
+  assert.match(source, /window\.setTimeout\(\(\) => \{ void save\(\); \}, 400\)/);
+  assert.match(source, /自动保存中…/);
+  assert.doesNotMatch(source, />保存修改</);
+});
+
 const source = readFileSync(new URL("./FlowchartsWorkspace.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("./FlowchartsWorkspace.css", import.meta.url), "utf8");
 
