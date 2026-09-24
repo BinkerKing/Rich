@@ -3381,7 +3381,7 @@
 .workflow-rich-content :is(h1, h2, h3) *,
 .prj-pm-rich-surface :is(h1, h2, h3) * { color: inherit !important; }
 .workflow-rich-content blockquote,
-.prj-pm-rich-surface blockquote { padding: 7px 12px; border-left: 3px solid #fff; color: #fff; background: transparent; }
+.prj-pm-rich-surface blockquote { padding: 7px 12px; border-left: 3px solid #fff; border-radius: 0 6px 6px 0; color: #fff; background: rgba(255, 255, 255, .045); }
 .workflow-rich-content a,
 .prj-pm-rich-surface a { color: #fff; text-decoration: underline; }
 .workflow-rich-content pre,

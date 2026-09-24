@@ -62,6 +62,7 @@ test("通用富文本以亮白正文和有呼吸感的分级标题呈现", () =>
   assert.match(styles, /\.workflow-rich-content h2,[\s\S]*?margin:\s*30px 0 15px[\s\S]*?border-left:\s*3px solid #64c8f2[\s\S]*?color:\s*#d9f3ff/);
   assert.match(styles, /\.workflow-rich-content h3,[\s\S]*?margin:\s*26px 0 13px[\s\S]*?border-left:\s*2px solid #66d6a0[\s\S]*?color:\s*#e0ffee/);
   assert.match(styles, /\.workflow-rich-content :is\(h1, h2, h3\) \*,[\s\S]*?color:\s*inherit !important/);
+  assert.match(styles, /\.workflow-rich-content blockquote,[\s\S]*?border-left:\s*3px solid #fff[\s\S]*?background:\s*rgba\(255, 255, 255, \.045\)/);
 });
 
 test("正文格式保持默认排版，但不覆盖编辑器的字号、加粗和颜色标记", () => {
