@@ -6750,6 +6750,8 @@
   min-width: 32px;
   margin-left: auto;
   padding: 0;
+  border-color: transparent;
+  background: transparent;
 }
 
 .prj-pm-dict__tabs .prj-pm-dict__information-library svg,
@@ -6762,6 +6764,8 @@
 .prj-pm-dict__tabs .prj-pm-dict__codex {
   min-width: 32px;
   padding: 0;
+  border-color: transparent;
+  background: transparent;
 }
 
 .prj-pm-dict__tabs .prj-pm-dict__codex.is-working {
