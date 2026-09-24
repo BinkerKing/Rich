@@ -37,6 +37,10 @@ import { FlowchartsWorkspace } from "./project-management/flowcharts/FlowchartsW
 import { closeDeliverableCodex } from "./project-management/deliverables/DeliverableCodexLauncher.js";
 
 interface Props { projectId: string }
+export const PROJECT_SECTION_FOCUS_EVENT = "rich:project-section-focus";
+export function requestProjectSectionFocus(projectId: string, section: ProjectManagementSection) {
+  window.dispatchEvent(new CustomEvent(PROJECT_SECTION_FOCUS_EVENT, { detail: { projectId, section } }));
+}
 type ProjectMenuIconName = ProjectManagementSection | "globalSearch";
 type ProjectMenuConfig = {
   order: ProjectManagementSection[];
@@ -74,6 +78,14 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const project = useStore(s => s.elements.get(projectId));
   const hydrate = useStore(s => s.hydrate);
   const [section, setSection] = useState<ProjectManagementSection>(() => loadProjectManagementWorkspaceSection(projectId));
+  useEffect(() => {
+    const focus = (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId?: string; section?: ProjectManagementSection }>).detail;
+      if (detail?.projectId === projectId && detail.section) selectSection(detail.section);
+    };
+    window.addEventListener(PROJECT_SECTION_FOCUS_EVENT, focus);
+    return () => window.removeEventListener(PROJECT_SECTION_FOCUS_EVENT, focus);
+  }, [projectId]);
   const [summary, setSummary] = useState<ProjectManagementSummary | null>(null);
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchFocusSignal, setSearchFocusSignal] = useState(0);

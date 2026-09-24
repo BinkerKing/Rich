@@ -7,6 +7,7 @@ import { RichContent } from "../../../components/RichContent.js";
 import { notifyDeliverableDataChanged } from "./DeliverablesModel.js";
 import { requestShortcutOpen } from "../../../lib/shortcutEngine.js";
 import { useStore } from "../../../state/store.js";
+import { requestProjectSectionFocus } from "../../ProjectWorkspace.js";
 import { api, type AiManagedTaskCreateInput } from "../../../api/client.js";
 import { shouldRedeployLatestApp } from "../../../lib/bugDeploymentPolicy.js";
 import type { CodexInitialAttachment } from "../../../lib/aiTaskCodexContext.js";
@@ -18,7 +19,7 @@ type TaskMode = { id: string; label: string; hint: string };
 type TaskModeSession = TaskMode & { location: CodexLocationContextInput; startedAt: string };
 type Theme = "obsidian" | "graphite";
 type PendingAiTask = { sceneId: AiManagedTaskCreateInput["sceneId"]; label: string; payload?: Record<string, unknown> };
-type Conversation = { id: string; title: string; mode: Mode; status: "active" | "archived"; projectId: string; deliverableId: string; codexThreadId?: string; lastActiveAt: string };
+type Conversation = { id: string; title: string; mode: Mode; status: "active" | "archived"; projectId: string; deliverableId: string; scopeKey?: string; codexThreadId?: string; lastActiveAt: string };
 type Message = { role: "user" | "assistant" | "system"; content: string; createdAt?: string; durationMs?: number; kind?: "task-mode-started" | "task-mode-instruction" | "task-mode-policy-updated"; taskModeLabel?: string; taskModeLocation?: CodexLocationContextInput; attachments?: Array<{ id?: string; url?: string; previewUrl?: string }> };
 type QueuedMessage = { id: string; conversation: Conversation; content: string; attachments: Array<{ id: string; mime: string; url: string; width?: number; height?: number; previewUrl?: string }> };
 type WindowState = { x: number; y: number; width: number; height: number; maximized: boolean };
@@ -77,6 +78,10 @@ function currentProjectTitle(): string {
 
 function resourceLabel(resourceType: "deliverable" | "flowchart" | "mindmap" | "dictionary" | "report"): string {
   return resourceType === "dictionary" ? "数据字典" : resourceType === "flowchart" ? "流程图" : resourceType === "mindmap" ? "思维导图" : resourceType === "report" ? "报告中心" : "交付物";
+}
+function conversationResourceType(conversation: Conversation | undefined, fallback: "deliverable" | "flowchart" | "mindmap" | "dictionary" | "report") {
+  const scope = conversation?.scopeKey ?? "";
+  return scope.startsWith("flowchart:") ? "flowchart" : scope.startsWith("mindmap:") ? "mindmap" : scope.startsWith("report:") ? "report" : fallback;
 }
 
 function currentLocationContext(appView: string, projectId: string, deliverableId: string, deliverableTitle: string, resourceType: "deliverable" | "flowchart" | "mindmap" | "dictionary" | "report"): CodexLocationContextInput {
@@ -197,6 +202,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const [theme, setTheme] = useState<Theme>(() => localStorage.getItem(themeStorageKey) === "graphite" ? "graphite" : "obsidian");
   const dragRef = useRef<{ x: number; y: number; startX: number; startY: number }>();
   const active = useMemo(() => conversations.find(item => item.id === activeId), [activeId, conversations]);
+  const activeResourceType = conversationResourceType(active, resourceType);
   const isResponding = Boolean(active && (streamingConversationId === active.id || runningByConversation[active.id]));
   const activeTaskMode = active ? taskModes[active.id] : undefined;
   const attachedLocation = currentLocationContext(appView, projectId, deliverableId, deliverableTitle, resourceType);
@@ -505,10 +511,13 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
   const jumpToBoundResource = () => {
-    if (projectId === "__general__") return;
-    requestShortcutOpen({ kind: "project", id: projectId });
+    const boundProjectId = active?.projectId ?? projectId;
+    if (activeResourceType === "mindmap") { setAppView("mindmap"); window.dispatchEvent(new Event("rich:close-deliverable-codex")); return; }
+    if (boundProjectId === "__general__") return;
+    requestShortcutOpen({ kind: "project", id: boundProjectId });
     setAppView("projects");
     window.dispatchEvent(new Event("rich:close-deliverable-codex"));
+    window.requestAnimationFrame(() => requestProjectSectionFocus(boundProjectId, activeResourceType === "flowchart" ? "flowcharts" : activeResourceType === "report" ? "reports" : activeResourceType === "dictionary" ? "dictionary" : "deliverables"));
   };
   useEffect(() => {
     if (!taskModePickerOpen) return;
@@ -553,7 +562,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       <div className="deliverable-codex-workbench__content">
         <header className="deliverable-codex-workbench__tabs" onPointerDown={beginDrag} onPointerMove={drag} onPointerUp={() => { dragRef.current = undefined; }}>
           <div ref={conversationMenuRef} className="deliverable-codex-workbench__title-group">{editingTitle ? <input ref={titleInputRef} aria-label="会话标题" value={editableTitle} disabled={!active} onChange={event => setEditableTitle(event.target.value)} onBlur={() => { setEditingTitle(false); void rename(); }} onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setEditableTitle(active?.title ?? ""); setEditingTitle(false); } }}/> : <span className="deliverable-codex-workbench__title" title={resourceType === "dictionary" || resourceType === "report" ? undefined : "双击编辑标题"} onDoubleClick={() => { if (active && resourceType !== "dictionary" && resourceType !== "report") setEditingTitle(true); }}>{active?.title ?? "新会话"}</span>}<div className="deliverable-codex-workbench__conversation-menu"><button type="button" aria-label="更多会话操作" aria-expanded={conversationMenuOpen} disabled={!active} onClick={() => setConversationMenuOpen(current => !current)}>•••</button>{conversationMenuOpen && <div role="menu">{resourceType !== "dictionary" && resourceType !== "report" && <button type="button" role="menuitem" onClick={() => { setConversationMenuOpen(false); setEditingTitle(true); }}>重命名</button>}<button type="button" role="menuitem" onClick={() => { setConversationMenuOpen(false); void archive(); }}>归档</button></div>}</div></div>
-          <button type="button" title={windowState.maximized ? "还原窗口" : "全屏"} onClick={() => setWindowState(current => ({ ...current, maximized: !current.maximized }))}>{windowState.maximized ? "↙" : "⛶"}</button><div className="deliverable-codex-workbench__task-mode-bar"><button type="button" title={projectId === "__general__" ? undefined : "跳转到绑定菜单"} onClick={jumpToBoundResource} disabled={projectId === "__general__"}>{resourceLabel(resourceType)}：{deliverableTitle}{projectId === "__general__" ? "" : " ↗"}</button><b>{activeTaskMode ? `任务模式：${activeTaskMode.label}` : "已绑定 Codex Session"}</b></div>
+          <button type="button" title={windowState.maximized ? "还原窗口" : "全屏"} onClick={() => setWindowState(current => ({ ...current, maximized: !current.maximized }))}>{windowState.maximized ? "↙" : "⛶"}</button><div className="deliverable-codex-workbench__task-mode-bar"><button type="button" title="跳转到绑定菜单" onClick={jumpToBoundResource}>{resourceLabel(activeResourceType)}：{active?.title ?? deliverableTitle} ↗</button><b>{activeTaskMode ? `任务模式：${activeTaskMode.label}` : "已绑定 Codex Session"}</b></div>
         </header>
         {creating && <form className="deliverable-codex-workbench__create" onSubmit={event => { event.preventDefault(); void create(); }}><input autoFocus value={title} onChange={event => setTitle(event.target.value)} placeholder="会话标题"/><button type="submit">创建</button></form>}
         {taskModePickerOpen && <section className="deliverable-codex-workbench__task-mode-picker" role="listbox" aria-label="任务模式选择"><small>当前页面：{currentPageLocation(appView).join(" / ")}</small>{availableTaskModes.map((mode, index) => <button key={mode.id} type="button" role="option" aria-selected={index === taskModeIndex} className={index === taskModeIndex ? "is-active" : ""} onClick={() => startTaskMode(mode)}><b>{mode.label}</b><span>{mode.hint} · Enter 启动</span></button>)}</section>}
