@@ -13,6 +13,15 @@ test("通用富文本编辑器使用 Tiptap，并保留 HTML 回调和图片上�
   assert.match(modules, /Highlight/);
   assert.match(modules, /editor\.getHTML\(\)/);
   assert.match(modules, /api\.uploadAttachments/);
+  assert.match(modules, /const RICH_FONT_SIZES = \[12, 14, 16, 18, 20, 24, 28, 32\]/);
+  assert.match(modules, /aria-label="减小字体"/);
+  assert.match(modules, /aria-label="增大字体"/);
+  assert.match(modules, /function changeFontSize|const changeFontSize/);
+  assert.match(modules, /微软雅黑/);
+  assert.match(modules, /宋体/);
+  assert.match(modules, /仿宋/);
+  assert.doesNotMatch(modules, /className="prj-pm-rich-toolbar__select is-size"/);
+  assert.match(styles, /\.prj-pm-rich-font-size\s*\{[^}]*display:inline-flex[^}]*height:34px/s);
 });
 
 test("项目说明编辑器提供完整的三级标题，并以不同卡片呈现步骤和代码", () => {

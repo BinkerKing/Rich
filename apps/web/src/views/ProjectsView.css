@@ -3264,6 +3264,11 @@
 .prj-pm-rich-toolbar__select:hover,
 .prj-pm-rich-toolbar__select:focus { border-color: rgba(143, 254, 247, .2); background: rgba(143, 254, 247, .08); outline: none; }
 .prj-pm-rich-toolbar__select option { color: #1f2937; background: #fff; }
+.prj-pm-rich-font-size { display:inline-flex; align-items:center; height:34px; border:1px solid rgba(255,255,255,.14); border-radius:7px; color:#f8fafc; background:rgba(255,255,255,.025); overflow:hidden; }
+.prj-pm-rich-font-size button { width:29px; height:32px; border:0; border-radius:0; color:#f8fafc; font-size:19px; font-weight:500; line-height:1; }
+.prj-pm-rich-font-size button:hover:not(:disabled) { background:rgba(143,254,247,.12); color:#dffffc; }
+.prj-pm-rich-font-size button:disabled { cursor:not-allowed; opacity:.34; }
+.prj-pm-rich-font-size output { display:grid; width:32px; place-items:center; color:#fff; font:650 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace; }
 .prj-pm-rich-color-control { position: relative; display: inline-flex; }
 .prj-pm-rich-color-control > button { position: relative; }
 .prj-pm-rich-color-control > button i { position: absolute; right: 7px; bottom: 6px; width: 10px; height: 3px; border-radius: 99px; }

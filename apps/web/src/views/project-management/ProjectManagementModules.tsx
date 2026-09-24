@@ -531,6 +531,7 @@ type RichToolbarIconName =
 const RICH_TEXT_COLORS = ["#1f2937", "#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899", "#ffffff"];
 const RICH_HIGHLIGHT_COLORS = ["#fff3b0", "#fee2e2", "#ffedd5", "#fef3c7", "#dcfce7", "#cffafe", "#dbeafe", "#ede9fe", "#fce7f3", "#e5e7eb"];
 const RICH_TOOLBAR_ITEM_COUNT = 25;
+const RICH_FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32];
 
 function RichToolbarIcon({ name }: { name: RichToolbarIconName }) {
   const common = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
@@ -595,6 +596,7 @@ export function ProjectRichTextEditor({
   const lastToolbarWidthRef = useRef(0);
   const [colorMenu, setColorMenu] = useState<"text" | "highlight" | null>(null);
   const [moreMenu, setMoreMenu] = useState(false);
+  const [fontSize, setFontSize] = useState(16);
   const [toolbarWidth, setToolbarWidth] = useState(0);
   const [visibleToolbarItems, setVisibleToolbarItems] = useState(RICH_TOOLBAR_ITEM_COUNT);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
@@ -646,6 +648,21 @@ export function ProjectRichTextEditor({
     if (editor && !editor.isFocused && value !== editor.getHTML()) editor.commands.setContent(value || "", { emitUpdate: false });
   }, [editor, value]);
 
+  useEffect(() => {
+    if (!editor) return;
+    const syncFontSize = () => {
+      const parsed = Number.parseInt(String(editor.getAttributes("textStyle").fontSize ?? "16"), 10);
+      setFontSize(RICH_FONT_SIZES.includes(parsed) ? parsed : 16);
+    };
+    editor.on("selectionUpdate", syncFontSize);
+    editor.on("transaction", syncFontSize);
+    syncFontSize();
+    return () => {
+      editor.off("selectionUpdate", syncFontSize);
+      editor.off("transaction", syncFontSize);
+    };
+  }, [editor]);
+
   const setColor = (kind: "text" | "highlight", color: string) => {
     const chain = editor?.chain().focus();
     if (kind === "text") chain?.setColor(color).run();
@@ -670,6 +687,14 @@ export function ProjectRichTextEditor({
     if (hasText && !allBold) chain.setBold().run();
     else chain.toggleBold().run();
   };
+  const changeFontSize = (direction: -1 | 1) => {
+    const currentIndex = RICH_FONT_SIZES.indexOf(fontSize);
+    const nextIndex = Math.min(RICH_FONT_SIZES.length - 1, Math.max(0, currentIndex + direction));
+    const nextSize = RICH_FONT_SIZES[nextIndex];
+    if (nextSize === fontSize) return;
+    editor.chain().focus().setMark("textStyle", { fontSize: `${nextSize}px` }).run();
+    setFontSize(nextSize);
+  };
   const uploadAndInsert = async (files: File[]) => {
     if (files.length === 0) return;
     const uploaded = await api.uploadAttachments(`pm-${projectId}`, files);
@@ -685,8 +710,8 @@ export function ProjectRichTextEditor({
     { key: "heading-one", node: <RichToolbarButton icon="heading-one" label="一级标题" active={editor.isActive("heading", { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}/> },
     { key: "heading-two", node: <RichToolbarButton icon="heading-two" label="二级标题" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}/> },
     { key: "heading-three", node: <RichToolbarButton icon="heading-three" label="三级标题" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}/> },
-    { key: "font", node: <select className="prj-pm-rich-toolbar__select" aria-label="字体" defaultValue="PingFang SC" onChange={event => editor.chain().focus().setFontFamily(event.target.value).run()}><option>PingFang SC</option><option>Microsoft YaHei</option><option>Arial</option><option>Georgia</option><option>Menlo</option></select> },
-    { key: "size", node: <select className="prj-pm-rich-toolbar__select is-size" aria-label="字号" defaultValue="14px" onChange={event => editor.chain().focus().setMark("textStyle", { fontSize: event.target.value }).run()}><option value="12px">12px</option><option value="14px">14px</option><option value="16px">16px</option><option value="18px">18px</option><option value="24px">24px</option></select> },
+    { key: "font", node: <select className="prj-pm-rich-toolbar__select" aria-label="字体" defaultValue="'PingFang SC', 'Microsoft YaHei', sans-serif" onChange={event => editor.chain().focus().setFontFamily(event.target.value).run()}><option value="'PingFang SC', 'Microsoft YaHei', sans-serif">苹方 / PingFang SC</option><option value="'Microsoft YaHei', '微软雅黑', sans-serif">微软雅黑</option><option value="SimSun, '宋体', serif">宋体</option><option value="KaiTi, '楷体', serif">楷体</option><option value="FangSong, '仿宋', serif">仿宋</option><option value="Arial, sans-serif">Arial</option><option value="Georgia, serif">Georgia</option><option value="Menlo, Consolas, monospace">Menlo / Consolas</option></select> },
+    { key: "size", node: <span className="prj-pm-rich-font-size" aria-label="字号"><button type="button" aria-label="减小字体" title="减小字体" disabled={fontSize === RICH_FONT_SIZES[0]} onMouseDown={event => event.preventDefault()} onClick={() => changeFontSize(-1)}>−</button><output aria-live="polite">{fontSize}</output><button type="button" aria-label="增大字体" title="增大字体" disabled={fontSize === RICH_FONT_SIZES[RICH_FONT_SIZES.length - 1]} onMouseDown={event => event.preventDefault()} onClick={() => changeFontSize(1)}>+</button></span> },
     { key: "bold", node: <RichToolbarButton icon="bold" label="加粗" active={editor.isActive("bold")} onClick={toggleBoldUniformly}/> },
     { key: "italic", node: <RichToolbarButton icon="italic" label="斜体" active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}/> },
     { key: "underline", node: <RichToolbarButton icon="underline" label="下划线" active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()}/> },
