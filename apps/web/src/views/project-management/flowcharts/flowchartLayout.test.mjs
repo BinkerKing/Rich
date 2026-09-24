@@ -133,14 +133,15 @@ test('Command Enter inserts a line break while Enter saves node editing', () => 
   assert.match(source, /event\.key === "Enter"\) \{ event\.preventDefault\(\); event\.currentTarget\.blur\(\); \}/);
 });
 
-test('left double click opens details while right double click enters a child flowchart', () => {
+test('double click opens details while right clicking a node starts Codex refinement', () => {
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
   assert.match(source, /const \[detailNode, setDetailNode\] = useState\(""\)/);
   assert.match(source, /onNodeDoubleClick=\{\(_, row\) => \{ setSelected\(row\.id\); setSelectedIds\(\[row\.id\]\); setDetailNode\(row\.id\); \}\}/);
   assert.match(source, /onNodeContextMenu=\{\(event, row\) => \{/);
   assert.match(source, /event\.preventDefault\(\)/);
-  assert.match(source, /rightClickNode\.current\?\.id === row\.id/);
-  assert.match(source, /enter\(row\.id\)/);
+  assert.match(source, /openCodexRefinement\(selectedIds\.includes\(row\.id\) \? selectedIds : \[row\.id\]\)/);
+  assert.match(source, /onSelectionContextMenu=\{\(event, nodes\) => \{/);
+  assert.match(source, /openCodexRefinement\(nodes\.map\(node => node\.id\)\)/);
   assert.match(source, /event\.key === "Escape" && detailNode/);
   assert.match(source, /detailNode && <aside/);
 });

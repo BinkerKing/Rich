@@ -39,6 +39,7 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(source, /const \[codexRunningNodeIds, setCodexRunningNodeIds\] = useState<string\[\]>\(\[\]\)/);
   assert.match(source, /onNodeContextMenu=\{\(event, row\) => \{ event\.preventDefault\(\); void openCodexRefinement/);
   assert.match(source, /onPaneContextMenu=\{event => \{[\s\S]*?selectedIds\.length/);
+  assert.match(source, /onSelectionContextMenu=\{\(event, nodes\) => \{ event\.preventDefault\(\); event\.stopPropagation\(\); void openCodexRefinement\(nodes\.map\(node => node\.id\)\); \}\}/);
   assert.match(source, /className: codexRunningNodeIds\.includes\(row\.id\) \? "is-codex-running"/);
   assert.match(source, /className="pfc-codex-refinement"/);
   assert.match(styles, /\.pfc \.react-flow__node\.is-codex-running/);
