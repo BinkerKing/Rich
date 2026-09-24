@@ -33,6 +33,13 @@ test("工作台目录固定在与正文共用的阅读网格中", () => {
   assert.match(styles, /\.wd-locator-host\s*\{[^}]*position:\s*sticky[^}]*top:\s*0/s);
 });
 
+test("连续序号以一个清爽的模块卡片承载，行间仅保留轻量分隔", () => {
+  assert.match(styles, /\.wd-step-card\s*\{[^}]*gap:\s*0[^}]*padding:\s*4px 18px[^}]*background:\s*#121a1e[^}]*border-radius:\s*12px/s);
+  assert.match(styles, /\.wd-step-card li\s*\{[^}]*border-bottom:\s*1px solid rgba\(131, 223, 232, 0\.16\)[^}]*font-size:\s*16\.5px/s);
+  assert.match(styles, /\.wd-step-card li:last-child\s*\{[^}]*border-bottom:\s*0/s);
+  assert.match(styles, /\.wd-step-card li::before\s*\{[^}]*background:\s*transparent[^}]*border:\s*0/s);
+});
+
 test("流程图卡片保留边框并将放大按钮固定在标题栏最右侧", () => {
   assert.match(styles, /\.wd-card--flowchart\s*\{[^}]*border-color:\s*rgba\(4, 189, 214, 0\.32\)/s);
   assert.match(styles, /\.wd-flowchart-drawer__label\s*\{[^}]*width:\s*100%/s);
