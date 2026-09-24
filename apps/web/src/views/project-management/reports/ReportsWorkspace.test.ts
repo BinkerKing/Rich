@@ -25,12 +25,10 @@ test("报告中心头部操作只展示文档和对话图标", () => {
   assert.doesNotMatch(source, /<span>新建报告<\/span>|<span>Codex<\/span>/);
 });
 
-test("新建日报默认进入紧凑驾驶舱，编辑时才展开单栏表单", () => {
+test("新建日报默认进入驾驶舱，编辑时仍保留月历导航", () => {
   assert.match(source, /await load\(\); setOpenId\(item\.id\); setDraft\(report\); setEditing\(false\);/);
-  assert.match(source, /reports-workspace__layout\$\{editing \? " is-editing" : ""\}/);
   assert.match(source, /\{editing && <button className="reports-workspace__detail-action" aria-label=\{busy \? "保存中" : "保存并写入文件"\}/);
-  assert.match(styles, /\.reports-workspace__layout\.is-editing \{ grid-template-columns:1fr; \}/);
-  assert.match(styles, /\.reports-workspace__layout\.is-editing \.reports-calendar \{ display:none; \}/);
+  assert.doesNotMatch(styles, /\.reports-workspace__layout\.is-editing \.reports-calendar \{ display:none; \}/);
 });
 
 test("日报工作台可在摘要和富文本报告之间切换", () => {
@@ -43,14 +41,12 @@ test("日报工作台可在摘要和富文本报告之间切换", () => {
   assert.doesNotMatch(source, /showReport && <section className="report-workbench__editor">/);
 });
 
-test("日报将日历收纳为日期导航，并使用单一主画布", () => {
-  assert.match(source, /function shiftReportDate\(date: string, days: number\)/);
-  assert.match(source, /className="reports-workspace__date-nav"/);
-  assert.match(source, /setSelectedDate\(date => shiftReportDate\(date, -1\)\)/);
-  assert.match(source, /setSelectedDate\(date => shiftReportDate\(date, 1\)\)/);
-  assert.doesNotMatch(source, /<aside className="reports-calendar"/);
-  assert.match(styles, /\.reports-workspace--daily \.reports-workspace__layout\s*\{[^}]*display:block[^}]*min-height:0/s);
-  assert.match(styles, /\.reports-workspace--daily \.reports-workspace__date-nav\s*\{[^}]*display:flex[^}]*align-items:center/s);
+test("日报保留月历导航，日报内容在右侧单独重构", () => {
+  assert.match(source, /import \{ calendarDays, shiftCalendarMonth \} from "\.\/reportsCalendar\.js"/);
+  assert.match(source, /<aside className="reports-calendar" aria-label="报告日历">/);
+  assert.match(source, /setSelectedDate\(date => shiftCalendarMonth\(date, -1\)\)/);
+  assert.doesNotMatch(source, /reports-workspace__date-nav/);
+  assert.match(styles, /\.reports-workspace--daily \.reports-workspace__layout\s*\{[^}]*grid-template-columns:260px minmax\(0,1fr\)!important/s);
 });
 
 test("日报详情操作使用带说明的图标按钮", () => {

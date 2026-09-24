@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type ProjectModuleItem } from "../../../api/client.js";
+import { calendarDays, shiftCalendarMonth } from "./reportsCalendar.js";
 import { ProjectRichTextEditor } from "../ProjectManagementModules.js";
 import { openBoundCodex } from "../deliverables/DeliverableCodexLauncher.js";
 
@@ -22,11 +23,6 @@ type ProjectReport = {
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
-function shiftReportDate(date: string, days: number) {
-  const value = new Date(`${date}T12:00:00`);
-  value.setDate(value.getDate() + days);
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
-}
 const listText = (items: string[]) => items.join("\n");
 const listValue = (value: unknown) => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 const activityLabel = (kind: DeliveryActivityKind) => ({ record: "记录", todo: "待办", deliverable: "交付物", risk: "风险", reminder: "催办", end: "结束" } as const)[kind];
@@ -156,6 +152,9 @@ export function ReportsWorkspace({ projectId }: { projectId: string }) {
   };
 
   const selectedItems = items.filter(item => reportFrom(item).date === selectedDate);
+  const reportDates = useMemo(() => new Set(items.map(item => reportFrom(item).date)), [items]);
+  const days = useMemo(() => calendarDays(selectedDate), [selectedDate]);
+  const [year, month] = selectedDate.split("-").map(Number);
   const openItem = selectedItems.find(item => item.id === openId);
   const todayWork = useMemo(() => todayWorkItems(deliveryItems, draft.date), [deliveryItems, draft.date]);
 
@@ -165,13 +164,16 @@ export function ReportsWorkspace({ projectId }: { projectId: string }) {
       <div className="reports-workspace__header-actions"><button className="reports-workspace__create" aria-label="新建报告" title="新建报告" type="button" onClick={() => void createReport()} disabled={busy}><ReportHeaderActionIcon kind="report" /></button><button className="reports-workspace__create" aria-label="Codex 对话" title="Codex 对话" type="button" onClick={() => void openCodexConversation()} disabled={busy}><ReportHeaderActionIcon kind="chat" /></button></div>
     </header>
     {error && <p className="reports-workspace__error">{error}</p>}
-    <div className="reports-workspace__date-nav">
-      <button type="button" aria-label="前一天" onClick={() => setSelectedDate(date => shiftReportDate(date, -1))}>‹</button>
-      <label><span>日报日期</span><input type="date" value={selectedDate} onChange={event => { setSelectedDate(event.target.value); setOpenId(null); setShowReport(false); }} /></label>
-      <small>{selectedItems.length ? `当日 ${selectedItems.length} 份报告` : "当日暂无报告"}</small>
-      <button type="button" aria-label="后一天" onClick={() => setSelectedDate(date => shiftReportDate(date, 1))}>›</button>
-    </div>
     <div className={`reports-workspace__layout${editing ? " is-editing" : ""}`}>
+      <aside className="reports-calendar" aria-label="报告日历">
+        <header><button type="button" aria-label="上个月" onClick={() => setSelectedDate(date => shiftCalendarMonth(date, -1))}>‹</button><strong>{year}年{month}月</strong><button type="button" aria-label="下个月" onClick={() => setSelectedDate(date => shiftCalendarMonth(date, 1))}>›</button></header>
+        <div className="reports-calendar__week">{["一", "二", "三", "四", "五", "六", "日"].map(day => <span key={day}>周{day}</span>)}</div>
+        <div className="reports-calendar__days">{days.map(date => {
+          const inMonth = Number(date.slice(5, 7)) === month;
+          return <button key={date} type="button" className={`${date === selectedDate ? "is-selected " : ""}${!inMonth ? "is-outside" : ""}`} onClick={() => { setSelectedDate(date); setOpenId(null); setShowReport(false); }}><span>{Number(date.slice(8))}</span>{reportDates.has(date) && <i aria-label="当天有报告" />}</button>;
+        })}</div>
+        <footer><b>{selectedDate}</b><span>有报告的日期已标记</span></footer>
+      </aside>
     <div className={`reports-workspace__list${openItem ? " is-working" : ""}`}>
       <header className="reports-workspace__date-head"><h2>{formatReportDate(selectedDate)}</h2><span>{openItem ? "报告工作台" : `当日报告（${selectedItems.length}）`}</span></header>
       {!openItem && <div className="reports-workspace__report-list">
