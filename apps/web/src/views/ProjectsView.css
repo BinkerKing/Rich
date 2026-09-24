@@ -3476,13 +3476,42 @@
 }
 .workflow-rich-content img { cursor: zoom-in; }
 .workflow-rich-content table,
-.prj-pm-rich-surface table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.prj-pm-rich-surface table {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .38);
+  border-radius: 8px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  color: #fff;
+  font-size: 15px;
+  line-height: 1.65;
+}
 .workflow-rich-content th,
 .workflow-rich-content td,
 .prj-pm-rich-surface th,
-.prj-pm-rich-surface td { padding: 7px 9px; border: 1px solid rgba(143, 254, 247, .2); vertical-align: top; }
+.prj-pm-rich-surface td {
+  padding: 11px 13px;
+  border: 0;
+  border-right: 1px solid rgba(255, 255, 255, .2);
+  border-bottom: 1px solid rgba(255, 255, 255, .2);
+  color: #fff;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
 .workflow-rich-content th,
-.prj-pm-rich-surface th { color: #dffffc; background: rgba(143, 254, 247, .1); font-weight: 600; }
+.prj-pm-rich-surface th { color: #fff; background: rgba(255, 255, 255, .055); font-weight: 700; letter-spacing: .025em; }
+.workflow-rich-content tr > :last-child,
+.prj-pm-rich-surface tr > :last-child { border-right: 0; }
+.workflow-rich-content tr:last-child > *,
+.prj-pm-rich-surface tr:last-child > * { border-bottom: 0; }
+.workflow-rich-content tbody tr:hover td,
+.prj-pm-rich-surface tbody tr:hover td { background: rgba(255, 255, 255, .035); }
+.workflow-rich-content .selectedCell::after,
+.prj-pm-rich-surface .selectedCell::after { background: rgba(255, 255, 255, .1); }
+.workflow-rich-content .column-resize-handle,
+.prj-pm-rich-surface .column-resize-handle { width: 2px; background: rgba(255, 255, 255, .75); }
 .prj-pm-legacy-skin {
   --accent: #8ffef7;
   --blue: #93c5fd;
