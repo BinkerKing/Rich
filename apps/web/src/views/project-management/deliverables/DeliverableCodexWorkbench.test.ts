@@ -7,6 +7,21 @@ describe("DeliverableCodexWorkbench", () => {
     expect(source).toContain("onConversationCreated?.(payload.conversation.id)");
   });
 
+  it("shows a first-binding card with scope, available MCP tools, and AI rules before the first turn", () => {
+    const source = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
+    const css = readFileSync(new URL("./DeliverableCodexWorkbench.css", import.meta.url), "utf8");
+    expect(source).toContain("function resourceBindingInfo");
+    expect(source).toContain("const showBindingInfo = Boolean(active && messages[active.id] && displayedMessages.length === 0)");
+    expect(source).toContain("首次绑定说明");
+    expect(source).toContain("整体信息");
+    expect(source).toContain("可用 MCP");
+    expect(source).toContain("AI 操作规定");
+    expect(source).toContain("rich_mindmap_manage");
+    expect(source).toContain("rich_flowchart_manage");
+    expect(source).toContain("rich_deliverable_get");
+    expect(css).toContain(".deliverable-codex-workbench__binding-card>p");
+  });
+
   it("sends each newly assigned bug prompt even while another Codex conversation is streaming", () => {
     const source = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
     expect(source).toContain("if (startup?.prompt) void sendMessage(payload.conversation, startup.prompt, [], false, undefined, true);");
