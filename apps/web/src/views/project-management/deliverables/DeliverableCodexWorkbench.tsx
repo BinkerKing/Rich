@@ -89,8 +89,10 @@ function conversationResourceType(conversation: Conversation | undefined, fallba
 
 function displayConversationTitle(conversation: Conversation | undefined, fallback: "deliverable" | "flowchart" | "mindmap" | "dictionary" | "report"): string {
   if (!conversation) return "新会话";
-  if (conversationResourceType(conversation, fallback) !== "mindmap") return conversation.title;
-  return conversation.title.startsWith("[思维导图]") ? conversation.title : `[思维导图] ${conversation.title}`;
+  const resourceType = conversationResourceType(conversation, fallback);
+  const prefix = resourceType === "mindmap" ? "[思维导图]" : resourceType === "deliverable" ? "[交付物]" : undefined;
+  if (!prefix || conversation.title.startsWith(prefix)) return conversation.title;
+  return `${prefix} ${conversation.title}`;
 }
 
 type ResourceBindingInfo = { overview: string; tools: string[]; rules: string };

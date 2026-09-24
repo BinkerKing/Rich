@@ -292,7 +292,7 @@ export function DeliverablesWorkspace({
             "deliverables",
             { title: activity.text, content },
           );
-          await api.ensureDeliverableCodexSession(projectId, created.id, `${created.title} · Codex`);
+          await api.ensureDeliverableCodexSession(projectId, created.id, `[交付物] ${created.title} · Codex`);
           deliverables = [...deliverables, created];
         }
       }
@@ -415,11 +415,11 @@ export function DeliverablesWorkspace({
     await api.createStandaloneDeliverableFolder(item.id);
     setNewTitle(""); setNewFolderPath(""); setCreating(false);
     await refreshItems(); setOpenId(item.id);
-    if (projectId) await api.ensureDeliverableCodexSession(projectId, item.id, `${item.title} · Codex`);
+    if (projectId) await api.ensureDeliverableCodexSession(projectId, item.id, `[交付物] ${item.title} · Codex`);
   };
   const ensureCodexSession = (item: Item) => {
     if (!projectId) throw new Error("交付物尚未绑定项目，无法创建 Codex Session。");
-    return api.ensureDeliverableCodexSession(projectId, item.id, `${item.title} · Codex`);
+    return api.ensureDeliverableCodexSession(projectId, item.id, `[交付物] ${item.title} · Codex`);
   };
   const sendCodexRecord = async (item: Item, content: string, recordId: string) => {
     setRunningCodexRecordIds(current => new Set(current).add(recordId));
