@@ -465,7 +465,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
         <button className="pfc-task-title" aria-expanded={active === item.id && expanded} aria-controls={`pfc-chart-${item.id}`} disabled={busy} onClick={() => {
           if (active === item.id) { setExpanded(value => !value); setSettingsOpen(false); }
           else open(item);
-        }}>{embedded && !expanded ? <span className="pfc-task-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span> : <span className="pfc-list-icon" aria-hidden="true"><FlowchartListIcon name="flow" /></span>}<span className="pfc-task-title-copy"><strong>{active === item.id ? title : item.title}</strong>{active === item.id && expanded && focusedNode && <span className="pfc-node-focus" aria-label="当前选中节点">{focusedNode.data.label}</span>}</span></button>
+        }}>{embedded && !expanded ? <span className="pfc-task-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span> : <span className="pfc-list-icon" aria-hidden="true"><FlowchartListIcon name="flow" /></span>}<span className="pfc-task-title-copy"><strong>{active === item.id ? title : item.title}</strong></span></button>
             {active === item.id && expanded && <>
               {isFullscreen && <span className="pfc-save-state">{syncing ? "自动保存中…" : dirty ? "等待自动保存…" : "已同步"}</span>}
               <button aria-label="撤销" title="撤销（⌘Z）" disabled={undoStack.current.length === 0} onClick={undoGraph}>↶</button>
@@ -477,7 +477,8 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
           {isFullscreen && <button className="pfc-back-to-list" aria-label="返回流程图清单" title="返回流程图清单" onClick={() => { setExpanded(false); setSettingsOpen(false); }}>←</button>}
         </>}
       </header>
-      {active === item.id && expanded && graph && <div className={`pfc-editor${codexChartRunning ? " is-codex-chart-running" : codexChartCompleted ? " is-codex-chart-complete" : ""}`} id={`pfc-chart-${item.id}`} style={busy ? { pointerEvents: "none", opacity: 0.7 } : undefined}>
+      {active === item.id && expanded && graph && <div className={`pfc-editor${focusedNode ? " has-node-focus" : ""}${codexChartRunning ? " is-codex-chart-running" : codexChartCompleted ? " is-codex-chart-complete" : ""}`} id={`pfc-chart-${item.id}`} style={busy ? { pointerEvents: "none", opacity: 0.7 } : undefined}>
+        {focusedNode && <div className="pfc-node-focus" aria-label="当前选中节点">{focusedNode.data.label}</div>}
         {settingsOpen && <fieldset disabled={busy} className="pfc-settings">
             <button className="pfc-close" aria-label="关闭任务设置" onClick={() => setSettingsOpen(false)}>×</button>
             <label>任务名称

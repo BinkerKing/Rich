@@ -22,7 +22,7 @@
 .pfc--embedded .pfc-editor { height:auto; min-height:0; }
 .pfc-title-row { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; min-height: 42px; padding: 0 8px; }
 .pfc .pfc-task-title { display: flex; align-items: center; gap: 10px; flex: 1; border: 0; background: transparent; text-align: left; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.pfc-task-title-copy { display:grid; min-width:0; gap:2px; }.pfc-task-title-copy strong,.pfc-node-focus { overflow:hidden; text-overflow:ellipsis; }.pfc-node-focus { color:#9bc4d8; font-size:11px; font-weight:600; line-height:1.1; }
+.pfc-task-title-copy { display:grid; min-width:0; gap:2px; }.pfc-task-title-copy strong { overflow:hidden; text-overflow:ellipsis; }.pfc-node-focus { position:relative; z-index:12; display:flex; align-items:center; flex:0 0 34px; box-sizing:border-box; padding:0 16px; overflow:hidden; border-bottom:1px solid #29292d; color:#9bc4d8; background:#171719; font-size:12px; font-weight:650; line-height:1.1; text-overflow:ellipsis; white-space:nowrap; }
 .pfc-title-row > button { border: 0; background: transparent; }
 .pfc-create,.pfc-settings { position: absolute; z-index: 30; right: 12px; top: 48px; width: min(340px,calc(100% - 24px)); box-sizing: border-box; padding: 16px; border: 1px solid #484848; border-radius: 8px; background: #292929; box-shadow: 0 8px 30px #0008; }
 .pfc-settings { top: 8px; margin: 0; display: grid; gap: 10px; max-height: calc(100% - 16px); overflow: auto; }
@@ -44,6 +44,7 @@
 .pfc-editor.is-codex-chart-complete { border-color:#78dfff; box-shadow:0 0 0 1px rgba(120,223,255,.45),0 0 22px rgba(102,217,255,.27); }
 @keyframes pfc-codex-chart-flow { to { filter:hue-rotate(360deg); } }
 .pfc-canvas { height: 100%; min-height: 0; min-width: 0; background: #0b0b0c; }
+.pfc-editor.has-node-focus .pfc-canvas { height:calc(100% - 34px); }
 .pfc-details { position: absolute; z-index: 15; right: 12px; top: 12px; bottom: 12px; width: min(440px,calc(100% - 24px)); box-sizing: border-box; padding: 20px; border: 1px solid #303034; border-radius: 16px; background: #121214f5; box-shadow: 0 16px 50px #0009; min-height: 0; overflow: auto; }
 .pfc-details label { display: block; margin: 14px 0; font-size: 13px; }
 .pfc-details input:not([type=checkbox]),.pfc-details textarea,.pfc-details select { width: 100%; box-sizing: border-box; margin-top: 6px; }
