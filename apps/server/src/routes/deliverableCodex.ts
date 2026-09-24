@@ -86,6 +86,38 @@ export function deliverableCodexRoutes(deps: {
     return c.json({ conversations: await deps.conversations.listActive(scopeKey("mindmap", "__general__", c.req.param("mindmapId"))) });
   });
 
+  r.post("/mindmaps/:mindmapId/conversations/ensure-bound", async c => {
+    const body = await c.req.json().catch(() => null) as { title?: unknown } | null;
+    const title = typeof body?.title === "string" ? body.title.trim() : "";
+    if (!title) return c.json({ error: "title is required" }, 400);
+    const projectId = "__general__";
+    const deliverableId = c.req.param("mindmapId");
+    const existing = await deps.conversations.getBound(scopeKey("mindmap", projectId, deliverableId));
+    if (existing) {
+      const context = existing.lastContextSyncAt
+        ? await buildIncrementalContext(existing, existing.lastContextSyncAt)
+        : (await buildContext(existing, "free")).initialContext;
+      return c.json({ conversation: existing, created: false, ...(context ? { context } : {}) });
+    }
+    try {
+      const created = await createBoundConversation(projectId, deliverableId, title, "mindmap");
+      return c.json({ ...created, created: true }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  r.post("/mindmaps/:mindmapId/conversations", async c => {
+    const body = await c.req.json().catch(() => null) as { title?: unknown } | null;
+    const title = typeof body?.title === "string" ? body.title.trim() : "";
+    if (!title) return c.json({ error: "title is required" }, 400);
+    try {
+      return c.json(await createBoundConversation("__general__", c.req.param("mindmapId"), title, "mindmap"), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
   r.post("/:projectId/:deliverableId/conversations/ensure-bound", async c => {
     const body = await c.req.json().catch(() => null) as { title?: unknown } | null;
     const title = typeof body?.title === "string" ? body.title.trim() : "";
@@ -150,44 +182,12 @@ export function deliverableCodexRoutes(deps: {
     }
   });
 
-  r.post("/mindmaps/:mindmapId/conversations/ensure-bound", async c => {
-    const body = await c.req.json().catch(() => null) as { title?: unknown } | null;
-    const title = typeof body?.title === "string" ? body.title.trim() : "";
-    if (!title) return c.json({ error: "title is required" }, 400);
-    const projectId = "__general__";
-    const deliverableId = c.req.param("mindmapId");
-    const existing = await deps.conversations.getBound(scopeKey("mindmap", projectId, deliverableId));
-    if (existing) {
-      const context = existing.lastContextSyncAt
-        ? await buildIncrementalContext(existing, existing.lastContextSyncAt)
-        : (await buildContext(existing, "free")).initialContext;
-      return c.json({ conversation: existing, created: false, ...(context ? { context } : {}) });
-    }
-    try {
-      const created = await createBoundConversation(projectId, deliverableId, title, "mindmap");
-      return c.json({ ...created, created: true }, 201);
-    } catch (error) {
-      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
-    }
-  });
-
   r.post("/flowcharts/:projectId/:flowchartId/conversations", async c => {
     const body = await c.req.json().catch(() => null) as { title?: unknown } | null;
     const title = typeof body?.title === "string" ? body.title.trim() : "";
     if (!title) return c.json({ error: "title is required" }, 400);
     try {
       return c.json(await createBoundConversation(c.req.param("projectId"), c.req.param("flowchartId"), title, "flowchart"), 201);
-    } catch (error) {
-      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
-    }
-  });
-
-  r.post("/mindmaps/:mindmapId/conversations", async c => {
-    const body = await c.req.json().catch(() => null) as { title?: unknown } | null;
-    const title = typeof body?.title === "string" ? body.title.trim() : "";
-    if (!title) return c.json({ error: "title is required" }, 400);
-    try {
-      return c.json(await createBoundConversation("__general__", c.req.param("mindmapId"), title, "mindmap"), 201);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }

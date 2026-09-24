@@ -144,6 +144,7 @@ describe("deliverable Codex routes", () => {
 
   it("creates a fresh bound Session when a mindmap's previous binding is archived", async () => {
     const conversations = new Map<string, Record<string, unknown>>();
+    const builds: Array<Record<string, unknown>> = [];
     const app = deliverableCodexRoutes({
       conversations: {
         async get(id) { return (conversations.get(id) as never) ?? null; },
@@ -153,12 +154,13 @@ describe("deliverable Codex routes", () => {
         async archive(id) { const value = conversations.get(id)!; Object.assign(value, { status: "archived", isBound: false }); return value as never; },
       } as never,
       chats: { async ensureConversation(input) { return { ...input }; } } as never,
-      context: { async build(input) { return { scopeKey: `mindmap:${input.projectId}:${input.deliverableId}`, contextVersion: "mindmap-v1", initialContext: "思维导图基线", allowedMcpTools: [] }; } } as never,
+      context: { async build(input) { builds.push(input); return { scopeKey: `mindmap:${input.projectId}:${input.deliverableId}`, contextVersion: "mindmap-v1", initialContext: "思维导图基线", allowedMcpTools: [] }; } } as never,
       agents: { async start() { return { config: {} as never, resumed: false }; }, async exit() { return null; } } as never,
       attachments: null, prompts: {} as never,
     });
 
     const first = await app.request("/mindmaps/map-1/conversations/ensure-bound", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "方案脑图 · Codex" }) });
+    expect(builds).toEqual([expect.objectContaining({ projectId: "__general__", deliverableId: "map-1", resourceType: "mindmap" })]);
     const firstId = (await first.json() as { conversation: { id: string } }).conversation.id;
     const archived = await app.request(`/conversations/${firstId}/archive`, { method: "POST" });
     expect(archived.status).toBe(200);
