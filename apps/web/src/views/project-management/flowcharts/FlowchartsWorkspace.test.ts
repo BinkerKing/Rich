@@ -49,6 +49,8 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(source, /flow\.getNodesBounds\(ids\)/);
   assert.match(source, /flow\.flowToScreenPosition/);
   assert.match(source, /<input aria-label="Codex 整改要求"/);
+  assert.match(source, /const closeCodexRefinement = \(\) => \{ setCodexSelection\(\[\]\); setCodexWholeChart\(false\); setCodexRequest\(""\); setCodexAnchor\(undefined\); \}/);
+  assert.match(source, /onPaneClick=\{\(\) => \{ setEditingNode\(""\); setQuickCreate\(undefined\); closeCodexRefinement\(\); \}\}/);
   assert.doesNotMatch(source, /Codex 会先读取整张流程图，再通过 MCP 保存调整/);
   assert.match(styles, /\.pfc \.react-flow__node\.is-codex-running/);
   assert.match(styles, /@keyframes pfc-codex-flow/);

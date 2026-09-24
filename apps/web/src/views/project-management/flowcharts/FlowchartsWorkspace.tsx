@@ -417,6 +417,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
     finally { setCodexRunningNodeIds([]); setCodexChartRunning(false); }
   };
+  const closeCodexRefinement = () => { setCodexSelection([]); setCodexWholeChart(false); setCodexRequest(""); setCodexAnchor(undefined); };
 
   return <section className={`pfc${standalone ? " pfc--standalone" : ""}${embedded ? " pfc--embedded" : ""}`}>
     {error && <p role="alert" className="pfc-error">{error}</p>}
@@ -510,8 +511,8 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
               onNodeClick={(event, row) => { setSelectedIds(current => {
                 const ids = event.metaKey ? current.includes(row.id) ? current.filter(id => id !== row.id) : [...current, row.id] : [row.id];
                 setSelected(ids[0] ?? ""); return ids;
-              }); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); }} onNodeDoubleClick={(_, row) => { setSelected(row.id); setSelectedIds([row.id]); setDetailNode(row.id); setCodexCompletedNodeIds(current => current.filter(id => id !== row.id)); }} onNodeContextMenu={(event, row) => { event.preventDefault(); void openCodexRefinement([row.id]); }}
-              onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); setSelectedIds([]); setEditingNode(""); setDetailNode(""); }} onSelectionContextMenu={(event, nodes) => { event.preventDefault(); event.stopPropagation(); void openCodexRefinement(nodes.map(node => node.id)); }} onPaneClick={() => { setEditingNode(""); setQuickCreate(undefined); setCodexSelection([]); }} onPaneContextMenu={event => {
+              }); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); closeCodexRefinement(); }} onNodeDoubleClick={(_, row) => { setSelected(row.id); setSelectedIds([row.id]); setDetailNode(row.id); setCodexCompletedNodeIds(current => current.filter(id => id !== row.id)); }} onNodeContextMenu={(event, row) => { event.preventDefault(); void openCodexRefinement([row.id]); }}
+              onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); setSelectedIds([]); setEditingNode(""); setDetailNode(""); closeCodexRefinement(); }} onSelectionContextMenu={(event, nodes) => { event.preventDefault(); event.stopPropagation(); void openCodexRefinement(nodes.map(node => node.id)); }} onPaneClick={() => { setEditingNode(""); setQuickCreate(undefined); closeCodexRefinement(); }} onPaneContextMenu={event => {
                 event.preventDefault();
                 if (!flow || !canvasRef.current) return;
                 const rect = canvasRef.current.getBoundingClientRect();
