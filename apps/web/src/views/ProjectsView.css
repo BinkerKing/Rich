@@ -6764,6 +6764,22 @@
   padding: 0;
 }
 
+.prj-pm-dict__tabs .prj-pm-dict__codex.is-working {
+  animation: dictionary-codex-processing 1.1s ease-in-out infinite;
+  border-color: rgba(120, 210, 255, .9);
+  color: #d8f5ff;
+}
+
+.prj-pm-dict__tabs .prj-pm-dict__codex.is-unread {
+  border-color: rgba(120, 210, 255, .92);
+  color: #e1f7ff;
+  box-shadow: 0 0 12px rgba(88, 190, 255, .7);
+}
+
+@keyframes dictionary-codex-processing {
+  50% { box-shadow: 0 0 14px rgba(88, 190, 255, .85); color: #fff; }
+}
+
 .prj-pm-dict__workspace.is-information-library {
   display: block;
 }

@@ -280,6 +280,24 @@ export const api = {
     if (!r.ok || !payload.conversation) throw new Error(payload.error ?? `ensureProjectDictionaryCodexSession ${r.status}`);
     return { conversation: payload.conversation, created: Boolean(payload.created), context: payload.context };
   },
+  async listProjectDictionaryCodexSessions(projectId: string): Promise<Array<{ id: string; isBound?: boolean }>> {
+    const r = await fetch(`/api/project-dictionary-codex/${encodeURIComponent(projectId)}/conversations`);
+    const payload = await r.json().catch(() => ({})) as { conversations?: Array<{ id: string; isBound?: boolean }> };
+    if (!r.ok) throw new Error(`listProjectDictionaryCodexSessions ${r.status}`);
+    return payload.conversations ?? [];
+  },
+  async getProjectDictionaryCodexStatus(conversationId: string): Promise<{ running: boolean }> {
+    const r = await fetch(`/api/project-dictionary-codex/conversations/${encodeURIComponent(conversationId)}/status`);
+    const payload = await r.json().catch(() => ({})) as { running?: boolean };
+    if (!r.ok) throw new Error(`getProjectDictionaryCodexStatus ${r.status}`);
+    return { running: Boolean(payload.running) };
+  },
+  async listProjectDictionaryCodexMessages(conversationId: string): Promise<Array<{ role: "user" | "assistant" | "system"; createdAt: string }>> {
+    const r = await fetch(`/api/project-dictionary-codex/conversations/${encodeURIComponent(conversationId)}/messages`);
+    const payload = await r.json().catch(() => ({})) as { messages?: Array<{ role: "user" | "assistant" | "system"; createdAt: string }> };
+    if (!r.ok) throw new Error(`listProjectDictionaryCodexMessages ${r.status}`);
+    return payload.messages ?? [];
+  },
   async markDeliverableCodexContextSynced(conversationId: string): Promise<void> {
     const r = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(conversationId)}/context-synced`, { method: "POST" });
     if (!r.ok) throw new Error(`markDeliverableCodexContextSynced ${r.status}`);

@@ -15,6 +15,7 @@ import {
   type ProjectManagementSummary,
 } from "../../api/client.js";
 import { DictionaryTestDataPanel } from "./dictionary/DictionaryTestDataPanel.js";
+import { dictionaryCodexAttention, type DictionaryCodexAttention } from "./dictionary/DictionaryCodexAttention.js";
 import { sortDictionaryFieldsByTemplateOrder } from "./dictionary/DictionaryMetadata.js";
 import { dictionaryTableMarker, dictionaryTableMarkerOptions, type DictionaryTableMarker } from "./dictionary/DictionaryTableMarker.js";
 import {
@@ -56,6 +57,8 @@ type DictionaryTreeDragState = { kind: "system"; id: string } | { kind: "table";
 type DictionaryWorkspaceState = { selectedSystemId: string; expandedSystemIds: string[]; selectedTableId: string; openTableTitleIds: string[] };
 type DictionaryTreeDragEvent = { dataTransfer: DataTransfer; preventDefault: () => void };
 type DictionaryCatalog = "business-scenarios" | "tables";
+
+export { dictionaryCodexAttention } from "./dictionary/DictionaryCodexAttention.js";
 
 export function DictionarySection({ project, summary, searchTarget }: { project: Element; summary: ProjectManagementSummary | null; searchTarget?: ProjectManagementSearchTarget | null }) {
   const rememberedWorkspace = useMemo(() => loadDictionaryWorkspaceState(project.id), [project.id]);
@@ -108,7 +111,36 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
   const [dictionaryInfoHtml, setDictionaryInfoHtml] = useState("");
   const [savedDictionaryInfoHtml, setSavedDictionaryInfoHtml] = useState("");
   const [dictionaryInfoLoaded, setDictionaryInfoLoaded] = useState(false);
+  const [codexAttention, setCodexAttention] = useState<DictionaryCodexAttention>("idle");
   const tableNavigationStackRef = useRef<string[]>(rememberedWorkspace.selectedTableId ? [rememberedWorkspace.selectedTableId] : []);
+  const dictionaryCodexViewedAtKey = (conversationId: string) => `rich:dictionary-codex-viewed-at:${project.id}:${conversationId}`;
+  const setDictionaryCodexViewedAt = (conversationId: string) => localStorage.setItem(dictionaryCodexViewedAtKey(conversationId), new Date().toISOString());
+  useEffect(() => {
+    let cancelled = false;
+    const refreshCodexAttention = async () => {
+      try {
+        const session = (await api.listProjectDictionaryCodexSessions(project.id)).find(item => item.isBound);
+        if (!session) { if (!cancelled) setCodexAttention("idle"); return; }
+        const [status, messages] = await Promise.all([
+          api.getProjectDictionaryCodexStatus(session.id),
+          api.listProjectDictionaryCodexMessages(session.id),
+        ]);
+        const latestAssistantCreatedAt = [...messages].reverse().find(message => message.role === "assistant")?.createdAt;
+        const key = dictionaryCodexViewedAtKey(session.id);
+        let viewedAt = localStorage.getItem(key) ?? undefined;
+        if (!viewedAt) {
+          viewedAt = latestAssistantCreatedAt ?? new Date().toISOString();
+          localStorage.setItem(key, viewedAt);
+        }
+        if (!cancelled) setCodexAttention(dictionaryCodexAttention({ running: status.running, latestAssistantCreatedAt, viewedAt }));
+      } catch {
+        if (!cancelled) setCodexAttention("idle");
+      }
+    };
+    void refreshCodexAttention();
+    const timer = window.setInterval(() => void refreshCodexAttention(), 2_000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [project.id]);
   useEffect(() => {
     let cancelled = false;
     setSystemsLoaded(false);
@@ -744,6 +776,8 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
   const openDictionaryCodexConversation = async () => {
     try {
       const session = await api.ensureProjectDictionaryCodexSession(project.id);
+      setDictionaryCodexViewedAt(session.conversation.id);
+      setCodexAttention("idle");
       openBoundCodex({ projectId: project.id, deliverableId: project.id, deliverableTitle: `${project.title} · 数据字典`, resourceType: "dictionary", conversationId: session.conversation.id });
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
@@ -769,7 +803,7 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
             <button type="button" className={catalog === "business-scenarios" ? "is-active" : ""} onClick={() => { closeDictionaryInfo(); setCatalog("business-scenarios"); setSelectedTableId(""); }}>业务场景</button>
             <button type="button" className={catalog === "tables" ? "is-active" : ""} onClick={() => { closeDictionaryInfo(); setCatalog("tables"); setSelectedBusinessScenarioId(""); setCreatingBusinessScenario(false); }}>表清单</button>
             <button type="button" className="prj-pm-dict__information-library" aria-label="数据字典信息库" title="数据字典信息库" onClick={() => void openDictionaryInfo()}><LibraryBig aria-hidden="true" /></button>
-            <button type="button" className="prj-pm-dict__codex" aria-label="Codex 对话" title="Codex 对话" onClick={() => void openDictionaryCodexConversation()}><MessageSquare aria-hidden="true" /></button>
+            <button type="button" className={`prj-pm-dict__codex${codexAttention === "idle" ? "" : ` is-${codexAttention}`}`} aria-label="Codex 对话" title={codexAttention === "working" ? "Codex 正在处理" : codexAttention === "unread" ? "Codex 有未查看回复" : "Codex 对话"} onClick={() => void openDictionaryCodexConversation()}><MessageSquare aria-hidden="true" /></button>
             {catalog === "business-scenarios" && <button type="button" onClick={() => { const name = window.prompt("场景库名称"); if (!name?.trim()) return; void api.createProjectDictionaryBusinessScenarioLibrary(project.id, { name: name.trim() }).then(next => { setBusinessScenarioLibraries(items => [...items, next]); setSelectedBusinessScenarioLibraryId(next.id); setExpandedScenarioSystemIds(items => [...items, next.id]); }).catch(e => setError(e instanceof Error ? e.message : String(e))); }}>新建库</button>}
             {catalog === "business-scenarios" && <button type="button" disabled={!selectedBusinessScenarioLibraryId} onClick={() => { const library = businessScenarioLibraries.find(item => item.id === selectedBusinessScenarioLibraryId); if (!library) return; const dbType = window.prompt("数据库类型（postgresql / sqlserver）", library.dbType || "postgresql"); if (!dbType) return; const host = window.prompt("主机", library.connection?.host || ""); const database = window.prompt("数据库名", library.connection?.database || ""); const username = window.prompt("用户名", library.connection?.username || ""); if (host === null || database === null || username === null) return; void api.updateProjectDictionaryBusinessScenarioLibrary(project.id, library.id, { dbType: dbType as "postgresql" | "sqlserver", sqlDialect: dbType as "postgresql" | "sqlserver", connection: { ...library.connection, host, database, username } }).then(next => setBusinessScenarioLibraries(items => items.map(item => item.id === next.id ? next : item))).catch(e => setError(e instanceof Error ? e.message : String(e))); }}>配置库</button>}
             {catalog === "business-scenarios" && <button type="button" onClick={() => { if (!selectedBusinessScenarioLibraryId) return; setSelectedBusinessScenarioId(""); setCreatingBusinessScenario(true); setBusinessScenarioDraft({ title: "", procedureName: "", externalLocation: "", sqlText: "", remark: "", tableIds: [] }); }}>新建场景</button>}

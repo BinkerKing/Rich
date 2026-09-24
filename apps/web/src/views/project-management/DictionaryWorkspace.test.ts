@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import type { ProjectDictionaryMappingTempTable, ProjectDictionaryTable } from "../../api/client.js";
-import { dictionarySystemTableCounts, dictionaryTableHasTempTables, dictionaryTableSupportsMapping } from "./DictionaryWorkspace.js";
+import { dictionaryCodexAttention, dictionarySystemTableCounts, dictionaryTableHasTempTables, dictionaryTableSupportsMapping } from "./DictionaryWorkspace.js";
 
 const source = readFileSync(new URL("./DictionaryWorkspace.tsx", import.meta.url), "utf8");
 
@@ -49,7 +49,15 @@ test("数据字典树顶部可打开项目绑定的 Codex 对话", () => {
   assert.match(source, /const openDictionaryCodexConversation = async \(\) => \{/);
   assert.match(source, /api\.ensureProjectDictionaryCodexSession\(project\.id\)/);
   assert.match(source, /resourceType: "dictionary"/);
-  assert.match(source, /aria-label="Codex 对话" title="Codex 对话" onClick=\{\(\) => void openDictionaryCodexConversation\(\)\}/);
+  assert.match(source, /className=\{`prj-pm-dict__codex\$\{codexAttention/);
+  assert.match(source, /setDictionaryCodexViewedAt\(session\.conversation\.id\)/);
+});
+
+test("数据字典 Codex 图标在处理中闪烁，未查看回复时保持高亮", () => {
+  assert.equal(dictionaryCodexAttention({ running: true, latestAssistantCreatedAt: "2026-09-24T10:00:00.000Z", viewedAt: "2026-09-24T09:59:00.000Z" }), "working");
+  assert.equal(dictionaryCodexAttention({ running: false, latestAssistantCreatedAt: "2026-09-24T10:00:00.000Z", viewedAt: "2026-09-24T09:59:00.000Z" }), "unread");
+  assert.equal(dictionaryCodexAttention({ running: false, latestAssistantCreatedAt: "2026-09-24T10:00:00.000Z", viewedAt: "2026-09-24T10:01:00.000Z" }), "idle");
+  assert.match(source, /setDictionaryCodexViewedAt\(session\.conversation\.id\)/);
 });
 
 test("数据字典信息库以整页富文本工作区打开", () => {
