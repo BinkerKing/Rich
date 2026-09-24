@@ -539,7 +539,8 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
                 if (!flow || !canvasRef.current) return;
                 const rect = canvasRef.current.getBoundingClientRect();
                 void openCodexRefinement([], { left: event.clientX - rect.left, top: event.clientY - rect.top });
-                setQuickCreate({ fromCanvas: true, position: flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }), screen: { x: event.clientX - rect.left, y: event.clientY - rect.top } });
+                if (canvasLocked) setQuickCreate(undefined);
+                else setQuickCreate({ fromCanvas: true, position: flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }), screen: { x: event.clientX - rect.left, y: event.clientY - rect.top } });
               }}>
                   <Background gap={28} size={1} color="#44444d" /><Controls showInteractive={false}><ControlButton className="pfc-lock-control" aria-label={canvasLocked ? "解锁画布" : "锁定画布"} title={canvasLocked ? "解锁画布" : "锁定画布"} onClick={() => setCanvasLocked(locked => !locked)}><FlowchartLockIcon locked={canvasLocked} /></ControlButton></Controls>
                 </ReactFlow>

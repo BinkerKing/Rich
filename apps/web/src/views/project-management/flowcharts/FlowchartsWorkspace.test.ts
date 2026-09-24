@@ -54,7 +54,7 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(source, /selections\.some\(change => change\.type === "select" && change\.selected\)\) \{ setQuickCreate\(undefined\); closeCodexRefinement\(\); \}/);
   assert.doesNotMatch(source, /onPaneContextMenu=\{event => \{[\s\S]*?selectedIds\.length/);
   assert.match(source, /void openCodexRefinement\(\[\], \{ left: event\.clientX - rect\.left, top: event\.clientY - rect\.top \}\)/);
-  assert.match(source, /setQuickCreate\(\{ fromCanvas: true, position: flow\.screenToFlowPosition\(\{ x: event\.clientX, y: event\.clientY \}\), screen: \{ x: event\.clientX - rect\.left, y: event\.clientY - rect\.top \} \}\)/);
+  assert.match(source, /if \(canvasLocked\) setQuickCreate\(undefined\);\s+else setQuickCreate\(\{ fromCanvas: true, position: flow\.screenToFlowPosition\(\{ x: event\.clientX, y: event\.clientY \}\), screen: \{ x: event\.clientX - rect\.left, y: event\.clientY - rect\.top \} \}\)/);
   assert.match(source, /const \[codexWholeChart, setCodexWholeChart\] = useState\(false\)/);
   assert.match(source, /is-codex-chart-running/);
   assert.match(source, /onSelectionContextMenu=\{\(event, nodes\) => \{ event\.preventDefault\(\); event\.stopPropagation\(\); void openCodexRefinement\(nodes\.map\(node => node\.id\)\); \}\}/);
