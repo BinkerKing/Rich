@@ -75,6 +75,7 @@
 .pfc-node.is-table { --node-accent: #70e6ba; }
 .pfc-node.is-decision { --node-accent: #f2c66f; }
 .pfc-node.is-boundary { border-radius: 24px; }
+.pfc-node.has-children,.pfc-region.has-children,.pfc-note.has-children { border-radius:0; clip-path:polygon(12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px),0 12px); }.pfc-node.has-children { box-shadow:inset 0 1px 0 color-mix(in srgb,var(--node-accent) 30%,transparent),0 0 0 1px color-mix(in srgb,var(--node-accent) 72%,transparent),0 0 18px color-mix(in srgb,var(--node-accent) 24%,transparent); }.pfc-region.has-children,.pfc-note.has-children { box-shadow:inset 0 0 18px rgba(var(--section-rgb),.12),0 0 0 1px color-mix(in srgb,var(--section-accent) 70%,transparent),0 0 18px color-mix(in srgb,var(--section-accent) 20%,transparent); }
 .pfc-node strong { display: block; color:var(--pfc-node-color,#edf7fa); font-size:var(--pfc-node-font-size,14px); font-weight:var(--pfc-node-font-weight,650); line-height: 1.5; letter-spacing: .3px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .pfc-node-label-editor { cursor:text; outline:0; caret-color:#f8fafc; }
 .pfc-node-label-editor:focus { box-shadow:0 1px 0 currentColor; }

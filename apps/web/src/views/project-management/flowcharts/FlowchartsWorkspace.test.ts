@@ -39,6 +39,9 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(source, /const \[codexDrafts, setCodexDrafts\] = useState<Record<string, string>>\(\{\}\)/);
   assert.match(source, /const codexDraftKey = \(nodeIds: string\[\], wholeChart: boolean\) => wholeChart \? "whole-chart" : nodeIds\.length \? nodeIds\.slice\(\)\.sort\(\)\.join\(","\) : ""/);
   assert.match(source, /const focusedNode = selectedNodes\.length === 1 \? selectedNodes\[0\] : undefined/);
+  assert.match(source, /const childScopes = new Set\(graph\?\.nodes\.map\(node => node\.data\.scope\)\)/);
+  assert.match(source, /hasChildren: childScopes\.has\(row\.id\)/);
+  assert.match(source, /pfc-node is-\$\{data\.kind\}\$\{data\.hasChildren \? " has-children" : ""\}/);
   assert.match(source, /className="pfc-node-focus" aria-label="当前选中节点">\{focusedNode\.data\.label\}/);
   assert.match(source, /const \[codexRunningNodeIds, setCodexRunningNodeIds\] = useState<string\[\]>\(\[\]\)/);
   assert.match(source, /onNodeContextMenu=\{\(event, row\) => \{ event\.preventDefault\(\); void openCodexRefinement\(\[row\.id\]\); \}\}/);
@@ -69,6 +72,7 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(styles, /@keyframes pfc-codex-flow/);
   assert.match(styles, /is-codex-running > \.pfc-node \{ border-color:#e9ffff;[\s\S]*?0 0 42px/);
   assert.match(styles, /is-codex-complete > \.pfc-node \{[\s\S]*?background:linear-gradient/);
+  assert.match(styles, /\.pfc-node\.has-children,\.pfc-region\.has-children,\.pfc-note\.has-children \{ border-radius:0; clip-path:polygon/);
 });
 
 test("流程图变更自动同步后端，不保留本地草稿", () => {

@@ -23,13 +23,13 @@ function FlowchartListIcon({ name }: { name: "add" | "flow" | "chat" }) {
   </svg>;
 }
 function RegionNode({ data, selected }: NodeProps<FlowNode>) {
-  return <div className={`pfc-region tone-${data.tone || "cyan"}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
+  return <div className={`pfc-region tone-${data.tone || "cyan"}${data.hasChildren ? " has-children" : ""}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
     <NodeResizer isVisible={selected} minWidth={220} minHeight={120} color="#72c7ef" />
     <header>{data.editing ? <RegionContent data={data} /> : <><NodeLabel data={data} />{data.caption && <span>{data.caption}</span>}</>}</header>
   </div>;
 }
 function NoteNode({ data, selected }: NodeProps<FlowNode>) {
-  return <div className={`pfc-note tone-${data.tone || "amber"}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
+  return <div className={`pfc-note tone-${data.tone || "amber"}${data.hasChildren ? " has-children" : ""}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
     <NodeResizer isVisible={selected} minWidth={180} minHeight={100} color="#ecc680" />
     <span className="pfc-note-pin" aria-hidden="true" />
     <small>NOTE / 备注</small>{data.editing ? <NoteContent data={data} /> : <><NodeLabel data={data} />{data.caption && <p>{data.caption}</p>}</>}
@@ -37,7 +37,7 @@ function NoteNode({ data, selected }: NodeProps<FlowNode>) {
 }
 function AnalysisNode({ id, data, selected }: NodeProps<FlowNode>) {
   const accent = nodeAccent(id, data);
-  return <div className={`pfc-node is-${data.kind}${selected ? " is-selected" : ""}`} style={{ "--node-accent": accent, ...nodeStyle(data) } as CSSProperties}>
+  return <div className={`pfc-node is-${data.kind}${data.hasChildren ? " has-children" : ""}${selected ? " is-selected" : ""}`} style={{ "--node-accent": accent, ...nodeStyle(data) } as CSSProperties}>
     <NodeResizer isVisible={selected} minWidth={140} minHeight={60} color={accent} />
     <Handle type="target" position={Position.Left} />
     <span className="pfc-node-symbol" aria-hidden="true">{data.icon || (data.kind === "table" ? "▤" : data.kind === "decision" ? "◇" : data.kind === "boundary" ? "◉" : "→")}</span>
@@ -314,6 +314,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   const selectedFlowEdge = graph?.edges.find(row => row.id === selectedEdge);
   const detail = graph?.nodes.find(row => row.id === detailNode);
   const collapsedGroups = new Set(graph?.nodes.filter(node => node.data.kind === "region" && node.data.collapsed).map(node => node.id));
+  const childScopes = new Set(graph?.nodes.map(node => node.data.scope));
   const visibleNodes = graph?.nodes.filter(node => node.data.scope === scope && (!node.data.groupId || !collapsedGroups.has(node.data.groupId))) ?? [];
   const visibleNodeIds = new Set(visibleNodes.map(node => node.id));
   const editNode = (patch: Partial<FlowNode["data"]>) => {
@@ -495,7 +496,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
           }}>{row.data.label} <small>{row.id.slice(0, 8)}</small></button>)}</div>}
         </div>}
               <div className="pfc-canvas" ref={canvasRef}>
-                <ReactFlow<FlowNode> proOptions={{ hideAttribution: true }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} nodes={visibleNodes.map(row => ({ ...row, className: codexRunningNodeIds.includes(row.id) ? "is-codex-running" : codexCompletedNodeIds.includes(row.id) ? "is-codex-complete" : "", selected: selectedIds.includes(row.id), data: { ...row.data, editing: row.id === editingNode, onLabelChange: label => { update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label } } : node) }); setEditingNode(""); }, onNoteTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); }, onRegionTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); } } }))}
+                <ReactFlow<FlowNode> proOptions={{ hideAttribution: true }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} nodes={visibleNodes.map(row => ({ ...row, className: codexRunningNodeIds.includes(row.id) ? "is-codex-running" : codexCompletedNodeIds.includes(row.id) ? "is-codex-complete" : "", selected: selectedIds.includes(row.id), data: { ...row.data, hasChildren: childScopes.has(row.id), editing: row.id === editingNode, onLabelChange: label => { update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label } } : node) }); setEditingNode(""); }, onNoteTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); }, onRegionTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); } } }))}
                   edges={graph.edges.filter(row => visibleNodeIds.has(row.source) && visibleNodeIds.has(row.target)).map(row => ({ ...row, style: edgeStyle(row), animated: row.data?.animated, markerEnd: row.data?.markerEnd === "none" ? undefined : { type: MarkerType.ArrowClosed } }))}
                   nodeTypes={nodeTypes} onInit={setFlow} fitView minZoom={0.1} maxZoom={2} deleteKeyCode={null} selectionOnDrag panOnDrag={false} panOnScroll panOnScrollMode={PanOnScrollMode.Free} zoomOnScroll={false} zoomOnPinch={false} zoomOnDoubleClick={false} multiSelectionKeyCode="Meta"
                   defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed } }}
