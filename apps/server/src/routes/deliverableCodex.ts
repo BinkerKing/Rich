@@ -12,6 +12,15 @@ import { workbenchInstruction } from "../task-workbench/instructions.js";
 type TaskModeStart = { id?: unknown; label?: unknown };
 type TaskModeLocation = { page?: unknown; project?: { title?: unknown }; business?: { kind?: unknown; title?: unknown } };
 
+function bindingCardContent(context: { initialContext: string; allowedMcpTools?: string[]; systemInstruction?: string }): string {
+  return [
+    "## 首次绑定说明",
+    "", "## 整体信息", context.initialContext,
+    "", "## 可用 MCP", ...(context.allowedMcpTools ?? []).map(tool => `- ${tool}`),
+    "", "## AI 操作规定", context.systemInstruction ?? "仅按用户明确要求操作，并通过 Rich MCP 保存变更。",
+  ].join("\n");
+}
+
 function changedPolicyRules(previous: string | undefined, current: string): string {
   if (!previous) return "规则已更新，本次起使用最新规则。";
   const priorLines = new Set(previous.split("\n").map(line => line.trim()).filter(Boolean));
@@ -221,7 +230,13 @@ export function deliverableCodexRoutes(deps: {
   r.get("/conversations/:id/messages", async c => {
     const existing = await deps.conversations.get(c.req.param("id"));
     if (!existing) return c.json({ error: "Conversation not found" }, 404);
-    const messages = await deps.chats.listMessages(existing.conversationId, 200);
+    const savedMessages = await deps.chats.listMessages(existing.conversationId, 200);
+    const bindingContext = await buildContext(existing, "free");
+    const bindingCard = savedMessages.some(message => (message.metadata as { type?: unknown } | undefined)?.type === "binding-context")
+      ? undefined
+      : { id: randomUUID(), conversationId: existing.conversationId, role: "system" as const, content: bindingCardContent(bindingContext), metadata: { type: "binding-context", allowedMcpTools: bindingContext.allowedMcpTools ?? [], rules: bindingContext.systemInstruction ?? "" }, createdAt: new Date().toISOString() };
+    if (bindingCard) await deps.chats.appendMessage(bindingCard);
+    const messages = bindingCard ? [...savedMessages, bindingCard] : savedMessages;
     return c.json({ messages: await Promise.all(messages.map(async message => ({ ...message, attachments: deps.attachments ? await deps.attachments.byMessage(message.id) : [] }))) });
   });
 

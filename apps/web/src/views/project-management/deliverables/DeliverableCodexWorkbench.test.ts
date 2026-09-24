@@ -13,6 +13,8 @@ describe("DeliverableCodexWorkbench", () => {
     expect(source).toContain("function resourceBindingInfo");
     expect(source).toContain("const showBindingInfo = Boolean(active && messages[active.id] && displayedMessages.length === 0)");
     expect(source).toContain("首次绑定说明");
+    expect(source).toContain('kind: "binding-context"');
+    expect(source).toContain('message.kind === "binding-context"');
     expect(source).toContain("整体信息");
     expect(source).toContain("可用 MCP");
     expect(source).toContain("AI 操作规定");

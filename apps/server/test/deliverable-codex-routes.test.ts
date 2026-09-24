@@ -109,15 +109,15 @@ describe("deliverable Codex routes", () => {
     expect(second.status).toBe(201);
     expect(firstJson.conversation).toMatchObject({ mode: "free", allowedMcpTools: [] });
     expect((await (await app.request("/deliverables/p1/d1/conversations")).json() as { conversations: unknown[] }).conversations).toHaveLength(2);
-    expect((await (await app.request(`/conversations/${firstJson.conversation.id}/messages`)).json() as { messages: unknown[] }).messages).toHaveLength(0);
+    expect((await (await app.request(`/conversations/${firstJson.conversation.id}/messages`)).json() as { messages: unknown[] }).messages).toHaveLength(1);
     const event = await app.request(`/conversations/${firstJson.conversation.id}/events/task-mode-started`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventId: "start-general", startedAt: new Date().toISOString(), mode: { id: "general-task", label: "任务模式" }, location: { page: ["任务工作台"] } }) });
     expect(event.status).toBe(201);
-    expect((await (await app.request(`/conversations/${firstJson.conversation.id}/messages`)).json() as { messages: unknown[] }).messages).toHaveLength(1);
+    expect((await (await app.request(`/conversations/${firstJson.conversation.id}/messages`)).json() as { messages: unknown[] }).messages).toHaveLength(2);
 
     const archived = await app.request(`/conversations/${firstJson.conversation.id}/archive`, { method: "POST" });
     expect(archived.status).toBe(200);
     expect((await (await app.request("/deliverables/p1/d1/conversations")).json() as { conversations: unknown[] }).conversations).toHaveLength(1);
-    expect(chats.filter(item => item.type === "message")).toHaveLength(1);
+    expect(chats.filter(item => item.type === "message")).toHaveLength(2);
     expect(agents.some(value => value.startsWith("exit:"))).toBe(true);
   });
 
