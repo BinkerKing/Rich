@@ -415,8 +415,16 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
       return [...withPrevious, tableId];
     });
   };
-  const openTable = (tableId: string) => {
+  const closeDictionaryInfo = () => {
+    if (dictionaryInfoLoaded && dictionaryInfoHtml !== savedDictionaryInfoHtml) {
+      void api.saveProjectDictionaryInfo(project.id, dictionaryInfoHtml)
+        .then(info => setSavedDictionaryInfoHtml(info.html))
+        .catch(reason => setError(reason instanceof Error ? reason.message : String(reason)));
+    }
     setDictionaryInfoOpen(false);
+  };
+  const openTable = (tableId: string) => {
+    closeDictionaryInfo();
     if (selectedTableId !== tableId) setPropertyViewer(null);
     if (selectedTableId && selectedTableId !== tableId) {
       tableNavigationStackRef.current = [
@@ -758,8 +766,8 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
       <div className="prj-pm-dict__layout no-inspector">
         <aside className="prj-pm-dict__systems">
           <div className="prj-pm-dict__tabs" aria-label="数据字典分类">
-            <button type="button" className={catalog === "business-scenarios" ? "is-active" : ""} onClick={() => { setDictionaryInfoOpen(false); setCatalog("business-scenarios"); setSelectedTableId(""); }}>业务场景</button>
-            <button type="button" className={catalog === "tables" ? "is-active" : ""} onClick={() => { setDictionaryInfoOpen(false); setCatalog("tables"); setSelectedBusinessScenarioId(""); setCreatingBusinessScenario(false); }}>表清单</button>
+            <button type="button" className={catalog === "business-scenarios" ? "is-active" : ""} onClick={() => { closeDictionaryInfo(); setCatalog("business-scenarios"); setSelectedTableId(""); }}>业务场景</button>
+            <button type="button" className={catalog === "tables" ? "is-active" : ""} onClick={() => { closeDictionaryInfo(); setCatalog("tables"); setSelectedBusinessScenarioId(""); setCreatingBusinessScenario(false); }}>表清单</button>
             <button type="button" className="prj-pm-dict__information-library" aria-label="数据字典信息库" title="数据字典信息库" onClick={() => void openDictionaryInfo()}><LibraryBig aria-hidden="true" /></button>
             <button type="button" className="prj-pm-dict__codex" aria-label="Codex 对话" title="Codex 对话" onClick={() => void openDictionaryCodexConversation()}><MessageSquare aria-hidden="true" /></button>
             {catalog === "business-scenarios" && <button type="button" onClick={() => { const name = window.prompt("场景库名称"); if (!name?.trim()) return; void api.createProjectDictionaryBusinessScenarioLibrary(project.id, { name: name.trim() }).then(next => { setBusinessScenarioLibraries(items => [...items, next]); setSelectedBusinessScenarioLibraryId(next.id); setExpandedScenarioSystemIds(items => [...items, next.id]); }).catch(e => setError(e instanceof Error ? e.message : String(e))); }}>新建库</button>}
