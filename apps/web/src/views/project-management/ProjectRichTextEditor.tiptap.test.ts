@@ -17,9 +17,13 @@ test("通用富文本编辑器使用 Tiptap，并保留 HTML 回调和图片上�
   assert.match(modules, /aria-label="减小字体"/);
   assert.match(modules, /aria-label="增大字体"/);
   assert.match(modules, /function changeFontSize|const changeFontSize/);
+  assert.match(modules, /const applyTextStyle/);
+  assert.match(modules, /setTextSelection\(\{ from: \$from\.start\(depth\), to: \$from\.end\(depth\) \}\)/);
+  assert.match(modules, /applyTextStyle\(\{ fontSize: `\$\{nextSize\}px` \}\)/);
   assert.match(modules, /微软雅黑/);
-  assert.match(modules, /宋体/);
-  assert.match(modules, /仿宋/);
+  assert.match(modules, /Songti SC/);
+  assert.match(modules, /Kaiti SC/);
+  assert.match(modules, /STFangsong/);
   assert.doesNotMatch(modules, /className="prj-pm-rich-toolbar__select is-size"/);
   assert.match(styles, /\.prj-pm-rich-font-size\s*\{[^}]*display:inline-flex[^}]*height:34px/s);
 });
