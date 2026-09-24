@@ -180,7 +180,7 @@ export function DeepWorkbenchView() {
   };
   const openCodexConversation = async (item: DeepWorkbenchItem) => {
     try {
-      const session = await api.ensureMindmapCodexSession(item.id, `${item.title} · Codex`);
+      const session = await api.ensureMindmapCodexSession(item.id, `[思维导图] ${item.title} · Codex`);
       openBoundCodex({ projectId: "__general__", deliverableId: item.id, deliverableTitle: item.title, resourceType: "mindmap", conversationId: session.conversation.id });
     } catch (error) {
       setKnowledgeError(error instanceof Error ? error.message : String(error));

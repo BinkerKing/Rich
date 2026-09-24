@@ -22,6 +22,14 @@ describe("DeliverableCodexWorkbench", () => {
     expect(css).toContain(".deliverable-codex-workbench__binding-card>p");
   });
 
+  it("labels mindmap Codex conversations with the mindmap prefix, including existing bindings", () => {
+    const source = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
+    expect(source).toContain("function displayConversationTitle");
+    expect(source).toContain('`[思维导图] ${conversation.title}`');
+    expect(source).toContain("displayConversationTitle(conversation, resourceType)");
+    expect(source).toContain("displayConversationTitle(active, resourceType)");
+  });
+
   it("sends each newly assigned bug prompt even while another Codex conversation is streaming", () => {
     const source = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
     expect(source).toContain("if (startup?.prompt) void sendMessage(payload.conversation, startup.prompt, [], false, undefined, true);");
