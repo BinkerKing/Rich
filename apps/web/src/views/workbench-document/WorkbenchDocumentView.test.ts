@@ -40,10 +40,12 @@ test("连续序号以无底色模块承载，行间保留轻量分隔和亮白�
   assert.match(styles, /\.wd-step-card li::before\s*\{[^}]*color:\s*#fff[^}]*background:\s*transparent[^}]*border:\s*0/s);
 });
 
-test("工作台标题和正文使用亮白文字，并留出清晰的阅读间距", () => {
-  assert.match(styles, /\.wd-card--heading-level-1 h2\s*\{[^}]*margin:\s*64px 0 22px[^}]*color:\s*#fff/s);
-  assert.match(styles, /\.wd-card--heading-level-2 h3\s*\{[^}]*margin:\s*44px 0 18px[^}]*color:\s*#fff/s);
-  assert.match(styles, /\.wd-card--heading-level-3 h4\s*\{[^}]*margin:\s*34px 0 14px[^}]*color:\s*#fff/s);
+test("工作台标题按层级使用不同亮色，并与前置标识色区分", () => {
+  assert.match(styles, /\.wd-card--heading-level-1 h2\s*\{[^}]*margin:\s*64px 0 22px[^}]*color:\s*#ffe4b5[^}]*border-left:\s*3px solid #edac57/s);
+  assert.match(styles, /\.wd-card--heading-level-2 h3\s*\{[^}]*margin:\s*44px 0 18px[^}]*color:\s*#d9f3ff/s);
+  assert.match(styles, /\.wd-card--heading-level-3 h4\s*\{[^}]*margin:\s*34px 0 14px[^}]*color:\s*#e0ffee[^}]*border-left:\s*2px solid #66d6a0/s);
+  assert.match(styles, /\.wd-card--heading-level-1 h2 small\s*\{[^}]*color:\s*#edac57/s);
+  assert.match(styles, /\.wd-card--heading-level-2 small,\s*\.wd-card--heading-level-3 small\s*\{[^}]*color:\s*#64c8f2/s);
   assert.match(styles, /\.wd-card p\s*\{[^}]*color:\s*#fff[^}]*line-height:\s*1\.92/s);
 });
 

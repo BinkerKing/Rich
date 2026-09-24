@@ -3339,9 +3339,9 @@
 .prj-pm-rich-surface h1 {
   margin: 34px 0 16px;
   padding: 0 0 12px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, .3);
-  border-left: 3px solid #fff;
-  color: #fff;
+  border-bottom: 1px solid rgba(237, 172, 87, .34);
+  border-left: 3px solid #edac57;
+  color: #ffe4b5;
   font-size: 26px;
   font-weight: 750;
   letter-spacing: -.025em;
@@ -3350,9 +3350,10 @@
 .workflow-rich-content h2,
 .prj-pm-rich-surface h2 {
   margin: 30px 0 15px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, .24);
-  color: #fff;
+  padding: 0 0 10px 12px;
+  border-bottom: 1px solid rgba(100, 200, 242, .3);
+  border-left: 3px solid #64c8f2;
+  color: #d9f3ff;
   font-size: 21px;
   font-weight: 700;
   letter-spacing: -.015em;
@@ -3362,8 +3363,8 @@
 .prj-pm-rich-surface h3 {
   margin: 26px 0 13px;
   padding-left: 10px;
-  border-left: 2px solid rgba(255, 255, 255, .76);
-  color: #fff;
+  border-left: 2px solid #66d6a0;
+  color: #e0ffee;
   font-size: 18px;
   font-weight: 650;
   line-height: 1.45;
@@ -3371,7 +3372,7 @@
 .workflow-rich-content > :is(h1, h2, h3):first-child,
 .prj-pm-rich-surface > :is(h1, h2, h3):first-child { margin-top: 0; }
 .workflow-rich-content :is(h1, h2, h3) *,
-.prj-pm-rich-surface :is(h1, h2, h3) * { color: #fff !important; }
+.prj-pm-rich-surface :is(h1, h2, h3) * { color: inherit !important; }
 .workflow-rich-content blockquote,
 .prj-pm-rich-surface blockquote { padding: 7px 12px; border-left: 3px solid #fff; color: #fff; background: transparent; }
 .workflow-rich-content a,
