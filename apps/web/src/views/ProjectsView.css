@@ -3324,12 +3324,12 @@
   box-shadow: inset 0 0 0 1px rgba(143, 254, 247, .34);
 }
 .workflow-rich-content {
-  --rich-block-gap: 14px;
+  --rich-block-gap: 12px;
   color: #fff;
   font-size: 16px;
-  line-height: 1.85;
+  line-height: 1.72;
 }
-.prj-pm-rich-surface { --rich-block-gap: 14px; }
+.prj-pm-rich-surface { --rich-block-gap: 12px; }
 .workflow-rich-content :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image),
 .prj-pm-rich-surface :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image) { margin: 0; }
 .workflow-rich-content:not(.prj-pm-rich-surface) p:empty,
@@ -3339,9 +3339,11 @@
 .workflow-rich-content :is(p, li, p *, li *),
 .prj-pm-rich-surface :is(p, li, p *, li *) { color: #fff; }
 .workflow-rich-content > p,
-.prj-pm-rich-surface > p { font-weight: 500; }
+.prj-pm-rich-surface > p { font-weight: 500; line-height: 1.72; }
 .workflow-rich-content > :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image, img) + :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image, img),
 .prj-pm-rich-surface > :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image, img) + :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image, img) { margin-top: var(--rich-block-gap); }
+.workflow-rich-content > p + p,
+.prj-pm-rich-surface > p + p { margin-top: 8px; }
 .workflow-rich-content h1,
 .prj-pm-rich-surface h1 {
   margin: 34px 0 16px;

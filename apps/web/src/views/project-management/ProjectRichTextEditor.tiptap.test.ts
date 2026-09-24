@@ -68,9 +68,10 @@ test("有序列表将连续步骤收纳为无底色模块，并用亮白文字�
 });
 
 test("通用富文本以亮白正文和有呼吸感的分级标题呈现", () => {
-  assert.match(styles, /\.workflow-rich-content\s*\{[^}]*--rich-block-gap:\s*14px[^}]*color:\s*#fff[^}]*font-size:\s*16px/s);
+  assert.match(styles, /\.workflow-rich-content\s*\{[^}]*--rich-block-gap:\s*12px[^}]*color:\s*#fff[^}]*font-size:\s*16px[^}]*line-height:\s*1\.72/s);
   assert.match(styles, /\.workflow-rich-content :is\(p, li, p \*, li \*\),[\s\S]*?color:\s*#fff;/);
-  assert.match(styles, /\.workflow-rich-content > p,[\s\S]*?font-weight:\s*500/);
+  assert.match(styles, /\.workflow-rich-content > p,[\s\S]*?font-weight:\s*500[\s\S]*?line-height:\s*1\.72/);
+  assert.match(styles, /\.workflow-rich-content > p \+ p,[\s\S]*?margin-top:\s*8px/);
   assert.match(styles, /\.workflow-rich-content h1,[\s\S]*?border-left:\s*3px solid #edac57[\s\S]*?color:\s*#ffe4b5/);
   assert.match(styles, /\.workflow-rich-content h2,[\s\S]*?margin:\s*30px 0 15px[\s\S]*?border-left:\s*3px solid #64c8f2[\s\S]*?color:\s*#d9f3ff/);
   assert.match(styles, /\.workflow-rich-content h3,[\s\S]*?margin:\s*26px 0 13px[\s\S]*?border-left:\s*2px solid #66d6a0[\s\S]*?color:\s*#e0ffee/);
