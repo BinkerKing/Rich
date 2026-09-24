@@ -3332,7 +3332,7 @@
 .workflow-rich-content :is(strong, b),
 .prj-pm-rich-surface :is(strong, b) { font-weight: 700; }
 .workflow-rich-content :is(p, li, p *, li *),
-.prj-pm-rich-surface :is(p, li, p *, li *) { color: #fff !important; }
+.prj-pm-rich-surface :is(p, li, p *, li *) { color: #fff; }
 .workflow-rich-content > p,
 .prj-pm-rich-surface > p { font-weight: 500; }
 .workflow-rich-content > :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image, img) + :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image, img),
@@ -3451,8 +3451,6 @@
   font: 750 12px/1 "SF Mono", Menlo, Consolas, monospace;
   letter-spacing: .04em;
 }
-.workflow-rich-content > ol > li :is(strong, b),
-.prj-pm-rich-surface > ol > li :is(strong, b) { font-weight: 520; }
 .workflow-rich-content > ol > li::before,
 .prj-pm-rich-surface > ol > li::before { color: #72d5ff; }
 .workflow-rich-content > ol > li:nth-child(4n + 2)::before,
