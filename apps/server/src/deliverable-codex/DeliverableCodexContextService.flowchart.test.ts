@@ -19,5 +19,7 @@ describe("DeliverableCodexContextService flowchart context", () => {
     expect(context.initialContext).toContain("订单处理");
     expect(context.initialContext).toContain("接收订单");
     expect(context.initialContext).toContain("接收订单 → 库存校验");
+    expect(context.allowedMcpTools).toContain("rich_flowchart_manage");
+    expect(context.systemInstruction).toContain("rich_flowchart_manage");
   });
 });

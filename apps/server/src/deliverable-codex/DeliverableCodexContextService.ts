@@ -157,10 +157,10 @@ export class DeliverableCodexContextService {
         scopeKey: `flowchart:${input.projectId}:${input.deliverableId}`,
         contextVersion: createHash("sha256").update(JSON.stringify(item)).digest("hex"),
         systemInstruction: input.mode === "task"
-          ? "You are working in Rich task mode for this project flowchart. Do not change the flowchart unless the user explicitly asks."
-          : "You are working in Rich free mode for this project flowchart. Use its nodes and connections as the current discussion context. Do not claim that you changed the flowchart unless the user explicitly asks and the change is saved through Rich.",
+          ? "You are working in Rich task mode for this project flowchart. Do not change the flowchart unless the user explicitly asks. When asked to change it, use rich_flowchart_manage with the Project ID and Flowchart ID in the supplied context."
+          : "You are working in Rich free mode for this project flowchart. Use its nodes and connections as the current discussion context. Do not claim that you changed the flowchart unless the user explicitly asks and the change is saved through Rich. When asked to change it, use rich_flowchart_manage with the Project ID and Flowchart ID in the supplied context.",
         initialContext,
-        allowedMcpTools: ["rich_project_files_get", "rich_project_file_read"],
+        allowedMcpTools: ["rich_flowchart_manage", "rich_project_files_get", "rich_project_file_read"],
         workspaceRoot,
       };
     }

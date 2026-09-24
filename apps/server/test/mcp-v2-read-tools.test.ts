@@ -80,9 +80,11 @@ describe("MCP 2.0 read resource tools", () => {
       "rich_context_get_overview",
       "rich_context_search",
       "rich_dictionary_manage",
+      "rich_flowchart_manage",
       "rich_knowledge_manage",
       "rich_practice_manage",
       "rich_project_manage",
+      "rich_startup_project_manual",
     ]);
   });
 

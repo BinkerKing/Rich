@@ -213,6 +213,50 @@ describe("MCP 2.0 safe resource writes", () => {
     expect(Array.from(projectItems.values())[0]).toMatchObject({ title: "实现写安全", moduleKey: "todos" });
   });
 
+  it("reads a project flowchart through its dedicated MCP tool", async () => {
+    const harness = makeHarness();
+    harness.projectItems.set("flowchart-1", {
+      id: "flowchart-1", projectId: "project-rich", moduleKey: "flowcharts", title: "订单处理", sortOrder: 0,
+      content: { graph: { version: 1, objective: "梳理订单处理", status: "active", nodes: [{ id: "start", position: { x: 100, y: 100 }, data: { label: "接收订单", kind: "step", description: "", source: "", verified: false, scope: "root" } }], edges: [] } },
+      createdAt: "2026-08-28T00:00:00.000Z", updatedAt: "2026-08-28T00:00:00.000Z",
+    });
+
+    await expect(harness.registry.invoke("rich_flowchart_manage", {
+      action: "get", projectId: "project-rich", flowchartId: "flowchart-1",
+    })).resolves.toMatchObject({
+      ok: true,
+      data: { flowchart: { id: "flowchart-1", title: "订单处理", graph: { nodes: [{ id: "start" }] } } },
+    });
+  });
+
+  it("creates flowchart nodes and edges, and updates node details with read-back verification", async () => {
+    const harness = makeHarness();
+    harness.projectItems.set("flowchart-1", {
+      id: "flowchart-1", projectId: "project-rich", moduleKey: "flowcharts", title: "订单处理", sortOrder: 0,
+      content: { graph: { version: 1, objective: "", status: "draft", nodes: [{ id: "start", position: { x: 100, y: 100 }, data: { label: "接收订单", kind: "step", description: "", source: "", verified: false, scope: "root" } }], edges: [] } },
+      createdAt: "2026-08-28T00:00:00.000Z", updatedAt: "2026-08-28T00:00:00.000Z",
+    });
+
+    const node = await harness.registry.invoke("rich_flowchart_manage", {
+      action: "create_node", projectId: "project-rich", flowchartId: "flowchart-1",
+      node: { id: "review", label: "人工审核", kind: "decision", position: { x: 420, y: 100 }, description: "检查订单风险" },
+      context: { requestId: "flowchart-node-1" },
+    });
+    const detail = await harness.registry.invoke("rich_flowchart_manage", {
+      action: "update_node", projectId: "project-rich", flowchartId: "flowchart-1", nodeId: "review",
+      patch: { description: "检查订单风险并决定是否继续" }, context: { requestId: "flowchart-detail-1" },
+    });
+    const edge = await harness.registry.invoke("rich_flowchart_manage", {
+      action: "create_edge", projectId: "project-rich", flowchartId: "flowchart-1",
+      edge: { id: "start-review", source: "start", target: "review", label: "提交审核" }, context: { requestId: "flowchart-edge-1" },
+    });
+
+    expect(node).toMatchObject({ ok: true, verification: { status: "verified" } });
+    expect(detail).toMatchObject({ ok: true, data: { node: { data: { description: "检查订单风险并决定是否继续" } } }, verification: { status: "verified" } });
+    expect(edge).toMatchObject({ ok: true, verification: { status: "verified" } });
+    expect(harness.projectItems.get("flowchart-1")?.content).toMatchObject({ graph: { nodes: expect.arrayContaining([expect.objectContaining({ id: "review" })]), edges: [expect.objectContaining({ source: "start", target: "review" })] } });
+  });
+
   it("registers and safely writes dictionary, planning, practice, and automation resources", async () => {
     const elementMap = new Map<string, Element>();
     let planningState: unknown = { plans: [], version: 0 };
