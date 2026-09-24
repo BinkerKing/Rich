@@ -66,7 +66,7 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(source, /const closeCodexRefinement = \(\) => \{ saveCodexDraft\(\); setCodexSelection\(\[\]\); setCodexWholeChart\(false\); setCodexRequest\(""\); setCodexAnchor\(undefined\); \}/);
   assert.match(source, /onPaneClick=\{\(\) => \{ setEditingNode\(""\); setQuickCreate\(undefined\); closeCodexRefinement\(\); \}\}/);
   assert.match(source, /event\.key === "Escape" && \(detailNode \|\| selectedIds\.length \|\| selectedEdge \|\| codexSelection\.length \|\| codexWholeChart\)/);
-  assert.match(source, /!detailNode && \(event\.key === "\+" \|\| event\.code === "NumpadAdd"\).*?flow\?\.zoomIn\(\{ duration: 160 \}\)/);
+  assert.match(source, /!detailNode && \(event\.key === "\+" \|\| event\.key === "=" \|\| event\.code === "NumpadAdd"\).*?flow\?\.zoomIn\(\{ duration: 160 \}\)/);
   assert.match(source, /!detailNode && \(event\.key === "-" \|\| event\.code === "NumpadSubtract"\).*?flow\?\.zoomOut\(\{ duration: 160 \}\)/);
   assert.match(source, /saveCodexDraft\(\); setDetailNode\(""\); setSelected\(""\); setSelectedIds\(\[\]\); setSelectedEdge\(""\); setEditingNode\(""\); setQuickCreate\(undefined\); setCodexSelection\(\[\]\); setCodexWholeChart\(false\); setCodexRequest\(""\); setCodexAnchor\(undefined\); return;/);
   assert.doesNotMatch(source, /Codex 会先读取整张流程图，再通过 MCP 保存调整/);
