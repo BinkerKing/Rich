@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { realpath } from "node:fs/promises";
+import type { ProjectDictionaryInfo } from "../modules/project-dictionary-info/projectDictionaryInfoService.js";
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
 
 export interface DictionaryCodexContext {
@@ -16,18 +17,23 @@ function object(value: unknown): value is Record<string, unknown> {
 }
 
 export class DictionaryCodexContextService {
-  constructor(private readonly elements: Pick<ElementsRepo, "get">) {}
+  constructor(
+    private readonly elements: Pick<ElementsRepo, "get">,
+    private readonly info?: { get(projectId: string): Promise<ProjectDictionaryInfo> },
+  ) {}
 
   async build(projectId: string): Promise<DictionaryCodexContext> {
     const project = await this.elements.get(projectId);
     if (!project || project.type !== "project") throw new Error("项目不存在或不是项目记录。");
     const localFolder = object(project.content) && typeof project.content.localFolder === "string" ? project.content.localFolder.trim() : "";
     const workspaceRoot = localFolder ? await realpath(localFolder).catch(() => undefined) : undefined;
+    const dictionaryInfo = await this.info?.get(projectId);
     const initialContext = [
       "## Rich project dictionary context",
       `- Project ID: ${projectId}`,
       "",
       "Before analysis or changes, use rich_dictionary_manage to read the latest dictionary data.",
+      ...(dictionaryInfo?.text.trim() ? ["", "## Mapping knowledge base", dictionaryInfo.text.trim()] : []),
     ].join("\n");
     return {
       scopeKey: `dictionary:${projectId}`,

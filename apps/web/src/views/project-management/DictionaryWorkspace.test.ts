@@ -51,3 +51,9 @@ test("数据字典树顶部可打开项目绑定的 Codex 对话", () => {
   assert.match(source, /resourceType: "dictionary"/);
   assert.match(source, /aria-label="Codex 对话" title="Codex 对话" onClick=\{\(\) => void openDictionaryCodexConversation\(\)\}/);
 });
+
+test("数据字典信息库以整页富文本工作区打开", () => {
+  assert.match(source, /aria-label="数据字典信息库"[\s\S]*?<LibraryBig[\s\S]*?aria-label="Codex 对话"/);
+  assert.match(source, /dictionaryInfoOpen \? \(/);
+  assert.match(source, /<ProjectRichTextEditor projectId=\{`\$\{project\.id\}-dictionary-info`\}/);
+});

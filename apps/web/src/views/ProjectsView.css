@@ -6746,16 +6746,48 @@
   background: #315172;
 }
 
-.prj-pm-dict__tabs .prj-pm-dict__codex {
+.prj-pm-dict__tabs .prj-pm-dict__information-library {
   min-width: 32px;
   margin-left: auto;
   padding: 0;
 }
 
+.prj-pm-dict__tabs .prj-pm-dict__information-library svg,
 .prj-pm-dict__tabs .prj-pm-dict__codex svg {
   width: 18px;
   height: 18px;
   vertical-align: middle;
+}
+
+.prj-pm-dict__tabs .prj-pm-dict__codex {
+  min-width: 32px;
+  padding: 0;
+}
+
+.prj-pm-dict__workspace.is-information-library {
+  display: block;
+}
+
+.prj-pm-dict__information-library-editor,
+.prj-pm-dict__information-library-editor > .prj-pm-rich-editor,
+.prj-pm-dict__information-library-editor > .prj-pm-rich-editor > .prj-pm-rich-content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.prj-pm-dict__information-library-editor > .prj-pm-rich-editor {
+  border: 0;
+  border-radius: 0;
+}
+
+.prj-pm-dict__information-library-editor .prj-pm-rich-surface {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  padding: 20px 24px;
 }
 
 .prj-pm-dict__table-head {
