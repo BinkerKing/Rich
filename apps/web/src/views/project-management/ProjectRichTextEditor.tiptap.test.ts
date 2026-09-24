@@ -30,3 +30,10 @@ test("有序列表将连续步骤收纳为无底色模块，并用亮白文字�
   assert.match(styles, /\.workflow-rich-content > ol > li:last-child,[\s\S]*?border-bottom:\s*0/);
   assert.match(styles, /\.workflow-rich-content > ol > li::before,[\s\S]*?background:\s*transparent[\s\S]*?border:\s*0[\s\S]*?color:\s*#fff/);
 });
+
+test("通用富文本以亮白正文和有呼吸感的标题间距呈现", () => {
+  assert.match(styles, /\.workflow-rich-content\s*\{[^}]*--rich-block-gap:\s*14px[^}]*color:\s*#fff[^}]*font-size:\s*16px/s);
+  assert.match(styles, /\.workflow-rich-content :is\(p, li, p \*, li \*\),[\s\S]*?color:\s*#fff !important/);
+  assert.match(styles, /\.workflow-rich-content h2,[\s\S]*?margin:\s*30px 0 15px[\s\S]*?color:\s*#fff/);
+  assert.match(styles, /\.workflow-rich-content h3,[\s\S]*?margin:\s*26px 0 13px[\s\S]*?color:\s*#fff/);
+});

@@ -173,11 +173,11 @@
 }
 
 .wd-card--heading-level-1 h2 {
-  margin: 58px 0 18px;
+  margin: 64px 0 22px;
   padding: 0 0 13px 15px;
-  color: #04bdd6;
-  border-left: 3px solid #04bdd6;
-  border-bottom: 1px solid rgba(242, 200, 123, 0.28);
+  color: #fff;
+  border-left: 3px solid #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
   font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.025em;
@@ -186,26 +186,26 @@
 
 .wd-card--heading-level-1 h2 small {
   margin-right: 9px;
-  color: #83dfe8;
+  color: #fff;
   font-size: 22px;
   font-weight: 700;
 }
 
 .wd-card--heading-level-2 h3 {
-  margin: 38px 0 14px;
-  padding: 0 0 9px;
-  color: #f1f6f7;
-  border-bottom: 1px solid rgba(4, 189, 214, 0.22);
+  margin: 44px 0 18px;
+  padding: 0 0 11px;
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.24);
   font-size: 22px;
   font-weight: 700;
   line-height: 1.35;
 }
 
 .wd-card--heading-level-3 h4 {
-  margin: 28px 0 10px;
+  margin: 34px 0 14px;
   padding-left: 11px;
-  color: #c7d7da;
-  border-left: 2px solid rgba(4, 189, 214, 0.65);
+  color: #fff;
+  border-left: 2px solid rgba(255, 255, 255, 0.76);
   font-size: 18px;
   font-weight: 650;
   line-height: 1.45;
@@ -214,7 +214,7 @@
 .wd-card--heading-level-2 small,
 .wd-card--heading-level-3 small {
   margin-right: 8px;
-  color: #83dfe8;
+  color: #fff;
   font-size: .8em;
   font-weight: 700;
 }
@@ -222,7 +222,7 @@
 .wd-card p {
   max-width: none;
   margin: 0;
-  color: #f2f4f8;
+  color: #fff;
   font-size: 17px;
   letter-spacing: 0.005em;
   line-height: 1.92;

@@ -40,6 +40,13 @@ test("连续序号以无底色模块承载，行间保留轻量分隔和亮白�
   assert.match(styles, /\.wd-step-card li::before\s*\{[^}]*color:\s*#fff[^}]*background:\s*transparent[^}]*border:\s*0/s);
 });
 
+test("工作台标题和正文使用亮白文字，并留出清晰的阅读间距", () => {
+  assert.match(styles, /\.wd-card--heading-level-1 h2\s*\{[^}]*margin:\s*64px 0 22px[^}]*color:\s*#fff/s);
+  assert.match(styles, /\.wd-card--heading-level-2 h3\s*\{[^}]*margin:\s*44px 0 18px[^}]*color:\s*#fff/s);
+  assert.match(styles, /\.wd-card--heading-level-3 h4\s*\{[^}]*margin:\s*34px 0 14px[^}]*color:\s*#fff/s);
+  assert.match(styles, /\.wd-card p\s*\{[^}]*color:\s*#fff[^}]*line-height:\s*1\.92/s);
+});
+
 test("流程图卡片保留边框并将放大按钮固定在标题栏最右侧", () => {
   assert.match(styles, /\.wd-card--flowchart\s*\{[^}]*border-color:\s*rgba\(4, 189, 214, 0\.32\)/s);
   assert.match(styles, /\.wd-flowchart-drawer__label\s*\{[^}]*width:\s*100%/s);

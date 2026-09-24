@@ -3307,9 +3307,9 @@
   scrollbar-width: thin;
   outline: none;
   padding: 12px;
-  color: rgba(244, 247, 251, .84);
-  font-size: 14px;
-  line-height: 1.7;
+  color: #fff;
+  font-size: 16px;
+  line-height: 1.85;
 }
 .prj-pm-rich-surface::-webkit-scrollbar { width:4px; height:4px; }
 .prj-pm-rich-surface::-webkit-scrollbar-track { background:transparent; }
@@ -3319,26 +3319,29 @@
   box-shadow: inset 0 0 0 1px rgba(143, 254, 247, .34);
 }
 .workflow-rich-content {
-  --rich-block-gap: 6px;
-  color: rgba(244, 247, 251, .84);
-  font-size: 14px;
-  line-height: 1.7;
+  --rich-block-gap: 14px;
+  color: #fff;
+  font-size: 16px;
+  line-height: 1.85;
 }
-.prj-pm-rich-surface { --rich-block-gap: 6px; }
+.prj-pm-rich-surface { --rich-block-gap: 14px; }
 .workflow-rich-content :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image),
 .prj-pm-rich-surface :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image) { margin: 0; }
 .workflow-rich-content:not(.prj-pm-rich-surface) p:empty,
 .workflow-rich-content:not(.prj-pm-rich-surface) p:has(> br:only-child) { min-height: 1.7em; }
 .workflow-rich-content :is(strong, b),
 .prj-pm-rich-surface :is(strong, b) { font-weight: 700; }
+.workflow-rich-content :is(p, li, p *, li *),
+.prj-pm-rich-surface :is(p, li, p *, li *) { color: #fff !important; }
 .workflow-rich-content > :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image, img) + :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image, img),
 .prj-pm-rich-surface > :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image, img) + :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image, img) { margin-top: var(--rich-block-gap); }
 .workflow-rich-content h1,
 .prj-pm-rich-surface h1 {
-  padding: 0 0 10px 14px;
-  border-bottom: 1px solid rgba(248, 213, 139, .42);
-  border-left: 3px solid #f8d58b;
-  color: #fff4d6;
+  margin: 34px 0 16px;
+  padding: 0 0 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, .3);
+  border-left: 3px solid #fff;
+  color: #fff;
   font-size: 26px;
   font-weight: 750;
   letter-spacing: -.025em;
@@ -3346,9 +3349,10 @@
 }
 .workflow-rich-content h2,
 .prj-pm-rich-surface h2 {
-  padding-bottom: 7px;
-  border-bottom: 1px solid rgba(143, 254, 247, .2);
-  color: #f8d58b;
+  margin: 30px 0 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, .24);
+  color: #fff;
   font-size: 21px;
   font-weight: 700;
   letter-spacing: -.015em;
@@ -3356,17 +3360,22 @@
 }
 .workflow-rich-content h3,
 .prj-pm-rich-surface h3 {
+  margin: 26px 0 13px;
   padding-left: 10px;
-  border-left: 2px solid rgba(143, 254, 247, .5);
-  color: #d9eeff;
-  font-size: 17px;
+  border-left: 2px solid rgba(255, 255, 255, .76);
+  color: #fff;
+  font-size: 18px;
   font-weight: 650;
   line-height: 1.45;
 }
+.workflow-rich-content > :is(h1, h2, h3):first-child,
+.prj-pm-rich-surface > :is(h1, h2, h3):first-child { margin-top: 0; }
+.workflow-rich-content :is(h1, h2, h3) *,
+.prj-pm-rich-surface :is(h1, h2, h3) * { color: #fff !important; }
 .workflow-rich-content blockquote,
-.prj-pm-rich-surface blockquote { padding: 7px 12px; border-left: 3px solid #8ffef7; color: rgba(244, 247, 251, .72); background: rgba(143, 254, 247, .05); }
+.prj-pm-rich-surface blockquote { padding: 7px 12px; border-left: 3px solid #fff; color: #fff; background: transparent; }
 .workflow-rich-content a,
-.prj-pm-rich-surface a { color: #8cc8ff; text-decoration: underline; }
+.prj-pm-rich-surface a { color: #fff; text-decoration: underline; }
 .workflow-rich-content pre,
 .prj-pm-rich-surface pre {
   position: relative;
@@ -3374,7 +3383,7 @@
   border-left: 3px solid #8cc8ff;
   border-radius: 7px;
   background: rgba(4, 12, 20, .74);
-  color: #d7e7ff;
+  color: #fff;
   padding: 31px 14px 13px;
   font: 12px/1.55 "SF Mono", Menlo, Consolas, monospace;
   white-space: pre-wrap;
@@ -3384,7 +3393,7 @@
   position: absolute;
   top: 9px;
   left: 12px;
-  color: #8cc8ff;
+  color: #fff;
   content: "代码";
   font: 700 10px/1 "SF Mono", Menlo, Consolas, monospace;
   letter-spacing: .12em;
