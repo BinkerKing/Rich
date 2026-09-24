@@ -268,6 +268,12 @@ export const api = {
     if (!r.ok || !payload.conversation) throw new Error(payload.error ?? `ensureFlowchartCodexSession ${r.status}`);
     return { conversation: payload.conversation, created: Boolean(payload.created), context: payload.context };
   },
+  async ensureProjectDictionaryCodexSession(projectId: string): Promise<{ conversation: { id: string; conversationId: string; isBound?: boolean }; created: boolean; context?: string }> {
+    const r = await fetch(`/api/project-dictionary-codex/${encodeURIComponent(projectId)}/conversations/ensure-bound`, { method: "POST" });
+    const payload = await r.json().catch(() => ({})) as { error?: string; conversation?: { id: string; conversationId: string; isBound?: boolean }; created?: boolean; context?: string };
+    if (!r.ok || !payload.conversation) throw new Error(payload.error ?? `ensureProjectDictionaryCodexSession ${r.status}`);
+    return { conversation: payload.conversation, created: Boolean(payload.created), context: payload.context };
+  },
   async markDeliverableCodexContextSynced(conversationId: string): Promise<void> {
     const r = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(conversationId)}/context-synced`, { method: "POST" });
     if (!r.ok) throw new Error(`markDeliverableCodexContextSynced ${r.status}`);

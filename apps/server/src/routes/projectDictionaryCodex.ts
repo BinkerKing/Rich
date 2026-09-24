@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import type { AgentConversationService } from "../agent-conversations/AgentConversationService.js";
 import type { DictionaryCodexContextService } from "../project-dictionary-codex/DictionaryCodexContextService.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
@@ -49,6 +50,60 @@ export function projectDictionaryCodexRoutes(deps: {
     await deps.conversations.archive(bound.id, new Date().toISOString());
     await deps.agents.exit(bound.conversationId);
     return c.json({ archived: true });
+  });
+
+  r.get("/conversations/:id/messages", async c => {
+    const conversation = await deps.conversations.get(c.req.param("id"));
+    if (!conversation) return c.json({ error: "Conversation not found" }, 404);
+    return c.json({ messages: await deps.chats.listMessages(conversation.conversationId, 200) });
+  });
+
+  r.get("/conversations/:id/status", async c => {
+    const conversation = await deps.conversations.get(c.req.param("id"));
+    if (!conversation || conversation.status !== "active") return c.json({ server: true, session: false, state: "session_lost", running: false }, 404);
+    const connection = await deps.agents.connectionStatus(conversation.conversationId);
+    return c.json({ ...connection, state: !connection.server ? "server_offline" : !connection.session ? "session_lost" : "connected", running: deps.agents.isRunning(conversation.conversationId) });
+  });
+
+  r.post("/conversations/:id/archive", async c => {
+    const conversation = await deps.conversations.get(c.req.param("id"));
+    if (!conversation) return c.json({ error: "Conversation not found" }, 404);
+    const archived = await deps.conversations.archive(conversation.id, new Date().toISOString());
+    await deps.agents.exit(conversation.conversationId);
+    return c.json({ conversation: archived });
+  });
+
+  r.post("/conversations/:id/interrupt", async c => {
+    const conversation = await deps.conversations.get(c.req.param("id"));
+    if (!conversation || conversation.status !== "active") return c.json({ error: "Active conversation not found" }, 404);
+    return c.json({ interrupted: await deps.agents.interrupt(conversation.conversationId) });
+  });
+
+  r.post("/conversations/:id/stream", async c => {
+    const conversation = await deps.conversations.get(c.req.param("id"));
+    if (!conversation || conversation.status !== "active") return c.json({ error: "Active conversation not found" }, 404);
+    const body = await c.req.json().catch(() => null) as { content?: unknown; clientRequestId?: unknown; userMessageId?: unknown } | null;
+    const content = typeof body?.content === "string" ? body.content.trim() : "";
+    const clientRequestId = typeof body?.clientRequestId === "string" ? body.clientRequestId : "";
+    const userMessageId = typeof body?.userMessageId === "string" ? body.userMessageId : "";
+    if (!content || !clientRequestId || !userMessageId) return c.json({ error: "content, clientRequestId and userMessageId are required" }, 400);
+    const context = await deps.context.build(conversation.projectId);
+    await deps.agents.start(conversation.conversationId, { executor: "codex", workspaceRoot: context.workspaceRoot });
+    await deps.chats.appendMessage({ id: userMessageId, conversationId: conversation.conversationId, role: "user", content, createdAt: new Date().toISOString() });
+    return streamSSE(c, async stream => {
+      const write = async (event: { type: string; text?: string; content?: string; turnId?: string; message?: string; status?: string; name?: string }) => {
+        const name = event.type === "delta" ? "text" : event.type;
+        const data = event.type === "delta" ? { chunk: event.text, turnId: event.turnId } : event.type === "error" ? { message: event.message, turnId: event.turnId } : event;
+        await stream.writeSSE({ event: name, data: JSON.stringify(data) });
+      };
+      try {
+        const result = await deps.agents.sendMessage(conversation.conversationId, { clientRequestId, userMessageId, content, runtimeInstruction: `${context.systemInstruction}\n\n${context.initialContext}` }, write);
+        if (result.turn.runtimeSessionId) await deps.conversations.setCodexThread(conversation.id, result.turn.runtimeSessionId, new Date().toISOString());
+        await deps.conversations.touch(conversation.id, new Date().toISOString());
+      } catch (error) {
+        await stream.writeSSE({ event: "error", data: JSON.stringify({ message: error instanceof Error ? error.message : String(error) }) });
+      }
+    });
   });
 
   return r;

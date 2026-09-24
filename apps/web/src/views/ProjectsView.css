@@ -6744,6 +6744,18 @@
   background: #315172;
 }
 
+.prj-pm-dict__tabs .prj-pm-dict__codex {
+  min-width: 32px;
+  margin-left: auto;
+  padding: 0;
+}
+
+.prj-pm-dict__tabs .prj-pm-dict__codex svg {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+}
+
 .prj-pm-dict__table-head {
   display: flex;
   align-items: center;

@@ -75,13 +75,13 @@ function currentProjectTitle(): string {
   return document.querySelector(".prj-ws__title")?.textContent?.trim() || "未命名项目";
 }
 
-function currentLocationContext(appView: string, projectId: string, deliverableId: string, deliverableTitle: string, resourceType: "deliverable" | "flowchart"): CodexLocationContextInput {
+function currentLocationContext(appView: string, projectId: string, deliverableId: string, deliverableTitle: string, resourceType: "deliverable" | "flowchart" | "dictionary"): CodexLocationContextInput {
   const page = currentPageLocation(appView);
   if (appView !== "projects") return { page };
   return {
     page,
     project: { id: projectId, title: currentProjectTitle() },
-    business: { kind: resourceType === "flowchart" ? "项目流程图" : "交付物", id: deliverableId, title: deliverableTitle },
+    business: { kind: resourceType === "dictionary" ? "项目数据字典" : resourceType === "flowchart" ? "项目流程图" : "交付物", id: deliverableId, title: deliverableTitle },
   };
 }
 
@@ -143,7 +143,7 @@ function withMessageDurations(messages: Message[]): Message[] {
   });
 }
 
-export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverableTitle, resourceType = "deliverable", visible, requestedConversationId, initialPrompt, initialAttachments, executionTaskId, initialConversationTitle, onConversationCreated, openSequence }: { projectId: string; deliverableId: string; deliverableTitle: string; resourceType?: "deliverable" | "flowchart"; visible: boolean; requestedConversationId?: string; initialPrompt?: string; initialAttachments?: CodexInitialAttachment[]; executionTaskId?: string; initialConversationTitle?: string; onConversationCreated?: (conversationId: string) => void; openSequence?: number }): ReactNode {
+export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverableTitle, resourceType = "deliverable", visible, requestedConversationId, initialPrompt, initialAttachments, executionTaskId, initialConversationTitle, onConversationCreated, openSequence }: { projectId: string; deliverableId: string; deliverableTitle: string; resourceType?: "deliverable" | "flowchart" | "dictionary"; visible: boolean; requestedConversationId?: string; initialPrompt?: string; initialAttachments?: CodexInitialAttachment[]; executionTaskId?: string; initialConversationTitle?: string; onConversationCreated?: (conversationId: string) => void; openSequence?: number }): ReactNode {
   const appView = useStore(state => state.appView);
   const setAppView = useStore(state => state.setAppView);
   const elements = useStore(state => state.elements);
@@ -195,13 +195,16 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const isResponding = Boolean(active && (streamingConversationId === active.id || runningByConversation[active.id]));
   const activeTaskMode = active ? taskModes[active.id] : undefined;
   const attachedLocation = currentLocationContext(appView, projectId, deliverableId, deliverableTitle, resourceType);
-  const resourcePath = resourceType === "flowchart"
+  const conversationApiPath = resourceType === "dictionary" ? "/api/project-dictionary-codex/conversations" : "/api/deliverable-codex/conversations";
+  const resourcePath = resourceType === "dictionary"
+    ? `/api/project-dictionary-codex/${encodeURIComponent(projectId)}/conversations`
+    : resourceType === "flowchart"
     ? `/api/deliverable-codex/flowcharts/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`
     : `/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`;
   const locationContext = locationAttached ? formatCodexLocationContext(attachedLocation) : "";
   const codexSlash = useMemo(() => parseCodexSlashInput(input), [input]);
   const codexTools = useMemo(() => filterCodexSlashTools(codexSlash.query), [codexSlash.query]);
-  const taskModeAvailable = true;
+  const taskModeAvailable = resourceType !== "dictionary";
   const availableTaskModes = resourceType === "deliverable" && currentPageLocation(appView).at(-1) === "交付物" && active?.projectId !== "__general__" ? [generalTaskMode, ...deliverableTaskModes] : [generalTaskMode];
   const isNearMessagesBottom = (element: HTMLElement) => element.scrollHeight - element.scrollTop - element.clientHeight < 24;
   const updateMessageFollowState = () => {
@@ -215,12 +218,12 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     setActiveId(current => current && payload.conversations.some(item => item.id === current) ? current : payload.conversations[0]?.id);
   };
   const loadMessages = async (conversationId: string) => {
-    const payload = await readJson<{ messages: Array<{ role: "user" | "assistant" | "system"; content: string; createdAt: string; metadata?: { type?: string; mode?: { label?: string }; location?: CodexLocationContextInput }; attachments?: Array<{ id: string; url?: string }> }> }>(`/api/deliverable-codex/conversations/${encodeURIComponent(conversationId)}/messages`);
+    const payload = await readJson<{ messages: Array<{ role: "user" | "assistant" | "system"; content: string; createdAt: string; metadata?: { type?: string; mode?: { label?: string }; location?: CodexLocationContextInput }; attachments?: Array<{ id: string; url?: string }> }> }>(`${conversationApiPath}/${encodeURIComponent(conversationId)}/messages`);
     setMessages(current => ({ ...current, [conversationId]: withMessageDurations(payload.messages.map(message => ({ role: message.role, content: message.content, createdAt: message.createdAt, kind: message.metadata?.type === "task-mode-started" || message.metadata?.type === "task-mode-instruction" || message.metadata?.type === "task-mode-policy-updated" ? message.metadata.type : undefined, taskModeLabel: message.metadata?.mode?.label, taskModeLocation: message.metadata?.location, attachments: message.attachments }))) }));
   };
   const loadRunningStatus = async (conversationId: string) => {
     try {
-      const payload = await readJson<{ running?: boolean }>(`/api/deliverable-codex/conversations/${encodeURIComponent(conversationId)}/status`);
+      const payload = await readJson<{ running?: boolean }>(`${conversationApiPath}/${encodeURIComponent(conversationId)}/status`);
       setRunningByConversation(current => ({ ...current, [conversationId]: Boolean(payload.running) }));
     } catch { /* The stream itself reports request errors; status refreshes are best effort. */ }
   };
@@ -300,7 +303,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   }, [visible, initialPrompt, initialAttachments, executionTaskId, initialConversationTitle, openSequence]);
   const archive = async () => {
     if (!active) return;
-    await readJson(`/api/deliverable-codex/conversations/${encodeURIComponent(active.id)}/archive`, { method: "POST" });
+    await readJson(`${conversationApiPath}/${encodeURIComponent(active.id)}/archive`, { method: "POST" });
     await refresh();
   };
   const rename = async () => {
@@ -308,7 +311,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     const nextTitle = editableTitle.trim();
     if (!nextTitle || nextTitle === active.title) { setEditableTitle(active.title); return; }
     try {
-      const payload = await readJson<{ conversation: Conversation }>(`/api/deliverable-codex/conversations/${encodeURIComponent(active.id)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: nextTitle }) });
+      const payload = await readJson<{ conversation: Conversation }>(`${conversationApiPath}/${encodeURIComponent(active.id)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: nextTitle }) });
       setConversations(current => current.map(item => item.id === payload.conversation.id ? payload.conversation : item));
     } catch (reason) { setEditableTitle(active.title); setError(reason instanceof Error ? reason.message : String(reason)); }
   };
@@ -319,7 +322,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     if (target.id === active?.id) setInput(""); setElapsedMsByConversation(current => ({ ...current, [target.id]: 0 })); setActivityByConversation(current => ({ ...current, [target.id]: "" })); streamingRef.current = true; setStreaming(true); setStreamingConversationId(target.id); setError("");
     setMessages(current => ({ ...current, [target.id]: [...(current[target.id] ?? []), { role: "user", content, createdAt, kind: taskMode ? "task-mode-instruction" : undefined, taskModeLabel: taskMode?.label, taskModeLocation: taskMode?.location, attachments }, { role: "assistant", content: "", createdAt }] }));
     try {
-      const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(target.id)}/stream`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, userMessageId, clientRequestId, attachments, metadata: taskMode ? { type: "task-mode-instruction", mode: { id: taskMode.id, label: taskMode.label }, location: taskMode.location } : undefined }) });
+      const response = await fetch(`${conversationApiPath}/${encodeURIComponent(target.id)}/stream`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, userMessageId, clientRequestId, attachments, metadata: taskMode ? { type: "task-mode-instruction", mode: { id: taskMode.id, label: taskMode.label }, location: taskMode.location } : undefined }) });
       if (!response.ok || !response.body) throw new Error(`发送失败 (${response.status})`);
       setLostConversationIds(current => {
         const next = new Set(current);
@@ -360,7 +363,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const interruptAndSend = async (message: QueuedMessage) => {
     setQueuedMessages(current => current.filter(item => item.id !== message.id));
     try {
-      const { interrupted } = await readJson<{ interrupted: boolean }>(`/api/deliverable-codex/conversations/${encodeURIComponent(message.conversation.id)}/interrupt`, { method: "POST" });
+      const { interrupted } = await readJson<{ interrupted: boolean }>(`${conversationApiPath}/${encodeURIComponent(message.conversation.id)}/interrupt`, { method: "POST" });
       if (!interrupted) throw new Error("当前 Codex 回合已结束，请重新发送");
       await sendMessage(message.conversation, message.content, message.attachments, false);
     } catch (reason) {
@@ -372,7 +375,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     if (!active || !isResponding) return;
     setError("");
     try {
-      const { interrupted } = await readJson<{ interrupted: boolean }>(`/api/deliverable-codex/conversations/${encodeURIComponent(active.id)}/interrupt`, { method: "POST" });
+      const { interrupted } = await readJson<{ interrupted: boolean }>(`${conversationApiPath}/${encodeURIComponent(active.id)}/interrupt`, { method: "POST" });
       if (!interrupted) setRunningByConversation(current => ({ ...current, [active.id]: false }));
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
@@ -533,7 +536,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const workbench = <div className={`deliverable-codex-backdrop${visible ? "" : " is-hidden"}${windowState.maximized ? " is-maximized" : ""}${capturingCurrentView ? " is-capturing-current-view" : ""}`} style={windowState.maximized ? { zIndex: 2147483000, top: desktopTitlebarHeight, padding: 0, background: "#09090a" } : undefined} role="dialog" aria-modal="true" aria-label="交付物 Codex 对话">
     <section className={`deliverable-codex-workbench is-theme-${theme}${activeTaskMode ? " is-task-mode" : ""}${windowState.maximized ? " is-maximized" : ""}`} style={workbenchStyle}>
       <aside className="deliverable-codex-workbench__sidebar">
-        <button type="button" className="deliverable-codex-workbench__new" onClick={() => { setCreating(current => !current); setTitle(""); }}>＋ 新对话</button>
+        {resourceType !== "dictionary" && <button type="button" className="deliverable-codex-workbench__new" onClick={() => { setCreating(current => !current); setTitle(""); }}>＋ 新对话</button>}
         <nav aria-label="对话列表">{conversations.map(conversation => <button key={conversation.id} draggable type="button" className={`${conversation.id === activeId ? "is-active" : ""}${lostConversationIds.has(conversation.id) ? " is-connection-lost" : ""}`} onDragStart={event => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", conversation.id); }} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const sourceId = event.dataTransfer.getData("text/plain"); if (!sourceId || sourceId === conversation.id) return; setConversations(current => { const sourceIndex = current.findIndex(item => item.id === sourceId); const targetIndex = current.findIndex(item => item.id === conversation.id); if (sourceIndex < 0 || targetIndex < 0) return current; const next = [...current]; const [moved] = next.splice(sourceIndex, 1); next.splice(sourceIndex < targetIndex ? targetIndex - 1 : targetIndex, 0, moved); saveConversationOrder(next); return next; }); }} onClick={() => { shouldFollowMessagesRef.current = true; setActiveId(conversation.id); }}><strong>{conversation.title}</strong></button>)}</nav>
         <div className="deliverable-codex-workbench__theme">
           <button type="button" aria-label="选择主题" title="主题" aria-expanded={themeMenuOpen} onClick={() => setThemeMenuOpen(current => !current)}>◐</button>
@@ -542,7 +545,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       </aside>
       <div className="deliverable-codex-workbench__content">
         <header className="deliverable-codex-workbench__tabs" onPointerDown={beginDrag} onPointerMove={drag} onPointerUp={() => { dragRef.current = undefined; }}>
-          <div ref={conversationMenuRef} className="deliverable-codex-workbench__title-group">{editingTitle ? <input ref={titleInputRef} aria-label="会话标题" value={editableTitle} disabled={!active} onChange={event => setEditableTitle(event.target.value)} onBlur={() => { setEditingTitle(false); void rename(); }} onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setEditableTitle(active?.title ?? ""); setEditingTitle(false); } }}/> : <span className="deliverable-codex-workbench__title" title="双击编辑标题" onDoubleClick={() => { if (active) setEditingTitle(true); }}>{active?.title ?? "新会话"}</span>}<div className="deliverable-codex-workbench__conversation-menu"><button type="button" aria-label="更多会话操作" aria-expanded={conversationMenuOpen} disabled={!active} onClick={() => setConversationMenuOpen(current => !current)}>•••</button>{conversationMenuOpen && <div role="menu"><button type="button" role="menuitem" onClick={() => { setConversationMenuOpen(false); setEditingTitle(true); }}>重命名</button><button type="button" role="menuitem" onClick={() => { setConversationMenuOpen(false); void archive(); }}>归档</button></div>}</div></div>
+          <div ref={conversationMenuRef} className="deliverable-codex-workbench__title-group">{editingTitle ? <input ref={titleInputRef} aria-label="会话标题" value={editableTitle} disabled={!active} onChange={event => setEditableTitle(event.target.value)} onBlur={() => { setEditingTitle(false); void rename(); }} onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setEditableTitle(active?.title ?? ""); setEditingTitle(false); } }}/> : <span className="deliverable-codex-workbench__title" title={resourceType === "dictionary" ? undefined : "双击编辑标题"} onDoubleClick={() => { if (active && resourceType !== "dictionary") setEditingTitle(true); }}>{active?.title ?? "新会话"}</span>}<div className="deliverable-codex-workbench__conversation-menu"><button type="button" aria-label="更多会话操作" aria-expanded={conversationMenuOpen} disabled={!active} onClick={() => setConversationMenuOpen(current => !current)}>•••</button>{conversationMenuOpen && <div role="menu">{resourceType !== "dictionary" && <button type="button" role="menuitem" onClick={() => { setConversationMenuOpen(false); setEditingTitle(true); }}>重命名</button>}<button type="button" role="menuitem" onClick={() => { setConversationMenuOpen(false); void archive(); }}>归档</button></div>}</div></div>
           <button type="button" title={windowState.maximized ? "还原窗口" : "全屏"} onClick={() => setWindowState(current => ({ ...current, maximized: !current.maximized }))}>{windowState.maximized ? "↙" : "⛶"}</button>{activeTaskMode && <div className="deliverable-codex-workbench__task-mode-bar"><button type="button" onClick={jumpToTaskBusiness} disabled={!activeTaskMode.location}>{activeTaskMode.id === "general-task" ? "任务：" : "交付物："}{activeTaskMode.location?.business?.title ?? "当前页面"}</button><b>任务模式：{activeTaskMode.label}</b></div>}
         </header>
         {creating && <form className="deliverable-codex-workbench__create" onSubmit={event => { event.preventDefault(); void create(); }}><input autoFocus value={title} onChange={event => setTitle(event.target.value)} placeholder="会话标题"/><button type="submit">创建</button></form>}
