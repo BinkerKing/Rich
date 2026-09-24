@@ -197,7 +197,9 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   useEffect(() => { setNodeDetailFullscreen(false); }, [detailNode]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && detailNode) { event.preventDefault(); event.stopPropagation(); setDetailNode(""); return; }
+      if (event.key === "Escape" && (detailNode || selectedIds.length || selectedEdge || codexSelection.length || codexWholeChart)) {
+        event.preventDefault(); event.stopPropagation(); setDetailNode(""); setSelected(""); setSelectedIds([]); setSelectedEdge(""); setEditingNode(""); setQuickCreate(undefined); setCodexSelection([]); setCodexWholeChart(false); setCodexRequest(""); setCodexAnchor(undefined); return;
+      }
       if (event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable=true]")) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c" && graph && selectedIds.length) { event.preventDefault(); clipboard.current = copyFlowSelection(graph, selectedIds); return; }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "v" && graph && clipboard.current) {
@@ -213,7 +215,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [selected, editingNode, detailNode, graph, selectedIds]);
+  }, [selected, editingNode, detailNode, graph, selectedIds, selectedEdge, codexSelection, codexWholeChart]);
   useEffect(() => {
     if (!flow) return;
     const timer = window.setTimeout(() => {
@@ -302,6 +304,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     } catch (e) { setError(`删除失败：${String(e)}`); } finally { setBusy(false); }
   };
   const selectedNodes = graph?.nodes.filter(row => selectedIds.includes(row.id)) ?? [];
+  const focusedNode = selectedNodes.length === 1 ? selectedNodes[0] : undefined;
   const selectedFlowEdge = graph?.edges.find(row => row.id === selectedEdge);
   const detail = graph?.nodes.find(row => row.id === detailNode);
   const collapsedGroups = new Set(graph?.nodes.filter(node => node.data.kind === "region" && node.data.collapsed).map(node => node.id));
@@ -445,7 +448,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
         <button className="pfc-task-title" aria-expanded={active === item.id && expanded} aria-controls={`pfc-chart-${item.id}`} disabled={busy} onClick={() => {
           if (active === item.id) { setExpanded(value => !value); setSettingsOpen(false); }
           else open(item);
-        }}>{embedded && !expanded ? <span className="pfc-task-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span> : <span className="pfc-list-icon" aria-hidden="true"><FlowchartListIcon name="flow" /></span>}<strong>{active === item.id ? title : item.title}</strong></button>
+        }}>{embedded && !expanded ? <span className="pfc-task-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span> : <span className="pfc-list-icon" aria-hidden="true"><FlowchartListIcon name="flow" /></span>}<span className="pfc-task-title-copy"><strong>{active === item.id ? title : item.title}</strong>{active === item.id && expanded && focusedNode && <span className="pfc-node-focus" aria-label="当前选中节点">{focusedNode.data.label}</span>}</span></button>
             {active === item.id && expanded && <>
               {isFullscreen && <span className="pfc-save-state">{syncing ? "自动保存中…" : dirty ? "等待自动保存…" : "已同步"}</span>}
               <button aria-label="撤销" title="撤销（⌘Z）" disabled={undoStack.current.length === 0} onClick={undoGraph}>↶</button>
