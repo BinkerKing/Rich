@@ -4,7 +4,7 @@ import { useChatComposer } from "../../../lib/useChatComposer.js";
 import { filterCodexSlashTools, parseCodexSlashInput, type CodexSlashTool } from "../../../lib/codexSlashTools.js";
 import { formatCodexLocationContext, type CodexLocationContextInput } from "../../../lib/codexLocationContext.js";
 import { RichContent } from "../../../components/RichContent.js";
-import { notifyDeliverableDataChanged, requestDeliverableItemFocus } from "./DeliverablesModel.js";
+import { notifyDeliverableDataChanged } from "./DeliverablesModel.js";
 import { requestShortcutOpen } from "../../../lib/shortcutEngine.js";
 import { useStore } from "../../../state/store.js";
 import { api, type AiManagedTaskCreateInput } from "../../../api/client.js";
@@ -503,17 +503,6 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       setMessages(current => ({ ...current, [active.id]: [...(current[active.id] ?? []), { role: "system", kind: "task-mode-started", taskModeLabel: mode.label, taskModeLocation: location, content: "任务模式已启动", createdAt: startedAt }] }));
       await sendMessage(active, payload.instruction, [], false, session, true);
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
-  };
-  const jumpToTaskBusiness = () => {
-    const location = activeTaskMode?.location;
-    if (activeTaskMode?.id === "general-task") { setAppView("taskWorkbench"); window.dispatchEvent(new Event("rich:close-deliverable-codex")); return; }
-    const project = location?.project;
-    const business = location?.business;
-    if (!project || business?.kind !== "交付物") return;
-    requestShortcutOpen({ kind: "project", id: project.id });
-    setAppView("projects");
-    window.dispatchEvent(new Event("rich:close-deliverable-codex"));
-    window.requestAnimationFrame(() => requestDeliverableItemFocus(project.id, business.id));
   };
   const jumpToBoundResource = () => {
     if (projectId === "__general__") return;
