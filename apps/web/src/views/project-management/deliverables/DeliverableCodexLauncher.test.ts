@@ -37,6 +37,9 @@ test("已挂载的工作台直接接收当前资源目标，不依赖事件监�
 
 test("快捷键导航会关闭已打开的 Codex 工作台", () => {
   assert.match(launcher, /rich:close-deliverable-codex/);
+  assert.match(launcher, /if \(window\.__richCloseBoundCodex\) \{/);
+  assert.match(launcher, /window\.__richCloseBoundCodex\(\);/);
+  assert.match(launcher, /window\.__richCloseBoundCodex = close/);
   assert.match(launcher, /setVisible\(false\)/);
   assert.match(app, /closeDeliverableCodex\(\);/);
 });

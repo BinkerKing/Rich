@@ -18,6 +18,7 @@ export type DeliverableCodexTarget = {
 declare global {
   interface Window {
     __richOpenBoundCodex?: (target: DeliverableCodexTarget) => void;
+    __richCloseBoundCodex?: () => void;
   }
 }
 
@@ -76,6 +77,10 @@ export function showDeliverableCodex(target: DeliverableCodexTarget) {
 }
 
 export function closeDeliverableCodex() {
+  if (window.__richCloseBoundCodex) {
+    window.__richCloseBoundCodex();
+    return;
+  }
   window.dispatchEvent(new Event(closeEvent));
 }
 
@@ -91,10 +96,13 @@ export function DeliverableCodexLauncher(): ReactNode {
       setVisible(true); setOpenSequence(value => value + 1);
     };
     const open = (event: Event) => openTarget((event as CustomEvent<DeliverableCodexTarget>).detail);
+    const close = () => setVisible(false);
     window.__richOpenBoundCodex = openTarget;
+    window.__richCloseBoundCodex = close;
     window.addEventListener(openEvent, open);
     return () => {
       if (window.__richOpenBoundCodex === openTarget) delete window.__richOpenBoundCodex;
+      if (window.__richCloseBoundCodex === close) delete window.__richCloseBoundCodex;
       window.removeEventListener(openEvent, open);
     };
   }, []);
@@ -114,7 +122,7 @@ export function DeliverableCodexLauncher(): ReactNode {
     return () => window.removeEventListener(toggleEvent, toggle);
   }, []);
   useEffect(() => {
-    const close = () => setVisible(false);
+    const close = () => window.__richCloseBoundCodex?.();
     window.addEventListener(closeEvent, close);
     return () => window.removeEventListener(closeEvent, close);
   }, []);
