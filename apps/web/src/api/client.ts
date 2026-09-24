@@ -1041,6 +1041,20 @@ export const api = {
     if (!r.ok) throw new Error(`saveProjectDescription ${r.status}`);
     return r.json();
   },
+  async getProjectDictionaryInfo(projectId: string): Promise<ProjectDictionaryInfo> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/info`);
+    if (!r.ok) throw new Error(`getProjectDictionaryInfo ${r.status}`);
+    return r.json();
+  },
+  async saveProjectDictionaryInfo(projectId: string, html: string): Promise<ProjectDictionaryInfo> {
+    const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/dictionary/info`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ html }),
+    });
+    if (!r.ok) throw new Error(`saveProjectDictionaryInfo ${r.status}`);
+    return r.json();
+  },
   async searchProjectManagement(projectId: string, query: string, limit = 30): Promise<ProjectManagementSearchResult> {
     const params = new URLSearchParams({ q: query, limit: String(limit) });
     const r = await fetch(`/api/project-management/${encodeURIComponent(projectId)}/search?${params.toString()}`);
@@ -2039,6 +2053,8 @@ export interface ProjectDescription {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface ProjectDictionaryInfo extends ProjectDescription {}
 
 export interface ProjectModuleItem {
   id: string;

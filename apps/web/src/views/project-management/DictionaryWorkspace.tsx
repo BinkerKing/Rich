@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { Element } from "@ke/domain";
-import { Bookmark, CheckCircle2, Clock3, Flag, MessageSquare, Star, TriangleAlert, type LucideIcon } from "lucide-react";
+import { Bookmark, CheckCircle2, Clock3, Flag, LibraryBig, MessageSquare, Star, TriangleAlert, type LucideIcon } from "lucide-react";
 import {
   api,
   type ProjectDictionaryFieldHit,
@@ -37,6 +37,7 @@ import {
 } from "./dictionary/DictionarySystemPanels.js";
 import type { ProjectManagementSearchTarget } from "./ProjectManagementNavigation.js";
 import { openBoundCodex } from "./deliverables/DeliverableCodexLauncher.js";
+import { ProjectRichTextEditor } from "./ProjectManagementModules.js";
 
 type DictionaryView = "field-design" | "mapping" | "temp-table" | "relations" | "test-data" | "table-info";
 type DictionarySourceRef = { label: string; field?: ProjectDictionaryFieldHit };
@@ -103,6 +104,10 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
   const [systemsLoaded, setSystemsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [dictionaryInfoOpen, setDictionaryInfoOpen] = useState(false);
+  const [dictionaryInfoHtml, setDictionaryInfoHtml] = useState("");
+  const [savedDictionaryInfoHtml, setSavedDictionaryInfoHtml] = useState("");
+  const [dictionaryInfoLoaded, setDictionaryInfoLoaded] = useState(false);
   const tableNavigationStackRef = useRef<string[]>(rememberedWorkspace.selectedTableId ? [rememberedWorkspace.selectedTableId] : []);
   useEffect(() => {
     let cancelled = false;
@@ -122,6 +127,21 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
       .finally(() => { if (!cancelled) setSystemsLoaded(true); });
     return () => { cancelled = true; };
   }, [project.id, refreshKey]);
+  useEffect(() => {
+    setDictionaryInfoOpen(false);
+    setDictionaryInfoHtml("");
+    setSavedDictionaryInfoHtml("");
+    setDictionaryInfoLoaded(false);
+  }, [project.id]);
+  useEffect(() => {
+    if (!dictionaryInfoOpen || !dictionaryInfoLoaded || dictionaryInfoHtml === savedDictionaryInfoHtml) return;
+    const timer = window.setTimeout(() => {
+      void api.saveProjectDictionaryInfo(project.id, dictionaryInfoHtml)
+        .then(next => setSavedDictionaryInfoHtml(next.html))
+        .catch(reason => setError(reason instanceof Error ? reason.message : String(reason)));
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [dictionaryInfoHtml, dictionaryInfoLoaded, dictionaryInfoOpen, project.id, savedDictionaryInfoHtml]);
   useEffect(() => { let cancelled = false; void api.listProjectDictionaryBusinessScenarioLibraries(project.id).then(items => { if (!cancelled) { setBusinessScenarioLibraries(items); setSelectedBusinessScenarioLibraryId(current => current || items[0]?.id || ""); } }).catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); }); return () => { cancelled = true; }; }, [project.id, refreshKey]);
 
   useEffect(() => {
@@ -396,6 +416,7 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
     });
   };
   const openTable = (tableId: string) => {
+    setDictionaryInfoOpen(false);
     if (selectedTableId !== tableId) setPropertyViewer(null);
     if (selectedTableId && selectedTableId !== tableId) {
       tableNavigationStackRef.current = [
@@ -718,9 +739,17 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
       openBoundCodex({ projectId: project.id, deliverableId: project.id, deliverableTitle: `${project.title} · 数据字典`, resourceType: "dictionary", conversationId: session.conversation.id });
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
+  const openDictionaryInfo = async () => {
+    try {
+      const info = await api.getProjectDictionaryInfo(project.id);
+      setDictionaryInfoHtml(info.html);
+      setSavedDictionaryInfoHtml(info.html);
+      setDictionaryInfoLoaded(true);
+      setDictionaryInfoOpen(true);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+  };
 
   if (!systemsLoaded && !error) return null;
-  if (!error && systems.length === 0) return <p className="prj-pm-unconfigured">暂未配置。</p>;
 
   return (
     <div className="prj-pm-dict prj-pm-dict-workbench">
@@ -729,8 +758,9 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
       <div className="prj-pm-dict__layout no-inspector">
         <aside className="prj-pm-dict__systems">
           <div className="prj-pm-dict__tabs" aria-label="数据字典分类">
-            <button type="button" className={catalog === "business-scenarios" ? "is-active" : ""} onClick={() => { setCatalog("business-scenarios"); setSelectedTableId(""); }}>业务场景</button>
-            <button type="button" className={catalog === "tables" ? "is-active" : ""} onClick={() => { setCatalog("tables"); setSelectedBusinessScenarioId(""); setCreatingBusinessScenario(false); }}>表清单</button>
+            <button type="button" className={catalog === "business-scenarios" ? "is-active" : ""} onClick={() => { setDictionaryInfoOpen(false); setCatalog("business-scenarios"); setSelectedTableId(""); }}>业务场景</button>
+            <button type="button" className={catalog === "tables" ? "is-active" : ""} onClick={() => { setDictionaryInfoOpen(false); setCatalog("tables"); setSelectedBusinessScenarioId(""); setCreatingBusinessScenario(false); }}>表清单</button>
+            <button type="button" className="prj-pm-dict__information-library" aria-label="数据字典信息库" title="数据字典信息库" onClick={() => void openDictionaryInfo()}><LibraryBig aria-hidden="true" /></button>
             <button type="button" className="prj-pm-dict__codex" aria-label="Codex 对话" title="Codex 对话" onClick={() => void openDictionaryCodexConversation()}><MessageSquare aria-hidden="true" /></button>
             {catalog === "business-scenarios" && <button type="button" onClick={() => { const name = window.prompt("场景库名称"); if (!name?.trim()) return; void api.createProjectDictionaryBusinessScenarioLibrary(project.id, { name: name.trim() }).then(next => { setBusinessScenarioLibraries(items => [...items, next]); setSelectedBusinessScenarioLibraryId(next.id); setExpandedScenarioSystemIds(items => [...items, next.id]); }).catch(e => setError(e instanceof Error ? e.message : String(e))); }}>新建库</button>}
             {catalog === "business-scenarios" && <button type="button" disabled={!selectedBusinessScenarioLibraryId} onClick={() => { const library = businessScenarioLibraries.find(item => item.id === selectedBusinessScenarioLibraryId); if (!library) return; const dbType = window.prompt("数据库类型（postgresql / sqlserver）", library.dbType || "postgresql"); if (!dbType) return; const host = window.prompt("主机", library.connection?.host || ""); const database = window.prompt("数据库名", library.connection?.database || ""); const username = window.prompt("用户名", library.connection?.username || ""); if (host === null || database === null || username === null) return; void api.updateProjectDictionaryBusinessScenarioLibrary(project.id, library.id, { dbType: dbType as "postgresql" | "sqlserver", sqlDialect: dbType as "postgresql" | "sqlserver", connection: { ...library.connection, host, database, username } }).then(next => setBusinessScenarioLibraries(items => items.map(item => item.id === next.id ? next : item))).catch(e => setError(e instanceof Error ? e.message : String(e))); }}>配置库</button>}
@@ -807,12 +837,17 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
 
         <section className={[
           "prj-pm-dict__workspace",
+          dictionaryInfoOpen ? "is-information-library" : "",
           selectedBusinessScenario || (catalog === "business-scenarios" && !selectedBusinessScenarioId) ? "is-business-scenario" : "",
           !query.trim() && !selectedTable ? "is-system-overview" : "",
           titleTables.length > 0 || titleSystems.length > 0 ? "has-table-rail" : "",
           titleTables.length > 0 && titleSystems.length > 0 ? "has-system-and-table-rail" : "",
         ].filter(Boolean).join(" ")}>
-          {catalog === "business-scenarios" && creatingBusinessScenario ? (
+          {dictionaryInfoOpen ? (
+            <div className="prj-pm-dict__information-library-editor">
+              <ProjectRichTextEditor projectId={`${project.id}-dictionary-info`} value={dictionaryInfoHtml} onChange={setDictionaryInfoHtml} />
+            </div>
+          ) : catalog === "business-scenarios" && creatingBusinessScenario ? (
             <div className="prj-pm-dict__scenario-detail"><h2>新建业务场景</h2><BusinessScenarioEditor draft={businessScenarioDraft} setDraft={setBusinessScenarioDraft} tables={orderedTables} busy={businessScenarioBusy} onSave={() => { if (!selectedBusinessScenarioLibraryId) return; setBusinessScenarioBusy(true); void api.createProjectDictionaryBusinessScenario(project.id, { libraryId: selectedBusinessScenarioLibraryId, ...businessScenarioDraft }).then(next => { setBusinessScenarios(items => [...items, next]); setSelectedBusinessScenarioId(next.id); }).catch(e => setError(e instanceof Error ? e.message : String(e))).finally(() => setBusinessScenarioBusy(false)); }} /></div>
           ) : selectedBusinessScenario ? (
             <div className="prj-pm-dict__scenario-detail">
