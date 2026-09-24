@@ -11,6 +11,9 @@ import { FlowchartFloatingToolbar, FlowchartToolbarIcon } from "./FlowchartFloat
 import { ProjectRichTextEditor } from "../ProjectManagementModules.js";
 import { isNodeEditShortcut } from "../../../components/mindmap/nodeEditShortcut.js";
 import { openBoundCodex } from "../deliverables/DeliverableCodexLauncher.js";
+
+const FLOWCHART_FOCUS_KEY = "rich:flowchart-focus";
+export function requestFlowchartFocus(id: string) { window.sessionStorage.setItem(FLOWCHART_FOCUS_KEY, id); }
 import { flowchartCodexPrompt } from "./flowchartCodexPrompt.js";
 import { useCurrentCodexShortcut } from "../../../lib/currentCodexShortcut.js";
 import "./FlowchartsWorkspace.css";
@@ -253,9 +256,11 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     } catch (e) { setError(String(e)); }
   };
   useEffect(() => {
-    if (!focusId || busy) return;
-    if (active === focusId) { setExpanded(true); return; }
-    const item = items.find(row => row.id === focusId);
+    const requestedId = focusId ?? window.sessionStorage.getItem(FLOWCHART_FOCUS_KEY) ?? undefined;
+    if (!requestedId || busy) return;
+    if (active === requestedId) { setExpanded(true); return; }
+    const item = items.find(row => row.id === requestedId);
+    if (item) window.sessionStorage.removeItem(FLOWCHART_FOCUS_KEY);
     if (item) open(item);
   }, [focusId, items]);
   const update = (next: FlowchartData) => {

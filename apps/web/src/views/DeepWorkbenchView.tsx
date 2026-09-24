@@ -16,6 +16,9 @@ import { api } from "../api/client.js";
 import { useStore } from "../state/store.js";
 import { openBoundCodex } from "./project-management/deliverables/DeliverableCodexLauncher.js";
 import { useCurrentCodexShortcut } from "../lib/currentCodexShortcut.js";
+
+const MINIMAP_FOCUS_KEY = "rich:mindmap-focus";
+export function requestMindmapFocus(id: string) { window.sessionStorage.setItem(MINIMAP_FOCUS_KEY, id); }
 import "./DeepWorkbenchView.css";
 
 const STORAGE_KEY = "rich.deep-workbench.v1";
@@ -92,6 +95,10 @@ export function DeepWorkbenchView() {
   useEffect(() => { setOutlineSelectedNodeId(null); }, [activeId]);
   const active = items.find(item => item.id === activeId) ?? null;
   const standaloneItems = items.filter(item => item.source !== "knowledge-tree");
+  useEffect(() => {
+    const id = window.sessionStorage.getItem(MINIMAP_FOCUS_KEY);
+    if (id && items.some(item => item.id === id)) { window.sessionStorage.removeItem(MINIMAP_FOCUS_KEY); setActiveId(id); }
+  }, [items]);
   const knowledgeRoots = useMemo(() => {
     const childIds = new Set(relations.filter(relation => relation.kind === "child").map(relation => relation.to));
     return Array.from(elements.values()).filter(element => element.type === "topic" && !childIds.has(element.id));

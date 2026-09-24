@@ -8,6 +8,9 @@ import { notifyDeliverableDataChanged } from "./DeliverablesModel.js";
 import { requestShortcutOpen } from "../../../lib/shortcutEngine.js";
 import { useStore } from "../../../state/store.js";
 import { requestProjectSectionFocus } from "../../ProjectWorkspace.js";
+import { requestMindmapFocus } from "../../DeepWorkbenchView.js";
+import { requestFlowchartFocus } from "../flowcharts/FlowchartsWorkspace.js";
+import { requestDeliverableItemFocus } from "./DeliverablesModel.js";
 import { api, type AiManagedTaskCreateInput } from "../../../api/client.js";
 import { shouldRedeployLatestApp } from "../../../lib/bugDeploymentPolicy.js";
 import type { CodexInitialAttachment } from "../../../lib/aiTaskCodexContext.js";
@@ -512,12 +515,17 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   };
   const jumpToBoundResource = () => {
     const boundProjectId = active?.projectId ?? projectId;
-    if (activeResourceType === "mindmap") { setAppView("mindmap"); window.dispatchEvent(new Event("rich:close-deliverable-codex")); return; }
+    const boundResourceId = active?.deliverableId ?? deliverableId;
+    if (activeResourceType === "mindmap") { requestMindmapFocus(boundResourceId); setAppView("mindmap"); window.dispatchEvent(new Event("rich:close-deliverable-codex")); return; }
     if (boundProjectId === "__general__") return;
     requestShortcutOpen({ kind: "project", id: boundProjectId });
     setAppView("projects");
     window.dispatchEvent(new Event("rich:close-deliverable-codex"));
-    window.requestAnimationFrame(() => requestProjectSectionFocus(boundProjectId, activeResourceType === "flowchart" ? "flowcharts" : activeResourceType === "report" ? "reports" : activeResourceType === "dictionary" ? "dictionary" : "deliverables"));
+    window.requestAnimationFrame(() => {
+      requestProjectSectionFocus(boundProjectId, activeResourceType === "flowchart" ? "flowcharts" : activeResourceType === "report" ? "reports" : activeResourceType === "dictionary" ? "dictionary" : "deliverables");
+      if (activeResourceType === "flowchart") requestFlowchartFocus(boundResourceId);
+      if (activeResourceType === "deliverable") requestDeliverableItemFocus(boundProjectId, boundResourceId);
+    });
   };
   useEffect(() => {
     if (!taskModePickerOpen) return;
