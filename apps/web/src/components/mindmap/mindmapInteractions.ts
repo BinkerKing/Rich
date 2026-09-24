@@ -20,6 +20,14 @@ export function applyPanSensitivity(delta: CanvasPoint, sensitivity: number): Ca
   return { x: delta.x * sensitivity, y: delta.y * sensitivity };
 }
 
+export function panSensitivityFromPercent(percent: number): number {
+  return Math.min(100, Math.max(0, percent)) / 100;
+}
+
+export function panSensitivityPercent(sensitivity: number): number {
+  return Math.round(Math.min(1, Math.max(0, sensitivity)) * 100);
+}
+
 export function nextInertialPan(_velocity: CanvasPoint): { delta: CanvasPoint; velocity: CanvasPoint } {
   const nextVelocity = { x: 0, y: 0 };
   return {

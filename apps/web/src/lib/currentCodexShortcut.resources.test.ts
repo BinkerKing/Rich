@@ -29,3 +29,9 @@ test("mindmap toolbar exposes the Codex action directly below export", () => {
   assert.match(toolbar, /onClick=\{onOpenCodex\}>Codex 对话<\/button>/);
   assert.match(workbench, /onOpenCodex=\{\(\) => void openCodexConversation\(active\)\}/);
 });
+
+test("mindmap toolbar provides a 0–100 drag-speed slider", () => {
+  const toolbar = source("apps/web/src/components/mindmap/MindmapFloatingToolbar.tsx");
+  assert.match(toolbar, /type="range" min="0" max="100"/);
+  assert.match(toolbar, /panSensitivityFromPercent/);
+});
