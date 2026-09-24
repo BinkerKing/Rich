@@ -121,7 +121,7 @@ export function TaskWorkbench(): ReactNode {
     openBoundCodex({ projectId: data.conversation.projectId, deliverableId: data.conversation.deliverableId, deliverableTitle: data.conversation.title, conversationId: data.conversation.id });
   };
   const newTask = () => perform(async () => {
-    const response = await fetch("/api/deliverable-codex/__general__/__general__/conversations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "新任务" }) });
+    const response = await fetch("/api/deliverable-codex/deliverables/__general__/__general__/conversations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "新任务" }) });
     const body = await response.json(); if (!response.ok) throw new Error(body.error ?? "创建 Codex 对话失败");
     openBoundCodex({ projectId: "__general__", deliverableId: "__general__", deliverableTitle: "通用任务", conversationId: body.conversation.id });
     setNotice("请在 Codex 聊天框选择任务模式，然后提出需求。");

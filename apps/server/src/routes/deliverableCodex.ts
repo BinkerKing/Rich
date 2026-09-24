@@ -74,7 +74,7 @@ export function deliverableCodexRoutes(deps: {
     catch (error) { return c.json({ error: error instanceof Error ? error.message : String(error) }, 400); }
   });
 
-  r.get("/:projectId/:deliverableId/conversations", async c => {
+  r.get("/deliverables/:projectId/:deliverableId/conversations", async c => {
     return c.json({ conversations: await deps.conversations.listActive(scopeKey("deliverable", c.req.param("projectId"), c.req.param("deliverableId"))) });
   });
 
@@ -118,7 +118,7 @@ export function deliverableCodexRoutes(deps: {
     }
   });
 
-  r.post("/:projectId/:deliverableId/conversations/ensure-bound", async c => {
+  r.post("/deliverables/:projectId/:deliverableId/conversations/ensure-bound", async c => {
     const body = await c.req.json().catch(() => null) as { title?: unknown } | null;
     const title = typeof body?.title === "string" ? body.title.trim() : "";
     if (!title) return c.json({ error: "title is required" }, 400);
@@ -140,7 +140,7 @@ export function deliverableCodexRoutes(deps: {
     }
   });
 
-  r.post("/:projectId/:deliverableId/conversations/archive-bound", async c => {
+  r.post("/deliverables/:projectId/:deliverableId/conversations/archive-bound", async c => {
     const bound = await deps.conversations.getBound(scopeKey("deliverable", c.req.param("projectId"), c.req.param("deliverableId")));
     if (!bound) return c.json({ archived: false });
     await deps.conversations.archive(bound.id, new Date().toISOString());
@@ -148,7 +148,7 @@ export function deliverableCodexRoutes(deps: {
     return c.json({ archived: true });
   });
 
-  r.post("/:projectId/:deliverableId/conversations", async c => {
+  r.post("/deliverables/:projectId/:deliverableId/conversations", async c => {
     const body = await c.req.json().catch(() => null) as { title?: unknown } | null;
     const title = typeof body?.title === "string" ? body.title.trim() : "";
     if (!title) return c.json({ error: "title is required" }, 400);

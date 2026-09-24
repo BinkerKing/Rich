@@ -204,7 +204,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     ? `/api/deliverable-codex/mindmaps/${encodeURIComponent(deliverableId)}/conversations`
     : resourceType === "report"
     ? `/api/deliverable-codex/reports/${encodeURIComponent(projectId)}/conversations`
-    : `/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`;
+    : `/api/deliverable-codex/deliverables/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`;
   const locationContext = locationAttached ? formatCodexLocationContext(attachedLocation) : "";
   const codexSlash = useMemo(() => parseCodexSlashInput(input), [input]);
   const codexTools = useMemo(() => filterCodexSlashTools(codexSlash.query), [codexSlash.query]);

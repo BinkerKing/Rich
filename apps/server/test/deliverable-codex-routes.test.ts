@@ -102,13 +102,13 @@ describe("deliverable Codex routes", () => {
       projects: { async listAllModuleItems() { return [{ id: "d1", content: { recordType: "deliverable", records: [] } }]; }, async updateModuleItem() { return null; } } as never,
     });
 
-    const first = await app.request("/p1/d1/conversations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "检查字段", mode: "task" }) });
-    const second = await app.request("/p1/d1/conversations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "自由讨论", mode: "free" }) });
+    const first = await app.request("/deliverables/p1/d1/conversations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "检查字段", mode: "task" }) });
+    const second = await app.request("/deliverables/p1/d1/conversations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "自由讨论", mode: "free" }) });
     const firstJson = await first.json() as { conversation: { id: string; mode: string; allowedMcpTools: string[] } };
     expect(first.status).toBe(201);
     expect(second.status).toBe(201);
     expect(firstJson.conversation).toMatchObject({ mode: "free", allowedMcpTools: [] });
-    expect((await (await app.request("/p1/d1/conversations")).json() as { conversations: unknown[] }).conversations).toHaveLength(2);
+    expect((await (await app.request("/deliverables/p1/d1/conversations")).json() as { conversations: unknown[] }).conversations).toHaveLength(2);
     expect((await (await app.request(`/conversations/${firstJson.conversation.id}/messages`)).json() as { messages: unknown[] }).messages).toHaveLength(0);
     const event = await app.request(`/conversations/${firstJson.conversation.id}/events/task-mode-started`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventId: "start-general", startedAt: new Date().toISOString(), mode: { id: "general-task", label: "任务模式" }, location: { page: ["任务工作台"] } }) });
     expect(event.status).toBe(201);
@@ -116,7 +116,7 @@ describe("deliverable Codex routes", () => {
 
     const archived = await app.request(`/conversations/${firstJson.conversation.id}/archive`, { method: "POST" });
     expect(archived.status).toBe(200);
-    expect((await (await app.request("/p1/d1/conversations")).json() as { conversations: unknown[] }).conversations).toHaveLength(1);
+    expect((await (await app.request("/deliverables/p1/d1/conversations")).json() as { conversations: unknown[] }).conversations).toHaveLength(1);
     expect(chats.filter(item => item.type === "message")).toHaveLength(1);
     expect(agents.some(value => value.startsWith("exit:"))).toBe(true);
   });
@@ -136,10 +136,12 @@ describe("deliverable Codex routes", () => {
       prompts: {} as never,
     });
 
-    const response = await app.request("/p1/d1/conversations/ensure-bound", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "验收报告 · Codex" }) });
+    const response = await app.request("/deliverables/p1/d1/conversations/ensure-bound", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "验收报告 · Codex" }) });
 
     expect(response.status).toBe(201);
     expect(await response.json()).toMatchObject({ created: true, context: "交付物汇总基线", conversation: { isBound: true, projectId: "p1", deliverableId: "d1" } });
+    const legacy = await app.request("/p1/d1/conversations/ensure-bound", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "验收报告 · Codex" }) });
+    expect(legacy.status).toBe(404);
   });
 
   it("creates a fresh bound Session when a mindmap's previous binding is archived", async () => {
@@ -201,7 +203,7 @@ describe("deliverable Codex routes", () => {
       agents: { async exit(conversationId) { exited.push(conversationId); return null; } } as never,
     });
 
-    const response = await app.request("/p1/d1/conversations/archive-bound", { method: "POST" });
+    const response = await app.request("/deliverables/p1/d1/conversations/archive-bound", { method: "POST" });
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ archived: true });
@@ -223,7 +225,7 @@ describe("deliverable Codex routes", () => {
       agents: {} as never,
     });
 
-    const response = await app.request("/p1/d1/conversations/ensure-bound", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "任意标题" }) });
+    const response = await app.request("/deliverables/p1/d1/conversations/ensure-bound", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "任意标题" }) });
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ created: false, context: "## Rich deliverable incremental context\n- [codex] 请整理需求" });
