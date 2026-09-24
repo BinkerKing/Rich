@@ -50,7 +50,7 @@ test("代码块使用亮白文字、白色方框和左右内缩", () => {
 });
 
 test("富文本表格使用清晰的现代网格与亮白内容", () => {
-  assert.match(styles, /\.workflow-rich-content table,[\s\S]*?width:\s*calc\(100% - 64px\) !important[\s\S]*?margin:\s*28px auto !important[\s\S]*?border:\s*2px solid #f1f5f9[\s\S]*?border-radius:\s*10px[\s\S]*?box-shadow:\s*0 0 0 2px rgba\(255, 255, 255, \.2\)[\s\S]*?border-collapse:\s*separate[\s\S]*?font-size:\s*15px/s);
+  assert.match(styles, /\.workflow-rich-content table,[\s\S]*?width:\s*calc\(100% - 64px\) !important[\s\S]*?margin:\s*28px auto !important[\s\S]*?border:\s*2px solid rgba\(255, 255, 255, \.4\)[\s\S]*?border-radius:\s*12px[\s\S]*?box-shadow:\s*none[\s\S]*?border-collapse:\s*separate[\s\S]*?font-size:\s*15px/s);
   assert.match(styles, /\.workflow-rich-content th,[\s\S]*?padding:\s*11px 13px[\s\S]*?border-right:\s*1px solid rgba\(255, 255, 255, \.42\)[\s\S]*?color:\s*#fff/s);
   assert.match(styles, /\.prj-pm-rich-surface th \{[^}]*border-bottom:\s*2px solid rgba\(255, 255, 255, \.78\)/);
   assert.match(styles, /\.workflow-rich-content tr > :last-child,[\s\S]*?border-right:\s*0/);
