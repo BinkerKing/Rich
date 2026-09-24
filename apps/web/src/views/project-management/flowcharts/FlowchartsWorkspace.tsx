@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
-import { ReactFlow, Background, Controls, Handle, Position, MarkerType, PanOnScrollMode, NodeResizer, reconnectEdge, applyNodeChanges, applyEdgeChanges,
+import { ReactFlow, Background, ControlButton, Controls, Handle, Position, MarkerType, PanOnScrollMode, NodeResizer, reconnectEdge, applyNodeChanges, applyEdgeChanges,
   type Connection, type NodeProps, type ReactFlowInstance } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { api, type ProjectModuleItem } from "../../../api/client.js";
@@ -21,6 +21,9 @@ function FlowchartListIcon({ name }: { name: "add" | "flow" | "chat" }) {
   return <svg aria-hidden="true" width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     {name === "add" ? <path d="M12 5v14M5 12h14" /> : name === "chat" ? <><path d="M5 18.5 4 21l4-1.5H18a3 3 0 0 0 3-3v-9a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v7" /><path d="M8 11h8M8 15h5" /></> : <><circle cx="5" cy="6" r="2" /><circle cx="19" cy="5" r="2" /><circle cx="19" cy="19" r="2" /><path d="M7 6h5a3 3 0 0 1 3 3v8M17 5h-2a3 3 0 0 0-3 3v1" /></>}
   </svg>;
+}
+function FlowchartLockIcon({ locked }: { locked: boolean }) {
+  return <svg aria-hidden="true" width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="10" width="14" height="10" rx="2" />{locked ? <path d="M8 10V7a4 4 0 0 1 8 0v3" /> : <path d="M8 10V7a4 4 0 0 1 7.5-2" />}</svg>;
 }
 function RegionNode({ data, selected }: NodeProps<FlowNode>) {
   return <div className={`pfc-region tone-${data.tone || "cyan"}${data.hasChildren ? " has-children" : ""}${selected ? " is-selected" : ""}`} style={nodeStyle(data)}>
@@ -146,6 +149,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   });
   const [nodeDetailFullscreen, setNodeDetailFullscreen] = useState(false);
   const [connectingFrom, setConnectingFrom] = useState("");
+  const [canvasLocked, setCanvasLocked] = useState(true);
   const [quickCreate, setQuickCreate] = useState<{ source?: string; fromCanvas?: boolean; position: { x: number; y: number }; screen: { x: number; y: number } }>();
   const [codexSelection, setCodexSelection] = useState<string[]>([]);
   const [codexRequest, setCodexRequest] = useState("");
@@ -498,7 +502,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
           }}>{row.data.label} <small>{row.id.slice(0, 8)}</small></button>)}</div>}
         </div>}
               <div className="pfc-canvas" ref={canvasRef}>
-                <ReactFlow<FlowNode> proOptions={{ hideAttribution: true }} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} nodes={visibleNodes.map(row => ({ ...row, className: codexRunningNodeIds.includes(row.id) ? "is-codex-running" : codexCompletedNodeIds.includes(row.id) ? "is-codex-complete" : "", selected: selectedIds.includes(row.id), data: { ...row.data, hasChildren: childScopes.has(row.id), editing: row.id === editingNode, onLabelChange: label => { update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label } } : node) }); setEditingNode(""); }, onNoteTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); }, onRegionTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); } } }))}
+                <ReactFlow<FlowNode> proOptions={{ hideAttribution: true }} nodesDraggable={!canvasLocked} nodesConnectable={!canvasLocked} elementsSelectable nodes={visibleNodes.map(row => ({ ...row, className: codexRunningNodeIds.includes(row.id) ? "is-codex-running" : codexCompletedNodeIds.includes(row.id) ? "is-codex-complete" : "", selected: selectedIds.includes(row.id), data: { ...row.data, hasChildren: childScopes.has(row.id), editing: row.id === editingNode, onLabelChange: label => { update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label } } : node) }); setEditingNode(""); }, onNoteTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); }, onRegionTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); } } }))}
                   edges={graph.edges.filter(row => visibleNodeIds.has(row.source) && visibleNodeIds.has(row.target)).map(row => ({ ...row, style: edgeStyle(row), animated: row.data?.animated, markerEnd: row.data?.markerEnd === "none" ? undefined : { type: MarkerType.ArrowClosed } }))}
                   nodeTypes={nodeTypes} onInit={setFlow} fitView minZoom={0.1} maxZoom={2} deleteKeyCode={null} selectionOnDrag panOnDrag={false} panOnScroll panOnScrollMode={PanOnScrollMode.Free} zoomOnScroll={false} zoomOnPinch={false} zoomOnDoubleClick={false} multiSelectionKeyCode="Meta"
                   defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed } }}
@@ -536,7 +540,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
                 void openCodexRefinement([], { left: event.clientX - rect.left, top: event.clientY - rect.top });
                 setQuickCreate({ fromCanvas: true, position: flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }), screen: { x: event.clientX - rect.left, y: event.clientY - rect.top } });
               }}>
-                  <Background gap={28} size={1} color="#44444d" /><Controls showInteractive />
+                  <Background gap={28} size={1} color="#44444d" /><Controls showInteractive={false}><ControlButton className="pfc-lock-control" aria-label={canvasLocked ? "解锁画布" : "锁定画布"} title={canvasLocked ? "解锁画布" : "锁定画布"} onClick={() => setCanvasLocked(locked => !locked)}><FlowchartLockIcon locked={canvasLocked} /></ControlButton></Controls>
                 </ReactFlow>
                 {quickCreate && <div className={`pfc-quick-create${quickCreate.fromCanvas ? " pfc-quick-create--with-codex" : ""}`} style={{ left: quickCreate.screen.x, top: quickCreate.screen.y + (quickCreate.fromCanvas ? 42 : 0) }} role="dialog" aria-label="快速新建节点菜单">{!quickCreate.fromCanvas && <strong>{quickCreate.source ? "新建并连接" : "新增节点"}</strong>}{(quickCreate.fromCanvas ? ["step", "decision", "table", "boundary", "region", "note"] : ["step", "note", "region"]).map(kind => <button key={kind} type="button" onClick={() => addNode(kind as FlowNodeKind, quickCreate.position, quickCreate.source)}>{({ step: "处理", decision: "判断", table: "数据表", boundary: "开始/结束", region: "区域", note: "备注" } as Record<string, string>)[kind]}</button>)}{!quickCreate.fromCanvas && <button type="button" onClick={() => setQuickCreate(undefined)}>取消</button>}</div>}
                 {(codexSelection.length > 0 || codexWholeChart) && codexAnchor && !readOnly && <form className="pfc-codex-refinement" role="dialog" aria-label="Codex 流程图整改" style={codexAnchor} onSubmit={event => { event.preventDefault(); void runCodexRefinement(); }}>

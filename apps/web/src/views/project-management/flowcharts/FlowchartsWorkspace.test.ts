@@ -44,6 +44,9 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(source, /pfc-node is-\$\{data\.kind\}\$\{data\.hasChildren \? " has-children" : ""\}/);
   assert.match(source, /className="pfc-node-focus" aria-label="当前选中节点">\{focusedNode\.data\.label\}/);
   assert.match(source, /const \[codexRunningNodeIds, setCodexRunningNodeIds\] = useState<string\[\]>\(\[\]\)/);
+  assert.match(source, /const \[canvasLocked, setCanvasLocked\] = useState\(true\)/);
+  assert.match(source, /nodesDraggable=\{!canvasLocked\} nodesConnectable=\{!canvasLocked\} elementsSelectable/);
+  assert.match(source, /<Controls showInteractive=\{false\}><ControlButton className="pfc-lock-control"/);
   assert.match(source, /onNodeContextMenu=\{\(event, row\) => \{ event\.preventDefault\(\); void openCodexRefinement\(\[row\.id\]\); \}\}/);
   assert.match(source, /selections\.some\(change => change\.type === "select" && change\.selected\)\) \{ setQuickCreate\(undefined\); closeCodexRefinement\(\); \}/);
   assert.doesNotMatch(source, /onPaneContextMenu=\{event => \{[\s\S]*?selectedIds\.length/);
@@ -92,6 +95,7 @@ test("流程图顶部不提供冗余的整理和添加节点按钮", () => {
 });
 
 test("锁定画布后双击节点仍打开详情，不触发默认缩放", () => {
+  assert.match(source, /nodesDraggable=\{!canvasLocked\}\s+nodesConnectable=\{!canvasLocked\} elementsSelectable/);
   assert.match(source, /zoomOnDoubleClick=\{false\}/);
   assert.match(source, /onNodeDoubleClick=\{\(_, row\) => \{ setSelected\(row\.id\); setSelectedIds\(\[row\.id\]\); setDetailNode\(row\.id\); setCodexCompletedNodeIds\(current => current\.filter\(id => id !== row\.id\)\); \}\}/);
 });
