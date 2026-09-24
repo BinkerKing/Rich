@@ -17,8 +17,10 @@ test("通用富文本编辑器使用 Tiptap，并保留 HTML 回调和图片上�
   assert.match(modules, /aria-label="减小字体"/);
   assert.match(modules, /aria-label="增大字体"/);
   assert.match(modules, /function changeFontSize|const changeFontSize/);
-  assert.match(modules, /const applyTextStyle/);
-  assert.match(modules, /setTextSelection\(\{ from: \$from\.start\(depth\), to: \$from\.end\(depth\) \}\)/);
+  assert.match(modules, /const selectCurrentTextBlock/);
+  assert.match(modules, /editor\.commands\.setTextSelection\(\{ from: \$from\.start\(depth\), to: \$from\.end\(depth\) \}\)/);
+  assert.match(modules, /const applyFontFamily/);
+  assert.match(modules, /setFontFamily\(fontFamily\)/);
   assert.match(modules, /applyTextStyle\(\{ fontSize: `\$\{nextSize\}px` \}\)/);
   assert.match(modules, /微软雅黑/);
   assert.match(modules, /Songti SC/);

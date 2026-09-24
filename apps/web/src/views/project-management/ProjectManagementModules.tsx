@@ -687,20 +687,21 @@ export function ProjectRichTextEditor({
     if (hasText && !allBold) chain.setBold().run();
     else chain.toggleBold().run();
   };
-  const applyTextStyle = (attributes: { fontFamily?: string; fontSize?: string }) => {
+  const selectCurrentTextBlock = () => {
     const { empty, from } = editor.state.selection;
-    if (!empty) {
-      editor.chain().focus().setMark("textStyle", attributes).run();
-      return;
-    }
+    if (!empty) return;
     const $from = editor.state.doc.resolve(from);
     let depth = $from.depth;
     while (depth > 0 && !$from.node(depth).isTextblock) depth -= 1;
-    if (depth === 0) {
-      editor.chain().focus().setMark("textStyle", attributes).run();
-      return;
-    }
-    editor.chain().focus().setTextSelection({ from: $from.start(depth), to: $from.end(depth) }).setMark("textStyle", attributes).run();
+    if (depth > 0) editor.commands.setTextSelection({ from: $from.start(depth), to: $from.end(depth) });
+  };
+  const applyTextStyle = (attributes: { fontSize: string }) => {
+    selectCurrentTextBlock();
+    editor.chain().focus().setMark("textStyle", attributes).run();
+  };
+  const applyFontFamily = (fontFamily: string) => {
+    selectCurrentTextBlock();
+    editor.chain().focus().setFontFamily(fontFamily).run();
   };
   const changeFontSize = (direction: -1 | 1) => {
     const currentIndex = RICH_FONT_SIZES.indexOf(fontSize);
@@ -725,7 +726,7 @@ export function ProjectRichTextEditor({
     { key: "heading-one", node: <RichToolbarButton icon="heading-one" label="一级标题" active={editor.isActive("heading", { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}/> },
     { key: "heading-two", node: <RichToolbarButton icon="heading-two" label="二级标题" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}/> },
     { key: "heading-three", node: <RichToolbarButton icon="heading-three" label="三级标题" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}/> },
-    { key: "font", node: <select className="prj-pm-rich-toolbar__select" aria-label="字体" defaultValue="'PingFang SC', sans-serif" onChange={event => applyTextStyle({ fontFamily: event.target.value })}><option value="'PingFang SC', sans-serif">苹方 / PingFang SC</option><option value="'Microsoft YaHei', 'PingFang SC', sans-serif">微软雅黑</option><option value="'Songti SC', SimSun, serif">宋体 / Songti SC</option><option value="'Kaiti SC', KaiTi, serif">楷体 / Kaiti SC</option><option value="STFangsong, FangSong, serif">仿宋</option><option value="Arial, sans-serif">Arial</option><option value="Georgia, serif">Georgia</option><option value="Menlo, Consolas, monospace">Menlo / Consolas</option></select> },
+    { key: "font", node: <select className="prj-pm-rich-toolbar__select" aria-label="字体" defaultValue="'PingFang SC', sans-serif" onChange={event => applyFontFamily(event.target.value)}><option value="'PingFang SC', 'Microsoft YaHei', Arial, sans-serif">苹方 / 微软雅黑</option><option value="'Songti SC', SimSun, 'Times New Roman', serif">宋体 / Songti SC</option><option value="'Kaiti SC', KaiTi, STKaiti, serif">楷体 / Kaiti SC</option><option value="STFangsong, FangSong, serif">仿宋</option><option value="Arial, 'Microsoft YaHei', 'PingFang SC', sans-serif">Arial（中英无衬线）</option><option value="Georgia, 'Songti SC', SimSun, serif">Georgia（中英衬线）</option><option value="Menlo, Consolas, 'PingFang SC', monospace">Menlo / Consolas（等宽）</option></select> },
     { key: "size", node: <span className="prj-pm-rich-font-size" aria-label="字号（未选中文本时调整当前段落）"><button type="button" aria-label="减小字体" title="减小字体（未选中文本时调整当前段落）" disabled={fontSize === RICH_FONT_SIZES[0]} onMouseDown={event => event.preventDefault()} onClick={() => changeFontSize(-1)}>−</button><output aria-live="polite">{fontSize}</output><button type="button" aria-label="增大字体" title="增大字体（未选中文本时调整当前段落）" disabled={fontSize === RICH_FONT_SIZES[RICH_FONT_SIZES.length - 1]} onMouseDown={event => event.preventDefault()} onClick={() => changeFontSize(1)}>+</button></span> },
     { key: "bold", node: <RichToolbarButton icon="bold" label="加粗" active={editor.isActive("bold")} onClick={toggleBoldUniformly}/> },
     { key: "italic", node: <RichToolbarButton icon="italic" label="斜体" active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()}/> },
