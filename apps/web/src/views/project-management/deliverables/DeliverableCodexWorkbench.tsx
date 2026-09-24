@@ -516,7 +516,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const jumpToBoundResource = () => {
     const boundProjectId = active?.projectId ?? projectId;
     const boundResourceId = active?.deliverableId ?? deliverableId;
-    if (activeResourceType === "mindmap") { requestMindmapFocus(boundResourceId); setAppView("mindmap"); window.dispatchEvent(new Event("rich:close-deliverable-codex")); return; }
+    if (activeResourceType === "mindmap") { requestMindmapFocus(boundResourceId); setAppView("deepWorkbench"); window.dispatchEvent(new Event("rich:close-deliverable-codex")); return; }
     if (boundProjectId === "__general__") return;
     requestShortcutOpen({ kind: "project", id: boundProjectId });
     setAppView("projects");

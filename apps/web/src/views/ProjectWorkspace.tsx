@@ -38,7 +38,9 @@ import { closeDeliverableCodex } from "./project-management/deliverables/Deliver
 
 interface Props { projectId: string }
 export const PROJECT_SECTION_FOCUS_EVENT = "rich:project-section-focus";
+const PROJECT_SECTION_FOCUS_KEY = "rich:project-section-focus";
 export function requestProjectSectionFocus(projectId: string, section: ProjectManagementSection) {
+  window.sessionStorage.setItem(PROJECT_SECTION_FOCUS_KEY, JSON.stringify({ projectId, section }));
   window.dispatchEvent(new CustomEvent(PROJECT_SECTION_FOCUS_EVENT, { detail: { projectId, section } }));
 }
 type ProjectMenuIconName = ProjectManagementSection | "globalSearch";
@@ -79,6 +81,10 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const hydrate = useStore(s => s.hydrate);
   const [section, setSection] = useState<ProjectManagementSection>(() => loadProjectManagementWorkspaceSection(projectId));
   useEffect(() => {
+    try {
+      const detail = JSON.parse(window.sessionStorage.getItem(PROJECT_SECTION_FOCUS_KEY) || "null") as { projectId?: string; section?: ProjectManagementSection } | null;
+      if (detail?.projectId === projectId && detail.section) { window.sessionStorage.removeItem(PROJECT_SECTION_FOCUS_KEY); selectSection(detail.section); }
+    } catch { /* A stale navigation hint must not block the workspace. */ }
     const focus = (event: Event) => {
       const detail = (event as CustomEvent<{ projectId?: string; section?: ProjectManagementSection }>).detail;
       if (detail?.projectId === projectId && detail.section) selectSection(detail.section);
