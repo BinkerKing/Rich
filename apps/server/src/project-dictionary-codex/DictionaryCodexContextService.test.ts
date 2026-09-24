@@ -16,7 +16,9 @@ describe("DictionaryCodexContextService", () => {
             }
           : null;
       }
-    } as never);
+    } as never, {
+      async get(projectId) { return { projectId, html: "<p>已确认的账户类型映射</p>", text: "已确认的账户类型映射" }; },
+    });
 
     const context = await service.build("project-1");
 
@@ -28,6 +30,8 @@ describe("DictionaryCodexContextService", () => {
     ]);
     expect(context.systemInstruction).toMatch(/rich_dictionary_manage/);
     expect(context.initialContext).toMatch(/Project ID: project-1/);
+    expect(context.initialContext).toContain("Mapping knowledge base");
+    expect(context.initialContext).toContain("已确认的账户类型映射");
     expect(context.initialContext).not.toMatch(/deliverable|flowchart/i);
   });
 });

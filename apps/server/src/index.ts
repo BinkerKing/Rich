@@ -262,6 +262,7 @@ import { DeliverableTaskContextService } from "./ai-tasks/DeliverableTaskContext
 import { DeliverableCodexContextService } from "./deliverable-codex/DeliverableCodexContextService.js";
 import { deliverableCodexRoutes } from "./routes/deliverableCodex.js";
 import { DictionaryCodexContextService } from "./project-dictionary-codex/DictionaryCodexContextService.js";
+import { getProjectDictionaryInfo } from "./modules/project-dictionary-info/projectDictionaryInfoService.js";
 import { projectDictionaryCodexRoutes } from "./routes/projectDictionaryCodex.js";
 import { PromptLibraryService } from "./prompt-library/PromptLibraryService.js";
 import { promptLibraryRoutes } from "./routes/promptLibrary.js";
@@ -527,7 +528,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   configureOpLog(root);
   const aiContextProvider = createAIContextProvider(chatConversations);
   const deliverableCodexContext = new DeliverableCodexContextService(promotionContext, elements, projectManagement, undefined, flowcharts);
-  const dictionaryCodexContext = new DictionaryCodexContextService(elements);
+  const dictionaryCodexContext = new DictionaryCodexContextService(elements, { get: projectId => getProjectDictionaryInfo(projectManagement, projectId) });
   const workbench = workbenchRepo && deliverableCodexConversations ? new WorkbenchService(workbenchRepo, deliverableCodexConversations) : undefined;
   const workbenchDocuments = workbenchDocumentRepo ? new WorkbenchDocumentService(workbenchDocumentRepo) : undefined;
   // Self-heal: any op stuck in "running" from a previous crash / pkill / OOM
