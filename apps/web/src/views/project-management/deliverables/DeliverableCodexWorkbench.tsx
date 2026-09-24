@@ -196,7 +196,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const activeTaskMode = active ? taskModes[active.id] : undefined;
   const attachedLocation = currentLocationContext(appView, projectId, deliverableId, deliverableTitle, resourceType);
   const conversationApiPath = resourceType === "dictionary" ? "/api/project-dictionary-codex/conversations" : "/api/deliverable-codex/conversations";
-  const resourcePath = resourceType === "dictionary"
+  const currentResourcePath = resourceType === "dictionary"
     ? `/api/project-dictionary-codex/${encodeURIComponent(projectId)}/conversations`
     : resourceType === "flowchart"
     ? `/api/deliverable-codex/flowcharts/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`
@@ -205,6 +205,9 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     : resourceType === "report"
     ? `/api/deliverable-codex/reports/${encodeURIComponent(projectId)}/conversations`
     : `/api/deliverable-codex/deliverables/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`;
+  // The sidebar is a Codex session list.  Its selected item is resource-bound,
+  // but it must not hide other active Codex sessions from the user.
+  const conversationListPath = resourceType === "dictionary" ? currentResourcePath : "/api/deliverable-codex/conversations";
   const locationContext = locationAttached ? formatCodexLocationContext(attachedLocation) : "";
   const codexSlash = useMemo(() => parseCodexSlashInput(input), [input]);
   const codexTools = useMemo(() => filterCodexSlashTools(codexSlash.query), [codexSlash.query]);
@@ -217,7 +220,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   };
 
   const refresh = async () => {
-    const payload = await readJson<{ conversations: Conversation[] }>(resourcePath);
+    const payload = await readJson<{ conversations: Conversation[] }>(conversationListPath);
     setConversations(sortConversations(payload.conversations));
     setActiveId(current => current && payload.conversations.some(item => item.id === current) ? current : payload.conversations[0]?.id);
   };
@@ -231,15 +234,15 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       setRunningByConversation(current => ({ ...current, [conversationId]: Boolean(payload.running) }));
     } catch { /* The stream itself reports request errors; status refreshes are best effort. */ }
   };
-  useEffect(() => { void refresh().catch(reason => setError(reason instanceof Error ? reason.message : String(reason))); }, [projectId, deliverableId, resourceType]);
+  useEffect(() => { void refresh().catch(reason => setError(reason instanceof Error ? reason.message : String(reason))); }, [conversationListPath]);
   useEffect(() => {
     if (!visible || !requestedConversationId) return;
-    void readJson<{ conversations: Conversation[] }>(resourcePath).then(payload => {
+    void readJson<{ conversations: Conversation[] }>(conversationListPath).then(payload => {
       setConversations(sortConversations(payload.conversations));
       if (payload.conversations.some(item => item.id === requestedConversationId)) setActiveId(requestedConversationId);
       else setError("绑定的 Codex 对话不可用，请检查是否已归档");
     }).catch(reason => setError(String(reason)));
-  }, [requestedConversationId, openSequence, resourcePath, visible]);
+  }, [requestedConversationId, openSequence, conversationListPath, visible]);
   useEffect(() => {
     if (!activeId || messages[activeId]) return;
     void loadMessages(activeId).catch(reason => setError(reason instanceof Error ? reason.message : String(reason)));
@@ -294,7 +297,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     if (!conversationTitle) return;
     setError("");
     try {
-      const payload = await readJson<{ conversation: Conversation }>(resourcePath, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: conversationTitle }) });
+      const payload = await readJson<{ conversation: Conversation }>(currentResourcePath, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: conversationTitle }) });
       if (startup?.taskId) { await api.claimAiManagedTask(startup.taskId, "Rich·Codex", payload.conversation.id); onConversationCreated?.(payload.conversation.id); }
       setConversations(current => { const next = [payload.conversation, ...current]; saveConversationOrder(next); return next; }); setActiveId(payload.conversation.id); setTitle(""); setCreating(false);
       if (startup?.prompt) void sendMessage(payload.conversation, startup.prompt, startup.attachments ?? [], false, undefined, true);
