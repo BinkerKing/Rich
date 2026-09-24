@@ -48,6 +48,7 @@ class MemoryOperationRepo implements McpOperationRepo {
 
 function makeHarness(options: { persistWrites?: boolean } = {}) {
   const elementMap = new Map<string, Element>();
+  const relations: Array<{ id: string; from: string; to: string; kind: string; createdAt: string }> = [];
   const put = vi.fn(async (element: Element) => {
     if (options.persistWrites !== false) elementMap.set(element.id, element);
   });
@@ -104,14 +105,45 @@ function makeHarness(options: { persistWrites?: boolean } = {}) {
       put,
       removeMany,
     } as never,
+    relations: {
+      async list() { return relations as never; },
+      async append(items) { relations.push(...items); },
+      async reparent(childId, parentId) {
+        for (let index = relations.length - 1; index >= 0; index -= 1) if (relations[index]!.kind === "child" && relations[index]!.to === childId) relations.splice(index, 1);
+        if (parentId) relations.push({ id: `rel.${parentId}.${childId}`, from: parentId, to: childId, kind: "child", createdAt: "2026-08-28T00:00:00.000Z" });
+      },
+      async removeForElements(ids) {
+        for (let index = relations.length - 1; index >= 0; index -= 1) if (ids.includes(relations[index]!.from) || ids.includes(relations[index]!.to)) relations.splice(index, 1);
+      },
+    } as never,
     projectManagement,
     operationRepo,
     flowcharts: flowchartRepo as never,
   });
-  return { registry, elementMap, projectItems, flowcharts, put, removeMany, operationRepo };
+  return { registry, elementMap, relations, projectItems, flowcharts, put, removeMany, operationRepo };
 }
 
 describe("MCP 2.0 safe resource writes", () => {
+  it("creates, updates, searches, and removes mindmap nodes with read-back verification", async () => {
+    const harness = makeHarness();
+    harness.elementMap.set("root", baseElement("root", "方案脑图"));
+    const created = await harness.registry.invoke("rich_mindmap_manage", {
+      action: "create_node", rootId: "root", parentId: "root",
+      node: { id: "node-1", title: "数据准备", details: "核对源表和口径", tags: ["准备"] },
+      context: { requestId: "mindmap-create-1" },
+    });
+    expect(created).toMatchObject({ ok: true, data: { node: { id: "node-1", title: "数据准备", details: "核对源表和口径" } }, verification: { status: "verified" } });
+
+    const updated = await harness.registry.invoke("rich_mindmap_manage", {
+      action: "update_node", rootId: "root", nodeId: "node-1", patch: { title: "数据核对", details: "核对源表、口径与质量" },
+      context: { requestId: "mindmap-update-1" },
+    });
+    expect(updated).toMatchObject({ ok: true, data: { node: { title: "数据核对", details: "核对源表、口径与质量" } }, verification: { status: "verified" } });
+    await expect(harness.registry.invoke("rich_mindmap_manage", { action: "search", rootId: "root", query: "口径" })).resolves.toMatchObject({ ok: true, data: { nodes: [{ id: "node-1", title: "数据核对" }] } });
+
+    const deleted = await harness.registry.invoke("rich_mindmap_manage", { action: "delete_node", rootId: "root", nodeId: "node-1", context: { requestId: "mindmap-delete-1" }, options: { confirmDestructive: true } });
+    expect(deleted).toMatchObject({ ok: true, data: { deletedNodeIds: ["node-1"] }, verification: { status: "verified" } });
+  });
   it("writes a report and exposes project activity in the report center context", async () => {
     const { registry, projectItems } = makeHarness();
     projectItems.set("delivery-1", { id: "delivery-1", projectId: "project-rich", moduleKey: "deliveryPlan", title: "数据迁移", sortOrder: 0, content: { activities: [{ kind: "record", text: "完成映射", createdAt: "2026-09-24T09:00:00.000Z" }] }, createdAt: "2026-09-24T09:00:00.000Z", updatedAt: "2026-09-24T09:00:00.000Z" });

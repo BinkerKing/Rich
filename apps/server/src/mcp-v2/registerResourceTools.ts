@@ -1,4 +1,5 @@
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
+import type { RelationsRepo } from "../repos/RelationsRepo.js";
 import type { ProjectManagementRepo } from "../repos/ProjectManagementRepo.js";
 import type { McpOperationRepo } from "../repos/McpOperationRepo.js";
 import type { GreatMeRepo } from "../repos/GreatMeRepo.js";
@@ -8,6 +9,7 @@ import { registerContextTools } from "./resources/contextTools.js";
 import { registerKnowledgeTools } from "./resources/knowledgeTools.js";
 import { registerProjectTools } from "./resources/projectTools.js";
 import { registerFlowchartTools } from "./resources/flowchartTools.js";
+import { registerMindmapTools } from "./resources/mindmapTools.js";
 import { registerReportTools } from "./resources/reportTools.js";
 import { registerDictionaryTools } from "./resources/dictionaryTools.js";
 import { registerDictionaryInfoTools } from "./resources/dictionaryInfoTools.js";
@@ -21,6 +23,7 @@ import type { FlowchartsRepo } from "../repos/FlowchartsRepo.js";
 
 export interface ResourceToolDeps {
   elements: ElementsRepo;
+  relations: RelationsRepo;
   projectManagement: ProjectManagementRepo;
   operationRepo?: McpOperationRepo;
   greatMe?: GreatMeRepo;
@@ -38,6 +41,7 @@ export function registerResourceTools(registry: RichToolRegistry, deps: Resource
   registerPracticeResourceTools(registry, deps.elements, deps.operationRepo);
   registerProjectTools(registry, deps.projectManagement, deps.operationRepo);
   registerFlowchartTools(registry, { projects: deps.projectManagement, elements: deps.elements, flowcharts: deps.flowcharts }, deps.operationRepo);
+  registerMindmapTools(registry, { elements: deps.elements, relations: deps.relations }, deps.operationRepo);
   registerReportTools(registry, deps.projectManagement, deps.operationRepo);
   if (deps.greatMe) registerPlanningTools(registry, deps.greatMe, deps.operationRepo);
   if (deps.projectAutomation) registerAutomationTools(registry, deps.projectAutomation, deps.operationRepo);

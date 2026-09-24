@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
+import type { RelationsRepo } from "../repos/RelationsRepo.js";
 import type { GreatMeRepo } from "../repos/GreatMeRepo.js";
 import type { McpOperationRepo } from "../repos/McpOperationRepo.js";
 import type { McpTaskRepo } from "../repos/McpTaskRepo.js";
@@ -47,6 +48,7 @@ export interface BuildMcpV2Deps {
   workbench?: WorkbenchService;
   workbenchDocuments?: WorkbenchDocumentService;
   elements: ElementsRepo;
+  relations: RelationsRepo;
   projectManagement: ProjectManagementRepo;
   deliverables?: DeliverablesRepo;
   operationRepo: McpOperationRepo;
@@ -80,6 +82,7 @@ export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
 
   registerResourceTools(registry, {
     elements: deps.elements,
+    relations: deps.relations,
     projectManagement: deps.projectManagement,
     operationRepo: deps.operationRepo,
     greatMe: deps.greatMe,

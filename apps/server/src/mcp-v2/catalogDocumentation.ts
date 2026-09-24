@@ -1,4 +1,5 @@
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
+import type { RelationsRepo } from "../repos/RelationsRepo.js";
 import type { GreatMeRepo } from "../repos/GreatMeRepo.js";
 import type { McpOperationRepo } from "../repos/McpOperationRepo.js";
 import type { McpTaskRepo } from "../repos/McpTaskRepo.js";
@@ -14,6 +15,7 @@ export function createDocumentationRegistry(): RichToolRegistry {
   });
   return buildMcpV2Registry({
     elements: unavailable as ElementsRepo,
+    relations: unavailable as RelationsRepo,
     projectManagement: unavailable as ProjectManagementRepo,
     operationRepo: unavailable as McpOperationRepo,
     taskRepo: unavailable as McpTaskRepo,
