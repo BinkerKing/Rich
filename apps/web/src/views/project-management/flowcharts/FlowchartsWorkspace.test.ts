@@ -47,6 +47,8 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(source, /const \[canvasLocked, setCanvasLocked\] = useState\(true\)/);
   assert.match(source, /nodesDraggable=\{!canvasLocked\} nodesConnectable=\{!canvasLocked\} elementsSelectable/);
   assert.match(source, /<Controls showInteractive=\{false\}><ControlButton className="pfc-lock-control"/);
+  assert.match(source, /!readOnly && !canvasLocked && selectedNodes\.length > 0 && <FlowchartNodeStyleToolbar/);
+  assert.match(source, /!readOnly && !canvasLocked && selectedFlowEdge && <FlowchartFloatingToolbar/);
   assert.match(source, /onNodeContextMenu=\{\(event, row\) => \{ event\.preventDefault\(\); void openCodexRefinement\(\[row\.id\]\); \}\}/);
   assert.match(source, /selections\.some\(change => change\.type === "select" && change\.selected\)\) \{ setQuickCreate\(undefined\); closeCodexRefinement\(\); \}/);
   assert.doesNotMatch(source, /onPaneContextMenu=\{event => \{[\s\S]*?selectedIds\.length/);
