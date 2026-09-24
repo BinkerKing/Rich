@@ -7,4 +7,5 @@ export function flowchartCodexPrompt(input: {
   graph: FlowchartData;
   selectedNodeIds: string[];
   request: string;
+  includeGraph?: boolean;
 }): string;

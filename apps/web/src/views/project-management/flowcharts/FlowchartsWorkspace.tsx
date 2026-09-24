@@ -386,10 +386,10 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     const item = items.find(row => row.id === active);
     if (!item) return;
     const nodeIds = [...codexSelection];
-    const content = flowchartCodexPrompt({ projectId, flowchartId: active, title: item.title, graph, selectedNodeIds: nodeIds, request: codexRequest });
     setError(""); setCodexRunningNodeIds(nodeIds); setCodexCompletedNodeIds([]);
     try {
       const session = await api.ensureFlowchartCodexSession(projectId, item.id, `${item.title} · Codex`);
+      const content = flowchartCodexPrompt({ projectId, flowchartId: active, title: item.title, graph, selectedNodeIds: nodeIds, request: codexRequest, includeGraph: session.created });
       openBoundCodex({ projectId, deliverableId: item.id, deliverableTitle: item.title, resourceType: "flowchart", conversationId: session.conversation.id });
       const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(session.conversation.id)}/stream`, {
         method: "POST", headers: { "content-type": "application/json" },

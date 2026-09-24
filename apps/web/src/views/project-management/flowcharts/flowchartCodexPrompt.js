@@ -2,13 +2,12 @@ function compact(value, limit = 600) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, limit) : "";
 }
 
-export function flowchartCodexPrompt({ projectId, flowchartId, title, graph, selectedNodeIds, request }) {
+export function flowchartCodexPrompt({ projectId, flowchartId, title, graph, selectedNodeIds, request, includeGraph = true }) {
   const names = new Map(graph.nodes.map(node => [node.id, node.data.label]));
   const selected = new Set(selectedNodeIds);
-  const nodes = graph.nodes.map(node => {
-    const detail = selected.has(node.id) ? `；详情：${compact(node.data.description, 3_000) || "无"}` : "";
-    return `- ${node.id}｜${node.data.kind}｜${node.data.label}｜范围：${node.data.scope}${node.data.source ? `｜来源：${compact(node.data.source, 180)}` : ""}${detail}`;
-  }).join("\n") || "- 无节点";
+  const nodeText = node => `- ${node.id}｜${node.data.kind}｜${node.data.label}｜范围：${node.data.scope}${node.data.source ? `｜来源：${compact(node.data.source, 180)}` : ""}${selected.has(node.id) ? `｜详情：${compact(node.data.description, 3_000) || "无"}` : ""}`;
+  const nodes = graph.nodes.map(nodeText).join("\n") || "- 无节点";
+  const selectedNodes = graph.nodes.filter(node => selected.has(node.id)).map(nodeText).join("\n") || "- 未找到选中节点";
   const edges = graph.edges.map(edge => `- ${names.get(edge.source) ?? edge.source} → ${names.get(edge.target) ?? edge.target}${edge.label ? `（${edge.label}）` : ""}`).join("\n") || "- 无连线";
   return [
     "你正在为 Rich 项目流程图执行节点细化/整改。",
@@ -20,12 +19,15 @@ export function flowchartCodexPrompt({ projectId, flowchartId, title, graph, sel
     `- Project ID: ${projectId}`,
     `- Flowchart ID: ${flowchartId}`,
     `- 标题: ${title}`,
-    `- 背景/目标: ${compact(graph.objective, 2_000) || "未填写"}`,
-    `- 状态: ${graph.status}`,
-    "", "## 全图结构",
-    "### 节点", nodes,
-    "### 连线", edges,
+    ...(includeGraph ? [
+      `- 背景/目标: ${compact(graph.objective, 2_000) || "未填写"}`,
+      `- 状态: ${graph.status}`,
+      "", "## 全图结构",
+      "### 节点", nodes,
+      "### 连线", edges,
+    ] : ["- 此会话已具备首次发送的全图背景；本次请只处理以下节点。"]),
     "", `## 本次选中节点：${selectedNodeIds.join(", ")}`,
+    selectedNodes,
     `## 用户请求\n${request.trim()}`,
   ].join("\n");
 }
