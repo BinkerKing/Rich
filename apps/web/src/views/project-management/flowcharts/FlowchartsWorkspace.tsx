@@ -510,10 +510,9 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
               onNodeClick={(event, row) => { setSelectedIds(current => {
                 const ids = event.metaKey ? current.includes(row.id) ? current.filter(id => id !== row.id) : [...current, row.id] : [row.id];
                 setSelected(ids[0] ?? ""); return ids;
-              }); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); }} onNodeDoubleClick={(_, row) => { setSelected(row.id); setSelectedIds([row.id]); setDetailNode(row.id); setCodexCompletedNodeIds(current => current.filter(id => id !== row.id)); }} onNodeContextMenu={(event, row) => { event.preventDefault(); void openCodexRefinement(selectedIds.includes(row.id) ? selectedIds : [row.id]); }}
+              }); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); }} onNodeDoubleClick={(_, row) => { setSelected(row.id); setSelectedIds([row.id]); setDetailNode(row.id); setCodexCompletedNodeIds(current => current.filter(id => id !== row.id)); }} onNodeContextMenu={(event, row) => { event.preventDefault(); void openCodexRefinement([row.id]); }}
               onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); setSelectedIds([]); setEditingNode(""); setDetailNode(""); }} onSelectionContextMenu={(event, nodes) => { event.preventDefault(); event.stopPropagation(); void openCodexRefinement(nodes.map(node => node.id)); }} onPaneClick={() => { setEditingNode(""); setQuickCreate(undefined); setCodexSelection([]); }} onPaneContextMenu={event => {
                 event.preventDefault();
-                if (selectedIds.length) { void openCodexRefinement(selectedIds); return; }
                 if (!flow || !canvasRef.current) return;
                 const rect = canvasRef.current.getBoundingClientRect();
                 void openCodexRefinement([], { left: event.clientX - rect.left, top: event.clientY - rect.top });

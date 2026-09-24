@@ -37,8 +37,8 @@ test("项目流程图的展开页可打开与当前图绑定的 Codex 对话", (
 test("右键节点或多选区域会打开 Codex 整改输入，并在执行时标记节点状态", () => {
   assert.match(source, /const \[codexSelection, setCodexSelection\] = useState<string\[\]>\(\[\]\)/);
   assert.match(source, /const \[codexRunningNodeIds, setCodexRunningNodeIds\] = useState<string\[\]>\(\[\]\)/);
-  assert.match(source, /onNodeContextMenu=\{\(event, row\) => \{ event\.preventDefault\(\); void openCodexRefinement/);
-  assert.match(source, /onPaneContextMenu=\{event => \{[\s\S]*?selectedIds\.length/);
+  assert.match(source, /onNodeContextMenu=\{\(event, row\) => \{ event\.preventDefault\(\); void openCodexRefinement\(\[row\.id\]\); \}\}/);
+  assert.doesNotMatch(source, /onPaneContextMenu=\{event => \{[\s\S]*?selectedIds\.length/);
   assert.match(source, /void openCodexRefinement\(\[\], \{ left: event\.clientX - rect\.left, top: event\.clientY - rect\.top \}\)/);
   assert.match(source, /const \[codexWholeChart, setCodexWholeChart\] = useState\(false\)/);
   assert.match(source, /is-codex-chart-running/);
