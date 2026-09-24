@@ -4,6 +4,10 @@ export function shouldStartCanvasPan(button: number) {
   return button === 2;
 }
 
+export function shouldSuppressNativeCanvasPan(button: number, customPanActive: boolean) {
+  return button === 2 || customPanActive;
+}
+
 export function canvasPanDelta(previous: CanvasPoint, next: CanvasPoint): CanvasPoint {
   return { x: next.x - previous.x, y: next.y - previous.y };
 }

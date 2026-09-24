@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyPanSensitivity, boundedCanvasPanDelta, canvasPanDelta, nextInertialPan, panSensitivityFromPercent, panSensitivityPercent, shouldStartCanvasPan } from "./mindmapInteractions.js";
+import { applyPanSensitivity, boundedCanvasPanDelta, canvasPanDelta, nextInertialPan, panSensitivityFromPercent, panSensitivityPercent, shouldStartCanvasPan, shouldSuppressNativeCanvasPan } from "./mindmapInteractions.js";
 
 describe("mind-map canvas interactions", () => {
   it("starts canvas panning only from the right mouse button", () => {
@@ -26,6 +26,12 @@ describe("mind-map canvas interactions", () => {
     expect(panSensitivityFromPercent(130)).toBe(1);
     expect(panSensitivityPercent(-0.2)).toBe(0);
     expect(panSensitivityPercent(0.65)).toBe(65);
+  });
+
+  it("suppresses the mind-map library's native pan while custom panning is active", () => {
+    expect(shouldSuppressNativeCanvasPan(2, false)).toBe(true);
+    expect(shouldSuppressNativeCanvasPan(0, true)).toBe(true);
+    expect(shouldSuppressNativeCanvasPan(0, false)).toBe(false);
   });
 
   it("stops immediately on release so a quick right-drag cannot fling the canvas", () => {

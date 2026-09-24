@@ -4,7 +4,7 @@ import Drag from "simple-mind-map/src/plugins/Drag.js";
 import Select from "simple-mind-map/src/plugins/Select.js";
 import Export from "simple-mind-map/src/plugins/Export.js";
 import RichText from "simple-mind-map/src/plugins/RichText.js";
-import { applyPanSensitivity, boundedCanvasPanDelta, nextInertialPan, shouldStartCanvasPan, type CanvasPoint } from "./mindmapInteractions.js";
+import { applyPanSensitivity, boundedCanvasPanDelta, nextInertialPan, shouldStartCanvasPan, shouldSuppressNativeCanvasPan, type CanvasPoint } from "./mindmapInteractions.js";
 import { MindmapNodeStyleToolbar, type MindmapNodeStyleTarget } from "./MindmapNodeStyleToolbar.js";
 import { nextShiftSelection, selectionOptions } from "./mindmapMultiSelection.js";
 import { clearMindmapHost } from "./mindmapHost.js";
@@ -127,6 +127,28 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, fitOn
       pointerId = null;
       startInertia();
     };
+    const suppressNativeMouseDown = (event: MouseEvent) => {
+      if (!shouldSuppressNativeCanvasPan(event.button, false)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    const suppressNativeMouseMove = (event: MouseEvent) => {
+      if (!shouldSuppressNativeCanvasPan(event.button, pointerId !== null)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    const suppressNativeMouseUp = (event: MouseEvent) => {
+      if (!shouldSuppressNativeCanvasPan(event.button, pointerId !== null)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    const handleWheelPan = (event: WheelEvent) => {
+      if (event.ctrlKey || event.metaKey) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const sensitivity = panSensitivityRef.current;
+      mindMap.view.translateXY(-event.deltaX * sensitivity, -event.deltaY * sensitivity);
+    };
     const preventContextMenu = (event: MouseEvent) => event.preventDefault();
     let fitFrame: number | undefined;
     const fitView = () => {
@@ -136,6 +158,9 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, fitOn
     };
     const resizeObserver = new ResizeObserver(() => { mindMap.resize(); fitView(); });
     fitView();
+    hostRef.current.addEventListener("mousedown", suppressNativeMouseDown, true);
+    window.addEventListener("mousemove", suppressNativeMouseMove, true);
+    window.addEventListener("mouseup", suppressNativeMouseUp, true);
     hostRef.current.addEventListener("pointerdown", onPointerDown);
     let shiftSelectionAtPointerDown: MindmapNodeStyleTarget[] = [];
     const captureShiftSelection = (event: PointerEvent) => {
@@ -147,6 +172,7 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, fitOn
     hostRef.current.addEventListener("pointermove", onPointerMove);
     hostRef.current.addEventListener("pointerup", stopPanning);
     hostRef.current.addEventListener("pointercancel", stopPanning);
+    hostRef.current.addEventListener("wheel", handleWheelPan, { capture: true, passive: false });
     const onKeyDown = (event: KeyboardEvent) => {
       if (!isNodeEditShortcut(event) || mindMap.richText?.showTextEdit) return;
       if (event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable=true]")) return;
@@ -254,11 +280,15 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, fitOn
       resizeObserver.disconnect();
       window.cancelAnimationFrame(fitFrame ?? 0);
       stopInertia();
+      hostRef.current?.removeEventListener("mousedown", suppressNativeMouseDown, true);
+      window.removeEventListener("mousemove", suppressNativeMouseMove, true);
+      window.removeEventListener("mouseup", suppressNativeMouseUp, true);
       hostRef.current?.removeEventListener("pointerdown", onPointerDown);
       hostRef.current?.removeEventListener("pointerdown", captureShiftSelection, true);
       hostRef.current?.removeEventListener("pointermove", onPointerMove);
       hostRef.current?.removeEventListener("pointerup", stopPanning);
       hostRef.current?.removeEventListener("pointercancel", stopPanning);
+      hostRef.current?.removeEventListener("wheel", handleWheelPan, true);
       window.removeEventListener("keydown", onKeyDown, true);
       hostRef.current?.removeEventListener("contextmenu", preventContextMenu);
       hostRef.current?.removeEventListener("click", handleHostNodeClick, true);
