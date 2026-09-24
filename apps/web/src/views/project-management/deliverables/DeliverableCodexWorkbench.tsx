@@ -75,6 +75,10 @@ function currentProjectTitle(): string {
   return document.querySelector(".prj-ws__title")?.textContent?.trim() || "未命名项目";
 }
 
+function resourceLabel(resourceType: "deliverable" | "flowchart" | "mindmap" | "dictionary" | "report"): string {
+  return resourceType === "dictionary" ? "数据字典" : resourceType === "flowchart" ? "流程图" : resourceType === "mindmap" ? "思维导图" : resourceType === "report" ? "报告中心" : "交付物";
+}
+
 function currentLocationContext(appView: string, projectId: string, deliverableId: string, deliverableTitle: string, resourceType: "deliverable" | "flowchart" | "mindmap" | "dictionary" | "report"): CodexLocationContextInput {
   const page = currentPageLocation(appView);
   if (appView !== "projects") return { page };
@@ -511,6 +515,12 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     window.dispatchEvent(new Event("rich:close-deliverable-codex"));
     window.requestAnimationFrame(() => requestDeliverableItemFocus(project.id, business.id));
   };
+  const jumpToBoundResource = () => {
+    if (projectId === "__general__") return;
+    requestShortcutOpen({ kind: "project", id: projectId });
+    setAppView("projects");
+    window.dispatchEvent(new Event("rich:close-deliverable-codex"));
+  };
   useEffect(() => {
     if (!taskModePickerOpen) return;
     const handleTaskModeKey = (event: KeyboardEvent) => {
@@ -554,7 +564,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       <div className="deliverable-codex-workbench__content">
         <header className="deliverable-codex-workbench__tabs" onPointerDown={beginDrag} onPointerMove={drag} onPointerUp={() => { dragRef.current = undefined; }}>
           <div ref={conversationMenuRef} className="deliverable-codex-workbench__title-group">{editingTitle ? <input ref={titleInputRef} aria-label="会话标题" value={editableTitle} disabled={!active} onChange={event => setEditableTitle(event.target.value)} onBlur={() => { setEditingTitle(false); void rename(); }} onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { setEditableTitle(active?.title ?? ""); setEditingTitle(false); } }}/> : <span className="deliverable-codex-workbench__title" title={resourceType === "dictionary" || resourceType === "report" ? undefined : "双击编辑标题"} onDoubleClick={() => { if (active && resourceType !== "dictionary" && resourceType !== "report") setEditingTitle(true); }}>{active?.title ?? "新会话"}</span>}<div className="deliverable-codex-workbench__conversation-menu"><button type="button" aria-label="更多会话操作" aria-expanded={conversationMenuOpen} disabled={!active} onClick={() => setConversationMenuOpen(current => !current)}>•••</button>{conversationMenuOpen && <div role="menu">{resourceType !== "dictionary" && resourceType !== "report" && <button type="button" role="menuitem" onClick={() => { setConversationMenuOpen(false); setEditingTitle(true); }}>重命名</button>}<button type="button" role="menuitem" onClick={() => { setConversationMenuOpen(false); void archive(); }}>归档</button></div>}</div></div>
-          <button type="button" title={windowState.maximized ? "还原窗口" : "全屏"} onClick={() => setWindowState(current => ({ ...current, maximized: !current.maximized }))}>{windowState.maximized ? "↙" : "⛶"}</button>{activeTaskMode && <div className="deliverable-codex-workbench__task-mode-bar"><button type="button" onClick={jumpToTaskBusiness} disabled={!activeTaskMode.location}>{activeTaskMode.id === "general-task" ? "任务：" : "交付物："}{activeTaskMode.location?.business?.title ?? "当前页面"}</button><b>任务模式：{activeTaskMode.label}</b></div>}
+          <button type="button" title={windowState.maximized ? "还原窗口" : "全屏"} onClick={() => setWindowState(current => ({ ...current, maximized: !current.maximized }))}>{windowState.maximized ? "↙" : "⛶"}</button>{projectId !== "__general__" && <button type="button" title="跳转到绑定菜单" onClick={jumpToBoundResource}>定位：{resourceLabel(resourceType)} / {deliverableTitle} ↗</button>}{activeTaskMode && <div className="deliverable-codex-workbench__task-mode-bar"><button type="button" onClick={jumpToTaskBusiness} disabled={!activeTaskMode.location}>{activeTaskMode.id === "general-task" ? "任务：" : "交付物："}{activeTaskMode.location?.business?.title ?? "当前页面"}</button><b>任务模式：{activeTaskMode.label}</b></div>}
         </header>
         {creating && <form className="deliverable-codex-workbench__create" onSubmit={event => { event.preventDefault(); void create(); }}><input autoFocus value={title} onChange={event => setTitle(event.target.value)} placeholder="会话标题"/><button type="submit">创建</button></form>}
         {taskModePickerOpen && <section className="deliverable-codex-workbench__task-mode-picker" role="listbox" aria-label="任务模式选择"><small>当前页面：{currentPageLocation(appView).join(" / ")}</small>{availableTaskModes.map((mode, index) => <button key={mode.id} type="button" role="option" aria-selected={index === taskModeIndex} className={index === taskModeIndex ? "is-active" : ""} onClick={() => startTaskMode(mode)}><b>{mode.label}</b><span>{mode.hint} · Enter 启动</span></button>)}</section>}
