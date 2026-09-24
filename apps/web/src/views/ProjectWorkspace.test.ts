@@ -108,6 +108,11 @@ test("项目菜单首次展示时完整显示最左侧菜单项", () => {
   assert.match(workspace, /<nav ref=\{menuNavRef\}/);
 });
 
+test("切换项目菜单时关闭上一菜单的 Codex 对话", () => {
+  assert.match(workspace, /import \{ closeDeliverableCodex \} from "\.\/project-management\/deliverables\/DeliverableCodexLauncher\.js";/);
+  assert.match(workspace, /const selectSection = useCallback\([\s\S]*?closeDeliverableCodex\(\);[\s\S]*?setSection\(next\);/);
+});
+
 test("项目菜单仅在对应模块没有信息时使用未配置灰色状态", () => {
   assert.match(workspace, /const itemCount = summary\.modules\.find\(module => module\.key === sectionId\)\?\.count \?\? 0/);
   assert.match(workspace, /sectionId === "flowcharts"\) return itemCount === 0 && \(c\.flowchartIds\?\.length \?\? 0\) === 0/);

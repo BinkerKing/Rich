@@ -33,6 +33,7 @@ import {
 } from "./project-management/index.js";
 import { shouldScrollFocusedFolderIntoView } from "./project-management/folderFocus.js";
 import { DELIVERABLE_FOCUS_EVENT, DELIVERABLE_ITEM_FOCUS_EVENT, storeDeliverableFocus } from "./project-management/deliverables/DeliverablesModel.js";
+import { closeDeliverableCodex } from "./project-management/deliverables/DeliverableCodexLauncher.js";
 import { FlowchartsWorkspace } from "./project-management/flowcharts/FlowchartsWorkspace.js";
 
 interface Props { projectId: string }
@@ -92,6 +93,7 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const menuSettingsButtonRef = useRef<HTMLButtonElement | null>(null);
   const menuSettingsPanelRef = useRef<HTMLElement | null>(null);
   const selectSection = useCallback((next: ProjectManagementSection) => {
+    closeDeliverableCodex();
     setSection(next);
     saveProjectManagementWorkspaceSection(projectId, next);
   }, [projectId]);
