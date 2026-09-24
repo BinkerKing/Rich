@@ -18,6 +18,7 @@ export type FlowNode = Node<{
   groupId?: string;
   collapsed?: boolean;
   hasChildren?: boolean;
+  resizable?: boolean;
   editing?: boolean;
   onLabelChange?: (label: string) => void;
   onNoteTextChange?: (text: string) => void;

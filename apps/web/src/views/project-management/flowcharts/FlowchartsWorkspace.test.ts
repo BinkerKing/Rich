@@ -47,6 +47,8 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(source, /const \[codexRunningNodeIds, setCodexRunningNodeIds\] = useState<string\[\]>\(\[\]\)/);
   assert.match(source, /const \[canvasLocked, setCanvasLocked\] = useState\(true\)/);
   assert.match(source, /nodesDraggable=\{!canvasLocked\} nodesConnectable=\{!canvasLocked\} elementsSelectable/);
+  assert.match(source, /resizable: !canvasLocked/);
+  assert.match(source, /NodeResizer isVisible=\{selected && data\.resizable\}/);
   assert.match(source, /<Controls showInteractive=\{false\}><ControlButton className="pfc-lock-control"/);
   assert.match(source, /!readOnly && !canvasLocked && selectedNodes\.length > 0 && <FlowchartNodeStyleToolbar/);
   assert.match(source, /!readOnly && !canvasLocked && selectedFlowEdge && <FlowchartFloatingToolbar/);
