@@ -6768,6 +6768,22 @@
   background: transparent;
 }
 
+.prj-pm-dict__tabs .prj-pm-dict__information-library:hover,
+.prj-pm-dict__tabs .prj-pm-dict__codex:hover {
+  border-color: transparent;
+  background: transparent;
+}
+
+.prj-pm-dict__tabs .prj-pm-dict__information-library svg,
+.prj-pm-dict__tabs .prj-pm-dict__codex svg {
+  transition: transform 160ms ease, color 160ms ease;
+}
+
+.prj-pm-dict__tabs .prj-pm-dict__information-library:hover svg,
+.prj-pm-dict__tabs .prj-pm-dict__codex:hover svg {
+  transform: scale(1.16);
+}
+
 .prj-pm-dict__tabs .prj-pm-dict__codex.is-working {
   animation: dictionary-codex-processing 1.1s ease-in-out infinite;
   border-color: rgba(120, 210, 255, .9);
