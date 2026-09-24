@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { Element } from "@ke/domain";
-import { Bookmark, CheckCircle2, Clock3, Flag, Star, TriangleAlert, type LucideIcon } from "lucide-react";
+import { Bookmark, CheckCircle2, Clock3, Flag, MessageSquare, Star, TriangleAlert, type LucideIcon } from "lucide-react";
 import {
   api,
   type ProjectDictionaryFieldHit,
@@ -36,6 +36,7 @@ import {
   DictionaryTableTitleRail,
 } from "./dictionary/DictionarySystemPanels.js";
 import type { ProjectManagementSearchTarget } from "./ProjectManagementNavigation.js";
+import { openBoundCodex } from "./deliverables/DeliverableCodexLauncher.js";
 
 type DictionaryView = "field-design" | "mapping" | "temp-table" | "relations" | "test-data" | "table-info";
 type DictionarySourceRef = { label: string; field?: ProjectDictionaryFieldHit };
@@ -711,6 +712,12 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
     });
     setTreeDrag(null);
   };
+  const openDictionaryCodexConversation = async () => {
+    try {
+      const session = await api.ensureProjectDictionaryCodexSession(project.id);
+      openBoundCodex({ projectId: project.id, deliverableId: project.id, deliverableTitle: `${project.title} · 数据字典`, resourceType: "dictionary", conversationId: session.conversation.id });
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+  };
 
   if (!systemsLoaded && !error) return null;
   if (!error && systems.length === 0) return <p className="prj-pm-unconfigured">暂未配置。</p>;
@@ -724,6 +731,7 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
           <div className="prj-pm-dict__tabs" aria-label="数据字典分类">
             <button type="button" className={catalog === "business-scenarios" ? "is-active" : ""} onClick={() => { setCatalog("business-scenarios"); setSelectedTableId(""); }}>业务场景</button>
             <button type="button" className={catalog === "tables" ? "is-active" : ""} onClick={() => { setCatalog("tables"); setSelectedBusinessScenarioId(""); setCreatingBusinessScenario(false); }}>表清单</button>
+            <button type="button" className="prj-pm-dict__codex" aria-label="Codex 对话" title="Codex 对话" onClick={() => void openDictionaryCodexConversation()}><MessageSquare aria-hidden="true" /></button>
             {catalog === "business-scenarios" && <button type="button" onClick={() => { const name = window.prompt("场景库名称"); if (!name?.trim()) return; void api.createProjectDictionaryBusinessScenarioLibrary(project.id, { name: name.trim() }).then(next => { setBusinessScenarioLibraries(items => [...items, next]); setSelectedBusinessScenarioLibraryId(next.id); setExpandedScenarioSystemIds(items => [...items, next.id]); }).catch(e => setError(e instanceof Error ? e.message : String(e))); }}>新建库</button>}
             {catalog === "business-scenarios" && <button type="button" disabled={!selectedBusinessScenarioLibraryId} onClick={() => { const library = businessScenarioLibraries.find(item => item.id === selectedBusinessScenarioLibraryId); if (!library) return; const dbType = window.prompt("数据库类型（postgresql / sqlserver）", library.dbType || "postgresql"); if (!dbType) return; const host = window.prompt("主机", library.connection?.host || ""); const database = window.prompt("数据库名", library.connection?.database || ""); const username = window.prompt("用户名", library.connection?.username || ""); if (host === null || database === null || username === null) return; void api.updateProjectDictionaryBusinessScenarioLibrary(project.id, library.id, { dbType: dbType as "postgresql" | "sqlserver", sqlDialect: dbType as "postgresql" | "sqlserver", connection: { ...library.connection, host, database, username } }).then(next => setBusinessScenarioLibraries(items => items.map(item => item.id === next.id ? next : item))).catch(e => setError(e instanceof Error ? e.message : String(e))); }}>配置库</button>}
             {catalog === "business-scenarios" && <button type="button" onClick={() => { if (!selectedBusinessScenarioLibraryId) return; setSelectedBusinessScenarioId(""); setCreatingBusinessScenario(true); setBusinessScenarioDraft({ title: "", procedureName: "", externalLocation: "", sqlText: "", remark: "", tableIds: [] }); }}>新建场景</button>}

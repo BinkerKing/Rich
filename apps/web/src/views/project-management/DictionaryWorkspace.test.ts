@@ -44,3 +44,10 @@ test("数据系统标题显示已使用表数和表清单总数", () => {
 
   assert.deepEqual(dictionarySystemTableCounts(tables, 7), { used: 2, total: 7 });
 });
+
+test("数据字典树顶部可打开项目绑定的 Codex 对话", () => {
+  assert.match(source, /const openDictionaryCodexConversation = async \(\) => \{/);
+  assert.match(source, /api\.ensureProjectDictionaryCodexSession\(project\.id\)/);
+  assert.match(source, /resourceType: "dictionary"/);
+  assert.match(source, /aria-label="Codex 对话" title="Codex 对话" onClick=\{\(\) => void openDictionaryCodexConversation\(\)\}/);
+});

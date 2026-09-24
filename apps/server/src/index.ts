@@ -125,6 +125,7 @@ import { SqliteDeliverablesRepo } from "./repos/SqliteDeliverablesRepo.js";
 import { SqliteChatAttachmentsRepo } from "./repos/SqliteChatAttachmentsRepo.js";
 import { SqliteChatConversationsRepo } from "./repos/SqliteChatConversationsRepo.js";
 import { SqliteDeliverableCodexConversationRepo } from "./repos/SqliteDeliverableCodexConversationRepo.js";
+import { SqliteProjectDictionaryCodexConversationRepo } from "./repos/SqliteProjectDictionaryCodexConversationRepo.js";
 import { SqliteAgentConversationConfigRepo } from "./repos/SqliteAgentConversationConfigRepo.js";
 import { SqliteAgentConversationTurnRepo } from "./repos/SqliteAgentConversationTurnRepo.js";
 import { SqliteAgentToolCallRepo } from "./repos/SqliteAgentToolCallRepo.js";
@@ -145,6 +146,7 @@ import type { DeliverablesRepo } from "./repos/DeliverablesRepo.js";
 import type { ChatAttachmentsRepo } from "./repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "./repos/ChatConversationsRepo.js";
 import type { DeliverableCodexConversationRepo } from "./repos/DeliverableCodexConversationRepo.js";
+import type { ProjectDictionaryCodexConversationRepo } from "./repos/ProjectDictionaryCodexConversationRepo.js";
 import type { AgentConversationConfigRepo } from "./repos/AgentConversationConfigRepo.js";
 import type { AgentConversationTurnRepo } from "./repos/AgentConversationTurnRepo.js";
 import type { AgentToolCallRepo } from "./repos/AgentToolCallRepo.js";
@@ -224,6 +226,7 @@ import { PostgresDeliverablesRepo } from "./repos/PostgresDeliverablesRepo.js";
 import { PostgresChatAttachmentsRepo } from "./repos/PostgresChatAttachmentsRepo.js";
 import { PostgresChatConversationsRepo } from "./repos/PostgresChatConversationsRepo.js";
 import { PostgresDeliverableCodexConversationRepo } from "./repos/PostgresDeliverableCodexConversationRepo.js";
+import { PostgresProjectDictionaryCodexConversationRepo } from "./repos/PostgresProjectDictionaryCodexConversationRepo.js";
 import { PostgresAgentConversationConfigRepo } from "./repos/PostgresAgentConversationConfigRepo.js";
 import { PostgresAgentConversationTurnRepo } from "./repos/PostgresAgentConversationTurnRepo.js";
 import { PostgresAgentToolCallRepo } from "./repos/PostgresAgentToolCallRepo.js";
@@ -258,6 +261,8 @@ import { ConversationPromotionService } from "./agent-conversations/Conversation
 import { DeliverableTaskContextService } from "./ai-tasks/DeliverableTaskContextService.js";
 import { DeliverableCodexContextService } from "./deliverable-codex/DeliverableCodexContextService.js";
 import { deliverableCodexRoutes } from "./routes/deliverableCodex.js";
+import { DictionaryCodexContextService } from "./project-dictionary-codex/DictionaryCodexContextService.js";
+import { projectDictionaryCodexRoutes } from "./routes/projectDictionaryCodex.js";
 import { PromptLibraryService } from "./prompt-library/PromptLibraryService.js";
 import { promptLibraryRoutes } from "./routes/promptLibrary.js";
 import { SqliteWorkbenchRepo, PostgresWorkbenchRepo, type WorkbenchRepo } from "./task-workbench/repository.js";
@@ -312,6 +317,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   let chatAttachments: ChatAttachmentsRepo | null = null;
   let chatConversations: ChatConversationsRepo | null = null;
   let deliverableCodexConversations: DeliverableCodexConversationRepo | null = null;
+  let projectDictionaryCodexConversations: ProjectDictionaryCodexConversationRepo | null = null;
   let agentConversationConfigs: AgentConversationConfigRepo | null = null;
   let agentConversationTurns: AgentConversationTurnRepo | null = null;
   let agentToolCalls: AgentToolCallRepo | null = null;
@@ -343,6 +349,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     chatAttachments = new PostgresChatAttachmentsRepo(pg);
     chatConversations = new PostgresChatConversationsRepo(pg);
     deliverableCodexConversations = new PostgresDeliverableCodexConversationRepo(pg);
+    projectDictionaryCodexConversations = new PostgresProjectDictionaryCodexConversationRepo(pg);
     agentConversationConfigs = new PostgresAgentConversationConfigRepo(pg);
     agentConversationTurns = new PostgresAgentConversationTurnRepo(pg);
     agentToolCalls = new PostgresAgentToolCallRepo(pg);
@@ -380,6 +387,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     chatAttachments = new SqliteChatAttachmentsRepo(db);
     chatConversations = new SqliteChatConversationsRepo(db);
     deliverableCodexConversations = new SqliteDeliverableCodexConversationRepo(db);
+    projectDictionaryCodexConversations = new SqliteProjectDictionaryCodexConversationRepo(db);
     agentConversationConfigs = new SqliteAgentConversationConfigRepo(db);
     agentConversationTurns = new SqliteAgentConversationTurnRepo(db);
     agentToolCalls = new SqliteAgentToolCallRepo(db);
@@ -519,6 +527,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   configureOpLog(root);
   const aiContextProvider = createAIContextProvider(chatConversations);
   const deliverableCodexContext = new DeliverableCodexContextService(promotionContext, elements, projectManagement, undefined, flowcharts);
+  const dictionaryCodexContext = new DictionaryCodexContextService(elements);
   const workbench = workbenchRepo && deliverableCodexConversations ? new WorkbenchService(workbenchRepo, deliverableCodexConversations) : undefined;
   const workbenchDocuments = workbenchDocumentRepo ? new WorkbenchDocumentService(workbenchDocumentRepo) : undefined;
   // Self-heal: any op stuck in "running" from a previous crash / pkill / OOM
@@ -567,6 +576,9 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
       const appended = await appendDeliverableCodexOperationRecord({ projects: projectManagement, standaloneDeliverables: deliverables, ...input });
       if (appended) eventBus.publish("deliverable.changed", { source: "mcp", detail: input });
     } }));
+  }
+  if (projectDictionaryCodexConversations && chatConversations && agentExecution) {
+    app.route("/api/project-dictionary-codex", projectDictionaryCodexRoutes({ conversations: projectDictionaryCodexConversations, chats: chatConversations, context: dictionaryCodexContext, projects: elements, agents: agentExecution }));
   }
   app.route("/api/prompt-library", promptLibraryRoutes(promptLibrary));
   app.route("/api/chat-visual-blocks", chatVisualBlocksRoutes(chatVisualBlocks));
