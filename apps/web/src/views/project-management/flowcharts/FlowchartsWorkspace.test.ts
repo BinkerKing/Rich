@@ -40,6 +40,12 @@ test("流程图变更自动同步后端，不保留本地草稿", () => {
   assert.doesNotMatch(source, />保存修改</);
 });
 
+test("流程图顶部不提供冗余的整理和添加节点按钮", () => {
+  assert.doesNotMatch(source, /aria-label="添加节点" title="添加处理节点"/);
+  assert.doesNotMatch(source, /aria-label="自动排版" title="自动排版当前层级"/);
+  assert.doesNotMatch(source, /const autoLayout =/);
+});
+
 test("锁定画布后双击节点仍打开详情，不触发默认缩放", () => {
   assert.match(source, /zoomOnDoubleClick=\{false\}/);
   assert.match(source, /onNodeDoubleClick=\{\(_, row\) => \{ setSelected\(row\.id\); setSelectedIds\(\[row\.id\]\); setDetailNode\(row\.id\); \}\}/);

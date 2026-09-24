@@ -318,10 +318,6 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     if (!graph || selectedIds.length === 0) return;
     update(removeFlowNodes(graph, selectedIds)); setSelected(""); setSelectedIds([]); setEditingNode("");
   };
-  const autoLayout = () => {
-    if (!graph) return;
-    update(layoutFlowNodes(graph, visibleNodes.map(node => node.id), "horizontal"));
-  };
   const groupSelectedNodes = () => {
     if (!graph) return;
     const next = createFlowGroup(graph, selectedIds);
@@ -395,8 +391,6 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
               {isFullscreen && <span className="pfc-save-state">{syncing ? "自动保存中…" : dirty ? "等待自动保存…" : "已同步"}</span>}
               <button aria-label="撤销" title="撤销（⌘Z）" disabled={undoStack.current.length === 0} onClick={undoGraph}>↶</button>
               <button aria-label="重做" title="重做（⌘⇧Z）" disabled={redoStack.current.length === 0} onClick={redoGraph}>↷</button>
-              <button aria-label="添加节点" title="添加处理节点" onClick={() => addNode("step")}>＋ 节点</button>
-              <button aria-label="自动排版" title="自动排版当前层级" onClick={autoLayout}>整理</button>
               <button aria-label="导出 PNG" title="导出当前流程图为 PNG" disabled={exporting} onClick={() => void exportPng()}>{exporting ? "导出中…" : "导出 PNG"}</button>
               {projectId && <button aria-label="Codex 对话" title="Codex 对话" onClick={() => void openCodexConversation(item)}><FlowchartListIcon name="chat" /></button>}
           <button aria-label="搜索节点" title="搜索节点" aria-expanded={searchOpen} onClick={() => setSearchOpen(value => !value)}>⌕</button>
