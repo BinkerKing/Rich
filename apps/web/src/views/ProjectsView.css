@@ -3399,37 +3399,45 @@
 .workflow-rich-content > ol,
 .prj-pm-rich-surface > ol {
   display: grid;
-  gap: 8px;
-  padding: 0;
+  gap: 0;
+  padding: 4px 18px;
   list-style: none;
+  overflow: hidden;
+  background: #121a1e;
+  border: 1px solid rgba(131, 223, 232, .24);
+  border-radius: 12px;
   counter-reset: rich-step;
 }
 .workflow-rich-content > ol > li,
 .prj-pm-rich-surface > ol > li {
   position: relative;
-  min-height: 26px;
-  padding: 11px 14px 11px 48px;
-  border: 1px solid rgba(143, 254, 247, .16);
-  border-radius: 8px;
-  background: rgba(143, 254, 247, .035);
-  color: rgba(244, 247, 251, .86);
+  min-height: 30px;
+  padding: 16px 0 16px 44px;
+  border-bottom: 1px solid rgba(131, 223, 232, .16);
+  color: #f5f9fb;
+  font-size: 16px;
+  font-weight: 520;
+  letter-spacing: .008em;
+  line-height: 1.8;
   counter-increment: rich-step;
 }
+.workflow-rich-content > ol > li:last-child,
+.prj-pm-rich-surface > ol > li:last-child { border-bottom: 0; }
 .workflow-rich-content > ol > li::before,
 .prj-pm-rich-surface > ol > li::before {
   position: absolute;
-  top: 11px;
-  left: 12px;
+  top: 17px;
+  left: 0;
   display: grid;
-  width: 24px;
-  height: 24px;
+  width: 29px;
+  height: 21px;
   place-items: center;
-  border: 1px solid rgba(143, 254, 247, .36);
-  border-radius: 6px;
-  background: rgba(143, 254, 247, .1);
-  color: #a9fffb;
+  border: 0;
+  background: transparent;
+  color: #a5f0f4;
   content: counter(rich-step, decimal-leading-zero);
-  font: 700 10px/1 "SF Mono", Menlo, Consolas, monospace;
+  font: 750 12px/1 "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: .04em;
 }
 .workflow-rich-content .pm-rich-image img,
 .prj-pm-rich-surface .pm-rich-image img {

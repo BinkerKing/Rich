@@ -23,3 +23,10 @@ test("项目说明编辑器提供完整的三级标题，并以不同卡片呈�
   assert.match(styles, /\.workflow-rich-content ol,[\s\S]*?counter-reset: rich-step/);
   assert.match(styles, /\.workflow-rich-content pre,[\s\S]*?\.workflow-rich-content pre::before/);
 });
+
+test("有序列表将连续步骤收纳为一个清爽模块，并用轻分隔维持层级", () => {
+  assert.match(styles, /\.workflow-rich-content > ol,[\s\S]*?gap:\s*0[\s\S]*?padding:\s*4px 18px[\s\S]*?background:\s*#121a1e[\s\S]*?border-radius:\s*12px/);
+  assert.match(styles, /\.workflow-rich-content > ol > li,[\s\S]*?border-bottom:\s*1px solid rgba\(131, 223, 232, \.16\)[\s\S]*?font-size:\s*16px/);
+  assert.match(styles, /\.workflow-rich-content > ol > li:last-child,[\s\S]*?border-bottom:\s*0/);
+  assert.match(styles, /\.workflow-rich-content > ol > li::before,[\s\S]*?background:\s*transparent[\s\S]*?border:\s*0/);
+});
