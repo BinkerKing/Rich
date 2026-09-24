@@ -207,6 +207,8 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
         event.preventDefault(); event.stopPropagation(); saveCodexDraft(); setDetailNode(""); setSelected(""); setSelectedIds([]); setSelectedEdge(""); setEditingNode(""); setQuickCreate(undefined); setCodexSelection([]); setCodexWholeChart(false); setCodexRequest(""); setCodexAnchor(undefined); return;
       }
       if (event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable=true]")) return;
+      if (!detailNode && (event.key === "+" || event.code === "NumpadAdd")) { event.preventDefault(); void flow?.zoomIn({ duration: 160 }); return; }
+      if (!detailNode && (event.key === "-" || event.code === "NumpadSubtract")) { event.preventDefault(); void flow?.zoomOut({ duration: 160 }); return; }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c" && graph && selectedIds.length) { event.preventDefault(); clipboard.current = copyFlowSelection(graph, selectedIds); return; }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "v" && graph && clipboard.current) {
         event.preventDefault();
@@ -221,7 +223,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [selected, editingNode, detailNode, graph, selectedIds, selectedEdge, codexSelection, codexWholeChart, codexRequest]);
+  }, [selected, editingNode, detailNode, graph, selectedIds, selectedEdge, codexSelection, codexWholeChart, codexRequest, flow]);
   useEffect(() => {
     if (!flow) return;
     const timer = window.setTimeout(() => {
