@@ -284,6 +284,27 @@ describe("MCP 2.0 safe resource writes", () => {
     expect(harness.projectItems.get("flowchart-1")?.content).toMatchObject({ graph: { nodes: expect.arrayContaining([expect.objectContaining({ id: "review" })]), edges: [expect.objectContaining({ source: "start", target: "review" })] } });
   });
 
+  it("creates, updates, and deletes colored flowchart region nodes", async () => {
+    const harness = makeHarness();
+    harness.projectItems.set("flowchart-region", {
+      id: "flowchart-region", projectId: "project-rich", moduleKey: "flowcharts", title: "订单处理", sortOrder: 0,
+      content: { graph: { version: 1, objective: "", status: "draft", nodes: [], edges: [] } },
+      createdAt: "2026-08-28T00:00:00.000Z", updatedAt: "2026-08-28T00:00:00.000Z",
+    });
+
+    await expect(harness.registry.invoke("rich_flowchart_manage", {
+      action: "create_node", projectId: "project-rich", flowchartId: "flowchart-region",
+      node: { id: "review-area", label: "人工审核区", kind: "region", tone: "amber", width: 680, height: 320, position: { x: 80, y: 60 } }, context: { requestId: "flowchart-region-create-1" },
+    })).resolves.toMatchObject({ ok: true, data: { node: { id: "review-area", type: "region", style: { width: 680, height: 320 }, data: { tone: "amber" } } }, verification: { status: "verified" } });
+    await expect(harness.registry.invoke("rich_flowchart_manage", {
+      action: "update_node", projectId: "project-rich", flowchartId: "flowchart-region", nodeId: "review-area",
+      patch: { tone: "mint", width: 720, height: 360 }, context: { requestId: "flowchart-region-update-1" },
+    })).resolves.toMatchObject({ ok: true, data: { node: { type: "region", style: { width: 720, height: 360 }, data: { tone: "mint" } } }, verification: { status: "verified" } });
+    await expect(harness.registry.invoke("rich_flowchart_manage", {
+      action: "delete_node", projectId: "project-rich", flowchartId: "flowchart-region", nodeId: "review-area", context: { requestId: "flowchart-region-delete-1" }, options: { confirmDestructive: true },
+    })).resolves.toMatchObject({ ok: true, data: { deletedNodeId: "review-area" }, verification: { status: "verified" } });
+  });
+
   it("registers and safely writes dictionary, planning, practice, and automation resources", async () => {
     const elementMap = new Map<string, Element>();
     let planningState: unknown = { plans: [], version: 0 };

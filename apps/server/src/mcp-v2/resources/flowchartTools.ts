@@ -16,6 +16,7 @@ const nodeInput = z.object({
   id: z.string().trim().min(1).max(160).optional(), label: z.string().trim().min(1).max(500), kind: nodeKind,
   position, caption: z.string().max(4_000).optional(), description: z.string().max(20_000).optional(),
   source: z.string().max(4_000).optional(), verified: z.boolean().optional(), scope: z.string().trim().min(1).max(160).optional(),
+  tone: z.enum(["cyan", "mint", "amber"]).optional(), width: z.number().min(120).max(2_400).optional(), height: z.number().min(80).max(1_600).optional(),
 });
 const nodePatch = nodeInput.partial().omit({ id: true, position: true }).extend({ position: position.optional() });
 const edgeInput = z.object({
@@ -47,6 +48,7 @@ type FlowchartResource = { kind: "project"; item: ProjectModuleItem } | { kind: 
 
 function object(value: unknown): value is Record<string, unknown> { return Boolean(value) && typeof value === "object" && !Array.isArray(value); }
 function id(value: Record<string, unknown>): string { return typeof value.id === "string" ? value.id : ""; }
+function flowNodeType(kind: z.infer<typeof nodeKind>): "analysis" | "region" | "note" { return kind === "region" ? "region" : kind === "note" ? "note" : "analysis"; }
 function isBoundStandaloneFlowchart(project: Awaited<ReturnType<ElementsRepo["get"]>>, flowchartId: string): boolean {
   return project?.type === "project" && object(project.content) && Array.isArray(project.content.flowchartIds) && project.content.flowchartIds.includes(flowchartId);
 }
@@ -65,7 +67,7 @@ function flowchartRef(item: ProjectModuleItem) { return [{ type: "projectItem", 
 export function registerFlowchartTools(registry: RichToolRegistry, deps: { projects: Pick<ProjectManagementRepo, "listModuleItems" | "updateModuleItem">; elements?: Pick<ElementsRepo, "get">; flowcharts?: Pick<FlowchartsRepo, "get" | "update"> }, operationRepo?: McpOperationRepo): void {
   registry.register({
     name: "rich_flowchart_manage", title: "管理项目流程图", category: "manage",
-    description: "读取并精确修改项目流程图：图信息、节点、连线及节点详情。所有写入均写后读回校验。",
+    description: "读取并精确修改项目流程图：图信息、节点、连线、节点详情，以及可作为底色分组的区域节点。区域使用 create_node(kind: region) 创建，可通过 tone、width、height 修改外观，使用 delete_node 删除。所有写入均写后读回校验。",
     inputSchema: flowchartInput, annotations: { readOnly: false, destructive: true, idempotent: true },
     examples: [{ description: "修改当前流程图节点详情", input: { action: "update_node", projectId: "project-id", flowchartId: "flowchart-id", nodeId: "node-id", patch: { description: "补充后的处理说明" } } }],
     verification: "Every mutation reads the same flowchart back and verifies the requested node, edge, or chart field.",
@@ -98,13 +100,14 @@ export function registerFlowchartTools(registry: RichToolRegistry, deps: { proje
           if (input.action === "create_node") {
             const nodeId = input.node!.id ?? randomUUID();
             if (nextGraph.nodes.some(node => id(node) === nodeId)) throw new RichMcpError("CONFLICT", "A node with this ID already exists.");
-            const node = { id: nodeId, type: input.node!.kind === "region" ? "region" : input.node!.kind === "note" ? "note" : "analysis", position: input.node!.position, data: { label: input.node!.label, kind: input.node!.kind, caption: input.node!.caption, description: input.node!.description ?? "", source: input.node!.source ?? "", verified: input.node!.verified ?? false, scope: input.node!.scope ?? "root" } };
+            const style = { ...(input.node!.kind === "region" ? { width: 460, height: 240 } : {}), ...(input.node!.width === undefined ? {} : { width: input.node!.width }), ...(input.node!.height === undefined ? {} : { height: input.node!.height }) };
+            const node = { id: nodeId, type: flowNodeType(input.node!.kind), position: input.node!.position, ...(Object.keys(style).length ? { style } : {}), data: { label: input.node!.label, kind: input.node!.kind, caption: input.node!.caption, description: input.node!.description ?? "", source: input.node!.source ?? "", verified: input.node!.verified ?? false, scope: input.node!.scope ?? "root", ...(input.node!.tone === undefined ? {} : { tone: input.node!.tone }) } };
             nextGraph = { ...nextGraph, nodes: [...nextGraph.nodes, node] }; result = { node };
           }
           if (input.action === "update_node") {
             const index = nextGraph.nodes.findIndex(node => id(node) === input.nodeId); if (index < 0) throw new RichMcpError("NOT_FOUND", "The requested flowchart node was not found.");
             const previous = nextGraph.nodes[index]!; const data = object(previous.data) ? previous.data : {};
-            const patch = input.patch!; const node = { ...previous, ...(patch.position ? { position: patch.position } : {}), data: { ...data, ...(patch.label === undefined ? {} : { label: patch.label }), ...(patch.kind === undefined ? {} : { kind: patch.kind }), ...(patch.caption === undefined ? {} : { caption: patch.caption }), ...(patch.description === undefined ? {} : { description: patch.description }), ...(patch.source === undefined ? {} : { source: patch.source }), ...(patch.verified === undefined ? {} : { verified: patch.verified }), ...(patch.scope === undefined ? {} : { scope: patch.scope }) } };
+            const patch = input.patch!; const style = object(previous.style) ? previous.style : {}; const node = { ...previous, ...(patch.position ? { position: patch.position } : {}), ...(patch.kind === undefined ? {} : { type: flowNodeType(patch.kind) }), ...((patch.width === undefined && patch.height === undefined) ? {} : { style: { ...style, ...(patch.width === undefined ? {} : { width: patch.width }), ...(patch.height === undefined ? {} : { height: patch.height }) } }), data: { ...data, ...(patch.label === undefined ? {} : { label: patch.label }), ...(patch.kind === undefined ? {} : { kind: patch.kind }), ...(patch.caption === undefined ? {} : { caption: patch.caption }), ...(patch.description === undefined ? {} : { description: patch.description }), ...(patch.source === undefined ? {} : { source: patch.source }), ...(patch.verified === undefined ? {} : { verified: patch.verified }), ...(patch.scope === undefined ? {} : { scope: patch.scope }), ...(patch.tone === undefined ? {} : { tone: patch.tone }) } };
             nextGraph.nodes[index] = node; result = { node };
           }
           if (input.action === "delete_node") {

@@ -19,5 +19,9 @@ test("creates a scoped MCP-first Codex instruction without embedding graph data"
   assert.match(prompt, /选中节点：review/);
   assert.match(prompt, /补充人工审核风险判断/);
   assert.match(prompt, /调用.*get/);
+  assert.match(prompt, /create_node\(kind: region\)/);
+  assert.match(prompt, /tone\(cyan\/mint\/amber\)、width、height/);
+  assert.match(prompt, /delete_node 删除区域/);
+  assert.match(prompt, /options\.confirmDestructive=true/);
   assert.doesNotMatch(prompt, /接收订单内容|全图结构/);
 });
