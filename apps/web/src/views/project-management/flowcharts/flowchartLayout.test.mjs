@@ -164,6 +164,7 @@ test('trackpad two-finger scrolling pans while left drag remains reserved for la
   const source = readFileSync(new URL('./FlowchartsWorkspace.tsx', import.meta.url), 'utf8');
   assert.match(source, /selectionOnDrag panOnDrag=\{false\} panOnScroll panOnScrollMode=\{PanOnScrollMode\.Free\}/);
   assert.match(source, /zoomOnScroll=\{false\}/);
+  assert.match(source, /zoomOnPinch=\{false\}/);
   assert.match(source, /onPaneContextMenu=\{event => \{\s*event\.preventDefault\(\);/);
 });
 
