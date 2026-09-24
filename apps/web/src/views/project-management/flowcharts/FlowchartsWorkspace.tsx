@@ -12,6 +12,7 @@ import { ProjectRichTextEditor } from "../ProjectManagementModules.js";
 import { isNodeEditShortcut } from "../../../components/mindmap/nodeEditShortcut.js";
 import { openBoundCodex } from "../deliverables/DeliverableCodexLauncher.js";
 import { flowchartCodexPrompt } from "./flowchartCodexPrompt.js";
+import { useCurrentCodexShortcut } from "../../../lib/currentCodexShortcut.js";
 import "./FlowchartsWorkspace.css";
 
 const DETAIL_PANEL_WIDTH_KEY = "rich.flowchart.node-detail-panel-width";
@@ -390,6 +391,10 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
       openBoundCodex({ projectId, deliverableId: item.id, deliverableTitle: item.title, resourceType: "flowchart", conversationId: session.conversation.id });
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
+  useCurrentCodexShortcut(active && projectId ? () => {
+    const item = items.find(candidate => candidate.id === active);
+    if (item) void openCodexConversation(item);
+  } : undefined);
   const openCodexRefinement = (nodeIds: string[], anchor?: { left: number; top: number }) => {
     if (readOnly) return;
     if (!projectId) { setError("独立流程图尚未绑定项目，无法使用 Codex 整改。"); return; }

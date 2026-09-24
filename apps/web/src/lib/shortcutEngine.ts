@@ -5,7 +5,7 @@ export type ShortcutRegistration = { id: string; shortcut: string; target: Short
 
 const SHORTCUT_OPEN_EVENT = "rich.shortcut-open";
 const SHORTCUT_OPEN_STORAGE_KEY = "rich:shortcut-pending-target";
-const RESERVED_SHORTCUTS = new Set(["mod+escape", "mod+shift+space", "mod+shift+enter", "mod+shift+0"]);
+const RESERVED_SHORTCUTS = new Set(["mod+escape", "mod+enter", "mod+shift+space", "mod+shift+enter", "mod+shift+0"]);
 
 /** Converts a browser key event into a portable Rich shortcut, for example mod+shift+k. */
 export function shortcutFromEvent(event: KeyboardEvent): string | null {

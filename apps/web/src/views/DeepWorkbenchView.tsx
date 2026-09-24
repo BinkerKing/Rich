@@ -15,6 +15,7 @@ import { ProjectRichTextEditor as ProjectRichTextEditorInput } from "./project-m
 import { api } from "../api/client.js";
 import { useStore } from "../state/store.js";
 import { openBoundCodex } from "./project-management/deliverables/DeliverableCodexLauncher.js";
+import { useCurrentCodexShortcut } from "../lib/currentCodexShortcut.js";
 import "./DeepWorkbenchView.css";
 
 const STORAGE_KEY = "rich.deep-workbench.v1";
@@ -170,6 +171,15 @@ export function DeepWorkbenchView() {
       }
     })(); }, 350);
   };
+  const openCodexConversation = async (item: DeepWorkbenchItem) => {
+    try {
+      const session = await api.ensureMindmapCodexSession(item.id, `${item.title} · Codex`);
+      openBoundCodex({ projectId: "__general__", deliverableId: item.id, deliverableTitle: item.title, resourceType: "mindmap", conversationId: session.conversation.id });
+    } catch (error) {
+      setKnowledgeError(error instanceof Error ? error.message : String(error));
+    }
+  };
+  useCurrentCodexShortcut(active ? () => { void openCodexConversation(active); } : undefined);
 
   if (!active) {
     return <main className="deep-list">
@@ -228,21 +238,13 @@ export function DeepWorkbenchView() {
     saveMap({ ...active.map, theme: { id: theme.id, lineStyle: activeLineStyle, template: "default", config: { ...theme.config, lineStyle: activeLineStyle } } });
   };
   const selectLineStyle = (lineStyle: MindmapLineStyle) => saveMap({ ...active.map, theme: { ...active.map.theme, lineStyle, config: { ...active.map.theme.config, lineStyle } } });
-  const openCodexConversation = async () => {
-    try {
-      const session = await api.ensureMindmapCodexSession(active.id, `${active.title} · Codex`);
-      openBoundCodex({ projectId: "__general__", deliverableId: active.id, deliverableTitle: active.title, resourceType: "mindmap", conversationId: session.conversation.id });
-    } catch (error) {
-      setKnowledgeError(error instanceof Error ? error.message : String(error));
-    }
-  };
   return <main className="deep-canvas">
     <header className="deep-canvas__header"><div className="deep-editor-start" /><div className="deep-editor-title"><input aria-label="工作台标题" value={active.title} onChange={event => {
       const title = event.target.value;
       if (active.source === "knowledge-tree") saveMap({ ...active.map, root: { ...active.map.root, data: { ...active.map.root.data, text: title } } });
       else updateActive(active.id, item => ({ ...item, title, updatedAt: now() }));
     }} /><span>{active.source === "knowledge-tree" ? (savingKnowledge ? "正在同步知识树…" : "已绑定知识树") : "已保存"}</span></div>
-      <div className="deep-editor-actions"><button className={viewMode === "mindmap" ? "is-active" : ""} type="button" onClick={() => setViewMode(viewMode === "outline" ? "mindmap" : "outline")}><EditorIcon name="map" />{viewMode === "outline" ? "思维导图" : "返回大纲"}</button><button className="deep-editor-icon" type="button" title="Codex 对话" aria-label="Codex 对话" onClick={() => void openCodexConversation()}>◌</button><button className="deep-editor-icon" type="button" title={allExpanded ? "全部折叠" : "全部展开"} aria-label={allExpanded ? "全部折叠" : "全部展开"} onClick={() => updateOutline(expandAll(outlineRoot, !allExpanded))}><EditorIcon name="collapse" /></button><button className="deep-editor-icon" type="button" title="返回内容清单" aria-label="返回内容清单" onClick={() => setActiveId(null)}><EditorIcon name="back" /></button>
+      <div className="deep-editor-actions"><button className={viewMode === "mindmap" ? "is-active" : ""} type="button" onClick={() => setViewMode(viewMode === "outline" ? "mindmap" : "outline")}><EditorIcon name="map" />{viewMode === "outline" ? "思维导图" : "返回大纲"}</button><button className="deep-editor-icon" type="button" title="Codex 对话" aria-label="Codex 对话" onClick={() => void openCodexConversation(active)}>◌</button><button className="deep-editor-icon" type="button" title={allExpanded ? "全部折叠" : "全部展开"} aria-label={allExpanded ? "全部折叠" : "全部展开"} onClick={() => updateOutline(expandAll(outlineRoot, !allExpanded))}><EditorIcon name="collapse" /></button><button className="deep-editor-icon" type="button" title="返回内容清单" aria-label="返回内容清单" onClick={() => setActiveId(null)}><EditorIcon name="back" /></button>
       </div>
     </header>
     {knowledgeError && <p className="deep-knowledge-error" role="alert">知识树同步失败：{knowledgeError}</p>}

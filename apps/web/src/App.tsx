@@ -34,6 +34,7 @@ import { closeDeliverableCodex, DeliverableCodexLauncher } from "./views/project
 import { connectServerEvents } from "./lib/serverEvents.js";
 import { RICH_NAV_EVENT, RICH_NAV_STORAGE_KEY, type RichNavigationPayload } from "./lib/richNavigation.js";
 import { requestShortcutOpen, useShortcutEngine } from "./lib/shortcutEngine.js";
+import { requestCurrentCodexOpen } from "./lib/currentCodexShortcut.js";
 
 export function App() {
   const [hashRoute, setHashRoute] = useState(() =>
@@ -88,6 +89,17 @@ function MainApp() {
     requestShortcutOpen(target);
     setAppView("projects");
   });
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey || event.key !== "Enter") return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      event.preventDefault();
+      requestCurrentCodexOpen();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   useEffect(() => { void hydrate(); }, [hydrate]);
   // Subscribe to backend SSE so Hermes-driven (or any server-side) writes
   // re-hydrate the UI within ~500ms. Closed on unmount.

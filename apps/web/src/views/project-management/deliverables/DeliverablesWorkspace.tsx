@@ -23,6 +23,7 @@ import {
   setDeliverableCodexTarget,
   showDeliverableCodex,
 } from "./DeliverableCodexLauncher.js";
+import { useCurrentCodexShortcut } from "../../../lib/currentCodexShortcut.js";
 
 type Item = ProjectModuleItem & {
   content: ReturnType<typeof normalizeDeliverableContent>;
@@ -435,6 +436,10 @@ export function DeliverablesWorkspace({
     const session = await ensureCodexSession(item);
     showDeliverableCodex({ projectId, deliverableId: item.id, deliverableTitle: item.title, conversationId: session.conversation.id });
   };
+  useCurrentCodexShortcut(openId && projectId ? () => {
+    const item = items.find(candidate => candidate.id === openId);
+    if (item) void openCodexConversation(item);
+  } : undefined);
   const openBinding = async () => {
     setAvailableDeliverables((await api.listDeliverables()).filter(item => !(deliverableIds ?? []).includes(item.id)).map(item => ({ id: item.id, title: item.title })));
     setBinding(true);

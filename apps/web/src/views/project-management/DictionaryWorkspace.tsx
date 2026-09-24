@@ -39,6 +39,7 @@ import {
 import type { ProjectManagementSearchTarget } from "./ProjectManagementNavigation.js";
 import { openBoundCodex } from "./deliverables/DeliverableCodexLauncher.js";
 import { ProjectRichTextEditor } from "./ProjectManagementModules.js";
+import { useCurrentCodexShortcut } from "../../lib/currentCodexShortcut.js";
 
 type DictionaryView = "field-design" | "mapping" | "temp-table" | "relations" | "test-data" | "table-info";
 type DictionarySourceRef = { label: string; field?: ProjectDictionaryFieldHit };
@@ -781,6 +782,7 @@ export function DictionarySection({ project, summary, searchTarget }: { project:
       openBoundCodex({ projectId: project.id, deliverableId: project.id, deliverableTitle: `${project.title} · 数据字典`, resourceType: "dictionary", conversationId: session.conversation.id });
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
+  useCurrentCodexShortcut(() => { void openDictionaryCodexConversation(); });
   const openDictionaryInfo = async () => {
     try {
       const info = await api.getProjectDictionaryInfo(project.id);
