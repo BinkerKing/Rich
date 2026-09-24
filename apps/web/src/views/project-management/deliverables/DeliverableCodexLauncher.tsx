@@ -6,6 +6,7 @@ export type DeliverableCodexTarget = {
   projectId: string;
   deliverableId: string;
   deliverableTitle: string;
+  resourceType?: "deliverable" | "flowchart";
   conversationId?: string;
   initialPrompt?: string;
   initialAttachments?: CodexInitialAttachment[];
@@ -108,6 +109,7 @@ export function DeliverableCodexLauncher(): ReactNode {
       projectId={target.projectId}
       deliverableId={target.deliverableId}
       deliverableTitle={target.deliverableTitle}
+      resourceType={target.resourceType}
       visible={visible}
       requestedConversationId={target.conversationId}
       initialPrompt={target.initialPrompt}
@@ -119,6 +121,7 @@ export function DeliverableCodexLauncher(): ReactNode {
           projectId: target.projectId,
           deliverableId: target.deliverableId,
           deliverableTitle: target.deliverableTitle,
+          resourceType: target.resourceType,
           conversationId,
         };
         setDeliverableCodexTarget(next);

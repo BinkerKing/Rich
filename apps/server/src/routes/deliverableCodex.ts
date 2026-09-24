@@ -4,7 +4,7 @@ import { streamSSE } from "hono/streaming";
 import { AgentConversationService, type AgentConversationEvent } from "../agent-conversations/AgentConversationService.js";
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
 import type { DeliverableCodexConversationRepo } from "../repos/DeliverableCodexConversationRepo.js";
-import type { DeliverableCodexContextService } from "../deliverable-codex/DeliverableCodexContextService.js";
+import type { CodexResourceType, DeliverableCodexContextService } from "../deliverable-codex/DeliverableCodexContextService.js";
 import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
 import type { PromptLibraryService } from "../prompt-library/PromptLibraryService.js";
 import { workbenchInstruction } from "../task-workbench/instructions.js";
@@ -39,9 +39,12 @@ export function deliverableCodexRoutes(deps: {
   onTurnCompleted?: (input: { projectId: string; deliverableId: string; summary: string }) => Promise<void>;
 }): Hono {
   const r = new Hono();
-  const scopeKey = (projectId: string, deliverableId: string) => `deliverable:${projectId}:${deliverableId}`;
-  const createBoundConversation = async (projectId: string, deliverableId: string, title: string) => {
-    const context = await deps.context.build({ projectId, deliverableId, mode: "free" });
+  const scopeKey = (resourceType: CodexResourceType, projectId: string, deliverableId: string) => `${resourceType}:${projectId}:${deliverableId}`;
+  const resourceTypeFor = (conversation: { scopeKey: string }): CodexResourceType => conversation.scopeKey.startsWith("flowchart:") ? "flowchart" : "deliverable";
+  const buildContext = (conversation: { projectId: string; deliverableId: string; scopeKey: string }, mode: "free" | "task") => deps.context.build({ projectId: conversation.projectId, deliverableId: conversation.deliverableId, resourceType: resourceTypeFor(conversation), mode });
+  const buildIncrementalContext = (conversation: { projectId: string; deliverableId: string; scopeKey: string }, since: string) => deps.context.buildIncrementalContext({ projectId: conversation.projectId, deliverableId: conversation.deliverableId, resourceType: resourceTypeFor(conversation), since });
+  const createBoundConversation = async (projectId: string, deliverableId: string, title: string, resourceType: CodexResourceType = "deliverable") => {
+    const context = await deps.context.build({ projectId, deliverableId, resourceType, mode: "free" });
     const now = new Date().toISOString();
     const id = randomUUID();
     const conversationId = `deliverable-codex:${id}`;
@@ -56,7 +59,11 @@ export function deliverableCodexRoutes(deps: {
   r.get("/conversations", async c => c.json({ conversations: await deps.conversations.listAllActive() }));
 
   r.get("/:projectId/:deliverableId/conversations", async c => {
-    return c.json({ conversations: await deps.conversations.listActive(scopeKey(c.req.param("projectId"), c.req.param("deliverableId"))) });
+    return c.json({ conversations: await deps.conversations.listActive(scopeKey("deliverable", c.req.param("projectId"), c.req.param("deliverableId"))) });
+  });
+
+  r.get("/flowcharts/:projectId/:flowchartId/conversations", async c => {
+    return c.json({ conversations: await deps.conversations.listActive(scopeKey("flowchart", c.req.param("projectId"), c.req.param("flowchartId"))) });
   });
 
   r.post("/:projectId/:deliverableId/conversations/ensure-bound", async c => {
@@ -65,11 +72,11 @@ export function deliverableCodexRoutes(deps: {
     if (!title) return c.json({ error: "title is required" }, 400);
     const projectId = c.req.param("projectId");
     const deliverableId = c.req.param("deliverableId");
-    const existing = await deps.conversations.getBound(scopeKey(projectId, deliverableId));
+    const existing = await deps.conversations.getBound(scopeKey("deliverable", projectId, deliverableId));
     if (existing) {
       const context = existing.lastContextSyncAt
-        ? await deps.context.buildIncrementalContext({ projectId, deliverableId, since: existing.lastContextSyncAt })
-        : (await deps.context.build({ projectId, deliverableId, mode: "free" })).initialContext;
+        ? await buildIncrementalContext(existing, existing.lastContextSyncAt)
+        : (await buildContext(existing, "free")).initialContext;
       return c.json({ conversation: existing, created: false, ...(context ? { context } : {}) });
     }
     try {
@@ -81,7 +88,7 @@ export function deliverableCodexRoutes(deps: {
   });
 
   r.post("/:projectId/:deliverableId/conversations/archive-bound", async c => {
-    const bound = await deps.conversations.getBound(scopeKey(c.req.param("projectId"), c.req.param("deliverableId")));
+    const bound = await deps.conversations.getBound(scopeKey("deliverable", c.req.param("projectId"), c.req.param("deliverableId")));
     if (!bound) return c.json({ archived: false });
     await deps.conversations.archive(bound.id, new Date().toISOString());
     await deps.agents.exit(bound.conversationId);
@@ -96,6 +103,38 @@ export function deliverableCodexRoutes(deps: {
     const deliverableId = c.req.param("deliverableId");
     try {
       return c.json(await createBoundConversation(projectId, deliverableId, title), 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  r.post("/flowcharts/:projectId/:flowchartId/conversations/ensure-bound", async c => {
+    const body = await c.req.json().catch(() => null) as { title?: unknown } | null;
+    const title = typeof body?.title === "string" ? body.title.trim() : "";
+    if (!title) return c.json({ error: "title is required" }, 400);
+    const projectId = c.req.param("projectId");
+    const deliverableId = c.req.param("flowchartId");
+    const existing = await deps.conversations.getBound(scopeKey("flowchart", projectId, deliverableId));
+    if (existing) {
+      const context = existing.lastContextSyncAt
+        ? await buildIncrementalContext(existing, existing.lastContextSyncAt)
+        : (await buildContext(existing, "free")).initialContext;
+      return c.json({ conversation: existing, created: false, ...(context ? { context } : {}) });
+    }
+    try {
+      const created = await createBoundConversation(projectId, deliverableId, title, "flowchart");
+      return c.json({ ...created, created: true }, 201);
+    } catch (error) {
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  });
+
+  r.post("/flowcharts/:projectId/:flowchartId/conversations", async c => {
+    const body = await c.req.json().catch(() => null) as { title?: unknown } | null;
+    const title = typeof body?.title === "string" ? body.title.trim() : "";
+    if (!title) return c.json({ error: "title is required" }, 400);
+    try {
+      return c.json(await createBoundConversation(c.req.param("projectId"), c.req.param("flowchartId"), title, "flowchart"), 201);
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
@@ -145,7 +184,7 @@ export function deliverableCodexRoutes(deps: {
       await deps.chats.appendMessage({ id: eventId, conversationId: existing.conversationId, role: "system", content: "任务模式已启动", metadata: { type: "task-mode-started", mode: body.mode, location: body.location }, createdAt: startedAt });
       return c.json({ ok: true, instruction }, 201);
     }
-    const context = await deps.context.build({ projectId: existing.projectId, deliverableId: existing.deliverableId, mode: "task" });
+    const context = await buildContext(existing, "task");
     await deps.agents.start(existing.conversationId, { executor: "codex", workspaceRoot: context.workspaceRoot });
     const instruction = await taskModeStartupInstruction(deps.prompts, body.mode as TaskModeStart, body.location as TaskModeLocation, context.initialContext, existing.projectId, existing.deliverableId, context.workspaceRoot!);
     const policyContent = (await deps.prompts.render("codex.deliverable-analysis-turn", { projectId: existing.projectId, deliverableId: existing.deliverableId, deliverableContext: context.initialContext, userMessage: "" })).content;
@@ -196,7 +235,7 @@ export function deliverableCodexRoutes(deps: {
     const lastMode = [...messages].reverse().find(message => (message.metadata as { type?: string } | undefined)?.type === "task-mode-started");
     const generalTaskMode = (lastMode?.metadata as { mode?: { id?: string } } | undefined)?.mode?.id === "general-task";
     if (generalTaskMode) {
-      const context = await deps.context.build({ projectId: existing.projectId, deliverableId: existing.deliverableId, mode: "free" });
+      const context = await buildContext(existing, "free");
       await deps.agents.start(existing.conversationId, { executor: "codex", workspaceRoot: context.workspaceRoot });
     }
     const taskPromptStates = messages.flatMap(message => {
@@ -208,7 +247,7 @@ export function deliverableCodexRoutes(deps: {
         : [];
     });
     const taskContext = !generalTaskMode && taskPromptStates.length > 0
-      ? await deps.context.build({ projectId: existing.projectId, deliverableId: existing.deliverableId, mode: "task" })
+      ? await buildContext(existing, "task")
       : undefined;
     if (taskContext) {
       await deps.agents.start(existing.conversationId, { executor: "codex", workspaceRoot: taskContext.workspaceRoot });
@@ -216,10 +255,10 @@ export function deliverableCodexRoutes(deps: {
     const currentPromptRevision = !generalTaskMode && taskPromptStates.length > 0 ? await deps.prompts.revision("codex.deliverable-analysis-turn") : undefined;
     const freeContext = taskContext
       ? undefined
-      : await deps.context.build({ projectId: existing.projectId, deliverableId: existing.deliverableId, mode: "free" });
+      : await buildContext(existing, "free");
     const contextForTurn = freeContext
       ? existing.lastContextSyncAt
-        ? await deps.context.buildIncrementalContext({ projectId: existing.projectId, deliverableId: existing.deliverableId, since: existing.lastContextSyncAt })
+        ? await buildIncrementalContext(existing, existing.lastContextSyncAt)
         : freeContext.initialContext
       : undefined;
     const turnContent = freeContext
@@ -266,7 +305,7 @@ export function deliverableCodexRoutes(deps: {
         const sessionId = result.turn.runtimeSessionId;
         if (sessionId) await deps.conversations.setCodexThread(existing.id, sessionId, existing.contextVersion, new Date().toISOString());
         if (contextForTurn) await deps.conversations.markContextSynced(existing.id, new Date().toISOString());
-        if (!producedAttachment) await deps.onTurnCompleted?.({ projectId: existing.projectId, deliverableId: existing.deliverableId, summary: "已完成本次回复" });
+        if (!producedAttachment && resourceTypeFor(existing) === "deliverable") await deps.onTurnCompleted?.({ projectId: existing.projectId, deliverableId: existing.deliverableId, summary: "已完成本次回复" });
       } catch (error) {
         await stream.writeSSE({ event: "error", data: JSON.stringify({ message: error instanceof Error ? error.message : String(error) }) });
       }

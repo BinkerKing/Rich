@@ -25,6 +25,14 @@ test("项目流程图记住上次打开的图和列表状态", () => {
   assert.match(source, /sessionStorage\.setItem\(viewKey, JSON\.stringify\(\{ id: active \?\? null, expanded \}\)\)/);
 });
 
+test("项目流程图的展开页可打开与当前图绑定的 Codex 对话", () => {
+  assert.match(source, /import \{ openBoundCodex \} from "\.\.\/deliverables\/DeliverableCodexLauncher\.js";/);
+  assert.match(source, /const openCodexConversation = async \(item: ProjectModuleItem\) => \{/);
+  assert.match(source, /api\.ensureFlowchartCodexSession\(projectId, item\.id, `\$\{item\.title\} · Codex`\)/);
+  assert.match(source, /openBoundCodex\(\{ projectId, deliverableId: item\.id, deliverableTitle: item\.title, resourceType: "flowchart", conversationId: session\.conversation\.id \}\)/);
+  assert.match(source, /aria-label="Codex 对话" title="Codex 对话" onClick=\{\(\) => void openCodexConversation\(item\)\}/);
+});
+
 test("流程图变更自动同步后端，不保留本地草稿", () => {
   assert.doesNotMatch(source, /rich-flowchart-draft/);
   assert.match(source, /window\.setTimeout\(\(\) => \{ void save\(\); \}, 400\)/);

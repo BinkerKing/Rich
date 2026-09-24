@@ -75,13 +75,13 @@ function currentProjectTitle(): string {
   return document.querySelector(".prj-ws__title")?.textContent?.trim() || "未命名项目";
 }
 
-function currentLocationContext(appView: string, projectId: string, deliverableId: string, deliverableTitle: string): CodexLocationContextInput {
+function currentLocationContext(appView: string, projectId: string, deliverableId: string, deliverableTitle: string, resourceType: "deliverable" | "flowchart"): CodexLocationContextInput {
   const page = currentPageLocation(appView);
   if (appView !== "projects") return { page };
   return {
     page,
     project: { id: projectId, title: currentProjectTitle() },
-    business: { kind: "交付物", id: deliverableId, title: deliverableTitle },
+    business: { kind: resourceType === "flowchart" ? "项目流程图" : "交付物", id: deliverableId, title: deliverableTitle },
   };
 }
 
@@ -143,7 +143,7 @@ function withMessageDurations(messages: Message[]): Message[] {
   });
 }
 
-export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverableTitle, visible, requestedConversationId, initialPrompt, initialAttachments, executionTaskId, initialConversationTitle, onConversationCreated, openSequence }: { projectId: string; deliverableId: string; deliverableTitle: string; visible: boolean; requestedConversationId?: string; initialPrompt?: string; initialAttachments?: CodexInitialAttachment[]; executionTaskId?: string; initialConversationTitle?: string; onConversationCreated?: (conversationId: string) => void; openSequence?: number }): ReactNode {
+export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverableTitle, resourceType = "deliverable", visible, requestedConversationId, initialPrompt, initialAttachments, executionTaskId, initialConversationTitle, onConversationCreated, openSequence }: { projectId: string; deliverableId: string; deliverableTitle: string; resourceType?: "deliverable" | "flowchart"; visible: boolean; requestedConversationId?: string; initialPrompt?: string; initialAttachments?: CodexInitialAttachment[]; executionTaskId?: string; initialConversationTitle?: string; onConversationCreated?: (conversationId: string) => void; openSequence?: number }): ReactNode {
   const appView = useStore(state => state.appView);
   const setAppView = useStore(state => state.setAppView);
   const elements = useStore(state => state.elements);
@@ -194,12 +194,15 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const active = useMemo(() => conversations.find(item => item.id === activeId), [activeId, conversations]);
   const isResponding = Boolean(active && (streamingConversationId === active.id || runningByConversation[active.id]));
   const activeTaskMode = active ? taskModes[active.id] : undefined;
-  const attachedLocation = currentLocationContext(appView, projectId, deliverableId, deliverableTitle);
+  const attachedLocation = currentLocationContext(appView, projectId, deliverableId, deliverableTitle, resourceType);
+  const resourcePath = resourceType === "flowchart"
+    ? `/api/deliverable-codex/flowcharts/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`
+    : `/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`;
   const locationContext = locationAttached ? formatCodexLocationContext(attachedLocation) : "";
   const codexSlash = useMemo(() => parseCodexSlashInput(input), [input]);
   const codexTools = useMemo(() => filterCodexSlashTools(codexSlash.query), [codexSlash.query]);
   const taskModeAvailable = true;
-  const availableTaskModes = currentPageLocation(appView).at(-1) === "交付物" && active?.projectId !== "__general__" ? [generalTaskMode, ...deliverableTaskModes] : [generalTaskMode];
+  const availableTaskModes = resourceType === "deliverable" && currentPageLocation(appView).at(-1) === "交付物" && active?.projectId !== "__general__" ? [generalTaskMode, ...deliverableTaskModes] : [generalTaskMode];
   const isNearMessagesBottom = (element: HTMLElement) => element.scrollHeight - element.scrollTop - element.clientHeight < 24;
   const updateMessageFollowState = () => {
     const element = messagesRef.current;
@@ -207,7 +210,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   };
 
   const refresh = async () => {
-    const payload = await readJson<{ conversations: Conversation[] }>(`/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`);
+    const payload = await readJson<{ conversations: Conversation[] }>(resourcePath);
     setConversations(sortConversations(payload.conversations));
     setActiveId(current => current && payload.conversations.some(item => item.id === current) ? current : payload.conversations[0]?.id);
   };
@@ -221,10 +224,10 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       setRunningByConversation(current => ({ ...current, [conversationId]: Boolean(payload.running) }));
     } catch { /* The stream itself reports request errors; status refreshes are best effort. */ }
   };
-  useEffect(() => { void refresh().catch(reason => setError(reason instanceof Error ? reason.message : String(reason))); }, [projectId, deliverableId]);
+  useEffect(() => { void refresh().catch(reason => setError(reason instanceof Error ? reason.message : String(reason))); }, [projectId, deliverableId, resourceType]);
   useEffect(() => {
     if (!visible || !requestedConversationId) return;
-    void readJson<{ conversations: Conversation[] }>(`/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`).then(payload => {
+    void readJson<{ conversations: Conversation[] }>(resourcePath).then(payload => {
       setConversations(sortConversations(payload.conversations));
       if (payload.conversations.some(item => item.id === requestedConversationId)) setActiveId(requestedConversationId);
       else setError("绑定的 Codex 对话不可用，请检查是否已归档");
@@ -284,7 +287,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     if (!conversationTitle) return;
     setError("");
     try {
-      const payload = await readJson<{ conversation: Conversation }>(`/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: conversationTitle }) });
+      const payload = await readJson<{ conversation: Conversation }>(resourcePath, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: conversationTitle }) });
       if (startup?.taskId) { await api.claimAiManagedTask(startup.taskId, "Rich·Codex", payload.conversation.id); onConversationCreated?.(payload.conversation.id); }
       setConversations(current => { const next = [payload.conversation, ...current]; saveConversationOrder(next); return next; }); setActiveId(payload.conversation.id); setTitle(""); setCreating(false);
       if (startup?.prompt) void sendMessage(payload.conversation, startup.prompt, startup.attachments ?? [], false, undefined, true);
@@ -477,7 +480,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     setTaskModePickerOpen(false);
     window.requestAnimationFrame(() => composerTextareaRef.current?.focus());
     const startedAt = new Date().toISOString();
-    const location = currentLocationContext(appView, active.projectId, active.deliverableId, deliverableTitle);
+    const location = currentLocationContext(appView, active.projectId, active.deliverableId, deliverableTitle, resourceType);
     try {
       const payload = await readJson<{ instruction: string }>(`/api/deliverable-codex/conversations/${encodeURIComponent(active.id)}/events/task-mode-started`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventId: crypto.randomUUID(), mode, location, startedAt }) });
       const session = { ...mode, location, startedAt };

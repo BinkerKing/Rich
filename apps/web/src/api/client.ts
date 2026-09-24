@@ -262,6 +262,12 @@ export const api = {
     if (!r.ok || !payload.conversation) throw new Error(payload.error ?? `ensureDeliverableCodexSession ${r.status}`);
     return { conversation: payload.conversation, created: Boolean(payload.created), context: payload.context };
   },
+  async ensureFlowchartCodexSession(projectId: string, flowchartId: string, title: string): Promise<{ conversation: { id: string; conversationId: string; isBound?: boolean }; created: boolean; context?: string }> {
+    const r = await fetch(`/api/deliverable-codex/flowcharts/${encodeURIComponent(projectId)}/${encodeURIComponent(flowchartId)}/conversations/ensure-bound`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title }) });
+    const payload = await r.json().catch(() => ({})) as { error?: string; conversation?: { id: string; conversationId: string; isBound?: boolean }; created?: boolean; context?: string };
+    if (!r.ok || !payload.conversation) throw new Error(payload.error ?? `ensureFlowchartCodexSession ${r.status}`);
+    return { conversation: payload.conversation, created: Boolean(payload.created), context: payload.context };
+  },
   async markDeliverableCodexContextSynced(conversationId: string): Promise<void> {
     const r = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(conversationId)}/context-synced`, { method: "POST" });
     if (!r.ok) throw new Error(`markDeliverableCodexContextSynced ${r.status}`);

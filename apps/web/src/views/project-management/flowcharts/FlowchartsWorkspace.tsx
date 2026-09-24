@@ -10,13 +10,14 @@ import { FlowchartNodeStyleToolbar } from "./FlowchartNodeStyleToolbar.js";
 import { FlowchartFloatingToolbar, FlowchartToolbarIcon } from "./FlowchartFloatingToolbar.js";
 import { ProjectRichTextEditor } from "../ProjectManagementModules.js";
 import { isNodeEditShortcut } from "../../../components/mindmap/nodeEditShortcut.js";
+import { openBoundCodex } from "../deliverables/DeliverableCodexLauncher.js";
 import "./FlowchartsWorkspace.css";
 
 const DETAIL_PANEL_WIDTH_KEY = "rich.flowchart.node-detail-panel-width";
 const detailPanelWidth = (value: number, maxWidth = Math.floor(window.innerWidth * 2 / 3)) => Math.min(maxWidth, Math.max(320, Math.round(value)));
-function FlowchartListIcon({ name }: { name: "add" | "flow" }) {
+function FlowchartListIcon({ name }: { name: "add" | "flow" | "chat" }) {
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    {name === "add" ? <path d="M12 5v14M5 12h14" /> : <><circle cx="5" cy="6" r="2" /><circle cx="19" cy="5" r="2" /><circle cx="19" cy="19" r="2" /><path d="M7 6h5a3 3 0 0 1 3 3v8M17 5h-2a3 3 0 0 0-3 3v1" /></>}
+    {name === "add" ? <path d="M12 5v14M5 12h14" /> : name === "chat" ? <><path d="M5 18.5 4 21l4-1.5H18a3 3 0 0 0 3-3v-9a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v7" /><path d="M8 11h8M8 15h5" /></> : <><circle cx="5" cy="6" r="2" /><circle cx="19" cy="5" r="2" /><circle cx="19" cy="19" r="2" /><path d="M7 6h5a3 3 0 0 1 3 3v8M17 5h-2a3 3 0 0 0-3 3v1" /></>}
   </svg>;
 }
 function RegionNode({ data, selected }: NodeProps<FlowNode>) {
@@ -347,6 +348,13 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
       await exportFlowchartPng(canvasRef.current, title);
     } catch (e) { setError(`导出失败：${String(e)}`); } finally { setExporting(false); }
   };
+  const openCodexConversation = async (item: ProjectModuleItem) => {
+    if (!projectId) { setError("独立流程图尚未绑定项目，无法创建 Codex 对话。"); return; }
+    try {
+      const session = await api.ensureFlowchartCodexSession(projectId, item.id, `${item.title} · Codex`);
+      openBoundCodex({ projectId, deliverableId: item.id, deliverableTitle: item.title, resourceType: "flowchart", conversationId: session.conversation.id });
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+  };
 
   return <section className={`pfc${standalone ? " pfc--standalone" : ""}${embedded ? " pfc--embedded" : ""}`}>
     {error && <p role="alert" className="pfc-error">{error}</p>}
@@ -382,6 +390,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
               <button aria-label="添加节点" title="添加处理节点" onClick={() => addNode("step")}>＋ 节点</button>
               <button aria-label="自动排版" title="自动排版当前层级" onClick={autoLayout}>整理</button>
               <button aria-label="导出 PNG" title="导出当前流程图为 PNG" disabled={exporting} onClick={() => void exportPng()}>{exporting ? "导出中…" : "导出 PNG"}</button>
+              {projectId && <button aria-label="Codex 对话" title="Codex 对话" onClick={() => void openCodexConversation(item)}><FlowchartListIcon name="chat" /></button>}
           <button aria-label="搜索节点" title="搜索节点" aria-expanded={searchOpen} onClick={() => setSearchOpen(value => !value)}>⌕</button>
           <button aria-label="任务设置" title="任务设置" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(value => !value)}>⋯</button>
           {isFullscreen && <button className="pfc-back-to-list" aria-label="返回流程图清单" title="返回流程图清单" onClick={() => { setExpanded(false); setSettingsOpen(false); }}>←</button>}

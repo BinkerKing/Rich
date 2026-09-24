@@ -6,9 +6,11 @@ import type { DeliverableTaskContextService } from "../ai-tasks/DeliverableTaskC
 import { deliverableTaskContextBrief } from "../ai-tasks/deliverableTaskBrief.js";
 import type { DeliverableCodexMode } from "../repos/DeliverableCodexConversationRepo.js";
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
+import type { ProjectManagementRepo, ProjectModuleItem } from "../repos/ProjectManagementRepo.js";
 import { GENERAL_CODEX_SCOPE } from "../task-workbench/instructions.js";
 
 type DeliverableContextMode = DeliverableCodexMode | "task" | "bug";
+export type CodexResourceType = "deliverable" | "flowchart";
 
 export interface DeliverableCodexContext {
   scopeKey: string;
@@ -103,22 +105,66 @@ function versionInput(snapshot: AiTaskContextSnapshot): string {
   });
 }
 
+function graphValue(item: ProjectModuleItem): Record<string, unknown> {
+  return object(item.content.graph) ? item.content.graph : {};
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function flowchartContextText(projectId: string, flowchartId: string, item: ProjectModuleItem): string {
+  const graph = graphValue(item);
+  const nodes = Array.isArray(graph.nodes) ? graph.nodes.flatMap(node => object(node) && typeof node.id === "string" && object(node.data)
+    ? [{ id: node.id, label: stringValue(node.data.label) ?? node.id, kind: stringValue(node.data.kind) ?? "node", description: stringValue(node.data.description) }]
+    : []) : [];
+  const names = new Map(nodes.map(node => [node.id, node.label]));
+  const edges = Array.isArray(graph.edges) ? graph.edges.flatMap(edge => object(edge) && typeof edge.source === "string" && typeof edge.target === "string"
+    ? [`- ${names.get(edge.source) ?? edge.source} → ${names.get(edge.target) ?? edge.target}${stringValue(edge.label) ? `（${stringValue(edge.label)}）` : ""}`]
+    : []) : [];
+  return [
+    "## Rich flowchart context",
+    `- Project ID: ${projectId}`,
+    `- Flowchart ID: ${flowchartId}`,
+    "", "## Flowchart", `- Title: ${item.title}`, `- Status: ${stringValue(graph.status) ?? "draft"}`,
+    "", "## Nodes", ...(nodes.slice(0, 80).map(node => `- [${node.kind}] ${node.label}${node.description ? `: ${plainText(node.description)}` : ""}`) || ["- None"]),
+    "", "## Connections", ...(edges.slice(0, 120).length ? edges.slice(0, 120) : ["- None"]),
+  ].join("\n");
+}
+
 export class DeliverableCodexContextService {
   constructor(
     private readonly taskContext: Pick<DeliverableTaskContextService, "createSnapshot">,
     private readonly elements: Pick<ElementsRepo, "get">,
+    private readonly projects?: Pick<ProjectManagementRepo, "listModuleItems">,
     private readonly generalWorkspaceRoot = process.env.RICH_PROJECT_ROOT
       ? resolve(process.env.RICH_PROJECT_ROOT)
       : resolve(process.env.HOME ?? process.cwd(), "Documents", "Ai-WorkSpace", "Rich"),
   ) {}
 
-  async build(input: { projectId: string; deliverableId: string; mode: DeliverableContextMode }): Promise<DeliverableCodexContext> {
+  async build(input: { projectId: string; deliverableId: string; resourceType?: CodexResourceType; mode: DeliverableContextMode }): Promise<DeliverableCodexContext> {
     if (input.projectId === GENERAL_CODEX_SCOPE && input.deliverableId === GENERAL_CODEX_SCOPE) {
       return { scopeKey: "workbench:general", contextVersion: "workbench-v1", systemInstruction: "Assist the user in Rich. Use the task workbench for plan-based tasks when requested. For workbench documents, read the document first; only create empty heading outlines automatically, and submit substantive content as a proposal for the user to confirm.", initialContext: "通用 Codex 对话；尚未绑定项目或交付物。", allowedMcpTools: ["rich_workbench_manage", "rich_workbench_document", "rich_ai_task_get", "rich_ai_task_report_result"], workspaceRoot: this.generalWorkspaceRoot };
     }
-    const snapshot = await this.taskContext.createSnapshot(input.projectId, input.deliverableId);
     const project = await this.elements.get(input.projectId);
     const workspaceRoot = await projectWorkspaceRoot(project);
+    if (input.resourceType === "flowchart") {
+      if (!this.projects) throw new Error("项目流程图上下文服务不可用。");
+      const item = (await this.projects.listModuleItems(input.projectId, "flowcharts")).find(candidate => candidate.id === input.deliverableId);
+      if (!item) throw new Error("项目流程图不存在或不属于当前项目。");
+      const initialContext = flowchartContextText(input.projectId, input.deliverableId, item);
+      return {
+        scopeKey: `flowchart:${input.projectId}:${input.deliverableId}`,
+        contextVersion: createHash("sha256").update(JSON.stringify(item)).digest("hex"),
+        systemInstruction: input.mode === "task"
+          ? "You are working in Rich task mode for this project flowchart. Do not change the flowchart unless the user explicitly asks."
+          : "You are working in Rich free mode for this project flowchart. Use its nodes and connections as the current discussion context. Do not claim that you changed the flowchart unless the user explicitly asks and the change is saved through Rich.",
+        initialContext,
+        allowedMcpTools: ["rich_project_files_get", "rich_project_file_read"],
+        workspaceRoot,
+      };
+    }
+    const snapshot = await this.taskContext.createSnapshot(input.projectId, input.deliverableId);
     if (input.mode === "task" && !workspaceRoot) throw new Error("当前项目未配置可读取的本地目录。");
     return {
       scopeKey: `deliverable:${input.projectId}:${input.deliverableId}`,
@@ -151,7 +197,13 @@ export class DeliverableCodexContextService {
     };
   }
 
-  async buildIncrementalContext(input: { projectId: string; deliverableId: string; since: string }): Promise<string | undefined> {
+  async buildIncrementalContext(input: { projectId: string; deliverableId: string; resourceType?: CodexResourceType; since: string }): Promise<string | undefined> {
+    if (input.resourceType === "flowchart") {
+      if (!this.projects) throw new Error("项目流程图上下文服务不可用。");
+      const item = (await this.projects.listModuleItems(input.projectId, "flowcharts")).find(candidate => candidate.id === input.deliverableId);
+      if (!item) throw new Error("项目流程图不存在或不属于当前项目。");
+      return item.updatedAt > input.since ? flowchartContextText(input.projectId, input.deliverableId, item) : undefined;
+    }
     const snapshot = await this.taskContext.createSnapshot(input.projectId, input.deliverableId);
     return incrementalContextText(input.projectId, input.deliverableId, snapshot, input.since);
   }
