@@ -89,7 +89,6 @@ export function projectDictionaryCodexRoutes(deps: {
     if (!content || !clientRequestId || !userMessageId) return c.json({ error: "content, clientRequestId and userMessageId are required" }, 400);
     const context = await deps.context.build(conversation.projectId);
     await deps.agents.start(conversation.conversationId, { executor: "codex", workspaceRoot: context.workspaceRoot });
-    await deps.chats.appendMessage({ id: userMessageId, conversationId: conversation.conversationId, role: "user", content, createdAt: new Date().toISOString() });
     return streamSSE(c, async stream => {
       const write = async (event: { type: string; text?: string; content?: string; turnId?: string; message?: string; status?: string; name?: string }) => {
         const name = event.type === "delta" ? "text" : event.type;
