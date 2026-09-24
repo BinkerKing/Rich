@@ -16,4 +16,10 @@ describe("RichRestartOverlay", () => {
     expect(source).toContain('if (countdown === 0)');
     expect(source).toContain("richWindow?.restartLatestApp?.()");
   });
+
+  it("makes the countdown the primary visual instead of placing it in a card", () => {
+    expect(source).toContain('fontSize: "clamp(120px, 28vw, 280px)"');
+    expect(source).not.toContain('borderRadius: 18');
+    expect(source).not.toContain('background: "#151a1d"');
+  });
 });
