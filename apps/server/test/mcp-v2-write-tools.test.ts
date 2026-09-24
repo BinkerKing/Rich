@@ -317,6 +317,17 @@ describe("MCP 2.0 safe resource writes", () => {
     }];
     const automationPlans = new Map<string, AutomationPlanDetail>();
     const projectManagement = new EmptyProjectManagementRepo();
+    let dictionaryInfoItem: ProjectModuleItem | undefined;
+    projectManagement.listModuleItems = async (_projectId, moduleKey) => moduleKey === "dictionary" && dictionaryInfoItem ? [dictionaryInfoItem] : [];
+    projectManagement.createModuleItem = async (projectId, input) => {
+      dictionaryInfoItem = { id: "dictionary-info", projectId, moduleKey: input.moduleKey, title: input.title, sortOrder: input.sortOrder ?? 0, content: input.content ?? {}, createdAt: "2026-09-24T00:00:00.000Z", updatedAt: "2026-09-24T00:00:00.000Z" };
+      return dictionaryInfoItem;
+    };
+    projectManagement.updateModuleItem = async (_projectId, _id, patch) => {
+      if (!dictionaryInfoItem) return null;
+      dictionaryInfoItem = { ...dictionaryInfoItem, ...patch, content: patch.content ?? dictionaryInfoItem.content };
+      return dictionaryInfoItem;
+    };
     projectManagement.listDictionaryTables = async () => tables;
     projectManagement.updateDictionaryTable = async (_projectId, tableId, patch) => {
       const current = tables.find(table => table.id === tableId);
@@ -361,6 +372,7 @@ describe("MCP 2.0 safe resource writes", () => {
 
     expect(registry.listDefinitions().map(tool => tool.name)).toEqual(expect.arrayContaining([
       "rich_dictionary_manage",
+      "rich_dictionary_info_manage",
       "rich_planning_manage",
       "rich_practice_manage",
       "rich_automation_manage",
@@ -374,6 +386,18 @@ describe("MCP 2.0 safe resource writes", () => {
       context: { requestId: "dictionary-update-1" },
     })).resolves.toMatchObject({ ok: true, verification: { status: "verified" } });
     expect(tables[0].tableCn).toBe("新表");
+
+    const dictionaryInfoUpdate = await registry.invoke("rich_dictionary_info_manage", {
+      action: "update",
+      projectId: "project-rich",
+      html: "<h1>Mapping 资料库</h1><p>维护说明</p>",
+      context: { requestId: "dictionary-info-update-1" },
+    });
+    expect(dictionaryInfoUpdate).toMatchObject({ ok: true, data: { info: { html: "<h1>Mapping 资料库</h1><p>维护说明</p>" } }, verification: { status: "verified" } });
+    await expect(registry.invoke("rich_dictionary_info_manage", {
+      action: "get",
+      projectId: "project-rich",
+    })).resolves.toMatchObject({ ok: true, data: { info: { text: "Mapping 资料库\n维护说明" } } });
 
     await expect(registry.invoke("rich_planning_manage", {
       action: "replace_state",
