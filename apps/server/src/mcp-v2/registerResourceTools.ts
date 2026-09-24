@@ -10,6 +10,7 @@ import { registerProjectTools } from "./resources/projectTools.js";
 import { registerFlowchartTools } from "./resources/flowchartTools.js";
 import { registerReportTools } from "./resources/reportTools.js";
 import { registerDictionaryTools } from "./resources/dictionaryTools.js";
+import { registerDictionaryInfoTools } from "./resources/dictionaryInfoTools.js";
 import { registerPlanningTools } from "./resources/planningTools.js";
 import { registerPracticeResourceTools } from "./resources/practiceTools.js";
 import { registerAutomationTools } from "./resources/automationTools.js";
@@ -32,6 +33,7 @@ export interface ResourceToolDeps {
 export function registerResourceTools(registry: RichToolRegistry, deps: ResourceToolDeps): void {
   registerContextTools(registry, deps);
   registerDictionaryTools(registry, deps.projectManagement, deps.operationRepo);
+  registerDictionaryInfoTools(registry, deps.projectManagement, deps.operationRepo);
   registerKnowledgeTools(registry, deps.elements, deps.operationRepo);
   registerPracticeResourceTools(registry, deps.elements, deps.operationRepo);
   registerProjectTools(registry, deps.projectManagement, deps.operationRepo);

@@ -32,15 +32,15 @@ export class DictionaryCodexContextService {
       "## Rich project dictionary context",
       `- Project ID: ${projectId}`,
       "",
-      "Before analysis or changes, use rich_dictionary_manage to read the latest dictionary data.",
+      "Before analysis or changes, use rich_dictionary_manage to read the latest dictionary data. Use rich_dictionary_info_manage to read or maintain the Mapping knowledge base.",
       ...(dictionaryInfo?.text.trim() ? ["", "## Mapping knowledge base", dictionaryInfo.text.trim()] : []),
     ].join("\n");
     return {
       scopeKey: `dictionary:${projectId}`,
       contextVersion: createHash("sha256").update(`${projectId}:${project.metadata.updatedAt}`).digest("hex"),
-      systemInstruction: "You are working in Rich free mode for this project's data dictionary. Before analysis or changes, use rich_dictionary_manage with the supplied Project ID. Do not claim changes unless they are saved through Rich.",
+      systemInstruction: "You are working in Rich free mode for this project's data dictionary. Before analysis or changes, use rich_dictionary_manage with the supplied Project ID. Use rich_dictionary_info_manage to maintain the project Mapping knowledge base. Do not claim changes unless they are saved through Rich.",
       initialContext,
-      allowedMcpTools: ["rich_dictionary_manage", "rich_project_files_get", "rich_project_file_read"],
+      allowedMcpTools: ["rich_dictionary_manage", "rich_dictionary_info_manage", "rich_project_files_get", "rich_project_file_read"],
       workspaceRoot,
     };
   }

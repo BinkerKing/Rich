@@ -25,6 +25,7 @@ describe("DictionaryCodexContextService", () => {
     expect(context.scopeKey).toBe("dictionary:project-1");
     expect(context.allowedMcpTools).toEqual([
       "rich_dictionary_manage",
+      "rich_dictionary_info_manage",
       "rich_project_files_get",
       "rich_project_file_read"
     ]);
