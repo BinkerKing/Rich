@@ -306,6 +306,24 @@ async function applySchema(pool: Pool): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_deliverable_codex_bound
       ON deliverable_codex_conversations(scope_key) WHERE status = 'active' AND is_bound = true;
 
+    CREATE TABLE IF NOT EXISTS project_dictionary_codex_conversations (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL UNIQUE REFERENCES chat_conversations(id) ON DELETE CASCADE,
+      project_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      executor TEXT NOT NULL DEFAULT 'codex',
+      codex_thread_id TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      is_bound BOOLEAN NOT NULL DEFAULT false,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      last_active_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_project_dictionary_codex_active
+      ON project_dictionary_codex_conversations(project_id, status, last_active_at DESC);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_project_dictionary_codex_bound
+      ON project_dictionary_codex_conversations(project_id) WHERE status = 'active' AND is_bound = true;
+
     CREATE TABLE IF NOT EXISTS agent_conversation_configs (
       conversation_id     TEXT PRIMARY KEY REFERENCES chat_conversations(id) ON DELETE CASCADE,
       executor            TEXT NOT NULL DEFAULT 'hermes',
