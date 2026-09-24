@@ -11,6 +11,7 @@ import { FlowchartFloatingToolbar, FlowchartToolbarIcon } from "./FlowchartFloat
 import { ProjectRichTextEditor } from "../ProjectManagementModules.js";
 import { isNodeEditShortcut } from "../../../components/mindmap/nodeEditShortcut.js";
 import { openBoundCodex } from "../deliverables/DeliverableCodexLauncher.js";
+import { flowchartCodexPrompt } from "./flowchartCodexPrompt.js";
 import "./FlowchartsWorkspace.css";
 
 const DETAIL_PANEL_WIDTH_KEY = "rich.flowchart.node-detail-panel-width";
@@ -145,8 +146,11 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   const [nodeDetailFullscreen, setNodeDetailFullscreen] = useState(false);
   const [connectingFrom, setConnectingFrom] = useState("");
   const [quickCreate, setQuickCreate] = useState<{ source?: string; position: { x: number; y: number }; screen: { x: number; y: number } }>();
+  const [codexSelection, setCodexSelection] = useState<string[]>([]);
+  const [codexRequest, setCodexRequest] = useState("");
+  const [codexRunningNodeIds, setCodexRunningNodeIds] = useState<string[]>([]);
+  const [codexCompletedNodeIds, setCodexCompletedNodeIds] = useState<string[]>([]);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const rightClickNode = useRef<{ id: string; time: number } | null>(null);
   const undoStack = useRef<FlowchartData[]>([]);
   const redoStack = useRef<FlowchartData[]>([]);
   const clipboard = useRef<FlowSelection>();
@@ -359,6 +363,45 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
       openBoundCodex({ projectId, deliverableId: item.id, deliverableTitle: item.title, resourceType: "flowchart", conversationId: session.conversation.id });
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
+  const openCodexRefinement = (nodeIds: string[]) => {
+    if (readOnly) return;
+    if (!projectId) { setError("独立流程图尚未绑定项目，无法使用 Codex 整改。"); return; }
+    const ids = [...new Set(nodeIds)].filter(id => graph?.nodes.some(node => node.id === id));
+    if (!ids.length) return;
+    setSelected(ids[0] ?? ""); setSelectedIds(ids); setSelectedEdge(""); setEditingNode(""); setDetailNode("");
+    setCodexSelection(ids); setCodexRequest(""); setCodexCompletedNodeIds([]); setQuickCreate(undefined);
+  };
+  const refreshCodexFlowchart = async (flowchartId: string) => {
+    const next = flowchartIds
+      ? (await api.listFlowcharts()).filter(item => flowchartIds.includes(item.id)).map(item => ({ ...item, moduleKey: "flowcharts", parentId: null, subtitle: null, sortOrder: 0, content: { graph: item.graph } } as unknown as ProjectModuleItem))
+      : projectId
+      ? await api.listProjectManagementModuleItems(projectId, "flowcharts")
+      : (await api.listFlowcharts()).map(item => ({ ...item, moduleKey: "flowcharts", parentId: null, subtitle: null, sortOrder: 0, content: { graph: item.graph } } as unknown as ProjectModuleItem));
+    const item = next.find(row => row.id === flowchartId);
+    if (!item) throw new Error("Codex 已完成，但未能重新读取流程图。");
+    setItems(next); setGraph(readFlowchart(item.content)); setTitle(item.title); setDirty(false);
+  };
+  const runCodexRefinement = async () => {
+    if (!projectId || !active || !graph || !codexRequest.trim() || codexRunningNodeIds.length) return;
+    const item = items.find(row => row.id === active);
+    if (!item) return;
+    const nodeIds = [...codexSelection];
+    const content = flowchartCodexPrompt({ projectId, flowchartId: active, title: item.title, graph, selectedNodeIds: nodeIds, request: codexRequest });
+    setError(""); setCodexRunningNodeIds(nodeIds); setCodexCompletedNodeIds([]);
+    try {
+      const session = await api.ensureFlowchartCodexSession(projectId, item.id, `${item.title} · Codex`);
+      openBoundCodex({ projectId, deliverableId: item.id, deliverableTitle: item.title, resourceType: "flowchart", conversationId: session.conversation.id });
+      const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(session.conversation.id)}/stream`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content, userMessageId: crypto.randomUUID(), clientRequestId: crypto.randomUUID() }),
+      });
+      const body = await response.text();
+      if (!response.ok || body.includes("event: error")) throw new Error(`Codex 整改失败${response.ok ? "" : ` (${response.status})`}`);
+      await refreshCodexFlowchart(active);
+      setCodexCompletedNodeIds(nodeIds); setCodexSelection([]); setCodexRequest("");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+    finally { setCodexRunningNodeIds([]); }
+  };
 
   return <section className={`pfc${standalone ? " pfc--standalone" : ""}${embedded ? " pfc--embedded" : ""}`}>
     {error && <p role="alert" className="pfc-error">{error}</p>}
@@ -423,7 +466,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
           }}>{row.data.label} <small>{row.id.slice(0, 8)}</small></button>)}</div>}
         </div>}
               <div className="pfc-canvas" ref={canvasRef}>
-                <ReactFlow<FlowNode> proOptions={{ hideAttribution: true }} nodes={visibleNodes.map(row => ({ ...row, selected: selectedIds.includes(row.id), data: { ...row.data, editing: row.id === editingNode, onLabelChange: label => { update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label } } : node) }); setEditingNode(""); }, onNoteTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); }, onRegionTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); } } }))}
+                <ReactFlow<FlowNode> proOptions={{ hideAttribution: true }} nodes={visibleNodes.map(row => ({ ...row, className: codexRunningNodeIds.includes(row.id) ? "is-codex-running" : codexCompletedNodeIds.includes(row.id) ? "is-codex-complete" : "", selected: selectedIds.includes(row.id), data: { ...row.data, editing: row.id === editingNode, onLabelChange: label => { update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label } } : node) }); setEditingNode(""); }, onNoteTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); }, onRegionTextChange: text => { const [label, ...caption] = text.split(/\r?\n/); update({ ...graph, nodes: graph.nodes.map(node => node.id === row.id ? { ...node, data: { ...node.data, label: label.trim() || node.data.label, caption: caption.join("\n").trim() || undefined } } : node) }); setEditingNode(""); } } }))}
                   edges={graph.edges.filter(row => visibleNodeIds.has(row.source) && visibleNodeIds.has(row.target)).map(row => ({ ...row, style: edgeStyle(row), animated: row.data?.animated, markerEnd: row.data?.markerEnd === "none" ? undefined : { type: MarkerType.ArrowClosed } }))}
                   nodeTypes={nodeTypes} onInit={setFlow} fitView minZoom={0.1} maxZoom={2} deleteKeyCode={null} selectionOnDrag panOnDrag={false} panOnScroll panOnScrollMode={PanOnScrollMode.Free} zoomOnScroll={false} zoomOnDoubleClick={false} multiSelectionKeyCode="Meta"
                   defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed } }}
@@ -452,15 +495,10 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
               onNodeClick={(event, row) => { setSelectedIds(current => {
                 const ids = event.metaKey ? current.includes(row.id) ? current.filter(id => id !== row.id) : [...current, row.id] : [row.id];
                 setSelected(ids[0] ?? ""); return ids;
-              }); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); }} onNodeDoubleClick={(_, row) => { setSelected(row.id); setSelectedIds([row.id]); setDetailNode(row.id); }} onNodeContextMenu={(event, row) => {
+              }); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); }} onNodeDoubleClick={(_, row) => { setSelected(row.id); setSelectedIds([row.id]); setDetailNode(row.id); }} onNodeContextMenu={(event, row) => { event.preventDefault(); void openCodexRefinement(selectedIds.includes(row.id) ? selectedIds : [row.id]); }}
+              onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); setSelectedIds([]); setEditingNode(""); setDetailNode(""); }} onPaneClick={() => { setEditingNode(""); setQuickCreate(undefined); setCodexSelection([]); }} onPaneContextMenu={event => {
                 event.preventDefault();
-                const now = Date.now();
-                if (rightClickNode.current?.id === row.id && now - rightClickNode.current.time < 450) {
-                  enter(row.id); rightClickNode.current = null;
-                } else rightClickNode.current = { id: row.id, time: now };
-              }}
-              onEdgeClick={(_, row) => { setSelectedEdge(row.id); setSelected(""); setSelectedIds([]); setEditingNode(""); setDetailNode(""); }} onPaneClick={() => { setEditingNode(""); setQuickCreate(undefined); }} onPaneContextMenu={event => {
-                event.preventDefault();
+                if (selectedIds.length) { void openCodexRefinement(selectedIds); return; }
                 if (!flow || !canvasRef.current) return;
                 const rect = canvasRef.current.getBoundingClientRect();
                 setQuickCreate({ position: flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }), screen: { x: event.clientX - rect.left, y: event.clientY - rect.top } });
@@ -468,6 +506,11 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
                   <Background gap={28} size={1} color="#44444d" /><Controls />
                 </ReactFlow>
                 {quickCreate && <div className="pfc-quick-create" style={{ left: quickCreate.screen.x, top: quickCreate.screen.y }} role="dialog" aria-label="快速新建节点菜单"><strong>{quickCreate.source ? "新建并连接" : "新增节点"}</strong>{(["step", "note", "region"] as FlowNodeKind[]).map(kind => <button key={kind} type="button" onClick={() => addNode(kind, quickCreate.position, quickCreate.source)}>{({ step: "图标节点", note: "备注", region: "区域" } as Record<string, string>)[kind]}</button>)}<button type="button" onClick={() => setQuickCreate(undefined)}>取消</button></div>}
+                {codexSelection.length > 0 && !readOnly && <form className="pfc-codex-refinement" role="dialog" aria-label="Codex 节点整改" onSubmit={event => { event.preventDefault(); void runCodexRefinement(); }}>
+                  <header><div><strong>Codex 整改</strong><small>已选择 {codexSelection.length} 个节点</small></div><button type="button" aria-label="关闭 Codex 整改" onClick={() => setCodexSelection([])}>×</button></header>
+                  <textarea aria-label="Codex 整改要求" rows={3} autoFocus placeholder="例如：补全异常分支、明确责任人，并让步骤可执行。" value={codexRequest} onChange={event => setCodexRequest(event.target.value)} />
+                  <footer><span>Codex 会先读取整张流程图，再通过 MCP 保存调整。</span><button type="submit" disabled={!codexRequest.trim() || codexRunningNodeIds.length > 0}>{codexRunningNodeIds.length ? "Codex 整改中…" : "交给 Codex"}</button></footer>
+                </form>}
               </div>
               <div className="pfc-legend" aria-label="流程图图例"><span>● 处理</span><span>● 数据表</span><span>◇ 判断</span><span>— 主线</span><span>┄ 规则 / 数据关联</span></div>
               {!readOnly && selectedNodes.length > 0 && <FlowchartNodeStyleToolbar nodes={selectedNodes} onChange={editNode} onKindChange={kind => editNode({ kind })} onAlign={alignment => graph && update(alignFlowNodes(graph, selectedIds, alignment))} onDistribute={direction => graph && update(distributeFlowNodes(graph, selectedIds, direction))} onLayout={direction => graph && update(layoutFlowNodes(graph, selectedIds, direction))} onGroup={groupSelectedNodes} onToggleGroup={() => graph && selected && update(toggleFlowGroup(graph, selected))} />}

@@ -34,6 +34,17 @@ test("项目流程图的展开页可打开与当前图绑定的 Codex 对话", (
   assert.match(source, /function FlowchartListIcon[\s\S]*?<svg aria-hidden="true" width=\{18\} height=\{18\}/);
 });
 
+test("右键节点或多选区域会打开 Codex 整改输入，并在执行时标记节点状态", () => {
+  assert.match(source, /const \[codexSelection, setCodexSelection\] = useState<string\[\]>\(\[\]\)/);
+  assert.match(source, /const \[codexRunningNodeIds, setCodexRunningNodeIds\] = useState<string\[\]>\(\[\]\)/);
+  assert.match(source, /onNodeContextMenu=\{\(event, row\) => \{ event\.preventDefault\(\); void openCodexRefinement/);
+  assert.match(source, /onPaneContextMenu=\{event => \{[\s\S]*?selectedIds\.length/);
+  assert.match(source, /className: codexRunningNodeIds\.includes\(row\.id\) \? "is-codex-running"/);
+  assert.match(source, /className="pfc-codex-refinement"/);
+  assert.match(styles, /\.pfc \.react-flow__node\.is-codex-running/);
+  assert.match(styles, /@keyframes pfc-codex-flow/);
+});
+
 test("流程图变更自动同步后端，不保留本地草稿", () => {
   assert.doesNotMatch(source, /rich-flowchart-draft/);
   assert.match(source, /window\.setTimeout\(\(\) => \{ void save\(\); \}, 400\)/);
