@@ -47,6 +47,8 @@ test("项目说明编辑器提供完整的三级标题，并以不同卡片呈�
 test("有序列表将连续步骤收纳为无底色模块，并用亮白文字和轻边框维持层级", () => {
   assert.match(styles, /\.workflow-rich-content > ol,[\s\S]*?gap:\s*0[\s\S]*?padding:\s*4px 18px[\s\S]*?background:\s*transparent[\s\S]*?border:\s*2px solid rgba\(255, 255, 255, \.4\)[\s\S]*?border-radius:\s*12px/);
   assert.match(styles, /\.workflow-rich-content > ol > li,[\s\S]*?border-bottom:\s*1px solid rgba\(255, 255, 255, \.14\)[\s\S]*?color:\s*#fff[\s\S]*?font-size:\s*16px[\s\S]*?font-weight:\s*450/);
+  assert.match(styles, /\.workflow-rich-content > ol > li,[\s\S]*?padding:\s*11px 0 11px 44px/);
+  assert.match(styles, /\.workflow-rich-content > ol > li::before,[\s\S]*?top:\s*12px/);
   assert.match(styles, /\.workflow-rich-content > ol > li:last-child,[\s\S]*?border-bottom:\s*0/);
   assert.match(styles, /\.workflow-rich-content > ol > li::before,[\s\S]*?background:\s*transparent[\s\S]*?border:\s*0/);
   assert.match(styles, /\.workflow-rich-content > ol > li:nth-child\(4n \+ 2\)::before,[\s\S]*?color:\s*#ffcf78/);

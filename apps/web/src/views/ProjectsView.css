@@ -3429,7 +3429,7 @@
 .prj-pm-rich-surface > ol > li {
   position: relative;
   min-height: 30px;
-  padding: 16px 0 16px 44px;
+  padding: 11px 0 11px 44px;
   border-bottom: 1px solid rgba(255, 255, 255, .14);
   color: #fff;
   font-size: 16px;
@@ -3443,7 +3443,7 @@
 .workflow-rich-content > ol > li::before,
 .prj-pm-rich-surface > ol > li::before {
   position: absolute;
-  top: 17px;
+  top: 12px;
   left: 0;
   display: grid;
   width: 29px;
