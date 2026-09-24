@@ -34,6 +34,7 @@ import {
 import { shouldScrollFocusedFolderIntoView } from "./project-management/folderFocus.js";
 import { DELIVERABLE_FOCUS_EVENT, DELIVERABLE_ITEM_FOCUS_EVENT, storeDeliverableFocus } from "./project-management/deliverables/DeliverablesModel.js";
 import { FlowchartsWorkspace } from "./project-management/flowcharts/FlowchartsWorkspace.js";
+import { closeDeliverableCodex } from "./project-management/deliverables/DeliverableCodexLauncher.js";
 
 interface Props { projectId: string }
 type ProjectMenuIconName = ProjectManagementSection | "globalSearch";
@@ -91,6 +92,9 @@ export function ProjectWorkspace({ projectId }: Props): ReactNode {
   const searchButtonRef = useRef<HTMLButtonElement | null>(null);
   const menuSettingsButtonRef = useRef<HTMLButtonElement | null>(null);
   const menuSettingsPanelRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    closeDeliverableCodex();
+  }, [projectId]);
   const selectSection = useCallback((next: ProjectManagementSection) => {
     setSection(next);
     saveProjectManagementWorkspaceSection(projectId, next);

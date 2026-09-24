@@ -11,6 +11,11 @@ const environments = readFileSync(new URL("./project-management/sections/Environ
 const deployment = readFileSync(new URL("./project-management/sections/DeploymentStepsSection.tsx", import.meta.url), "utf8");
 const projectManagementStyles = readFileSync(new URL("./project-management/ProjectManagementLinear.css", import.meta.url), "utf8");
 
+test("进入或切换项目时关闭遗留的资源 Codex 对话", () => {
+  assert.match(workspace, /import \{ closeDeliverableCodex \} from "\.\/project-management\/deliverables\/DeliverableCodexLauncher\.js";/);
+  assert.match(workspace, /useEffect\(\(\) => \{\s*closeDeliverableCodex\(\);\s*\}, \[projectId\]\);/);
+});
+
 test("项目菜单设置按钮与标题行保持紧凑一致", () => {
   assert.match(
     styles,
