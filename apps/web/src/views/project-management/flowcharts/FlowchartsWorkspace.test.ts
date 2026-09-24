@@ -54,3 +54,11 @@ test("流程节点按类型和稳定调色板使用不同的高亮边框", () =>
   assert.match(styles, /border: 2px solid color-mix\(in srgb,var\(--node-accent\) 82%,#4b5158\)/);
   assert.match(styles, /\.pfc-node\.is-table \{ --node-accent: #70e6ba; \}/);
 });
+
+test("节点详情标题沿用节点颜色，并提高标题层级", () => {
+  assert.match(source, /function nodeDetailTitleColor\(node\?: FlowNode\): string/);
+  assert.match(source, /if \(node\.data\.color\) return node\.data\.color/);
+  assert.match(source, /return nodeAccent\(node\.id, node\.data\)/);
+  assert.match(source, /<h2 style=\{\{ color: nodeDetailTitleColor\(detail\) \}\}>\{detail\?\.data\.label\}<\/h2>/);
+  assert.match(styles, /\.pfc-node-detail h2 \{[^}]*font-size:24px[^}]*font-weight:800/s);
+});

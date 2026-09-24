@@ -56,6 +56,14 @@ function nodeAccent(id: string, data: FlowNode["data"]): string {
   }
   return palette[hash % palette.length]!;
 }
+function nodeDetailTitleColor(node?: FlowNode): string {
+  if (!node) return "#f4f4f5";
+  if (node.data.color) return node.data.color;
+  if (node.data.kind === "region" || node.data.kind === "note") {
+    return node.data.tone === "cyan" ? "#72c7ef" : node.data.tone === "mint" ? "#74ddbc" : "#ecc680";
+  }
+  return nodeAccent(node.id, node.data);
+}
 function NodeLabel({ data }: { data: FlowNode["data"] }) {
   if (!data.editing) return <strong>{data.label}</strong>;
   return <strong className="pfc-node-label-editor nodrag nopan" aria-label="编辑节点文字" contentEditable suppressContentEditableWarning autoFocus
@@ -481,7 +489,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
               </FlowchartFloatingToolbar>}
           {detailNode && <aside className={`pfc-details pfc-node-detail${nodeDetailFullscreen ? " is-fullscreen" : ""}`} aria-label="节点详情" style={nodeDetailFullscreen ? undefined : { width: nodeDetailWidth }}>
             <div className="pfc-node-detail__resize-handle" role="separator" aria-label="调整节点详情宽度" aria-orientation="vertical" onPointerDown={resizeNodeDetail} />
-            <header><h2>{detail?.data.label}</h2><div className="pfc-node-detail__header-actions"><button type="button" aria-label={nodeDetailFullscreen ? "还原节点详情" : "全屏显示节点详情"} title={nodeDetailFullscreen ? "还原" : "全屏"} onClick={() => setNodeDetailFullscreen(fullscreen => !fullscreen)}>{nodeDetailFullscreen ? "↙" : "⛶"}</button><button type="button" aria-label="关闭节点详情" onClick={() => setDetailNode("")}>×</button></div></header>
+            <header><h2 style={{ color: nodeDetailTitleColor(detail) }}>{detail?.data.label}</h2><div className="pfc-node-detail__header-actions"><button type="button" aria-label={nodeDetailFullscreen ? "还原节点详情" : "全屏显示节点详情"} title={nodeDetailFullscreen ? "还原" : "全屏"} onClick={() => setNodeDetailFullscreen(fullscreen => !fullscreen)}>{nodeDetailFullscreen ? "↙" : "⛶"}</button><button type="button" aria-label="关闭节点详情" onClick={() => setDetailNode("")}>×</button></div></header>
             {detail && <div className="pfc-node-detail__body"><ProjectRichTextEditor projectId={`flowchart-${active}-${detail.id}`} value={detail.data.description || ""} onChange={description => {
               update({ ...graph, nodes: graph.nodes.map(row => row.id === detail.id ? { ...row, data: { ...row.data, description } } : row) });
             }} /></div>}
