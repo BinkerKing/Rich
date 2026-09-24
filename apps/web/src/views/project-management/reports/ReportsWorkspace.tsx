@@ -31,6 +31,10 @@ function ReportActionIcon() {
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v5h5M9 13h6M9 17h6" /></svg>;
 }
 
+function ReportHeaderActionIcon({ kind }: { kind: "report" | "chat" }) {
+  return kind === "report" ? <ReportActionIcon /> : <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 18.5 4 21l4-1.5H18a3 3 0 0 0 3-3v-9a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v7" /></svg>;
+}
+
 function ReportDetailActionIcon({ kind }: { kind: "preview" | "edit" | "save" }) {
   if (kind === "preview") return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></svg>;
   if (kind === "edit") return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m4 20 4.2-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z" /><path d="m13.7 7.5 3 3" /></svg>;
@@ -157,7 +161,7 @@ export function ReportsWorkspace({ projectId }: { projectId: string }) {
   return <section className="reports-workspace">
     <header className="reports-workspace__header">
       <div className="prj-pm-workspace-head__identity"><ReportActionIcon /><div><h1>报告中心</h1><p>日报、周报、月报与会议纪要，统一沉淀为可阅读、可追溯的项目记录。</p></div></div>
-      <div className="reports-workspace__header-actions"><button className="reports-workspace__create" type="button" onClick={() => void createReport()} disabled={busy}><ReportActionIcon /><span>新建报告</span></button><button className="reports-workspace__create" aria-label="Codex 对话" title="Codex 对话" type="button" onClick={() => void openCodexConversation()} disabled={busy}>◌<span>Codex</span></button></div>
+      <div className="reports-workspace__header-actions"><button className="reports-workspace__create" aria-label="新建报告" title="新建报告" type="button" onClick={() => void createReport()} disabled={busy}><ReportHeaderActionIcon kind="report" /></button><button className="reports-workspace__create" aria-label="Codex 对话" title="Codex 对话" type="button" onClick={() => void openCodexConversation()} disabled={busy}><ReportHeaderActionIcon kind="chat" /></button></div>
     </header>
     {error && <p className="reports-workspace__error">{error}</p>}
     <div className="reports-workspace__layout">

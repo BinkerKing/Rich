@@ -142,6 +142,22 @@ describe("deliverable Codex routes", () => {
     expect(await response.json()).toMatchObject({ created: true, context: "交付物汇总基线", conversation: { isBound: true, projectId: "p1", deliverableId: "d1" } });
   });
 
+  it("routes the report-center binding to report context instead of the generic deliverable route", async () => {
+    const builds: Array<Record<string, unknown>> = [];
+    const app = deliverableCodexRoutes({
+      conversations: { async getBound() { return null; }, async create() {}, async bind() { return { id: "report-1", conversationId: "chat-1", isBound: true } as never; } } as never,
+      chats: { async ensureConversation() {} } as never,
+      context: { async build(input) { builds.push(input); return { scopeKey: `report:${input.projectId}:report-center`, contextVersion: "ctx-v1", initialContext: "报告中心基线", allowedMcpTools: ["rich_report_manage"] }; } } as never,
+      agents: { async start() { return { config: {} as never, resumed: false }; } } as never,
+      attachments: null, prompts: {} as never,
+    });
+
+    const response = await app.request("/reports/project-1/conversations/ensure-bound", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "报告中心 · Codex" }) });
+
+    expect(response.status).toBe(201);
+    expect(builds).toEqual([expect.objectContaining({ projectId: "project-1", deliverableId: "report-center", resourceType: "report" })]);
+  });
+
   it("archives the bound session when its deliverable is completed", async () => {
     const exited: string[] = [];
     const app = deliverableCodexRoutes({

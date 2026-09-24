@@ -11681,7 +11681,8 @@
 .prj-ws .reports-workspace__header > button { padding:6px 9px; font-size:11px; }
 .prj-ws .reports-workspace__header > .reports-workspace__create { display:flex; align-items:center; min-height:28px; gap:6px; padding:6px 9px; border:1px solid #515151; border-radius:6px; color:#e5e7eb; background:#303030; box-shadow:none; font-size:11px; font-weight:600; }
 .prj-ws .reports-workspace__header-actions { display:flex; align-items:center; gap:6px; }
-.prj-ws .reports-workspace__header-actions .reports-workspace__create { display:flex; align-items:center; min-height:28px; gap:6px; padding:6px 9px; border:1px solid #515151; border-radius:6px; color:#e5e7eb; background:#303030; box-shadow:none; font-size:11px; font-weight:600; }
+.prj-ws .reports-workspace__header-actions .reports-workspace__create { display:grid; width:30px; height:30px; box-sizing:border-box; place-items:center; padding:0; border:1px solid #515151; border-radius:6px; color:#d7dde1; background:#303030; box-shadow:none; }
+.prj-ws .reports-workspace__header-actions .reports-workspace__create svg { width:17px; height:17px; stroke-width:2.2; }
 .prj-ws .reports-workspace__header > .reports-workspace__create svg { width:13px; height:13px; stroke-width:2; }
 .prj-ws .reports-workspace__header > .reports-workspace__create:hover:not(:disabled) { border-color:#777; color:#fff; background:#3a3a3a; }
 .prj-ws .reports-workspace__layout { min-height:calc(100% - 58px); margin-top:8px; gap:12px; }
