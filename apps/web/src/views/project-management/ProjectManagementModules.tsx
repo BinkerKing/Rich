@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import { Code } from "@tiptap/extension-code";
 import Underline from "@tiptap/extension-underline";
 import { Color } from "@tiptap/extension-color";
 import { FontFamily } from "@tiptap/extension-font-family";
@@ -579,6 +580,11 @@ const TiptapTextStyle = TextStyle.extend({
   },
 });
 
+// Inline code is used for method and field names in project documentation. The
+// stock code mark excludes every other mark, which made its colour, font and
+// size impossible to edit alongside surrounding Chinese text.
+const RichInlineCode = Code.extend({ excludes: "" });
+
 export function ProjectRichTextEditor({
   value,
   projectId,
@@ -606,7 +612,7 @@ export function ProjectRichTextEditor({
     setVisibleToolbarItems(count => Math.max(1, count - 1));
   }, [toolbarWidth, visibleToolbarItems]);
   const editor = useEditor({
-    extensions: [StarterKit.configure({ heading: { levels: [1, 2, 3] } }), Underline, TiptapTextStyle, Color, FontFamily, Highlight.configure({ multicolor: true }), TextAlign.configure({ types: ["heading", "paragraph"] }), Image.configure({ allowBase64: false }), Table.configure({ resizable: true }), TableRow, TableHeader, TableCell],
+    extensions: [StarterKit.configure({ heading: { levels: [1, 2, 3] }, code: false }), RichInlineCode, Underline, TiptapTextStyle, Color, FontFamily, Highlight.configure({ multicolor: true }), TextAlign.configure({ types: ["heading", "paragraph"] }), Image.configure({ allowBase64: false }), Table.configure({ resizable: true }), TableRow, TableHeader, TableCell],
     content: value || "",
     editorProps: { attributes: { class: "prj-pm-rich-surface workflow-rich-content" } },
     onUpdate: ({ editor: nextEditor }) => {

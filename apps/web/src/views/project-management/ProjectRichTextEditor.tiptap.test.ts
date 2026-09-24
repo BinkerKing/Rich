@@ -8,6 +8,10 @@ const styles = readFileSync(new URL("../ProjectsView.css", import.meta.url), "ut
 test("通用富文本编辑器使用 Tiptap，并保留 HTML 回调和图片上传接口", () => {
   assert.match(modules, /from "@tiptap\/react"/);
   assert.match(modules, /StarterKit/);
+  assert.match(modules, /import \{ Code \} from "@tiptap\/extension-code"/);
+  assert.match(modules, /const RichInlineCode = Code\.extend\(\{ excludes: "" \}\)/);
+  assert.match(modules, /StarterKit\.configure\(\{ heading: \{ levels: \[1, 2, 3\] \}, code: false \}\)/);
+  assert.match(modules, /StarterKit\.configure[\s\S]*?RichInlineCode/);
   assert.match(modules, /TextStyle/);
   assert.match(modules, /Color/);
   assert.match(modules, /Highlight/);
