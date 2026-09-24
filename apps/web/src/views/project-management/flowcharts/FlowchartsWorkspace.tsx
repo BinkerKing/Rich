@@ -392,7 +392,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   const openCodexConversation = async (item: ProjectModuleItem) => {
     if (!projectId) { setError("独立流程图尚未绑定项目，无法创建 Codex 对话。"); return; }
     try {
-      const session = await api.ensureFlowchartCodexSession(projectId, item.id, `${item.title} · Codex`);
+      const session = await api.ensureFlowchartCodexSession(projectId, item.id, `[流程图] ${item.title} · Codex`);
       openBoundCodex({ projectId, deliverableId: item.id, deliverableTitle: item.title, resourceType: "flowchart", conversationId: session.conversation.id });
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
@@ -441,7 +441,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     const request = codexRequest;
     setError(""); setCodexDrafts(current => Object.fromEntries(Object.entries(current).filter(([key]) => key !== draftKey))); setCodexRunningNodeIds(nodeIds); setCodexChartRunning(wholeChart); setCodexCompletedNodeIds([]); setCodexSelection([]); setCodexWholeChart(false); setCodexRequest(""); setCodexAnchor(undefined);
     try {
-      const session = await api.ensureFlowchartCodexSession(projectId, item.id, `${item.title} · Codex`);
+      const session = await api.ensureFlowchartCodexSession(projectId, item.id, `[流程图] ${item.title} · Codex`);
       const content = flowchartCodexPrompt({ projectId, flowchartId: active, title: item.title, selectedNodeIds: nodeIds, request });
       const response = await fetch(`/api/deliverable-codex/conversations/${encodeURIComponent(session.conversation.id)}/stream`, {
         method: "POST", headers: { "content-type": "application/json" },

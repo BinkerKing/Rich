@@ -26,6 +26,7 @@ describe("DeliverableCodexWorkbench", () => {
     const source = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
     expect(source).toContain("function displayConversationTitle");
     expect(source).toContain('resourceType === "mindmap" ? "[思维导图]"');
+    expect(source).toContain('resourceType === "flowchart" ? "[流程图]"');
     expect(source).toContain('resourceType === "deliverable" ? "[交付物]"');
     expect(source).toContain("displayConversationTitle(conversation, resourceType)");
     expect(source).toContain("displayConversationTitle(active, resourceType)");
