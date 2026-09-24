@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DeliverableCodexContextService } from "./DeliverableCodexContextService.js";
 
 describe("DeliverableCodexContextService flowchart context", () => {
-  it("uses an isolated scope and summarizes the bound project flowchart", async () => {
+  it("uses an isolated scope and directs Codex to read the graph through MCP", async () => {
     const service = new DeliverableCodexContextService(
       { createSnapshot: async () => { throw new Error("deliverable snapshot must not be read"); } },
       { get: async () => ({ id: "project-1", type: "project", title: "示例项目", content: {}, metadata: { createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", generatedBy: "user" as const, richness: 1 as const } }) },
@@ -17,8 +17,9 @@ describe("DeliverableCodexContextService flowchart context", () => {
 
     expect(context.scopeKey).toBe("flowchart:project-1:flowchart-1");
     expect(context.initialContext).toContain("订单处理");
-    expect(context.initialContext).toContain("接收订单");
-    expect(context.initialContext).toContain("接收订单 → 库存校验");
+    expect(context.initialContext).not.toContain("接收订单");
+    expect(context.initialContext).not.toContain("库存校验");
+    expect(context.initialContext).toContain("rich_flowchart_manage(action: get)");
     expect(context.allowedMcpTools).toContain("rich_flowchart_manage");
     expect(context.systemInstruction).toContain("rich_flowchart_manage");
   });
@@ -36,6 +37,6 @@ describe("DeliverableCodexContextService flowchart context", () => {
 
     expect(context.scopeKey).toBe("flowchart:project-1:standalone-flowchart");
     expect(context.initialContext).toContain("旧版流程图");
-    expect(context.initialContext).toContain("开始");
+    expect(context.initialContext).not.toContain("开始");
   });
 });

@@ -125,20 +125,12 @@ function stringValue(value: unknown): string | undefined {
 
 function flowchartContextText(projectId: string, flowchartId: string, item: ProjectModuleItem): string {
   const graph = graphValue(item);
-  const nodes = Array.isArray(graph.nodes) ? graph.nodes.flatMap(node => object(node) && typeof node.id === "string" && object(node.data)
-    ? [{ id: node.id, label: stringValue(node.data.label) ?? node.id, kind: stringValue(node.data.kind) ?? "node", description: stringValue(node.data.description) }]
-    : []) : [];
-  const names = new Map(nodes.map(node => [node.id, node.label]));
-  const edges = Array.isArray(graph.edges) ? graph.edges.flatMap(edge => object(edge) && typeof edge.source === "string" && typeof edge.target === "string"
-    ? [`- ${names.get(edge.source) ?? edge.source} → ${names.get(edge.target) ?? edge.target}${stringValue(edge.label) ? `（${stringValue(edge.label)}）` : ""}`]
-    : []) : [];
   return [
     "## Rich flowchart context",
     `- Project ID: ${projectId}`,
     `- Flowchart ID: ${flowchartId}`,
     "", "## Flowchart", `- Title: ${item.title}`, `- Status: ${stringValue(graph.status) ?? "draft"}`,
-    "", "## Nodes", ...(nodes.slice(0, 80).map(node => `- [${node.kind}] ${node.label}${node.description ? `: ${plainText(node.description)}` : ""}`) || ["- None"]),
-    "", "## Connections", ...(edges.slice(0, 120).length ? edges.slice(0, 120) : ["- None"]),
+    "", "需要节点、连线或节点详情时，先调用 rich_flowchart_manage(action: get) 获取最新数据。",
   ].join("\n");
 }
 
@@ -176,8 +168,8 @@ export class DeliverableCodexContextService {
         scopeKey: `flowchart:${input.projectId}:${input.deliverableId}`,
         contextVersion: createHash("sha256").update(JSON.stringify(item)).digest("hex"),
         systemInstruction: input.mode === "task"
-          ? "You are working in Rich task mode for this project flowchart. Do not change the flowchart unless the user explicitly asks. When asked to change it, use rich_flowchart_manage with the Project ID and Flowchart ID in the supplied context."
-          : "You are working in Rich free mode for this project flowchart. Use its nodes and connections as the current discussion context. Do not claim that you changed the flowchart unless the user explicitly asks and the change is saved through Rich. When asked to change it, use rich_flowchart_manage with the Project ID and Flowchart ID in the supplied context.",
+          ? "You are working in Rich task mode for this project flowchart. Do not change the flowchart unless the user explicitly asks. Before analysis or changes, call rich_flowchart_manage(action: get) with the Project ID and Flowchart ID in the supplied context."
+          : "You are working in Rich free mode for this project flowchart. Before analysis or changes, call rich_flowchart_manage(action: get) with the Project ID and Flowchart ID in the supplied context. Do not claim that you changed the flowchart unless the user explicitly asks and the change is saved through Rich.",
         initialContext,
         allowedMcpTools: ["rich_flowchart_manage", "rich_project_files_get", "rich_project_file_read"],
         workspaceRoot,
