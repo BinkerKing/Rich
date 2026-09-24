@@ -10,6 +10,14 @@ test("新建报告使用项目工作区统一的紧凑描边操作按钮", () =>
   assert.match(styles, /\.reports-workspace__create\s*\{[^}]*min-height:28px[^}]*border:1px solid #515151[^}]*background:#303030/s);
 });
 
+test("报告中心在新建报告旁打开与项目绑定的 Codex 会话", () => {
+  assert.match(source, /import \{ openBoundCodex \} from "\.\.\/deliverables\/DeliverableCodexLauncher\.js";/);
+  assert.match(source, /const openCodexConversation = async \(\) => \{/);
+  assert.match(source, /api\.ensureReportCenterCodexSession\(projectId, "报告中心 · Codex"\)/);
+  assert.match(source, /resourceType: "report"/);
+  assert.match(source, /aria-label="Codex 对话" title="Codex 对话"/);
+});
+
 test("日报工作台可在摘要和富文本报告之间切换", () => {
   assert.match(source, /const \[showReport, setShowReport\] = useState\(false\)/);
   assert.match(source, /setShowReport\(false\);/);

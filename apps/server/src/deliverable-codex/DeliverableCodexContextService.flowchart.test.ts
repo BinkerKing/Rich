@@ -40,3 +40,19 @@ describe("DeliverableCodexContextService flowchart context", () => {
     expect(context.initialContext).not.toContain("开始");
   });
 });
+
+describe("DeliverableCodexContextService report context", () => {
+  it("binds the report center to a project-scoped report MCP", async () => {
+    const service = new DeliverableCodexContextService(
+      { createSnapshot: async () => { throw new Error("deliverable snapshot must not be read"); } },
+      { get: async () => ({ id: "project-1", type: "project", title: "示例项目", content: {}, metadata: { createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", generatedBy: "user" as const, richness: 1 as const } }) },
+    );
+
+    const context = await service.build({ projectId: "project-1", deliverableId: "report-center", resourceType: "report", mode: "free" });
+
+    expect(context.scopeKey).toBe("report:project-1:report-center");
+    expect(context.initialContext).toContain("示例项目");
+    expect(context.initialContext).toContain("rich_report_manage");
+    expect(context.allowedMcpTools).toEqual(["rich_report_manage"]);
+  });
+});

@@ -112,6 +112,14 @@ function makeHarness(options: { persistWrites?: boolean } = {}) {
 }
 
 describe("MCP 2.0 safe resource writes", () => {
+  it("writes a report and exposes project activity in the report center context", async () => {
+    const { registry, projectItems } = makeHarness();
+    projectItems.set("delivery-1", { id: "delivery-1", projectId: "project-rich", moduleKey: "deliveryPlan", title: "数据迁移", sortOrder: 0, content: { activities: [{ kind: "record", text: "完成映射", createdAt: "2026-09-24T09:00:00.000Z" }] }, createdAt: "2026-09-24T09:00:00.000Z", updatedAt: "2026-09-24T09:00:00.000Z" });
+    const created = await registry.invoke("rich_report_manage", { action: "create", projectId: "project-rich", report: { type: "daily", date: "2026-09-24", title: "项目日报", tomorrowPlan: ["回归测试"] }, context: { requestId: "create-report-1" } });
+    expect(created).toMatchObject({ ok: true, verification: { status: "verified" } });
+    const context = await registry.invoke("rich_report_manage", { action: "context", projectId: "project-rich", date: "2026-09-24" });
+    expect(context).toMatchObject({ ok: true, data: { todayActivities: [{ taskId: "delivery-1", text: "完成映射" }], tomorrowPlan: ["回归测试"] } });
+  });
   it("previews a create without writing or requiring a request id", async () => {
     const { registry, elementMap, put } = makeHarness();
     const response = await registry.invoke("rich_knowledge_manage", {

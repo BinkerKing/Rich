@@ -268,6 +268,12 @@ export const api = {
     if (!r.ok || !payload.conversation) throw new Error(payload.error ?? `ensureFlowchartCodexSession ${r.status}`);
     return { conversation: payload.conversation, created: Boolean(payload.created), context: payload.context };
   },
+  async ensureReportCenterCodexSession(projectId: string, title: string): Promise<{ conversation: { id: string; conversationId: string; isBound?: boolean }; created: boolean; context?: string }> {
+    const r = await fetch(`/api/deliverable-codex/reports/${encodeURIComponent(projectId)}/conversations/ensure-bound`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title }) });
+    const payload = await r.json().catch(() => ({})) as { error?: string; conversation?: { id: string; conversationId: string; isBound?: boolean }; created?: boolean; context?: string };
+    if (!r.ok || !payload.conversation) throw new Error(payload.error ?? `ensureReportCenterCodexSession ${r.status}`);
+    return { conversation: payload.conversation, created: Boolean(payload.created), context: payload.context };
+  },
   async ensureProjectDictionaryCodexSession(projectId: string): Promise<{ conversation: { id: string; conversationId: string; isBound?: boolean }; created: boolean; context?: string }> {
     const r = await fetch(`/api/project-dictionary-codex/${encodeURIComponent(projectId)}/conversations/ensure-bound`, { method: "POST" });
     const payload = await r.json().catch(() => ({})) as { error?: string; conversation?: { id: string; conversationId: string; isBound?: boolean }; created?: boolean; context?: string };

@@ -8,6 +8,7 @@ import { registerContextTools } from "./resources/contextTools.js";
 import { registerKnowledgeTools } from "./resources/knowledgeTools.js";
 import { registerProjectTools } from "./resources/projectTools.js";
 import { registerFlowchartTools } from "./resources/flowchartTools.js";
+import { registerReportTools } from "./resources/reportTools.js";
 import { registerDictionaryTools } from "./resources/dictionaryTools.js";
 import { registerPlanningTools } from "./resources/planningTools.js";
 import { registerPracticeResourceTools } from "./resources/practiceTools.js";
@@ -35,6 +36,7 @@ export function registerResourceTools(registry: RichToolRegistry, deps: Resource
   registerPracticeResourceTools(registry, deps.elements, deps.operationRepo);
   registerProjectTools(registry, deps.projectManagement, deps.operationRepo);
   registerFlowchartTools(registry, { projects: deps.projectManagement, elements: deps.elements, flowcharts: deps.flowcharts }, deps.operationRepo);
+  registerReportTools(registry, deps.projectManagement, deps.operationRepo);
   if (deps.greatMe) registerPlanningTools(registry, deps.greatMe, deps.operationRepo);
   if (deps.projectAutomation) registerAutomationTools(registry, deps.projectAutomation, deps.operationRepo);
   if (deps.testCenter) registerTestCenterTools(registry, deps.testCenter, deps.operationRepo);

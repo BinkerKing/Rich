@@ -84,6 +84,7 @@ describe("MCP 2.0 read resource tools", () => {
       "rich_knowledge_manage",
       "rich_practice_manage",
       "rich_project_manage",
+      "rich_report_manage",
       "rich_startup_project_manual",
     ]);
   });

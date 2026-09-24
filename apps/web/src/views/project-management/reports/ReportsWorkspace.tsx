@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, type ProjectModuleItem } from "../../../api/client.js";
 import { calendarDays, shiftCalendarMonth } from "./reportsCalendar.js";
 import { ProjectRichTextEditor } from "../ProjectManagementModules.js";
+import { openBoundCodex } from "../deliverables/DeliverableCodexLauncher.js";
 
 type ReportType = "daily" | "weekly" | "monthly" | "meeting";
 type DeliveryActivityKind = "record" | "todo" | "deliverable" | "risk" | "reminder" | "end";
@@ -122,6 +123,14 @@ export function ReportsWorkspace({ projectId }: { projectId: string }) {
     } catch (errorValue) { setError(`新建失败：${String(errorValue)}`); } finally { setBusy(false); }
   };
 
+  const openCodexConversation = async () => {
+    setBusy(true); setError(null);
+    try {
+      const session = await api.ensureReportCenterCodexSession(projectId, "报告中心 · Codex");
+      openBoundCodex({ projectId, deliverableId: "report-center", deliverableTitle: "报告中心", resourceType: "report", conversationId: session.conversation.id });
+    } catch (errorValue) { setError(`打开 Codex 失败：${String(errorValue)}`); } finally { setBusy(false); }
+  };
+
   const saveReport = async () => {
     if (!openId) return;
     setBusy(true); setError(null);
@@ -148,7 +157,7 @@ export function ReportsWorkspace({ projectId }: { projectId: string }) {
   return <section className="reports-workspace">
     <header className="reports-workspace__header">
       <div className="prj-pm-workspace-head__identity"><ReportActionIcon /><div><h1>报告中心</h1><p>日报、周报、月报与会议纪要，统一沉淀为可阅读、可追溯的项目记录。</p></div></div>
-      <button className="reports-workspace__create" type="button" onClick={() => void createReport()} disabled={busy}><ReportActionIcon /><span>新建报告</span></button>
+      <div className="reports-workspace__header-actions"><button className="reports-workspace__create" type="button" onClick={() => void createReport()} disabled={busy}><ReportActionIcon /><span>新建报告</span></button><button className="reports-workspace__create" aria-label="Codex 对话" title="Codex 对话" type="button" onClick={() => void openCodexConversation()} disabled={busy}>◌<span>Codex</span></button></div>
     </header>
     {error && <p className="reports-workspace__error">{error}</p>}
     <div className="reports-workspace__layout">

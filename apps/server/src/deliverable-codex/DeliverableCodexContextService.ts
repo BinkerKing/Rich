@@ -11,7 +11,7 @@ import type { FlowchartsRepo } from "../repos/FlowchartsRepo.js";
 import { GENERAL_CODEX_SCOPE } from "../task-workbench/instructions.js";
 
 type DeliverableContextMode = DeliverableCodexMode | "task" | "bug";
-export type CodexResourceType = "deliverable" | "flowchart";
+export type CodexResourceType = "deliverable" | "flowchart" | "report";
 
 export interface DeliverableCodexContext {
   scopeKey: string;
@@ -134,6 +134,10 @@ function flowchartContextText(projectId: string, flowchartId: string, item: Proj
   ].join("\n");
 }
 
+function reportContextText(projectId: string, projectTitle: string): string {
+  return ["## Rich report center context", `- Project ID: ${projectId}`, `- Project: ${projectTitle}`, "", "使用 rich_report_manage(action: context) 查询项目计划、今日活动、明日计划和既有报告。用户要求创建或维护报告时，必须通过 rich_report_manage 写入。"].join("\n");
+}
+
 export class DeliverableCodexContextService {
   constructor(
     private readonly taskContext: Pick<DeliverableTaskContextService, "createSnapshot">,
@@ -160,6 +164,11 @@ export class DeliverableCodexContextService {
     }
     const project = await this.elements.get(input.projectId);
     const workspaceRoot = await projectWorkspaceRoot(project);
+    if (input.resourceType === "report") {
+      if (!project || project.type !== "project") throw new Error("项目不存在。");
+      const initialContext = reportContextText(input.projectId, project.title);
+      return { scopeKey: `report:${input.projectId}:${input.deliverableId}`, contextVersion: createHash("sha256").update(JSON.stringify(project)).digest("hex"), systemInstruction: "You are working in Rich report center. First call rich_report_manage(action: context) before drafting. When the user asks to create or maintain a report, you MUST save it through rich_report_manage.", initialContext, allowedMcpTools: ["rich_report_manage"], workspaceRoot };
+    }
     if (input.resourceType === "flowchart") {
       const item = await this.findFlowchart(input.projectId, input.deliverableId);
       if (!item) throw new Error("项目流程图不存在或不属于当前项目。");
@@ -209,6 +218,10 @@ export class DeliverableCodexContextService {
   }
 
   async buildIncrementalContext(input: { projectId: string; deliverableId: string; resourceType?: CodexResourceType; since: string }): Promise<string | undefined> {
+    if (input.resourceType === "report") {
+      const project = await this.elements.get(input.projectId);
+      return project?.metadata.updatedAt && project.metadata.updatedAt > input.since ? reportContextText(input.projectId, project.title) : undefined;
+    }
     if (input.resourceType === "flowchart") {
       const item = await this.findFlowchart(input.projectId, input.deliverableId);
       if (!item) throw new Error("项目流程图不存在或不属于当前项目。");

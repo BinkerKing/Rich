@@ -40,7 +40,7 @@ export function deliverableCodexRoutes(deps: {
 }): Hono {
   const r = new Hono();
   const scopeKey = (resourceType: CodexResourceType, projectId: string, deliverableId: string) => `${resourceType}:${projectId}:${deliverableId}`;
-  const resourceTypeFor = (conversation: { scopeKey: string }): CodexResourceType => conversation.scopeKey.startsWith("flowchart:") ? "flowchart" : "deliverable";
+  const resourceTypeFor = (conversation: { scopeKey: string }): CodexResourceType => conversation.scopeKey.startsWith("flowchart:") ? "flowchart" : conversation.scopeKey.startsWith("report:") ? "report" : "deliverable";
   const buildContext = (conversation: { projectId: string; deliverableId: string; scopeKey: string }, mode: "free" | "task") => deps.context.build({ projectId: conversation.projectId, deliverableId: conversation.deliverableId, resourceType: resourceTypeFor(conversation), mode });
   const buildIncrementalContext = (conversation: { projectId: string; deliverableId: string; scopeKey: string }, since: string) => deps.context.buildIncrementalContext({ projectId: conversation.projectId, deliverableId: conversation.deliverableId, resourceType: resourceTypeFor(conversation), since });
   const createBoundConversation = async (projectId: string, deliverableId: string, title: string, resourceType: CodexResourceType = "deliverable") => {
@@ -65,6 +65,7 @@ export function deliverableCodexRoutes(deps: {
   r.get("/flowcharts/:projectId/:flowchartId/conversations", async c => {
     return c.json({ conversations: await deps.conversations.listActive(scopeKey("flowchart", c.req.param("projectId"), c.req.param("flowchartId"))) });
   });
+  r.get("/reports/:projectId/conversations", async c => c.json({ conversations: await deps.conversations.listActive(scopeKey("report", c.req.param("projectId"), "report-center")) }));
 
   r.post("/:projectId/:deliverableId/conversations/ensure-bound", async c => {
     const body = await c.req.json().catch(() => null) as { title?: unknown } | null;
@@ -127,6 +128,20 @@ export function deliverableCodexRoutes(deps: {
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
+  });
+
+  r.post("/reports/:projectId/conversations/ensure-bound", async c => {
+    const body = await c.req.json().catch(() => null) as { title?: unknown } | null;
+    const title = typeof body?.title === "string" ? body.title.trim() : "";
+    if (!title) return c.json({ error: "title is required" }, 400);
+    const projectId = c.req.param("projectId"); const reportCenterId = "report-center";
+    const existing = await deps.conversations.getBound(scopeKey("report", projectId, reportCenterId));
+    if (existing) {
+      const context = existing.lastContextSyncAt ? await buildIncrementalContext(existing, existing.lastContextSyncAt) : (await buildContext(existing, "free")).initialContext;
+      return c.json({ conversation: existing, created: false, ...(context ? { context } : {}) });
+    }
+    try { return c.json({ ...await createBoundConversation(projectId, reportCenterId, title, "report"), created: true }, 201); }
+    catch (error) { return c.json({ error: error instanceof Error ? error.message : String(error) }, 400); }
   });
 
   r.post("/flowcharts/:projectId/:flowchartId/conversations", async c => {
