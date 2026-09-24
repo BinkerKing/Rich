@@ -100,6 +100,9 @@ function MainApp() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+  useEffect(() => {
+    closeDeliverableCodex();
+  }, [appView]);
   useEffect(() => { void hydrate(); }, [hydrate]);
   // Subscribe to backend SSE so Hermes-driven (or any server-side) writes
   // re-hydrate the UI within ~500ms. Closed on unmount.

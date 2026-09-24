@@ -12,6 +12,11 @@ test("Cmd/Ctrl+Enter dispatches the current-resource Codex request outside edita
   assert.match(app, /requestCurrentCodexOpen\(\)/);
 });
 
+test("切换全局视图时不会保留上一页面的 Codex 对话", () => {
+  const app = source("apps/web/src/App.tsx");
+  assert.match(app, /useEffect\(\(\) => \{\s*closeDeliverableCodex\(\);\s*\}, \[appView\]\);/);
+});
+
 test("resource workspaces register the current Codex Session shortcut", () => {
   for (const path of [
     "apps/web/src/views/DeepWorkbenchView.tsx",
