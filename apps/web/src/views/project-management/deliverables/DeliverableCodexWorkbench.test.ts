@@ -11,7 +11,6 @@ describe("DeliverableCodexWorkbench", () => {
     const source = readFileSync(new URL("./DeliverableCodexWorkbench.tsx", import.meta.url), "utf8");
     const css = readFileSync(new URL("./DeliverableCodexWorkbench.css", import.meta.url), "utf8");
     expect(source).toContain("function resourceBindingInfo");
-    expect(source).toContain("const showBindingInfo = Boolean(active && messages[active.id] && displayedMessages.length === 0)");
     expect(source).toContain("首次绑定说明");
     expect(source).toContain('kind: "binding-context"');
     expect(source).toContain('message.kind === "binding-context"');

@@ -6,15 +6,7 @@ import type { DictionaryCodexContextService } from "../project-dictionary-codex/
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
 import type { ProjectDictionaryCodexConversationRepo } from "../repos/ProjectDictionaryCodexConversationRepo.js";
-
-function bindingCardContent(context: { initialContext: string; allowedMcpTools?: string[]; systemInstruction?: string }): string {
-  return [
-    "## 首次绑定说明",
-    "", "## 整体信息", context.initialContext,
-    "", "## 可用 MCP", ...(context.allowedMcpTools ?? []).map(tool => `- ${tool}`),
-    "", "## AI 操作规定", context.systemInstruction ?? "仅按用户明确要求操作，并通过 Rich MCP 保存变更。",
-  ].join("\n");
-}
+import { createBoundContextCard, isBoundContextCard } from "../codex/BoundContextCard.js";
 
 export function projectDictionaryCodexRoutes(deps: {
   conversations: ProjectDictionaryCodexConversationRepo;
@@ -66,9 +58,9 @@ export function projectDictionaryCodexRoutes(deps: {
     if (!conversation) return c.json({ error: "Conversation not found" }, 404);
     const savedMessages = await deps.chats.listMessages(conversation.conversationId, 200);
     const context = await deps.context.build(conversation.projectId);
-    const bindingCard = savedMessages.some(message => (message.metadata as { type?: unknown } | undefined)?.type === "binding-context")
+    const bindingCard = savedMessages.some(isBoundContextCard)
       ? undefined
-      : { id: randomUUID(), conversationId: conversation.conversationId, role: "system" as const, content: bindingCardContent(context), metadata: { type: "binding-context", allowedMcpTools: context.allowedMcpTools ?? [], rules: context.systemInstruction ?? "" }, createdAt: new Date().toISOString() };
+      : createBoundContextCard(conversation.conversationId, context);
     if (bindingCard) await deps.chats.appendMessage(bindingCard);
     return c.json({ messages: bindingCard ? [...savedMessages, bindingCard] : savedMessages });
   });

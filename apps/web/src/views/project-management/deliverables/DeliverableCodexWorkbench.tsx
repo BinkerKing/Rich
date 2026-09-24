@@ -595,7 +595,6 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     ? (messages[active.id] ?? []).filter(message => message.role !== "system" || message.kind === "binding-context" || message.kind === "task-mode-started" || message.kind === "task-mode-policy-updated")
     : [];
   const bindingInfo = resourceBindingInfo(activeResourceType, deliverableTitle);
-  const showBindingInfo = Boolean(active && messages[active.id] && displayedMessages.length === 0);
   const liveActivity = active && streamingConversationId === active.id ? activityByConversation[active.id] : "";
   const workbench = <div className={`deliverable-codex-backdrop${visible ? "" : " is-hidden"}${windowState.maximized ? " is-maximized" : ""}${capturingCurrentView ? " is-capturing-current-view" : ""}`} style={windowState.maximized ? { zIndex: 2147483000, top: desktopTitlebarHeight, padding: 0, background: "#09090a" } : undefined} role="dialog" aria-modal="true" aria-label="交付物 Codex 对话">
     <section className={`deliverable-codex-workbench is-theme-${theme}${activeTaskMode ? " is-task-mode" : ""}${windowState.maximized ? " is-maximized" : ""}`} style={workbenchStyle}>
@@ -616,13 +615,6 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
         {taskModePickerOpen && <section className="deliverable-codex-workbench__task-mode-picker" role="listbox" aria-label="任务模式选择"><small>当前页面：{currentPageLocation(appView).join(" / ")}</small>{availableTaskModes.map((mode, index) => <button key={mode.id} type="button" role="option" aria-selected={index === taskModeIndex} className={index === taskModeIndex ? "is-active" : ""} onClick={() => startTaskMode(mode)}><b>{mode.label}</b><span>{mode.hint} · Enter 启动</span></button>)}</section>}
         {projectTaskPickerOpen && <section className="deliverable-codex-workbench__task-mode-picker" role="dialog" aria-label="选择项目交付物"><small>{pickerProjectId ? "选择交付物" : "选择项目"}</small>{!pickerProjectId ? Array.from(elements.values()).filter(item => item.type === "project").map(item => <button key={item.id} type="button" onClick={() => { setPickerProjectId(item.id); void api.listProjectManagementModuleItems(item.id, "deliverables", undefined, true).then(items => setPickerDeliverables(items.map(entry => ({ id: entry.id, title: entry.title })))).catch(reason => setError(String(reason))); }}><b>{item.title}</b><span>选择该项目的交付物</span></button>) : <><button type="button" onClick={() => { setPickerProjectId(undefined); setPickerDeliverables([]); }}>← 返回项目</button>{pickerDeliverables.map(item => <button key={item.id} type="button" onClick={() => { setPendingAiTask({ sceneId: "deliverable_task", label: "交付物任务", payload: { projectId: pickerProjectId, deliverableId: item.id, deliverableTitle: item.title } }); setInput(`请描述交付物「${item.title}」的任务目标和交付要求。`); setProjectTaskPickerOpen(false); }}><b>{item.title}</b><span>创建交付物任务</span></button>)}</>}<button type="button" onClick={() => setProjectTaskPickerOpen(false)}>取消</button></section>}
         <main ref={messagesRef} className="deliverable-codex-workbench__messages" onScroll={updateMessageFollowState}>
-          {showBindingInfo && <article className="is-event is-binding-info">
-            <section className="deliverable-codex-workbench__event-card deliverable-codex-workbench__binding-card">
-              <header><i aria-hidden="true">⌖</i><span><small>首次绑定说明</small><b>{resourceLabel(activeResourceType)} · {deliverableTitle}</b></span><time>已绑定</time></header>
-              <div><span><small>整体信息</small><b>{bindingInfo.overview}</b></span><span><small>可用 MCP</small><b>{bindingInfo.tools.join(" · ")}</b></span></div>
-              <p><small>AI 操作规定</small>{bindingInfo.rules}</p>
-            </section>
-          </article>}
           {active ? displayedMessages.map((message, index) => {
             const isTaskModeStart = message.kind === "task-mode-started";
             const isBindingContext = message.kind === "binding-context";
