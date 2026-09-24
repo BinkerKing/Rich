@@ -43,7 +43,8 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(source, /hasChildren: childScopes\.has\(row\.id\)/);
   assert.match(source, /onNodeClick=\{\(event, row\) => \{ if \(event\.metaKey && childScopes\.has\(row\.id\)\) \{ enter\(row\.id\); return; \}/);
   assert.match(source, /pfc-node is-\$\{data\.kind\}\$\{data\.hasChildren \? " has-children" : ""\}/);
-  assert.match(source, /className="pfc-node-focus" aria-label="当前选中节点"><span className="pfc-node-focus__label">当前节点<\/span><strong>\{focusedNode\.data\.label\}<\/strong><\/div>/);
+  assert.match(source, /active === item\.id && expanded && <>\s+\{focusedNode && <div className="pfc-node-focus" aria-label="当前选中节点"><span className="pfc-node-focus__label">当前节点<\/span><strong>\{focusedNode\.data\.label\}<\/strong><\/div>\}/);
+  assert.match(styles, /\.pfc-node-focus \{[^}]*flex:0 1 260px[^}]*height:28px/s);
   assert.doesNotMatch(source, /has-node-focus/);
   assert.match(source, /const \[codexRunningNodeIds, setCodexRunningNodeIds\] = useState<string\[\]>\(\[\]\)/);
   assert.match(source, /const \[canvasLocked, setCanvasLocked\] = useState\(true\)/);
