@@ -478,7 +478,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
         </>}
       </header>
       {active === item.id && expanded && graph && <div className={`pfc-editor${focusedNode ? " has-node-focus" : ""}${codexChartRunning ? " is-codex-chart-running" : codexChartCompleted ? " is-codex-chart-complete" : ""}`} id={`pfc-chart-${item.id}`} style={busy ? { pointerEvents: "none", opacity: 0.7 } : undefined}>
-        {focusedNode && <div className="pfc-node-focus" aria-label="当前选中节点">{focusedNode.data.label}</div>}
+        {focusedNode && <div className="pfc-node-focus" aria-label="当前选中节点"><span className="pfc-node-focus__label">当前节点</span><strong>{focusedNode.data.label}</strong></div>}
         {settingsOpen && <fieldset disabled={busy} className="pfc-settings">
             <button className="pfc-close" aria-label="关闭任务设置" onClick={() => setSettingsOpen(false)}>×</button>
             <label>任务名称
