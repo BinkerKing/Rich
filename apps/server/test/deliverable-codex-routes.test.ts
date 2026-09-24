@@ -142,6 +142,33 @@ describe("deliverable Codex routes", () => {
     expect(await response.json()).toMatchObject({ created: true, context: "交付物汇总基线", conversation: { isBound: true, projectId: "p1", deliverableId: "d1" } });
   });
 
+  it("creates a fresh bound Session when a mindmap's previous binding is archived", async () => {
+    const conversations = new Map<string, Record<string, unknown>>();
+    const app = deliverableCodexRoutes({
+      conversations: {
+        async get(id) { return (conversations.get(id) as never) ?? null; },
+        async getBound(scopeKey) { return [...conversations.values()].find(value => value.scopeKey === scopeKey && value.status === "active" && value.isBound) as never; },
+        async create(value) { conversations.set(value.id, { ...value }); },
+        async bind(id) { const value = conversations.get(id)!; Object.assign(value, { isBound: true }); return value as never; },
+        async archive(id) { const value = conversations.get(id)!; Object.assign(value, { status: "archived", isBound: false }); return value as never; },
+      } as never,
+      chats: { async ensureConversation(input) { return { ...input }; } } as never,
+      context: { async build(input) { return { scopeKey: `mindmap:${input.projectId}:${input.deliverableId}`, contextVersion: "mindmap-v1", initialContext: "思维导图基线", allowedMcpTools: [] }; } } as never,
+      agents: { async start() { return { config: {} as never, resumed: false }; }, async exit() { return null; } } as never,
+      attachments: null, prompts: {} as never,
+    });
+
+    const first = await app.request("/mindmaps/map-1/conversations/ensure-bound", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "方案脑图 · Codex" }) });
+    const firstId = (await first.json() as { conversation: { id: string } }).conversation.id;
+    const archived = await app.request(`/conversations/${firstId}/archive`, { method: "POST" });
+    expect(archived.status).toBe(200);
+    const second = await app.request("/mindmaps/map-1/conversations/ensure-bound", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "方案脑图 · Codex" }) });
+
+    const secondId = (await second.json() as { conversation: { id: string } }).conversation.id;
+    expect(second.status).toBe(201);
+    expect(secondId).not.toBe(firstId);
+  });
+
   it("routes the report-center binding to report context instead of the generic deliverable route", async () => {
     const builds: Array<Record<string, unknown>> = [];
     const app = deliverableCodexRoutes({

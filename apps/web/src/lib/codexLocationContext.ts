@@ -1,7 +1,7 @@
 export interface CodexLocationContextInput {
   page: string[];
   project?: { id: string; title: string };
-  business?: { kind: "任务" | "交付物" | "项目流程图" | "项目数据字典" | "报告中心"; id: string; title: string };
+  business?: { kind: "任务" | "交付物" | "项目流程图" | "思维导图" | "项目数据字典" | "报告中心"; id: string; title: string };
 }
 
 export function formatCodexLocationContext(input: CodexLocationContextInput): string {

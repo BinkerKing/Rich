@@ -75,13 +75,13 @@ function currentProjectTitle(): string {
   return document.querySelector(".prj-ws__title")?.textContent?.trim() || "未命名项目";
 }
 
-function currentLocationContext(appView: string, projectId: string, deliverableId: string, deliverableTitle: string, resourceType: "deliverable" | "flowchart" | "dictionary" | "report"): CodexLocationContextInput {
+function currentLocationContext(appView: string, projectId: string, deliverableId: string, deliverableTitle: string, resourceType: "deliverable" | "flowchart" | "mindmap" | "dictionary" | "report"): CodexLocationContextInput {
   const page = currentPageLocation(appView);
   if (appView !== "projects") return { page };
   return {
     page,
     project: { id: projectId, title: currentProjectTitle() },
-    business: { kind: resourceType === "dictionary" ? "项目数据字典" : resourceType === "flowchart" ? "项目流程图" : resourceType === "report" ? "报告中心" : "交付物", id: deliverableId, title: deliverableTitle },
+    business: { kind: resourceType === "dictionary" ? "项目数据字典" : resourceType === "flowchart" ? "项目流程图" : resourceType === "mindmap" ? "思维导图" : resourceType === "report" ? "报告中心" : "交付物", id: deliverableId, title: deliverableTitle },
   };
 }
 
@@ -143,7 +143,7 @@ function withMessageDurations(messages: Message[]): Message[] {
   });
 }
 
-export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverableTitle, resourceType = "deliverable", visible, requestedConversationId, initialPrompt, initialAttachments, executionTaskId, initialConversationTitle, onConversationCreated, openSequence }: { projectId: string; deliverableId: string; deliverableTitle: string; resourceType?: "deliverable" | "flowchart" | "dictionary" | "report"; visible: boolean; requestedConversationId?: string; initialPrompt?: string; initialAttachments?: CodexInitialAttachment[]; executionTaskId?: string; initialConversationTitle?: string; onConversationCreated?: (conversationId: string) => void; openSequence?: number }): ReactNode {
+export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverableTitle, resourceType = "deliverable", visible, requestedConversationId, initialPrompt, initialAttachments, executionTaskId, initialConversationTitle, onConversationCreated, openSequence }: { projectId: string; deliverableId: string; deliverableTitle: string; resourceType?: "deliverable" | "flowchart" | "mindmap" | "dictionary" | "report"; visible: boolean; requestedConversationId?: string; initialPrompt?: string; initialAttachments?: CodexInitialAttachment[]; executionTaskId?: string; initialConversationTitle?: string; onConversationCreated?: (conversationId: string) => void; openSequence?: number }): ReactNode {
   const appView = useStore(state => state.appView);
   const setAppView = useStore(state => state.setAppView);
   const elements = useStore(state => state.elements);
@@ -200,6 +200,8 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     ? `/api/project-dictionary-codex/${encodeURIComponent(projectId)}/conversations`
     : resourceType === "flowchart"
     ? `/api/deliverable-codex/flowcharts/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`
+    : resourceType === "mindmap"
+    ? `/api/deliverable-codex/mindmaps/${encodeURIComponent(deliverableId)}/conversations`
     : resourceType === "report"
     ? `/api/deliverable-codex/reports/${encodeURIComponent(projectId)}/conversations`
     : `/api/deliverable-codex/${encodeURIComponent(projectId)}/${encodeURIComponent(deliverableId)}/conversations`;
@@ -538,7 +540,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const workbench = <div className={`deliverable-codex-backdrop${visible ? "" : " is-hidden"}${windowState.maximized ? " is-maximized" : ""}${capturingCurrentView ? " is-capturing-current-view" : ""}`} style={windowState.maximized ? { zIndex: 2147483000, top: desktopTitlebarHeight, padding: 0, background: "#09090a" } : undefined} role="dialog" aria-modal="true" aria-label="交付物 Codex 对话">
     <section className={`deliverable-codex-workbench is-theme-${theme}${activeTaskMode ? " is-task-mode" : ""}${windowState.maximized ? " is-maximized" : ""}`} style={workbenchStyle}>
       <aside className="deliverable-codex-workbench__sidebar">
-        {(resourceType === "deliverable" || resourceType === "flowchart") && <button type="button" className="deliverable-codex-workbench__new" onClick={() => { setCreating(current => !current); setTitle(""); }}>＋ 新对话</button>}
+        {(resourceType === "deliverable" || resourceType === "flowchart" || resourceType === "mindmap") && <button type="button" className="deliverable-codex-workbench__new" onClick={() => { setCreating(current => !current); setTitle(""); }}>＋ 新对话</button>}
         <nav aria-label="对话列表">{conversations.map(conversation => <button key={conversation.id} draggable type="button" className={`${conversation.id === activeId ? "is-active" : ""}${lostConversationIds.has(conversation.id) ? " is-connection-lost" : ""}`} onDragStart={event => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", conversation.id); }} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const sourceId = event.dataTransfer.getData("text/plain"); if (!sourceId || sourceId === conversation.id) return; setConversations(current => { const sourceIndex = current.findIndex(item => item.id === sourceId); const targetIndex = current.findIndex(item => item.id === conversation.id); if (sourceIndex < 0 || targetIndex < 0) return current; const next = [...current]; const [moved] = next.splice(sourceIndex, 1); next.splice(sourceIndex < targetIndex ? targetIndex - 1 : targetIndex, 0, moved); saveConversationOrder(next); return next; }); }} onClick={() => { shouldFollowMessagesRef.current = true; setActiveId(conversation.id); }}><strong>{conversation.title}</strong></button>)}</nav>
         <div className="deliverable-codex-workbench__theme">
           <button type="button" aria-label="选择主题" title="主题" aria-expanded={themeMenuOpen} onClick={() => setThemeMenuOpen(current => !current)}>◐</button>

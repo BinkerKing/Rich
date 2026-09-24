@@ -11,7 +11,7 @@ import type { FlowchartsRepo } from "../repos/FlowchartsRepo.js";
 import { GENERAL_CODEX_SCOPE } from "../task-workbench/instructions.js";
 
 type DeliverableContextMode = DeliverableCodexMode | "task" | "bug";
-export type CodexResourceType = "deliverable" | "flowchart" | "report";
+export type CodexResourceType = "deliverable" | "flowchart" | "mindmap" | "report";
 
 export interface DeliverableCodexContext {
   scopeKey: string;
@@ -159,6 +159,9 @@ export class DeliverableCodexContextService {
   }
 
   async build(input: { projectId: string; deliverableId: string; resourceType?: CodexResourceType; mode: DeliverableContextMode }): Promise<DeliverableCodexContext> {
+    if (input.resourceType === "mindmap" && input.projectId === GENERAL_CODEX_SCOPE) {
+      return { scopeKey: `mindmap:${input.projectId}:${input.deliverableId}`, contextVersion: "mindmap-v1", systemInstruction: "You are working in a Rich mindmap. Discuss and help organize the current mindmap; do not claim changes were saved unless the user explicitly makes them in Rich.", initialContext: `当前 Rich 思维导图 ID：${input.deliverableId}。`, allowedMcpTools: ["rich_workbench_manage"], workspaceRoot: this.generalWorkspaceRoot };
+    }
     if (input.projectId === GENERAL_CODEX_SCOPE && input.deliverableId === GENERAL_CODEX_SCOPE) {
       return { scopeKey: "workbench:general", contextVersion: "workbench-v1", systemInstruction: "Assist the user in Rich. Use the task workbench for plan-based tasks when requested. For workbench documents, read the document first; only create empty heading outlines automatically, and submit substantive content as a proposal for the user to confirm.", initialContext: "通用 Codex 对话；尚未绑定项目或交付物。", allowedMcpTools: ["rich_workbench_manage", "rich_workbench_document", "rich_ai_task_get", "rich_ai_task_report_result"], workspaceRoot: this.generalWorkspaceRoot };
     }
@@ -218,6 +221,7 @@ export class DeliverableCodexContextService {
   }
 
   async buildIncrementalContext(input: { projectId: string; deliverableId: string; resourceType?: CodexResourceType; since: string }): Promise<string | undefined> {
+    if (input.resourceType === "mindmap") return undefined;
     if (input.resourceType === "report") {
       const project = await this.elements.get(input.projectId);
       return project?.metadata.updatedAt && project.metadata.updatedAt > input.since ? reportContextText(input.projectId, project.title) : undefined;
