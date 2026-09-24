@@ -108,12 +108,13 @@ async function readJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   return body;
 }
 
-function sortConversations(conversations: Conversation[]): Conversation[] {
+function sortConversations(conversations: Conversation[], preferredId?: string): Conversation[] {
   try {
     const order = JSON.parse(localStorage.getItem(conversationOrderStorageKey) ?? "[]") as string[];
     const rank = new Map(order.map((id, index) => [id, index]));
-    return [...conversations].sort((left, right) => (rank.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(right.id) ?? Number.MAX_SAFE_INTEGER));
-  } catch { return conversations; }
+    const sorted = [...conversations].sort((left, right) => (rank.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(right.id) ?? Number.MAX_SAFE_INTEGER));
+    return preferredId ? [...sorted.filter(item => item.id === preferredId), ...sorted.filter(item => item.id !== preferredId)] : sorted;
+  } catch { return preferredId ? [...conversations].sort((left, right) => Number(right.id === preferredId) - Number(left.id === preferredId)) : conversations; }
 }
 
 function saveConversationOrder(conversations: Conversation[]): void {
@@ -221,7 +222,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
 
   const refresh = async () => {
     const payload = await readJson<{ conversations: Conversation[] }>(conversationListPath);
-    setConversations(sortConversations(payload.conversations));
+    setConversations(sortConversations(payload.conversations, requestedConversationId));
     setActiveId(current => current && payload.conversations.some(item => item.id === current) ? current : payload.conversations[0]?.id);
   };
   const loadMessages = async (conversationId: string) => {
@@ -238,7 +239,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   useEffect(() => {
     if (!visible || !requestedConversationId) return;
     void readJson<{ conversations: Conversation[] }>(conversationListPath).then(payload => {
-      setConversations(sortConversations(payload.conversations));
+      setConversations(sortConversations(payload.conversations, requestedConversationId));
       if (payload.conversations.some(item => item.id === requestedConversationId)) setActiveId(requestedConversationId);
       else setError("绑定的 Codex 对话不可用，请检查是否已归档");
     }).catch(reason => setError(String(reason)));
