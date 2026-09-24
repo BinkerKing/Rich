@@ -25,13 +25,22 @@ test("报告中心头部操作只展示文档和对话图标", () => {
   assert.doesNotMatch(source, /<span>新建报告<\/span>|<span>Codex<\/span>/);
 });
 
+test("新建日报默认进入紧凑驾驶舱，编辑时才展开单栏表单", () => {
+  assert.match(source, /await load\(\); setOpenId\(item\.id\); setDraft\(report\); setEditing\(false\);/);
+  assert.match(source, /reports-workspace__layout\$\{editing \? " is-editing" : ""\}/);
+  assert.match(source, /\{editing && <button className="reports-workspace__detail-action" aria-label=\{busy \? "保存中" : "保存并写入文件"\}/);
+  assert.match(styles, /\.reports-workspace__layout\.is-editing \{ grid-template-columns:1fr; \}/);
+  assert.match(styles, /\.reports-workspace__layout\.is-editing \.reports-calendar \{ display:none; \}/);
+});
+
 test("日报工作台可在摘要和富文本报告之间切换", () => {
   assert.match(source, /const \[showReport, setShowReport\] = useState\(false\)/);
   assert.match(source, /setShowReport\(false\);/);
   assert.match(source, /onClick=\{\(\) => setShowReport\(current => !current\)\}/);
   assert.match(source, /showReport \? "收起报告" : "显示报告"/);
-  assert.match(source, /showReport && <section className="report-workbench__editor">/);
-  assert.match(source, /<ProjectRichTextEditor projectId=\{`\$\{projectId\}-report-\$\{openId\}`\} value=\{draft\.body\}/);
+  assert.match(source, /showReport && <section className=\{`report-workbench report-workbench--document is-\$\{draft\.type\}`\}>/);
+  assert.match(source, /<ReportDocument report=\{draft\} \/><ReportInsightRail report=\{draft\} \/>/);
+  assert.doesNotMatch(source, /showReport && <section className="report-workbench__editor">/);
 });
 
 test("打开日报时仅右侧详情区域滚动，日历保持固定", () => {

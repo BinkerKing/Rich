@@ -11681,6 +11681,26 @@
 .prj-ws .reports-workspace__header > button { padding:6px 9px; font-size:11px; }
 .prj-ws .reports-workspace__header > .reports-workspace__create { display:flex; align-items:center; min-height:28px; gap:6px; padding:6px 9px; border:1px solid #515151; border-radius:6px; color:#e5e7eb; background:#303030; box-shadow:none; font-size:11px; font-weight:600; }
 .prj-ws .reports-workspace__header-actions { display:flex; align-items:center; gap:6px; }
+
+/* The report dashboard is for reading; the complete form only appears while editing. */
+.reports-workspace__layout.is-editing { grid-template-columns:1fr; }
+.reports-workspace__layout.is-editing .reports-calendar { display:none; }
+.prj-ws .reports-workspace__layout.is-editing { max-width:980px; margin:0 auto; }
+.prj-ws .reports-workspace__layout.is-editing .reports-workspace__detail { padding:14px 16px; }
+.prj-ws .reports-workspace__layout.is-editing .reports-workspace__fields { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
+.prj-ws .reports-workspace__layout.is-editing .reports-workspace__fields textarea { min-height:110px; }
+.prj-ws .reports-workspace__layout.is-editing .report-editor-block .prj-pm-rich-surface { min-height:200px; }
+.prj-ws .report-workbench { gap:10px; }
+.prj-ws .report-workbench__kpis { gap:8px; }
+.prj-ws .report-workbench__kpis > div { min-height:54px; padding:9px 11px; gap:3px; }
+.prj-ws .report-workbench__kpis b { font-size:21px; }
+.prj-ws .report-workbench__grid { grid-template-columns:minmax(0, 1fr) 260px; gap:10px; }
+.prj-ws .report-workbench__completed { min-height:230px; }
+.prj-ws .report-workbench__completed > header, .prj-ws .report-workbench__side > section > header { padding:10px 12px; }
+.prj-ws .report-workbench__completed article { margin:0 12px; padding:9px 0; }
+.prj-ws .report-workbench__activity-list { gap:4px; margin-top:5px; }
+.prj-ws .report-workbench__activity-list p { font-size:12px; }
+.prj-ws .report-workbench__side { gap:8px; }
 .prj-ws .reports-workspace__header-actions .reports-workspace__create { display:grid; width:30px; height:30px; box-sizing:border-box; place-items:center; padding:0; border:1px solid #515151; border-radius:6px; color:#d7dde1; background:#303030; box-shadow:none; }
 .prj-ws .reports-workspace__header-actions .reports-workspace__create svg { width:17px; height:17px; stroke-width:2.2; }
 .prj-ws .reports-workspace__header > .reports-workspace__create svg { width:13px; height:13px; stroke-width:2; }
