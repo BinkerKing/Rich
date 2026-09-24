@@ -537,7 +537,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
                     setConnectingFrom("");
                   }}
                   onReconnect={(oldEdge, connection: Connection) => update({ ...graph, edges: reconnectEdge(oldEdge, connection, graph.edges) as FlowEdge[] })}
-              onNodeClick={(event, row) => { setSelectedIds(current => {
+              onNodeClick={(event, row) => { if (event.metaKey && childScopes.has(row.id)) { enter(row.id); return; } setSelectedIds(current => {
                 const ids = event.metaKey ? current.includes(row.id) ? current.filter(id => id !== row.id) : [...current, row.id] : [row.id];
                 setSelected(ids[0] ?? ""); return ids;
               }); setSelectedEdge(""); setEditingNode(""); setDetailNode(""); closeCodexRefinement(); }} onNodeDoubleClick={(_, row) => { setSelected(row.id); setSelectedIds([row.id]); setDetailNode(row.id); setCodexCompletedNodeIds(current => current.filter(id => id !== row.id)); }} onNodeContextMenu={(event, row) => { event.preventDefault(); void openCodexRefinement([row.id]); }}
