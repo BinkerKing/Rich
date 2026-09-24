@@ -29,6 +29,12 @@ test("切换资源时重建 Codex 工作台，避免显示上一个资源的会�
   );
 });
 
+test("已挂载的工作台直接接收当前资源目标，不依赖事件监听时序", () => {
+  assert.match(launcher, /if \(window\.__richOpenBoundCodex\) \{/);
+  assert.match(launcher, /window\.__richOpenBoundCodex\(next\)/);
+  assert.match(launcher, /window\.__richOpenBoundCodex = openTarget/);
+});
+
 test("快捷键导航会关闭已打开的 Codex 工作台", () => {
   assert.match(launcher, /rich:close-deliverable-codex/);
   assert.match(launcher, /setVisible\(false\)/);

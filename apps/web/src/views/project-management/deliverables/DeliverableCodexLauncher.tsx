@@ -15,6 +15,12 @@ export type DeliverableCodexTarget = {
   onConversationCreated?: (conversationId: string) => void;
 };
 
+declare global {
+  interface Window {
+    __richOpenBoundCodex?: (target: DeliverableCodexTarget) => void;
+  }
+}
+
 const targetStorageKey = "rich.deliverable-codex.target";
 const toggleEvent = "rich:toggle-deliverable-codex";
 const closeEvent = "rich:close-deliverable-codex";
@@ -41,6 +47,10 @@ function normalizeTarget(target?: DeliverableCodexTarget): DeliverableCodexTarge
 export function openBoundCodex(target?: DeliverableCodexTarget) {
   const next = normalizeTarget(target);
   setDeliverableCodexTarget(next);
+  if (window.__richOpenBoundCodex) {
+    window.__richOpenBoundCodex(next);
+    return;
+  }
   window.dispatchEvent(new CustomEvent(openEvent, { detail: next }));
 }
 
@@ -75,13 +85,18 @@ export function DeliverableCodexLauncher(): ReactNode {
   const [openSequence, setOpenSequence] = useState(0);
 
   useEffect(() => {
-    const open = (event: Event) => {
-      setTarget(normalizeTarget((event as CustomEvent<DeliverableCodexTarget>).detail));
+    const openTarget = (next: DeliverableCodexTarget) => {
+      setTarget(normalizeTarget(next));
       window.dispatchEvent(new Event(closeAiTaskCaptureEvent));
       setVisible(true); setOpenSequence(value => value + 1);
     };
+    const open = (event: Event) => openTarget((event as CustomEvent<DeliverableCodexTarget>).detail);
+    window.__richOpenBoundCodex = openTarget;
     window.addEventListener(openEvent, open);
-    return () => window.removeEventListener(openEvent, open);
+    return () => {
+      if (window.__richOpenBoundCodex === openTarget) delete window.__richOpenBoundCodex;
+      window.removeEventListener(openEvent, open);
+    };
   }, []);
 
   useEffect(() => {
