@@ -504,6 +504,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
                   defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed } }}
               onNodesChange={changes => {
                 const selections = changes.filter(change => change.type === "select");
+                if (selections.some(change => change.type === "select" && change.selected)) { setQuickCreate(undefined); closeCodexRefinement(); }
                 if (selections.length) setSelectedIds(current => {
                   const next = new Set(current);
                   selections.forEach(change => change.type === "select" && (change.selected ? next.add(change.id) : next.delete(change.id)));

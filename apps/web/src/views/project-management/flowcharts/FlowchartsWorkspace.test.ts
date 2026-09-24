@@ -45,6 +45,7 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(source, /className="pfc-node-focus" aria-label="当前选中节点">\{focusedNode\.data\.label\}/);
   assert.match(source, /const \[codexRunningNodeIds, setCodexRunningNodeIds\] = useState<string\[\]>\(\[\]\)/);
   assert.match(source, /onNodeContextMenu=\{\(event, row\) => \{ event\.preventDefault\(\); void openCodexRefinement\(\[row\.id\]\); \}\}/);
+  assert.match(source, /selections\.some\(change => change\.type === "select" && change\.selected\)\) \{ setQuickCreate\(undefined\); closeCodexRefinement\(\); \}/);
   assert.doesNotMatch(source, /onPaneContextMenu=\{event => \{[\s\S]*?selectedIds\.length/);
   assert.match(source, /void openCodexRefinement\(\[\], \{ left: event\.clientX - rect\.left, top: event\.clientY - rect\.top \}\)/);
   assert.match(source, /setQuickCreate\(\{ fromCanvas: true, position: flow\.screenToFlowPosition\(\{ x: event\.clientX, y: event\.clientY \}\), screen: \{ x: event\.clientX - rect\.left, y: event\.clientY - rect\.top \} \}\)/);
