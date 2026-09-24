@@ -20,3 +20,12 @@ test("resource workspaces register the current Codex Session shortcut", () => {
     "apps/web/src/views/project-management/DictionaryWorkspace.tsx",
   ]) assert.match(source(path), /useCurrentCodexShortcut/);
 });
+
+test("mindmap toolbar exposes the Codex action directly below export", () => {
+  const toolbar = source("apps/web/src/components/mindmap/MindmapFloatingToolbar.tsx");
+  const workbench = source("apps/web/src/views/DeepWorkbenchView.tsx");
+  assert.match(toolbar, /onOpenCodex\(\): void;/);
+  assert.ok(toolbar.indexOf(">导出</button>") < toolbar.indexOf(">Codex 对话</button>"));
+  assert.match(toolbar, /onClick=\{onOpenCodex\}>Codex 对话<\/button>/);
+  assert.match(workbench, /onOpenCodex=\{\(\) => void openCodexConversation\(active\)\}/);
+});
