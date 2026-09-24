@@ -150,6 +150,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   const [codexRequest, setCodexRequest] = useState("");
   const [codexRunningNodeIds, setCodexRunningNodeIds] = useState<string[]>([]);
   const [codexCompletedNodeIds, setCodexCompletedNodeIds] = useState<string[]>([]);
+  const [codexAnchor, setCodexAnchor] = useState<{ left: number; top: number }>();
   const canvasRef = useRef<HTMLDivElement>(null);
   const undoStack = useRef<FlowchartData[]>([]);
   const redoStack = useRef<FlowchartData[]>([]);
@@ -368,7 +369,15 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     if (!projectId) { setError("独立流程图尚未绑定项目，无法使用 Codex 整改。"); return; }
     const ids = [...new Set(nodeIds)].filter(id => graph?.nodes.some(node => node.id === id));
     if (!ids.length) return;
-    setSelected(ids[0] ?? ""); setSelectedIds(ids); setSelectedEdge(""); setEditingNode(""); setDetailNode("");
+    const canvas = canvasRef.current;
+    if (canvas && flow) {
+      const bounds = flow.getNodesBounds(ids);
+      const screen = flow.flowToScreenPosition({ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height });
+      const rect = canvas.getBoundingClientRect();
+      const halfWidth = Math.min(220, Math.max(0, (rect.width - 32) / 2));
+      setCodexAnchor({ left: Math.min(Math.max(16 + halfWidth, screen.x - rect.left), rect.width - 16 - halfWidth), top: Math.min(screen.y - rect.top + 12, rect.height - 52) });
+    }
+    setSelected(ids[0] ?? ""); setSelectedIds(ids); setSelectedEdge(""); setEditingNode("");
     setCodexSelection(ids); setCodexRequest(""); setCodexCompletedNodeIds([]); setQuickCreate(undefined);
   };
   const refreshCodexFlowchart = async (flowchartId: string) => {
@@ -398,7 +407,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
       const body = await response.text();
       if (!response.ok || body.includes("event: error")) throw new Error(`Codex 整改失败${response.ok ? "" : ` (${response.status})`}`);
       await refreshCodexFlowchart(active);
-      setCodexCompletedNodeIds(nodeIds); setCodexSelection([]); setCodexRequest("");
+      setCodexCompletedNodeIds(nodeIds); setCodexSelection([]); setCodexRequest(""); setCodexAnchor(undefined);
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
     finally { setCodexRunningNodeIds([]); }
   };
@@ -506,10 +515,8 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
                   <Background gap={28} size={1} color="#44444d" /><Controls />
                 </ReactFlow>
                 {quickCreate && <div className="pfc-quick-create" style={{ left: quickCreate.screen.x, top: quickCreate.screen.y }} role="dialog" aria-label="快速新建节点菜单"><strong>{quickCreate.source ? "新建并连接" : "新增节点"}</strong>{(["step", "note", "region"] as FlowNodeKind[]).map(kind => <button key={kind} type="button" onClick={() => addNode(kind, quickCreate.position, quickCreate.source)}>{({ step: "图标节点", note: "备注", region: "区域" } as Record<string, string>)[kind]}</button>)}<button type="button" onClick={() => setQuickCreate(undefined)}>取消</button></div>}
-                {codexSelection.length > 0 && !readOnly && <form className="pfc-codex-refinement" role="dialog" aria-label="Codex 节点整改" onSubmit={event => { event.preventDefault(); void runCodexRefinement(); }}>
-                  <header><div><strong>Codex 整改</strong><small>已选择 {codexSelection.length} 个节点</small></div><button type="button" aria-label="关闭 Codex 整改" onClick={() => setCodexSelection([])}>×</button></header>
-                  <textarea aria-label="Codex 整改要求" rows={3} autoFocus placeholder="例如：补全异常分支、明确责任人，并让步骤可执行。" value={codexRequest} onChange={event => setCodexRequest(event.target.value)} />
-                  <footer><span>Codex 会先读取整张流程图，再通过 MCP 保存调整。</span><button type="submit" disabled={!codexRequest.trim() || codexRunningNodeIds.length > 0}>{codexRunningNodeIds.length ? "Codex 整改中…" : "交给 Codex"}</button></footer>
+                {codexSelection.length > 0 && codexAnchor && !readOnly && <form className="pfc-codex-refinement" role="dialog" aria-label="Codex 节点整改" style={codexAnchor} onSubmit={event => { event.preventDefault(); void runCodexRefinement(); }}>
+                  <input aria-label="Codex 整改要求" autoFocus placeholder={codexRunningNodeIds.length ? "Codex 正在整改…" : "描述需要 Codex 整改的内容，回车提交"} disabled={codexRunningNodeIds.length > 0} value={codexRequest} onChange={event => setCodexRequest(event.target.value)} />
                 </form>}
               </div>
               <div className="pfc-legend" aria-label="流程图图例"><span>● 处理</span><span>● 数据表</span><span>◇ 判断</span><span>— 主线</span><span>┄ 规则 / 数据关联</span></div>

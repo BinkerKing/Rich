@@ -42,6 +42,11 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(source, /onSelectionContextMenu=\{\(event, nodes\) => \{ event\.preventDefault\(\); event\.stopPropagation\(\); void openCodexRefinement\(nodes\.map\(node => node\.id\)\); \}\}/);
   assert.match(source, /className: codexRunningNodeIds\.includes\(row\.id\) \? "is-codex-running"/);
   assert.match(source, /className="pfc-codex-refinement"/);
+  assert.match(source, /const \[codexAnchor, setCodexAnchor\] = useState/);
+  assert.match(source, /flow\.getNodesBounds\(ids\)/);
+  assert.match(source, /flow\.flowToScreenPosition/);
+  assert.match(source, /<input aria-label="Codex 整改要求"/);
+  assert.doesNotMatch(source, /Codex 会先读取整张流程图，再通过 MCP 保存调整/);
   assert.match(styles, /\.pfc \.react-flow__node\.is-codex-running/);
   assert.match(styles, /@keyframes pfc-codex-flow/);
 });
