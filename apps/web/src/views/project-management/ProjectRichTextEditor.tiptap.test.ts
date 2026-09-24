@@ -25,15 +25,17 @@ test("项目说明编辑器提供完整的三级标题，并以不同卡片呈�
 });
 
 test("有序列表将连续步骤收纳为无底色模块，并用亮白文字和轻边框维持层级", () => {
-  assert.match(styles, /\.workflow-rich-content > ol,[\s\S]*?gap:\s*0[\s\S]*?padding:\s*4px 18px[\s\S]*?background:\s*transparent[\s\S]*?border:\s*1px solid rgba\(255, 255, 255, \.28\)[\s\S]*?border-radius:\s*12px/);
-  assert.match(styles, /\.workflow-rich-content > ol > li,[\s\S]*?border-bottom:\s*1px solid rgba\(255, 255, 255, \.14\)[\s\S]*?color:\s*#fff[\s\S]*?font-size:\s*16px/);
+  assert.match(styles, /\.workflow-rich-content > ol,[\s\S]*?gap:\s*0[\s\S]*?padding:\s*4px 18px[\s\S]*?background:\s*transparent[\s\S]*?border:\s*2px solid rgba\(255, 255, 255, \.4\)[\s\S]*?border-radius:\s*12px/);
+  assert.match(styles, /\.workflow-rich-content > ol > li,[\s\S]*?border-bottom:\s*1px solid rgba\(255, 255, 255, \.14\)[\s\S]*?color:\s*#fff[\s\S]*?font-size:\s*16px[\s\S]*?font-weight:\s*450/);
   assert.match(styles, /\.workflow-rich-content > ol > li:last-child,[\s\S]*?border-bottom:\s*0/);
-  assert.match(styles, /\.workflow-rich-content > ol > li::before,[\s\S]*?background:\s*transparent[\s\S]*?border:\s*0[\s\S]*?color:\s*#fff/);
+  assert.match(styles, /\.workflow-rich-content > ol > li::before,[\s\S]*?background:\s*transparent[\s\S]*?border:\s*0/);
+  assert.match(styles, /\.workflow-rich-content > ol > li:nth-child\(4n \+ 2\)::before,[\s\S]*?color:\s*#ffcf78/);
 });
 
 test("通用富文本以亮白正文和有呼吸感的分级标题呈现", () => {
   assert.match(styles, /\.workflow-rich-content\s*\{[^}]*--rich-block-gap:\s*14px[^}]*color:\s*#fff[^}]*font-size:\s*16px/s);
   assert.match(styles, /\.workflow-rich-content :is\(p, li, p \*, li \*\),[\s\S]*?color:\s*#fff !important/);
+  assert.match(styles, /\.workflow-rich-content > p,[\s\S]*?font-weight:\s*500/);
   assert.match(styles, /\.workflow-rich-content h1,[\s\S]*?border-left:\s*3px solid #edac57[\s\S]*?color:\s*#ffe4b5/);
   assert.match(styles, /\.workflow-rich-content h2,[\s\S]*?margin:\s*30px 0 15px[\s\S]*?border-left:\s*3px solid #64c8f2[\s\S]*?color:\s*#d9f3ff/);
   assert.match(styles, /\.workflow-rich-content h3,[\s\S]*?margin:\s*26px 0 13px[\s\S]*?border-left:\s*2px solid #66d6a0[\s\S]*?color:\s*#e0ffee/);

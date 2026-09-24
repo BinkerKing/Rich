@@ -34,10 +34,11 @@ test("工作台目录固定在与正文共用的阅读网格中", () => {
 });
 
 test("连续序号以无底色模块承载，行间保留轻量分隔和亮白文字", () => {
-  assert.match(styles, /\.wd-step-card\s*\{[^}]*gap:\s*0[^}]*padding:\s*4px 18px[^}]*background:\s*transparent[^}]*border:\s*1px solid rgba\(255, 255, 255, 0\.28\)[^}]*border-radius:\s*12px/s);
-  assert.match(styles, /\.wd-step-card li\s*\{[^}]*color:\s*#fff[^}]*border-bottom:\s*1px solid rgba\(255, 255, 255, 0\.14\)[^}]*font-size:\s*16\.5px/s);
+  assert.match(styles, /\.wd-step-card\s*\{[^}]*gap:\s*0[^}]*padding:\s*4px 18px[^}]*background:\s*transparent[^}]*border:\s*2px solid rgba\(255, 255, 255, 0\.4\)[^}]*border-radius:\s*12px/s);
+  assert.match(styles, /\.wd-step-card li\s*\{[^}]*color:\s*#fff[^}]*border-bottom:\s*1px solid rgba\(255, 255, 255, 0\.14\)[^}]*font-size:\s*16\.5px[^}]*font-weight:\s*450/s);
   assert.match(styles, /\.wd-step-card li:last-child\s*\{[^}]*border-bottom:\s*0/s);
-  assert.match(styles, /\.wd-step-card li::before\s*\{[^}]*color:\s*#fff[^}]*background:\s*transparent[^}]*border:\s*0/s);
+  assert.match(styles, /\.wd-step-card li::before\s*\{[^}]*color:\s*#72d5ff[^}]*background:\s*transparent[^}]*border:\s*0/s);
+  assert.match(styles, /\.wd-step-card li:nth-child\(4n \+ 2\)::before\s*\{[^}]*color:\s*#ffcf78/s);
 });
 
 test("工作台标题按层级使用不同亮色，并与前置标识色区分", () => {
@@ -46,7 +47,7 @@ test("工作台标题按层级使用不同亮色，并与前置标识色区分",
   assert.match(styles, /\.wd-card--heading-level-3 h4\s*\{[^}]*margin:\s*34px 0 14px[^}]*color:\s*#e0ffee[^}]*border-left:\s*2px solid #66d6a0/s);
   assert.match(styles, /\.wd-card--heading-level-1 h2 small\s*\{[^}]*color:\s*#edac57/s);
   assert.match(styles, /\.wd-card--heading-level-2 small,\s*\.wd-card--heading-level-3 small\s*\{[^}]*color:\s*#64c8f2/s);
-  assert.match(styles, /\.wd-card p\s*\{[^}]*color:\s*#fff[^}]*line-height:\s*1\.92/s);
+  assert.match(styles, /\.wd-card p\s*\{[^}]*color:\s*#fff[^}]*font-weight:\s*500[^}]*line-height:\s*1\.92/s);
 });
 
 test("流程图卡片保留边框并将放大按钮固定在标题栏最右侧", () => {

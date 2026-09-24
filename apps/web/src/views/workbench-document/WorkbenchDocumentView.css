@@ -224,6 +224,7 @@
   margin: 0;
   color: #fff;
   font-size: 17px;
+  font-weight: 500;
   letter-spacing: 0.005em;
   line-height: 1.92;
   white-space: pre-wrap;
@@ -237,7 +238,7 @@
   list-style: none;
   overflow: hidden;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  border: 2px solid rgba(255, 255, 255, 0.4);
   border-radius: 12px;
   counter-reset: workbench-step;
 }
@@ -249,7 +250,7 @@
   color: #fff;
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   font-size: 16.5px;
-  font-weight: 520;
+  font-weight: 450;
   letter-spacing: 0.008em;
   line-height: 1.8;
   counter-increment: workbench-step;
@@ -267,7 +268,7 @@
   width: 29px;
   height: 21px;
   place-items: center;
-  color: #fff;
+  color: #72d5ff;
   background: transparent;
   border: 0;
   content: counter(workbench-step, decimal-leading-zero);
@@ -275,6 +276,10 @@
   font-weight: 750;
   letter-spacing: 0.04em;
 }
+
+.wd-step-card li:nth-child(4n + 2)::before { color: #ffcf78; }
+.wd-step-card li:nth-child(4n + 3)::before { color: #78e5b4; }
+.wd-step-card li:nth-child(4n)::before { color: #c6a8ff; }
 
 .wd-code-card {
   position: relative;

@@ -3333,6 +3333,8 @@
 .prj-pm-rich-surface :is(strong, b) { font-weight: 700; }
 .workflow-rich-content :is(p, li, p *, li *),
 .prj-pm-rich-surface :is(p, li, p *, li *) { color: #fff !important; }
+.workflow-rich-content > p,
+.prj-pm-rich-surface > p { font-weight: 500; }
 .workflow-rich-content > :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image, img) + :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image, img),
 .prj-pm-rich-surface > :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image, img) + :is(p, h1, h2, h3, blockquote, pre, ul, ol, table, .pm-rich-image, img) { margin-top: var(--rich-block-gap); }
 .workflow-rich-content h1,
@@ -3414,7 +3416,7 @@
   list-style: none;
   overflow: hidden;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, .28);
+  border: 2px solid rgba(255, 255, 255, .4);
   border-radius: 12px;
   counter-reset: rich-step;
 }
@@ -3426,7 +3428,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, .14);
   color: #fff;
   font-size: 16px;
-  font-weight: 520;
+  font-weight: 450;
   letter-spacing: .008em;
   line-height: 1.8;
   counter-increment: rich-step;
@@ -3449,6 +3451,16 @@
   font: 750 12px/1 "SF Mono", Menlo, Consolas, monospace;
   letter-spacing: .04em;
 }
+.workflow-rich-content > ol > li :is(strong, b),
+.prj-pm-rich-surface > ol > li :is(strong, b) { font-weight: 520; }
+.workflow-rich-content > ol > li::before,
+.prj-pm-rich-surface > ol > li::before { color: #72d5ff; }
+.workflow-rich-content > ol > li:nth-child(4n + 2)::before,
+.prj-pm-rich-surface > ol > li:nth-child(4n + 2)::before { color: #ffcf78; }
+.workflow-rich-content > ol > li:nth-child(4n + 3)::before,
+.prj-pm-rich-surface > ol > li:nth-child(4n + 3)::before { color: #78e5b4; }
+.workflow-rich-content > ol > li:nth-child(4n)::before,
+.prj-pm-rich-surface > ol > li:nth-child(4n)::before { color: #c6a8ff; }
 .workflow-rich-content .pm-rich-image img,
 .prj-pm-rich-surface .pm-rich-image img {
   max-width: min(360px, 100%);
