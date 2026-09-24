@@ -42,11 +42,15 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(source, /onNodeContextMenu=\{\(event, row\) => \{ event\.preventDefault\(\); void openCodexRefinement\(\[row\.id\]\); \}\}/);
   assert.doesNotMatch(source, /onPaneContextMenu=\{event => \{[\s\S]*?selectedIds\.length/);
   assert.match(source, /void openCodexRefinement\(\[\], \{ left: event\.clientX - rect\.left, top: event\.clientY - rect\.top \}\)/);
+  assert.match(source, /setQuickCreate\(\{ fromCanvas: true, position: flow\.screenToFlowPosition\(\{ x: event\.clientX, y: event\.clientY \}\), screen: \{ x: event\.clientX - rect\.left, y: event\.clientY - rect\.top \} \}\)/);
   assert.match(source, /const \[codexWholeChart, setCodexWholeChart\] = useState\(false\)/);
   assert.match(source, /is-codex-chart-running/);
   assert.match(source, /onSelectionContextMenu=\{\(event, nodes\) => \{ event\.preventDefault\(\); event\.stopPropagation\(\); void openCodexRefinement\(nodes\.map\(node => node\.id\)\); \}\}/);
   assert.match(source, /className: codexRunningNodeIds\.includes\(row\.id\) \? "is-codex-running"/);
   assert.match(source, /className="pfc-codex-refinement"/);
+  assert.match(source, /pfc-quick-create--with-codex/);
+  assert.match(source, /quickCreate\.fromCanvas \? \["step", "decision", "table", "boundary", "region", "note"\] : \["step", "note", "region"\]/);
+  assert.match(source, /!quickCreate\.fromCanvas && <button type="button" onClick=\{\(\) => setQuickCreate\(undefined\)\}>取消<\/button>/);
   assert.match(source, /const \[codexAnchor, setCodexAnchor\] = useState/);
   assert.match(source, /flow\.getNodesBounds\(ids\)/);
   assert.match(source, /flow\.flowToScreenPosition/);

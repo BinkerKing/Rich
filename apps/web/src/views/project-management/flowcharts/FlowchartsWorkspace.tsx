@@ -145,7 +145,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   });
   const [nodeDetailFullscreen, setNodeDetailFullscreen] = useState(false);
   const [connectingFrom, setConnectingFrom] = useState("");
-  const [quickCreate, setQuickCreate] = useState<{ source?: string; position: { x: number; y: number }; screen: { x: number; y: number } }>();
+  const [quickCreate, setQuickCreate] = useState<{ source?: string; fromCanvas?: boolean; position: { x: number; y: number }; screen: { x: number; y: number } }>();
   const [codexSelection, setCodexSelection] = useState<string[]>([]);
   const [codexRequest, setCodexRequest] = useState("");
   const [codexRunningNodeIds, setCodexRunningNodeIds] = useState<string[]>([]);
@@ -520,10 +520,11 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
                 if (!flow || !canvasRef.current) return;
                 const rect = canvasRef.current.getBoundingClientRect();
                 void openCodexRefinement([], { left: event.clientX - rect.left, top: event.clientY - rect.top });
+                setQuickCreate({ fromCanvas: true, position: flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }), screen: { x: event.clientX - rect.left, y: event.clientY - rect.top } });
               }}>
                   <Background gap={28} size={1} color="#44444d" /><Controls showInteractive />
                 </ReactFlow>
-                {quickCreate && <div className="pfc-quick-create" style={{ left: quickCreate.screen.x, top: quickCreate.screen.y }} role="dialog" aria-label="快速新建节点菜单"><strong>{quickCreate.source ? "新建并连接" : "新增节点"}</strong>{(["step", "note", "region"] as FlowNodeKind[]).map(kind => <button key={kind} type="button" onClick={() => addNode(kind, quickCreate.position, quickCreate.source)}>{({ step: "图标节点", note: "备注", region: "区域" } as Record<string, string>)[kind]}</button>)}<button type="button" onClick={() => setQuickCreate(undefined)}>取消</button></div>}
+                {quickCreate && <div className={`pfc-quick-create${quickCreate.fromCanvas ? " pfc-quick-create--with-codex" : ""}`} style={{ left: quickCreate.screen.x, top: quickCreate.screen.y + (quickCreate.fromCanvas ? 42 : 0) }} role="dialog" aria-label="快速新建节点菜单">{!quickCreate.fromCanvas && <strong>{quickCreate.source ? "新建并连接" : "新增节点"}</strong>}{(quickCreate.fromCanvas ? ["step", "decision", "table", "boundary", "region", "note"] : ["step", "note", "region"]).map(kind => <button key={kind} type="button" onClick={() => addNode(kind as FlowNodeKind, quickCreate.position, quickCreate.source)}>{({ step: "处理", decision: "判断", table: "数据表", boundary: "开始/结束", region: "区域", note: "备注" } as Record<string, string>)[kind]}</button>)}{!quickCreate.fromCanvas && <button type="button" onClick={() => setQuickCreate(undefined)}>取消</button>}</div>}
                 {(codexSelection.length > 0 || codexWholeChart) && codexAnchor && !readOnly && <form className="pfc-codex-refinement" role="dialog" aria-label="Codex 流程图整改" style={codexAnchor} onSubmit={event => { event.preventDefault(); void runCodexRefinement(); }}>
                   <input aria-label="Codex 整改要求" autoFocus placeholder={codexRunningNodeIds.length ? "Codex 正在整改…" : "描述需要 Codex 整改的内容，回车提交"} disabled={codexRunningNodeIds.length > 0} value={codexRequest} onChange={event => setCodexRequest(event.target.value)} />
                 </form>}
