@@ -3477,9 +3477,12 @@
 .workflow-rich-content img { cursor: zoom-in; }
 .workflow-rich-content table,
 .prj-pm-rich-surface table {
-  width: 100%;
+  width: calc(100% - 48px);
+  max-width: calc(100% - 48px);
+  box-sizing: border-box;
+  margin: 20px 24px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, .38);
+  border: 2px solid rgba(255, 255, 255, .82);
   border-radius: 8px;
   border-collapse: separate;
   border-spacing: 0;
@@ -3494,14 +3497,14 @@
 .prj-pm-rich-surface td {
   padding: 11px 13px;
   border: 0;
-  border-right: 1px solid rgba(255, 255, 255, .2);
-  border-bottom: 1px solid rgba(255, 255, 255, .2);
+  border-right: 1.5px solid rgba(255, 255, 255, .38);
+  border-bottom: 1.5px solid rgba(255, 255, 255, .38);
   color: #fff;
   vertical-align: top;
   overflow-wrap: anywhere;
 }
 .workflow-rich-content th,
-.prj-pm-rich-surface th { color: #fff; background: rgba(255, 255, 255, .055); font-weight: 700; letter-spacing: .025em; }
+.prj-pm-rich-surface th { border-bottom: 2px solid rgba(255, 255, 255, .62); color: #fff; background: rgba(255, 255, 255, .055); font-weight: 700; letter-spacing: .025em; }
 .workflow-rich-content tr > :last-child,
 .prj-pm-rich-surface tr > :last-child { border-right: 0; }
 .workflow-rich-content tr:last-child > *,
