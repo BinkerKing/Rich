@@ -3386,27 +3386,19 @@
 .prj-pm-rich-surface a { color: #fff; text-decoration: underline; }
 .workflow-rich-content pre,
 .prj-pm-rich-surface pre {
-  position: relative;
-  border: 1px solid rgba(147, 197, 253, .18);
-  border-left: 3px solid #8cc8ff;
-  border-radius: 7px;
-  background: rgba(4, 12, 20, .74);
+  margin-right: 32px;
+  margin-left: 32px;
+  border: 2px solid rgba(255, 255, 255, .78);
+  border-radius: 0;
+  background: transparent;
   color: #fff;
-  padding: 31px 14px 13px;
-  font: 12px/1.55 "SF Mono", Menlo, Consolas, monospace;
+  padding: 16px 20px;
+  font: 500 16px/1.75 "SF Mono", Menlo, Consolas, "Microsoft YaHei", "PingFang SC", monospace;
+  text-shadow: 0 0 9px rgba(255, 255, 255, .18);
   white-space: pre-wrap;
 }
 .workflow-rich-content pre::before,
-.prj-pm-rich-surface pre::before {
-  position: absolute;
-  top: 9px;
-  left: 12px;
-  color: #fff;
-  content: "代码";
-  font: 700 10px/1 "SF Mono", Menlo, Consolas, monospace;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
+.prj-pm-rich-surface pre::before { content: none; }
 .workflow-rich-content ul,
 .workflow-rich-content ol,
 .prj-pm-rich-surface ul,
