@@ -52,6 +52,8 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.doesNotMatch(source, /Codex 会先读取整张流程图，再通过 MCP 保存调整/);
   assert.match(styles, /\.pfc \.react-flow__node\.is-codex-running/);
   assert.match(styles, /@keyframes pfc-codex-flow/);
+  assert.match(styles, /is-codex-running > \.pfc-node \{ border-color:#e9ffff;[\s\S]*?0 0 42px/);
+  assert.match(styles, /is-codex-complete > \.pfc-node \{[\s\S]*?background:linear-gradient/);
 });
 
 test("流程图变更自动同步后端，不保留本地草稿", () => {
@@ -69,7 +71,7 @@ test("流程图顶部不提供冗余的整理和添加节点按钮", () => {
 
 test("锁定画布后双击节点仍打开详情，不触发默认缩放", () => {
   assert.match(source, /zoomOnDoubleClick=\{false\}/);
-  assert.match(source, /onNodeDoubleClick=\{\(_, row\) => \{ setSelected\(row\.id\); setSelectedIds\(\[row\.id\]\); setDetailNode\(row\.id\); \}\}/);
+  assert.match(source, /onNodeDoubleClick=\{\(_, row\) => \{ setSelected\(row\.id\); setSelectedIds\(\[row\.id\]\); setDetailNode\(row\.id\); setCodexCompletedNodeIds\(current => current\.filter\(id => id !== row\.id\)\); \}\}/);
 });
 
 
