@@ -31,6 +31,7 @@ test("项目流程图的展开页可打开与当前图绑定的 Codex 对话", (
   assert.match(source, /api\.ensureFlowchartCodexSession\(projectId, item\.id, `\$\{item\.title\} · Codex`\)/);
   assert.match(source, /openBoundCodex\(\{ projectId, deliverableId: item\.id, deliverableTitle: item\.title, resourceType: "flowchart", conversationId: session\.conversation\.id \}\)/);
   assert.match(source, /aria-label="Codex 对话" title="Codex 对话" onClick=\{\(\) => void openCodexConversation\(item\)\}/);
+  assert.match(source, /function FlowchartListIcon[\s\S]*?<svg aria-hidden="true" width=\{18\} height=\{18\}/);
 });
 
 test("流程图变更自动同步后端，不保留本地草稿", () => {

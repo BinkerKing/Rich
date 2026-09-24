@@ -15,6 +15,7 @@ import { registerAutomationTools } from "./resources/automationTools.js";
 import { registerTestCenterTools } from "./resources/testCenterTools.js";
 import { registerStartupProjectManualTools } from "./resources/startupProjectManualTools.js";
 import type { TestCenterSqliteRepo } from "../test-center/TestCenterSqliteRepo.js";
+import type { FlowchartsRepo } from "../repos/FlowchartsRepo.js";
 
 export interface ResourceToolDeps {
   elements: ElementsRepo;
@@ -24,6 +25,7 @@ export interface ResourceToolDeps {
   projectAutomation?: ProjectAutomationRepo;
   testCenter?: TestCenterSqliteRepo;
   startupProjectsRoot?: string;
+  flowcharts?: FlowchartsRepo;
 }
 
 export function registerResourceTools(registry: RichToolRegistry, deps: ResourceToolDeps): void {
@@ -32,7 +34,7 @@ export function registerResourceTools(registry: RichToolRegistry, deps: Resource
   registerKnowledgeTools(registry, deps.elements, deps.operationRepo);
   registerPracticeResourceTools(registry, deps.elements, deps.operationRepo);
   registerProjectTools(registry, deps.projectManagement, deps.operationRepo);
-  registerFlowchartTools(registry, deps.projectManagement, deps.operationRepo);
+  registerFlowchartTools(registry, { projects: deps.projectManagement, elements: deps.elements, flowcharts: deps.flowcharts }, deps.operationRepo);
   if (deps.greatMe) registerPlanningTools(registry, deps.greatMe, deps.operationRepo);
   if (deps.projectAutomation) registerAutomationTools(registry, deps.projectAutomation, deps.operationRepo);
   if (deps.testCenter) registerTestCenterTools(registry, deps.testCenter, deps.operationRepo);

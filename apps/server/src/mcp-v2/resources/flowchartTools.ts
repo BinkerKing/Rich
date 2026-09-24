@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { McpOperationRepo } from "../../repos/McpOperationRepo.js";
 import type { ProjectManagementRepo, ProjectModuleItem } from "../../repos/ProjectManagementRepo.js";
+import type { ElementsRepo } from "../../repos/ElementsRepo.js";
+import type { Flowchart, FlowchartsRepo } from "../../repos/FlowchartsRepo.js";
 import { RichMcpError } from "../registry/errors.js";
 import { richSuccess } from "../registry/response.js";
 import type { RichToolRegistry } from "../registry/toolRegistry.js";
@@ -41,9 +43,16 @@ const flowchartInput = z.object({
 
 type FlowchartGraph = { version: 1; objective: string; status: "draft" | "active" | "completed"; nodes: Array<Record<string, unknown>>; edges: Array<Record<string, unknown>> };
 type FlowchartMutationResult = { item: ProjectModuleItem; node?: Record<string, unknown>; edge?: Record<string, unknown>; deletedNodeId?: string; deletedEdgeId?: string; flowchart?: Record<string, unknown> };
+type FlowchartResource = { kind: "project"; item: ProjectModuleItem } | { kind: "standalone"; item: ProjectModuleItem; flowchart: Flowchart };
 
 function object(value: unknown): value is Record<string, unknown> { return Boolean(value) && typeof value === "object" && !Array.isArray(value); }
 function id(value: Record<string, unknown>): string { return typeof value.id === "string" ? value.id : ""; }
+function isBoundStandaloneFlowchart(project: Awaited<ReturnType<ElementsRepo["get"]>>, flowchartId: string): boolean {
+  return project?.type === "project" && object(project.content) && Array.isArray(project.content.flowchartIds) && project.content.flowchartIds.includes(flowchartId);
+}
+function standaloneItem(projectId: string, flowchart: Flowchart): ProjectModuleItem {
+  return { id: flowchart.id, projectId, moduleKey: "flowcharts", title: flowchart.title, sortOrder: 0, content: { graph: flowchart.graph }, createdAt: flowchart.createdAt, updatedAt: flowchart.updatedAt };
+}
 function graphOf(item: ProjectModuleItem): FlowchartGraph {
   const graph = item.content.graph;
   if (!object(graph) || graph.version !== 1 || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges) || !["draft", "active", "completed"].includes(String(graph.status))) {
@@ -53,7 +62,7 @@ function graphOf(item: ProjectModuleItem): FlowchartGraph {
 }
 function flowchartRef(item: ProjectModuleItem) { return [{ type: "projectItem", id: item.id, label: item.title }]; }
 
-export function registerFlowchartTools(registry: RichToolRegistry, projects: Pick<ProjectManagementRepo, "listModuleItems" | "updateModuleItem">, operationRepo?: McpOperationRepo): void {
+export function registerFlowchartTools(registry: RichToolRegistry, deps: { projects: Pick<ProjectManagementRepo, "listModuleItems" | "updateModuleItem">; elements?: Pick<ElementsRepo, "get">; flowcharts?: Pick<FlowchartsRepo, "get" | "update"> }, operationRepo?: McpOperationRepo): void {
   registry.register({
     name: "rich_flowchart_manage", title: "管理项目流程图", category: "manage",
     description: "读取并精确修改项目流程图：图信息、节点、连线及节点详情。所有写入均写后读回校验。",
@@ -62,12 +71,16 @@ export function registerFlowchartTools(registry: RichToolRegistry, projects: Pic
     verification: "Every mutation reads the same flowchart back and verifies the requested node, edge, or chart field.",
     handler: async input => {
       const find = async () => {
-        const item = (await projects.listModuleItems(input.projectId, "flowcharts")).find(candidate => candidate.id === input.flowchartId);
-        if (!item) throw new RichMcpError("NOT_FOUND", "The requested flowchart was not found in this project.");
-        return item;
+        const item = (await deps.projects.listModuleItems(input.projectId, "flowcharts")).find(candidate => candidate.id === input.flowchartId);
+        if (item) return { kind: "project", item } as FlowchartResource;
+        const project = await deps.elements?.get(input.projectId);
+        if (!deps.flowcharts || !isBoundStandaloneFlowchart(project ?? null, input.flowchartId)) throw new RichMcpError("NOT_FOUND", "The requested flowchart was not found in this project.");
+        const flowchart = await deps.flowcharts.get(input.flowchartId);
+        if (!flowchart) throw new RichMcpError("NOT_FOUND", "The requested flowchart was not found in this project.");
+        return { kind: "standalone", item: standaloneItem(input.projectId, flowchart), flowchart } as FlowchartResource;
       };
       if (input.action === "get") {
-        const item = await find();
+        const { item } = await find();
         return richSuccess("rich_flowchart_manage", { flowchart: { id: item.id, title: item.title, graph: graphOf(item), updatedAt: item.updatedAt } }, { refs: flowchartRef(item) });
       }
       const destructive = input.action === "delete_node" || input.action === "delete_edge";
@@ -75,7 +88,7 @@ export function registerFlowchartTools(registry: RichToolRegistry, projects: Pic
         toolName: "rich_flowchart_manage", operationRepo, context: input.context, options: input.options, destructive,
         inputForHash: input, changes: [{ operation: input.action.startsWith("delete") ? "delete" : input.action.startsWith("create") ? "create" : "update", resource: "flowchart", id: input.flowchartId }],
         execute: async () => {
-          const item = await find(); const graph = graphOf(item);
+          const found = await find(); const item = found.item; const graph = graphOf(item);
           let nextGraph: FlowchartGraph = { ...graph, nodes: [...graph.nodes], edges: [...graph.edges] };
           let nextTitle = item.title; let result: Omit<FlowchartMutationResult, "item"> = {};
           if (input.action === "update_chart") {
@@ -115,12 +128,20 @@ export function registerFlowchartTools(registry: RichToolRegistry, projects: Pic
             if (!nextGraph.edges.some(edge => id(edge) === input.edgeId)) throw new RichMcpError("NOT_FOUND", "The requested flowchart edge was not found.");
             nextGraph = { ...nextGraph, edges: nextGraph.edges.filter(edge => id(edge) !== input.edgeId) }; result = { deletedEdgeId: input.edgeId };
           }
-          const updated = await projects.updateModuleItem(input.projectId, item.id, { title: nextTitle, content: { ...item.content, graph: nextGraph } });
-          if (!updated) throw new RichMcpError("NOT_FOUND", "The requested flowchart was no longer available.");
-          return { item: updated, ...result };
+          let updatedItem: ProjectModuleItem;
+          if (found.kind === "project") {
+            const updated = await deps.projects.updateModuleItem(input.projectId, item.id, { title: nextTitle, content: { ...item.content, graph: nextGraph } });
+            if (!updated) throw new RichMcpError("NOT_FOUND", "The requested flowchart was no longer available.");
+            updatedItem = updated;
+          } else {
+            const updated = await deps.flowcharts?.update(item.id, { title: nextTitle, graph: nextGraph });
+            if (!updated) throw new RichMcpError("NOT_FOUND", "The requested flowchart was no longer available.");
+            updatedItem = standaloneItem(input.projectId, updated);
+          }
+          return { item: updatedItem, ...result };
         },
         verify: async result => {
-          const current = await find(); const graph = graphOf(current);
+          const current = (await find()).item; const graph = graphOf(current);
           const verified = input.action === "update_chart" ? current.title === (input.title ?? current.title) && (input.objective === undefined || graph.objective === input.objective) && (input.status === undefined || graph.status === input.status)
             : input.action === "create_node" || input.action === "update_node" ? graph.nodes.some(node => id(node) === (input.action === "create_node" ? (input.node!.id ?? id(result.node ?? {})) : input.nodeId))
             : input.action === "delete_node" ? !graph.nodes.some(node => id(node) === input.nodeId) && !graph.edges.some(edge => edge.source === input.nodeId || edge.target === input.nodeId)

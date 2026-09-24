@@ -518,7 +518,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   // Persist every AI op prompt + output to data/ai-ops.jsonl for the admin UI.
   configureOpLog(root);
   const aiContextProvider = createAIContextProvider(chatConversations);
-  const deliverableCodexContext = new DeliverableCodexContextService(promotionContext, elements, projectManagement);
+  const deliverableCodexContext = new DeliverableCodexContextService(promotionContext, elements, projectManagement, undefined, flowcharts);
   const workbench = workbenchRepo && deliverableCodexConversations ? new WorkbenchService(workbenchRepo, deliverableCodexConversations) : undefined;
   const workbenchDocuments = workbenchDocumentRepo ? new WorkbenchDocumentService(workbenchDocumentRepo) : undefined;
   // Self-heal: any op stuck in "running" from a previous crash / pkill / OOM
@@ -664,6 +664,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     projectAutomation,
     testCenter: testCenter ?? undefined,
     startupProjectsRoot: root,
+    flowcharts,
     delegationAdapter: multica.delegationAdapter,
     executionTeams: multica.executionTeams,
     taskService: multicaWorkTasks,

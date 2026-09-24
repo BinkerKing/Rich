@@ -7,6 +7,7 @@ import { deliverableTaskContextBrief } from "../ai-tasks/deliverableTaskBrief.js
 import type { DeliverableCodexMode } from "../repos/DeliverableCodexConversationRepo.js";
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
 import type { ProjectManagementRepo, ProjectModuleItem } from "../repos/ProjectManagementRepo.js";
+import type { FlowchartsRepo } from "../repos/FlowchartsRepo.js";
 import { GENERAL_CODEX_SCOPE } from "../task-workbench/instructions.js";
 
 type DeliverableContextMode = DeliverableCodexMode | "task" | "bug";
@@ -109,6 +110,15 @@ function graphValue(item: ProjectModuleItem): Record<string, unknown> {
   return object(item.content.graph) ? item.content.graph : {};
 }
 
+function boundFlowchartIds(project: Awaited<ReturnType<ElementsRepo["get"]>>): string[] {
+  if (project?.type !== "project" || !object(project.content) || !Array.isArray(project.content.flowchartIds)) return [];
+  return project.content.flowchartIds.filter((id): id is string => typeof id === "string");
+}
+
+function standaloneFlowchartItem(projectId: string, flowchart: { id: string; title: string; graph: Record<string, unknown>; createdAt: string; updatedAt: string }): ProjectModuleItem {
+  return { id: flowchart.id, projectId, moduleKey: "flowcharts", title: flowchart.title, sortOrder: 0, content: { graph: flowchart.graph }, createdAt: flowchart.createdAt, updatedAt: flowchart.updatedAt };
+}
+
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
@@ -140,7 +150,17 @@ export class DeliverableCodexContextService {
     private readonly generalWorkspaceRoot = process.env.RICH_PROJECT_ROOT
       ? resolve(process.env.RICH_PROJECT_ROOT)
       : resolve(process.env.HOME ?? process.cwd(), "Documents", "Ai-WorkSpace", "Rich"),
+    private readonly flowcharts?: Pick<FlowchartsRepo, "get">,
   ) {}
+
+  private async findFlowchart(projectId: string, flowchartId: string): Promise<ProjectModuleItem | undefined> {
+    const projectItem = (await this.projects?.listModuleItems(projectId, "flowcharts") ?? []).find(candidate => candidate.id === flowchartId);
+    if (projectItem) return projectItem;
+    const project = await this.elements.get(projectId);
+    if (!boundFlowchartIds(project).includes(flowchartId) || !this.flowcharts) return undefined;
+    const flowchart = await this.flowcharts.get(flowchartId);
+    return flowchart ? standaloneFlowchartItem(projectId, flowchart) : undefined;
+  }
 
   async build(input: { projectId: string; deliverableId: string; resourceType?: CodexResourceType; mode: DeliverableContextMode }): Promise<DeliverableCodexContext> {
     if (input.projectId === GENERAL_CODEX_SCOPE && input.deliverableId === GENERAL_CODEX_SCOPE) {
@@ -149,8 +169,7 @@ export class DeliverableCodexContextService {
     const project = await this.elements.get(input.projectId);
     const workspaceRoot = await projectWorkspaceRoot(project);
     if (input.resourceType === "flowchart") {
-      if (!this.projects) throw new Error("项目流程图上下文服务不可用。");
-      const item = (await this.projects.listModuleItems(input.projectId, "flowcharts")).find(candidate => candidate.id === input.deliverableId);
+      const item = await this.findFlowchart(input.projectId, input.deliverableId);
       if (!item) throw new Error("项目流程图不存在或不属于当前项目。");
       const initialContext = flowchartContextText(input.projectId, input.deliverableId, item);
       return {
@@ -199,8 +218,7 @@ export class DeliverableCodexContextService {
 
   async buildIncrementalContext(input: { projectId: string; deliverableId: string; resourceType?: CodexResourceType; since: string }): Promise<string | undefined> {
     if (input.resourceType === "flowchart") {
-      if (!this.projects) throw new Error("项目流程图上下文服务不可用。");
-      const item = (await this.projects.listModuleItems(input.projectId, "flowcharts")).find(candidate => candidate.id === input.deliverableId);
+      const item = await this.findFlowchart(input.projectId, input.deliverableId);
       if (!item) throw new Error("项目流程图不存在或不属于当前项目。");
       return item.updatedAt > input.since ? flowchartContextText(input.projectId, input.deliverableId, item) : undefined;
     }

@@ -11,6 +11,7 @@ import { EmptyProjectManagementRepo } from "../src/repos/EmptyProjectManagementR
 import type { ProjectModuleItem } from "../src/repos/ProjectManagementRepo.js";
 import type { ProjectDictionaryTable } from "../src/repos/ProjectManagementRepo.js";
 import type { AutomationPlanDetail } from "../src/modules/project-automation/contracts.js";
+import type { Flowchart } from "../src/repos/FlowchartsRepo.js";
 
 class MemoryOperationRepo implements McpOperationRepo {
   readonly records = new Map<string, McpOperationRecord>();
@@ -54,6 +55,7 @@ function makeHarness(options: { persistWrites?: boolean } = {}) {
     for (const id of ids) elementMap.delete(id);
   });
   const projectItems = new Map<string, ProjectModuleItem>();
+  const flowcharts = new Map<string, Flowchart>();
   const projectManagement = new EmptyProjectManagementRepo();
   projectManagement.listModuleItems = async (_projectId, moduleKey) =>
     Array.from(projectItems.values()).filter(item => item.moduleKey === moduleKey);
@@ -85,6 +87,16 @@ function makeHarness(options: { persistWrites?: boolean } = {}) {
 
   const registry = new RichToolRegistry();
   const operationRepo = new MemoryOperationRepo();
+  const flowchartRepo = {
+    get: async (id: string) => flowcharts.get(id) ?? null,
+    update: async (id: string, patch: Partial<Pick<Flowchart, "title" | "graph">>) => {
+      const current = flowcharts.get(id);
+      if (!current) return null;
+      const next = { ...current, ...patch, updatedAt: "2026-08-28T00:00:01.000Z" };
+      flowcharts.set(id, next);
+      return next;
+    },
+  };
   registerResourceTools(registry, {
     elements: {
       async list() { return Array.from(elementMap.values()); },
@@ -94,8 +106,9 @@ function makeHarness(options: { persistWrites?: boolean } = {}) {
     } as never,
     projectManagement,
     operationRepo,
+    flowcharts: flowchartRepo as never,
   });
-  return { registry, elementMap, projectItems, put, removeMany, operationRepo };
+  return { registry, elementMap, projectItems, flowcharts, put, removeMany, operationRepo };
 }
 
 describe("MCP 2.0 safe resource writes", () => {
@@ -227,6 +240,20 @@ describe("MCP 2.0 safe resource writes", () => {
       ok: true,
       data: { flowchart: { id: "flowchart-1", title: "订单处理", graph: { nodes: [{ id: "start" }] } } },
     });
+  });
+
+  it("updates a standalone flowchart that is bound to the requested project", async () => {
+    const harness = makeHarness();
+    harness.elementMap.set("project-rich", { id: "project-rich", type: "project", title: "Rich 项目", content: { flowchartIds: ["standalone-flowchart"] }, metadata: { createdAt: "2026-08-28T00:00:00.000Z", updatedAt: "2026-08-28T00:00:00.000Z", generatedBy: "user", richness: 1 } });
+    harness.flowcharts.set("standalone-flowchart", { id: "standalone-flowchart", title: "旧版流程图", graph: { version: 1, objective: "", status: "active", nodes: [{ id: "start", position: { x: 0, y: 0 }, data: { label: "开始", kind: "step" } }], edges: [] }, createdAt: "2026-08-28T00:00:00.000Z", updatedAt: "2026-08-28T00:00:00.000Z" });
+
+    const response = await harness.registry.invoke("rich_flowchart_manage", {
+      action: "update_node", projectId: "project-rich", flowchartId: "standalone-flowchart", nodeId: "start",
+      patch: { description: "由 Codex 补充的说明" }, context: { requestId: "standalone-flowchart-node-1" },
+    });
+
+    expect(response).toMatchObject({ ok: true, verification: { status: "verified" } });
+    expect(harness.flowcharts.get("standalone-flowchart")?.graph).toMatchObject({ nodes: [{ data: { description: "由 Codex 补充的说明" } }] });
   });
 
   it("creates flowchart nodes and edges, and updates node details with read-back verification", async () => {

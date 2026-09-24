@@ -24,6 +24,7 @@ import type { WorkbenchDocumentService } from "../workbench-document/service.js"
 import { registerWorkbenchDocumentTools } from "./resources/workbenchDocumentTools.js";
 import type { TestCenterSqliteRepo } from "../test-center/TestCenterSqliteRepo.js";
 import type { AiTaskManagementService } from "../ai-task-management/service.js";
+import type { FlowchartsRepo } from "../repos/FlowchartsRepo.js";
 import { registerAiTaskManagementTools } from "./tasks/aiTaskManagementTools.js";
 
 export interface McpToolEvent {
@@ -54,6 +55,7 @@ export interface BuildMcpV2Deps {
   projectAutomation?: ProjectAutomationRepo;
   testCenter?: TestCenterSqliteRepo;
   startupProjectsRoot?: string;
+  flowcharts?: FlowchartsRepo;
   delegationAdapter?: WorkDelegationPort;
   executionTeams?: ExecutionTeamAdministrationPort;
   taskService?: PersistentTaskService;
@@ -84,6 +86,7 @@ export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
     projectAutomation: deps.projectAutomation,
     testCenter: deps.testCenter,
     startupProjectsRoot: deps.startupProjectsRoot,
+    flowcharts: deps.flowcharts,
   });
   registerScenarioTools(registry, {
     elements: deps.elements,

@@ -22,4 +22,20 @@ describe("DeliverableCodexContextService flowchart context", () => {
     expect(context.allowedMcpTools).toContain("rich_flowchart_manage");
     expect(context.systemInstruction).toContain("rich_flowchart_manage");
   });
+
+  it("accepts a standalone flowchart that is bound in the project", async () => {
+    const service = new DeliverableCodexContextService(
+      { createSnapshot: async () => { throw new Error("deliverable snapshot must not be read"); } },
+      { get: async () => ({ id: "project-1", type: "project", title: "示例项目", content: { flowchartIds: ["standalone-flowchart"] }, metadata: { createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", generatedBy: "user" as const, richness: 1 as const } }) },
+      { listModuleItems: async () => [] },
+      undefined,
+      { get: async () => ({ id: "standalone-flowchart", title: "旧版流程图", graph: { status: "active", nodes: [{ id: "start", data: { label: "开始", kind: "step" } }], edges: [] }, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" }) },
+    );
+
+    const context = await service.build({ projectId: "project-1", deliverableId: "standalone-flowchart", resourceType: "flowchart", mode: "free" });
+
+    expect(context.scopeKey).toBe("flowchart:project-1:standalone-flowchart");
+    expect(context.initialContext).toContain("旧版流程图");
+    expect(context.initialContext).toContain("开始");
+  });
 });
