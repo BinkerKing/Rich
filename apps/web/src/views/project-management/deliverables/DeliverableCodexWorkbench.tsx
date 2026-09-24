@@ -239,7 +239,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
       if (payload.conversations.some(item => item.id === requestedConversationId)) setActiveId(requestedConversationId);
       else setError("绑定的 Codex 对话不可用，请检查是否已归档");
     }).catch(reason => setError(String(reason)));
-  }, [requestedConversationId, openSequence, visible]);
+  }, [requestedConversationId, openSequence, resourcePath, visible]);
   useEffect(() => {
     if (!activeId || messages[activeId]) return;
     void loadMessages(activeId).catch(reason => setError(reason instanceof Error ? reason.message : String(reason)));

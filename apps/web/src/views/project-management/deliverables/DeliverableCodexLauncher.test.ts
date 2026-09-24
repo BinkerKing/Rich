@@ -22,6 +22,13 @@ test("内部 Codex 工作台在应用根部挂载，任意 Rich 页面均可响�
   assert.match(launcher, /<DeliverableCodexWorkbench/);
 });
 
+test("切换资源时重建 Codex 工作台，避免显示上一个资源的会话", () => {
+  assert.match(
+    launcher,
+    /key=\{`\$\{target\.resourceType \?\? "deliverable"\}:\$\{target\.projectId\}:\$\{target\.deliverableId\}`\}/,
+  );
+});
+
 test("快捷键导航会关闭已打开的 Codex 工作台", () => {
   assert.match(launcher, /rich:close-deliverable-codex/);
   assert.match(launcher, /setVisible\(false\)/);

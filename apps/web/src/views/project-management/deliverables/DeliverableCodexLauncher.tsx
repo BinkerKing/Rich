@@ -106,6 +106,7 @@ export function DeliverableCodexLauncher(): ReactNode {
 
   return target ? (
     <DeliverableCodexWorkbench
+      key={`${target.resourceType ?? "deliverable"}:${target.projectId}:${target.deliverableId}`}
       projectId={target.projectId}
       deliverableId={target.deliverableId}
       deliverableTitle={target.deliverableTitle}
