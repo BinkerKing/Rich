@@ -39,6 +39,10 @@ import {
   getProjectDescription,
   saveProjectDescription,
 } from "../modules/project-description/projectDescriptionService.js";
+import {
+  getProjectDictionaryInfo,
+  saveProjectDictionaryInfo,
+} from "../modules/project-dictionary-info/projectDictionaryInfoService.js";
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
 import type { GreatMeRepo } from "../repos/GreatMeRepo.js";
 import { syncProjectPlanTasks } from "../services/projectPlanTaskSync.js";
@@ -99,6 +103,16 @@ export function projectManagementRoutes(repo: ProjectManagementRepo, options: Pr
   r.use("/:projectId/dictionary/*", async (c, next) => {
     c.header("cache-control", "no-store");
     await next();
+  });
+
+  r.get("/:projectId/dictionary/info", async c => {
+    return c.json(await getProjectDictionaryInfo(repo, c.req.param("projectId")));
+  });
+
+  r.put("/:projectId/dictionary/info", async c => {
+    const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    if (typeof body.html !== "string") return c.json({ error: "html required" }, 400);
+    return c.json(await saveProjectDictionaryInfo(repo, c.req.param("projectId"), body.html));
   });
 
   r.get("/:projectId/summary", async c => {
