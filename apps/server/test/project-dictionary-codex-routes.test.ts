@@ -80,7 +80,7 @@ describe("project dictionary Codex routes", () => {
       chats: { async appendMessage() { appended += 1; } } as never,
       context: { async build() { return { systemInstruction: "dictionary", initialContext: "context" }; } } as never,
       projects: {} as never,
-      agents: { async start() {}, async sendMessage() { return { turn: {}, events: [] }; } } as never,
+      agents: { async start() { return { config: {} as never, resumed: false }; }, async sendMessage() { return { turn: {}, events: [] }; } } as never,
     });
 
     const response = await app.request("/conversations/binding-1/stream", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content: "维护资料库", clientRequestId: "request-1", userMessageId: "message-1" }) });
@@ -88,5 +88,28 @@ describe("project dictionary Codex routes", () => {
     expect(response.status).toBe(200);
     await response.text();
     expect(appended).toBe(0);
+  });
+
+  it("replaces a missing resumed Codex Session before sending", async () => {
+    const starts: Array<{ fresh?: boolean }> = [];
+    let sent = 0;
+    const app = projectDictionaryCodexRoutes({
+      conversations: { async get() { return { id: "binding-1", projectId: "project-1", conversationId: "chat-1", status: "active" }; }, async setCodexThread() {}, async touch() {} } as never,
+      chats: {} as never,
+      context: { async build() { return { systemInstruction: "dictionary", initialContext: "context", workspaceRoot: "/workspace" }; } } as never,
+      projects: {} as never,
+      agents: {
+        async start(_id, options) { starts.push({ fresh: options.fresh }); return { config: {} as never, resumed: starts.length === 1 }; },
+        async connectionStatus() { return { server: true, session: false }; },
+        async sendMessage() { sent += 1; return { turn: {}, events: [] }; },
+      } as never,
+    });
+
+    const response = await app.request("/conversations/binding-1/stream", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content: "维护资料库", clientRequestId: "request-1", userMessageId: "message-1" }) });
+
+    expect(response.status).toBe(200);
+    await response.text();
+    expect(starts).toEqual([{ fresh: undefined }, { fresh: true }]);
+    expect(sent).toBe(1);
   });
 });

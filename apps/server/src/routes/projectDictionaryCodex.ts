@@ -88,7 +88,10 @@ export function projectDictionaryCodexRoutes(deps: {
     const userMessageId = typeof body?.userMessageId === "string" ? body.userMessageId : "";
     if (!content || !clientRequestId || !userMessageId) return c.json({ error: "content, clientRequestId and userMessageId are required" }, 400);
     const context = await deps.context.build(conversation.projectId);
-    await deps.agents.start(conversation.conversationId, { executor: "codex", workspaceRoot: context.workspaceRoot });
+    const session = await deps.agents.start(conversation.conversationId, { executor: "codex", workspaceRoot: context.workspaceRoot });
+    if (session.resumed && !(await deps.agents.connectionStatus(conversation.conversationId)).session) {
+      await deps.agents.start(conversation.conversationId, { fresh: true, executor: "codex", workspaceRoot: context.workspaceRoot });
+    }
     return streamSSE(c, async stream => {
       const write = async (event: { type: string; text?: string; content?: string; turnId?: string; message?: string; status?: string; name?: string }) => {
         const name = event.type === "delta" ? "text" : event.type;
