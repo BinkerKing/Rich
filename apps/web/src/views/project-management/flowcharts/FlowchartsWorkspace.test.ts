@@ -36,6 +36,8 @@ test("项目流程图的展开页可打开与当前图绑定的 Codex 对话", (
 
 test("右键节点或多选区域会打开 Codex 整改输入，并在执行时标记节点状态", () => {
   assert.match(source, /const \[codexSelection, setCodexSelection\] = useState<string\[\]>\(\[\]\)/);
+  assert.match(source, /const \[codexDrafts, setCodexDrafts\] = useState<Record<string, string>>\(\{\}\)/);
+  assert.match(source, /const codexDraftKey = \(nodeIds: string\[\], wholeChart: boolean\) => wholeChart \? "whole-chart" : nodeIds\.length \? nodeIds\.slice\(\)\.sort\(\)\.join\(","\) : ""/);
   assert.match(source, /const focusedNode = selectedNodes\.length === 1 \? selectedNodes\[0\] : undefined/);
   assert.match(source, /className="pfc-node-focus" aria-label="当前选中节点">\{focusedNode\.data\.label\}/);
   assert.match(source, /const \[codexRunningNodeIds, setCodexRunningNodeIds\] = useState<string\[\]>\(\[\]\)/);
@@ -55,10 +57,13 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(source, /flow\.getNodesBounds\(ids\)/);
   assert.match(source, /flow\.flowToScreenPosition/);
   assert.match(source, /<input aria-label="Codex 整改要求"/);
-  assert.match(source, /const closeCodexRefinement = \(\) => \{ setCodexSelection\(\[\]\); setCodexWholeChart\(false\); setCodexRequest\(""\); setCodexAnchor\(undefined\); \}/);
+  assert.match(source, /const saveCodexDraft = \(\) => \{[\s\S]*?setCodexDrafts\(current => \(\{ \.\.\.current, \[key\]: codexRequest \}\)\)/);
+  assert.match(source, /setCodexRequest\(previousDraftKey === draftKey \? codexRequest : codexDrafts\[draftKey\] \?\? ""\)/);
+  assert.match(source, /setCodexDrafts\(current => Object\.fromEntries\(Object\.entries\(current\)\.filter\(\(\[key\]\) => key !== draftKey\)\)\)/);
+  assert.match(source, /const closeCodexRefinement = \(\) => \{ saveCodexDraft\(\); setCodexSelection\(\[\]\); setCodexWholeChart\(false\); setCodexRequest\(""\); setCodexAnchor\(undefined\); \}/);
   assert.match(source, /onPaneClick=\{\(\) => \{ setEditingNode\(""\); setQuickCreate\(undefined\); closeCodexRefinement\(\); \}\}/);
   assert.match(source, /event\.key === "Escape" && \(detailNode \|\| selectedIds\.length \|\| selectedEdge \|\| codexSelection\.length \|\| codexWholeChart\)/);
-  assert.match(source, /setSelected\(""\); setSelectedIds\(\[\]\); setSelectedEdge\(""\); setEditingNode\(""\); setQuickCreate\(undefined\); setCodexSelection\(\[\]\); setCodexWholeChart\(false\); setCodexRequest\(""\); setCodexAnchor\(undefined\); return;/);
+  assert.match(source, /saveCodexDraft\(\); setDetailNode\(""\); setSelected\(""\); setSelectedIds\(\[\]\); setSelectedEdge\(""\); setEditingNode\(""\); setQuickCreate\(undefined\); setCodexSelection\(\[\]\); setCodexWholeChart\(false\); setCodexRequest\(""\); setCodexAnchor\(undefined\); return;/);
   assert.doesNotMatch(source, /Codex 会先读取整张流程图，再通过 MCP 保存调整/);
   assert.match(styles, /\.pfc \.react-flow__node\.is-codex-running/);
   assert.match(styles, /@keyframes pfc-codex-flow/);

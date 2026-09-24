@@ -15,6 +15,7 @@ import { flowchartCodexPrompt } from "./flowchartCodexPrompt.js";
 import "./FlowchartsWorkspace.css";
 
 const DETAIL_PANEL_WIDTH_KEY = "rich.flowchart.node-detail-panel-width";
+const codexDraftKey = (nodeIds: string[], wholeChart: boolean) => wholeChart ? "whole-chart" : nodeIds.length ? nodeIds.slice().sort().join(",") : "";
 const detailPanelWidth = (value: number, maxWidth = Math.floor(window.innerWidth * 2 / 3)) => Math.min(maxWidth, Math.max(320, Math.round(value)));
 function FlowchartListIcon({ name }: { name: "add" | "flow" | "chat" }) {
   return <svg aria-hidden="true" width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -148,6 +149,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   const [quickCreate, setQuickCreate] = useState<{ source?: string; fromCanvas?: boolean; position: { x: number; y: number }; screen: { x: number; y: number } }>();
   const [codexSelection, setCodexSelection] = useState<string[]>([]);
   const [codexRequest, setCodexRequest] = useState("");
+  const [codexDrafts, setCodexDrafts] = useState<Record<string, string>>({});
   const [codexRunningNodeIds, setCodexRunningNodeIds] = useState<string[]>([]);
   const [codexCompletedNodeIds, setCodexCompletedNodeIds] = useState<string[]>([]);
   const [codexAnchor, setCodexAnchor] = useState<{ left: number; top: number }>();
@@ -161,6 +163,10 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   const saveVersion = useRef(0);
   const viewKey = `rich-flowchart-view:${projectId ?? flowchartIds?.join(",") ?? "standalone"}`;
   const isFullscreen = standalone;
+  const saveCodexDraft = () => {
+    const key = codexDraftKey(codexSelection, codexWholeChart);
+    if (key) setCodexDrafts(current => ({ ...current, [key]: codexRequest }));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -198,7 +204,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && (detailNode || selectedIds.length || selectedEdge || codexSelection.length || codexWholeChart)) {
-        event.preventDefault(); event.stopPropagation(); setDetailNode(""); setSelected(""); setSelectedIds([]); setSelectedEdge(""); setEditingNode(""); setQuickCreate(undefined); setCodexSelection([]); setCodexWholeChart(false); setCodexRequest(""); setCodexAnchor(undefined); return;
+        event.preventDefault(); event.stopPropagation(); saveCodexDraft(); setDetailNode(""); setSelected(""); setSelectedIds([]); setSelectedEdge(""); setEditingNode(""); setQuickCreate(undefined); setCodexSelection([]); setCodexWholeChart(false); setCodexRequest(""); setCodexAnchor(undefined); return;
       }
       if (event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable=true]")) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c" && graph && selectedIds.length) { event.preventDefault(); clipboard.current = copyFlowSelection(graph, selectedIds); return; }
@@ -215,7 +221,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [selected, editingNode, detailNode, graph, selectedIds, selectedEdge, codexSelection, codexWholeChart]);
+  }, [selected, editingNode, detailNode, graph, selectedIds, selectedEdge, codexSelection, codexWholeChart, codexRequest]);
   useEffect(() => {
     if (!flow) return;
     const timer = window.setTimeout(() => {
@@ -376,6 +382,9 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     const ids = [...new Set(nodeIds)].filter(id => graph?.nodes.some(node => node.id === id));
     const wholeChart = nodeIds.length === 0;
     if (!wholeChart && !ids.length) return;
+    const previousDraftKey = codexDraftKey(codexSelection, codexWholeChart);
+    const draftKey = codexDraftKey(ids, wholeChart);
+    if (previousDraftKey) setCodexDrafts(current => ({ ...current, [previousDraftKey]: codexRequest }));
     const canvas = canvasRef.current;
     if (anchor) setCodexAnchor(anchor);
     else if (canvas && flow) {
@@ -386,7 +395,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
       setCodexAnchor({ left: Math.min(Math.max(16 + halfWidth, screen.x - rect.left), rect.width - 16 - halfWidth), top: Math.min(screen.y - rect.top + 12, rect.height - 52) });
     }
     setSelected(ids[0] ?? ""); setSelectedIds(ids); setSelectedEdge(""); setEditingNode("");
-    setCodexWholeChart(wholeChart); setCodexSelection(ids); setCodexRequest(""); setCodexCompletedNodeIds([]); setCodexChartCompleted(false); setQuickCreate(undefined);
+    setCodexWholeChart(wholeChart); setCodexSelection(ids); setCodexRequest(previousDraftKey === draftKey ? codexRequest : codexDrafts[draftKey] ?? ""); setCodexCompletedNodeIds([]); setCodexChartCompleted(false); setQuickCreate(undefined);
   };
   const refreshCodexFlowchart = async (flowchartId: string) => {
     const next = flowchartIds
@@ -404,8 +413,9 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     if (!item) return;
     const nodeIds = [...codexSelection];
     const wholeChart = codexWholeChart;
+    const draftKey = codexDraftKey(nodeIds, wholeChart);
     const request = codexRequest;
-    setError(""); setCodexRunningNodeIds(nodeIds); setCodexChartRunning(wholeChart); setCodexCompletedNodeIds([]); setCodexSelection([]); setCodexWholeChart(false); setCodexRequest(""); setCodexAnchor(undefined);
+    setError(""); setCodexDrafts(current => Object.fromEntries(Object.entries(current).filter(([key]) => key !== draftKey))); setCodexRunningNodeIds(nodeIds); setCodexChartRunning(wholeChart); setCodexCompletedNodeIds([]); setCodexSelection([]); setCodexWholeChart(false); setCodexRequest(""); setCodexAnchor(undefined);
     try {
       const session = await api.ensureFlowchartCodexSession(projectId, item.id, `${item.title} · Codex`);
       const content = flowchartCodexPrompt({ projectId, flowchartId: active, title: item.title, selectedNodeIds: nodeIds, request });
@@ -420,7 +430,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
     finally { setCodexRunningNodeIds([]); setCodexChartRunning(false); }
   };
-  const closeCodexRefinement = () => { setCodexSelection([]); setCodexWholeChart(false); setCodexRequest(""); setCodexAnchor(undefined); };
+  const closeCodexRefinement = () => { saveCodexDraft(); setCodexSelection([]); setCodexWholeChart(false); setCodexRequest(""); setCodexAnchor(undefined); };
 
   return <section className={`pfc${standalone ? " pfc--standalone" : ""}${embedded ? " pfc--embedded" : ""}`}>
     {error && <p role="alert" className="pfc-error">{error}</p>}
