@@ -88,6 +88,7 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(styles, /@keyframes pfc-codex-flow/);
   assert.match(styles, /is-codex-running > \.pfc-node \{ border-color:#e9ffff;[\s\S]*?0 0 42px/);
   assert.match(styles, /is-codex-complete > \.pfc-node \{[\s\S]*?background:linear-gradient/);
+  assert.match(styles, /\.pfc-region \{[^}]*background: rgba\(var\(--section-rgb\),\.10\)/);
   assert.match(styles, /\.pfc-node\.has-children,\.pfc-region\.has-children,\.pfc-note\.has-children \{ border-radius:0; clip-path:polygon/);
 });
 
