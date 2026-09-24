@@ -236,8 +236,8 @@
   margin: 16px 0;
   list-style: none;
   overflow: hidden;
-  background: #121a1e;
-  border: 1px solid rgba(131, 223, 232, 0.24);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 12px;
   counter-reset: workbench-step;
 }
@@ -246,8 +246,8 @@
   position: relative;
   min-height: 30px;
   padding: 16px 0 16px 44px;
-  color: #f5f9fb;
-  border-bottom: 1px solid rgba(131, 223, 232, 0.16);
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   font-size: 16.5px;
   font-weight: 520;
   letter-spacing: 0.008em;
@@ -267,7 +267,7 @@
   width: 29px;
   height: 21px;
   place-items: center;
-  color: #a5f0f4;
+  color: #fff;
   background: transparent;
   border: 0;
   content: counter(workbench-step, decimal-leading-zero);

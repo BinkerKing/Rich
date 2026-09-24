@@ -3403,8 +3403,8 @@
   padding: 4px 18px;
   list-style: none;
   overflow: hidden;
-  background: #121a1e;
-  border: 1px solid rgba(131, 223, 232, .24);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, .28);
   border-radius: 12px;
   counter-reset: rich-step;
 }
@@ -3413,8 +3413,8 @@
   position: relative;
   min-height: 30px;
   padding: 16px 0 16px 44px;
-  border-bottom: 1px solid rgba(131, 223, 232, .16);
-  color: #f5f9fb;
+  border-bottom: 1px solid rgba(255, 255, 255, .14);
+  color: #fff;
   font-size: 16px;
   font-weight: 520;
   letter-spacing: .008em;
@@ -3434,7 +3434,7 @@
   place-items: center;
   border: 0;
   background: transparent;
-  color: #a5f0f4;
+  color: #fff;
   content: counter(rich-step, decimal-leading-zero);
   font: 750 12px/1 "SF Mono", Menlo, Consolas, monospace;
   letter-spacing: .04em;
