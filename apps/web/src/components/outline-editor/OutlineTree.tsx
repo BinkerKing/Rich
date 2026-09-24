@@ -8,6 +8,7 @@ type OutlineTreeProps = {
   themeConfig?: Record<string, unknown>;
   focusId: string | null;
   onFocused: () => void;
+  onNodeSelect?: (nodeId: string) => void;
   onTextChange: (nodeId: string, text: string) => void;
   onToggle: (nodeId: string, expanded: boolean) => void;
   onAppendChild: (nodeId: string) => void;
@@ -17,7 +18,7 @@ type OutlineTreeProps = {
   onRemove: (nodeId: string) => void;
 };
 
-export function OutlineTree({ node, rootId, level, focusId, onFocused, themeConfig, ...actions }: OutlineTreeProps) {
+export function OutlineTree({ node, rootId, level, focusId, onFocused, themeConfig, onNodeSelect, ...actions }: OutlineTreeProps) {
   const hasChildren = node.children.length > 0;
   const expanded = node.expanded ?? true;
 
@@ -30,6 +31,7 @@ export function OutlineTree({ node, rootId, level, focusId, onFocused, themeConf
         themeConfig={themeConfig}
         focus={focusId === node.id}
         onFocused={onFocused}
+        onNodeSelect={onNodeSelect}
         {...actions}
       />
       {hasChildren && expanded && (
@@ -43,6 +45,7 @@ export function OutlineTree({ node, rootId, level, focusId, onFocused, themeConf
               themeConfig={themeConfig}
               focusId={focusId}
               onFocused={onFocused}
+              onNodeSelect={onNodeSelect}
               {...actions}
             />
           ))}

@@ -12,4 +12,5 @@ export type OutlineEditorProps = {
   createId: () => string;
   className?: string;
   themeConfig?: Record<string, unknown>;
+  onNodeSelect?: (nodeId: string) => void;
 };

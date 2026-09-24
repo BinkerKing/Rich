@@ -21,7 +21,7 @@ function parentId(root: OutlineNode, nodeId: string): string | null {
   return null;
 }
 
-export function OutlineEditor({ root, onChange, createId, className = "", themeConfig }: OutlineEditorProps) {
+export function OutlineEditor({ root, onChange, createId, className = "", themeConfig, onNodeSelect }: OutlineEditorProps) {
   const [focusId, setFocusId] = useState<string | null>(null);
 
   const commit = (next: OutlineNode, nextFocusId?: string | null) => {
@@ -38,6 +38,7 @@ export function OutlineEditor({ root, onChange, createId, className = "", themeC
         themeConfig={themeConfig}
         focusId={focusId}
         onFocused={() => setFocusId(null)}
+        onNodeSelect={onNodeSelect}
         onTextChange={(nodeId, text) => commit(updateNodeText(root, nodeId, text))}
         onToggle={(nodeId, expanded) => {
           const toggle = (node: OutlineNode): OutlineNode => node.id === nodeId

@@ -10,6 +10,7 @@ type OutlineNodeRowProps = {
   themeConfig?: Record<string, unknown>;
   focus: boolean;
   onFocused: () => void;
+  onNodeSelect?: (nodeId: string) => void;
   onTextChange: (nodeId: string, text: string) => void;
   onToggle: (nodeId: string, expanded: boolean) => void;
   onAppendChild: (nodeId: string) => void;
@@ -26,6 +27,7 @@ export function OutlineNodeRow({
   themeConfig,
   focus,
   onFocused,
+  onNodeSelect,
   onTextChange,
   onToggle,
   onAppendChild,
@@ -100,6 +102,7 @@ export function OutlineNodeRow({
           fontWeight: style.fontWeight,
         }}
         dangerouslySetInnerHTML={{ __html: node.text }}
+        onFocus={() => onNodeSelect?.(node.id)}
         onInput={(event) => onTextChange(node.id, event.currentTarget.innerHTML)}
         onKeyDown={onKeyDown}
       />
