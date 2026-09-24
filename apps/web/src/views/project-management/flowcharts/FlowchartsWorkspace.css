@@ -38,6 +38,10 @@
 .pfc-search > input { flex: 1; }
 .pfc-results { width: 100%; }
 .pfc-editor { position: relative; border-top: 1px solid #29292d; flex: 1; min-height: 0; overflow: hidden; }
+.pfc-editor.is-codex-chart-running,.pfc-editor.is-codex-chart-complete { border:2px solid transparent; border-radius:10px; }
+.pfc-editor.is-codex-chart-running { background:linear-gradient(#171719,#171719) padding-box,linear-gradient(100deg,#66d9ff,#a78bfa,#65e7b7,#f1bd68,#66d9ff) border-box; box-shadow:0 0 24px rgba(102,217,255,.34),inset 0 0 30px rgba(121,118,255,.08); animation:pfc-codex-chart-flow 2.8s linear infinite; }
+.pfc-editor.is-codex-chart-complete { border-color:#78dfff; box-shadow:0 0 0 1px rgba(120,223,255,.45),0 0 22px rgba(102,217,255,.27); }
+@keyframes pfc-codex-chart-flow { to { filter:hue-rotate(360deg); } }
 .pfc-canvas { height: 100%; min-height: 0; min-width: 0; background: #0b0b0c; }
 .pfc-details { position: absolute; z-index: 15; right: 12px; top: 12px; bottom: 12px; width: min(440px,calc(100% - 24px)); box-sizing: border-box; padding: 20px; border: 1px solid #303034; border-radius: 16px; background: #121214f5; box-shadow: 0 16px 50px #0009; min-height: 0; overflow: auto; }
 .pfc-details label { display: block; margin: 14px 0; font-size: 13px; }

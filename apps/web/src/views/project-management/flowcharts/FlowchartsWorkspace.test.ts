@@ -39,6 +39,9 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(source, /const \[codexRunningNodeIds, setCodexRunningNodeIds\] = useState<string\[\]>\(\[\]\)/);
   assert.match(source, /onNodeContextMenu=\{\(event, row\) => \{ event\.preventDefault\(\); void openCodexRefinement/);
   assert.match(source, /onPaneContextMenu=\{event => \{[\s\S]*?selectedIds\.length/);
+  assert.match(source, /void openCodexRefinement\(\[\], \{ left: event\.clientX - rect\.left, top: event\.clientY - rect\.top \}\)/);
+  assert.match(source, /const \[codexWholeChart, setCodexWholeChart\] = useState\(false\)/);
+  assert.match(source, /is-codex-chart-running/);
   assert.match(source, /onSelectionContextMenu=\{\(event, nodes\) => \{ event\.preventDefault\(\); event\.stopPropagation\(\); void openCodexRefinement\(nodes\.map\(node => node\.id\)\); \}\}/);
   assert.match(source, /className: codexRunningNodeIds\.includes\(row\.id\) \? "is-codex-running"/);
   assert.match(source, /className="pfc-codex-refinement"/);
@@ -68,6 +71,7 @@ test("锁定画布后双击节点仍打开详情，不触发默认缩放", () =>
   assert.match(source, /zoomOnDoubleClick=\{false\}/);
   assert.match(source, /onNodeDoubleClick=\{\(_, row\) => \{ setSelected\(row\.id\); setSelectedIds\(\[row\.id\]\); setDetailNode\(row\.id\); \}\}/);
 });
+
 
 const source = readFileSync(new URL("./FlowchartsWorkspace.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("./FlowchartsWorkspace.css", import.meta.url), "utf8");

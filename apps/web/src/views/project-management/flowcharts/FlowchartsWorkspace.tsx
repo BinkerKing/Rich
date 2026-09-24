@@ -151,6 +151,9 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   const [codexRunningNodeIds, setCodexRunningNodeIds] = useState<string[]>([]);
   const [codexCompletedNodeIds, setCodexCompletedNodeIds] = useState<string[]>([]);
   const [codexAnchor, setCodexAnchor] = useState<{ left: number; top: number }>();
+  const [codexWholeChart, setCodexWholeChart] = useState(false);
+  const [codexChartRunning, setCodexChartRunning] = useState(false);
+  const [codexChartCompleted, setCodexChartCompleted] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const undoStack = useRef<FlowchartData[]>([]);
   const redoStack = useRef<FlowchartData[]>([]);
@@ -364,13 +367,15 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
       openBoundCodex({ projectId, deliverableId: item.id, deliverableTitle: item.title, resourceType: "flowchart", conversationId: session.conversation.id });
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   };
-  const openCodexRefinement = (nodeIds: string[]) => {
+  const openCodexRefinement = (nodeIds: string[], anchor?: { left: number; top: number }) => {
     if (readOnly) return;
     if (!projectId) { setError("独立流程图尚未绑定项目，无法使用 Codex 整改。"); return; }
     const ids = [...new Set(nodeIds)].filter(id => graph?.nodes.some(node => node.id === id));
-    if (!ids.length) return;
+    const wholeChart = nodeIds.length === 0;
+    if (!wholeChart && !ids.length) return;
     const canvas = canvasRef.current;
-    if (canvas && flow) {
+    if (anchor) setCodexAnchor(anchor);
+    else if (canvas && flow) {
       const bounds = flow.getNodesBounds(ids);
       const screen = flow.flowToScreenPosition({ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height });
       const rect = canvas.getBoundingClientRect();
@@ -378,7 +383,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
       setCodexAnchor({ left: Math.min(Math.max(16 + halfWidth, screen.x - rect.left), rect.width - 16 - halfWidth), top: Math.min(screen.y - rect.top + 12, rect.height - 52) });
     }
     setSelected(ids[0] ?? ""); setSelectedIds(ids); setSelectedEdge(""); setEditingNode("");
-    setCodexSelection(ids); setCodexRequest(""); setCodexCompletedNodeIds([]); setQuickCreate(undefined);
+    setCodexWholeChart(wholeChart); setCodexSelection(ids); setCodexRequest(""); setCodexCompletedNodeIds([]); setCodexChartCompleted(false); setQuickCreate(undefined);
   };
   const refreshCodexFlowchart = async (flowchartId: string) => {
     const next = flowchartIds
@@ -395,8 +400,9 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     const item = items.find(row => row.id === active);
     if (!item) return;
     const nodeIds = [...codexSelection];
+    const wholeChart = codexWholeChart;
     const request = codexRequest;
-    setError(""); setCodexRunningNodeIds(nodeIds); setCodexCompletedNodeIds([]); setCodexSelection([]); setCodexRequest(""); setCodexAnchor(undefined);
+    setError(""); setCodexRunningNodeIds(nodeIds); setCodexChartRunning(wholeChart); setCodexCompletedNodeIds([]); setCodexSelection([]); setCodexWholeChart(false); setCodexRequest(""); setCodexAnchor(undefined);
     try {
       const session = await api.ensureFlowchartCodexSession(projectId, item.id, `${item.title} · Codex`);
       const content = flowchartCodexPrompt({ projectId, flowchartId: active, title: item.title, selectedNodeIds: nodeIds, request });
@@ -407,9 +413,9 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
       const body = await response.text();
       if (!response.ok || body.includes("event: error")) throw new Error(`Codex 整改失败${response.ok ? "" : ` (${response.status})`}`);
       await refreshCodexFlowchart(active);
-      setCodexCompletedNodeIds(nodeIds);
+      setCodexCompletedNodeIds(nodeIds); setCodexChartCompleted(wholeChart);
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
-    finally { setCodexRunningNodeIds([]); }
+    finally { setCodexRunningNodeIds([]); setCodexChartRunning(false); }
   };
 
   return <section className={`pfc${standalone ? " pfc--standalone" : ""}${embedded ? " pfc--embedded" : ""}`}>
@@ -450,7 +456,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
           {isFullscreen && <button className="pfc-back-to-list" aria-label="返回流程图清单" title="返回流程图清单" onClick={() => { setExpanded(false); setSettingsOpen(false); }}>←</button>}
         </>}
       </header>
-      {active === item.id && expanded && graph && <div className="pfc-editor" id={`pfc-chart-${item.id}`} style={busy ? { pointerEvents: "none", opacity: 0.7 } : undefined}>
+      {active === item.id && expanded && graph && <div className={`pfc-editor${codexChartRunning ? " is-codex-chart-running" : codexChartCompleted ? " is-codex-chart-complete" : ""}`} id={`pfc-chart-${item.id}`} style={busy ? { pointerEvents: "none", opacity: 0.7 } : undefined}>
         {settingsOpen && <fieldset disabled={busy} className="pfc-settings">
             <button className="pfc-close" aria-label="关闭任务设置" onClick={() => setSettingsOpen(false)}>×</button>
             <label>任务名称
@@ -510,12 +516,12 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
                 if (selectedIds.length) { void openCodexRefinement(selectedIds); return; }
                 if (!flow || !canvasRef.current) return;
                 const rect = canvasRef.current.getBoundingClientRect();
-                setQuickCreate({ position: flow.screenToFlowPosition({ x: event.clientX, y: event.clientY }), screen: { x: event.clientX - rect.left, y: event.clientY - rect.top } });
+                void openCodexRefinement([], { left: event.clientX - rect.left, top: event.clientY - rect.top });
               }}>
                   <Background gap={28} size={1} color="#44444d" /><Controls showInteractive />
                 </ReactFlow>
                 {quickCreate && <div className="pfc-quick-create" style={{ left: quickCreate.screen.x, top: quickCreate.screen.y }} role="dialog" aria-label="快速新建节点菜单"><strong>{quickCreate.source ? "新建并连接" : "新增节点"}</strong>{(["step", "note", "region"] as FlowNodeKind[]).map(kind => <button key={kind} type="button" onClick={() => addNode(kind, quickCreate.position, quickCreate.source)}>{({ step: "图标节点", note: "备注", region: "区域" } as Record<string, string>)[kind]}</button>)}<button type="button" onClick={() => setQuickCreate(undefined)}>取消</button></div>}
-                {codexSelection.length > 0 && codexAnchor && !readOnly && <form className="pfc-codex-refinement" role="dialog" aria-label="Codex 节点整改" style={codexAnchor} onSubmit={event => { event.preventDefault(); void runCodexRefinement(); }}>
+                {(codexSelection.length > 0 || codexWholeChart) && codexAnchor && !readOnly && <form className="pfc-codex-refinement" role="dialog" aria-label="Codex 流程图整改" style={codexAnchor} onSubmit={event => { event.preventDefault(); void runCodexRefinement(); }}>
                   <input aria-label="Codex 整改要求" autoFocus placeholder={codexRunningNodeIds.length ? "Codex 正在整改…" : "描述需要 Codex 整改的内容，回车提交"} disabled={codexRunningNodeIds.length > 0} value={codexRequest} onChange={event => setCodexRequest(event.target.value)} />
                 </form>}
               </div>
