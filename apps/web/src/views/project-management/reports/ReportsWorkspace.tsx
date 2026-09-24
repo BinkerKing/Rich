@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type ProjectModuleItem } from "../../../api/client.js";
-import { calendarDays, shiftCalendarMonth } from "./reportsCalendar.js";
 import { ProjectRichTextEditor } from "../ProjectManagementModules.js";
 import { openBoundCodex } from "../deliverables/DeliverableCodexLauncher.js";
 
@@ -23,6 +22,11 @@ type ProjectReport = {
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
+function shiftReportDate(date: string, days: number) {
+  const value = new Date(`${date}T12:00:00`);
+  value.setDate(value.getDate() + days);
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+}
 const listText = (items: string[]) => items.join("\n");
 const listValue = (value: unknown) => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 const activityLabel = (kind: DeliveryActivityKind) => ({ record: "记录", todo: "待办", deliverable: "交付物", risk: "风险", reminder: "催办", end: "结束" } as const)[kind];
@@ -152,28 +156,22 @@ export function ReportsWorkspace({ projectId }: { projectId: string }) {
   };
 
   const selectedItems = items.filter(item => reportFrom(item).date === selectedDate);
-  const reportDates = useMemo(() => new Set(items.map(item => reportFrom(item).date)), [items]);
-  const days = useMemo(() => calendarDays(selectedDate), [selectedDate]);
-  const [year, month] = selectedDate.split("-").map(Number);
   const openItem = selectedItems.find(item => item.id === openId);
   const todayWork = useMemo(() => todayWorkItems(deliveryItems, draft.date), [deliveryItems, draft.date]);
 
-  return <section className="reports-workspace">
+  return <section className="reports-workspace reports-workspace--daily">
     <header className="reports-workspace__header">
       <div className="prj-pm-workspace-head__identity"><ReportActionIcon /><div><h1>报告中心</h1><p>日报、周报、月报与会议纪要，统一沉淀为可阅读、可追溯的项目记录。</p></div></div>
       <div className="reports-workspace__header-actions"><button className="reports-workspace__create" aria-label="新建报告" title="新建报告" type="button" onClick={() => void createReport()} disabled={busy}><ReportHeaderActionIcon kind="report" /></button><button className="reports-workspace__create" aria-label="Codex 对话" title="Codex 对话" type="button" onClick={() => void openCodexConversation()} disabled={busy}><ReportHeaderActionIcon kind="chat" /></button></div>
     </header>
     {error && <p className="reports-workspace__error">{error}</p>}
+    <div className="reports-workspace__date-nav">
+      <button type="button" aria-label="前一天" onClick={() => setSelectedDate(date => shiftReportDate(date, -1))}>‹</button>
+      <label><span>日报日期</span><input type="date" value={selectedDate} onChange={event => { setSelectedDate(event.target.value); setOpenId(null); setShowReport(false); }} /></label>
+      <small>{selectedItems.length ? `当日 ${selectedItems.length} 份报告` : "当日暂无报告"}</small>
+      <button type="button" aria-label="后一天" onClick={() => setSelectedDate(date => shiftReportDate(date, 1))}>›</button>
+    </div>
     <div className={`reports-workspace__layout${editing ? " is-editing" : ""}`}>
-      <aside className="reports-calendar" aria-label="报告日历">
-        <header><button type="button" aria-label="上个月" onClick={() => setSelectedDate(date => shiftCalendarMonth(date, -1))}>‹</button><strong>{year}年{month}月</strong><button type="button" aria-label="下个月" onClick={() => setSelectedDate(date => shiftCalendarMonth(date, 1))}>›</button></header>
-        <div className="reports-calendar__week">{["一", "二", "三", "四", "五", "六", "日"].map(day => <span key={day}>周{day}</span>)}</div>
-        <div className="reports-calendar__days">{days.map(date => {
-          const inMonth = Number(date.slice(5, 7)) === month;
-          return <button key={date} type="button" className={`${date === selectedDate ? "is-selected " : ""}${!inMonth ? "is-outside" : ""}`} onClick={() => { setSelectedDate(date); setOpenId(null); setShowReport(false); }}><span>{Number(date.slice(8))}</span>{reportDates.has(date) && <i aria-label="当天有报告" />}</button>;
-        })}</div>
-        <footer><b>{selectedDate}</b><span>有报告的日期已标记</span></footer>
-      </aside>
     <div className={`reports-workspace__list${openItem ? " is-working" : ""}`}>
       <header className="reports-workspace__date-head"><h2>{formatReportDate(selectedDate)}</h2><span>{openItem ? "报告工作台" : `当日报告（${selectedItems.length}）`}</span></header>
       {!openItem && <div className="reports-workspace__report-list">
@@ -187,10 +185,10 @@ export function ReportsWorkspace({ projectId }: { projectId: string }) {
       })}
       {!selectedItems.length && <p className="reports-workspace__empty">当天没有报告，点击“新建日报”开始记录。</p>}
       </div>}
-      {openItem && <article className="reports-workspace__working-report">
-          <button className="reports-workspace__row reports-workspace__row--selected" type="button" onClick={() => { setOpenId(null); setShowReport(false); }}>
-            <b className={`report-type-icon is-${draft.type}`}>{reportTypeIcon(draft.type)}</b><span><strong>{draft.title}</strong><small>点击返回当天报告列表</small></span><em>{reportTypeLabel(draft.type)}</em><i>⌃</i>
-          </button>
+          {openItem && <article className="reports-workspace__working-report">
+            <button className="reports-workspace__row reports-workspace__row--selected" type="button" onClick={() => { setOpenId(null); setShowReport(false); }}>
+            <i>‹</i><span><strong>返回当日报告</strong><small>{selectedItems.length} 份报告</small></span>
+            </button>
           <div className="reports-workspace__detail">
             <header><div><span className={`report-workbench__eyebrow is-${draft.type}`}>{reportTypeLabel(draft.type)} · {reportTypeDescriptor(draft.type)}</span><h2>{draft.title}</h2><small>{draft.date}{draft.filePath ? ` · ${draft.filePath}` : " · 尚未写入文件"}</small></div><div className="reports-workspace__detail-actions">{!editing && <button className="reports-workspace__detail-action" aria-label={showReport ? "收起报告" : "显示报告"} title={showReport ? "收起报告" : "显示报告"} type="button" onClick={() => setShowReport(current => !current)}><ReportDetailActionIcon kind="preview" /></button>}{!editing && <button className="reports-workspace__detail-action" aria-label="编辑报告" title="编辑报告" type="button" onClick={() => { setEditing(true); setShowReport(false); }}><ReportDetailActionIcon kind="edit" /></button>}{editing && <button className="reports-workspace__detail-action" aria-label={busy ? "保存中" : "保存并写入文件"} title={busy ? "保存中" : "保存并写入文件"} type="button" onClick={() => void saveReport()} disabled={busy}><ReportDetailActionIcon kind="save" /></button>}</div></header>
             {!editing && !showReport && <ReportWorkbench report={draft} todayWork={todayWork} />}

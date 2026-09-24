@@ -43,10 +43,14 @@ test("日报工作台可在摘要和富文本报告之间切换", () => {
   assert.doesNotMatch(source, /showReport && <section className="report-workbench__editor">/);
 });
 
-test("打开日报时仅右侧详情区域滚动，日历保持固定", () => {
-  assert.match(styles, /\.reports-workspace\s*\{[^}]*display:flex[^}]*flex-direction:column[^}]*overflow:hidden/s);
-  assert.match(styles, /\.reports-workspace__layout\s*\{[^}]*flex:1 1 auto[^}]*min-height:0/s);
-  assert.match(styles, /\.reports-workspace__working-report \.reports-workspace__detail\s*\{[^}]*overflow:auto/s);
+test("日报将日历收纳为日期导航，并使用单一主画布", () => {
+  assert.match(source, /function shiftReportDate\(date: string, days: number\)/);
+  assert.match(source, /className="reports-workspace__date-nav"/);
+  assert.match(source, /setSelectedDate\(date => shiftReportDate\(date, -1\)\)/);
+  assert.match(source, /setSelectedDate\(date => shiftReportDate\(date, 1\)\)/);
+  assert.doesNotMatch(source, /<aside className="reports-calendar"/);
+  assert.match(styles, /\.reports-workspace--daily \.reports-workspace__layout\s*\{[^}]*display:block[^}]*min-height:0/s);
+  assert.match(styles, /\.reports-workspace--daily \.reports-workspace__date-nav\s*\{[^}]*display:flex[^}]*align-items:center/s);
 });
 
 test("日报详情操作使用带说明的图标按钮", () => {
