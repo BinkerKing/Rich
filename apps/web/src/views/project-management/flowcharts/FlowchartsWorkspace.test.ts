@@ -68,7 +68,10 @@ test("右键节点或多选区域会打开 Codex 整改输入，并在执行时�
   assert.match(source, /const \[codexAnchor, setCodexAnchor\] = useState/);
   assert.match(source, /flow\.getNodesBounds\(ids\)/);
   assert.match(source, /flow\.flowToScreenPosition/);
-  assert.match(source, /<input aria-label="Codex 整改要求"/);
+  assert.match(source, /const codexInputRef = useRef<HTMLTextAreaElement>\(null\)/);
+  assert.match(source, /input\.style\.height = `\$\{Math\.min\(input\.scrollHeight, 220\)\}px`/);
+  assert.match(source, /<textarea ref=\{codexInputRef\} aria-label="Codex 整改要求" rows=\{1\}/);
+  assert.match(source, /event\.key === "Enter" && !event\.shiftKey/);
   assert.match(source, /const saveCodexDraft = \(\) => \{[\s\S]*?setCodexDrafts\(current => \(\{ \.\.\.current, \[key\]: codexRequest \}\)\)/);
   assert.match(source, /setCodexRequest\(previousDraftKey === draftKey \? codexRequest : codexDrafts\[draftKey\] \?\? ""\)/);
   assert.match(source, /setCodexDrafts\(current => Object\.fromEntries\(Object\.entries\(current\)\.filter\(\(\[key\]\) => key !== draftKey\)\)\)/);

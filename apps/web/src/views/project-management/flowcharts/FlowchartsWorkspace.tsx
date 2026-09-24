@@ -161,6 +161,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
   const [codexChartRunning, setCodexChartRunning] = useState(false);
   const [codexChartCompleted, setCodexChartCompleted] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const codexInputRef = useRef<HTMLTextAreaElement>(null);
   const undoStack = useRef<FlowchartData[]>([]);
   const redoStack = useRef<FlowchartData[]>([]);
   const clipboard = useRef<FlowSelection>();
@@ -205,6 +206,12 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
     } catch { /* The flowchart list stays usable when session storage is unavailable. */ }
   }, [active, embedded, expanded, loaded, viewKey]);
   useEffect(() => { setNodeDetailFullscreen(false); }, [detailNode]);
+  useEffect(() => {
+    const input = codexInputRef.current;
+    if (!input) return;
+    input.style.height = "0";
+    input.style.height = `${Math.min(input.scrollHeight, 220)}px`;
+  }, [codexAnchor, codexRequest]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && (detailNode || selectedIds.length || selectedEdge || codexSelection.length || codexWholeChart)) {
@@ -546,7 +553,7 @@ export function FlowchartsWorkspace({ projectId, focusId, flowchartIds, onFlowch
                 </ReactFlow>
                 {quickCreate && <div className={`pfc-quick-create${quickCreate.fromCanvas ? " pfc-quick-create--with-codex" : ""}`} style={{ left: quickCreate.screen.x, top: quickCreate.screen.y + (quickCreate.fromCanvas ? 42 : 0) }} role="dialog" aria-label="快速新建节点菜单">{!quickCreate.fromCanvas && <strong>{quickCreate.source ? "新建并连接" : "新增节点"}</strong>}{(quickCreate.fromCanvas ? ["step", "decision", "table", "boundary", "region", "note"] : ["step", "note", "region"]).map(kind => <button key={kind} type="button" onClick={() => addNode(kind as FlowNodeKind, quickCreate.position, quickCreate.source)}>{({ step: "处理", decision: "判断", table: "数据表", boundary: "开始/结束", region: "区域", note: "备注" } as Record<string, string>)[kind]}</button>)}{!quickCreate.fromCanvas && <button type="button" onClick={() => setQuickCreate(undefined)}>取消</button>}</div>}
                 {(codexSelection.length > 0 || codexWholeChart) && codexAnchor && !readOnly && <form className="pfc-codex-refinement" role="dialog" aria-label="Codex 流程图整改" style={codexAnchor} onSubmit={event => { event.preventDefault(); void runCodexRefinement(); }}>
-                  <input aria-label="Codex 整改要求" autoFocus placeholder={codexRunningNodeIds.length ? "Codex 正在整改…" : "描述需要 Codex 整改的内容，回车提交"} disabled={codexRunningNodeIds.length > 0} value={codexRequest} onChange={event => setCodexRequest(event.target.value)} />
+                  <textarea ref={codexInputRef} aria-label="Codex 整改要求" rows={1} autoFocus placeholder={codexRunningNodeIds.length ? "Codex 正在整改…" : "描述需要 Codex 整改的内容，回车提交；Shift + Enter 换行"} disabled={codexRunningNodeIds.length > 0} value={codexRequest} onChange={event => setCodexRequest(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void runCodexRefinement(); } }} />
                 </form>}
               </div>
               <div className="pfc-legend" aria-label="流程图图例"><span>● 处理</span><span>● 数据表</span><span>◇ 判断</span><span>— 主线</span><span>┄ 规则 / 数据关联</span></div>
