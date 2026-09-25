@@ -5,6 +5,7 @@ export type BoundCodexContext = {
   initialContext: string;
   allowedMcpTools?: string[];
   systemInstruction?: string;
+  contextVersion?: string;
 };
 
 export function isBoundContextCard(message: Pick<ChatMessageRecord, "metadata">): boolean {
@@ -26,7 +27,7 @@ export function createBoundContextCards(conversationId: string, context: BoundCo
       "", "## 可用 MCP", ...(context.allowedMcpTools ?? []).map(tool => `- ${tool}`),
       "", "## AI 操作规定", context.systemInstruction ?? "仅按用户明确要求操作，并通过 Rich MCP 保存变更。",
     ].join("\n"),
-    metadata: { type: "binding-context", allowedMcpTools: context.allowedMcpTools ?? [], rules: context.systemInstruction ?? "" },
+    metadata: { type: "binding-context", allowedMcpTools: context.allowedMcpTools ?? [], rules: context.systemInstruction ?? "", contextVersion: context.contextVersion },
     createdAt,
   } as ChatMessageRecord;
   const payload = {
@@ -34,7 +35,7 @@ export function createBoundContextCards(conversationId: string, context: BoundCo
     conversationId,
     role: "system",
     content: ["## 整体上下文已交给 Codex", "", context.initialContext].join("\n"),
-    metadata: { type: "binding-context-payload" },
+    metadata: { type: "binding-context-payload", contextVersion: context.contextVersion },
     createdAt,
   } as ChatMessageRecord;
   return [binding, payload];
@@ -46,8 +47,9 @@ export function boundContextRuntimeInstruction(cards: ChatMessageRecord[]): stri
 
 export async function ensureBoundContextCards(chats: Pick<ChatConversationsRepo, "appendMessage" | "listMessages">, conversationId: string, context: BoundCodexContext): Promise<{ cards: [ChatMessageRecord, ChatMessageRecord]; messages: ChatMessageRecord[] }> {
   const savedMessages = await chats.listMessages?.(conversationId, 200) ?? [];
-  const existingBinding = savedMessages.find(message => (message.metadata as { type?: unknown } | undefined)?.type === "binding-context");
-  const existingPayload = savedMessages.find(isBoundContextPayloadCard);
+  const matchingVersion = (message: ChatMessageRecord) => (message.metadata as { contextVersion?: unknown } | undefined)?.contextVersion === context.contextVersion;
+  const existingBinding = savedMessages.find(message => (message.metadata as { type?: unknown } | undefined)?.type === "binding-context" && matchingVersion(message));
+  const existingPayload = savedMessages.find(message => isBoundContextPayloadCard(message) && matchingVersion(message));
   const [binding, payload] = createBoundContextCards(conversationId, context);
   const cards: [ChatMessageRecord, ChatMessageRecord] = [existingBinding ?? binding, existingPayload ?? payload];
   const missing = cards.filter(card => !savedMessages.some(message => message.id === card.id));

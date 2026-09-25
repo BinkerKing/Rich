@@ -562,7 +562,10 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     ? { position: "absolute" as const, inset: 0, width: "100%", height: "100%", maxWidth: "none", maxHeight: "none", borderRadius: 0, transform: "none" }
     : { width: windowState.width, height: windowState.height, transform: `translate(${windowState.x}px, ${windowState.y}px)` };
   const displayedMessages: Message[] = active
-    ? (messages[active.id] ?? []).filter(message => message.role !== "system" || message.kind === "binding-context" || message.kind === "binding-context-payload" || message.kind === "task-mode-started" || message.kind === "task-mode-policy-updated")
+    ? (messages[active.id] ?? []).filter((message, index, all) => {
+      if (message.kind === "binding-context" || message.kind === "binding-context-payload") return index === all.findLastIndex(candidate => candidate.kind === message.kind);
+      return message.role !== "system" || message.kind === "task-mode-started" || message.kind === "task-mode-policy-updated";
+    })
     : [];
   const liveActivity = active && streamingConversationId === active.id ? activityByConversation[active.id] : "";
   const workbench = <div className={`deliverable-codex-backdrop${visible ? "" : " is-hidden"}${windowState.maximized ? " is-maximized" : ""}${capturingCurrentView ? " is-capturing-current-view" : ""}`} style={windowState.maximized ? { zIndex: 2147483000, top: desktopTitlebarHeight, padding: 0, background: "#09090a" } : undefined} role="dialog" aria-modal="true" aria-label="交付物 Codex 对话">
