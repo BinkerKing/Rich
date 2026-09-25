@@ -76,7 +76,7 @@ describe("project dictionary Codex routes", () => {
   it("records two bootstrap cards before the first streamed request", async () => {
     let appended = 0;
     const app = projectDictionaryCodexRoutes({
-      conversations: { async get() { return { id: "binding-1", projectId: "project-1", conversationId: "chat-1", status: "active" }; }, async setCodexThread() {}, async touch() {} } as never,
+      conversations: { async get() { return { id: "binding-1", projectId: "project-1", conversationId: "chat-1", status: "active" }; }, async setCodexThread() {}, async markContextSynced() {}, async touch() {} } as never,
       chats: { async appendMessage() { appended += 1; } } as never,
       context: { async build() { return { systemInstruction: "dictionary", initialContext: "context" }; } } as never,
       projects: {} as never,
@@ -94,7 +94,7 @@ describe("project dictionary Codex routes", () => {
     const starts: Array<{ fresh?: boolean }> = [];
     let sent = 0;
     const app = projectDictionaryCodexRoutes({
-      conversations: { async get() { return { id: "binding-1", projectId: "project-1", conversationId: "chat-1", status: "active" }; }, async setCodexThread() {}, async touch() {} } as never,
+      conversations: { async get() { return { id: "binding-1", projectId: "project-1", conversationId: "chat-1", status: "active" }; }, async setCodexThread() {}, async markContextSynced() {}, async touch() {} } as never,
       chats: {} as never,
       context: { async build() { return { systemInstruction: "dictionary", initialContext: "context", workspaceRoot: "/workspace" }; } } as never,
       projects: {} as never,

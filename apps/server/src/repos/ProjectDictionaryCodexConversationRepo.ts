@@ -9,6 +9,8 @@ export interface ProjectDictionaryCodexConversation {
   codexThreadId?: string;
   status: ProjectDictionaryCodexConversationStatus;
   isBound?: boolean;
+  contextVersion?: string;
+  lastContextSyncAt?: string;
   createdAt: string;
   updatedAt: string;
   lastActiveAt: string;
@@ -22,5 +24,6 @@ export interface ProjectDictionaryCodexConversationRepo {
   bind(id: string, at: string): Promise<ProjectDictionaryCodexConversation | null>;
   touch(id: string, at: string): Promise<ProjectDictionaryCodexConversation | null>;
   archive(id: string, at: string): Promise<ProjectDictionaryCodexConversation | null>;
-  setCodexThread(id: string, threadId: string | undefined, at: string): Promise<void>;
+  setCodexThread(id: string, threadId: string | undefined, contextVersion: string | undefined, at: string): Promise<void>;
+  markContextSynced(id: string, at: string): Promise<void>;
 }

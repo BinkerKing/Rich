@@ -360,6 +360,8 @@ function applySchema(db: Database.Database) {
       codex_thread_id TEXT,
       status TEXT NOT NULL DEFAULT 'active',
       is_bound INTEGER NOT NULL DEFAULT 0,
+      context_version TEXT,
+      last_context_sync_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       last_active_at TEXT NOT NULL
@@ -734,6 +736,8 @@ function applySchema(db: Database.Database) {
   ensureColumn(db, "pm_test_issues", "sort_order", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn(db, "deliverable_codex_conversations", "is_bound", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn(db, "deliverable_codex_conversations", "last_context_sync_at", "TEXT");
+  ensureColumn(db, "project_dictionary_codex_conversations", "context_version", "TEXT");
+  ensureColumn(db, "project_dictionary_codex_conversations", "last_context_sync_at", "TEXT");
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_deliverable_codex_bound ON deliverable_codex_conversations(scope_key) WHERE status = 'active' AND is_bound = 1;`);
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_project_dictionary_codex_bound ON project_dictionary_codex_conversations(project_id) WHERE status = 'active' AND is_bound = 1;`);
   db.exec(`UPDATE pm_test_issues SET sort_order=rowid WHERE sort_order=0;`);

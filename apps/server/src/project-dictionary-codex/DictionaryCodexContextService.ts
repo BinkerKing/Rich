@@ -37,7 +37,7 @@ export class DictionaryCodexContextService {
     ].join("\n");
     return {
       scopeKey: `dictionary:${projectId}`,
-      contextVersion: createHash("sha256").update(`${projectId}:${project.metadata.updatedAt}`).digest("hex"),
+      contextVersion: createHash("sha256").update(JSON.stringify({ projectId, projectUpdatedAt: project.metadata.updatedAt, dictionaryInfoUpdatedAt: dictionaryInfo?.updatedAt, dictionaryInfo: dictionaryInfo?.text })).digest("hex"),
       systemInstruction: "You are working in Rich free mode for this project's data dictionary. Before analysis or changes, use rich_dictionary_manage with the supplied Project ID. Use rich_dictionary_info_manage to maintain the project Mapping knowledge base. Do not claim changes unless they are saved through Rich.",
       initialContext,
       allowedMcpTools: ["rich_dictionary_manage", "rich_dictionary_info_manage", "rich_project_files_get", "rich_project_file_read"],

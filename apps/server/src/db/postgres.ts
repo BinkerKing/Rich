@@ -315,12 +315,16 @@ async function applySchema(pool: Pool): Promise<void> {
       codex_thread_id TEXT,
       status TEXT NOT NULL DEFAULT 'active',
       is_bound BOOLEAN NOT NULL DEFAULT false,
+      context_version TEXT,
+      last_context_sync_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       last_active_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_project_dictionary_codex_active
       ON project_dictionary_codex_conversations(project_id, status, last_active_at DESC);
+    ALTER TABLE project_dictionary_codex_conversations ADD COLUMN IF NOT EXISTS context_version TEXT;
+    ALTER TABLE project_dictionary_codex_conversations ADD COLUMN IF NOT EXISTS last_context_sync_at TEXT;
     CREATE UNIQUE INDEX IF NOT EXISTS idx_project_dictionary_codex_bound
       ON project_dictionary_codex_conversations(project_id) WHERE status = 'active' AND is_bound = true;
 

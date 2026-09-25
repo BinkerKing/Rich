@@ -10,22 +10,24 @@ interface Row {
   codex_thread_id: string | null;
   status: ProjectDictionaryCodexConversationStatus;
   is_bound: boolean;
+  context_version: string | null;
+  last_context_sync_at: string | null;
   created_at: string;
   updated_at: string;
   last_active_at: string;
 }
 
-const columns = "id, conversation_id, project_id, title, executor, codex_thread_id, status, is_bound, created_at, updated_at, last_active_at";
+const columns = "id, conversation_id, project_id, title, executor, codex_thread_id, status, is_bound, context_version, last_context_sync_at, created_at, updated_at, last_active_at";
 
 function fromRow(row: Row): ProjectDictionaryCodexConversation {
-  return { id: row.id, conversationId: row.conversation_id, projectId: row.project_id, title: row.title, executor: row.executor, codexThreadId: row.codex_thread_id ?? undefined, status: row.status, isBound: row.is_bound, createdAt: row.created_at, updatedAt: row.updated_at, lastActiveAt: row.last_active_at };
+  return { id: row.id, conversationId: row.conversation_id, projectId: row.project_id, title: row.title, executor: row.executor, codexThreadId: row.codex_thread_id ?? undefined, status: row.status, isBound: row.is_bound, contextVersion: row.context_version ?? undefined, lastContextSyncAt: row.last_context_sync_at ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at, lastActiveAt: row.last_active_at };
 }
 
 export class PostgresProjectDictionaryCodexConversationRepo implements ProjectDictionaryCodexConversationRepo {
   constructor(private readonly pool: PgPool) {}
 
   async create(value: ProjectDictionaryCodexConversation): Promise<void> {
-    await this.pool.query(`INSERT INTO project_dictionary_codex_conversations (${columns}) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`, [value.id, value.conversationId, value.projectId, value.title, value.executor, value.codexThreadId ?? null, value.status, value.isBound ?? false, value.createdAt, value.updatedAt, value.lastActiveAt]);
+    await this.pool.query(`INSERT INTO project_dictionary_codex_conversations (${columns}) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`, [value.id, value.conversationId, value.projectId, value.title, value.executor, value.codexThreadId ?? null, value.status, value.isBound ?? false, value.contextVersion ?? null, value.lastContextSyncAt ?? null, value.createdAt, value.updatedAt, value.lastActiveAt]);
   }
 
   async get(id: string): Promise<ProjectDictionaryCodexConversation | null> {
@@ -69,7 +71,11 @@ export class PostgresProjectDictionaryCodexConversationRepo implements ProjectDi
     return this.get(id);
   }
 
-  async setCodexThread(id: string, threadId: string | undefined, at: string): Promise<void> {
-    await this.pool.query(`UPDATE project_dictionary_codex_conversations SET codex_thread_id = $1, updated_at = $2 WHERE id = $3`, [threadId ?? null, at, id]);
+  async setCodexThread(id: string, threadId: string | undefined, contextVersion: string | undefined, at: string): Promise<void> {
+    await this.pool.query(`UPDATE project_dictionary_codex_conversations SET codex_thread_id = $1, context_version = $2, updated_at = $3 WHERE id = $4`, [threadId ?? null, contextVersion ?? null, at, id]);
+  }
+
+  async markContextSynced(id: string, at: string): Promise<void> {
+    await this.pool.query(`UPDATE project_dictionary_codex_conversations SET last_context_sync_at = $1, updated_at = $2 WHERE id = $3`, [at, at, id]);
   }
 }
