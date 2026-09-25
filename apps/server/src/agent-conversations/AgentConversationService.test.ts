@@ -20,4 +20,19 @@ describe("buildAgentRuntimeMessages", () => {
       imageUrls: ["data:image/png;base64,image"],
     }]);
   });
+
+  it("sends bound context in order before the first user request", () => {
+    const messages = buildAgentRuntimeMessages({
+      executor: "codex",
+      content: "请开始整理。",
+      runtimeContext: [
+        { role: "system", content: "首次绑定说明" },
+        { role: "system", content: "整体上下文" },
+      ],
+      recent: [],
+      summaryContext: "",
+    });
+
+    expect(messages.map(message => message.content)).toEqual(["首次绑定说明", "整体上下文", "请开始整理。"]);
+  });
 });

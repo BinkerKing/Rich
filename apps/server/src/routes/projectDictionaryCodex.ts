@@ -6,7 +6,7 @@ import type { DictionaryCodexContextService } from "../project-dictionary-codex/
 import type { ChatConversationsRepo } from "../repos/ChatConversationsRepo.js";
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
 import type { ProjectDictionaryCodexConversationRepo } from "../repos/ProjectDictionaryCodexConversationRepo.js";
-import { createBoundContextCard, ensureBoundContextCard } from "../codex/BoundContextCard.js";
+import { ensureBoundContextCards } from "../codex/BoundContextCard.js";
 
 export function projectDictionaryCodexRoutes(deps: {
   conversations: ProjectDictionaryCodexConversationRepo;
@@ -28,6 +28,7 @@ export function projectDictionaryCodexRoutes(deps: {
     await deps.conversations.create({ id, conversationId, projectId, title, executor: "codex", status: "active", isBound: true, createdAt: now, updatedAt: now, lastActiveAt: now });
     const conversation = await deps.conversations.bind(id, now);
     if (!conversation) throw new Error("Unable to bind project dictionary Codex conversation.");
+    await ensureBoundContextCards(deps.chats, conversationId, context);
     const session = await deps.agents.start(conversationId, { fresh: true, executor: "codex", workspaceRoot: context.workspaceRoot });
     return { conversation: { ...conversation, resumed: session.resumed, allowedMcpTools: context.allowedMcpTools }, context: context.initialContext };
   };
@@ -57,7 +58,7 @@ export function projectDictionaryCodexRoutes(deps: {
     const conversation = await deps.conversations.get(c.req.param("id"));
     if (!conversation) return c.json({ error: "Conversation not found" }, 404);
     const context = await deps.context.build(conversation.projectId);
-    const { messages } = await ensureBoundContextCard(deps.chats, conversation.conversationId, context);
+    const { messages } = await ensureBoundContextCards(deps.chats, conversation.conversationId, context);
     return c.json({ messages });
   });
 
@@ -91,7 +92,7 @@ export function projectDictionaryCodexRoutes(deps: {
     const userMessageId = typeof body?.userMessageId === "string" ? body.userMessageId : "";
     if (!content || !clientRequestId || !userMessageId) return c.json({ error: "content, clientRequestId and userMessageId are required" }, 400);
     const context = await deps.context.build(conversation.projectId);
-    const bindingCard = createBoundContextCard(conversation.conversationId, context);
+    const { cards: bindingCards } = await ensureBoundContextCards(deps.chats, conversation.conversationId, context);
     const session = await deps.agents.start(conversation.conversationId, { executor: "codex", workspaceRoot: context.workspaceRoot });
     if (session.resumed && !(await deps.agents.connectionStatus(conversation.conversationId)).session) {
       await deps.agents.start(conversation.conversationId, { fresh: true, executor: "codex", workspaceRoot: context.workspaceRoot });
@@ -103,7 +104,7 @@ export function projectDictionaryCodexRoutes(deps: {
         await stream.writeSSE({ event: name, data: JSON.stringify(data) });
       };
       try {
-        const result = await deps.agents.sendMessage(conversation.conversationId, { clientRequestId, userMessageId, content, runtimeInstruction: bindingCard.content }, write);
+        const result = await deps.agents.sendMessage(conversation.conversationId, { clientRequestId, userMessageId, content, runtimeContext: bindingCards.map(card => ({ role: "system" as const, content: card.content })) }, write);
         if (result.turn.runtimeSessionId) await deps.conversations.setCodexThread(conversation.id, result.turn.runtimeSessionId, new Date().toISOString());
         await deps.conversations.touch(conversation.id, new Date().toISOString());
       } catch (error) {

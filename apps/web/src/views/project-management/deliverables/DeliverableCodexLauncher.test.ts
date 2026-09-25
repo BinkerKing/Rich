@@ -15,6 +15,10 @@ const commandPalette = readFileSync(
   new URL("../../../components/CommandPalette.tsx", import.meta.url),
   "utf8",
 );
+const workbench = readFileSync(
+  new URL("./DeliverableCodexWorkbench.tsx", import.meta.url),
+  "utf8",
+);
 
 test("内部 Codex 工作台在应用根部挂载，任意 Rich 页面均可响应快捷键", () => {
   assert.match(app, /<DeliverableCodexLauncher\s*\/>/);
@@ -72,4 +76,10 @@ test("旧的空项目定位不会生成无效的 Codex 创建地址", () => {
   assert.match(launcher, /target\.projectId\.trim\(\)\.length > 0/);
   assert.match(launcher, /window\.localStorage\.removeItem\(targetStorageKey\)/);
   assert.match(launcher, /projectId: "__general__"/);
+});
+
+test("绑定会话在正常对话前依次展示绑定说明和整体上下文", () => {
+  assert.match(workbench, /message\.kind === "binding-context-payload"/);
+  assert.match(workbench, /已建立绑定/);
+  assert.match(workbench, /整体上下文已交给 Codex/);
 });

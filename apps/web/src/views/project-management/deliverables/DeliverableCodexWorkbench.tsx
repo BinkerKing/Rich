@@ -23,7 +23,7 @@ type TaskModeSession = TaskMode & { location: CodexLocationContextInput; started
 type Theme = "obsidian" | "graphite";
 type PendingAiTask = { sceneId: AiManagedTaskCreateInput["sceneId"]; label: string; payload?: Record<string, unknown> };
 type Conversation = { id: string; title: string; mode: Mode; status: "active" | "archived"; projectId: string; deliverableId: string; scopeKey?: string; codexThreadId?: string; lastActiveAt: string };
-type Message = { role: "user" | "assistant" | "system"; content: string; createdAt?: string; durationMs?: number; kind?: "binding-context" | "task-mode-started" | "task-mode-instruction" | "task-mode-policy-updated"; taskModeLabel?: string; taskModeLocation?: CodexLocationContextInput; attachments?: Array<{ id?: string; url?: string; previewUrl?: string }> };
+type Message = { role: "user" | "assistant" | "system"; content: string; createdAt?: string; durationMs?: number; kind?: "binding-context" | "binding-context-payload" | "task-mode-started" | "task-mode-instruction" | "task-mode-policy-updated"; taskModeLabel?: string; taskModeLocation?: CodexLocationContextInput; attachments?: Array<{ id?: string; url?: string; previewUrl?: string }> };
 type QueuedMessage = { id: string; conversation: Conversation; content: string; attachments: Array<{ id: string; mime: string; url: string; width?: number; height?: number; previewUrl?: string }> };
 type WindowState = { x: number; y: number; width: number; height: number; maximized: boolean };
 const windowStorageKey = "rich.deliverable-codex.window";
@@ -248,7 +248,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   };
   const loadMessages = async (conversationId: string) => {
     const payload = await readJson<{ messages: Array<{ role: "user" | "assistant" | "system"; content: string; createdAt: string; metadata?: { type?: string; mode?: { label?: string }; location?: CodexLocationContextInput }; attachments?: Array<{ id: string; url?: string }> }> }>(`${conversationApiPath}/${encodeURIComponent(conversationId)}/messages`);
-    setMessages(current => ({ ...current, [conversationId]: withMessageDurations(payload.messages.map(message => ({ role: message.role, content: message.content, createdAt: message.createdAt, kind: message.metadata?.type === "binding-context" || message.metadata?.type === "task-mode-started" || message.metadata?.type === "task-mode-instruction" || message.metadata?.type === "task-mode-policy-updated" ? message.metadata.type : undefined, taskModeLabel: message.metadata?.mode?.label, taskModeLocation: message.metadata?.location, attachments: message.attachments }))) }));
+    setMessages(current => ({ ...current, [conversationId]: withMessageDurations(payload.messages.map(message => ({ role: message.role, content: message.content, createdAt: message.createdAt, kind: message.metadata?.type === "binding-context" || message.metadata?.type === "binding-context-payload" || message.metadata?.type === "task-mode-started" || message.metadata?.type === "task-mode-instruction" || message.metadata?.type === "task-mode-policy-updated" ? message.metadata.type : undefined, taskModeLabel: message.metadata?.mode?.label, taskModeLocation: message.metadata?.location, attachments: message.attachments }))) }));
   };
   const loadRunningStatus = async (conversationId: string) => {
     try {
@@ -562,7 +562,7 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     ? { position: "absolute" as const, inset: 0, width: "100%", height: "100%", maxWidth: "none", maxHeight: "none", borderRadius: 0, transform: "none" }
     : { width: windowState.width, height: windowState.height, transform: `translate(${windowState.x}px, ${windowState.y}px)` };
   const displayedMessages: Message[] = active
-    ? (messages[active.id] ?? []).filter(message => message.role !== "system" || message.kind === "binding-context" || message.kind === "task-mode-started" || message.kind === "task-mode-policy-updated")
+    ? (messages[active.id] ?? []).filter(message => message.role !== "system" || message.kind === "binding-context" || message.kind === "binding-context-payload" || message.kind === "task-mode-started" || message.kind === "task-mode-policy-updated")
     : [];
   const liveActivity = active && streamingConversationId === active.id ? activityByConversation[active.id] : "";
   const workbench = <div className={`deliverable-codex-backdrop${visible ? "" : " is-hidden"}${windowState.maximized ? " is-maximized" : ""}${capturingCurrentView ? " is-capturing-current-view" : ""}`} style={windowState.maximized ? { zIndex: 2147483000, top: desktopTitlebarHeight, padding: 0, background: "#09090a" } : undefined} role="dialog" aria-modal="true" aria-label="交付物 Codex 对话">
@@ -587,15 +587,18 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
           {active ? displayedMessages.map((message, index) => {
             const isTaskModeStart = message.kind === "task-mode-started";
             const isBindingContext = message.kind === "binding-context";
+            const isBindingContextPayload = message.kind === "binding-context-payload";
             const isTaskInstruction = message.kind === "task-mode-instruction" || message.kind === "task-mode-policy-updated";
             const isTaskPolicyUpdate = message.kind === "task-mode-policy-updated";
-            return <article key={index} className={`${isTaskModeStart ? "is-event" : isBindingContext || isTaskInstruction ? "is-task-instruction" : `is-${message.role}`}${streaming && message.role === "assistant" && index === displayedMessages.length - 1 ? " is-streaming" : ""}`}>
+            return <article key={index} className={`${isTaskModeStart ? "is-event" : isBindingContext || isBindingContextPayload || isTaskInstruction ? "is-task-instruction" : `is-${message.role}`}${streaming && message.role === "assistant" && index === displayedMessages.length - 1 ? " is-streaming" : ""}`}>
               {message.role === "assistant" && <div className="deliverable-codex-workbench__duration">用时 {formatDuration(message.durationMs ?? (streamingConversationId === active.id && index === displayedMessages.length - 1 ? elapsedMsByConversation[active.id] ?? 0 : 0))}</div>}
               <div className="deliverable-codex-workbench__message-bubble">
                 {message.role === "assistant" && streamingConversationId === active.id && index === displayedMessages.length - 1 && !message.content && liveActivity && <div className="deliverable-codex-workbench__activity" role="status">{liveActivity}</div>}
                 {message.attachments?.length ? <div className="deliverable-codex-workbench__message-images">{message.attachments.map((attachment, imageIndex) => <img key={attachment.id ?? imageIndex} src={attachment.previewUrl ?? attachment.url ?? `/api/chat/attachments/${attachment.id}/data`} alt={message.role === "assistant" ? "Codex 生成图片" : "已发送图片"} onClick={() => setPreviewUrl(attachment.previewUrl ?? attachment.url ?? `/api/chat/attachments/${attachment.id}/data`)}/>)}</div> : null}
                 {isBindingContext
-                  ? <section className="deliverable-codex-workbench__instruction-card"><header><span>任务上下文已交给 Codex</span><b>{resourceLabel(activeResourceType)}分析</b></header><div><RichContent text={message.content}/></div></section>
+                  ? <section className="deliverable-codex-workbench__instruction-card"><header><span>已建立绑定</span><b>{resourceLabel(activeResourceType)} · Codex</b></header><div><RichContent text={message.content}/></div></section>
+                  : isBindingContextPayload
+                  ? <section className="deliverable-codex-workbench__instruction-card is-context-payload"><header><span>整体上下文已交给 Codex</span><b>{resourceLabel(activeResourceType)}上下文</b></header><div><RichContent text={message.content}/></div></section>
                   : isTaskModeStart
                   ? <section className="deliverable-codex-workbench__event-card"><header><i aria-hidden="true">✦</i><span><small>任务模式已启动</small><b>{message.taskModeLabel ?? message.content.replace("任务模式已启动 · ", "")}</b></span><time>已就绪</time></header><div><span><small>页面定位</small><b>{message.taskModeLocation?.page.join(" / ") ?? "定位信息缺失"}</b></span><span><small>业务定位</small><b>{message.taskModeLocation?.business ? `${message.taskModeLocation.business.kind}：${message.taskModeLocation.business.title}` : "不适用"}</b></span></div></section>
                   : isTaskInstruction

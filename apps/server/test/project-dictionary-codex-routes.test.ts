@@ -73,21 +73,21 @@ describe("project dictionary Codex routes", () => {
     expect(started.every(item => item.fresh)).toBe(true);
   });
 
-  it("lets the agent turn own the user-message write for a streamed request", async () => {
+  it("records two bootstrap cards before the first streamed request", async () => {
     let appended = 0;
     const app = projectDictionaryCodexRoutes({
       conversations: { async get() { return { id: "binding-1", projectId: "project-1", conversationId: "chat-1", status: "active" }; }, async setCodexThread() {}, async touch() {} } as never,
       chats: { async appendMessage() { appended += 1; } } as never,
       context: { async build() { return { systemInstruction: "dictionary", initialContext: "context" }; } } as never,
       projects: {} as never,
-      agents: { async start() { return { config: {} as never, resumed: false }; }, async sendMessage() { return { turn: {}, events: [] }; } } as never,
+      agents: { async start() { return { config: {} as never, resumed: false }; }, async sendMessage(_id, input) { expect(input.runtimeContext?.[0]?.content).toContain("## 首次绑定说明"); expect(input.runtimeContext?.[1]?.content).toContain("## 整体上下文已交给 Codex"); return { turn: {}, events: [] }; } } as never,
     });
 
     const response = await app.request("/conversations/binding-1/stream", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ content: "维护资料库", clientRequestId: "request-1", userMessageId: "message-1" }) });
 
     expect(response.status).toBe(200);
     await response.text();
-    expect(appended).toBe(0);
+    expect(appended).toBe(2);
   });
 
   it("replaces a missing resumed Codex Session before sending", async () => {

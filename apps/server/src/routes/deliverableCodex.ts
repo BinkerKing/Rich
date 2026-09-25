@@ -8,7 +8,7 @@ import type { CodexResourceType, DeliverableCodexContextService } from "../deliv
 import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
 import type { PromptLibraryService } from "../prompt-library/PromptLibraryService.js";
 import { workbenchInstruction } from "../task-workbench/instructions.js";
-import { createBoundContextCard, ensureBoundContextCard, isBoundContextCard } from "../codex/BoundContextCard.js";
+import { boundContextRuntimeInstruction, ensureBoundContextCards } from "../codex/BoundContextCard.js";
 
 type TaskModeStart = { id?: unknown; label?: unknown };
 type TaskModeLocation = { page?: unknown; project?: { title?: unknown }; business?: { kind?: unknown; title?: unknown } };
@@ -53,6 +53,7 @@ export function deliverableCodexRoutes(deps: {
     await deps.conversations.create({ id, conversationId, scopeKey: context.scopeKey, projectId, deliverableId, title, mode: "free", executor: "codex", status: "active", isBound: true, contextVersion: context.contextVersion, createdAt: now, updatedAt: now, lastActiveAt: now });
     const conversation = await deps.conversations.bind(id, now);
     if (!conversation) throw new Error("Unable to bind Codex conversation.");
+    await ensureBoundContextCards(deps.chats, conversationId, context);
     const session = await deps.agents.start(conversationId, { fresh: true, executor: "codex", workspaceRoot: context.workspaceRoot });
     return { conversation: { ...conversation, resumed: session.resumed, allowedMcpTools: context.allowedMcpTools }, context: context.initialContext };
   };
@@ -223,7 +224,7 @@ export function deliverableCodexRoutes(deps: {
     const existing = await deps.conversations.get(c.req.param("id"));
     if (!existing) return c.json({ error: "Conversation not found" }, 404);
     const bindingContext = await buildContext(existing, "free");
-    const { messages } = await ensureBoundContextCard(deps.chats, existing.conversationId, bindingContext);
+    const { messages } = await ensureBoundContextCards(deps.chats, existing.conversationId, bindingContext);
     return c.json({ messages: await Promise.all(messages.map(async message => ({ ...message, attachments: deps.attachments ? await deps.attachments.byMessage(message.id) : [] }))) });
   });
 
@@ -286,9 +287,8 @@ export function deliverableCodexRoutes(deps: {
       ? body.metadata as Record<string, unknown>
       : undefined;
     const workbenchDocumentId = typeof metadata?.workbenchDocumentId === "string" ? metadata.workbenchDocumentId : undefined;
-    const messages = await deps.chats.listMessages(existing.conversationId, 200);
     const bindingContext = await buildContext(existing, "free");
-    const bindingCard = messages.find(isBoundContextCard) ?? createBoundContextCard(existing.conversationId, bindingContext);
+    const { cards: bindingCards, messages } = await ensureBoundContextCards(deps.chats, existing.conversationId, bindingContext);
     const lastMode = [...messages].reverse().find(message => (message.metadata as { type?: string } | undefined)?.type === "task-mode-started");
     const generalTaskMode = (lastMode?.metadata as { mode?: { id?: string } } | undefined)?.mode?.id === "general-task";
     if (generalTaskMode) {
@@ -314,11 +314,14 @@ export function deliverableCodexRoutes(deps: {
     const contextForTurn = freeContext
       ? existing.lastContextSyncAt
         ? await buildIncrementalContext(existing, existing.lastContextSyncAt)
-        : bindingCard.content
+        : boundContextRuntimeInstruction(bindingCards)
       : undefined;
-    const turnContent = freeContext
-      ? `${freeContext.systemInstruction}${contextForTurn ? `\n\n${contextForTurn}` : ""}\n\n## 本次 Codex 任务\n${content}`
-      : content;
+    const turnContent = content;
+    const runtimeContext = freeContext && contextForTurn
+      ? existing.lastContextSyncAt
+        ? [{ role: "system" as const, content: `${freeContext.systemInstruction ?? ""}\n\n${contextForTurn}`.trim() }]
+        : bindingCards.map(card => ({ role: "system" as const, content: card.content }))
+      : undefined;
     const shouldSendRuleUpdate = Boolean(currentPromptRevision && taskPromptStates.at(-1)?.revision !== currentPromptRevision && metadata?.type !== "task-mode-instruction");
     const renderedPolicy = shouldSendRuleUpdate
       ? await deps.prompts.render("codex.deliverable-analysis-turn", {
@@ -356,7 +359,7 @@ export function deliverableCodexRoutes(deps: {
         const runtimeInstruction = workbenchDocumentId
           ? `You are collaborating in Rich workbench document ${workbenchDocumentId}. Before any planning or implementation, use rich_workbench_document get for this document. Use rich_workbench_document outline only for empty heading cards. For all substantive plans, scripts, tables, validation or conclusions, use rich_workbench_document propose and wait for the user's acceptance. Do not create, edit, or test project files unless the user explicitly asks after accepting a workbench proposal. Do not bypass Rich through direct database writes.`
           : undefined;
-        const result = await deps.agents.sendMessage(existing.conversationId, { clientRequestId, userMessageId, content: runtimeContent, runtimeInstruction, imageUrls, metadata }, write);
+        const result = await deps.agents.sendMessage(existing.conversationId, { clientRequestId, userMessageId, content: runtimeContent, runtimeInstruction, runtimeContext, imageUrls, metadata }, write);
         const sessionId = result.turn.runtimeSessionId;
         if (sessionId) await deps.conversations.setCodexThread(existing.id, sessionId, existing.contextVersion, new Date().toISOString());
         if (contextForTurn) await deps.conversations.markContextSynced(existing.id, new Date().toISOString());

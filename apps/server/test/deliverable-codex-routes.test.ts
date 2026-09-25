@@ -109,15 +109,15 @@ describe("deliverable Codex routes", () => {
     expect(second.status).toBe(201);
     expect(firstJson.conversation).toMatchObject({ mode: "free", allowedMcpTools: [] });
     expect((await (await app.request("/deliverables/p1/d1/conversations")).json() as { conversations: unknown[] }).conversations).toHaveLength(2);
-    expect((await (await app.request(`/conversations/${firstJson.conversation.id}/messages`)).json() as { messages: unknown[] }).messages).toHaveLength(1);
+    expect((await (await app.request(`/conversations/${firstJson.conversation.id}/messages`)).json() as { messages: unknown[] }).messages).toHaveLength(2);
     const event = await app.request(`/conversations/${firstJson.conversation.id}/events/task-mode-started`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventId: "start-general", startedAt: new Date().toISOString(), mode: { id: "general-task", label: "任务模式" }, location: { page: ["任务工作台"] } }) });
     expect(event.status).toBe(201);
-    expect((await (await app.request(`/conversations/${firstJson.conversation.id}/messages`)).json() as { messages: unknown[] }).messages).toHaveLength(2);
+    expect((await (await app.request(`/conversations/${firstJson.conversation.id}/messages`)).json() as { messages: unknown[] }).messages).toHaveLength(3);
 
     const archived = await app.request(`/conversations/${firstJson.conversation.id}/archive`, { method: "POST" });
     expect(archived.status).toBe(200);
     expect((await (await app.request("/deliverables/p1/d1/conversations")).json() as { conversations: unknown[] }).conversations).toHaveLength(1);
-    expect(chats.filter(item => item.type === "message")).toHaveLength(2);
+    expect(chats.filter(item => item.type === "message")).toHaveLength(5);
     expect(agents.some(value => value.startsWith("exit:"))).toBe(true);
   });
 
@@ -232,7 +232,7 @@ describe("deliverable Codex routes", () => {
   });
 
   it("repeats the question-record instruction when a synced session receives incremental context", async () => {
-    let sent = "";
+    let runtimeContext = "";
     const app = deliverableCodexRoutes({
       conversations: {
         async get() { return { id: "c1", conversationId: "chat-1", projectId: "p1", deliverableId: "d1", status: "active", contextVersion: "ctx-v1", lastContextSyncAt: "2026-09-22T00:00:00.000Z" } as never; },
@@ -247,7 +247,7 @@ describe("deliverable Codex routes", () => {
       attachments: null,
       agents: {
         async sendMessage(_conversationId, input, onEvent) {
-          sent = input.content;
+          runtimeContext = input.runtimeContext?.map(message => message.content).join("\n") ?? "";
           await onEvent?.({ type: "done", turnId: "turn-1", content: "已记录问题" });
           return { turn: {}, events: [] };
         },
@@ -258,7 +258,7 @@ describe("deliverable Codex routes", () => {
 
     expect(response.status).toBe(200);
     await response.text();
-    expect(sent).toContain("必须使用 rich_deliverable_record_create(kind: question) 记录问题。");
-    expect(sent).toContain("增量记录");
+    expect(runtimeContext).toContain("必须使用 rich_deliverable_record_create(kind: question) 记录问题。");
+    expect(runtimeContext).toContain("增量记录");
   });
 });
