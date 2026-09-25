@@ -81,7 +81,7 @@ export function MindmapView() {
   if (deckId && activeDeck) {
     return (
       <div className="tree-view mindmap-shell mindmap-shell--player">
-        <header className="tv-topbar mindmap-player-topbar" aria-label="导图 PPT 顶栏" />
+        <header className="tv-topbar mindmap-player-topbar" aria-label="MindPPT 顶栏" />
         <main className="mindmap-player-wrap">
           <MindmapPlayer source={activeDeck.source} />
         </main>
@@ -99,10 +99,10 @@ export function MindmapView() {
       <main className="tv-main mindmap-main">
         {loadError && <div className="mindmap-error">加载失败：{loadError}</div>}
         {loadingDecks ? (
-          <div className="mindmap-empty">正在加载导图 PPT…</div>
+          <div className="mindmap-empty">正在加载 MindPPT…</div>
         ) : decks.length === 0 ? (
           <div className="mindmap-empty">
-            还没有导图。可在元右键选择「生成导图 PPT」生成。
+            还没有 MindPPT。可在元右键选择「生成 MindPPT」生成。
           </div>
         ) : (
           <div className="mindmap-grid">
@@ -121,7 +121,7 @@ export function MindmapView() {
         )}
       </main>
       <footer className="tv-footer">
-        <div>导图 PPT · 共 {decks.length} 份</div>
+        <div>MindPPT · 共 {decks.length} 份</div>
         <FooterTaskStrip />
       </footer>
       {creating && (
@@ -218,7 +218,7 @@ function CreateMindmapModal({ onClose, onCreated }: CreateProps) {
     <div className="mindmap-modal" onClick={onClose} role="dialog" aria-modal="true">
       <div className="mindmap-modal__panel" onClick={e => e.stopPropagation()}>
         <header className="mindmap-modal__head">
-          <h2>新建导图 PPT</h2>
+          <h2>新建 MindPPT</h2>
           <button type="button" className="mindmap-modal__close" onClick={onClose} aria-label="关闭">×</button>
         </header>
         <nav className="mindmap-modal__tabs">

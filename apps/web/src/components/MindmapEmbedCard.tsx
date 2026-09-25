@@ -124,7 +124,7 @@ export function MindmapEmbedCard({ block, elementId }: Props) {
         <div className="mm-embed__actions">
           {isDeckRoot && (
             <button type="button" className="mm-embed__primary" onClick={handleOpen} disabled={!deckRootId}>
-              打开导图 PPT →
+              打开 MindPPT →
             </button>
           )}
           <button

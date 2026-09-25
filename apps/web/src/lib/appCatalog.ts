@@ -12,7 +12,7 @@ export interface AppMenuItem {
 export const APP_MENU_ITEMS: AppMenuItem[] = [
   { id: "tree", label: "知识树", icon: "branch", desc: "选择、新建、细化知识元", tone: "cyan" },
   { id: "news", label: "AI 早报", icon: "calendar", desc: "每日 AI 新闻与技能推荐", tone: "green" },
-  { id: "mindmap", label: "导图 PPT", icon: "diamond", desc: "把文稿和知识树变成可播放导图", tone: "violet" },
+  { id: "mindmap", label: "MindPPT", icon: "diamond", desc: "把文稿和知识树变成可播放导图", tone: "violet" },
   { id: "deepWorkbench", label: "思维导图", icon: "branch", desc: "用脑图拆解问题、任务与学习主题", tone: "violet" },
   { id: "flowcharts", label: "流程图", icon: "map", desc: "独立创建、编辑并复用流程图", tone: "cyan" },
   { id: "deliverables", label: "交付物", icon: "card", desc: "统一管理并复用绑定目录的交付物", tone: "gold" },

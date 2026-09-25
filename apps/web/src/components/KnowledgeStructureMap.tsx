@@ -220,7 +220,7 @@ export function KnowledgeStructureMap({
         setAddChildTarget(element);
         return;
       }
-      case "生成导图 PPT": {
+      case "生成 MindPPT": {
         // Attach the PPT section to this element. Server then derives the
         // indented markdown from its subtree on read. No AI call.
         try {
@@ -359,10 +359,10 @@ export function KnowledgeStructureMap({
           <button
             type="button"
             role="menuitem"
-            onClick={() => void runNodeAction("生成导图 PPT")}
-            title="把该元的子树转成可播放的导图 PPT"
+            onClick={() => void runNodeAction("生成 MindPPT")}
+            title="把该元的子树转成可播放的 MindPPT"
           >
-            生成导图 PPT
+            生成 MindPPT
           </button>
           <button
             type="button"

@@ -631,7 +631,7 @@ export function MindmapPlayer({ source, resolveImage }: Props) {
   return (
     <div className="mmp-shell">
       <section className="mmp-frame">
-        <div id="mindmap" ref={mindmapRef} role="img" aria-label="Mindmap presentation">
+        <div id="mindmap" ref={mindmapRef} role="img" aria-label="MindPPT presentation">
           <div className="mmp-map-layer" ref={mapLayerRef}>
             <svg className="mmp-link-layer" ref={linkLayerRef} aria-hidden="true" xmlns={SVG_NS} />
             <div className="mmp-node-layer" ref={nodeLayerRef} />
@@ -639,7 +639,7 @@ export function MindmapPlayer({ source, resolveImage }: Props) {
         </div>
         <section className={`mmp-floating-ui ${controlsOpen ? "controls-open" : "controls-collapsed"}`} aria-label="Presentation controls">
           <div className="mmp-title-panel mmp-glass">
-            <p className="mmp-eyebrow" ref={deckSubtitleRef}>Mindmap</p>
+            <p className="mmp-eyebrow" ref={deckSubtitleRef}>MindPPT</p>
             <h1 ref={deckTitleRef}>root</h1>
           </div>
           <div className="mmp-control-dock">
