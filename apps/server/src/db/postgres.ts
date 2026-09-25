@@ -25,6 +25,15 @@ async function applySchema(pool: Pool): Promise<void> {
   await pool.query(WORKBENCH_SCHEMA);
   await pool.query(WORKBENCH_DOCUMENT_SCHEMA);
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS deep_mindmaps (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      map_json JSONB NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_deep_mindmaps_updated_at ON deep_mindmaps(updated_at DESC);
+
     CREATE TABLE IF NOT EXISTS elements (
       id TEXT PRIMARY KEY,
       type TEXT NOT NULL,

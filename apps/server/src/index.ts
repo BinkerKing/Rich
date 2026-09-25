@@ -142,6 +142,7 @@ import type { PathsRepo } from "./repos/PathsRepo.js";
 import type { SignalsRepo } from "./repos/SignalsRepo.js";
 import type { ChatVisualBlocksRepo } from "./repos/ChatVisualBlocksRepo.js";
 import type { FlowchartsRepo } from "./repos/FlowchartsRepo.js";
+import type { DeepMindMapsRepo } from "./repos/DeepMindMapsRepo.js";
 import type { DeliverablesRepo } from "./repos/DeliverablesRepo.js";
 import type { ChatAttachmentsRepo } from "./repos/ChatAttachmentsRepo.js";
 import type { ChatConversationsRepo } from "./repos/ChatConversationsRepo.js";
@@ -198,6 +199,7 @@ import { createReminderTicker } from "./lib/reminderTicker.js";
 import { projectsRoutes } from "./routes/projects.js";
 import { projectManagementRoutes } from "./routes/projectManagement.js";
 import { flowchartsRoutes } from "./routes/flowcharts.js";
+import { deepMindMapsRoutes } from "./routes/deepMindMaps.js";
 import { deliverablesRoutes } from "./routes/deliverables.js";
 import { testCenterRoutes } from "./routes/testCenter.js";
 import { TestCenterSqliteRepo } from "./test-center/TestCenterSqliteRepo.js";
@@ -222,6 +224,7 @@ import { PostgresPathsRepo } from "./repos/PostgresPathsRepo.js";
 import { PostgresSignalsRepo } from "./repos/PostgresSignalsRepo.js";
 import { PostgresChatVisualBlocksRepo } from "./repos/PostgresChatVisualBlocksRepo.js";
 import { PostgresFlowchartsRepo } from "./repos/PostgresFlowchartsRepo.js";
+import { PostgresDeepMindMapsRepo } from "./repos/PostgresDeepMindMapsRepo.js";
 import { PostgresDeliverablesRepo } from "./repos/PostgresDeliverablesRepo.js";
 import { PostgresChatAttachmentsRepo } from "./repos/PostgresChatAttachmentsRepo.js";
 import { PostgresChatConversationsRepo } from "./repos/PostgresChatConversationsRepo.js";
@@ -313,6 +316,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   /** chat_visual_blocks 仅 sqlite + postgres 后端支持；json 模式下保持 null。 */
   let chatVisualBlocks: ChatVisualBlocksRepo | null = null;
   let flowcharts: FlowchartsRepo;
+  let deepMindMaps: DeepMindMapsRepo | null = null;
   let deliverables: DeliverablesRepo;
   /** chat_attachments 同上 —— bytea 存储需要数据库后端 */
   let chatAttachments: ChatAttachmentsRepo | null = null;
@@ -346,6 +350,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     improvements = new PostgresImprovementsRepo(pg);
     chatVisualBlocks = new PostgresChatVisualBlocksRepo(pg);
     flowcharts = new PostgresFlowchartsRepo(pg);
+    deepMindMaps = new PostgresDeepMindMapsRepo(pg);
     deliverables = new PostgresDeliverablesRepo(pg);
     chatAttachments = new PostgresChatAttachmentsRepo(pg);
     chatConversations = new PostgresChatConversationsRepo(pg);
@@ -400,6 +405,8 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     mcpTaskRepo = new SqliteMcpTaskRepo(db);
     aiTaskManagementRepo = new SqliteAiTaskManagementRepo(db);
     multicaBindingRepo = new SqliteMulticaBindingRepo(db);
+    const deepMindMapConnectionString = process.env.DEEP_MINDMAP_DATABASE_URL;
+    if (deepMindMapConnectionString) deepMindMaps = new PostgresDeepMindMapsRepo(openPostgresPool(deepMindMapConnectionString));
   } else {
     throw new Error(`Unsupported KE_STORAGE=${storage}. Use sqlite or postgres.`);
   }
@@ -601,6 +608,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   app.route("/api/ai-task-management", aiTaskManagementRoutes(aiTaskManagement));
   app.route("/api/project-management", projectManagementRoutes(projectManagement, { elements, greatMe }));
   app.route("/api/flowcharts", flowchartsRoutes(flowcharts));
+  app.route("/api/deep-mindmaps", deepMindMapsRoutes(deepMindMaps));
   app.route("/api/deliverables", deliverablesRoutes(deliverables, { elements, projectManagement }));
   if (testCenter) app.route("/api/project-management/testing", testCenterRoutes(testCenter));
   app.route("/api/project-management", projectAutomationRoutes(projectManagement, projectAutomation));
