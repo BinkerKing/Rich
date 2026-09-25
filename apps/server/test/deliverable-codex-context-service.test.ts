@@ -15,7 +15,7 @@ const elements = { get: async () => ({ type: "project", content: { localFolder: 
 
 describe("DeliverableCodexContextService", () => {
   it("uses the Rich source directory for general Codex work instead of the packaged app process directory", async () => {
-    const service = new DeliverableCodexContextService({ createSnapshot: async () => snapshot }, elements as never, "/workspace/Rich");
+    const service = new DeliverableCodexContextService({ createSnapshot: async () => snapshot }, elements as never, undefined, "/workspace/Rich");
 
     const context = await service.build({ projectId: "__general__", deliverableId: "__general__", mode: "free" });
 
@@ -63,5 +63,28 @@ describe("DeliverableCodexContextService", () => {
     expect(free.systemInstruction).toContain("Do not merely paste the requested deliverable content into chat");
     expect(free.systemInstruction).toContain("file attached");
     expect(bug.systemInstruction).toContain("reproduction");
+  });
+
+  it("hands the complete mindmap tree and node details to Codex before conversation", async () => {
+    const mindmapElements = [
+      { id: "root", type: "topic", title: "SAFE 代码分析", subtitle: "根主题", tags: ["SAFE"], content: { mindmapDetails: "分析范围与目标" }, metadata: { updatedAt: "2026-09-25T00:00:00.000Z" } },
+      { id: "child", type: "concept", title: "源系统", subtitle: "输入", tags: [], content: { mindmapDetails: "监管报送原始数据" }, metadata: { updatedAt: "2026-09-25T00:01:00.000Z" } },
+    ];
+    const service = new DeliverableCodexContextService(
+      { createSnapshot: async () => snapshot },
+      { get: async (id: string) => mindmapElements.find(element => element.id === id) ?? null, list: async () => mindmapElements } as never,
+      undefined,
+      undefined,
+      undefined,
+      { list: async () => [{ id: "root-child", from: "root", to: "child", kind: "child", createdAt: "2026-09-25T00:00:00.000Z" }] } as never,
+    );
+
+    const context = await service.build({ projectId: "__general__", deliverableId: "root", resourceType: "mindmap", mode: "free" });
+
+    expect(context.initialContext).toContain("思维导图完整快照");
+    expect(context.initialContext).toContain("SAFE 代码分析");
+    expect(context.initialContext).toContain("源系统");
+    expect(context.initialContext).toContain("监管报送原始数据");
+    expect(context.allowedMcpTools).toContain("rich_mindmap_manage");
   });
 });

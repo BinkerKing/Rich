@@ -491,7 +491,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
       relativePath: `${folderPath.replace(/\/$/, "")}/${entry.name}`,
       size: (await stat(pathResolve(directory, entry.name))).size,
     })));
-  });
+  }, deliverables);
   const conversationPromotions = chatConversations
     ? new ConversationPromotionService(chatConversations, chatAttachments, (projectId, deliverableId) => promotionContext.createSnapshot(projectId, deliverableId), async request => {
         const task = await aiTaskDispatcher.publish(request);
@@ -527,7 +527,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   // Persist every AI op prompt + output to data/ai-ops.jsonl for the admin UI.
   configureOpLog(root);
   const aiContextProvider = createAIContextProvider(chatConversations);
-  const deliverableCodexContext = new DeliverableCodexContextService(promotionContext, elements, projectManagement, undefined, flowcharts);
+  const deliverableCodexContext = new DeliverableCodexContextService(promotionContext, elements, projectManagement, undefined, flowcharts, relations);
   const dictionaryCodexContext = new DictionaryCodexContextService(elements, { get: projectId => getProjectDictionaryInfo(projectManagement, projectId) });
   const workbench = workbenchRepo && deliverableCodexConversations ? new WorkbenchService(workbenchRepo, deliverableCodexConversations) : undefined;
   const workbenchDocuments = workbenchDocumentRepo ? new WorkbenchDocumentService(workbenchDocumentRepo) : undefined;

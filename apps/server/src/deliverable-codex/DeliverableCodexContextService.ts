@@ -8,6 +8,7 @@ import type { DeliverableCodexMode } from "../repos/DeliverableCodexConversation
 import type { ElementsRepo } from "../repos/ElementsRepo.js";
 import type { ProjectManagementRepo, ProjectModuleItem } from "../repos/ProjectManagementRepo.js";
 import type { FlowchartsRepo } from "../repos/FlowchartsRepo.js";
+import type { RelationsRepo } from "../repos/RelationsRepo.js";
 import { GENERAL_CODEX_SCOPE } from "../task-workbench/instructions.js";
 
 type DeliverableContextMode = DeliverableCodexMode | "task" | "bug";
@@ -138,15 +139,62 @@ function reportContextText(projectId: string, projectTitle: string): string {
   return ["## Rich report center context", `- Project ID: ${projectId}`, `- Project: ${projectTitle}`, "", "使用 rich_report_manage(action: context) 查询项目计划、今日活动、明日计划和既有报告。用户要求创建或维护报告时，必须通过 rich_report_manage 写入。"].join("\n");
 }
 
+function mindmapDetails(element: { content: unknown }): string {
+  return object(element.content) && typeof element.content.mindmapDetails === "string"
+    ? plainText(element.content.mindmapDetails)
+    : "";
+}
+
+async function mindmapContextText(rootId: string, elements: Pick<ElementsRepo, "get"> & Partial<Pick<ElementsRepo, "list">>, relations: Pick<RelationsRepo, "list"> | undefined): Promise<{ text: string; version: string }> {
+  const [root, listedElements, allRelations] = await Promise.all([elements.get(rootId), elements.list?.() ?? Promise.resolve([]), relations?.list() ?? Promise.resolve([])]);
+  if (!root) throw new Error("思维导图根节点不存在。");
+  const allElements = listedElements.length ? listedElements : [root];
+  const byId = new Map(allElements.map(element => [element.id, element]));
+  const childrenByParent = new Map<string, string[]>();
+  for (const relation of allRelations) {
+    if (relation.kind !== "child") continue;
+    childrenByParent.set(relation.from, [...(childrenByParent.get(relation.from) ?? []), relation.to]);
+  }
+  const lines: string[] = [];
+  const included = new Set<string>();
+  const walk = (id: string, depth: number) => {
+    if (included.has(id)) return;
+    const node = byId.get(id);
+    if (!node) return;
+    included.add(id);
+    const indent = "  ".repeat(depth);
+    const subtitle = node.subtitle?.trim() ? `；副标题：${node.subtitle.trim()}` : "";
+    const tags = node.tags?.length ? `；标签：${node.tags.join("、")}` : "";
+    lines.push(`${indent}- ${node.title}（ID：${node.id}；类型：${node.type}${subtitle}${tags}）`);
+    const details = mindmapDetails(node);
+    if (details) lines.push(`${indent}  - 节点详情：${details}`);
+    for (const childId of childrenByParent.get(id) ?? []) walk(childId, depth + 1);
+  };
+  walk(rootId, 0);
+  const containedRelations = allRelations.filter(relation => relation.kind !== "child" && included.has(relation.from) && included.has(relation.to));
+  return {
+    text: [
+      "## Rich 思维导图完整快照",
+      `- 根节点 ID：${rootId}`,
+      `- 节点数量：${included.size}`,
+      "- 下列层级、节点标题、标签与详情为本轮对话的初始事实；需要最新状态或执行修改时，调用 rich_mindmap_manage。",
+      "", "## 节点层级与详情", ...lines,
+      ...(containedRelations.length ? ["", "## 节点关联", ...containedRelations.map(relation => `- ${relation.kind}：${relation.from} → ${relation.to}`)] : []),
+    ].join("\n"),
+    version: createHash("sha256").update(JSON.stringify({ root, nodes: [...included].map(id => byId.get(id)), relations: allRelations.filter(relation => included.has(relation.from) && included.has(relation.to)) })).digest("hex"),
+  };
+}
+
 export class DeliverableCodexContextService {
   constructor(
     private readonly taskContext: Pick<DeliverableTaskContextService, "createSnapshot">,
-    private readonly elements: Pick<ElementsRepo, "get">,
+    private readonly elements: Pick<ElementsRepo, "get"> & Partial<Pick<ElementsRepo, "list">>,
     private readonly projects?: Pick<ProjectManagementRepo, "listModuleItems">,
     private readonly generalWorkspaceRoot = process.env.RICH_PROJECT_ROOT
       ? resolve(process.env.RICH_PROJECT_ROOT)
       : resolve(process.env.HOME ?? process.cwd(), "Documents", "Ai-WorkSpace", "Rich"),
     private readonly flowcharts?: Pick<FlowchartsRepo, "get">,
+    private readonly relations?: Pick<RelationsRepo, "list">,
   ) {}
 
   private async findFlowchart(projectId: string, flowchartId: string): Promise<ProjectModuleItem | undefined> {
@@ -160,7 +208,8 @@ export class DeliverableCodexContextService {
 
   async build(input: { projectId: string; deliverableId: string; resourceType?: CodexResourceType; mode: DeliverableContextMode }): Promise<DeliverableCodexContext> {
     if (input.resourceType === "mindmap" && input.projectId === GENERAL_CODEX_SCOPE) {
-      return { scopeKey: `mindmap:${input.projectId}:${input.deliverableId}`, contextVersion: "mindmap-v1", systemInstruction: "You are working in a Rich mindmap. Read it first with rich_mindmap_manage(action: get). Use rich_mindmap_manage for all node queries and changes; it saves node content and details back to Rich.", initialContext: `当前 Rich 思维导图根节点 ID：${input.deliverableId}。`, allowedMcpTools: ["rich_mindmap_manage"], workspaceRoot: this.generalWorkspaceRoot };
+      const snapshot = await mindmapContextText(input.deliverableId, this.elements, this.relations);
+      return { scopeKey: `mindmap:${input.projectId}:${input.deliverableId}`, contextVersion: snapshot.version, systemInstruction: "You are working in a Rich mindmap. The full initial tree snapshot is supplied below. Use rich_mindmap_manage(action: get) to refresh before relying on data that might have changed, and use rich_mindmap_manage for all node queries and changes; it saves node content and details back to Rich.", initialContext: snapshot.text, allowedMcpTools: ["rich_mindmap_manage"], workspaceRoot: this.generalWorkspaceRoot };
     }
     if (input.projectId === GENERAL_CODEX_SCOPE && input.deliverableId === GENERAL_CODEX_SCOPE) {
       return { scopeKey: "workbench:general", contextVersion: "workbench-v1", systemInstruction: "Assist the user in Rich. Use the task workbench for plan-based tasks when requested. For workbench documents, read the document first; only create empty heading outlines automatically, and submit substantive content as a proposal for the user to confirm.", initialContext: "通用 Codex 对话；尚未绑定项目或交付物。", allowedMcpTools: ["rich_workbench_manage", "rich_workbench_document", "rich_ai_task_get", "rich_ai_task_report_result"], workspaceRoot: this.generalWorkspaceRoot };
