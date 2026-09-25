@@ -16,6 +16,7 @@ import { api } from "../api/client.js";
 import { useStore } from "../state/store.js";
 import { openBoundCodex } from "./project-management/deliverables/DeliverableCodexLauncher.js";
 import { useCurrentCodexShortcut } from "../lib/currentCodexShortcut.js";
+import { deepMindMapsApi, mergeLegacyMaps } from "./deep-workbench/deepMindMapsApi.js";
 
 const MINIMAP_FOCUS_KEY = "rich:mindmap-focus";
 export function requestMindmapFocus(id: string) { window.sessionStorage.setItem(MINIMAP_FOCUS_KEY, id); }
@@ -25,15 +26,11 @@ const STORAGE_KEY = "rich.deep-workbench.v1";
 const now = () => new Date().toISOString();
 const newId = () => crypto.randomUUID();
 
-function loadItems(): DeepWorkbenchItem[] {
+function loadLegacyItems(): DeepWorkbenchItem[] {
   try {
     const value = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]") as unknown;
     return Array.isArray(value) ? value as DeepWorkbenchItem[] : [];
   } catch { return []; }
-}
-
-function persist(items: DeepWorkbenchItem[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
 }
 
 function EditorIcon({ name }: { name: "add" | "back" | "map" | "collapse" }) {
@@ -65,7 +62,8 @@ export function DeepWorkbenchView() {
   const elements = useStore(s => s.elements);
   const relations = useStore(s => s.relations);
   const hydrate = useStore(s => s.hydrate);
-  const [items, setItems] = useState<DeepWorkbenchItem[]>(loadItems);
+  const [items, setItems] = useState<DeepWorkbenchItem[]>([]);
+  const [storageError, setStorageError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [creating, setCreating] = useState(false);
@@ -80,6 +78,15 @@ export function DeepWorkbenchView() {
   const [nodeDetailPanelWidth, setNodeDetailPanelWidth] = useState(() => loadNodeDetailPanelWidth(localStorage.getItem(NODE_DETAIL_PANEL_WIDTH_KEY), nodeDetailPanelMaxWidth(window.innerWidth)));
   const [nodeDetailPanelFullscreen, setNodeDetailPanelFullscreen] = useState(false);
   const knowledgeSyncTimer = useRef<number | undefined>();
+  useEffect(() => { void (async () => {
+    try {
+      const serverItems = await deepMindMapsApi.list();
+      const legacyItems = mergeLegacyMaps(serverItems, loadLegacyItems());
+      const imported = await Promise.all(legacyItems.map(item => deepMindMapsApi.create(item, true)));
+      if (legacyItems.length) localStorage.removeItem(STORAGE_KEY);
+      setItems([...imported, ...serverItems]);
+    } catch (error) { setStorageError(error instanceof Error ? error.message : String(error)); }
+  })(); }, []);
   useEffect(() => {
     if (!selectedNode) return;
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -105,16 +112,18 @@ export function DeepWorkbenchView() {
     return Array.from(elements.values()).filter(element => element.type === "topic" && !childIds.has(element.id));
   }, [elements, relations]);
 
-  const updateItems = (next: DeepWorkbenchItem[]) => { setItems(next); persist(next); };
+  const updateItems = (next: DeepWorkbenchItem[]) => { setItems(next); };
   const updateActive = (id: string, patch: (item: DeepWorkbenchItem) => DeepWorkbenchItem) => {
     setItems(previous => {
+      const current = previous.find(item => item.id === id);
       const next = previous.map(item => item.id === id ? patch(item) : item);
-      persist(next);
+      const changed = next.find(item => item.id === id);
+      if (current && changed && current.source !== "knowledge-tree") void deepMindMapsApi.update(changed, current.updatedAt).then(saved => setItems(items => items.map(item => item.id === saved.id ? saved : item))).catch(error => setStorageError(error instanceof Error ? error.message : String(error)));
       return next;
     });
   };
 
-  const create = () => {
+  const create = async () => {
     const title = newTitle.trim();
     if (!title) return;
     const timestamp = now();
@@ -122,7 +131,10 @@ export function DeepWorkbenchView() {
       id: newId(), title, createdAt: timestamp, updatedAt: timestamp,
       map: createDeepWorkbenchMap(title, newId()),
     };
-    updateItems([item, ...items]);
+    try {
+      const saved = await deepMindMapsApi.create(item);
+      updateItems([saved, ...items]);
+    } catch (error) { setStorageError(error instanceof Error ? error.message : String(error)); return; }
     setCreating(false); setNewTitle(""); setActiveId(item.id);
   };
 
@@ -263,6 +275,7 @@ export function DeepWorkbenchView() {
       <div className="deep-editor-actions"><button className={viewMode === "mindmap" ? "is-active" : ""} type="button" onClick={() => setViewMode(viewMode === "outline" ? "mindmap" : "outline")}><EditorIcon name="map" />{viewMode === "outline" ? "思维导图" : "返回大纲"}</button><button className="deep-editor-icon" type="button" title={allExpanded ? "全部折叠" : "全部展开"} aria-label={allExpanded ? "全部折叠" : "全部展开"} onClick={() => updateOutline(expandAll(outlineRoot, !allExpanded))}><EditorIcon name="collapse" /></button><button className="deep-editor-icon" type="button" title="返回内容清单" aria-label="返回内容清单" onClick={() => setActiveId(null)}><EditorIcon name="back" /></button>
       </div>
     </header>
+    {storageError && <p className="deep-knowledge-error" role="alert">DeepMindMap 存储不可用：{storageError}</p>}
     {knowledgeError && <p className="deep-knowledge-error" role="alert">知识树同步失败：{knowledgeError}</p>}
     {codexError && <p className="deep-knowledge-error" role="alert">打开 Codex 对话失败：{codexError}</p>}
     {viewMode === "mindmap" ? <div className="deep-canvas__map"><MindmapFloatingToolbar themes={DARK_MINDMAP_THEMES} theme={activeTheme.id} lineStyles={MINDMAP_LINE_STYLES} lineStyle={activeLineStyle} layouts={[{ id: "logicalStructure", name: "逻辑结构" }, { id: "mindMap", name: "思维导图" }, { id: "organizationStructure", name: "组织结构" }]} layout={active.map.layout} panSensitivity={activePanSensitivity} onThemeChange={selectTheme} onLineStyleChange={lineStyle => selectLineStyle(lineStyle as MindmapLineStyle)} onLayoutChange={layout => saveMap({ ...active.map, layout: layout as DeepWorkbenchMap["layout"] })} onPanSensitivityChange={panSensitivity => saveMap({ ...active.map, panSensitivity })} onFitView={() => mindmapActions?.fitView()} onExportPng={() => mindmapActions?.exportPng(active.title)} onOpenCodex={() => void openCodexConversation(active)} /><MindmapCanvas data={active.map.root as unknown as Record<string, unknown>} layout={active.map.layout} theme={active.map.theme} panSensitivity={activePanSensitivity} onChange={root => saveMap({ ...active.map, root: root as unknown as DeepWorkbenchMap["root"] })} onNodeDoubleClick={setSelectedNode} onReady={setMindmapActions} />{selectedNode && <aside className={`deep-node-detail${nodeDetailPanelFullscreen ? " is-fullscreen" : ""}`} aria-label="节点详情" style={{ "--node-detail-accent": nodeFrameColor(active.map.root, selectedNode.id, active.map.theme.config, activeTheme.accent), ...(nodeDetailPanelFullscreen ? {} : { width: nodeDetailPanelWidth }) } as CSSProperties}><div className="deep-node-detail__resize-handle" role="separator" aria-label="调整节点详情宽度" aria-orientation="vertical" onPointerDown={resizeNodeDetailPanel} /><header><h2>{titleFromNodeHtml(selectedNode.text)}</h2><div className="deep-node-detail__header-actions"><button type="button" className={`deep-node-detail__edit-toggle${nodeDetailEditing ? " is-active" : ""}`} aria-label={nodeDetailEditing ? "切换为预览模式" : "切换为编辑模式"} title={nodeDetailEditing ? "预览" : "编辑"} onClick={() => setNodeDetailEditing(editing => !editing)}><EditModeIcon /></button><button type="button" aria-label={nodeDetailPanelFullscreen ? "还原节点详情" : "全屏显示节点详情"} title={nodeDetailPanelFullscreen ? "还原" : "全屏"} onClick={() => setNodeDetailPanelFullscreen(fullscreen => !fullscreen)}>{nodeDetailPanelFullscreen ? "↙" : "⛶"}</button><button type="button" aria-label="关闭节点详情" onClick={() => setSelectedNode(null)}>×</button></div></header><div className="deep-node-detail__body"><div className="deep-node-detail__richtext"><ProjectRichTextEditor projectId={`deep-workbench-${active.id}-${selectedNode.id}`} value={selectedDetails} editing={nodeDetailEditing} onChange={detailsHtml => saveMap({ ...active.map, root: updateNodeDetails(active.map.root, selectedNode.id, detailsHtml) })} /></div></div></aside>}</div> : <section className="deep-outline-workspace"><aside className="deep-outline-workspace__outline"><div className="deep-outline__document-label">{active.source === "knowledge-tree" ? "知识树结构（编辑后即时同步）" : "文档目录"}</div><OutlineEditor root={outlineRoot} onChange={updateOutline} createId={newId} themeConfig={active.map.theme.config} onNodeSelect={setOutlineSelectedNodeId} /></aside><section className="deep-outline-workspace__detail" aria-label="节点详情" style={{ "--node-detail-accent": nodeFrameColor(active.map.root, outlineSelectedNode.data.uid, active.map.theme.config, activeTheme.accent) } as CSSProperties}><header><h2>{titleFromNodeHtml(outlineSelectedNode.data.text)}</h2><button type="button" className={`deep-node-detail__edit-toggle${nodeDetailEditing ? " is-active" : ""}`} aria-label={nodeDetailEditing ? "切换为预览模式" : "切换为编辑模式"} title={nodeDetailEditing ? "预览" : "编辑"} onClick={() => setNodeDetailEditing(editing => !editing)}><EditModeIcon /></button></header><div className="deep-node-detail__body"><div className="deep-node-detail__richtext"><ProjectRichTextEditor projectId={`deep-workbench-${active.id}-${outlineSelectedNode.data.uid}`} value={outlineSelectedDetails} editing={nodeDetailEditing} onChange={detailsHtml => saveMap({ ...active.map, root: updateNodeDetails(active.map.root, outlineSelectedNode.data.uid, detailsHtml) })} /></div></div></section></section>}
