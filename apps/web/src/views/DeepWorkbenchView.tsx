@@ -73,6 +73,7 @@ export function DeepWorkbenchView() {
   const [mindmapActions, setMindmapActions] = useState<MindmapCanvasActions | null>(null);
   const [savingKnowledge, setSavingKnowledge] = useState(false);
   const [knowledgeError, setKnowledgeError] = useState<string | null>(null);
+  const [codexError, setCodexError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<{ id: string; text: string } | null>(null);
   const [outlineSelectedNodeId, setOutlineSelectedNodeId] = useState<string | null>(null);
   const [nodeDetailEditing, setNodeDetailEditing] = useState(false);
@@ -179,11 +180,19 @@ export function DeepWorkbenchView() {
     })(); }, 350);
   };
   const openCodexConversation = async (item: DeepWorkbenchItem) => {
+    setCodexError(null);
     try {
-      const session = await api.ensureMindmapCodexSession(item.id, `[思维导图] ${item.title} · Codex`);
-      openBoundCodex({ projectId: "__general__", deliverableId: item.id, deliverableTitle: item.title, resourceType: "mindmap", conversationId: session.conversation.id });
+      const response = await fetch("/api/deliverable-codex/deliverables/__general__/__general__/conversations", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title: `[DeepMindMap] ${item.title} · Codex` }),
+      });
+      const payload = await response.json().catch(() => ({})) as { error?: string; conversation?: { id: string } };
+      if (!response.ok || !payload.conversation) throw new Error(payload.error ?? `创建 Codex 对话失败 (${response.status})`);
+      const session = payload.conversation;
+      openBoundCodex({ projectId: "__general__", deliverableId: "__general__", deliverableTitle: "通用任务", conversationId: session.id });
     } catch (error) {
-      setKnowledgeError(error instanceof Error ? error.message : String(error));
+      setCodexError(error instanceof Error ? error.message : String(error));
     }
   };
   useCurrentCodexShortcut(active ? () => { void openCodexConversation(active); } : undefined);
@@ -255,6 +264,7 @@ export function DeepWorkbenchView() {
       </div>
     </header>
     {knowledgeError && <p className="deep-knowledge-error" role="alert">知识树同步失败：{knowledgeError}</p>}
+    {codexError && <p className="deep-knowledge-error" role="alert">打开 Codex 对话失败：{codexError}</p>}
     {viewMode === "mindmap" ? <div className="deep-canvas__map"><MindmapFloatingToolbar themes={DARK_MINDMAP_THEMES} theme={activeTheme.id} lineStyles={MINDMAP_LINE_STYLES} lineStyle={activeLineStyle} layouts={[{ id: "logicalStructure", name: "逻辑结构" }, { id: "mindMap", name: "思维导图" }, { id: "organizationStructure", name: "组织结构" }]} layout={active.map.layout} panSensitivity={activePanSensitivity} onThemeChange={selectTheme} onLineStyleChange={lineStyle => selectLineStyle(lineStyle as MindmapLineStyle)} onLayoutChange={layout => saveMap({ ...active.map, layout: layout as DeepWorkbenchMap["layout"] })} onPanSensitivityChange={panSensitivity => saveMap({ ...active.map, panSensitivity })} onFitView={() => mindmapActions?.fitView()} onExportPng={() => mindmapActions?.exportPng(active.title)} onOpenCodex={() => void openCodexConversation(active)} /><MindmapCanvas data={active.map.root as unknown as Record<string, unknown>} layout={active.map.layout} theme={active.map.theme} panSensitivity={activePanSensitivity} onChange={root => saveMap({ ...active.map, root: root as unknown as DeepWorkbenchMap["root"] })} onNodeDoubleClick={setSelectedNode} onReady={setMindmapActions} />{selectedNode && <aside className={`deep-node-detail${nodeDetailPanelFullscreen ? " is-fullscreen" : ""}`} aria-label="节点详情" style={{ "--node-detail-accent": nodeFrameColor(active.map.root, selectedNode.id, active.map.theme.config, activeTheme.accent), ...(nodeDetailPanelFullscreen ? {} : { width: nodeDetailPanelWidth }) } as CSSProperties}><div className="deep-node-detail__resize-handle" role="separator" aria-label="调整节点详情宽度" aria-orientation="vertical" onPointerDown={resizeNodeDetailPanel} /><header><h2>{titleFromNodeHtml(selectedNode.text)}</h2><div className="deep-node-detail__header-actions"><button type="button" className={`deep-node-detail__edit-toggle${nodeDetailEditing ? " is-active" : ""}`} aria-label={nodeDetailEditing ? "切换为预览模式" : "切换为编辑模式"} title={nodeDetailEditing ? "预览" : "编辑"} onClick={() => setNodeDetailEditing(editing => !editing)}><EditModeIcon /></button><button type="button" aria-label={nodeDetailPanelFullscreen ? "还原节点详情" : "全屏显示节点详情"} title={nodeDetailPanelFullscreen ? "还原" : "全屏"} onClick={() => setNodeDetailPanelFullscreen(fullscreen => !fullscreen)}>{nodeDetailPanelFullscreen ? "↙" : "⛶"}</button><button type="button" aria-label="关闭节点详情" onClick={() => setSelectedNode(null)}>×</button></div></header><div className="deep-node-detail__body"><div className="deep-node-detail__richtext"><ProjectRichTextEditor projectId={`deep-workbench-${active.id}-${selectedNode.id}`} value={selectedDetails} editing={nodeDetailEditing} onChange={detailsHtml => saveMap({ ...active.map, root: updateNodeDetails(active.map.root, selectedNode.id, detailsHtml) })} /></div></div></aside>}</div> : <section className="deep-outline-workspace"><aside className="deep-outline-workspace__outline"><div className="deep-outline__document-label">{active.source === "knowledge-tree" ? "知识树结构（编辑后即时同步）" : "文档目录"}</div><OutlineEditor root={outlineRoot} onChange={updateOutline} createId={newId} themeConfig={active.map.theme.config} onNodeSelect={setOutlineSelectedNodeId} /></aside><section className="deep-outline-workspace__detail" aria-label="节点详情" style={{ "--node-detail-accent": nodeFrameColor(active.map.root, outlineSelectedNode.data.uid, active.map.theme.config, activeTheme.accent) } as CSSProperties}><header><h2>{titleFromNodeHtml(outlineSelectedNode.data.text)}</h2><button type="button" className={`deep-node-detail__edit-toggle${nodeDetailEditing ? " is-active" : ""}`} aria-label={nodeDetailEditing ? "切换为预览模式" : "切换为编辑模式"} title={nodeDetailEditing ? "预览" : "编辑"} onClick={() => setNodeDetailEditing(editing => !editing)}><EditModeIcon /></button></header><div className="deep-node-detail__body"><div className="deep-node-detail__richtext"><ProjectRichTextEditor projectId={`deep-workbench-${active.id}-${outlineSelectedNode.data.uid}`} value={outlineSelectedDetails} editing={nodeDetailEditing} onChange={detailsHtml => saveMap({ ...active.map, root: updateNodeDetails(active.map.root, outlineSelectedNode.data.uid, detailsHtml) })} /></div></div></section></section>}
   </main>;
 }
