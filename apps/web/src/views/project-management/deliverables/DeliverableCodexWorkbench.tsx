@@ -23,7 +23,7 @@ type TaskModeSession = TaskMode & { location: CodexLocationContextInput; started
 type Theme = "obsidian" | "graphite";
 type PendingAiTask = { sceneId: AiManagedTaskCreateInput["sceneId"]; label: string; payload?: Record<string, unknown> };
 type Conversation = { id: string; title: string; mode: Mode; status: "active" | "archived"; projectId: string; deliverableId: string; scopeKey?: string; codexThreadId?: string; lastActiveAt: string };
-type Message = { role: "user" | "assistant" | "system"; content: string; createdAt?: string; durationMs?: number; kind?: "binding-context" | "task-mode-started" | "task-mode-instruction" | "task-mode-policy-updated"; bindingTools?: string[]; bindingRules?: string; taskModeLabel?: string; taskModeLocation?: CodexLocationContextInput; attachments?: Array<{ id?: string; url?: string; previewUrl?: string }> };
+type Message = { role: "user" | "assistant" | "system"; content: string; createdAt?: string; durationMs?: number; kind?: "binding-context" | "task-mode-started" | "task-mode-instruction" | "task-mode-policy-updated"; taskModeLabel?: string; taskModeLocation?: CodexLocationContextInput; attachments?: Array<{ id?: string; url?: string; previewUrl?: string }> };
 type QueuedMessage = { id: string; conversation: Conversation; content: string; attachments: Array<{ id: string; mime: string; url: string; width?: number; height?: number; previewUrl?: string }> };
 type WindowState = { x: number; y: number; width: number; height: number; maximized: boolean };
 const windowStorageKey = "rich.deliverable-codex.window";
@@ -93,36 +93,6 @@ function displayConversationTitle(conversation: Conversation | undefined, fallba
   const prefix = resourceType === "mindmap" ? "[思维导图]" : resourceType === "flowchart" ? "[流程图]" : resourceType === "deliverable" ? "[交付物]" : undefined;
   if (!prefix || conversation.title.startsWith(prefix)) return conversation.title;
   return `${prefix} ${conversation.title}`;
-}
-
-type ResourceBindingInfo = { overview: string; tools: string[]; rules: string };
-
-function resourceBindingInfo(resourceType: "deliverable" | "flowchart" | "mindmap" | "dictionary" | "report", title: string): ResourceBindingInfo {
-  if (resourceType === "mindmap") return {
-    overview: `当前会话绑定思维导图「${title}」，用于查询、维护节点内容、详情和层级关系。`,
-    tools: ["rich_mindmap_manage"],
-    rules: "先读取整张思维导图，再按用户明确要求查询、新增、修改或删除节点；所有节点和详情变更必须通过 Rich MCP 保存。",
-  };
-  if (resourceType === "flowchart") return {
-    overview: `当前会话绑定流程图「${title}」，用于读取和维护节点、连线及节点详情。`,
-    tools: ["rich_flowchart_manage", "rich_project_files_get", "rich_project_file_read"],
-    rules: "先读取当前流程图；只有用户明确要求时才能改动节点或连线，并且必须通过 Rich MCP 保存后再确认完成。",
-  };
-  if (resourceType === "dictionary") return {
-    overview: `当前会话绑定项目数据字典「${title}」，用于查询和维护表、字段、说明及关联知识。`,
-    tools: ["rich_dictionary_manage", "rich_dictionary_info_manage", "rich_project_files_get", "rich_project_file_read"],
-    rules: "先读取当前字典信息；仅按用户明确要求新增、修改或删除字典内容，并通过 Rich MCP 保存。",
-  };
-  if (resourceType === "report") return {
-    overview: `当前会话绑定报告中心「${title}」，用于读取项目上下文并创建或维护报告。`,
-    tools: ["rich_report_manage"],
-    rules: "先查询报告中心上下文；用户要求创建或维护报告时，必须通过 Rich MCP 写入，不将未保存内容当作已完成交付。",
-  };
-  return {
-    overview: `当前会话绑定交付物「${title}」，用于读取需求、记录和文件，并在需要时维护交付物内容。`,
-    tools: ["rich_deliverable_get", "rich_deliverable_files_get", "rich_deliverable_file_write", "rich_deliverable_file_copy", "rich_deliverable_record_create", "rich_deliverable_record_update", "rich_deliverable_requirement_update"],
-    rules: "先读取交付物上下文；仅按用户明确要求写入需求、记录或文件，写入必须通过 Rich MCP 完成后再确认结果。",
-  };
 }
 
 function currentLocationContext(appView: string, projectId: string, deliverableId: string, deliverableTitle: string, resourceType: "deliverable" | "flowchart" | "mindmap" | "dictionary" | "report"): CodexLocationContextInput {
@@ -277,8 +247,8 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
     setActiveId(current => current && payload.conversations.some(item => item.id === current) ? current : payload.conversations[0]?.id);
   };
   const loadMessages = async (conversationId: string) => {
-    const payload = await readJson<{ messages: Array<{ role: "user" | "assistant" | "system"; content: string; createdAt: string; metadata?: { type?: string; mode?: { label?: string }; location?: CodexLocationContextInput; allowedMcpTools?: unknown; rules?: unknown }; attachments?: Array<{ id: string; url?: string }> }> }>(`${conversationApiPath}/${encodeURIComponent(conversationId)}/messages`);
-    setMessages(current => ({ ...current, [conversationId]: withMessageDurations(payload.messages.map(message => ({ role: message.role, content: message.content, createdAt: message.createdAt, kind: message.metadata?.type === "binding-context" || message.metadata?.type === "task-mode-started" || message.metadata?.type === "task-mode-instruction" || message.metadata?.type === "task-mode-policy-updated" ? message.metadata.type : undefined, bindingTools: Array.isArray(message.metadata?.allowedMcpTools) ? message.metadata.allowedMcpTools.filter((tool): tool is string => typeof tool === "string") : undefined, bindingRules: typeof message.metadata?.rules === "string" ? message.metadata.rules : undefined, taskModeLabel: message.metadata?.mode?.label, taskModeLocation: message.metadata?.location, attachments: message.attachments }))) }));
+    const payload = await readJson<{ messages: Array<{ role: "user" | "assistant" | "system"; content: string; createdAt: string; metadata?: { type?: string; mode?: { label?: string }; location?: CodexLocationContextInput }; attachments?: Array<{ id: string; url?: string }> }> }>(`${conversationApiPath}/${encodeURIComponent(conversationId)}/messages`);
+    setMessages(current => ({ ...current, [conversationId]: withMessageDurations(payload.messages.map(message => ({ role: message.role, content: message.content, createdAt: message.createdAt, kind: message.metadata?.type === "binding-context" || message.metadata?.type === "task-mode-started" || message.metadata?.type === "task-mode-instruction" || message.metadata?.type === "task-mode-policy-updated" ? message.metadata.type : undefined, taskModeLabel: message.metadata?.mode?.label, taskModeLocation: message.metadata?.location, attachments: message.attachments }))) }));
   };
   const loadRunningStatus = async (conversationId: string) => {
     try {
@@ -594,7 +564,6 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
   const displayedMessages: Message[] = active
     ? (messages[active.id] ?? []).filter(message => message.role !== "system" || message.kind === "binding-context" || message.kind === "task-mode-started" || message.kind === "task-mode-policy-updated")
     : [];
-  const bindingInfo = resourceBindingInfo(activeResourceType, deliverableTitle);
   const liveActivity = active && streamingConversationId === active.id ? activityByConversation[active.id] : "";
   const workbench = <div className={`deliverable-codex-backdrop${visible ? "" : " is-hidden"}${windowState.maximized ? " is-maximized" : ""}${capturingCurrentView ? " is-capturing-current-view" : ""}`} style={windowState.maximized ? { zIndex: 2147483000, top: desktopTitlebarHeight, padding: 0, background: "#09090a" } : undefined} role="dialog" aria-modal="true" aria-label="交付物 Codex 对话">
     <section className={`deliverable-codex-workbench is-theme-${theme}${activeTaskMode ? " is-task-mode" : ""}${windowState.maximized ? " is-maximized" : ""}`} style={workbenchStyle}>
@@ -620,13 +589,13 @@ export function DeliverableCodexWorkbench({ projectId, deliverableId, deliverabl
             const isBindingContext = message.kind === "binding-context";
             const isTaskInstruction = message.kind === "task-mode-instruction" || message.kind === "task-mode-policy-updated";
             const isTaskPolicyUpdate = message.kind === "task-mode-policy-updated";
-            return <article key={index} className={`${isBindingContext || isTaskModeStart ? "is-event" : isTaskInstruction ? "is-task-instruction" : `is-${message.role}`}${streaming && message.role === "assistant" && index === displayedMessages.length - 1 ? " is-streaming" : ""}`}>
+            return <article key={index} className={`${isTaskModeStart ? "is-event" : isBindingContext || isTaskInstruction ? "is-task-instruction" : `is-${message.role}`}${streaming && message.role === "assistant" && index === displayedMessages.length - 1 ? " is-streaming" : ""}`}>
               {message.role === "assistant" && <div className="deliverable-codex-workbench__duration">用时 {formatDuration(message.durationMs ?? (streamingConversationId === active.id && index === displayedMessages.length - 1 ? elapsedMsByConversation[active.id] ?? 0 : 0))}</div>}
               <div className="deliverable-codex-workbench__message-bubble">
                 {message.role === "assistant" && streamingConversationId === active.id && index === displayedMessages.length - 1 && !message.content && liveActivity && <div className="deliverable-codex-workbench__activity" role="status">{liveActivity}</div>}
                 {message.attachments?.length ? <div className="deliverable-codex-workbench__message-images">{message.attachments.map((attachment, imageIndex) => <img key={attachment.id ?? imageIndex} src={attachment.previewUrl ?? attachment.url ?? `/api/chat/attachments/${attachment.id}/data`} alt={message.role === "assistant" ? "Codex 生成图片" : "已发送图片"} onClick={() => setPreviewUrl(attachment.previewUrl ?? attachment.url ?? `/api/chat/attachments/${attachment.id}/data`)}/>)}</div> : null}
                 {isBindingContext
-                  ? <section className="deliverable-codex-workbench__event-card deliverable-codex-workbench__binding-card"><header><i aria-hidden="true">⌖</i><span><small>首次绑定说明</small><b>{resourceLabel(activeResourceType)} · {deliverableTitle}</b></span><time>已绑定</time></header><div><span><small>整体信息</small><b>{bindingInfo.overview}</b></span><span><small>可用 MCP</small><b>{(message.bindingTools?.length ? message.bindingTools : bindingInfo.tools).join(" · ")}</b></span></div><p><small>AI 操作规定</small>{message.bindingRules || bindingInfo.rules}</p></section>
+                  ? <section className="deliverable-codex-workbench__instruction-card"><header><span>任务上下文已交给 Codex</span><b>{resourceLabel(activeResourceType)}分析</b></header><div><RichContent text={message.content}/></div></section>
                   : isTaskModeStart
                   ? <section className="deliverable-codex-workbench__event-card"><header><i aria-hidden="true">✦</i><span><small>任务模式已启动</small><b>{message.taskModeLabel ?? message.content.replace("任务模式已启动 · ", "")}</b></span><time>已就绪</time></header><div><span><small>页面定位</small><b>{message.taskModeLocation?.page.join(" / ") ?? "定位信息缺失"}</b></span><span><small>业务定位</small><b>{message.taskModeLocation?.business ? `${message.taskModeLocation.business.kind}：${message.taskModeLocation.business.title}` : "不适用"}</b></span></div></section>
                   : isTaskInstruction

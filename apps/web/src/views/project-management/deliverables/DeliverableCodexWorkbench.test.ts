@@ -99,7 +99,7 @@ describe("DeliverableCodexWorkbench", () => {
     expect(source).toContain("formatCodexLocationContext({");
     expect(source).toContain('business: { kind: "交付物", id: deliverableId, title: deliverableTitle }');
     expect(source).toContain('locationContext ? `${locationContext}\\n\\n${draft}` : draft');
-    expect(source).toContain('.filter(message => message.role !== "system" || message.kind === "task-mode-started" || message.kind === "task-mode-policy-updated")');
+    expect(source).toContain('.filter(message => message.role !== "system" || message.kind === "binding-context" || message.kind === "task-mode-started" || message.kind === "task-mode-policy-updated")');
     expect(source).toContain('aria-label="打开附加功能"');
     expect(source).toContain('role="menuitem"');
     expect(source).toContain("<b>添加</b>");

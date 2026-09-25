@@ -8,7 +8,7 @@ import type { CodexResourceType, DeliverableCodexContextService } from "../deliv
 import type { ChatAttachmentsRepo } from "../repos/ChatAttachmentsRepo.js";
 import type { PromptLibraryService } from "../prompt-library/PromptLibraryService.js";
 import { workbenchInstruction } from "../task-workbench/instructions.js";
-import { createBoundContextCard, isBoundContextCard } from "../codex/BoundContextCard.js";
+import { createBoundContextCard, ensureBoundContextCard, isBoundContextCard } from "../codex/BoundContextCard.js";
 
 type TaskModeStart = { id?: unknown; label?: unknown };
 type TaskModeLocation = { page?: unknown; project?: { title?: unknown }; business?: { kind?: unknown; title?: unknown } };
@@ -222,13 +222,8 @@ export function deliverableCodexRoutes(deps: {
   r.get("/conversations/:id/messages", async c => {
     const existing = await deps.conversations.get(c.req.param("id"));
     if (!existing) return c.json({ error: "Conversation not found" }, 404);
-    const savedMessages = await deps.chats.listMessages(existing.conversationId, 200);
     const bindingContext = await buildContext(existing, "free");
-    const bindingCard = savedMessages.some(isBoundContextCard)
-      ? undefined
-      : createBoundContextCard(existing.conversationId, bindingContext);
-    if (bindingCard) await deps.chats.appendMessage(bindingCard);
-    const messages = bindingCard ? [...savedMessages, bindingCard] : savedMessages;
+    const { messages } = await ensureBoundContextCard(deps.chats, existing.conversationId, bindingContext);
     return c.json({ messages: await Promise.all(messages.map(async message => ({ ...message, attachments: deps.attachments ? await deps.attachments.byMessage(message.id) : [] }))) });
   });
 
@@ -292,6 +287,8 @@ export function deliverableCodexRoutes(deps: {
       : undefined;
     const workbenchDocumentId = typeof metadata?.workbenchDocumentId === "string" ? metadata.workbenchDocumentId : undefined;
     const messages = await deps.chats.listMessages(existing.conversationId, 200);
+    const bindingContext = await buildContext(existing, "free");
+    const bindingCard = messages.find(isBoundContextCard) ?? createBoundContextCard(existing.conversationId, bindingContext);
     const lastMode = [...messages].reverse().find(message => (message.metadata as { type?: string } | undefined)?.type === "task-mode-started");
     const generalTaskMode = (lastMode?.metadata as { mode?: { id?: string } } | undefined)?.mode?.id === "general-task";
     if (generalTaskMode) {
@@ -313,13 +310,11 @@ export function deliverableCodexRoutes(deps: {
       await deps.agents.start(existing.conversationId, { executor: "codex", workspaceRoot: taskContext.workspaceRoot });
     }
     const currentPromptRevision = !generalTaskMode && taskPromptStates.length > 0 ? await deps.prompts.revision("codex.deliverable-analysis-turn") : undefined;
-    const freeContext = taskContext
-      ? undefined
-      : await buildContext(existing, "free");
+    const freeContext = taskContext ? undefined : bindingContext;
     const contextForTurn = freeContext
       ? existing.lastContextSyncAt
         ? await buildIncrementalContext(existing, existing.lastContextSyncAt)
-        : freeContext.initialContext
+        : bindingCard.content
       : undefined;
     const turnContent = freeContext
       ? `${freeContext.systemInstruction}${contextForTurn ? `\n\n${contextForTurn}` : ""}\n\n## 本次 Codex 任务\n${content}`

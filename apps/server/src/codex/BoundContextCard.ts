@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ChatMessageRecord } from "../repos/ChatConversationsRepo.js";
+import type { ChatConversationsRepo, ChatMessageRecord } from "../repos/ChatConversationsRepo.js";
 
 export type BoundCodexContext = {
   initialContext: string;
@@ -25,4 +25,13 @@ export function createBoundContextCard(conversationId: string, context: BoundCod
     metadata: { type: "binding-context", allowedMcpTools: context.allowedMcpTools ?? [], rules: context.systemInstruction ?? "" },
     createdAt,
   };
+}
+
+export async function ensureBoundContextCard(chats: Pick<ChatConversationsRepo, "appendMessage" | "listMessages">, conversationId: string, context: BoundCodexContext): Promise<{ card: ChatMessageRecord; messages: ChatMessageRecord[] }> {
+  const savedMessages = await chats.listMessages(conversationId, 200);
+  const existing = savedMessages.find(isBoundContextCard);
+  if (existing) return { card: existing, messages: savedMessages };
+  const card = createBoundContextCard(conversationId, context);
+  await chats.appendMessage(card);
+  return { card, messages: [...savedMessages, card] };
 }
