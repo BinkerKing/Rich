@@ -2,7 +2,7 @@
 
 > 此文件由 `pnpm --filter @ke/server mcp:docs` 生成，请勿手工编辑。
 
-工具数：24；输入 Schema：20546 bytes。所有工具返回统一的 `{ ok, action, data/error, refs, changes, verification, warnings }` 信封。
+工具数：41；输入 Schema：37949 bytes。所有工具返回统一的 `{ ok, action, data/error, refs, changes, verification, warnings }` 信封。
 
 ## `rich_automation_manage`
 
@@ -57,6 +57,122 @@
 }
 ```
 
+## `rich_deliverable_file_copy`
+
+- 场景：`manage`
+- 用于：将项目文件复制到当前交付物目录。目标路径可使用交付物目录内的相对路径，或该目录内的项目相对路径。
+- 不用于：目标对象尚未定位；此时先使用查询工具。
+- 安全属性：只读=false，破坏性=false，幂等=true
+- 输入：`projectId`（必填）、`deliverableId`（必填）、`sourceRelativePath`（必填）、`destinationRelativePath`（必填）、`context`、`options`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Copies a project file and verifies the destination byte size inside the specified deliverable.
+- 示例：
+
+```json
+{
+  "projectId": "project-id",
+  "deliverableId": "deliverable-id",
+  "sourceRelativePath": "09-材料/基线.pdf",
+  "destinationRelativePath": "基线.pdf"
+}
+```
+
+## `rich_deliverable_file_meta_update`
+
+- 场景：`manage`
+- 用于：编辑指定交付物目录中已有文件的类型、版本和备注；不改动文件内容或磁盘路径。
+- 不用于：目标对象尚未定位；此时先使用查询工具。
+- 安全属性：只读=false，破坏性=false，幂等=true
+- 输入：`projectId`（必填）、`deliverableId`（必填）、`relativePath`（必填）、`type`、`version`、`note`、`context`、`options`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Confirms the file exists inside the deliverable and reads back its stored metadata.
+- 示例：
+
+```json
+{
+  "projectId": "project-id",
+  "deliverableId": "deliverable-id",
+  "relativePath": "07-交付/UAT/验收报告.docx",
+  "type": "deliverable",
+  "version": "V1.0"
+}
+```
+
+## `rich_deliverable_file_read`
+
+- 场景：`query`
+- 用于：读取当前交付物目录内一个明确文件的文本内容；Excel 会转换为 CSV 文本。
+- 不用于：用户已明确要求写入、删除或委派实际工作时。
+- 安全属性：只读=true，破坏性=false，幂等=true
+- 输入：`projectId`（必填）、`deliverableId`（必填）、`relativePath`（必填）、`maxChars`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Reads only a regular file inside the specified deliverable folder.
+- 示例：
+
+```json
+{
+  "projectId": "project-id",
+  "deliverableId": "deliverable-id",
+  "relativePath": "07-交付/UAT/验收说明.md"
+}
+```
+
+## `rich_deliverable_file_write`
+
+- 场景：`manage`
+- 用于：将 UTF-8 文本写入当前交付物目录。路径可使用交付物目录内的相对路径，或该目录内的项目相对路径。
+- 不用于：目标对象尚未定位；此时先使用查询工具。
+- 安全属性：只读=false，破坏性=false，幂等=true
+- 输入：`projectId`（必填）、`deliverableId`（必填）、`relativePath`（必填）、`content`（必填）、`context`、`options`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Writes and reads back the exact UTF-8 file inside the specified deliverable.
+- 示例：
+
+```json
+{
+  "projectId": "project-id",
+  "deliverableId": "deliverable-id",
+  "relativePath": "说明.md",
+  "content": "# 说明"
+}
+```
+
+## `rich_deliverable_files_get`
+
+- 场景：`query`
+- 用于：递归读取一个交付物目录的层级和文件清单，并合并页面维护的文件类型、版本、备注。
+- 不用于：用户已明确要求写入、删除或委派实际工作时。
+- 安全属性：只读=true，破坏性=false，幂等=true
+- 输入：`projectId`（必填）、`deliverableId`（必填）
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Lists only paths inside the specified deliverable folder.
+- 示例：
+
+```json
+{
+  "projectId": "project-id",
+  "deliverableId": "deliverable-id"
+}
+```
+
+## `rich_deliverable_get`
+
+- 场景：`query`
+- 用于：读取一个精确指定的交付物：基本信息、需求说明、要求记录、版本及文件元数据。
+- 不用于：用户已明确要求写入、删除或委派实际工作时。
+- 安全属性：只读=true，破坏性=false，幂等=true
+- 输入：`projectId`（必填）、`deliverableId`（必填）
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Reads the exact deliverable record from the project-management repository.
+- 示例：
+
+```json
+{
+  "projectId": "project-id",
+  "deliverableId": "deliverable-id"
+}
+```
+
 ## `rich_deliverable_history_get`
 
 - 场景：`query`
@@ -71,6 +187,109 @@
 ```json
 {
   "taskId": "task-id"
+}
+```
+
+## `rich_deliverable_record_create`
+
+- 场景：`manage`
+- 用于：在指定交付物中新建要求、进展、决策、问题、风险、变更、信息、材料或 Codex 操作记录。若记录关联文件，必须传入交付物目录内已有文件的路径以挂接附件。不会创建 AI 任务记录。
+- 不用于：目标对象尚未定位；此时先使用查询工具。
+- 安全属性：只读=false，破坏性=false，幂等=true
+- 输入：`projectId`（必填）、`deliverableId`（必填）、`kind`（必填）、`text`（必填）、`attachmentRelativePaths`、`context`、`options`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Reads the deliverable back and confirms the created record exists.
+- 示例：
+
+```json
+{
+  "projectId": "project-id",
+  "deliverableId": "deliverable-id",
+  "kind": "requirement",
+  "text": "验收前需要完成业务确认。",
+  "attachmentRelativePaths": [
+    "07-交付/UAT/验收说明.md"
+  ]
+}
+```
+
+## `rich_deliverable_record_update`
+
+- 场景：`manage`
+- 用于：编辑指定交付物中一条已有的人工记录，也可替换其文件附件。附件只能引用交付物目录内已有文件；AI 任务和 AI 任务结果不可通过本工具修改。
+- 不用于：目标对象尚未定位；此时先使用查询工具。
+- 安全属性：只读=false，破坏性=false，幂等=true
+- 输入：`projectId`（必填）、`deliverableId`（必填）、`recordId`（必填）、`kind`、`text`、`attachmentRelativePaths`、`context`、`options`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Reads the deliverable back and confirms the requested record fields changed.
+- 示例：
+
+```json
+{
+  "projectId": "project-id",
+  "deliverableId": "deliverable-id",
+  "recordId": "record-id",
+  "text": "更新后的要求"
+}
+```
+
+## `rich_deliverable_requirement_update`
+
+- 场景：`manage`
+- 用于：更新指定交付物页面的需求说明 HTML。仅修改需求说明，不影响要求记录或文件。
+- 不用于：目标对象尚未定位；此时先使用查询工具。
+- 安全属性：只读=false，破坏性=false，幂等=true
+- 输入：`projectId`（必填）、`deliverableId`（必填）、`descriptionHtml`（必填）、`context`、`options`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Reads the deliverable back and confirms the exact requirement HTML was stored.
+- 示例：
+
+```json
+{
+  "projectId": "project-id",
+  "deliverableId": "deliverable-id",
+  "descriptionHtml": "<p>更新后的需求说明</p>"
+}
+```
+
+## `rich_deliverable_settings_update`
+
+- 场景：`manage`
+- 用于：更新指定交付物页面的版本策略：仅保留最新或保留版本历史。不会删除现有文件或历史版本。
+- 不用于：目标对象尚未定位；此时先使用查询工具。
+- 安全属性：只读=false，破坏性=false，幂等=true
+- 输入：`projectId`（必填）、`deliverableId`（必填）、`versionPolicy`（必填）、`context`、`options`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Reads the deliverable back and confirms the stored version policy.
+- 示例：
+
+```json
+{
+  "projectId": "project-id",
+  "deliverableId": "deliverable-id",
+  "versionPolicy": "versioned"
+}
+```
+
+## `rich_dictionary_info_manage`
+
+- 场景：`manage`
+- 用于：Read or replace the project-level data dictionary information library. Use HTML produced for the Rich rich-text editor.
+- 不用于：目标对象尚未定位；此时先使用查询工具。
+- 安全属性：只读=false，破坏性=false，幂等=true
+- 输入：`action`（必填）、`projectId`（必填）、`html`、`context`、`options`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Writes are verified by reading the saved information library back.
+- 示例：
+
+```json
+{
+  "action": "update",
+  "projectId": "project-rich",
+  "html": "<h1>Mapping knowledge base</h1><p>...</p>",
+  "context": {
+    "requestId": "dictionary-info-1"
+  }
 }
 ```
 
@@ -146,6 +365,29 @@
 }
 ```
 
+## `rich_flowchart_manage`
+
+- 场景：`manage`
+- 用于：读取并精确修改项目流程图：图信息、节点、连线、节点详情，以及可作为底色分组的区域节点。区域使用 create_node(kind: region) 创建，可通过 tone、width、height 修改外观，使用 delete_node 删除。所有写入均写后读回校验。
+- 不用于：目标对象尚未定位；此时先使用查询工具。
+- 安全属性：只读=false，破坏性=true，幂等=true
+- 输入：`action`（必填）、`projectId`（必填）、`flowchartId`（必填）、`nodeId`、`edgeId`、`node`、`patch`、`edge`、`edgePatch`、`title`、`objective`、`status`、`context`、`options`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Every mutation reads the same flowchart back and verifies the requested node, edge, or chart field.
+- 示例：
+
+```json
+{
+  "action": "update_node",
+  "projectId": "project-id",
+  "flowchartId": "flowchart-id",
+  "nodeId": "node-id",
+  "patch": {
+    "description": "补充后的处理说明"
+  }
+}
+```
+
 ## `rich_knowledge_capture`
 
 - 场景：`capture`
@@ -211,6 +453,28 @@
 }
 ```
 
+## `rich_mindmap_manage`
+
+- 场景：`manage`
+- 用于：快速读取、搜索并维护知识树思维导图。get 返回完整节点树；search 可按标题、标签、详情查询；create_node、update_node、delete_node 精确新增、修改、删除节点。所有写入会读回验证。
+- 不用于：目标对象尚未定位；此时先使用查询工具。
+- 安全属性：只读=false，破坏性=true，幂等=true
+- 输入：`action`（必填）、`rootId`（必填）、`nodeId`、`parentId`、`query`、`node`、`patch`、`context`、`options`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：所有写操作会读取相同的思维导图节点和关系，确认写入结果。
+- 示例：
+
+```json
+{
+  "action": "update_node",
+  "rootId": "root-id",
+  "nodeId": "node-id",
+  "patch": {
+    "details": "补充后的节点说明"
+  }
+}
+```
+
 ## `rich_planning_manage`
 
 - 场景：`manage`
@@ -266,6 +530,42 @@
 }
 ```
 
+## `rich_project_file_read`
+
+- 场景：`query`
+- 用于：读取项目本地目录中任意明确文件的文本内容；Excel 会转换为 CSV 文本。仅可读取，不会修改文件。
+- 不用于：用户已明确要求写入、删除或委派实际工作时。
+- 安全属性：只读=true，破坏性=false，幂等=true
+- 输入：`projectId`（必填）、`relativePath`（必填）、`maxChars`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Reads only a regular file inside the configured project folder.
+- 示例：
+
+```json
+{
+  "projectId": "project-id",
+  "relativePath": "01-代码/PROC_SAFE_SAC.sql"
+}
+```
+
+## `rich_project_files_get`
+
+- 场景：`query`
+- 用于：递归读取项目本地目录中任意子目录的层级和文件清单。仅可读取，不会修改文件。
+- 不用于：用户已明确要求写入、删除或委派实际工作时。
+- 安全属性：只读=true，破坏性=false，幂等=true
+- 输入：`projectId`（必填）、`relativePath`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Lists only paths inside the configured project folder.
+- 示例：
+
+```json
+{
+  "projectId": "project-id",
+  "relativePath": "01-代码/一代"
+}
+```
+
 ## `rich_project_manage`
 
 - 场景：`manage`
@@ -315,6 +615,41 @@
   "context": {
     "requestId": "organize-1"
   }
+}
+```
+
+## `rich_report_manage`
+
+- 场景：`manage`
+- 用于：读取报告中心所需的项目计划、今日活动、明日计划与既有报告，并创建或维护项目报告。写入后会读取同一条报告确认结果。
+- 不用于：目标对象尚未定位；此时先使用查询工具。
+- 安全属性：只读=false，破坏性=false，幂等=true
+- 输入：`action`（必填）、`projectId`（必填）、`reportId`、`date`、`report`、`context`、`options`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Writes are read back from the reports module and matched by report id and updated fields.
+- 示例：
+
+```json
+{
+  "action": "context",
+  "projectId": "project-id"
+}
+```
+
+## `rich_startup_project_manual`
+
+- 场景：`manage`
+- 用于：List startup projects, read their stored AI manual, or write the complete manual before working in that project. The manual is stored in Rich's startup-project configuration, not in the deployment directory.
+- 不用于：目标对象尚未定位；此时先使用查询工具。
+- 安全属性：只读=false，破坏性=false，幂等=true
+- 输入：`action`（必填）、`projectId`、`content`、`context`、`options`
+- 结果：统一 Rich 信封；业务结果在 `data`，持久化对象在 `refs`，写入事实在 `changes`。
+- 验证：Manual writes are read back from Rich's riking-projects.json startup-project configuration.
+- 示例：
+
+```json
+{
+  "action": "list"
 }
 ```
 

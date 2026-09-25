@@ -41,7 +41,7 @@ export function deliverableCodexRoutes(deps: {
 }): Hono {
   const r = new Hono();
   const scopeKey = (resourceType: CodexResourceType, projectId: string, deliverableId: string) => `${resourceType}:${projectId}:${deliverableId}`;
-  const resourceTypeFor = (conversation: { scopeKey?: string }): CodexResourceType => conversation.scopeKey?.startsWith("flowchart:") ? "flowchart" : conversation.scopeKey?.startsWith("mindmap:") ? "mindmap" : conversation.scopeKey?.startsWith("report:") ? "report" : "deliverable";
+  const resourceTypeFor = (conversation: { scopeKey?: string }): CodexResourceType => conversation.scopeKey?.startsWith("deepmindmap:") ? "deepmindmap" : conversation.scopeKey?.startsWith("flowchart:") ? "flowchart" : conversation.scopeKey?.startsWith("mindmap:") ? "mindmap" : conversation.scopeKey?.startsWith("report:") ? "report" : "deliverable";
   const buildContext = (conversation: { projectId: string; deliverableId: string; scopeKey: string }, mode: "free" | "task") => deps.context.build({ projectId: conversation.projectId, deliverableId: conversation.deliverableId, resourceType: resourceTypeFor(conversation), mode });
   const buildIncrementalContext = (conversation: { projectId: string; deliverableId: string; scopeKey?: string }, since: string) => deps.context.buildIncrementalContext({ projectId: conversation.projectId, deliverableId: conversation.deliverableId, ...(conversation.scopeKey ? { resourceType: resourceTypeFor(conversation) } : {}), since });
   const createBoundConversation = async (projectId: string, deliverableId: string, title: string, resourceType: CodexResourceType = "deliverable") => {
@@ -86,6 +86,25 @@ export function deliverableCodexRoutes(deps: {
 
   r.get("/mindmaps/:mindmapId/conversations", async c => {
     return c.json({ conversations: await deps.conversations.listActive(scopeKey("mindmap", "__general__", c.req.param("mindmapId"))) });
+  });
+
+  r.get("/deep-mindmaps/:mindmapId/conversations", async c => {
+    return c.json({ conversations: await deps.conversations.listActive(scopeKey("deepmindmap", "__general__", c.req.param("mindmapId"))) });
+  });
+
+  r.post("/deep-mindmaps/:mindmapId/conversations/ensure-bound", async c => {
+    const body = await c.req.json().catch(() => null) as { title?: unknown } | null; const title = typeof body?.title === "string" ? body.title.trim() : "";
+    if (!title) return c.json({ error: "title is required" }, 400);
+    const projectId = "__general__";
+    const deliverableId = c.req.param("mindmapId");
+    const existing = await deps.conversations.getBound(scopeKey("deepmindmap", projectId, deliverableId));
+    if (existing) {
+      const context = existing.lastContextSyncAt
+        ? await buildIncrementalContext(existing, existing.lastContextSyncAt)
+        : (await buildContext(existing, "free")).initialContext;
+      return c.json({ conversation: existing, created: false, ...(context ? { context } : {}) });
+    }
+    try { return c.json({ ...await createBoundConversation(projectId, deliverableId, title, "deepmindmap"), created: true }, 201); } catch (error) { return c.json({ error: error instanceof Error ? error.message : String(error) }, 400); }
   });
 
   r.post("/mindmaps/:mindmapId/conversations/ensure-bound", async c => {

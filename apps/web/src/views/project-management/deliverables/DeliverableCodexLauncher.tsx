@@ -6,7 +6,7 @@ export type DeliverableCodexTarget = {
   projectId: string;
   deliverableId: string;
   deliverableTitle: string;
-  resourceType?: "deliverable" | "flowchart" | "mindmap" | "dictionary" | "report";
+  resourceType?: "deliverable" | "flowchart" | "mindmap" | "deepmindmap" | "dictionary" | "report";
   conversationId?: string;
   initialPrompt?: string;
   initialAttachments?: CodexInitialAttachment[];

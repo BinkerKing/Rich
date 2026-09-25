@@ -87,4 +87,25 @@ describe("DeliverableCodexContextService", () => {
     expect(context.initialContext).toContain("监管报送原始数据");
     expect(context.allowedMcpTools).toContain("rich_mindmap_manage");
   });
+
+  it("hands a persisted DeepMindMap to its dedicated MCP session", async () => {
+    const service = new DeliverableCodexContextService(
+      { createSnapshot: async () => snapshot },
+      elements as never,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { get: async () => ({ id: "deep-1", title: "SAFE 分析", map: { root: { data: { uid: "root", text: "SAFE 分析", details: "待整理资料" }, children: [] } }, createdAt: "2026-09-25T00:00:00.000Z", updatedAt: "2026-09-25T00:01:00.000Z" }) } as never,
+    );
+
+    const context = await service.build({ projectId: "__general__", deliverableId: "deep-1", resourceType: "deepmindmap", mode: "free" });
+
+    expect(context.scopeKey).toBe("deepmindmap:__general__:deep-1");
+    expect(context.initialContext).toContain("DeepMindMap 完整快照");
+    expect(context.initialContext).toContain("梳理该思维导图的需求和资料信息");
+    expect(context.initialContext).toContain("待整理资料");
+    expect(context.systemInstruction).toContain("rich_deep_mindmap_manage");
+    expect(context.allowedMcpTools).toEqual(["rich_deep_mindmap_manage"]);
+  });
 });

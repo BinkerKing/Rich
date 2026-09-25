@@ -194,7 +194,7 @@ export function DeepWorkbenchView() {
   const openCodexConversation = async (item: DeepWorkbenchItem) => {
     setCodexError(null);
     try {
-      const response = await fetch("/api/deliverable-codex/deliverables/__general__/__general__/conversations", {
+      const response = await fetch(`/api/deliverable-codex/deep-mindmaps/${encodeURIComponent(item.id)}/conversations/ensure-bound`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ title: `[DeepMindMap] ${item.title} · Codex` }),
@@ -202,7 +202,7 @@ export function DeepWorkbenchView() {
       const payload = await response.json().catch(() => ({})) as { error?: string; conversation?: { id: string } };
       if (!response.ok || !payload.conversation) throw new Error(payload.error ?? `创建 Codex 对话失败 (${response.status})`);
       const session = payload.conversation;
-      openBoundCodex({ projectId: "__general__", deliverableId: "__general__", deliverableTitle: "通用任务", conversationId: session.id });
+      openBoundCodex({ projectId: "__general__", deliverableId: item.id, deliverableTitle: item.title, resourceType: "deepmindmap", conversationId: session.id });
     } catch (error) {
       setCodexError(error instanceof Error ? error.message : String(error));
     }

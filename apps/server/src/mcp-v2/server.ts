@@ -26,6 +26,7 @@ import { registerWorkbenchDocumentTools } from "./resources/workbenchDocumentToo
 import type { TestCenterSqliteRepo } from "../test-center/TestCenterSqliteRepo.js";
 import type { AiTaskManagementService } from "../ai-task-management/service.js";
 import type { FlowchartsRepo } from "../repos/FlowchartsRepo.js";
+import type { DeepMindMapsRepo } from "../repos/DeepMindMapsRepo.js";
 import { registerAiTaskManagementTools } from "./tasks/aiTaskManagementTools.js";
 
 export interface McpToolEvent {
@@ -58,6 +59,7 @@ export interface BuildMcpV2Deps {
   testCenter?: TestCenterSqliteRepo;
   startupProjectsRoot?: string;
   flowcharts?: FlowchartsRepo;
+  deepMindMaps?: DeepMindMapsRepo | null;
   delegationAdapter?: WorkDelegationPort;
   executionTeams?: ExecutionTeamAdministrationPort;
   taskService?: PersistentTaskService;
@@ -90,6 +92,7 @@ export function buildMcpV2Registry(deps: BuildMcpV2Deps): RichToolRegistry {
     testCenter: deps.testCenter,
     startupProjectsRoot: deps.startupProjectsRoot,
     flowcharts: deps.flowcharts,
+    deepMindMaps: deps.deepMindMaps,
   });
   registerScenarioTools(registry, {
     elements: deps.elements,

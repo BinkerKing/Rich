@@ -9,10 +9,11 @@ import type { ElementsRepo } from "../repos/ElementsRepo.js";
 import type { ProjectManagementRepo, ProjectModuleItem } from "../repos/ProjectManagementRepo.js";
 import type { FlowchartsRepo } from "../repos/FlowchartsRepo.js";
 import type { RelationsRepo } from "../repos/RelationsRepo.js";
+import type { DeepMindMapsRepo } from "../repos/DeepMindMapsRepo.js";
 import { GENERAL_CODEX_SCOPE } from "../task-workbench/instructions.js";
 
 type DeliverableContextMode = DeliverableCodexMode | "task" | "bug";
-export type CodexResourceType = "deliverable" | "flowchart" | "mindmap" | "report";
+export type CodexResourceType = "deliverable" | "flowchart" | "mindmap" | "deepmindmap" | "report";
 
 export interface DeliverableCodexContext {
   scopeKey: string;
@@ -195,6 +196,7 @@ export class DeliverableCodexContextService {
       : resolve(process.env.HOME ?? process.cwd(), "Documents", "Ai-WorkSpace", "Rich"),
     private readonly flowcharts?: Pick<FlowchartsRepo, "get">,
     private readonly relations?: Pick<RelationsRepo, "list">,
+    private readonly deepMindMaps?: DeepMindMapsRepo | null,
   ) {}
 
   private async findFlowchart(projectId: string, flowchartId: string): Promise<ProjectModuleItem | undefined> {
@@ -207,6 +209,11 @@ export class DeliverableCodexContextService {
   }
 
   async build(input: { projectId: string; deliverableId: string; resourceType?: CodexResourceType; mode: DeliverableContextMode }): Promise<DeliverableCodexContext> {
+    if (input.resourceType === "deepmindmap" && input.projectId === GENERAL_CODEX_SCOPE) {
+      const map = await this.deepMindMaps?.get(input.deliverableId);
+      if (!map) throw new Error("DeepMindMap 不存在或 Postgres 不可用。");
+      return { scopeKey: `deepmindmap:${input.projectId}:${map.id}`, contextVersion: map.updatedAt, systemInstruction: "You are maintaining a Postgres-backed DeepMindMap. First call rich_deep_mindmap_manage(action: get) before relying on the snapshot. Save requested changes through that tool.", initialContext: ["## DeepMindMap 完整快照", `- Map ID: ${map.id}`, `- 标题: ${map.title}`, "- 初始任务：梳理该思维导图的需求和资料信息，放在主节点详情中展示，注意排版。", "", JSON.stringify(map.map)].join("\n"), allowedMcpTools: ["rich_deep_mindmap_manage"], workspaceRoot: this.generalWorkspaceRoot };
+    }
     if (input.resourceType === "mindmap" && input.projectId === GENERAL_CODEX_SCOPE) {
       const snapshot = await mindmapContextText(input.deliverableId, this.elements, this.relations);
       return { scopeKey: `mindmap:${input.projectId}:${input.deliverableId}`, contextVersion: snapshot.version, systemInstruction: "You are working in a Rich mindmap. The full initial tree snapshot is supplied below. Use rich_mindmap_manage(action: get) to refresh before relying on data that might have changed, and use rich_mindmap_manage for all node queries and changes; it saves node content and details back to Rich.", initialContext: snapshot.text, allowedMcpTools: ["rich_mindmap_manage"], workspaceRoot: this.generalWorkspaceRoot };

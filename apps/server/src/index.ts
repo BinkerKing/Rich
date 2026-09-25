@@ -534,7 +534,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
   // Persist every AI op prompt + output to data/ai-ops.jsonl for the admin UI.
   configureOpLog(root);
   const aiContextProvider = createAIContextProvider(chatConversations);
-  const deliverableCodexContext = new DeliverableCodexContextService(promotionContext, elements, projectManagement, undefined, flowcharts, relations);
+  const deliverableCodexContext = new DeliverableCodexContextService(promotionContext, elements, projectManagement, undefined, flowcharts, relations, deepMindMaps);
   const dictionaryCodexContext = new DictionaryCodexContextService(elements, { get: projectId => getProjectDictionaryInfo(projectManagement, projectId) });
   const workbench = workbenchRepo && deliverableCodexConversations ? new WorkbenchService(workbenchRepo, deliverableCodexConversations) : undefined;
   const workbenchDocuments = workbenchDocumentRepo ? new WorkbenchDocumentService(workbenchDocumentRepo) : undefined;
@@ -687,6 +687,7 @@ export function buildApp(root: string, adapters?: AIAdapter[], logger?: Logger, 
     testCenter: testCenter ?? undefined,
     startupProjectsRoot: root,
     flowcharts,
+    deepMindMaps,
     delegationAdapter: multica.delegationAdapter,
     executionTeams: multica.executionTeams,
     taskService: multicaWorkTasks,

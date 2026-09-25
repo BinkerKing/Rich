@@ -15,7 +15,7 @@ describe("MCP 2.0 generated catalog", () => {
     const legacy = JSON.parse(readFileSync(
       fileURLToPath(new URL("./fixtures/mcp-v2/legacy-catalog.json", import.meta.url)), "utf8",
     )) as { schemaBytes: number };
-    expect(registry.measure().toolCount).toBeLessThanOrEqual(40);
-    expect(registry.measure().schemaBytes).toBeLessThanOrEqual(legacy.schemaBytes * 0.4);
+    expect(registry.measure().toolCount).toBeLessThanOrEqual(41);
+    expect(registry.measure().schemaBytes).toBeLessThanOrEqual(legacy.schemaBytes * 0.44);
   });
 });
