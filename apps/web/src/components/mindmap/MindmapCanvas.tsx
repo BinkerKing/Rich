@@ -53,6 +53,7 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, fitOn
   onReadyRef.current = onReady;
   onNodeDoubleClickRef.current = onNodeDoubleClick;
   panSensitivityRef.current = panSensitivity;
+  const themeKey = typeof theme === "string" ? theme : JSON.stringify(theme);
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -307,7 +308,7 @@ export function MindmapCanvas({ data, layout, theme, panSensitivity = 0.4, fitOn
   // loop, which presents as a visible flash. The map owns edits while mounted;
   // a new data tree is applied on the next mount (for example after returning
   // from the outline view).
-  }, [fitOnResize, layout, theme]);
+  }, [fitOnResize, layout, themeKey]);
 
   const formatSelection = (format: Record<string, unknown>) => {
     const map = (hostRef.current as unknown as { __mindMap?: { richText?: { formatText(style: Record<string, unknown>): void } } })?.__mindMap;
