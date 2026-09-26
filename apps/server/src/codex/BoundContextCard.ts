@@ -53,6 +53,6 @@ export async function ensureBoundContextCards(chats: Pick<ChatConversationsRepo,
   const [binding, payload] = createBoundContextCards(conversationId, context);
   const cards: [ChatMessageRecord, ChatMessageRecord] = [existingBinding ?? binding, existingPayload ?? payload];
   const missing = cards.filter(card => !savedMessages.some(message => message.id === card.id));
-  await Promise.all(missing.map(card => chats.appendMessage?.(card)));
+  for (const card of missing) await chats.appendMessage?.(card);
   return { cards, messages: [...savedMessages, ...missing] };
 }

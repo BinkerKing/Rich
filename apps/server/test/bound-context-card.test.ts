@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createBoundContextCards } from "../src/codex/BoundContextCard.js";
+import { createBoundContextCards, ensureBoundContextCards } from "../src/codex/BoundContextCard.js";
 
 describe("bound Codex context cards", () => {
   it("keeps binding details and the full context as two ordered cards", () => {
@@ -16,4 +16,17 @@ describe("bound Codex context cards", () => {
     expect(context.content).toContain("## 整体上下文已交给 Codex");
     expect(context.content).toContain("需求：导出报表");
   });
+});
+
+it("persists the usage card before the context card", async () => {
+  const appended: string[] = [];
+  await ensureBoundContextCards({
+    listMessages: async () => [],
+    appendMessage: async message => {
+      await new Promise(resolve => setTimeout(resolve, message.metadata?.type === "binding-context" ? 15 : 0));
+      appended.push(String(message.metadata?.type));
+    },
+  }, "conversation-1", { initialContext: "完整上下文" });
+
+  expect(appended).toEqual(["binding-context", "binding-context-payload"]);
 });
