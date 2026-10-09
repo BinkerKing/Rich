@@ -16,7 +16,7 @@ const NOW = new Date().toISOString();
 const DRY_RUN = process.argv.includes("--dry-run");
 
 type RichTable = { id: string; table_name: string; external_sql: string | null };
-type Scenario = { id: string; table_id: string; title: string; external_sql: string | null };
+type Scenario = { id: string; table_id: string; title: string; external_sql: string | null; caliber_external_sql: string | null };
 type Rule = { id: string; table_id: string; scenario_id: string | null; field_name: string; status: string; external_sql: string | null };
 type InsertMap = {
   target: string;
@@ -35,6 +35,7 @@ const TABLE_OWNER_MAPPING_TABLES = new Set([
   "cfacatab", "cfacbtab", "cfadatab", "cfadbtab",
 ]);
 const LATEST_FIELD_SQL_TABLES = new Set(["cfacatab", "cfacbtab", "cfadatab", "cfadbtab"]);
+const CALIBER_CODE_TABLES = new Set(["safeaccount", "safebalance", "cfacatab", "cfacbtab", "cfadatab", "cfadbtab"]);
 const DATABASE_IDENTITY_FIELDS = new Set([
   "safeaccount.id", "safebalance.id",
   "cfacatab.id", "cfacbtab.id", "cfadatab.id", "cfadbtab.id",
@@ -340,7 +341,7 @@ async function main(): Promise<void> {
   const client = await pool.connect();
   try {
     const tableResult = await client.query<RichTable>("SELECT id, table_name, external_sql FROM pm_data_tables WHERE project_id=$1", [PROJECT_ID]);
-    const scenarioResult = await client.query<Scenario>("SELECT id, table_id, title, external_sql FROM pm_mapping_scenarios WHERE project_id=$1", [PROJECT_ID]);
+    const scenarioResult = await client.query<Scenario>("SELECT id, table_id, title, external_sql, caliber_external_sql FROM pm_mapping_scenarios WHERE project_id=$1", [PROJECT_ID]);
     const ruleResult = await client.query<Rule>(`
         SELECT r.id, r.table_id, r.scenario_id, f.field_name, r.status, r.external_sql
           FROM pm_mapping_rules r
@@ -357,7 +358,7 @@ async function main(): Promise<void> {
     }
 
     const tableUpdates: Array<{ id: string; sql: string }> = [];
-    const scenarioUpdates: Array<{ id: string; sql: string }> = [];
+    const scenarioUpdates: Array<{ id: string; sql: string; caliberSql: string | null }> = [];
     const ruleUpdates: Array<{ id: string; sql: string }> = [];
     const codeFieldsWithoutRule: string[] = [];
     const rulesWithoutCode: string[] = [];
@@ -372,7 +373,10 @@ async function main(): Promise<void> {
         const scenarioExternalSql = TABLE_OWNER_MAPPING_TABLES.has(normalize(table.table_name))
           ? scenarioSql(table.table_name, scenario.title, scenarioMappings)
           : externalSql;
-        if (scenario.external_sql !== scenarioExternalSql) scenarioUpdates.push({ id: scenario.id, sql: scenarioExternalSql });
+        const caliberSql = CALIBER_CODE_TABLES.has(normalize(table.table_name)) ? scenarioExternalSql : null;
+        if (scenario.external_sql !== scenarioExternalSql || (caliberSql !== null && scenario.caliber_external_sql !== caliberSql)) {
+          scenarioUpdates.push({ id: scenario.id, sql: scenarioExternalSql, caliberSql });
+        }
       }
 
       const mappedCodeFields = new Set(mappings.flatMap((mapping) => mapping.columns.map(canonicalField)));
@@ -412,7 +416,7 @@ async function main(): Promise<void> {
 
     await client.query("BEGIN");
     for (const update of tableUpdates) await client.query("UPDATE pm_data_tables SET external_sql=$1, updated_at=$2 WHERE id=$3", [update.sql, NOW, update.id]);
-    for (const update of scenarioUpdates) await client.query("UPDATE pm_mapping_scenarios SET external_sql=$1, updated_at=$2 WHERE id=$3", [update.sql, NOW, update.id]);
+    for (const update of scenarioUpdates) await client.query("UPDATE pm_mapping_scenarios SET external_sql=$1, caliber_external_sql=COALESCE($2, caliber_external_sql), updated_at=$3 WHERE id=$4", [update.sql, update.caliberSql, NOW, update.id]);
     for (const update of ruleUpdates) await client.query("UPDATE pm_mapping_rules SET external_sql=$1, updated_at=$2 WHERE id=$3", [update.sql, NOW, update.id]);
     await client.query("COMMIT");
 
