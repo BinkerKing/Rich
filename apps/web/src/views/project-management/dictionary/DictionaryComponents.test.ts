@@ -11,6 +11,14 @@ test("字段设计移除未渲染的外部 SQL 列，并在属性查看器高亮
   assert.match(source, /<SqlSyntaxHighlight sql=\{payload\.value \|\| "-"\} \/>/);
 });
 
+test("Mapping 字段行直接展示外部 SQL，不使用查看按钮", () => {
+  const source = readFileSync(new URL("./DictionaryComponents.tsx", import.meta.url), "utf8");
+  const mappingPanel = source.slice(source.indexOf("export function DictionaryMappingPanel"), source.indexOf("type DictionaryCaliberView"));
+
+  assert.match(mappingPanel, /<td className="prj-pm-dict-mapping-table__external-sql">\s*<pre><SqlSyntaxHighlight sql=\{rule\.externalSql \|\| "-"\} \/><\/pre>\s*<\/td>/);
+  assert.doesNotMatch(mappingPanel, /<ExternalSqlButton title="字段 Mapping 外部 SQL"/);
+});
+
 test("公共 Mapping 规则继承到每个显式场景，不生成默认场景页签", () => {
   const scenarios = buildDictionaryMappingScenarios(
     { id: "fae-base", tableName: "FAEBaseInfo", caliber: "结售汇基础信息" } as ProjectDictionaryTable,

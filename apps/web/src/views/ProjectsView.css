@@ -7978,6 +7978,20 @@
   word-break: break-word;
 }
 
+.prj-pm-dict-mapping-table__external-sql pre {
+  max-height: 148px;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid rgba(152, 133, 255, .34);
+  border-radius: 5px;
+  padding: 6px 8px;
+  background: rgba(119, 92, 219, .08);
+  color: #d6cbff;
+  font: 700 11px/1.45 "SF Mono", ui-monospace, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .prj-pm-dict-sql-conversion {
   display: block;
   max-height: 148px;

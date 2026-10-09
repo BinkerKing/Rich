@@ -302,7 +302,7 @@ export function DictionaryMappingPanel({
     { id: "sql", label: "SQL转换", width: 420, minWidth: 220 },
     { id: "verificationStatus", label: "验证状态", width: 100, minWidth: 82 },
     { id: "remark", label: "备注", width: 220, minWidth: 120 },
-    { id: "externalSql", label: "外部SQL", width: 160, minWidth: 120 },
+    { id: "externalSql", label: "外部SQL", width: 420, minWidth: 240 },
   ], []);
   const mappingColumnResize = useDictionaryResizableColumns(
     `dictionary-mapping-table:${table?.id || "empty"}`,
@@ -550,7 +550,9 @@ export function DictionaryMappingPanel({
                             {rule.verificationRemark?.trim() ? <small className="prj-pm-dict-verification__remark">{rule.verificationRemark}</small> : null}
                           </td>
                           <td className="prj-pm-dict-mapping-table__remark">{tableRemark || "-"}</td>
-                          <td>{rule.externalSql?.trim() ? <ExternalSqlButton title="字段 Mapping 外部 SQL" subtitle={rule.field.fieldName} sql={rule.externalSql} onInspectProperty={onInspectProperty} /> : "-"}</td>
+                          <td className="prj-pm-dict-mapping-table__external-sql">
+                            <pre><SqlSyntaxHighlight sql={rule.externalSql || "-"} /></pre>
+                          </td>
                         </tr>
                       );
                     })}
