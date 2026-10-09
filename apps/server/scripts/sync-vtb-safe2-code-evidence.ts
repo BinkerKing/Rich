@@ -122,6 +122,32 @@ function procedureBlocks(sql: string): Array<{ name: string; start: number; body
   }));
 }
 
+function assertSingleTableOwner(sql: string): void {
+  for (const procedure of procedureBlocks(sql)) {
+    const targets = new Set(
+      [...procedure.body.matchAll(/\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+vtb\.((?:"[^"]+")|(?:[a-zA-Z_][a-zA-Z0-9_]*))/gi)]
+        .map((match) => match[1].replaceAll('"', ""))
+        .filter((target) => normalize(target) !== "processlog"),
+    );
+    if (targets.size > 1) {
+      throw new Error(`table-owner violation: ${procedure.name} writes ${[...targets].join(", ")}`);
+    }
+  }
+}
+
+function runTableOwnerSelfTest(): void {
+  const invalid = `CREATE OR REPLACE PROCEDURE vtb.bad_owner() LANGUAGE plpgsql AS $$
+  BEGIN INSERT INTO vtb.safe_account(account_no) SELECT 'A'; DELETE FROM vtb.t_safe_accca; END; $$;`;
+  let rejected = false;
+  try { assertSingleTableOwner(invalid); } catch (error) {
+    rejected = error instanceof Error && error.message === "table-owner violation: bad_owner writes safe_account, t_safe_accca";
+  }
+  if (!rejected) throw new Error("table-owner self-test did not reject a multi-table writer");
+  assertSingleTableOwner(`CREATE OR REPLACE PROCEDURE vtb.good_owner() LANGUAGE plpgsql AS $$
+  BEGIN DELETE FROM vtb.safe_account; INSERT INTO vtb.safe_account(account_no) SELECT 'A'; END; $$;`);
+  console.log("table-owner self-test passed");
+}
+
 function parseInserts(sql: string, sourceFile: string, sourceKind: InsertMap["sourceKind"]): InsertMap[] {
   const mappings: InsertMap[] = [];
   for (const procedure of procedureBlocks(sql)) {
@@ -188,6 +214,10 @@ function resolveRichTable(target: string, tables: RichTable[]): RichTable | unde
 }
 
 async function main(): Promise<void> {
+  if (process.argv.includes("--table-owner-self-test")) {
+    runTableOwnerSelfTest();
+    return;
+  }
   const sources = await Promise.all([
     readFile(`${RELEASE_ROOT}/01_source_load_procedures.sql`, "utf8").then((sql) => ({ sql, file: "01_source_load_procedures.sql", kind: "release" as const })),
     readFile(`${RELEASE_ROOT}/02_table_level_procedures.sql`, "utf8").then((sql) => ({ sql, file: "02_table_level_procedures.sql", kind: "release" as const })),
@@ -197,6 +227,9 @@ async function main(): Promise<void> {
     readFile(CFA_INTERMEDIATE_PIPELINE, "utf8").then((sql) => ({ sql, file: "24_fix_cfa_intermediate_repayment_logic.sql", kind: "deployed_customer_cfa" as const })),
     readFile(TABLE_OWNER_ACC_PIPELINE, "utf8").then((sql) => ({ sql, file: "71_refactor_acc_table_owned_pipeline.sql", kind: "active_table_owner" as const })),
   ]);
+  for (const source of sources.filter((source) => source.kind === "active_table_owner")) {
+    assertSingleTableOwner(source.sql);
+  }
   const inserts = sources
     .flatMap((source) => parseInserts(source.sql, source.file, source.kind))
     // The active ACC table-owner implementation is the sole current writer
