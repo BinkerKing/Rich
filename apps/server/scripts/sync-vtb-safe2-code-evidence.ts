@@ -8,7 +8,9 @@ const SAFE2_DEV_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapp
 const SAC_PIPELINE = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/二代SAFE逻辑开发/sql/67_add_safe2_sac_pipeline.sql";
 const CUSTOMER_PIPELINE = `${SAFE2_DEV_ROOT}/14_refresh_customer_from_cif.sql`;
 const CFA_INTERMEDIATE_PIPELINE = `${SAFE2_DEV_ROOT}/24_fix_cfa_intermediate_repayment_logic.sql`;
-const VERSION = "v1.0.1_2026-10-08";
+const TABLE_OWNER_ACC_PIPELINE = `${SAFE2_DEV_ROOT}/71_refactor_acc_table_owned_pipeline.sql`;
+const RELEASE_VERSION = "v1.0.1_2026-10-08";
+const TABLE_OWNER_VERSION = "v1.1.0-dev_2026-10-09-table-owner";
 const NOW = new Date().toISOString();
 const DRY_RUN = process.argv.includes("--dry-run");
 
@@ -19,7 +21,7 @@ type InsertMap = {
   target: string;
   procedure: string;
   sourceFile: string;
-  sourceKind: "release" | "active_sac" | "deployed_customer_cfa";
+  sourceKind: "release" | "active_sac" | "deployed_customer_cfa" | "active_table_owner";
   line: number;
   columns: string[];
   expressions: string[];
@@ -150,15 +152,23 @@ function parseInserts(sql: string, sourceFile: string, sourceKind: InsertMap["so
   return mappings;
 }
 
+function versionsFor(mappings: InsertMap[]): string {
+  const versions = new Set(mappings.map((mapping) => (
+    mapping.sourceKind === "active_table_owner" ? TABLE_OWNER_VERSION : RELEASE_VERSION
+  )));
+  return [...versions].join("；");
+}
+
 function tableSql(tableName: string, mappings: InsertMap[]): string {
   const sourceKinds = new Set(mappings.map((mapping) => mapping.sourceKind));
   const caveats: string[] = [];
   if (sourceKinds.has("release")) caveats.push("过程全文来自 v1.0.1_2026-10-08 已校验静态发布包。");
   if (sourceKinds.has("active_sac")) caveats.push("SAC 过程全文来自当前部署管道脚本；发布包中的 05_safe2_sac_mapping_fix.sql 仅固化差异修复，不含过程全文。");
   if (sourceKinds.has("deployed_customer_cfa")) caveats.push("Customer/CFA 中间层过程来自当前开发且已部署验证的脚本；该逻辑未收录在 v1.0.1 固定包，属于发布包完整性缺口。");
+  if (sourceKinds.has("active_table_owner")) caveats.push("账户/余额表归属过程来自当前阶段 1 已部署回归脚本；待完整回归后应固化为新的校验发布包。");
   const sources = [...new Set(mappings.map((mapping) => `${mapping.sourceFile}:${mapping.line}`))].join(", ");
   const bodies = [...new Map(mappings.map((mapping) => [mapping.procedure, mapping.procedureSql])).values()];
-  return `/*\n二代 SAFE 当前代码证据\n目标表：${tableName}\n代码版本：${VERSION}\n来源：${sources}\n说明：${caveats.join(" ")}\n*/\n\n${bodies.join("\n\n")}`;
+  return `/*\n二代 SAFE 当前代码证据\n目标表：${tableName}\n代码版本：${versionsFor(mappings)}\n来源：${sources}\n说明：${caveats.join(" ")}\n*/\n\n${bodies.join("\n\n")}`;
 }
 
 function fieldSql(tableName: string, fieldName: string, mappings: InsertMap[]): string {
@@ -169,7 +179,7 @@ function fieldSql(tableName: string, fieldName: string, mappings: InsertMap[]): 
       branches.push(`/* ${mapping.procedure}｜${mapping.sourceFile}:${mapping.line} */\n${mapping.expressions[index]}`);
     });
   }
-  return `/* 二代 SAFE 当前字段 SQL｜目标表：${tableName}｜代码版本：${VERSION} */\n${branches.join("\n\n")}`;
+  return `/* 二代 SAFE 当前字段 SQL｜目标表：${tableName}｜代码版本：${versionsFor(mappings)} */\n${branches.join("\n\n")}`;
 }
 
 function resolveRichTable(target: string, tables: RichTable[]): RichTable | undefined {
@@ -185,8 +195,15 @@ async function main(): Promise<void> {
     readFile(SAC_PIPELINE, "utf8").then((sql) => ({ sql, file: "67_add_safe2_sac_pipeline.sql", kind: "active_sac" as const })),
     readFile(CUSTOMER_PIPELINE, "utf8").then((sql) => ({ sql, file: "14_refresh_customer_from_cif.sql", kind: "deployed_customer_cfa" as const })),
     readFile(CFA_INTERMEDIATE_PIPELINE, "utf8").then((sql) => ({ sql, file: "24_fix_cfa_intermediate_repayment_logic.sql", kind: "deployed_customer_cfa" as const })),
+    readFile(TABLE_OWNER_ACC_PIPELINE, "utf8").then((sql) => ({ sql, file: "71_refactor_acc_table_owned_pipeline.sql", kind: "active_table_owner" as const })),
   ]);
-  const inserts = sources.flatMap((source) => parseInserts(source.sql, source.file, source.kind));
+  const inserts = sources
+    .flatMap((source) => parseInserts(source.sql, source.file, source.kind))
+    // The active ACC table-owner implementation is the sole current writer
+    // for its two result tables.  Do not present historic release writers as
+    // concurrently effective Mapping logic.
+    .filter((mapping) => !["tsafeaccca", "tsafeacccb"].includes(normalize(mapping.target))
+      || mapping.sourceKind === "active_table_owner");
   const pool = new Pool({ connectionString: RICH_URL });
   const client = await pool.connect();
   try {
