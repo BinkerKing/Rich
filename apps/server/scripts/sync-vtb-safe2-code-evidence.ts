@@ -26,8 +26,11 @@ type InsertMap = {
   line: number;
   columns: string[];
   expressions: string[];
+  insertSql: string;
   procedureSql: string;
 };
+
+const TABLE_OWNER_MAPPING_TABLES = new Set(["safeaccount", "safebalance", "tsafeaccca", "tsafeacccb"]);
 
 function clean(text: string): string {
   return text.replace(/\r/g, "").replace(/\s+/g, " ").trim();
@@ -120,6 +123,23 @@ function keywordAtTopLevel(text: string, start: number, keyword: string): number
   return -1;
 }
 
+function statementEnd(text: string, start: number): number {
+  let depth = 0;
+  let quote = "";
+  for (let i = start; i < text.length; i += 1) {
+    const character = text[i];
+    if (quote) {
+      if (character === quote && text[i - 1] !== "\\") quote = "";
+      continue;
+    }
+    if (character === "'" || character === '"') { quote = character; continue; }
+    if (character === "(") { depth += 1; continue; }
+    if (character === ")") { depth -= 1; continue; }
+    if (character === ";" && depth === 0) return i + 1;
+  }
+  return text.length;
+}
+
 function procedureBlocks(sql: string): Array<{ name: string; start: number; body: string }> {
   const starts = [...sql.matchAll(/CREATE OR REPLACE PROCEDURE\s+vtb\.([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/gi)];
   return starts.map((match, index) => ({
@@ -155,6 +175,27 @@ function runTableOwnerSelfTest(): void {
   console.log("table-owner self-test passed");
 }
 
+function runInsertParserSelfTest(): void {
+  const sql = `CREATE OR REPLACE PROCEDURE vtb.demo() LANGUAGE plpgsql AS $$
+  BEGIN
+    INSERT INTO vtb.demo_target (
+      field_a /* field_a: 字段 A */
+    )
+    SELECT NULL::varchar AS field_a /* field_a: 显式空值 */
+      FROM (VALUES (1)) AS source_row(n);
+  END;
+  $$;`;
+  const parsed = parseInserts(sql, "demo.sql", "active_table_owner");
+  if (parsed.length !== 1 || parsed[0].columns[0] !== "field_a") {
+    throw new Error("insert parser self-test did not strip INSERT field comments");
+  }
+  const scenario = scenarioSql("demo_target", "演示口径", parsed);
+  if (scenario.includes("CREATE OR REPLACE PROCEDURE") || !scenario.includes("NULL::varchar AS field_a")) {
+    throw new Error("insert parser self-test did not generate scenario-level SQL");
+  }
+  console.log("insert parser self-test passed");
+}
+
 function parseInserts(sql: string, sourceFile: string, sourceKind: InsertMap["sourceKind"]): InsertMap[] {
   const mappings: InsertMap[] = [];
   for (const procedure of procedureBlocks(sql)) {
@@ -178,6 +219,7 @@ function parseInserts(sql: string, sourceFile: string, sourceKind: InsertMap["so
         line: lineAt(sql, procedure.start + start),
         columns,
         expressions,
+        insertSql: procedure.body.slice(start, statementEnd(procedure.body, start)).trim(),
         procedureSql: procedure.body.trim(),
       });
     }
@@ -204,6 +246,20 @@ function tableSql(tableName: string, mappings: InsertMap[]): string {
   return `/*\n二代 SAFE 当前代码证据\n目标表：${tableName}\n代码版本：${versionsFor(mappings)}\n来源：${sources}\n说明：${caveats.join(" ")}\n*/\n\n${bodies.join("\n\n")}`;
 }
 
+function scenarioSql(tableName: string, title: string, mappings: InsertMap[]): string {
+  const sources = [...new Set(mappings.map((mapping) => `${mapping.sourceFile}:${mapping.line}`))].join(", ");
+  return `/*
+二代 SAFE Mapping 口径 SQL
+目标表：${tableName}
+口径：${title}
+代码版本：${versionsFor(mappings)}
+来源：${sources}
+说明：此处仅展示本口径的字段写入 SQL；完整存储过程见本表“表说明”的 External SQL。
+*/
+
+${mappings.map((mapping) => mapping.insertSql).join("\n\n")}`;
+}
+
 function fieldSql(tableName: string, fieldName: string, mappings: InsertMap[]): string {
   const branches: string[] = [];
   for (const mapping of mappings) {
@@ -223,6 +279,10 @@ function resolveRichTable(target: string, tables: RichTable[]): RichTable | unde
 async function main(): Promise<void> {
   if (process.argv.includes("--table-owner-self-test")) {
     runTableOwnerSelfTest();
+    return;
+  }
+  if (process.argv.includes("--insert-parser-self-test")) {
+    runInsertParserSelfTest();
     return;
   }
   const sources = await Promise.all([
@@ -276,7 +336,10 @@ async function main(): Promise<void> {
       const externalSql = tableSql(table.table_name, mappings);
       if (table.external_sql !== externalSql) tableUpdates.push({ id: table.id, sql: externalSql });
       for (const scenario of scenarioResult.rows.filter((item) => item.table_id === table.id)) {
-        if (scenario.external_sql !== externalSql) scenarioUpdates.push({ id: scenario.id, sql: externalSql });
+        const scenarioExternalSql = TABLE_OWNER_MAPPING_TABLES.has(normalize(table.table_name))
+          ? scenarioSql(table.table_name, scenario.title, mappings)
+          : externalSql;
+        if (scenario.external_sql !== scenarioExternalSql) scenarioUpdates.push({ id: scenario.id, sql: scenarioExternalSql });
       }
 
       const mappedCodeFields = new Set(mappings.flatMap((mapping) => mapping.columns.map(canonicalField)));
