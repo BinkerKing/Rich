@@ -435,7 +435,9 @@ export function DictionaryMappingPanel({
                     {sqlValidationBusy ? "验证中" : "验证SQL"}
                   </button>
                   <ExternalSqlButton title="场景外部 SQL" subtitle={activeScenario.title} sql={activeScenario.externalSql} onInspectProperty={onInspectProperty} />
-                  <ExternalSqlButton title="场景口径外部 SQL" subtitle={activeScenario.title} sql={activeScenario.caliberExternalSql} onInspectProperty={onInspectProperty} />
+                  {activeScenario.caliberExternalSql?.trim() && activeScenario.caliberExternalSql.trim() !== activeScenario.externalSql?.trim() ? (
+                    <ExternalSqlButton title="场景口径外部 SQL" subtitle={activeScenario.title} sql={activeScenario.caliberExternalSql} onInspectProperty={onInspectProperty} />
+                  ) : null}
                   {sqlValidationMessage ? (
                     <small className={`prj-pm-dict-mapping__validate-message${sqlValidation?.ok ? " is-ok" : " is-error"}`}>
                       {sqlValidationMessage}

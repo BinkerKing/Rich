@@ -19,6 +19,13 @@ test("Mapping 字段行直接展示外部 SQL，不使用查看按钮", () => {
   assert.doesNotMatch(mappingPanel, /<ExternalSqlButton title="字段 Mapping 外部 SQL"/);
 });
 
+test("口径 SQL 与场景 SQL 相同时只展示一个外部 SQL 入口", () => {
+  const source = readFileSync(new URL("./DictionaryComponents.tsx", import.meta.url), "utf8");
+  const mappingPanel = source.slice(source.indexOf("export function DictionaryMappingPanel"), source.indexOf("type DictionaryCaliberView"));
+
+  assert.match(mappingPanel, /caliberExternalSql\.trim\(\) !== activeScenario\.externalSql\?\.trim\(\)/);
+});
+
 test("公共 Mapping 规则继承到每个显式场景，不生成默认场景页签", () => {
   const scenarios = buildDictionaryMappingScenarios(
     { id: "fae-base", tableName: "FAEBaseInfo", caliber: "结售汇基础信息" } as ProjectDictionaryTable,
