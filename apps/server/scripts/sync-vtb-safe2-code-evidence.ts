@@ -35,6 +35,10 @@ const TABLE_OWNER_MAPPING_TABLES = new Set([
   "cfacatab", "cfacbtab", "cfadatab", "cfadbtab",
 ]);
 const LATEST_FIELD_SQL_TABLES = new Set(["cfacatab", "cfacbtab", "cfadatab", "cfadbtab"]);
+const DATABASE_IDENTITY_FIELDS = new Set([
+  "safeaccount.id", "safebalance.id",
+  "cfacatab.id", "cfacbtab.id", "cfadatab.id", "cfadbtab.id",
+]);
 
 function clean(text: string): string {
   return text.replace(/\r/g, "").replace(/\s+/g, " ").trim();
@@ -51,6 +55,10 @@ function canonicalField(name: string): string {
 
 function sameField(left: string, right: string): boolean {
   return canonicalField(left) === canonicalField(right);
+}
+
+function isDatabaseIdentityField(tableName: string, fieldName: string): boolean {
+  return DATABASE_IDENTITY_FIELDS.has(`${normalize(tableName)}.${normalize(fieldName)}`);
 }
 
 function lineAt(text: string, index: number): number {
@@ -365,6 +373,7 @@ async function main(): Promise<void> {
       }
       for (const rule of rules) {
         if (![...mappedCodeFields].some((codeField) => sameField(codeField, rule.field_name))) {
+          if (isDatabaseIdentityField(table.table_name, rule.field_name)) continue;
           rulesWithoutCode.push(`${table.table_name}.${rule.field_name}（${rule.status}）`);
           continue;
         }
