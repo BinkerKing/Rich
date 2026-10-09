@@ -93,6 +93,12 @@ function splitTopLevel(text: string): string[] {
   return parts;
 }
 
+function insertColumnName(value: string): string {
+  // Column-list comments are evidence for human readers.  They are not part
+  // of the physical field name used to bind Rich Mapping rules.
+  return value.replace(/\/\*[\s\S]*?\*\//g, "").replaceAll('"', "").trim();
+}
+
 function keywordAtTopLevel(text: string, start: number, keyword: string): number {
   let depth = 0;
   let quote = "";
@@ -161,7 +167,7 @@ function parseInserts(sql: string, sourceFile: string, sourceKind: InsertMap["so
       const selectAt = keywordAtTopLevel(procedure.body, columnClose + 1, "SELECT");
       const fromAt = selectAt < 0 ? -1 : keywordAtTopLevel(procedure.body, selectAt + 6, "FROM");
       if (fromAt < 0) continue;
-      const columns = splitTopLevel(procedure.body.slice(columnOpen + 1, columnClose)).map((value) => value.replaceAll('"', "").trim());
+      const columns = splitTopLevel(procedure.body.slice(columnOpen + 1, columnClose)).map(insertColumnName);
       const expressions = splitTopLevel(procedure.body.slice(selectAt + 6, fromAt));
       if (columns.length !== expressions.length) continue;
       mappings.push({
