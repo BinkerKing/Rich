@@ -8,7 +8,7 @@ const TABLE_OWNER_RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-V
 const SAFE2_DEV_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/二代SAFE逻辑开发/sql";
 const SAC_PIPELINE = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/二代SAFE逻辑开发/sql/67_add_safe2_sac_pipeline.sql";
 const CUSTOMER_PIPELINE = `${SAFE2_DEV_ROOT}/14_refresh_customer_from_cif.sql`;
-const CFA_INTERMEDIATE_PIPELINE = `${SAFE2_DEV_ROOT}/24_fix_cfa_intermediate_repayment_logic.sql`;
+const CFA_INTERMEDIATE_PIPELINE = `${TABLE_OWNER_RELEASE_ROOT}/11_cfa_intermediate_table_owner_pipeline.sql`;
 const TABLE_OWNER_ACC_PIPELINE = `${TABLE_OWNER_RELEASE_ROOT}/09_acc_table_owner_pipeline.sql`;
 const RELEASE_VERSION = "v1.0.1_2026-10-08";
 const TABLE_OWNER_VERSION = "v1.1.0_2026-10-09";
@@ -30,7 +30,10 @@ type InsertMap = {
   procedureSql: string;
 };
 
-const TABLE_OWNER_MAPPING_TABLES = new Set(["safeaccount", "safebalance", "tsafeaccca", "tsafeacccb"]);
+const TABLE_OWNER_MAPPING_TABLES = new Set([
+  "safeaccount", "safebalance", "tsafeaccca", "tsafeacccb",
+  "cfacatab", "cfacbtab", "cfadatab", "cfadbtab",
+]);
 
 function clean(text: string): string {
   return text.replace(/\r/g, "").replace(/\s+/g, " ").trim();
@@ -240,7 +243,7 @@ function tableSql(tableName: string, mappings: InsertMap[]): string {
   if (sourceKinds.has("release")) caveats.push("过程全文来自 v1.0.1_2026-10-08 已校验静态发布包。");
   if (sourceKinds.has("active_sac")) caveats.push("SAC 过程全文来自当前部署管道脚本；发布包中的 05_safe2_sac_mapping_fix.sql 仅固化差异修复，不含过程全文。");
   if (sourceKinds.has("deployed_customer_cfa")) caveats.push("Customer/CFA 中间层过程来自当前开发且已部署验证的脚本；该逻辑未收录在 v1.0.1 固定包，属于发布包完整性缺口。");
-  if (sourceKinds.has("active_table_owner")) caveats.push("账户/余额表归属过程来自 v1.1.0_2026-10-09 已校验候选发布包；其部署脚本与发布文件 SHA-256 一致。");
+  if (sourceKinds.has("active_table_owner")) caveats.push("按表归属过程来自 v1.1.0_2026-10-09 已校验候选发布包；其部署脚本与发布文件 SHA-256 一致。");
   const sources = [...new Set(mappings.map((mapping) => `${mapping.sourceFile}:${mapping.line}`))].join(", ");
   const bodies = [...new Map(mappings.map((mapping) => [mapping.procedure, mapping.procedureSql])).values()];
   return `/*\n二代 SAFE 当前代码证据\n目标表：${tableName}\n代码版本：${versionsFor(mappings)}\n来源：${sources}\n说明：${caveats.join(" ")}\n*/\n\n${bodies.join("\n\n")}`;
@@ -291,7 +294,7 @@ async function main(): Promise<void> {
     readFile(`${RELEASE_ROOT}/03_shared_orchestration_procedures.sql`, "utf8").then((sql) => ({ sql, file: "03_shared_orchestration_procedures.sql", kind: "release" as const })),
     readFile(SAC_PIPELINE, "utf8").then((sql) => ({ sql, file: "67_add_safe2_sac_pipeline.sql", kind: "active_sac" as const })),
     readFile(CUSTOMER_PIPELINE, "utf8").then((sql) => ({ sql, file: "14_refresh_customer_from_cif.sql", kind: "deployed_customer_cfa" as const })),
-    readFile(CFA_INTERMEDIATE_PIPELINE, "utf8").then((sql) => ({ sql, file: "24_fix_cfa_intermediate_repayment_logic.sql", kind: "deployed_customer_cfa" as const })),
+    readFile(CFA_INTERMEDIATE_PIPELINE, "utf8").then((sql) => ({ sql, file: "11_cfa_intermediate_table_owner_pipeline.sql", kind: "active_table_owner" as const })),
     readFile(TABLE_OWNER_ACC_PIPELINE, "utf8").then((sql) => ({ sql, file: "09_acc_table_owner_pipeline.sql", kind: "active_table_owner" as const })),
   ]);
   for (const source of sources.filter((source) => source.kind === "active_table_owner")) {
