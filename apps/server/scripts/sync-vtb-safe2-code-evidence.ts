@@ -34,6 +34,7 @@ const TABLE_OWNER_MAPPING_TABLES = new Set([
   "safeaccount", "safebalance", "tsafeaccca", "tsafeacccb",
   "cfacatab", "cfacbtab", "cfadatab", "cfadbtab",
 ]);
+const LATEST_FIELD_SQL_TABLES = new Set(["cfacatab", "cfacbtab", "cfadatab", "cfadbtab"]);
 
 function clean(text: string): string {
   return text.replace(/\r/g, "").replace(/\s+/g, " ").trim();
@@ -274,6 +275,18 @@ function fieldSql(tableName: string, fieldName: string, mappings: InsertMap[]): 
   return `/* 二代 SAFE 当前字段 SQL｜目标表：${tableName}｜代码版本：${versionsFor(mappings)} */\n${branches.join("\n\n")}`;
 }
 
+function latestFieldSql(tableName: string, fieldName: string, mappings: InsertMap[]): string {
+  // A dictionary field has one current External SQL expression.  When a
+  // single table process has several business branches (e.g. loan issue and
+  // repayment), source-order last write is the latest effective definition.
+  for (const mapping of [...mappings].reverse()) {
+    const index = mapping.columns.findIndex((column) => sameField(column, fieldName));
+    if (index < 0) continue;
+    return `/* 二代 SAFE 当前字段 SQL｜目标表：${tableName}｜代码版本：${versionsFor(mappings)} */\n/* ${mapping.procedure}｜${mapping.sourceFile}:${mapping.line}｜最新写入分支 */\n${mapping.expressions[index]}`;
+  }
+  return `/* 二代 SAFE 当前字段 SQL｜目标表：${tableName}｜代码版本：${versionsFor(mappings)} */`;
+}
+
 function resolveRichTable(target: string, tables: RichTable[]): RichTable | undefined {
   if (normalize(target) === "boptransactionstage") return tables.find((table) => table.table_name === "BopTransaction");
   return tables.find((table) => normalize(table.table_name) === normalize(target));
@@ -355,7 +368,9 @@ async function main(): Promise<void> {
           rulesWithoutCode.push(`${table.table_name}.${rule.field_name}（${rule.status}）`);
           continue;
         }
-        const externalSql = fieldSql(table.table_name, rule.field_name, mappings);
+        const externalSql = LATEST_FIELD_SQL_TABLES.has(normalize(table.table_name))
+          ? latestFieldSql(table.table_name, rule.field_name, mappings)
+          : fieldSql(table.table_name, rule.field_name, mappings);
         if (rule.external_sql !== externalSql) ruleUpdates.push({ id: rule.id, sql: externalSql });
       }
     }
