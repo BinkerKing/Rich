@@ -10,7 +10,7 @@ const CUSTOMER_PIPELINE = `${SAFE2_DEV_ROOT}/14_refresh_customer_from_cif.sql`;
 const CFA_INTERMEDIATE_PIPELINE = `${SAFE2_DEV_ROOT}/24_fix_cfa_intermediate_repayment_logic.sql`;
 const TABLE_OWNER_ACC_PIPELINE = `${SAFE2_DEV_ROOT}/71_refactor_acc_table_owned_pipeline.sql`;
 const RELEASE_VERSION = "v1.0.1_2026-10-08";
-const TABLE_OWNER_VERSION = "v1.1.0-dev_2026-10-09-table-owner";
+const TABLE_OWNER_VERSION = "v1.1.0_2026-10-09";
 const NOW = new Date().toISOString();
 const DRY_RUN = process.argv.includes("--dry-run");
 
