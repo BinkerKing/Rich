@@ -17,7 +17,7 @@ const DRY_RUN = process.argv.includes("--dry-run");
 
 type RichTable = { id: string; table_name: string; external_sql: string | null };
 type Scenario = { id: string; table_id: string; title: string; external_sql: string | null };
-type Rule = { id: string; table_id: string; field_name: string; status: string; external_sql: string | null };
+type Rule = { id: string; table_id: string; scenario_id: string | null; field_name: string; status: string; external_sql: string | null };
 type InsertMap = {
   target: string;
   procedure: string;
@@ -258,6 +258,14 @@ function tableSql(tableName: string, mappings: InsertMap[]): string {
   return `/*\n二代 SAFE 当前代码证据\n目标表：${tableName}\n代码版本：${versionsFor(mappings)}\n来源：${sources}\n说明：${caveats.join(" ")}\n*/\n\n${bodies.join("\n\n")}`;
 }
 
+function mappingsForScenario(tableName: string, title: string, mappings: InsertMap[]): InsertMap[] {
+  const normalizedTable = normalize(tableName);
+  if ((normalizedTable === "cfacbtab" || normalizedTable === "cfadbtab") && mappings.length > 1) {
+    return title.includes("提款") ? [mappings[0]] : [mappings[mappings.length - 1]];
+  }
+  return mappings;
+}
+
 function scenarioSql(tableName: string, title: string, mappings: InsertMap[]): string {
   const sources = [...new Set(mappings.map((mapping) => `${mapping.sourceFile}:${mapping.line}`))].join(", ");
   return `/*
@@ -334,7 +342,7 @@ async function main(): Promise<void> {
     const tableResult = await client.query<RichTable>("SELECT id, table_name, external_sql FROM pm_data_tables WHERE project_id=$1", [PROJECT_ID]);
     const scenarioResult = await client.query<Scenario>("SELECT id, table_id, title, external_sql FROM pm_mapping_scenarios WHERE project_id=$1", [PROJECT_ID]);
     const ruleResult = await client.query<Rule>(`
-        SELECT r.id, r.table_id, f.field_name, r.status, r.external_sql
+        SELECT r.id, r.table_id, r.scenario_id, f.field_name, r.status, r.external_sql
           FROM pm_mapping_rules r
           JOIN pm_data_fields f ON f.id=r.field_id
          WHERE r.project_id=$1 AND r.field_id IS NOT NULL
@@ -360,8 +368,9 @@ async function main(): Promise<void> {
       const externalSql = tableSql(table.table_name, mappings);
       if (table.external_sql !== externalSql) tableUpdates.push({ id: table.id, sql: externalSql });
       for (const scenario of scenarioResult.rows.filter((item) => item.table_id === table.id)) {
+        const scenarioMappings = mappingsForScenario(table.table_name, scenario.title, mappings);
         const scenarioExternalSql = TABLE_OWNER_MAPPING_TABLES.has(normalize(table.table_name))
-          ? scenarioSql(table.table_name, scenario.title, mappings)
+          ? scenarioSql(table.table_name, scenario.title, scenarioMappings)
           : externalSql;
         if (scenario.external_sql !== scenarioExternalSql) scenarioUpdates.push({ id: scenario.id, sql: scenarioExternalSql });
       }
@@ -377,9 +386,13 @@ async function main(): Promise<void> {
           rulesWithoutCode.push(`${table.table_name}.${rule.field_name}（${rule.status}）`);
           continue;
         }
+        const scenario = scenarioResult.rows.find((item) => item.id === rule.scenario_id);
+        const ruleMappings = scenario && LATEST_FIELD_SQL_TABLES.has(normalize(table.table_name))
+          ? mappingsForScenario(table.table_name, scenario.title, mappings)
+          : mappings;
         const externalSql = LATEST_FIELD_SQL_TABLES.has(normalize(table.table_name))
-          ? latestFieldSql(table.table_name, rule.field_name, mappings)
-          : fieldSql(table.table_name, rule.field_name, mappings);
+          ? latestFieldSql(table.table_name, rule.field_name, ruleMappings)
+          : fieldSql(table.table_name, rule.field_name, ruleMappings);
         if (rule.external_sql !== externalSql) ruleUpdates.push({ id: rule.id, sql: externalSql });
       }
     }
