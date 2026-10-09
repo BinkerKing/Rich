@@ -4,7 +4,10 @@ import { Pool } from "pg";
 const PROJECT_ID = "vtb-二代safe";
 const RICH_URL = process.env.RICH_DB_URL ?? "postgresql://binkerking@localhost/rich?host=/tmp&port=5432";
 const RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/逻辑代码版本控制/v1.0.1_2026-10-08";
+const SAFE2_DEV_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/二代SAFE逻辑开发/sql";
 const SAC_PIPELINE = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/二代SAFE逻辑开发/sql/67_add_safe2_sac_pipeline.sql";
+const CUSTOMER_PIPELINE = `${SAFE2_DEV_ROOT}/14_refresh_customer_from_cif.sql`;
+const CFA_INTERMEDIATE_PIPELINE = `${SAFE2_DEV_ROOT}/24_fix_cfa_intermediate_repayment_logic.sql`;
 const VERSION = "v1.0.1_2026-10-08";
 const NOW = new Date().toISOString();
 const DRY_RUN = process.argv.includes("--dry-run");
@@ -16,7 +19,7 @@ type InsertMap = {
   target: string;
   procedure: string;
   sourceFile: string;
-  sourceKind: "release" | "active_sac";
+  sourceKind: "release" | "active_sac" | "deployed_customer_cfa";
   line: number;
   columns: string[];
   expressions: string[];
@@ -29,6 +32,15 @@ function clean(text: string): string {
 
 function normalize(name: string): string {
   return name.replaceAll('"', "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+}
+
+function canonicalField(name: string): string {
+  const aliases: Record<string, string> = { accountmaintypecode: "accountmaintype" };
+  return aliases[normalize(name)] ?? normalize(name);
+}
+
+function sameField(left: string, right: string): boolean {
+  return canonicalField(left) === canonicalField(right);
 }
 
 function lineAt(text: string, index: number): number {
@@ -140,19 +152,20 @@ function parseInserts(sql: string, sourceFile: string, sourceKind: InsertMap["so
 
 function tableSql(tableName: string, mappings: InsertMap[]): string {
   const sourceKinds = new Set(mappings.map((mapping) => mapping.sourceKind));
-  const caveat = sourceKinds.has("active_sac")
-    ? "SAC 过程全文来自当前部署管道脚本；发布包中的 05_safe2_sac_mapping_fix.sql 仅固化差异修复，不含过程全文。"
-    : "过程全文来自 v1.0.1_2026-10-08 已校验静态发布包。";
+  const caveats: string[] = [];
+  if (sourceKinds.has("release")) caveats.push("过程全文来自 v1.0.1_2026-10-08 已校验静态发布包。");
+  if (sourceKinds.has("active_sac")) caveats.push("SAC 过程全文来自当前部署管道脚本；发布包中的 05_safe2_sac_mapping_fix.sql 仅固化差异修复，不含过程全文。");
+  if (sourceKinds.has("deployed_customer_cfa")) caveats.push("Customer/CFA 中间层过程来自当前开发且已部署验证的脚本；该逻辑未收录在 v1.0.1 固定包，属于发布包完整性缺口。");
   const sources = [...new Set(mappings.map((mapping) => `${mapping.sourceFile}:${mapping.line}`))].join(", ");
   const bodies = [...new Map(mappings.map((mapping) => [mapping.procedure, mapping.procedureSql])).values()];
-  return `/*\n二代 SAFE 当前代码证据\n目标表：${tableName}\n代码版本：${VERSION}\n来源：${sources}\n说明：${caveat}\n*/\n\n${bodies.join("\n\n")}`;
+  return `/*\n二代 SAFE 当前代码证据\n目标表：${tableName}\n代码版本：${VERSION}\n来源：${sources}\n说明：${caveats.join(" ")}\n*/\n\n${bodies.join("\n\n")}`;
 }
 
 function fieldSql(tableName: string, fieldName: string, mappings: InsertMap[]): string {
   const branches: string[] = [];
   for (const mapping of mappings) {
     mapping.columns.forEach((column, index) => {
-      if (normalize(column) !== normalize(fieldName)) return;
+      if (!sameField(column, fieldName)) return;
       branches.push(`/* ${mapping.procedure}｜${mapping.sourceFile}:${mapping.line} */\n${mapping.expressions[index]}`);
     });
   }
@@ -170,6 +183,8 @@ async function main(): Promise<void> {
     readFile(`${RELEASE_ROOT}/02_table_level_procedures.sql`, "utf8").then((sql) => ({ sql, file: "02_table_level_procedures.sql", kind: "release" as const })),
     readFile(`${RELEASE_ROOT}/03_shared_orchestration_procedures.sql`, "utf8").then((sql) => ({ sql, file: "03_shared_orchestration_procedures.sql", kind: "release" as const })),
     readFile(SAC_PIPELINE, "utf8").then((sql) => ({ sql, file: "67_add_safe2_sac_pipeline.sql", kind: "active_sac" as const })),
+    readFile(CUSTOMER_PIPELINE, "utf8").then((sql) => ({ sql, file: "14_refresh_customer_from_cif.sql", kind: "deployed_customer_cfa" as const })),
+    readFile(CFA_INTERMEDIATE_PIPELINE, "utf8").then((sql) => ({ sql, file: "24_fix_cfa_intermediate_repayment_logic.sql", kind: "deployed_customer_cfa" as const })),
   ]);
   const inserts = sources.flatMap((source) => parseInserts(source.sql, source.file, source.kind));
   const pool = new Pool({ connectionString: RICH_URL });
@@ -207,14 +222,13 @@ async function main(): Promise<void> {
         if (scenario.external_sql !== externalSql) scenarioUpdates.push({ id: scenario.id, sql: externalSql });
       }
 
-      const mappedCodeFields = new Set(mappings.flatMap((mapping) => mapping.columns.map(normalize)));
+      const mappedCodeFields = new Set(mappings.flatMap((mapping) => mapping.columns.map(canonicalField)));
       const rules = ruleResult.rows.filter((rule) => rule.table_id === table.id);
-      const ruleFields = new Set(rules.map((rule) => normalize(rule.field_name)));
       for (const codeField of mappedCodeFields) {
-        if (!ruleFields.has(codeField)) codeFieldsWithoutRule.push(`${table.table_name}.${codeField}`);
+        if (!rules.some((rule) => sameField(codeField, rule.field_name))) codeFieldsWithoutRule.push(`${table.table_name}.${normalize(codeField)}`);
       }
       for (const rule of rules) {
-        if (!mappedCodeFields.has(normalize(rule.field_name))) {
+        if (![...mappedCodeFields].some((codeField) => sameField(codeField, rule.field_name))) {
           rulesWithoutCode.push(`${table.table_name}.${rule.field_name}（${rule.status}）`);
           continue;
         }
