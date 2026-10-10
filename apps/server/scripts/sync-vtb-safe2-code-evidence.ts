@@ -6,7 +6,8 @@ const PROJECT_ID = "vtb-二代safe";
 const RICH_URL = process.env.RICH_DB_URL ?? "postgresql://binkerking@localhost/rich?host=/tmp&port=5432";
 const RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/逻辑代码版本控制/v1.0.1_2026-10-08";
 const TABLE_OWNER_RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/逻辑代码版本控制/v1.1.0_2026-10-09";
-const JSH_OWNER_RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/逻辑代码版本控制/v1.1.1_2026-10-09";
+const JSH_INTERMEDIATE_RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/逻辑代码版本控制/v1.1.6_2026-10-10";
+const JSH_RESULT_RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/逻辑代码版本控制/v1.1.1_2026-10-09";
 const BOP_OWNER_RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/逻辑代码版本控制/v1.1.5_2026-10-10";
 const FAL_OWNER_RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/逻辑代码版本控制/v1.1.3_2026-10-10";
 const CFA_RESULT_OWNER_RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/逻辑代码版本控制/v1.1.4_2026-10-10";
@@ -16,9 +17,9 @@ const CUSTOMER_PIPELINE = `${SAFE2_DEV_ROOT}/14_refresh_customer_from_cif.sql`;
 const CFA_INTERMEDIATE_PIPELINE = `${TABLE_OWNER_RELEASE_ROOT}/11_cfa_intermediate_table_owner_pipeline.sql`;
 const TABLE_OWNER_ACC_PIPELINE = `${TABLE_OWNER_RELEASE_ROOT}/09_acc_table_owner_pipeline.sql`;
 const JSH_OWNER_PIPELINES = [
-  `${JSH_OWNER_RELEASE_ROOT}/12_jsh_intermediate_table_owners.sql`,
-  `${JSH_OWNER_RELEASE_ROOT}/13_jsh_result_table_owners.sql`,
-  `${JSH_OWNER_RELEASE_ROOT}/14_jsh_g_orchestrators.sql`,
+  `${JSH_INTERMEDIATE_RELEASE_ROOT}/18_jsh_intermediate_scenario_split.sql`,
+  `${JSH_RESULT_RELEASE_ROOT}/13_jsh_result_table_owners.sql`,
+  `${JSH_RESULT_RELEASE_ROOT}/14_jsh_g_orchestrators.sql`,
 ];
 const BOP_OWNER_PIPELINE = `${BOP_OWNER_RELEASE_ROOT}/17_bop_stage_scenario_split.sql`;
 const FAL_OWNER_PIPELINE = `${FAL_OWNER_RELEASE_ROOT}/16_fald0501_table_owner.sql`;
@@ -31,7 +32,7 @@ const CFA_RESULT_OWNER_PIPELINES = [
 ];
 const RELEASE_VERSION = "v1.0.1_2026-10-08";
 const TABLE_OWNER_VERSION = "v1.1.0_2026-10-09";
-const JSH_OWNER_VERSION = "v1.1.1_2026-10-09";
+const JSH_OWNER_VERSION = "v1.1.6_2026-10-10";
 const BOP_OWNER_VERSION = "v1.1.5_2026-10-10";
 const FAL_OWNER_VERSION = "v1.1.3_2026-10-10";
 const CFA_RESULT_OWNER_VERSION = "v1.1.4_2026-10-10";
@@ -339,7 +340,7 @@ function tableSql(tableName: string, mappings: InsertMap[]): string {
   if (sourceKinds.has("active_sac")) caveats.push("SAC 过程全文来自当前部署管道脚本；发布包中的 05_safe2_sac_mapping_fix.sql 仅固化差异修复，不含过程全文。");
   if (sourceKinds.has("deployed_customer_cfa")) caveats.push("Customer/CFA 中间层过程来自当前开发且已部署验证的脚本；该逻辑未收录在 v1.0.1 固定包，属于发布包完整性缺口。");
   if (sourceKinds.has("active_table_owner")) caveats.push("按表归属过程来自 v1.1.0_2026-10-09 已校验候选发布包；其部署脚本与发布文件 SHA-256 一致。");
-  if (sourceKinds.has("active_jsh_owner")) caveats.push("JSH 按表归属过程来自 v1.1.1_2026-10-09 发布增量包；部署脚本、VERSION 与 SHA-256 已校验，并通过 20260903 双向差集与回归。");
+  if (sourceKinds.has("active_jsh_owner")) caveats.push("JSH 按表归属过程来自 v1.1.6_2026-10-10 发布增量包；FAEBaseInfo 的结汇、购汇分别绑定独立直接贴源 SQL，不使用临时表或共享 CTE；部署脚本、VERSION 与 SHA-256 已校验。");
   if (sourceKinds.has("active_bop_owner")) caveats.push("BOP 数据池按表归属过程来自 v1.1.5_2026-10-10 发布增量包；两个业务场景分别绑定独立 INSERT SQL，不使用临时表、source_rows CTE 或 UNION ALL；部署脚本、VERSION 与 SHA-256 已校验，并通过 20260903/05 双向差集与回归。");
   if (sourceKinds.has("active_fal_owner")) caveats.push("FAL D0501 按表归属过程来自 v1.1.3_2026-10-10 发布增量包；部署脚本、VERSION 与 SHA-256 已校验，并通过 20260906/07 AM/AL 字段核验与回归。D02/D09/F01 不在该发布范围。");
   if (sourceKinds.has("active_cfa_result_owner")) caveats.push("CFA 产品结果按表归属过程来自 v1.1.4_2026-10-10 发布增量包；部署脚本、VERSION 与 SHA-256 已校验，并通过 CA/CB/DA/DB 自动字段双向差集与回归。人工维护、审批及原 Action 编号字段保持边界。");
