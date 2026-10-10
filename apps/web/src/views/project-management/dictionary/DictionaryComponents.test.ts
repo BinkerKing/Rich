@@ -19,6 +19,15 @@ test("Mapping 字段行直接展示外部 SQL，不使用查看按钮", () => {
   assert.doesNotMatch(mappingPanel, /<ExternalSqlButton title="字段 Mapping 外部 SQL"/);
 });
 
+test("Mapping 将字段外部 SQL 放在验证状态前，并以单独标签展示校验类型", () => {
+  const source = readFileSync(new URL("./DictionaryComponents.tsx", import.meta.url), "utf8");
+  const mappingPanel = source.slice(source.indexOf("export function DictionaryMappingPanel"), source.indexOf("type DictionaryCaliberView"));
+
+  assert.ok(mappingPanel.indexOf('{ id: "externalSql", label: "外部SQL"') < mappingPanel.indexOf('{ id: "verificationStatus", label: "验证状态"'));
+  assert.ok(mappingPanel.indexOf('<td className="prj-pm-dict-mapping-table__external-sql">') < mappingPanel.indexOf('<td className="prj-pm-dict-mapping-table__verification">'));
+  assert.match(mappingPanel, /className=\{`prj-pm-dict-verification is-\$\{rule\.verificationStatus\}`\}/);
+});
+
 test("口径 SQL 与场景 SQL 相同时只展示一个外部 SQL 入口", () => {
   const source = readFileSync(new URL("./DictionaryComponents.tsx", import.meta.url), "utf8");
   const mappingPanel = source.slice(source.indexOf("export function DictionaryMappingPanel"), source.indexOf("type DictionaryCaliberView"));

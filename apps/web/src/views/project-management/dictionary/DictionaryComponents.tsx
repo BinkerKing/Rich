@@ -300,9 +300,9 @@ export function DictionaryMappingPanel({
     { id: "fieldCn", label: "中文名", width: 150, minWidth: 110 },
     { id: "logic", label: "逻辑", width: 640, minWidth: 240 },
     { id: "sql", label: "SQL转换", width: 420, minWidth: 220 },
+    { id: "externalSql", label: "外部SQL", width: 420, minWidth: 240 },
     { id: "verificationStatus", label: "验证状态", width: 100, minWidth: 82 },
     { id: "remark", label: "备注", width: 220, minWidth: 120 },
-    { id: "externalSql", label: "外部SQL", width: 420, minWidth: 240 },
   ], []);
   const mappingColumnResize = useDictionaryResizableColumns(
     `dictionary-mapping-table:${table?.id || "empty"}`,
@@ -316,9 +316,9 @@ export function DictionaryMappingPanel({
     "--dict-map-c3": `${mappingColumnResize.columnWidth("fieldCn")}px`,
     "--dict-map-c4": `${mappingColumnResize.columnWidth("logic")}px`,
     "--dict-map-c5": `${mappingColumnResize.columnWidth("sql")}px`,
-    "--dict-map-c6": `${mappingColumnResize.columnWidth("verificationStatus")}px`,
-    "--dict-map-c7": `${mappingColumnResize.columnWidth("remark")}px`,
-    "--dict-map-c8": `${mappingColumnResize.columnWidth("externalSql")}px`,
+    "--dict-map-c6": `${mappingColumnResize.columnWidth("externalSql")}px`,
+    "--dict-map-c7": `${mappingColumnResize.columnWidth("verificationStatus")}px`,
+    "--dict-map-c8": `${mappingColumnResize.columnWidth("remark")}px`,
     "--dict-map-width": `${mappingColumnResize.totalWidth}px`,
   }) as CSSProperties, [mappingColumnResize]);
 
@@ -488,7 +488,10 @@ export function DictionaryMappingPanel({
                         rule.field.id,
                         dictionaryMappingRuleLogicFingerprint(rule.logic),
                       ));
-                      const tableRemark = rule.remark?.trim() || "";
+                      const tableRemark = [
+                        rule.remark?.trim(),
+                        rule.verificationRemark?.trim() ? `校验说明：${rule.verificationRemark.trim()}` : "",
+                      ].filter(Boolean).join("\n");
                       const detailRemark = [
                         buildDictionaryMappingDisplayRemark(rule),
                         rule.verificationRemark?.trim() ? `验证备注：${rule.verificationRemark}` : "",
@@ -547,14 +550,13 @@ export function DictionaryMappingPanel({
                           <td>
                             <DictionarySqlConversionBadge conversion={sqlConversion} validation={sqlValidationField} validationBusy={sqlValidationBusy} sourceKind={sqlValidation?.sourceKind} />
                           </td>
-                          <td>
-                            <span className={`prj-pm-dict-verification is-${rule.verificationStatus}`}>{rule.verificationStatus}</span>
-                            {rule.verificationRemark?.trim() ? <small className="prj-pm-dict-verification__remark">{rule.verificationRemark}</small> : null}
-                          </td>
-                          <td className="prj-pm-dict-mapping-table__remark">{tableRemark || "-"}</td>
                           <td className="prj-pm-dict-mapping-table__external-sql">
                             <pre><SqlSyntaxHighlight sql={rule.externalSql || "-"} /></pre>
                           </td>
+                          <td className="prj-pm-dict-mapping-table__verification">
+                            <span className={`prj-pm-dict-verification is-${rule.verificationStatus}`}>{rule.verificationStatus}</span>
+                          </td>
+                          <td className="prj-pm-dict-mapping-table__remark">{tableRemark || "-"}</td>
                         </tr>
                       );
                     })}
