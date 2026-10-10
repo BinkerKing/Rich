@@ -209,6 +209,21 @@ function statementEnd(text: string, start: number): number {
   return text.length;
 }
 
+function statementStart(text: string, insertStart: number): number {
+  // A Mapping scenario must be executable/readable on its own.  When an
+  // INSERT is preceded by a top-level WITH clause, retain that clause rather
+  // than starting the displayed statement halfway through its CTEs.
+  let cursor = 0;
+  let candidate = -1;
+  while (cursor < insertStart) {
+    const withAt = keywordAtTopLevel(text, cursor, "WITH");
+    if (withAt < 0 || withAt >= insertStart) break;
+    if (statementEnd(text, withAt) >= insertStart) candidate = withAt;
+    cursor = withAt + 4;
+  }
+  return candidate >= 0 ? candidate : insertStart;
+}
+
 function procedureBlocks(sql: string): Array<{ name: string; start: number; body: string }> {
   const starts = [...sql.matchAll(/CREATE OR REPLACE PROCEDURE\s+vtb\.([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/gi)];
   return starts.map((match, index) => ({
@@ -247,6 +262,7 @@ function runTableOwnerSelfTest(): void {
 function runInsertParserSelfTest(): void {
   const sql = `CREATE OR REPLACE PROCEDURE vtb.demo() LANGUAGE plpgsql AS $$
   BEGIN
+    WITH source_rows AS (SELECT 1 AS n)
     INSERT INTO vtb.demo_target (
       field_a /* field_a: 字段 A */
     )
@@ -259,7 +275,7 @@ function runInsertParserSelfTest(): void {
     throw new Error("insert parser self-test did not strip INSERT field comments");
   }
   const scenario = scenarioSql("demo_target", "演示口径", parsed);
-  if (scenario.includes("CREATE OR REPLACE PROCEDURE") || !scenario.includes("NULL::varchar AS field_a")) {
+  if (scenario.includes("CREATE OR REPLACE PROCEDURE") || !scenario.includes("WITH source_rows AS") || !scenario.includes("NULL::varchar AS field_a")) {
     throw new Error("insert parser self-test did not generate scenario-level SQL");
   }
   console.log("insert parser self-test passed");
@@ -288,7 +304,7 @@ function parseInserts(sql: string, sourceFile: string, sourceKind: InsertMap["so
         line: lineAt(sql, procedure.start + start),
         columns,
         expressions,
-        insertSql: procedure.body.slice(start, statementEnd(procedure.body, start)).trim(),
+        insertSql: procedure.body.slice(statementStart(procedure.body, start), statementEnd(procedure.body, start)).trim(),
         procedureSql: procedure.body.trim(),
       });
     }
