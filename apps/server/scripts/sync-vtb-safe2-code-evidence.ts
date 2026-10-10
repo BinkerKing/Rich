@@ -14,7 +14,9 @@ const CFA_RESULT_OWNER_RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Projec
 const SAFE2_DEV_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/二代SAFE逻辑开发/sql";
 const SAC_PIPELINE = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/二代SAFE逻辑开发/sql/67_add_safe2_sac_pipeline.sql";
 const CUSTOMER_PIPELINE = `${SAFE2_DEV_ROOT}/14_refresh_customer_from_cif.sql`;
-const CFA_INTERMEDIATE_PIPELINE = `${TABLE_OWNER_RELEASE_ROOT}/11_cfa_intermediate_table_owner_pipeline.sql`;
+// v1.1.7 发布脚本以 psql \ir 整体部署此完整 owner 定义；Rich 必须读取
+// 实际 INSERT 本体，而非仅展示发布包的 include 指令。
+const CFA_INTERMEDIATE_PIPELINE = `${SAFE2_DEV_ROOT}/74_refactor_cfa_intermediate_table_owners.sql`;
 const TABLE_OWNER_ACC_PIPELINE = `${TABLE_OWNER_RELEASE_ROOT}/09_acc_table_owner_pipeline.sql`;
 const JSH_OWNER_PIPELINES = [
   `${JSH_INTERMEDIATE_RELEASE_ROOT}/18_jsh_intermediate_scenario_split.sql`,
@@ -31,7 +33,7 @@ const CFA_RESULT_OWNER_PIPELINES = [
   `${CFA_RESULT_OWNER_RELEASE_ROOT}/120_refactor_cfa_orchestrator.sql`,
 ];
 const RELEASE_VERSION = "v1.0.1_2026-10-08";
-const TABLE_OWNER_VERSION = "v1.1.0_2026-10-09";
+const TABLE_OWNER_VERSION = "v1.1.7_2026-10-10";
 const JSH_OWNER_VERSION = "v1.1.6_2026-10-10";
 const BOP_OWNER_VERSION = "v1.1.5_2026-10-10";
 const FAL_OWNER_VERSION = "v1.1.3_2026-10-10";
@@ -42,6 +44,7 @@ const JSH_ONLY = process.argv.includes("--jsh-only");
 const BOP_ONLY = process.argv.includes("--bop-only");
 const FAL_ONLY = process.argv.includes("--fal-only");
 const CFA_RESULTS_ONLY = process.argv.includes("--cfa-results-only");
+const CFA_INTERMEDIATE_ONLY = process.argv.includes("--cfa-intermediate-only");
 
 type RichTable = { id: string; table_name: string; external_sql: string | null };
 type Scenario = { id: string; table_id: string; title: string; external_sql: string | null; caliber_external_sql: string | null };
@@ -91,6 +94,7 @@ const JSH_TABLES = new Set(["faebaseinfo", "faemanage", "tsafejshd", "tsafejshdf
 const BOP_TABLES = new Set(["boptransaction"]);
 const FAL_TABLES = new Set(["tsafefald0501"]);
 const CFA_RESULT_TABLES = new Set(["tsafecfaca", "tsafecfacb", "tsafecfada", "tsafecfadb", "tsafecfadafogucodeinfo"]);
+const CFA_INTERMEDIATE_TABLES = new Set(["cfacatab", "cfacbtab", "cfadatab", "cfadbtab"]);
 const LATEST_FIELD_SQL_TABLES = new Set(["cfacatab", "cfacbtab", "cfadatab", "cfadbtab", "faebaseinfo", "faemanage", "tsafejshd", "tsafejshdf", "tsafejshe", "tsafejsheg", "boptransaction", "tsafefald0501", ...CFA_RESULT_TABLES]);
 const CALIBER_CODE_TABLES = new Set(["safeaccount", "safebalance", "cfacatab", "cfacbtab", "cfadatab", "cfadbtab", "faebaseinfo", "faemanage", "tsafejshd", "tsafejshdf", "tsafejshe", "tsafejsheg", "boptransaction", "tsafefald0501", ...CFA_RESULT_TABLES]);
 const DATABASE_IDENTITY_FIELDS = new Set([
@@ -350,12 +354,8 @@ function tableSql(tableName: string, mappings: InsertMap[]): string {
 }
 
 function mappingsForScenario(tableName: string, title: string, mappings: InsertMap[]): InsertMap[] {
-  const explicitlyMarked = mappings.filter((mapping) => mapping.scenarioName === title);
-  if (explicitlyMarked.length > 0) return explicitlyMarked;
-  const normalizedTable = normalize(tableName);
-  if ((normalizedTable === "cfacbtab" || normalizedTable === "cfadbtab") && mappings.length > 1) {
-    return title.includes("提款") ? [mappings[0]] : [mappings[mappings.length - 1]];
-  }
+  const markedMappings = mappings.filter((mapping) => mapping.scenarioName !== null);
+  if (markedMappings.length > 0) return markedMappings.filter((mapping) => mapping.scenarioName === title);
   return mappings;
 }
 
@@ -480,6 +480,7 @@ async function main(): Promise<void> {
       if (BOP_ONLY && !BOP_TABLES.has(normalize(table.table_name))) continue;
       if (FAL_ONLY && !FAL_TABLES.has(normalize(table.table_name))) continue;
       if (CFA_RESULTS_ONLY && !CFA_RESULT_TABLES.has(normalize(table.table_name))) continue;
+      if (CFA_INTERMEDIATE_ONLY && !CFA_INTERMEDIATE_TABLES.has(normalize(table.table_name))) continue;
       const mappings = byRichTable.get(table.id) ?? [];
       if (!mappings.length) continue;
       const externalSql = tableSql(table.table_name, mappings);
@@ -532,7 +533,8 @@ async function main(): Promise<void> {
         const ownerScope = (JSH_ONLY && JSH_TABLES.has(normalize(table.table_name)))
           ? "jsh" : (BOP_ONLY && BOP_TABLES.has(normalize(table.table_name))) ? "bop"
             : (FAL_ONLY && FAL_TABLES.has(normalize(table.table_name))) ? "fal"
-              : (CFA_RESULTS_ONLY && CFA_RESULT_TABLES.has(normalize(table.table_name))) ? "cfa-results" : null;
+              : (CFA_RESULTS_ONLY && CFA_RESULT_TABLES.has(normalize(table.table_name))) ? "cfa-results"
+                : (CFA_INTERMEDIATE_ONLY && CFA_INTERMEDIATE_TABLES.has(normalize(table.table_name))) ? "cfa-intermediate" : null;
         if (!rules.some((rule) => rule.field_id === field.id) && ownerScope && defaultScenario) {
           const key = createHash("sha256").update(`${PROJECT_ID}:${ownerScope}-rule:${defaultScenario.id}:${field.id}`).digest("hex").slice(0, 20);
           const expression = fieldSql(table.table_name, field.field_name, mappings);
@@ -549,7 +551,7 @@ async function main(): Promise<void> {
                 ? "BOP 20260903/05 已完成代码合同与自动字段双向差集；CNUM 与技术字段按允许增强边界保留。"
                 : ownerScope === "fal"
                   ? "FAL D0501 20260906/07 AM/AL 已完成原提取/审批后字段核验；人工/Action 字段按边界保留。"
-                  : "CFA CA/CB/DA/DB 已完成自动字段双向差集与回归；人工维护、审批及原 Action 编号字段保持边界。",
+              : "CFA CA/CB/DA/DB 已完成自动字段双向差集与回归；人工维护、审批及原 Action 编号字段保持边界。",
             sortOrder: field.field_order ?? 0,
             externalSql: expression,
           });
@@ -584,7 +586,7 @@ async function main(): Promise<void> {
       codeFieldsWithoutRichRule: codeFieldsWithoutRule.length,
       richRulesWithoutCurrentInsertField: rulesWithoutCode.length,
       mode: DRY_RUN ? "dry-run" : "apply",
-      scope: JSH_ONLY ? "JSH only" : BOP_ONLY ? "BOP only" : FAL_ONLY ? "FAL D0501 only" : CFA_RESULTS_ONLY ? "CFA result tables only" : "all eligible tables",
+      scope: JSH_ONLY ? "JSH only" : BOP_ONLY ? "BOP only" : FAL_ONLY ? "FAL D0501 only" : CFA_RESULTS_ONLY ? "CFA result tables only" : CFA_INTERMEDIATE_ONLY ? "CFA intermediate tables only" : "all eligible tables",
     });
     if (codeFieldsWithoutRule.length) console.log("代码写入字段但 Rich 无字段 Mapping：\n" + codeFieldsWithoutRule.join("\n"));
     if (rulesWithoutCode.length) console.log("Rich 字段 Mapping 未出现在当前 INSERT 目标列：\n" + rulesWithoutCode.join("\n"));
