@@ -7995,6 +7995,7 @@
 .prj-pm-dict-sql-conversion {
   display: block;
   max-height: 148px;
+  margin: 0;
   overflow: auto;
   border-radius: 5px;
   padding: 6px 8px;

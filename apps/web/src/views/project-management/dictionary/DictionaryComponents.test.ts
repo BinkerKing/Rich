@@ -26,6 +26,14 @@ test("口径 SQL 与场景 SQL 相同时只展示一个外部 SQL 入口", () =>
   assert.match(mappingPanel, /caliberExternalSql\.trim\(\) !== activeScenario\.externalSql\?\.trim\(\)/);
 });
 
+test("口径 SQL 转换统一使用格式化与语法高亮展示", () => {
+  const source = readFileSync(new URL("./DictionaryComponents.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /formatDictionarySqlForDisplay\(validation\.sql\)/);
+  assert.match(source, /<pre><SqlSyntaxHighlight sql=\{sqlSummary\} \/><\/pre>/);
+  assert.match(source, /<pre className=\{`prj-pm-dict-sql-conversion/);
+});
+
 test("公共 Mapping 规则继承到每个显式场景，不生成默认场景页签", () => {
   const scenarios = buildDictionaryMappingScenarios(
     { id: "fae-base", tableName: "FAEBaseInfo", caliber: "结售汇基础信息" } as ProjectDictionaryTable,

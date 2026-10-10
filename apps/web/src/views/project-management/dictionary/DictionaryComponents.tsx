@@ -599,7 +599,7 @@ function DictionaryCaliberSummaryRow({
   const validationError = validation?.status === "invalid" ? validation.error : "";
   const sqlSummary = sourceKind === "file"
     ? validation?.sql
-      ? `${validation.sql}${validationError ? `\n\n文件验证错误：${validationError}` : ""}`
+      ? `${formatDictionarySqlForDisplay(validation.sql)}${validationError ? `\n\n文件验证错误：${validationError}` : ""}`
       : validationBusy
         ? "正在验证上传文件、解析配置和字段映射..."
       : validationError
@@ -639,7 +639,7 @@ function DictionaryCaliberSummaryRow({
       </section>
       <section className={`prj-pm-dict-mapping__caliber-summary-sql is-${validationError ? "invalid" : caliber.conversion.status}`}>
         <strong>{sourceKind === "file" ? "文件来源验证" : "SQL转换"}</strong>
-        <pre>{sqlSummary}</pre>
+        <pre><SqlSyntaxHighlight sql={sqlSummary} /></pre>
       </section>
     </div>
   );
@@ -1318,10 +1318,9 @@ function DictionarySqlConversionBadge({
   }
   if (validation?.sql) {
     return (
-      <code className={`prj-pm-dict-sql-conversion ${validationError ? "is-invalid" : "is-complete"}`}>
-        {formatDictionarySqlForDisplay(validation.sql)}
-        {validationError ? `\n\n数据库报错：${validationError}` : ""}
-      </code>
+      <pre className={`prj-pm-dict-sql-conversion ${validationError ? "is-invalid" : "is-complete"}`}>
+        <SqlSyntaxHighlight sql={`${formatDictionarySqlForDisplay(validation.sql)}${validationError ? `\n\n数据库报错：${validationError}` : ""}`} />
+      </pre>
     );
   }
   if (validationBusy) {

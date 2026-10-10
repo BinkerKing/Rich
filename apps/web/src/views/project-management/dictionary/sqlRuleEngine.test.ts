@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import type { ProjectDictionaryFieldHit } from "../../../api/client.js";
 import {
   convertDictionaryMappingRuleToSql,
+  formatDictionarySqlForDisplay,
   parseDictionaryJsonRuleStrict,
   type DictionaryMappingRule,
 } from "./sqlRuleEngine.js";
@@ -18,6 +19,23 @@ test("数据字典规则解析器返回可定位的字段错误", () => {
   const parsed = parseDictionaryJsonRuleStrict('{"op":"date_parse","format":"YYYYMMDD"}');
   assert.equal(parsed.rule, undefined);
   assert.match(parsed.error ?? "", /缺少 source/);
+});
+
+test("数据字典 SQL 展示会重排含原始换行的复杂条件", () => {
+  const sql = [
+    "FROM vtb.transaction_tab TransactionTab",
+    "INNER JOIN vtb.customer Customer ON Customer.code = TransactionTab.customer_code",
+    "WHERE (TransactionTab.transaction_date IS NOT NULL AND TransactionTab.status = 'valid') OR TransactionTab.payment_flag = '01'",
+  ].join("\n");
+
+  assert.equal(formatDictionarySqlForDisplay(sql), [
+    "FROM vtb.transaction_tab TransactionTab",
+    "INNER JOIN vtb.customer Customer",
+    "  ON Customer.code = TransactionTab.customer_code",
+    "WHERE (TransactionTab.transaction_date IS NOT NULL",
+    "  AND TransactionTab.status = 'valid')",
+    "  OR TransactionTab.payment_flag = '01'",
+  ].join("\n"));
 });
 
 test("数据字典规则引擎按数据库方言生成日期解析 SQL", () => {

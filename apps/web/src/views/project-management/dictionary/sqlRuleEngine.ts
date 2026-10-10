@@ -65,17 +65,11 @@ type DictionaryCaliberJsonRule = DictionaryCaliberRule;
 export function formatDictionarySqlForDisplay(sql: string): string {
   const text = sql.trim();
   if (!text) return "";
-  if (text.includes("\n")) {
-    return stripDictionaryDisplayIdentifierQuotes(text
-      .split(/\r?\n/)
-      .map(line => line.trimEnd())
-      .join("\n")
-      .trim());
-  }
+  const protectedJoin = "\uE000";
   return stripDictionaryDisplayIdentifierQuotes(text
     .replace(/\s+/g, " ")
     .replace(/\s+(FROM)\s+/gi, "\n$1 ")
-    .replace(/\s+((?:LEFT|RIGHT|FULL|INNER|CROSS)\s+JOIN(?:\s+LATERAL)?)\s+/gi, "\n$1 ")
+    .replace(/\s+((?:LEFT|RIGHT|FULL|INNER|CROSS)\s+JOIN(?:\s+LATERAL)?)\s+/gi, (_match, clause: string) => `\n${clause.replace(/\s+JOIN\b/i, `${protectedJoin}JOIN`)} `)
     .replace(/\s+(JOIN\s+LATERAL)\s+/gi, "\n$1 ")
     .replace(/\s+(JOIN)\s+/gi, "\n$1 ")
     .replace(/\s+(ON)\s+/gi, "\n  $1 ")
@@ -88,6 +82,7 @@ export function formatDictionarySqlForDisplay(sql: string): string {
     .replace(/\s+(ELSE)\s+/gi, "\n  $1 ")
     .replace(/\s+(END)(\s+AS\s+)/gi, "\n$1$2")
     .replace(/\s+(AS\s+[A-Za-z_][A-Za-z0-9_]*)$/i, "\n$1")
+    .replaceAll(`${protectedJoin}JOIN`, " JOIN")
     .trim());
 }
 
