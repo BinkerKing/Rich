@@ -7,7 +7,7 @@ const RICH_URL = process.env.RICH_DB_URL ?? "postgresql://binkerking@localhost/r
 const RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/逻辑代码版本控制/v1.0.1_2026-10-08";
 const TABLE_OWNER_RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/逻辑代码版本控制/v1.1.0_2026-10-09";
 const JSH_OWNER_RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/逻辑代码版本控制/v1.1.1_2026-10-09";
-const BOP_OWNER_RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/逻辑代码版本控制/v1.1.2_2026-10-10";
+const BOP_OWNER_RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/逻辑代码版本控制/v1.1.5_2026-10-10";
 const FAL_OWNER_RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/逻辑代码版本控制/v1.1.3_2026-10-10";
 const CFA_RESULT_OWNER_RELEASE_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/逻辑代码版本控制/v1.1.4_2026-10-10";
 const SAFE2_DEV_ROOT = "/Users/binkerking/Documents/Riking-Project/8-VBT/03-Mapping/二代SAFE逻辑开发/sql";
@@ -20,7 +20,7 @@ const JSH_OWNER_PIPELINES = [
   `${JSH_OWNER_RELEASE_ROOT}/13_jsh_result_table_owners.sql`,
   `${JSH_OWNER_RELEASE_ROOT}/14_jsh_g_orchestrators.sql`,
 ];
-const BOP_OWNER_PIPELINE = `${BOP_OWNER_RELEASE_ROOT}/15_bop_stage_table_owner.sql`;
+const BOP_OWNER_PIPELINE = `${BOP_OWNER_RELEASE_ROOT}/17_bop_stage_scenario_split.sql`;
 const FAL_OWNER_PIPELINE = `${FAL_OWNER_RELEASE_ROOT}/16_fald0501_table_owner.sql`;
 const CFA_RESULT_OWNER_PIPELINES = [
   `${CFA_RESULT_OWNER_RELEASE_ROOT}/116_refactor_cfac_a_table_owner.sql`,
@@ -32,7 +32,7 @@ const CFA_RESULT_OWNER_PIPELINES = [
 const RELEASE_VERSION = "v1.0.1_2026-10-08";
 const TABLE_OWNER_VERSION = "v1.1.0_2026-10-09";
 const JSH_OWNER_VERSION = "v1.1.1_2026-10-09";
-const BOP_OWNER_VERSION = "v1.1.2_2026-10-10";
+const BOP_OWNER_VERSION = "v1.1.5_2026-10-10";
 const FAL_OWNER_VERSION = "v1.1.3_2026-10-10";
 const CFA_RESULT_OWNER_VERSION = "v1.1.4_2026-10-10";
 const NOW = new Date().toISOString();
@@ -71,6 +71,7 @@ type InsertMap = {
   sourceFile: string;
   sourceKind: "release" | "active_sac" | "deployed_customer_cfa" | "active_table_owner" | "active_jsh_owner" | "active_bop_owner" | "active_fal_owner" | "active_cfa_result_owner";
   line: number;
+  scenarioName: string | null;
   columns: string[];
   expressions: string[];
   insertSql: string;
@@ -281,6 +282,13 @@ function runInsertParserSelfTest(): void {
   console.log("insert parser self-test passed");
 }
 
+function scenarioNameBefore(body: string, insertStart: number): string | null {
+  const marker = /\/\*\s*@rich-scenario:\s*([^*]+?)\s*\*\//g;
+  const beforeInsert = body.slice(0, insertStart);
+  const matches = [...beforeInsert.matchAll(marker)];
+  return matches.length === 0 ? null : matches[matches.length - 1][1].trim();
+}
+
 function parseInserts(sql: string, sourceFile: string, sourceKind: InsertMap["sourceKind"]): InsertMap[] {
   const mappings: InsertMap[] = [];
   for (const procedure of procedureBlocks(sql)) {
@@ -302,6 +310,7 @@ function parseInserts(sql: string, sourceFile: string, sourceKind: InsertMap["so
         sourceFile,
         sourceKind,
         line: lineAt(sql, procedure.start + start),
+        scenarioName: scenarioNameBefore(procedure.body, start),
         columns,
         expressions,
         insertSql: procedure.body.slice(statementStart(procedure.body, start), statementEnd(procedure.body, start)).trim(),
@@ -331,7 +340,7 @@ function tableSql(tableName: string, mappings: InsertMap[]): string {
   if (sourceKinds.has("deployed_customer_cfa")) caveats.push("Customer/CFA 中间层过程来自当前开发且已部署验证的脚本；该逻辑未收录在 v1.0.1 固定包，属于发布包完整性缺口。");
   if (sourceKinds.has("active_table_owner")) caveats.push("按表归属过程来自 v1.1.0_2026-10-09 已校验候选发布包；其部署脚本与发布文件 SHA-256 一致。");
   if (sourceKinds.has("active_jsh_owner")) caveats.push("JSH 按表归属过程来自 v1.1.1_2026-10-09 发布增量包；部署脚本、VERSION 与 SHA-256 已校验，并通过 20260903 双向差集与回归。");
-  if (sourceKinds.has("active_bop_owner")) caveats.push("BOP 数据池按表归属过程来自 v1.1.2_2026-10-10 发布增量包；部署脚本、VERSION 与 SHA-256 已校验，并通过 20260903/05 双向差集与回归。");
+  if (sourceKinds.has("active_bop_owner")) caveats.push("BOP 数据池按表归属过程来自 v1.1.5_2026-10-10 发布增量包；两个业务场景分别绑定独立 INSERT SQL，不使用临时表、source_rows CTE 或 UNION ALL；部署脚本、VERSION 与 SHA-256 已校验，并通过 20260903/05 双向差集与回归。");
   if (sourceKinds.has("active_fal_owner")) caveats.push("FAL D0501 按表归属过程来自 v1.1.3_2026-10-10 发布增量包；部署脚本、VERSION 与 SHA-256 已校验，并通过 20260906/07 AM/AL 字段核验与回归。D02/D09/F01 不在该发布范围。");
   if (sourceKinds.has("active_cfa_result_owner")) caveats.push("CFA 产品结果按表归属过程来自 v1.1.4_2026-10-10 发布增量包；部署脚本、VERSION 与 SHA-256 已校验，并通过 CA/CB/DA/DB 自动字段双向差集与回归。人工维护、审批及原 Action 编号字段保持边界。");
   const sources = [...new Set(mappings.map((mapping) => `${mapping.sourceFile}:${mapping.line}`))].join(", ");
@@ -340,6 +349,8 @@ function tableSql(tableName: string, mappings: InsertMap[]): string {
 }
 
 function mappingsForScenario(tableName: string, title: string, mappings: InsertMap[]): InsertMap[] {
+  const explicitlyMarked = mappings.filter((mapping) => mapping.scenarioName === title);
+  if (explicitlyMarked.length > 0) return explicitlyMarked;
   const normalizedTable = normalize(tableName);
   if ((normalizedTable === "cfacbtab" || normalizedTable === "cfadbtab") && mappings.length > 1) {
     return title.includes("提款") ? [mappings[0]] : [mappings[mappings.length - 1]];
