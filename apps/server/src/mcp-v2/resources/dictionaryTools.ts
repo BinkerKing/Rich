@@ -25,7 +25,7 @@ const dictionaryPatchSchema = z.object({
   fileType: z.enum(["txt", "xml", "csv", "excel"]).nullable().optional(),
   hasMapping: z.boolean().optional(),
   usageStatus: z.string().nullable().optional(),
-  verificationStatus: z.enum(["未验证", "已验证", "待整改"]).nullable().optional(),
+  verificationStatus: z.enum(["未验证", "已验证", "待整改", "外部SQL验证无误", "Mapping逻辑核对一致", "双跑核对无误"]).nullable().optional(),
   verificationRemark: z.string().nullable().optional(),
   fieldCn: z.string().nullable().optional(),
   fieldType: z.string().nullable().optional(),

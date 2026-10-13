@@ -7859,6 +7859,9 @@
 .prj-pm-dict-verification.is-未验证 { color: #aab7c1; border-color: rgba(170, 183, 193, .32); }
 .prj-pm-dict-verification.is-已验证 { color: #6ee7b7; border-color: rgba(110, 231, 183, .48); background: rgba(110, 231, 183, .08); }
 .prj-pm-dict-verification.is-待整改 { color: #fbbf24; border-color: rgba(251, 191, 36, .52); background: rgba(251, 191, 36, .08); }
+.prj-pm-dict-verification.is-外部SQL验证无误 { color: #7dd3fc; border-color: rgba(125, 211, 252, .52); background: rgba(125, 211, 252, .08); }
+.prj-pm-dict-verification.is-Mapping逻辑核对一致 { color: #c4b5fd; border-color: rgba(196, 181, 253, .52); background: rgba(196, 181, 253, .08); }
+.prj-pm-dict-verification.is-双跑核对无误 { color: #86efac; border-color: rgba(134, 239, 172, .52); background: rgba(134, 239, 172, .08); }
 
 .prj-pm-dict-mapping-table__verification {
   vertical-align: middle;

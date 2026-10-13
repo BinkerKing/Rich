@@ -296,7 +296,7 @@ export interface ProjectDictionaryTable {
   hasMapping?: boolean;
   mappingStatus?: "是" | "待补充" | "否";
   usageStatus?: string;
-  verificationStatus?: "未验证" | "已验证" | "待整改";
+  verificationStatus?: "未验证" | "已验证" | "待整改" | "外部SQL验证无误" | "Mapping逻辑核对一致" | "双跑核对无误";
   verificationRemark?: string;
   description?: string;
   caliber?: string;
@@ -322,7 +322,7 @@ export interface ProjectDictionaryTablePatch {
   fileType?: "txt" | "xml" | "csv" | "excel" | null;
   hasMapping?: boolean;
   usageStatus?: string | null;
-  verificationStatus?: "未验证" | "已验证" | "待整改" | null;
+  verificationStatus?: "未验证" | "已验证" | "待整改" | "外部SQL验证无误" | "Mapping逻辑核对一致" | "双跑核对无误" | null;
   verificationRemark?: string | null;
   description?: string | null;
   caliber?: string | null;
@@ -373,7 +373,7 @@ export interface ProjectDictionaryFieldHit {
   mappedField?: string;
   mappedFieldCn?: string;
   remark?: string;
-  verificationStatus?: "未验证" | "已验证" | "待整改";
+  verificationStatus?: "未验证" | "已验证" | "待整改" | "外部SQL验证无误" | "Mapping逻辑核对一致" | "双跑核对无误";
   verificationRemark?: string;
   extra?: Record<string, unknown>;
   score: number;
@@ -417,7 +417,7 @@ export interface ProjectDictionaryFieldPatch {
   mappedFieldCn?: string | null;
   dataSource?: string | null;
   remark?: string | null;
-  verificationStatus?: "未验证" | "已验证" | "待整改" | null;
+  verificationStatus?: "未验证" | "已验证" | "待整改" | "外部SQL验证无误" | "Mapping逻辑核对一致" | "双跑核对无误" | null;
   verificationRemark?: string | null;
   extra?: Record<string, unknown>;
 }
@@ -552,7 +552,7 @@ export interface ProjectDictionaryMappingRule {
   convertedSql?: string;
   externalSql?: string;
   remark?: string;
-  verificationStatus?: "未验证" | "已验证" | "待整改";
+  verificationStatus?: "未验证" | "已验证" | "待整改" | "外部SQL验证无误" | "Mapping逻辑核对一致" | "双跑核对无误";
   verificationRemark?: string;
   sortOrder: number;
   raw?: Record<string, unknown>;
@@ -572,7 +572,7 @@ export interface ProjectDictionaryMappingRulePatch {
   convertedSql?: string | null;
   externalSql?: string | null;
   remark?: string | null;
-  verificationStatus?: "未验证" | "已验证" | "待整改" | null;
+  verificationStatus?: "未验证" | "已验证" | "待整改" | "外部SQL验证无误" | "Mapping逻辑核对一致" | "双跑核对无误" | null;
   verificationRemark?: string | null;
   sortOrder?: number;
   raw?: Record<string, unknown>;

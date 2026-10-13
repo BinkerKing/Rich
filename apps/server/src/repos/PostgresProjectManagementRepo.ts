@@ -1656,8 +1656,8 @@ function normalizeMappingStatus(status: string): string {
   return status.trim().toLowerCase().replace(/[\s-]+/g, "_");
 }
 
-function verificationStatus(value?: string | null): "未验证" | "已验证" | "待整改" {
-  return value === "已验证" || value === "待整改" ? value : "未验证";
+function verificationStatus(value?: string | null): "未验证" | "已验证" | "待整改" | "外部SQL验证无误" | "Mapping逻辑核对一致" | "双跑核对无误" {
+  return value === "已验证" || value === "待整改" || value === "外部SQL验证无误" || value === "Mapping逻辑核对一致" || value === "双跑核对无误" ? value : "未验证";
 }
 
 function groupBy<T>(items: T[], getKey: (item: T) => string): Map<string, T[]> {

@@ -2173,7 +2173,7 @@ export interface ProjectDictionaryTable {
   hasMapping?: boolean;
   mappingStatus?: "是" | "待补充" | "否";
   usageStatus?: string;
-  verificationStatus?: "未验证" | "已验证" | "待整改";
+  verificationStatus?: "未验证" | "已验证" | "待整改" | "外部SQL验证无误" | "Mapping逻辑核对一致" | "双跑核对无误";
   verificationRemark?: string;
   description?: string;
   caliber?: string;
@@ -2267,7 +2267,7 @@ export interface ProjectDictionaryMappingTempField {
   convertedSql?: string;
   externalSql?: string;
   remark?: string;
-  verificationStatus?: "未验证" | "已验证" | "待整改";
+  verificationStatus?: "未验证" | "已验证" | "待整改" | "外部SQL验证无误" | "Mapping逻辑核对一致" | "双跑核对无误";
   verificationRemark?: string;
   sortOrder: number;
   raw?: Record<string, unknown>;
@@ -2282,7 +2282,7 @@ export interface ProjectDictionaryMappingRuleSummary {
   convertedSql?: string;
   externalSql?: string;
   remark?: string;
-  verificationStatus?: "未验证" | "已验证" | "待整改";
+  verificationStatus?: "未验证" | "已验证" | "待整改" | "外部SQL验证无误" | "Mapping逻辑核对一致" | "双跑核对无误";
   verificationRemark?: string;
   sortOrder: number;
 }
@@ -2425,7 +2425,7 @@ export interface ProjectDictionaryFieldHit {
   mappedField?: string;
   mappedFieldCn?: string;
   remark?: string;
-  verificationStatus?: "未验证" | "已验证" | "待整改";
+  verificationStatus?: "未验证" | "已验证" | "待整改" | "外部SQL验证无误" | "Mapping逻辑核对一致" | "双跑核对无误";
   verificationRemark?: string;
   extra?: Record<string, unknown>;
   score: number;
