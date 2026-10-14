@@ -1,4 +1,5 @@
 import type { ProjectManagementRepo, ProjectModuleItem } from "../repos/ProjectManagementRepo.js";
+import type { DeliverablesRepo } from "../repos/DeliverablesRepo.js";
 import type { AiTaskContextSnapshot } from "./types.js";
 
 type ListedFile = { fileName: string; relativePath: string; size: number };
@@ -13,18 +14,26 @@ function text(value: unknown): string {
 }
 
 export class DeliverableTaskContextService {
-  constructor(private readonly projectManagement: Pick<ProjectManagementRepo, "listAllModuleItems">, private readonly listFiles: ListFiles) {}
+  constructor(
+    private readonly projectManagement: Pick<ProjectManagementRepo, "listAllModuleItems">,
+    private readonly listFiles: ListFiles,
+    private readonly standaloneDeliverables?: Pick<DeliverablesRepo, "get">,
+  ) {}
 
   async createSnapshot(projectId: string, deliverableId: string): Promise<AiTaskContextSnapshot> {
-    const deliverable = (await this.projectManagement.listAllModuleItems(projectId, "deliverables"))
+    const legacyDeliverable = (await this.projectManagement.listAllModuleItems(projectId, "deliverables"))
       .find(item => item.id === deliverableId);
+    const deliverable = legacyDeliverable ?? await this.standaloneDeliverables?.get(deliverableId);
     if (!deliverable) throw new Error("Deliverable not found.");
     return this.snapshot(projectId, deliverable);
   }
 
-  private async snapshot(projectId: string, item: ProjectModuleItem): Promise<AiTaskContextSnapshot> {
+  private async snapshot(projectId: string, item: Pick<ProjectModuleItem, "content">): Promise<AiTaskContextSnapshot> {
     const content = item.content;
-    const folderPath = text(content.folderPath).replaceAll("\\", "/").replace(/^\/+|\/+$/g, "");
+    const normalizedFolderPath = text(content.folderPath).replaceAll("\\", "/");
+    const folderPath = normalizedFolderPath.startsWith("/")
+      ? normalizedFolderPath.replace(/\/+$/g, "")
+      : normalizedFolderPath.replace(/^\/+|\/+$/g, "");
     if (content.recordType !== "deliverable" || !folderPath) throw new Error("Deliverable folder is required.");
     const records = Array.isArray(content.records) ? content.records.flatMap(record => {
       if (!isObject(record) || !text(record.id) || !text(record.kind) || !text(record.createdAt)) return [];

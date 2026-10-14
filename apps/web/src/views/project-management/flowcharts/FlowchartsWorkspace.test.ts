@@ -113,6 +113,10 @@ test("锁定画布后双击节点仍打开详情，不触发默认缩放", () =>
   assert.match(source, /onNodeDoubleClick=\{\(_, row\) => \{ setSelected\(row\.id\); setSelectedIds\(\[row\.id\]\); setDetailNode\(row\.id\); setCodexCompletedNodeIds\(current => current\.filter\(id => id !== row\.id\)\); \}\}/);
 });
 
+test("流程图默认使用内置锁控制画布交互", () => {
+  assert.match(source, /const \[canvasLocked, setCanvasLocked\] = useState\(true\)/);
+  assert.match(source, /<Controls showInteractive=\{false\}><ControlButton className="pfc-lock-control"/);
+});
 
 const source = readFileSync(new URL("./FlowchartsWorkspace.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("./FlowchartsWorkspace.css", import.meta.url), "utf8");

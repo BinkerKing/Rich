@@ -21,4 +21,20 @@ describe("DeliverableTaskContextService", () => {
     expect(snapshot.records.map(record => record.text)).toEqual(["Use the approved template"]);
     expect(snapshot.files).toEqual([expect.objectContaining({ relativePath: "07-交付/验收报告/source.xlsx", type: "material" })]);
   });
+
+  it("uses a standalone deliverable when it is no longer stored in the legacy project module", async () => {
+    const service = new DeliverableTaskContextService({
+      listAllModuleItems: async () => [] as never,
+    }, async () => [{ fileName: "source.xlsx", relativePath: "/projects/one/07-交付/验收报告/source.xlsx", size: 128 }], {
+      get: async () => ({
+        id: "deliverable-1", title: "验收报告", createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
+        content: { recordType: "deliverable", folderPath: "/projects/one/07-交付/验收报告", descriptionHtml: "<p>Use approved template</p>" },
+      }),
+    } as never);
+
+    const snapshot = await service.createSnapshot("project-1", "deliverable-1");
+
+    expect(snapshot.deliverable.requirementHtml).toContain("approved template");
+    expect(snapshot.files).toEqual([expect.objectContaining({ relativePath: "/projects/one/07-交付/验收报告/source.xlsx" })]);
+  });
 });

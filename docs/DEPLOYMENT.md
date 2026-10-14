@@ -3,12 +3,18 @@
 > 在一台新 Mac（或 macOS 服务器）从零部署 Rich.app + 接通 Hermes（百炼 Qwen）+ 云端 Postgres。
 > 跟着这份文档一步步执行，预计耗时 30-60 分钟（不含云数据库申请时间）。
 
+## 给执行部署的 AI
+
+先确认目标机器是 macOS Apple Silicon，并严格按以下顺序操作：安装系统依赖 → clone 仓库 → 从 `.env.example` 创建本机 `.env` → 配置并验证 Postgres 与 Hermes → 运行部署前检查 → `pnpm deploy` → 用健康检查确认应用可用。不要提交 `.env`、数据库 URL、Token 或用户数据；不要用本地 SQLite 代替想要跨电脑同步的数据源。
+
+`pnpm deploy` 是标准安装步骤：它会打包桌面端，替换 `/Applications/Rich.app`，并启动新版本。命令立即返回的日志路径可用于确认后台任务是否成功完成。
+
 ## 1. 系统前提
 
 | 项 | 要求 | 验证命令 |
 |---|---|---|
 | 操作系统 | macOS 13+，Apple Silicon（arm64） | `uname -m` 应输出 `arm64` |
-| Node.js | 20+ | `node -v` ≥ `v20.x` |
+| Node.js | **22.x**（与 `.nvmrc`、`package.json` 一致） | `node -v` 应为 `v22.x` |
 | pnpm | 9.0.0 | `pnpm -v` ≥ `9.0.0` |
 | Git | 任意现代版本 | `git --version` |
 | Xcode CLT | 用于 `better-sqlite3` 等原生模块编译 | `xcode-select -p` 非空 |
@@ -20,7 +26,7 @@
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # Node + pnpm
-brew install node@20
+brew install node@22
 corepack enable
 corepack prepare pnpm@9.0.0 --activate
 
@@ -37,6 +43,7 @@ cd ~/Documents          # 或任何你想放项目的位置
 git clone https://github.com/BinkerKing/Rich.git
 cd Rich
 pnpm install            # 装所有 workspace 依赖
+cp .env.example .env    # 仅在本机填写真实密钥，绝不提交
 ```
 
 `pnpm install` 期间会自动 build `better-sqlite3` 原生模块。如果失败，多半是 Xcode CLT 没装好。
@@ -280,10 +287,16 @@ codex auth status   # 子命令名可能因版本不同
 
 ## 4. 配置环境变量
 
-在项目根目录创建 `.env`（不要 commit，已在 `.gitignore`）：
+项目已提供 `.env.example`。先复制为 `.env`（不要 commit，已在 `.gitignore`），再填入真实值：
 
 ```bash
-cat > .env <<'EOF'
+cp .env.example .env
+# 用编辑器打开 .env 并填写 DATABASE_URL、RICH_AGENT_CAPABILITY_SECRET 等真实值
+```
+
+`.env` 的完整参考内容如下：
+
+```dotenv
 # === 存储 ===
 KE_STORAGE=postgres
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require
@@ -302,7 +315,6 @@ RICH_AGENT_CAPABILITY_SECRET=replace-with-a-long-random-secret
 
 # === 可选：覆盖数据目录（默认 ~/Library/Application Support/Rich/data） ===
 # KE_DATA_DIR=/Users/you/RichData
-EOF
 ```
 
 把 `USER:PASSWORD@HOST:DBNAME` 换成你自己的 Postgres connection string。
@@ -339,7 +351,18 @@ pnpm --filter @ke/web dev    # 在另一个 terminal 起前端 Vite
 
 ---
 
-## 6. 打包成 Rich.app
+## 6. 部署 Rich.app（标准步骤）
+
+先运行部署脚本的单元测试，再执行标准部署命令：
+
+```bash
+pnpm test:deploy
+pnpm deploy
+```
+
+`pnpm deploy` 会在后台完成打包、关闭旧 Rich、替换 `/Applications/Rich.app`、启动新 Rich；终端会立即打印日志路径。等待日志出现 `Deployment finished` 后，再进行 §7 健康检查。
+
+若只想生成 app 产物而不安装到 `/Applications`，可使用下面的手动打包命令：
 
 ```bash
 pnpm --filter @ke/desktop package
@@ -358,13 +381,13 @@ pnpm --filter @ke/desktop package
 
 > **原生模块 ABI 注意事项**：打包命令会把 `better-sqlite3` 重编译为 Electron 内置 Node 可加载的版本。这是 Rich.app 正常启动所必需的，但不能直接用于终端 Node 的服务端或路由集成测试。打包后若要运行这类测试，先执行 `nvm use && pnpm rebuild:sqlite`，再运行测试命令。
 
-### 6.1 把 Rich.app 拖进 /Applications（可选）
+### 6.1 手动安装到 /Applications（可选）
 
 ```bash
 ln -sfn "$(pwd)/apps/desktop/release/mac-arm64/Rich.app" /Applications/Rich.app
 ```
 
-这样 Spotlight 和 Dock 都能找到。
+标准 `pnpm deploy` 已自动完成这一步。只有手动打包时才需要执行。
 
 ### 6.2 启用 dev 模式 web 热更新（可选但推荐）
 
@@ -444,12 +467,12 @@ curl -s http://127.0.0.1:31515/api/great-me/state | head -c 200
 
 在第 N 台 Mac 部署时，只需复盘这几项：
 
-- [ ] Node 20 / pnpm 9 / Xcode CLT 装好
+- [ ] Node 22 / pnpm 9 / Xcode CLT 装好
 - [ ] `git clone` + `pnpm install`
-- [ ] 创建 `.env`，用**同一个** `DATABASE_URL`（数据就同步了）
+- [ ] 用 `.env.example` 创建 `.env`，并使用**同一个** `DATABASE_URL`（数据就同步了）
 - [ ] 通过 Bailian CLI 将 Hermes 配为 `qwen3.8-max`，并起 `hermes serve --port 8642`
 - [ ] 可选：如需直接 Codex 功能，再装 Codex.app 并 `auth login`
-- [ ] `pnpm --filter @ke/desktop package`
+- [ ] `pnpm test:deploy && pnpm deploy`
 - [ ] 可选：建 web-dist 软链（如果你打算这台机器也改代码）
 - [ ] 启动 Rich.app，看到云端的计划
 
@@ -461,7 +484,7 @@ curl -s http://127.0.0.1:31515/api/great-me/state | head -c 200
 cd Rich
 git pull                                       # 拉最新代码
 pnpm install                                   # 装新增依赖（如果有）
-pnpm --filter @ke/desktop package              # 重打 .app
+pnpm test:deploy && pnpm deploy                # 重打、安装并启动 Rich.app
 APP=apps/desktop/release/mac-arm64/Rich.app/Contents/Resources
 rm -rf "$APP/web-dist" && ln -s "$PWD/apps/web/dist" "$APP/web-dist"   # 重建软链（如果你之前用了）
 # 重启 Rich.app

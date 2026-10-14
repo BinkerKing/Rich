@@ -1,6 +1,25 @@
-# Know Everything
+# Rich
 
-Personal infinite-learning system. Phase 1 — foundation sprint complete (`v0.0.1-foundation`).
+Rich 是一个本地优先的桌面工作台：Electron 桌面端、React 前端和 Node 服务端组成一个 pnpm monorepo。
+
+## 给 AI 的部署入口
+
+在另一台 macOS Apple Silicon 电脑上部署时，先读
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)。它明确列出了所需环境、密钥应放置的位置、验证命令、常见故障，以及多机共享数据的配置方式。
+
+最短的生产部署流程如下：
+
+```bash
+git clone https://github.com/BinkerKing/Rich.git
+cd Rich
+corepack enable
+pnpm install
+cp .env.example .env       # 填入 DATABASE_URL 等本机密钥，绝不提交 .env
+pnpm test:deploy
+pnpm deploy                # 打包、替换 /Applications/Rich.app，并自动启动
+```
+
+部署前必须准备：macOS 13+（Apple Silicon）、Node.js 22.x、pnpm 9、Git、Xcode Command Line Tools；如使用 AI 功能，还需要本机可访问的 Hermes OpenAI 兼容服务。若要让多台电脑共享 Rich 数据，所有机器必须在 `.env` 中使用同一个 Postgres `DATABASE_URL`。
 
 ## Quick start
 
@@ -50,6 +69,6 @@ docs/
 | Command | Effect |
 |---|---|
 | `pnpm dev` | run web + server in parallel |
-| `pnpm run deploy` | start a detached macOS deployment job. It packages Rich, replaces `/Applications/Rich.app`, relaunches it, and immediately prints the job log path. |
+| `pnpm deploy` | start a detached macOS deployment job. It packages Rich, replaces `/Applications/Rich.app`, relaunches it, and immediately prints the job log path. |
 | `pnpm test` | run all package tests |
 | `pnpm typecheck` | typecheck all packages |

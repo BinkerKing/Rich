@@ -10,18 +10,27 @@ test("keeps node detail chrome free of redundant labels", () => {
   assert.doesNotMatch(source, /deep-node-detail__label">详情/);
 });
 
-test("shows a collapsed node-detail module list with description open by default", () => {
+test("renders node detail as a single rich-text editor with the node frame color", () => {
   assert.match(source, /const \[nodeDetailEditing, setNodeDetailEditing\] = useState\(false\);/);
-  assert.match(source, /const \[activeDetailSection, setActiveDetailSection\] = useState<DetailSection>\("description"\)/);
-  assert.match(source, /<header onDoubleClick=\{onToggle\}>/);
-  assert.match(source, /<NodeDetailSection title="说明" open=\{activeDetailSection === "description"\}/);
-  assert.match(source, /<NodeDetailSection title="流程图" open=\{activeDetailSection === "flowcharts"\}/);
-  assert.match(source, /<NodeDetailSection title="表格数据" open=\{activeDetailSection === "table"\}/);
-  assert.match(source, /<NodeDetailSection title="外部文件" open=\{activeDetailSection === "files"\}/);
   assert.match(source, /editing \? <ProjectRichTextEditorInput/);
   assert.match(source, /deep-node-detail__preview workflow-rich-content/);
-  assert.match(source, /setActiveDetailSection\("description"\); setNodeDetailEditing\(false\)/);
-  assert.match(styles, /deep-node-detail__section/);
-  assert.match(styles, /deep-node-detail\.is-fullscreen \.deep-node-detail__body/);
-  assert.match(source, /scrollIntoView\(\{ behavior: "smooth", block: "start" \}\)/);
+  assert.match(source, /function nodeFrameColor\(/);
+  assert.match(source, /"--node-detail-accent": nodeFrameColor/);
+  assert.doesNotMatch(source, /FlowchartBindings/);
+  assert.doesNotMatch(source, /NodeDetailTableEditor/);
+  assert.doesNotMatch(source, /ExternalFileBindings/);
+  assert.doesNotMatch(source, /NodeDetailTableOfContents/);
+  assert.doesNotMatch(source, /deep-node-detail-document/);
+  assert.doesNotMatch(source, /deep-node-detail__richtext-actions/);
+  assert.match(source, /className={`deep-node-detail__edit-toggle/);
+  assert.match(source, /<EditModeIcon \/>/);
+  assert.match(styles, /\.deep-node-detail h2\s*\{[^}]*color:var\(--node-detail-accent\)/s);
+  assert.match(styles, /\.deep-node-detail\s*\{[^}]*border:1px solid color-mix\(in srgb,var\(--node-detail-accent\) 58%,transparent\)[^}]*border-left:3px solid var\(--node-detail-accent\)/s);
+  assert.match(styles, /\.deep-node-detail>header\s*\{[^}]*border-left:0/s);
+});
+
+test("opens a mindmap's bound Codex Session", () => {
+  assert.match(source, /import \{ openBoundCodex \} from "\.\/project-management\/deliverables\/DeliverableCodexLauncher\.js";/);
+  assert.match(source, /api\.ensureMindmapCodexSession\(active\.id, `\$\{active\.title\} · Codex`\)/);
+  assert.match(source, /openBoundCodex\(\{ projectId: "__general__", deliverableId: active\.id, deliverableTitle: active\.title, resourceType: "mindmap", conversationId: session\.conversation\.id \}\)/);
 });

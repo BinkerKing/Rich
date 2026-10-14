@@ -107,6 +107,30 @@ test("驾驶舱压缩顶部栏并扩大贴边工作区", () => {
   assert.match(styles, /\.delivery-dashboard-grid \{[^}]*padding:8px/s);
 });
 
+test("驾驶舱右侧面板一次只展开一个，默认展示今日动态", () => {
+  assert.match(source, /const \[activeSidePanel, setActiveSidePanel\] = useState<DashboardSidePanel>\("feed"\)/);
+  assert.match(source, /className=\{`delivery-dashboard-side is-\$\{activeSidePanel\}-active`\}/);
+  assert.match(source, /onActivate=\{\(\) => setActiveSidePanel\("todos"\)\}/);
+  assert.match(source, /onActivate=\{\(\) => setActiveSidePanel\("risks"\)\}/);
+  assert.match(source, /onActivate=\{\(\) => setActiveSidePanel\("feed"\)\}/);
+  assert.match(styles, /\.delivery-dashboard-side\.is-feed-active \{[^}]*grid-template-rows:minmax\(0,1fr\) auto auto/s);
+  assert.match(styles, /\.delivery-dashboard-side\.is-todos-active \{[^}]*grid-template-rows:auto minmax\(0,1fr\) auto/s);
+  assert.match(styles, /\.delivery-dashboard-side\.is-risks-active \{[^}]*grid-template-rows:auto auto minmax\(0,1fr\)/s);
+});
+
+test("待办和风险标题仅显示对应条数，不再提供查看全部入口", () => {
+  const dashboardSummary = source.slice(source.indexOf("function DashboardSummary"));
+  assert.match(dashboardSummary, /<span>\{count\}<\/span>/);
+  assert.doesNotMatch(dashboardSummary, /查看全部/);
+  assert.match(styles, /\.delivery-dashboard-summary__title > span \{[^}]*font-variant-numeric:tabular-nums/);
+  assert.match(styles, /button:not\(\.delivery-dashboard-panel__title\):not\(\.delivery-dashboard-summary__title\) \{ display:none;/);
+});
+
+test("今日动态与待办清单使用同一规格的标题条", () => {
+  assert.match(styles, /\.delivery-dashboard-feed > header,\.delivery-dashboard-summary > header \{ padding:0;/);
+  assert.match(styles, /\.delivery-dashboard-feed \.delivery-dashboard-panel__title h2,\.delivery-dashboard-summary__title h2 \{[^}]*font:600 18px\/1\.2 inherit/);
+});
+
 test("动态类型选择器使用无箭头的自适应抽屉，并为每种类型保留语义色", () => {
   assert.match(source, /function ActivityKindDrawer\(/);
   assert.match(source, /createPortal\(/);
